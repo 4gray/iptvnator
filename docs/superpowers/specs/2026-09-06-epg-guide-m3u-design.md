@@ -87,7 +87,7 @@ interface EpgGuideScope {
 }
 
 interface EpgGuideWindow {
-    channels: EpgGuideChannel[];
+    channels: readonly EpgGuideChannel[];
     fromMs: number; // provider-clock instants (display offset already removed)
     toMs: number;
 }
@@ -101,7 +101,9 @@ interface EpgGuideSource {
     loadCoverage(window: EpgGuideWindow): Promise<Set<string>>;              // channel.ids with ≥1 programme
     readonly activeChannelId: Signal<string | null>;
     activate(channelId: string): void; // switch playback; the guide stays open
-    searchPrograms?(query: string): Promise<EpgProgram[]>; // toolbar search hidden when absent
+    searchPrograms?(query: string): Promise<EpgGuideSearchHit[]>; // toolbar search hidden when absent
+    // EpgGuideSearchHit = { channelId: string | null; program: EpgProgram } — the host
+    // supplies the row id when it can resolve one, so a hit can be highlighted later
     catchUp?: {
         canWatch(channel: EpgGuideChannel, program: EpgProgram): boolean;
         watch(channel: EpgGuideChannel, program: EpgProgram): void;
