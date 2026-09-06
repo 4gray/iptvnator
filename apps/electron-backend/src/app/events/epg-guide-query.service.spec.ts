@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process';
+import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
 import {
     EPG_GUIDE_MAX_CHANNELS_PER_REQUEST,
     EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST,
     EpgGuideQueryService,
     guideWindowCondition,
-    guideWindowOverlapSqlText,
     normalizeGuideWindow,
 } from './epg-guide-query.service';
 import { epgLogger } from '../util/epg-logger';
@@ -16,7 +16,7 @@ jest.mock('../database/connection', () => ({
 }));
 
 jest.mock('../util/epg-logger', () => ({
-    epgLogger: { error: jest.fn(), warn: jest.fn(), log: jest.fn() },
+    epgLogger: { error: jest.fn(), log: jest.fn() },
 }));
 
 function flattenSql(value: unknown, seen = new Set<unknown>()): string {
@@ -160,24 +160,6 @@ describe('normalizeGuideWindow', () => {
     });
 });
 
-describe('guideWindowCondition', () => {
-    it('flattens to the same "< datetime( ... ) AND > datetime( ... )" operator sequence as the plain-SQL twin', () => {
-        const window = normalizeGuideWindow({
-            channelIds: ['zdf.de'],
-            fromMs: FROM,
-            toMs: TO,
-        });
-        if (!window) {
-            throw new Error('expected a valid window');
-        }
-        const flattened = flattenSql(guideWindowCondition(['zdf.de'], window));
-        const ltIndex = flattened.indexOf('< datetime(');
-        const gtIndex = flattened.indexOf('> datetime(');
-        expect(ltIndex).toBeGreaterThan(-1);
-        expect(gtIndex).toBeGreaterThan(ltIndex);
-    });
-});
-
 /** `true` when the CLI answers `sqlite3 -version`. Present on macOS and CI. */
 function hasSqlite(): boolean {
     try {
@@ -192,25 +174,68 @@ function quote(literal: string): string {
     return `'${literal.replace(/'/g, "''")}'`;
 }
 
+/** Substitutes a Drizzle-rendered query's `?` placeholders with literal SQL values. */
+function inlineParams(sqlText: string, params: unknown[]): string {
+    let index = 0;
+    return sqlText.replace(/\?/g, () => {
+        const value = params[index];
+        index += 1;
+        return typeof value === 'string' ? quote(value) : String(value);
+    });
+}
+
 const describeWithSqlite = hasSqlite() ? describe : describe.skip;
 
-describeWithSqlite('guideWindowOverlapSqlText against SQLite', () => {
+describeWithSqlite('guideWindowCondition rendered against SQLite', () => {
     const FROM_ISO = '2026-09-06T00:00:00.000Z';
     const TO_ISO = '2026-09-07T00:00:00.000Z';
 
-    function overlappingChannelIds(
-        rows: Array<[channelId: string, start: string, stop: string]>
+    /**
+     * Renders the real Drizzle predicate to plain SQL (never a hand-written
+     * restatement of its logic) so it can be proven against a real SQLite
+     * engine.
+     */
+    function renderPredicate(
+        epgIds: string[],
+        sourceUrls: string[] = []
+    ): string {
+        const window = normalizeGuideWindow({
+            channelIds: epgIds,
+            fromMs: Date.parse(FROM_ISO),
+            toMs: Date.parse(TO_ISO),
+            sourceUrls,
+        });
+        if (!window) {
+            throw new Error('expected a valid window');
+        }
+        const { sql, params } = new SQLiteSyncDialect().sqlToQuery(
+            guideWindowCondition(epgIds, window)
+        );
+        return inlineParams(sql, params);
+    }
+
+    function matchingChannelIds(
+        predicate: string,
+        rows: Array<
+            [
+                channelId: string,
+                start: string,
+                stop: string,
+                sourceUrl: string | null,
+            ]
+        >
     ): string[] {
-        const predicate = guideWindowOverlapSqlText(FROM_ISO, TO_ISO);
         const values = rows
             .map(
-                ([channelId, start, stop]) =>
-                    `(${quote(channelId)}, ${quote(start)}, ${quote(stop)})`
+                ([channelId, start, stop, sourceUrl]) =>
+                    `(${quote(channelId)}, ${quote(start)}, ${quote(stop)}, ${
+                        sourceUrl === null ? 'NULL' : quote(sourceUrl)
+                    })`
             )
             .join(', ');
         const script = [
-            'CREATE TABLE epg_programs (channel_id TEXT, start TEXT, stop TEXT);',
-            `INSERT INTO epg_programs (channel_id, start, stop) VALUES ${values};`,
+            'CREATE TABLE epg_programs (channel_id TEXT, start TEXT, stop TEXT, source_url TEXT);',
+            `INSERT INTO epg_programs (channel_id, start, stop, source_url) VALUES ${values};`,
             `SELECT channel_id FROM epg_programs WHERE ${predicate} ORDER BY channel_id;`,
         ].join('\n');
         const out = execFileSync('sqlite3', [':memory:', script], {
@@ -223,24 +248,65 @@ describeWithSqlite('guideWindowOverlapSqlText against SQLite', () => {
     }
 
     it('keeps rows overlapping the window and drops boundary-touching or non-overlapping rows', () => {
-        const result = overlappingChannelIds([
+        const predicate = renderPredicate(['a', 'b', 'c', 'd', 'e']);
+        const result = matchingChannelIds(predicate, [
             // Crosses the window start: overlaps.
-            ['a', '2026-09-05T23:30:00.000Z', '2026-09-06T00:30:00.000Z'],
+            ['a', '2026-09-05T23:30:00.000Z', '2026-09-06T00:30:00.000Z', null],
             // Spans the whole window: overlaps.
-            ['b', '2026-09-01T00:00:00.000Z', '2026-09-10T00:00:00.000Z'],
+            ['b', '2026-09-01T00:00:00.000Z', '2026-09-10T00:00:00.000Z', null],
             // stop === from: excluded (strict `>`).
-            ['c', '2026-09-05T22:00:00.000Z', '2026-09-06T00:00:00.000Z'],
+            ['c', '2026-09-05T22:00:00.000Z', '2026-09-06T00:00:00.000Z', null],
             // start === to: excluded (strict `<`).
-            ['d', '2026-09-07T00:00:00.000Z', '2026-09-07T01:00:00.000Z'],
+            ['d', '2026-09-07T00:00:00.000Z', '2026-09-07T01:00:00.000Z', null],
             // Stored with a +03:00 offset. In UTC this is
             // [2026-09-06T23:00:00Z, 2026-09-07T00:30:00Z), which overlaps —
             // but a raw string compare of "07T02:00...+03:00" against
             // "07T00:00...Z" would say `start < to` is FALSE (lexically "02"
             // sorts after "00"), wrongly excluding it. Only `datetime()`
             // normalization recovers the correct overlap.
-            ['e', '2026-09-07T02:00:00+03:00', '2026-09-07T03:30:00+03:00'],
+            [
+                'e',
+                '2026-09-07T02:00:00+03:00',
+                '2026-09-07T03:30:00+03:00',
+                null,
+            ],
         ]);
         expect(result).toEqual(['a', 'b', 'e']);
+    });
+
+    it('scopes to the requested source URLs plus unsourced legacy rows', () => {
+        const predicate = renderPredicate(
+            ['u1-row', 'other-row', 'null-row', 'empty-row'],
+            ['u1']
+        );
+        expect(predicate).toContain('"source_url" is null');
+        const result = matchingChannelIds(predicate, [
+            [
+                'u1-row',
+                '2026-09-06T12:00:00.000Z',
+                '2026-09-06T13:00:00.000Z',
+                'u1',
+            ],
+            [
+                'other-row',
+                '2026-09-06T12:00:00.000Z',
+                '2026-09-06T13:00:00.000Z',
+                'other',
+            ],
+            [
+                'null-row',
+                '2026-09-06T12:00:00.000Z',
+                '2026-09-06T13:00:00.000Z',
+                null,
+            ],
+            [
+                'empty-row',
+                '2026-09-06T12:00:00.000Z',
+                '2026-09-06T13:00:00.000Z',
+                '',
+            ],
+        ]);
+        expect(result).toEqual(['empty-row', 'null-row', 'u1-row']);
     });
 });
 
@@ -375,7 +441,7 @@ describe('EpgGuideQueryService', () => {
         expect('ch-100' in result).toBe(false);
         expect(epgLogger.log).toHaveBeenCalledWith(
             '[Test]',
-            'Guide request truncated',
+            'Guide programme request truncated',
             { requested: 101, kept: EPG_GUIDE_MAX_CHANNELS_PER_REQUEST }
         );
     });
@@ -415,5 +481,28 @@ describe('EpgGuideQueryService', () => {
         });
 
         expect(getChannelMetadata).toHaveBeenCalledWith(ids, {});
+    });
+
+    it('logs the coverage-specific truncation message when the coverage cap drops keys', async () => {
+        const ids = Array.from(
+            { length: EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST + 1 },
+            (_, index) => `ch-${index}`
+        );
+        getChannelMetadata.mockResolvedValue({});
+
+        await service.getProgramCoverage({
+            channelIds: ids,
+            fromMs: FROM,
+            toMs: TO,
+        });
+
+        expect(epgLogger.log).toHaveBeenCalledWith(
+            '[Test]',
+            'Guide coverage request truncated',
+            {
+                requested: EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST + 1,
+                kept: EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST,
+            }
+        );
     });
 });

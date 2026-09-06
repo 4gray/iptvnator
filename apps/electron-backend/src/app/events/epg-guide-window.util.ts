@@ -80,23 +80,3 @@ export function normalizeGuideWindow(
         sourceUrls,
     };
 }
-
-function escapeSqlLiteral(value: string): string {
-    return value.replace(/'/g, "''");
-}
-
-/**
- * Plain-SQL twin of the Drizzle overlap predicate, used to prove the
- * predicate's behaviour against a real SQLite engine rather than against a
- * restatement of the builder's own logic. Must stay in lockstep with
- * `guideWindowCondition`'s two `sql\`...\`` fragments.
- */
-export function guideWindowOverlapSqlText(
-    fromIso: string,
-    toIso: string
-): string {
-    return (
-        `datetime(start) < datetime('${escapeSqlLiteral(toIso)}') AND ` +
-        `datetime(stop) > datetime('${escapeSqlLiteral(fromIso)}')`
-    );
-}

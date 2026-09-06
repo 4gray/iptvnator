@@ -15,12 +15,12 @@ import {
     EpgGuideWindowRequest,
     NormalizedGuideWindow,
     normalizeGuideWindow,
+    uniqueTrimmedStrings,
 } from './epg-guide-window.util';
 
 export {
     EPG_GUIDE_MAX_CHANNELS_PER_REQUEST,
     EPG_GUIDE_MAX_COVERAGE_KEYS_PER_REQUEST,
-    guideWindowOverlapSqlText,
     normalizeGuideWindow,
 } from './epg-guide-window.util';
 export type {
@@ -32,11 +32,22 @@ type ChannelResolver = Pick<EpgQueryService, 'getChannelMetadata'>;
 
 /**
  * Overlap test in SQLite `datetime()` so provider-local offsets in the
- * stored ISO strings compare correctly against the UTC window bounds. When
- * `sourceUrls` is non-empty, the scope is additive — "these sources plus
- * legacy (unsourced) rows" — mirroring `EpgQueryService`'s legacy fallback,
- * so pre-multi-source imports (`source_url` null/empty) are never dropped
- * just because a caller scoped the request to specific EPG sources.
+ * stored ISO strings compare correctly against the UTC window bounds.
+ *
+ * Unlike `EpgQueryService`, which runs a scoped query and then, on an empty
+ * result, a second unscoped legacy query, this predicate is folded into a
+ * SINGLE query: when `sourceUrls` is non-empty, the `WHERE` clause accepts
+ * the union of rows belonging to the requested sources AND unsourced legacy
+ * rows (`source_url` null or `''`) in one pass. Rows that satisfy both a
+ * requested source and the legacy leg are not double-counted — identical
+ * slots (same channel + start + title) are collapsed later in
+ * `groupPrograms`. Legacy rows exist only for programme data imported
+ * before per-source EPG tracking was added; the `source_url` backfill in
+ * `libs/shared/database/src/lib/connection.ts` fills it in where it can
+ * still be inferred from the owning channel, but a row it cannot attribute
+ * stays unsourced permanently. In v1 the M3U host never scopes this query to
+ * specific sources (it queries unscoped), so this additive behaviour only
+ * matters for portal (Xtream/Stalker) hosts, which do pass `sourceUrls`.
  */
 export function guideWindowCondition(
     epgIds: string[],
@@ -90,7 +101,11 @@ export class EpgGuideQueryService {
         if (!window) {
             return {};
         }
-        this.warnIfTruncated(request.channelIds, window.channelIds);
+        this.warnIfTruncated(
+            request.channelIds,
+            window.channelIds,
+            'programme'
+        );
         const result = this.emptyResult(window.channelIds);
         try {
             const resolved = await this.resolveChannelIds(window);
@@ -130,6 +145,12 @@ export class EpgGuideQueryService {
         return result;
     }
 
+    /**
+     * Response keys are exactly the trimmed, de-duplicated, cap-respecting
+     * requested keys (`window.channelIds`) — never the raw request. A key cut
+     * by the per-request cap is absent from the result. An invalid window,
+     * or any failure while querying, returns `[]`.
+     */
     async getProgramCoverage(
         request: EpgGuideWindowRequest
     ): Promise<string[]> {
@@ -140,7 +161,7 @@ export class EpgGuideQueryService {
         if (!window) {
             return [];
         }
-        this.warnIfTruncated(request.channelIds, window.channelIds);
+        this.warnIfTruncated(request.channelIds, window.channelIds, 'coverage');
         try {
             const resolved = await this.resolveChannelIds(window);
             const epgIds = Array.from(new Set(resolved.values()));
@@ -178,16 +199,21 @@ export class EpgGuideQueryService {
     /**
      * Logs (counts only — no channel keys or source URLs) when the per-request
      * cap dropped part of the request, so an oversized batch is visible in
-     * diagnostics instead of silently losing channels.
+     * diagnostics instead of silently losing channels. `kind` names which
+     * read was truncated (programme lookup vs. coverage probe) since both
+     * share this helper but log to the same channel.
      */
-    private warnIfTruncated(requestedIds: unknown, keptIds: string[]): void {
-        const requestedCount = new Set(
-            (Array.isArray(requestedIds) ? requestedIds : [])
-                .map((id) => (typeof id === 'string' ? id.trim() : ''))
-                .filter((id) => id.length > 0)
-        ).size;
+    private warnIfTruncated(
+        requestedIds: unknown,
+        keptIds: string[],
+        kind: 'programme' | 'coverage'
+    ): void {
+        const requestedCount = uniqueTrimmedStrings(
+            requestedIds,
+            Number.MAX_SAFE_INTEGER
+        ).length;
         if (requestedCount > keptIds.length) {
-            epgLogger.log(this.loggerLabel, 'Guide request truncated', {
+            epgLogger.log(this.loggerLabel, `Guide ${kind} request truncated`, {
                 requested: requestedCount,
                 kept: keptIds.length,
             });

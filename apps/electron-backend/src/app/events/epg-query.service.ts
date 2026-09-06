@@ -5,7 +5,7 @@ import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
 import { isValidEpgProgram, toEpgProgramFromRow } from './epg-program-row.util';
 
-interface EpgProgramRow {
+interface EpgProgramSelectRow {
     id: number;
     channelId: string;
     start: string;
@@ -470,7 +470,7 @@ export class EpgQueryService {
 
     private assignCurrentProgramRows(
         result: Record<string, EpgProgram | null>,
-        rows: EpgProgramRow[]
+        rows: EpgProgramSelectRow[]
     ): Set<string> {
         const matchedChannelIds = new Set<string>();
         for (const row of rows) {
@@ -508,7 +508,7 @@ export class EpgQueryService {
     private assignCandidateCurrentProgramRows(
         result: Record<string, EpgProgram | null>,
         candidateIdsByRequestedId: Map<string, string>,
-        rows: EpgProgramRow[]
+        rows: EpgProgramSelectRow[]
     ): Set<string> {
         const matchedCandidateIds = new Set<string>();
         for (const row of rows) {
@@ -536,7 +536,7 @@ export class EpgQueryService {
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[]
-    ): Promise<EpgProgramRow[]> {
+    ): Promise<EpgProgramSelectRow[]> {
         return (
             db
                 .select()
@@ -563,7 +563,7 @@ export class EpgQueryService {
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[]
-    ): Promise<EpgProgramRow[]> {
+    ): Promise<EpgProgramSelectRow[]> {
         if (sourceUrls.length === 0) {
             return [];
         }
@@ -593,7 +593,7 @@ export class EpgQueryService {
         now: string,
         sourceUrls: string[],
         options: { legacyOnly?: boolean } = {}
-    ): Promise<EpgProgramRow[]> {
+    ): Promise<EpgProgramSelectRow[]> {
         if (channelIds.length === 0) {
             return [];
         }
@@ -928,7 +928,7 @@ export class EpgQueryService {
      * `sourceUrls`) can return the same channel/start/title from two EPG
      * sources; keep the first so a programme is never shown twice.
      */
-    private toEpgPrograms(rows: EpgProgramRow[]): EpgProgram[] {
+    private toEpgPrograms(rows: EpgProgramSelectRow[]): EpgProgram[] {
         const seen = new Set<string>();
         const programs: EpgProgram[] = [];
         for (const row of rows) {
