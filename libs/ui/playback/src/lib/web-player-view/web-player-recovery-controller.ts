@@ -40,6 +40,7 @@ export interface WebPlayerRecoveryControllerDeps {
     readonly playbackExternallyTransferable: Signal<boolean>;
     readonly alternativeSourceCount: () => number;
     readonly managedExternalPlayersAvailable: () => boolean;
+    readonly tryAutoLiveFormat?: (issue: PlaybackDiagnostic) => boolean;
     readonly emitPlaybackFailed: (code: PlaybackDiagnosticCode) => void;
     readonly emitExternalFallbackRequested: (
         request: PlaybackFallbackRequest
@@ -117,6 +118,12 @@ export class WebPlayerRecoveryController {
         }
         if (!issue) {
             recoverySession.settle(binding);
+            this.clearDiagnostic();
+            return;
+        }
+        if (this.deps.tryAutoLiveFormat?.(issue)) {
+            applicationHandoff.invalidate();
+            recoverySession.clearPlaybackBinding();
             this.clearDiagnostic();
             return;
         }

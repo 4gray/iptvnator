@@ -845,6 +845,7 @@
             "ZOOM_DAY": "Vista del día",
             "ZOOM_HOURS": "Por hora",
             "ZOOM_DETAIL": "Detallado",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · ⌘/Ctrl + rueda para ajustar",
             "GROUP_SHORT": "progs. cortos",
             "GROUP_EXPAND": "ver ›"
         }

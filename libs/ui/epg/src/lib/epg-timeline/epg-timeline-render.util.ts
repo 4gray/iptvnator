@@ -11,10 +11,30 @@ import { TIMELINE_MINUTE_MS, TimelineBlock } from './epg-timeline.utils';
 export const TIMELINE_MIN_BLOCK_WIDTH_PX = 40;
 /** Gap subtracted from each block so neighbours don't touch. */
 export const TIMELINE_BLOCK_GAP_PX = 4;
-/** Zoom (px/min) slider bounds. */
+/** Zoom (px/min) bounds for the Ctrl/⌘ + wheel fine-tune gesture. */
 export const TIMELINE_ZOOM_MIN = 0.8;
 export const TIMELINE_ZOOM_MAX = 6;
-export const TIMELINE_ZOOM_STEP = 0.1;
+/**
+ * Multiplicative zoom per wheel pixel: one mouse notch (~100px) is about
+ * ×1.22, and a trackpad pinch (a few px per event) stays smooth.
+ */
+export const TIMELINE_WHEEL_ZOOM_RATE = 0.002;
+
+export type TimelineZoomLevel = 'day' | 'hours' | 'detail';
+
+/**
+ * The three zoom presets the toolbar button cycles through. `hours` is the
+ * default scale; `detail` matches the zoom a group chip expands to, so the
+ * cycle keeps reading consistently after an expand.
+ */
+export const TIMELINE_ZOOM_LEVELS: readonly {
+    readonly level: TimelineZoomLevel;
+    readonly scale: number;
+}[] = [
+    { level: 'day', scale: 1 },
+    { level: 'hours', scale: 1.75 },
+    { level: 'detail', scale: 3.4 },
+];
 /** Below this zoom, dense runs of short programmes collapse into a group chip. */
 export const TIMELINE_GROUP_ZOOM_MAX = 1.3;
 /** Zoom applied when a group chip is expanded. */
@@ -67,6 +87,24 @@ export function tierFor(widthPx: number): TimelineTier {
     if (widthPx >= 70) return 'med';
     if (widthPx >= 30) return 'narrow';
     return 'micro';
+}
+
+/** Which preset band a (possibly wheel-tuned) scale falls into. */
+export function timelineZoomLevelForScale(scale: number): TimelineZoomLevel {
+    if (scale < TIMELINE_GROUP_ZOOM_MAX) return 'day';
+    if (scale < 3) return 'hours';
+    return 'detail';
+}
+
+/** The preset after the current band, wrapping detail → day. */
+export function nextTimelineZoomScale(scale: number): number {
+    const current = timelineZoomLevelForScale(scale);
+    const index = TIMELINE_ZOOM_LEVELS.findIndex(
+        (entry) => entry.level === current
+    );
+    const next =
+        TIMELINE_ZOOM_LEVELS[(index + 1) % TIMELINE_ZOOM_LEVELS.length];
+    return next.scale;
 }
 
 /** Adaptive tick spacing (minutes) — denser as the user zooms in. */
@@ -151,7 +189,8 @@ export function buildTimelineRenderItems(
         if (run.length >= TIMELINE_GROUP_MIN_RUN) {
             const first = run[0];
             const last = run[run.length - 1];
-            const spanPx = ((last.stopMs - first.startMs) / TIMELINE_MINUTE_MS) * scale;
+            const spanPx =
+                ((last.stopMs - first.startMs) / TIMELINE_MINUTE_MS) * scale;
             items.push({
                 kind: 'group',
                 key: `group-${first.key}-${last.key}`,

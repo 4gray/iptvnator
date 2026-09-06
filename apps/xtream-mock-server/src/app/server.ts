@@ -6,6 +6,7 @@ import express, {
     type Request,
     type Response,
 } from 'express';
+import { installLiveFormatFixture } from './live-format-fixture.js';
 import { resetAll } from './data-store.js';
 import { renderMarketingAssetSvg } from './generators/marketing.generator.js';
 import { installPerformanceControlRoutes } from './performance-control-routes.js';
@@ -107,6 +108,7 @@ export function createXtreamMockApp(
             dispatchAction(request, response)
         );
     });
+    if (!controlEnabled) installLiveFormatFixture(app);
     installStreamRoutes(app, controlEnabled);
     app.get('/xtream', (request, response, next) => {
         dispatchWithControl(controller, request, response, next, 'proxy', () =>

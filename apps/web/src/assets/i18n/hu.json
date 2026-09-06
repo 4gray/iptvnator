@@ -845,6 +845,7 @@
             "ZOOM_DAY": "Napi áttekintés",
             "ZOOM_HOURS": "Óránként",
             "ZOOM_DETAIL": "Részletes",
+            "ZOOM_TOOLTIP": "Nagyítás: {{level}} · ⌘/Ctrl + görgetés a finomhangoláshoz",
             "GROUP_SHORT": "rövid műsorok",
             "GROUP_EXPAND": "megjelenítés ›"
         }

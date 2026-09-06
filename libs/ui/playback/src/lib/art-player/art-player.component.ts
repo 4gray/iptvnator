@@ -66,6 +66,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackEnded = output<void>();
+    readonly playbackStarted = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
 
@@ -187,6 +188,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
             emitTimeUpdate: (value) => this.timeUpdate.emit(value),
             emitPlaybackEnded: () => this.playbackEnded.emit(),
+            emitPlaybackStarted: () => this.playbackStarted.emit(),
         });
         this.videoSession = videoSession;
         videoSession.attach();

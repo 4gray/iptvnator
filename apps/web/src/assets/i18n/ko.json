@@ -845,6 +845,7 @@
             "ZOOM_DAY": "하루 보기",
             "ZOOM_HOURS": "시간별",
             "ZOOM_DETAIL": "상세",
+            "ZOOM_TOOLTIP": "확대/축소: {{level}} · ⌘/Ctrl + 스크롤로 미세 조정",
             "GROUP_SHORT": "짧은 프로그램",
             "GROUP_EXPAND": "보기 ›"
         }

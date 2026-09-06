@@ -87,6 +87,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
     @Output() playbackEnded = new EventEmitter<void>();
+    @Output() playbackStarted = new EventEmitter<void>();
     @Output() previousEpisodeRequested = new EventEmitter<void>();
     @Output() nextEpisodeRequested = new EventEmitter<void>();
 
@@ -382,6 +383,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
             emitTimeUpdate: (value) => this.timeUpdate.emit(value),
             emitPlaybackEnded: () => this.playbackEnded.emit(),
+            emitPlaybackStarted: () => this.playbackStarted.emit(),
         });
         return this.videoSession;
     }

@@ -27,6 +27,7 @@ export class StubVjsPlayerComponent {
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackStarted = output<void>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
@@ -48,6 +49,7 @@ export class StubHtmlVideoPlayerComponent {
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackStarted = output<void>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
@@ -69,6 +71,7 @@ export class StubArtPlayerComponent {
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackStarted = output<void>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
