@@ -245,6 +245,37 @@ An asset no rule claims is reported as a `NOTE:` and does **not** fail the run:
 a new build target should surface for a human to notice, not block a release
 until the rules catch up.
 
+## AppImage external-manager metadata
+
+`electron-builder.json` scopes `X-AppImage-Name`, `X-AppImage-Homepage` and
+`X-AppImage-UpdateURL` to `appImage.desktop.entry`. The source URL is the
+canonical GitHub repository. AppManager 3.8.0 reads these URL fields and can
+discover GitHub releases and download complete AppImages. Its architecture
+selection recognizes the existing `x86_64`, `arm64` and `armv7l` asset names.
+Other Linux package formats do not inherit these AppImage-specific fields.
+`extraMetadata.desktopName=iptvnator` preserves the existing window class and
+desktop filename. Do not reintroduce a shared `linux.desktop.entry` object:
+electron-builder 26.15.7's target merge mutates nested defaults, which would
+leak the AppImage URL fields into Snap in the same portable packaging pass.
+
+Electron Builder generates `X-AppImage-Version` from `appInfo.buildVersion`;
+do not hardcode it in the desktop entry. `X-AppImage-Arch` is intentionally
+omitted: a single runner-wide value would mislabel this multi-architecture
+target. Version, preserved desktop defaults and format isolation are checked
+through the installed builder in `electron-package-identity.test.mjs`.
+
+This metadata enables AppManager's full-download workflow. It does not embed
+AppImageUpdate `.upd_info`, generate `.zsync`, or change Electron's existing
+`latest-linux*.yml` and embedded blockmap update path. The required release
+asset set remains unchanged. Gear Lever/AppImageUpdate delta compatibility
+is not implied. An older AppImage needs a first manual or built-in update,
+or a manually configured AppManager source, to acquire these fields. Use one
+updater at a time for a manager-owned installation.
+
+References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-integration.html),
+[AppManager desktop parser](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/desktop_entry.vala),
+[AppManager updater](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/updater.vala).
+
 ## After verification
 
 Publishing the GitHub release is manual. That publication automatically

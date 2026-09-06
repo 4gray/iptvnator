@@ -155,15 +155,88 @@ test('Linux package identity does not expose the internal Electron backend proje
     assert.equal(electronBuilderConfig.extraMetadata?.name, 'iptvnator');
     assert.equal(electronBuilderConfig.extraMetadata?.productName, 'IPTVnator');
     assert.equal(electronBuilderConfig.linux?.executableName, 'iptvnator');
-    assert.equal(
-        electronBuilderConfig.linux?.desktop?.entry?.StartupWMClass,
-        'iptvnator'
-    );
+    assert.equal(electronBuilderConfig.extraMetadata?.desktopName, 'iptvnator');
     assert.ok(
         electronBuilderConfig.linux?.executableArgs?.includes(
             '--ozone-platform=x11'
         )
     );
+});
+
+test('AppImage desktop metadata supports AppManager without changing other Linux packages', async () => {
+    // Exercise the installed builder: target-specific desktop fields must merge
+    // with Linux defaults, and the builder must keep generating the version.
+    const builderRequire = createRequire(require.resolve('electron-builder'));
+    const { default: AppImageTarget } = builderRequire(
+        'app-builder-lib/out/targets/appimage/AppImageTarget'
+    );
+    const { LinuxTargetHelper } = builderRequire(
+        'app-builder-lib/out/targets/LinuxTargetHelper'
+    );
+    for (const version of [
+        packageMetadata.version,
+        '0.24.1',
+        '0.25.0-beta.1',
+    ]) {
+        const config = structuredClone(electronBuilderConfig);
+        const packager = {
+            config,
+            platformSpecificBuildOptions: config.linux,
+            executableName: config.linux.executableName,
+            fileAssociations: config.fileAssociations,
+            info: { metadata: { ...packageMetadata, ...config.extraMetadata } },
+            appInfo: {
+                productName: config.productName,
+                description: packageMetadata.description,
+                buildVersion: version,
+            },
+        };
+        const helper = new LinuxTargetHelper(packager);
+        const target = new AppImageTarget(
+            'AppImage',
+            packager,
+            helper,
+            os.tmpdir()
+        );
+        const desktop = await target.desktopEntry.value;
+        const fields = Object.fromEntries(
+            desktop
+                .split('\n')
+                .filter((line) => line.includes('='))
+                .map((line) => {
+                    const separator = line.indexOf('=');
+                    return [
+                        line.slice(0, separator),
+                        line.slice(separator + 1),
+                    ];
+                })
+        );
+        assert.equal(fields['X-AppImage-Name'], 'IPTVnator');
+        assert.equal(fields['X-AppImage-Version'], version);
+        assert.equal(
+            fields['X-AppImage-Homepage'],
+            'https://github.com/4gray/iptvnator'
+        );
+        assert.equal(
+            fields['X-AppImage-UpdateURL'],
+            'https://github.com/4gray/iptvnator'
+        );
+        assert.equal(fields.StartupWMClass, 'iptvnator');
+        assert.equal(fields.Exec, 'AppRun --ozone-platform=x11 %U');
+        assert.equal(
+            fields.MimeType,
+            'audio/x-mpegurl;application/vnd.apple.mpegurl;'
+        );
+        // A runner-wide architecture override would mislabel the ARM builds.
+        assert.equal(fields['X-AppImage-Arch'], undefined);
+        const otherDesktop = await helper.computeDesktopEntry(
+            config.linux,
+            'iptvnator %U'
+        );
+        assert.doesNotMatch(otherDesktop, /^X-AppImage-/m);
+        assert.match(otherDesktop, /^StartupWMClass=iptvnator$/m);
+        assert.equal(helper.getDesktopFileName(), 'iptvnator');
+    }
 });
 
 test('playlist file associations are registered with the operating system', () => {

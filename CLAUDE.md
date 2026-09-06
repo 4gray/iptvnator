@@ -44,6 +44,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Release-post screenshots come only from the release capture script running against the mock servers. Never add a screenshot taken from a real playlist or account to `apps/website/public/blog/**` — real streams, logos, and metadata are copyrighted, and credentials must never reach a published image. Website guide screenshots use the same script: manifest shots with `"group": "guides"` are captured only by `pnpm release:screenshots --group guides` and land in `apps/website/public/blog/guides/screenshots/`.
 - Final task summaries should state whether a release note was added or why it was skipped.
 
+## AppImage Manager Metadata
+
+AppManager full-download discovery uses `appImage.desktop.entry` URL fields.
+Electron Builder generates the version; `extraMetadata.desktopName=iptvnator`
+preserves Linux window identity without a shared `linux.desktop.entry` object
+(builder's nested merge would leak AppImage fields into Snap). This does not
+enable AppImageUpdate/zsync. Contract: `docs/architecture/release-pipeline.md`
+(AppImage external-manager metadata).
+
 ## Regression Prevention And Test Updates
 
 - Before the final summary for any feature, behavior change, bug fix, data-flow change, Electron IPC/database change, or user-visible UI workflow change, Claude Code must complete a test impact pass. Identify the affected projects and decide whether unit, integration, E2E, build, lint, or manual/CDP verification is required.
