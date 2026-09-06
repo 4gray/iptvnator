@@ -77,6 +77,35 @@ describe('TimelineZoomController', () => {
         expect(scroller?.scrollLeft).toBeCloseTo(675 * scale - 150, 6);
     });
 
+    it('keeps the cursor minute anchored across a burst of wheel events', () => {
+        const burst = () =>
+            new WheelEvent('wheel', {
+                deltaY: -50,
+                ctrlKey: true,
+                clientX: 250,
+                cancelable: true,
+            });
+        // Three events before any frame runs: the DOM scrollLeft is stale for
+        // the 2nd and 3rd, so the anchor must come from the logical position.
+        controller.onWheel(burst());
+        controller.onWheel(burst());
+        controller.onWheel(burst());
+        expect(rafCallbacks).toHaveLength(1); // coalesced into one frame
+        flushFrames();
+        // minute under the cursor before the burst: (1200 + 150) / 2 = 675
+        expect(scale).toBeCloseTo(2 * Math.exp(0.3), 6);
+        expect(scroller?.scrollLeft).toBeCloseTo(675 * scale - 150, 6);
+    });
+
+    it('re-anchors on the DOM position once a frame has flushed', () => {
+        controller.zoomTo(4);
+        flushFrames();
+        expect(scroller?.scrollLeft).toBe(750 * 4 - 300);
+        controller.zoomTo(2);
+        flushFrames();
+        expect(scroller?.scrollLeft).toBe(750 * 2 - 300);
+    });
+
     it('leaves plain wheel events alone', () => {
         const event = new WheelEvent('wheel', {
             deltaY: -100,

@@ -115,10 +115,23 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
             await app.mainWindow.evaluate(() => window.devicePixelRatio)
         ).toBe(pageZoomBefore);
 
-        // Back to the "hours" default so the contrast checks below run at the
-        // same zoom as the rest of the suite.
-        await zoomButton.click();
-        await expect(zoomButton).toHaveAttribute('data-zoom-level', 'hours');
+        // The contrast checks below read the block's time line, which the
+        // narrower tiers hide, so settle on the "detail" preset. The
+        // wheel-tuned scale may sit in any band (Chromium scales the delivered
+        // delta), so cycle from wherever it landed rather than assuming a
+        // fixed number of clicks.
+        const clicksToDetail: Record<string, number> = {
+            detail: 0,
+            day: 2,
+            hours: 1,
+        };
+        const landedLevel =
+            (await zoomButton.getAttribute('data-zoom-level')) ?? '';
+        expect(Object.keys(clicksToDetail)).toContain(landedLevel);
+        for (let i = 0; i < clicksToDetail[landedLevel]; i += 1) {
+            await zoomButton.click();
+        }
+        await expect(zoomButton).toHaveAttribute('data-zoom-level', 'detail');
 
         for (const theme of ['light', 'dark', 'light'] as const) {
             await applyTheme(app.mainWindow, theme);

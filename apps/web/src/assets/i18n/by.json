@@ -836,7 +836,7 @@
             "ZOOM_DAY": "Агляд дня",
             "ZOOM_HOURS": "Па гадзінах",
             "ZOOM_DETAIL": "Падрабязна",
-            "ZOOM_TOOLTIP": "Маштаб: {{level}} · Ctrl + кола для дакладнай наладкі",
+            "ZOOM_TOOLTIP": "Маштаб: {{level}} · ⌘/Ctrl + кола для дакладнай наладкі",
             "GROUP_SHORT": "кароткія перадачы",
             "GROUP_EXPAND": "паказаць ›"
         }

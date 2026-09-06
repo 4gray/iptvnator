@@ -19,6 +19,15 @@ export interface TimelineZoomContext {
  * wheel zooms.
  */
 export class TimelineZoomController {
+    /**
+     * Scroll position the next animation frame will apply. Rapid wheel/pinch
+     * events arrive faster than frames, so the DOM `scrollLeft` still reflects
+     * the previous scale by the time the next event computes its anchor; the
+     * logical position keeps every event anchored on the same minute.
+     */
+    private pendingScrollLeft: number | null = null;
+    private frame = 0;
+
     constructor(private readonly ctx: TimelineZoomContext) {}
 
     /** Clamp + apply a scale, keeping the viewport centre stable. */
@@ -67,15 +76,27 @@ export class TimelineZoomController {
             return;
         }
         const scroller = this.ctx.ribbon();
-        const anchorPx = scroller ? scroller.clientWidth * anchorFrac : 0;
-        const anchorMin = scroller
-            ? (scroller.scrollLeft + anchorPx) / prev
-            : null;
         this.ctx.setScale(next);
-        if (scroller && anchorMin !== null) {
-            requestAnimationFrame(() => {
-                scroller.scrollLeft = anchorMin * next - anchorPx;
-            });
+        if (!scroller) {
+            return;
+        }
+        const anchorPx = scroller.clientWidth * anchorFrac;
+        const currentLeft = this.pendingScrollLeft ?? scroller.scrollLeft;
+        const anchorMin = (currentLeft + anchorPx) / prev;
+        this.pendingScrollLeft = anchorMin * next - anchorPx;
+        if (this.frame === 0) {
+            this.frame = requestAnimationFrame(() => this.flushScroll());
+        }
+    }
+
+    /** One frame applies the last coalesced position for a burst of events. */
+    private flushScroll(): void {
+        this.frame = 0;
+        const left = this.pendingScrollLeft;
+        this.pendingScrollLeft = null;
+        const scroller = this.ctx.ribbon();
+        if (scroller && left !== null) {
+            scroller.scrollLeft = left;
         }
     }
 }
