@@ -22,6 +22,19 @@
                     }}</span>
                 }
             </div>
+            @if (channelNavigation.canReveal()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    [attr.aria-label]="
+                        'CHANNELS.SHOW_PLAYING_CHANNEL' | translate
+                    "
+                    [matTooltip]="'CHANNELS.SHOW_PLAYING_CHANNEL' | translate"
+                    (click)="channelNavigation.reveal()"
+                >
+                    <mat-icon>list_alt</mat-icon>
+                </button>
+            }
             <button
                 mat-icon-button
                 [matMenuTriggerFor]="channelSortMenu"
@@ -71,6 +84,7 @@
             </mat-menu>
         </div>
         <app-portal-channels-list
+            [revealRequest]="channelNavigation.revealRequest()"
             [sortMode]="liveChannelSortMode()"
             [searchTermInput]="workspaceSearchTerm()"
             (playClicked)="playLive($event)"
@@ -217,11 +231,16 @@
 <!-- Stamped into the player's fullscreen channel panel (FULLSCREEN_CHANNEL_PANEL). -->
 <ng-template #fullscreenChannelPanel let-searchTerm="searchTerm">
     <app-portal-channels-list
+        #fullscreenList
         [sortMode]="liveChannelSortMode()"
         [channelsOverride]="fullscreenPanelChannels()"
         [searchTermInput]="searchTerm()"
         [fullscreenPanelCopy]="true"
-        (playClicked)="playLive($event)"
-        (playbackRequested)="playLive($event, true)"
+        (playClicked)="
+            playLive($event, undefined, fullscreenList.filteredChannels())
+        "
+        (playbackRequested)="
+            playLive($event, true, fullscreenList.filteredChannels())
+        "
     />
 </ng-template>

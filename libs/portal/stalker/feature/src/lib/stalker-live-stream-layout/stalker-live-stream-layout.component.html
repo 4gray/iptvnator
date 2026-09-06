@@ -27,6 +27,19 @@
                     >
                 }
             </div>
+            @if (navigation.canReveal()) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    [attr.aria-label]="
+                        'CHANNELS.SHOW_PLAYING_CHANNEL' | translate
+                    "
+                    [matTooltip]="'CHANNELS.SHOW_PLAYING_CHANNEL' | translate"
+                    (click)="navigation.reveal()"
+                >
+                    <mat-icon>playlist_play</mat-icon>
+                </button>
+            }
             @if (isFullListMode()) {
                 <button
                     mat-icon-button
@@ -264,6 +277,7 @@
                 track item.id ?? $index
             ) {
                 <app-channel-list-item
+                    [attr.data-channel-id]="normalizeStalkerEntityId(item.id)"
                     [name]="item.o_name || item.name || ''"
                     [logo]="item.logo"
                     [selected]="isSelectedChannel(item)"
@@ -292,9 +306,11 @@
                         favorites.get(normalizeStalkerEntityId(item.id)) ??
                         false
                     "
-                    (clicked)="playChannel(item)"
-                    (activated)="playChannel(item, true)"
-                    (keyboardActivated)="playChannel(item, true)"
+                    (clicked)="playChannel(item, undefined, panelSearchTerm)"
+                    (activated)="playChannel(item, true, panelSearchTerm)"
+                    (keyboardActivated)="
+                        playChannel(item, true, panelSearchTerm)
+                    "
                     (favoriteToggled)="toggleFavorite(item)"
                     (contextMenuRequested)="onChannelContextMenu(item, $event)"
                 />

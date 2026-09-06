@@ -60,6 +60,8 @@ class StubPortalChannelsListComponent {
     readonly sortMode = input<'server' | 'name-asc' | 'name-desc'>('server');
     readonly channelsOverride = input<unknown[] | null>(null);
     readonly searchTermInput = input('');
+    readonly revealRequest = input<unknown>(null);
+    readonly filteredChannels = signal<unknown[]>([]);
     readonly playClicked = output<unknown>();
     readonly playbackRequested = output<unknown>();
 }
@@ -559,9 +561,7 @@ describe('LiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('.category-subtitle')
                 .textContent
         ).toContain('3 channels');
-        expect(
-            fixture.nativeElement.querySelector('mat-paginator')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('mat-paginator')).toBeNull();
         expect(
             fixture.debugElement.query(
                 By.directive(StubPortalChannelsListComponent)
@@ -1041,9 +1041,29 @@ describe('LiveStreamLayoutComponent', () => {
         expect(epgTimeline.componentInstance.activeProgram()).toBeNull();
     });
 
+    it('keeps remote order after browsing another category and changing sort', () => {
+        const first = { ...sampleChannel, category_id: '1', name: 'Zulu' };
+        const next = { ...first, xtream_id: 102, name: 'Alpha' };
+        liveStreams.set([first, next]);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
+            first,
+            next,
+        ]);
+        selectedItem.set(first);
+        component.playLive(first);
+        xtreamStore.setSelectedCategory.mockClear();
+        selectedCategoryId.set(2);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([]);
+        component.setLiveChannelSortMode('name-desc');
+        component['handleRemoteChannelChange']('down');
+        expect(xtreamStore.constructStreamUrl).toHaveBeenLastCalledWith(next);
+        expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
+    });
+
     it('starts external playback from remote channel navigation when double-click opening is enabled', () => {
         const nextChannel = {
             ...sampleChannel,
+            category_id: '1',
             xtream_id: 102,
             name: 'Channel 102',
         };
@@ -1055,6 +1075,9 @@ describe('LiveStreamLayoutComponent', () => {
             nextChannel,
         ]);
 
+        liveStreams.set([{ ...sampleChannel, category_id: '1' }, nextChannel]);
+        component.playLive(sampleChannel);
+        xtreamStore.openPlayer.mockClear();
         (
             component as unknown as {
                 handleRemoteChannelChange(direction: 'up' | 'down'): void;

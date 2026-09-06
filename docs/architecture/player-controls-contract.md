@@ -378,11 +378,11 @@ panel copy's scroll — because in full-list mode a broad term matches most of
 a multi-thousand-channel portal and the list has no virtual scroll; on a paged
 portal the panel copy also keeps requesting pages while its matches do not
 fill it — an empty or short result cannot scroll, and the term may match
-channels on pages never fetched; the sidebar's own search term does not stop
-it, since that term only gates the sidebar copy's automatic fill, and a page
-landing resets the in-flight flag whether or not the sidebar shows any of it
-— while in full-list mode it never pages, since its search already sees the
-whole catalog; closing the panel pauses window growth and automatic page
+channels on pages never fetched. Both ITV fields search the selected category,
+and only All Items searches the portal. The store's ITV pages are unfiltered
+by either field; a short sidebar search also continues uncached category pages.
+A page landing resets the in-flight flag whether or not the sidebar shows any
+of it; a cached category never pages, since its entire category is searchable; closing the panel pauses window growth and automatic page
 requests while preserving the mounted list, and an observer of the aside's
 `inert` attribute resumes filling on reopen and disconnects with the list;
 inline video keeps the selected channel paired with its retained playback

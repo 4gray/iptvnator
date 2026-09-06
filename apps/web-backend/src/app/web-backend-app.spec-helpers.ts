@@ -9,11 +9,11 @@
 import { AddressInfo } from 'node:net';
 import { Server } from 'node:http';
 import { STALKER_MAG_USER_AGENT } from '@iptvnator/shared/interfaces';
+import { createWebBackendApp, WebBackendHttpClient } from './web-backend-app';
 import {
-    createWebBackendApp,
-    WebBackendHttpClient,
-    WebBackendHttpGetOptions,
-} from './web-backend-app';
+    ProviderTransportOptions,
+    WebBackendHttpResponse,
+} from './validated-http-client';
 
 /** The transport-identity headers every portal-facing Stalker request carries. */
 export const STALKER_IDENTITY_HEADERS = {
@@ -41,10 +41,15 @@ export class StubHttpClient implements WebBackendHttpClient {
         readonly error?: Error;
         readonly status?: number;
         readonly statusText?: string;
+        readonly headers?: { location?: string };
     }> = [];
 
     queueResponse(data: unknown): void {
         this.queuedResponses.push({ data });
+    }
+
+    queueRedirect(location: string, status = 302): void {
+        this.queuedResponses.push({ data: '', status, headers: { location } });
     }
 
     queueFailure(status: number, statusText = 'Provider failure'): void {
@@ -61,8 +66,8 @@ export class StubHttpClient implements WebBackendHttpClient {
 
     async get<T>(
         url: string,
-        options: WebBackendHttpGetOptions = {}
-    ): Promise<{ data: T }> {
+        options: ProviderTransportOptions = {}
+    ): Promise<WebBackendHttpResponse<T>> {
         this.requests.push({
             headers: options.headers,
             params: options.params,
@@ -90,7 +95,13 @@ export class StubHttpClient implements WebBackendHttpClient {
             throw error;
         }
 
-        if (response.status) {
+        if (
+            response.status &&
+            !(
+                options.validateStatus ??
+                ((status) => status >= 200 && status < 300)
+            )(response.status)
+        ) {
             const error = new Error(response.statusText) as Error & {
                 response: { status: number; statusText: string };
             };
@@ -101,7 +112,11 @@ export class StubHttpClient implements WebBackendHttpClient {
             throw error;
         }
 
-        return { data: response.data as T };
+        return {
+            data: response.data as T,
+            status: response.status ?? 200,
+            headers: response.headers ?? {},
+        };
     }
 }
 
@@ -147,6 +162,7 @@ export async function withServer<T>(
         const address = server.address() as AddressInfo;
         return await callback(`http://127.0.0.1:${address.port}`);
     } finally {
+        server.closeAllConnections();
         await new Promise<void>((resolve, reject) => {
             server.close((error) => (error ? reject(error) : resolve()));
         });

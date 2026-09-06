@@ -18,17 +18,16 @@ export type PanelSearchScrollAction = 'idle' | 'grow-window' | 'load-page';
  */
 /**
  * Whether a stamped list that does not overflow should fill itself without a
- * scroll. The sidebar copy never does so while its own search is active
- * (scrolling it still pages) — that has always been its behaviour, since a
- * client-side search would otherwise walk the whole portal on its own. The
- * fullscreen panel's copy always does: its term is what may need the next
- * page, and the sidebar's term is not its concern.
+ * scroll. ITV local search must reach later category pages when there are
+ * no matches to scroll. Radio keeps its server-search pagination behavior.
+ * The fullscreen copy fills independently of the sidebar's term.
  */
 export function shouldAutoFillStampedList(
     isPanelContainer: boolean,
-    sidebarSearchActive: boolean
+    sidebarSearchActive: boolean,
+    completeLocalSearch = false
 ): boolean {
-    return isPanelContainer || !sidebarSearchActive;
+    return isPanelContainer || !sidebarSearchActive || completeLocalSearch;
 }
 
 export function resolvePanelSearchScroll(state: {
@@ -48,7 +47,7 @@ export function resolvePanelSearchScroll(state: {
  * Memoized, windowed matches for the fullscreen channel panel's own search
  * field.
  *
- * In full-list mode the search source is the portal's entire channel list,
+ * The search source is the selected category (the portal in All Items),
  * and a broad term ("tv") matches most of it. The panel renders one
  * `app-channel-list-item` per row without virtual scrolling, so the matches
  * are rendered through the same bounded window the sidebar uses: `chunk`

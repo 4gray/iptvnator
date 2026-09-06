@@ -235,6 +235,7 @@ export function withStalkerContent() {
                     portalRepair,
                 };
 
+                let lastLivePageKey = '';
                 return {
                     categoryResource: resource({
                         params: () => ({
@@ -360,7 +361,12 @@ export function withStalkerContent() {
                         params: () => ({
                             contentType: storeContext.selectedContentType(),
                             category: storeContext.selectedCategoryId(),
-                            search: storeContext.searchPhrase(),
+                            // ITV fields filter locally; server search would narrow
+                            // the shared pages behind the independent fullscreen field.
+                            search:
+                                storeContext.selectedContentType() === 'itv'
+                                    ? ''
+                                    : storeContext.searchPhrase(),
                             pageIndex: storeContext.page() + 1,
                             currentPlaylist: storeContext.currentPlaylist(),
                             // Re-fires the loader once THIS portal's full ITV
@@ -384,6 +390,7 @@ export function withStalkerContent() {
                         }),
                         loader: async ({
                             params,
+                            abortSignal,
                         }): Promise<StalkerContentItem[]> => {
                             if (!params.category || params.category === '') {
                                 patchState(
@@ -477,12 +484,14 @@ export function withStalkerContent() {
                                     null;
 
                                 return (
+                                    !abortSignal.aborted &&
                                     params.contentType ===
                                         storeContext.selectedContentType() &&
                                     params.category ===
                                         storeContext.selectedCategoryId() &&
-                                    params.search ===
-                                        storeContext.searchPhrase() &&
+                                    (params.contentType === 'itv' ||
+                                        params.search ===
+                                            storeContext.searchPhrase()) &&
                                     params.pageIndex ===
                                         storeContext.page() + 1 &&
                                     paramsPlaylistKey === currentPlaylistKey &&
@@ -593,11 +602,22 @@ export function withStalkerContent() {
                                     const nextChannels =
                                         params.pageIndex === 1
                                             ? channels
-                                            : [
+                                            : dedupeContentById([
                                                   ...existingChannels,
                                                   ...channels,
-                                              ];
+                                              ]).map(toStalkerItvChannel);
 
+                                    const livePageKey = JSON.stringify([
+                                        paramsPlaylistKey,
+                                        params.contentType,
+                                        params.category,
+                                        params.pageIndex,
+                                    ]);
+                                    // Cache readiness can replay the current censored page.
+                                    // A different page adding no ids is a stalled portal.
+                                    const replay =
+                                        livePageKey === lastLivePageKey;
+                                    lastLivePageKey = livePageKey;
                                     patchState(store, {
                                         totalCount:
                                             response.js.total_items ?? 0,
@@ -607,8 +627,13 @@ export function withStalkerContent() {
                                             ? { itvChannels: nextChannels }
                                             : { radioChannels: nextChannels }),
                                         hasMoreChannels:
+                                            channels.length > 0 &&
+                                            (params.pageIndex === 1 ||
+                                                replay ||
+                                                nextChannels.length >
+                                                    existingChannels.length) &&
                                             nextChannels.length <
-                                            (response.js.total_items ?? 0),
+                                                (response.js.total_items ?? 0),
                                     });
                                 } else {
                                     // VOD/series pages accumulate into one

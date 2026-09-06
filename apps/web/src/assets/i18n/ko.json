@@ -679,6 +679,7 @@
         "CHANNELS_LIST_HIDDEN_HINT": "아래 버튼을 누르거나 ⌘/Ctrl+B를 눌러 다시 표시하세요."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "재생 중인 채널 표시",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "다른 재생 목록을 업로드하거나 선택하십시오",
         "ALL_CHANNELS": "모든 채널",
         "GROUPS": "그룹",
@@ -838,6 +839,7 @@
             "ZOOM_DAY": "하루 보기",
             "ZOOM_HOURS": "시간별",
             "ZOOM_DETAIL": "상세",
+            "ZOOM_TOOLTIP": "확대/축소: {{level}} · ⌘/Ctrl + 스크롤로 미세 조정",
             "GROUP_SHORT": "짧은 프로그램",
             "GROUP_EXPAND": "보기 ›"
         }

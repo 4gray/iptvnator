@@ -4,6 +4,7 @@ import {
     ScrollingModule,
 } from '@angular/cdk/scrolling';
 import {
+    afterRenderEffect,
     AfterViewInit,
     ChangeDetectionStrategy,
     ChangeDetectorRef,
@@ -105,6 +106,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
      * invalid and could point that hand-off at the hidden copy.
      */
     readonly fullscreenPanelCopy = input(false);
+    readonly revealRequest = input<{
+        channelId: number;
+        sequence: number;
+    } | null>(null);
 
     readonly xtreamStore = inject(XtreamStore);
     private readonly favoritesService = inject(FavoritesService);
@@ -188,6 +193,36 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 return;
             }
             untracked(() => this.repickPreviewsForOffsetChange());
+        });
+
+        let appliedReveal = -1;
+        // A filtered-out viewport is recreated on reveal. CDK attaches its
+        // scroll strategy in a microtask after rendering; align on the next
+        // frame so scrollToIndex cannot silently run before that attachment.
+        afterRenderEffect((onCleanup) => {
+            const request = this.revealRequest();
+            const viewport = this.viewport();
+            const channels = this.filteredChannels();
+            if (!request || !viewport || appliedReveal === request.sequence)
+                return;
+            const index = channels.findIndex(
+                (item) => item.xtream_id === request.channelId
+            );
+            if (index < 0) return;
+            const frame = requestAnimationFrame(() => {
+                if (
+                    this.revealRequest()?.sequence !== request.sequence ||
+                    this.viewport() !== viewport
+                )
+                    return;
+                appliedReveal = request.sequence;
+                viewport.checkViewportSize();
+                viewport.scrollToIndex(index, 'auto');
+                viewport.elementRef.nativeElement.focus({
+                    preventScroll: true,
+                });
+            });
+            onCleanup(() => cancelAnimationFrame(frame));
         });
 
         const selectedChannelId = computed(() =>

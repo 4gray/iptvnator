@@ -95,20 +95,12 @@ import {
 import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
-const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
+import {
+    XtreamLiveChannelNavigationService,
+    type XtreamLiveChannelItem,
+} from './xtream-live-channel-navigation.service';
 
-interface XtreamLiveChannelItem {
-    readonly added?: string;
-    readonly category_id?: string | number;
-    readonly last_modified?: string;
-    readonly name?: string;
-    readonly poster_url?: string;
-    readonly stream_icon?: string;
-    readonly title?: string;
-    readonly tv_archive?: number | null;
-    readonly tv_archive_duration?: number | string | null;
-    readonly xtream_id: number;
-}
+const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 @Component({
     selector: 'app-live-stream-layout',
@@ -116,6 +108,7 @@ interface XtreamLiveChannelItem {
     styleUrls: ['./live-stream-layout.component.scss'],
     providers: [
         LiveStreamAutoOpenStateService,
+        XtreamLiveChannelNavigationService,
         // The fullscreen channel panel inside the player renders this
         // category's channel list (see the `fullscreenChannelPanel` template).
         {
@@ -169,12 +162,12 @@ export class LiveStreamLayoutComponent
         this.xtreamStore.selectedTypeContentLoading;
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
-    readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
+    readonly channelNavigation = inject(XtreamLiveChannelNavigationService);
+    readonly liveChannelSortMode = this.channelNavigation.sortMode;
 
-    private readonly fullscreenChannelPanelTemplate =
-        viewChild<TemplateRef<FullscreenChannelPanelContext>>(
-            'fullscreenChannelPanel'
-        );
+    private readonly fullscreenChannelPanelTemplate = viewChild<
+        TemplateRef<FullscreenChannelPanelContext>
+    >('fullscreenChannelPanel');
     /** FULLSCREEN_CHANNEL_PANEL: the current category's list, unless opted out. */
     readonly panelTemplate = computed(() =>
         this.settingsStore.fullscreenChannelPanel?.() === false
@@ -447,7 +440,11 @@ export class LiveStreamLayoutComponent
                 return;
             }
 
-            this.playLive(item);
+            this.playLive(
+                item,
+                undefined,
+                this.channelNavigation.channelsForAutoOpen(item)
+            );
             // Ensure selectedItem is set so EPG loading and remote-control
             // status reflect the channel (constructStreamUrl also does this
             // internally, but an explicit call makes the intent clear and
@@ -540,15 +537,18 @@ export class LiveStreamLayoutComponent
 
     playLive(
         item: XtreamLiveChannelItem,
-        startPlayback = !this.settingsStore.openStreamOnDoubleClick()
+        startPlayback = !this.settingsStore.openStreamOnDoubleClick(),
+        displayedChannels?: readonly XtreamLiveChannelItem[],
+        remote = false
     ) {
         this.playbackRequestId += 1;
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        this.channelNavigation.capture(item, displayedChannels, remote);
         this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
         // store no-op.
-        this.selectLiveItemCategory(item);
+        if (!remote) this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
         this.activePlayback.set({
             streamUrl,
@@ -590,7 +590,11 @@ export class LiveStreamLayoutComponent
     }
 
     onLiveRootItemClick(item: unknown): void {
-        this.playLive(item as XtreamLiveChannelItem);
+        this.playLive(
+            item as XtreamLiveChannelItem,
+            undefined,
+            this.liveRootItems() as unknown as XtreamLiveChannelItem[]
+        );
     }
 
     onLiveEpgPanelCollapsedChange(collapsed: boolean): void {
@@ -667,7 +671,7 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        this.playLive(nextItem, true);
+        this.playLive(nextItem, true, undefined, true);
     }
 
     private handleRemoteControlCommand(command: {
@@ -688,7 +692,7 @@ export class LiveStreamLayoutComponent
             return;
         }
 
-        this.playLive(channel, true);
+        this.playLive(channel, true, undefined, true);
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
@@ -705,7 +709,7 @@ export class LiveStreamLayoutComponent
     }
 
     private getVisibleChannels(): XtreamLiveChannelItem[] {
-        return this.xtreamStore.selectItemsFromSelectedCategory() as XtreamLiveChannelItem[];
+        return [...this.channelNavigation.remoteChannels()];
     }
 
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {

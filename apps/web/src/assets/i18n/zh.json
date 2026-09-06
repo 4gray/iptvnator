@@ -679,6 +679,7 @@
         "CHANNELS_LIST_HIDDEN_HINT": "点击下方按钮或按 ⌘/Ctrl+B 重新显示。"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "显示正在播放的频道",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上传或选择其他播放列表",
         "ALL_CHANNELS": "所有频道",
         "GROUPS": "分组",
@@ -838,6 +839,7 @@
             "ZOOM_DAY": "全天概览",
             "ZOOM_HOURS": "按小时",
             "ZOOM_DETAIL": "详细",
+            "ZOOM_TOOLTIP": "缩放：{{level}} · ⌘/Ctrl + 滚轮微调",
             "GROUP_SHORT": "短节目",
             "GROUP_EXPAND": "展开 ›"
         }

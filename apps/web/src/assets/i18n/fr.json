@@ -679,6 +679,7 @@
         "CHANNELS_LIST_HIDDEN_HINT": "Réaffichez-la avec le bouton ci-dessous ou appuyez sur ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Afficher la chaîne en cours",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Transférer ou choisir une autre liste de lecture",
         "ALL_CHANNELS": "Toutes les chaînes",
         "GROUPS": "Groupes",
@@ -838,6 +839,7 @@
             "ZOOM_DAY": "Vue de la journée",
             "ZOOM_HOURS": "Par heure",
             "ZOOM_DETAIL": "Détaillé",
+            "ZOOM_TOOLTIP": "Zoom : {{level}} · ⌘/Ctrl + molette pour ajuster",
             "GROUP_SHORT": "progs courts",
             "GROUP_EXPAND": "afficher ›"
         }

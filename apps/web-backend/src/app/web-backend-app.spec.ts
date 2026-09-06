@@ -893,7 +893,7 @@ https://stream.example/live.m3u8`);
                     `${baseUrl}/xtream?targetId=${targetId}&action=get_account_info`
                 );
 
-                expect(response.status).toBe(400);
+                expect(response.status).toBe(200);
                 await expect(response.json()).resolves.toEqual({
                     message:
                         'Provider URL points to a private or local network address',

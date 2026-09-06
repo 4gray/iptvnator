@@ -679,6 +679,7 @@
         "CHANNELS_LIST_HIDDEN_HINT": "Верните его кнопкой ниже или нажмите ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Показать текущий канал",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
         "ALL_CHANNELS": "Все каналы",
         "GROUPS": "Группы",
@@ -838,6 +839,7 @@
             "ZOOM_DAY": "Обзор дня",
             "ZOOM_HOURS": "По часам",
             "ZOOM_DETAIL": "Детально",
+            "ZOOM_TOOLTIP": "Масштаб: {{level}} · ⌘/Ctrl + колесо для точной настройки",
             "GROUP_SHORT": "короткие передачи",
             "GROUP_EXPAND": "показать ›"
         }

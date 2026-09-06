@@ -5,6 +5,7 @@
     "sourceRoot": "apps/web-e2e/src",
     "implicitDependencies": [
         "web",
+        "web-backend",
         "stalker-mock-server",
         "xtream-mock-server"
     ],

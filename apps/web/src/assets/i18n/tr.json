@@ -679,6 +679,7 @@
         "CHANNELS_LIST_HIDDEN_HINT": "Aşağıdaki düğmeyle geri getirin veya ⌘/Ctrl+B tuşlarına basın."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Oynatılan kanalı göster",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Dosya yükle veya başka bir oynatma listesi seçin",
         "ALL_CHANNELS": "Tüm kanallar",
         "GROUPS": "Gruplar",
@@ -838,6 +839,7 @@
             "ZOOM_DAY": "Gün özeti",
             "ZOOM_HOURS": "Saatlik",
             "ZOOM_DETAIL": "Detaylı",
+            "ZOOM_TOOLTIP": "Yakınlaştırma: {{level}} · İnce ayar için ⌘/Ctrl + kaydırma",
             "GROUP_SHORT": "kısa progr.",
             "GROUP_EXPAND": "göster ›"
         }

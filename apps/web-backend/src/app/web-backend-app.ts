@@ -1,10 +1,7 @@
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
 import { createHash } from 'node:crypto';
-import { lookup } from 'node:dns/promises';
-import { isIP } from 'node:net';
 import zlib from 'node:zlib';
-import axios from 'axios';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
 import {
@@ -33,19 +30,21 @@ import {
     ProviderError,
 } from './provider-error';
 
-export interface WebBackendHttpGetOptions {
-    readonly headers?: Record<string, string>;
-    readonly params?: Record<string, string>;
-    readonly responseType?: 'arraybuffer';
-    readonly timeout?: number;
-}
-
-export interface WebBackendHttpClient {
-    get<T>(
-        url: string,
-        options?: WebBackendHttpGetOptions
-    ): Promise<{ data: T }>;
-}
+import {
+    ValidatedHttpClient,
+    WebBackendHttpClient,
+} from './validated-http-client';
+import { ProviderRequestError } from './provider-request-error';
+import {
+    ProviderUrlPolicy,
+    providerUrlErrorBody,
+    resolveHostname,
+    validateProviderUrl,
+} from './provider-url-policy';
+export type {
+    WebBackendHttpClient,
+    WebBackendHttpGetOptions,
+} from './validated-http-client';
 
 interface PlaylistParseError {
     readonly message: string;
@@ -68,42 +67,12 @@ export interface WebBackendAppOptions {
     readonly runtimeBackendUrl?: string;
 }
 
-interface ProviderUrlPolicy {
-    readonly allowPrivateNetworkTargets: boolean;
-    readonly resolveHostname: (hostname: string) => Promise<readonly string[]>;
-}
-
-interface ProviderUrlError {
-    readonly message: string;
-    readonly status: number;
-    /**
-     * The DNS failure behind a "could not be resolved" refusal, when that is
-     * what this is. Internal only — {@link providerUrlErrorBody} strips it,
-     * because the client is told the same thing it always was.
-     *
-     * A name that does not resolve is evidence about reachability, exactly like
-     * the `ENOTFOUND` the transport would have raised a moment later. Without
-     * it, a host whose DNS died is refused by the policy on every request and
-     * the breaker never opens, so each call keeps paying for the lookup.
-     */
-    readonly lookupError?: unknown;
-}
-
-/** The client-facing half of a {@link ProviderUrlError}. */
-function providerUrlErrorBody(error: ProviderUrlError): {
-    message: string;
-    status: number;
-} {
-    return { message: error.message, status: error.status };
-}
-
 type ProviderTargetRegistry = Map<string, URL>;
 
 export function createWebBackendApp(
     options: WebBackendAppOptions = {}
 ): Express {
     const app = express();
-    const httpClient = (options.httpClient ?? axios) as WebBackendHttpClient;
     const guid = options.guid ?? createGuid;
     const now = options.now ?? (() => new Date());
     const hostGuard =
@@ -125,6 +94,10 @@ export function createWebBackendApp(
             isPrivateNetworkProxyAllowed(),
         resolveHostname: options.resolveHostname ?? resolveHostname,
     };
+    const httpClient = new ValidatedHttpClient(
+        providerUrlPolicy,
+        options.httpClient
+    );
     const providerTargets: ProviderTargetRegistry = new Map();
 
     const corsMiddleware = cors({
@@ -179,8 +152,8 @@ export function createWebBackendApp(
                 return;
             }
 
-            const targetId = createProviderTargetId(result);
-            providerTargets.set(targetId, result);
+            const targetId = createProviderTargetId(result.url);
+            providerTargets.set(targetId, result.url);
             res.json({ targetId });
         }
     );
@@ -303,38 +276,10 @@ export function createWebBackendApp(
             }
             guardToken = admission.token;
 
-            const providerUrlError =
-                await normalizeAndValidateXtreamProviderUrl(
-                    url,
-                    providerUrlPolicy
-                );
-            if (providerUrlError) {
-                // Admitted, then abandoned before any request went out. A
-                // policy refusal — private address, bad scheme — says nothing
-                // about reachability, so it only hands the half-open slot back.
-                // A name that would not resolve is different: that IS the host
-                // failing to answer, and counting it is what lets the breaker
-                // stop paying for the same dead lookup on every request.
-                if (providerUrlError.lookupError !== undefined) {
-                    reportProviderRequestFailure(
-                        hostGuard,
-                        guardToken,
-                        providerUrlError.lookupError
-                    );
-                } else {
-                    releaseProviderRequest(hostGuard, guardToken);
-                }
-                guardToken = null;
-                res.status(providerUrlError.status).json(
-                    providerUrlErrorBody(providerUrlError)
-                );
-                return;
-            }
+            url.href = normalizeXtreamServerUrl(url.href);
 
             requestUrl = appendPathSegment(url, 'player_api.php');
 
-            // Provider URLs are validated by /provider-targets before they enter the registry.
-            // codeql[js/request-forgery]
             const response = await httpClient.get(requestUrl, {
                 params: getProxyParams(req, ['targetId']),
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
@@ -433,8 +378,6 @@ export function createWebBackendApp(
                 guardToken = observeProviderRequest(hostGuard, requestUrl);
             }
 
-            // Provider URLs are validated by /provider-targets before they enter the registry.
-            // codeql[js/request-forgery]
             const response = await httpClient.get(requestUrl, {
                 headers,
                 // `create_link` gets the longer budget: the portal mints a
@@ -490,78 +433,6 @@ function getRegisteredProviderUrl(
     }
 
     return targetUrl;
-}
-
-async function validateProviderUrl(
-    rawUrl: string,
-    policy: ProviderUrlPolicy
-): Promise<URL | ProviderUrlError> {
-    let url: URL;
-    try {
-        url = new URL(rawUrl);
-    } catch {
-        return { message: 'Provider URL is not a valid URL', status: 400 };
-    }
-
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-        return {
-            message: 'Only http and https provider URLs are supported',
-            status: 400,
-        };
-    }
-
-    if (url.username || url.password) {
-        return {
-            message: 'Provider URL credentials are not supported',
-            status: 400,
-        };
-    }
-
-    if (policy.allowPrivateNetworkTargets) {
-        return url;
-    }
-
-    const hostname = normalizeHostname(url.hostname);
-    if (isLocalHostname(hostname) || isPrivateOrReservedIp(hostname)) {
-        return {
-            message:
-                'Provider URL points to a private or local network address',
-            status: 400,
-        };
-    }
-
-    if (isIP(hostname) === 0) {
-        let addresses: readonly string[];
-        try {
-            addresses = await policy.resolveHostname(hostname);
-        } catch (lookupError) {
-            return {
-                message: 'Provider URL host could not be resolved',
-                status: 400,
-                lookupError,
-            };
-        }
-
-        if (
-            addresses.length === 0 ||
-            addresses.some((address) =>
-                isPrivateOrReservedIp(normalizeHostname(address))
-            )
-        ) {
-            return {
-                message:
-                    'Provider URL points to a private or local network address',
-                status: 400,
-            };
-        }
-    }
-
-    return url;
-}
-
-async function resolveHostname(hostname: string): Promise<readonly string[]> {
-    const records = await lookup(hostname, { all: true, verbatim: true });
-    return records.map((record) => record.address);
 }
 
 function createProviderTargetId(url: URL): string {
@@ -636,29 +507,6 @@ function appendPathSegment(url: URL, segment: string): string {
     return nextUrl.href;
 }
 
-async function normalizeAndValidateXtreamProviderUrl(
-    url: URL,
-    policy: ProviderUrlPolicy
-): Promise<ProviderUrlError | null> {
-    let normalizedUrl: URL;
-    try {
-        normalizedUrl = new URL(normalizeXtreamServerUrl(url.href));
-    } catch {
-        return { message: 'Provider URL is not a valid URL', status: 400 };
-    }
-
-    const validatedUrl = await validateProviderUrl(
-        appendPathSegment(normalizedUrl, 'player_api.php'),
-        policy
-    );
-    if ('message' in validatedUrl) {
-        return validatedUrl;
-    }
-
-    url.href = normalizedUrl.href;
-    return null;
-}
-
 async function handlePlaylistParse(options: {
     readonly guid: () => string;
     readonly httpClient: WebBackendHttpClient;
@@ -667,8 +515,6 @@ async function handlePlaylistParse(options: {
     readonly userAgent?: string;
 }): Promise<Record<string, unknown> | PlaylistParseError> {
     try {
-        // Provider URLs are validated by /provider-targets before playlist parsing.
-        // codeql[js/request-forgery]
         const response = await options.httpClient.get<string>(options.url, {
             timeout: PROVIDER_REQUEST_TIMEOUT_MS.playlist,
             ...(options.userAgent
@@ -689,14 +535,19 @@ async function handlePlaylistParse(options: {
         };
     } catch (error) {
         logProviderRequestFailure({ error, route: '/parse', url: options.url });
-        const providerError = error as ProviderError;
+        if (error instanceof ProviderRequestError && error.policyError) {
+            return providerUrlErrorBody(error.policyError);
+        }
+        const providerError = (
+            error instanceof ProviderRequestError ? error.cause : error
+        ) as ProviderError;
         if (providerError?.response?.statusText !== undefined) {
             return {
                 status: providerError.response.status ?? 500,
                 message: providerError.response.statusText,
             };
         }
-        const code = collectProviderErrorCodes(error)[0];
+        const code = collectProviderErrorCodes(providerError)[0];
         return {
             status: providerError?.response?.status ?? 500,
             message: code
@@ -712,8 +563,6 @@ async function fetchEpgDataFromUrl(
     url: URL
 ): Promise<unknown> {
     const href = url.href;
-    // Provider URLs are validated by /provider-targets before XMLTV parsing.
-    // codeql[js/request-forgery]
     const response = await httpClient.get<ArrayBuffer | string>(href, {
         timeout: PROVIDER_REQUEST_TIMEOUT_MS.epg,
         ...(url.pathname.endsWith('.gz')
@@ -790,68 +639,4 @@ function getLastUrlSegment(value: string): string {
 
 function createGuid(): string {
     return Math.random().toString(36).slice(2);
-}
-
-function normalizeHostname(hostname: string): string {
-    return hostname.trim().replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
-}
-
-function isLocalHostname(hostname: string): boolean {
-    return hostname === 'localhost' || hostname.endsWith('.localhost');
-}
-
-function isPrivateOrReservedIp(address: string): boolean {
-    const version = isIP(address);
-    if (version === 4) {
-        return isPrivateOrReservedIpv4(address);
-    }
-
-    if (version === 6) {
-        return isPrivateOrReservedIpv6(address);
-    }
-
-    return false;
-}
-
-function isPrivateOrReservedIpv4(address: string): boolean {
-    const parts = address.split('.').map((part) => Number(part));
-    if (
-        parts.length !== 4 ||
-        parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
-    ) {
-        return true;
-    }
-
-    const [first, second, third] = parts;
-    return (
-        first === 0 ||
-        first === 10 ||
-        first === 127 ||
-        (first === 100 && second >= 64 && second <= 127) ||
-        (first === 169 && second === 254) ||
-        (first === 172 && second >= 16 && second <= 31) ||
-        (first === 192 && second === 168) ||
-        (first === 192 && second === 0) ||
-        (first === 192 && second === 0 && third === 2) ||
-        (first === 198 && (second === 18 || second === 19)) ||
-        (first === 198 && second === 51 && third === 100) ||
-        (first === 203 && second === 0 && third === 113) ||
-        first >= 224
-    );
-}
-
-function isPrivateOrReservedIpv6(address: string): boolean {
-    const normalized = address.toLowerCase();
-    if (
-        normalized === '::' ||
-        normalized === '::1' ||
-        normalized.startsWith('fc') ||
-        normalized.startsWith('fd') ||
-        normalized.startsWith('fe80:')
-    ) {
-        return true;
-    }
-
-    const mappedIpv4 = normalized.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
-    return mappedIpv4 ? isPrivateOrReservedIpv4(mappedIpv4) : false;
 }

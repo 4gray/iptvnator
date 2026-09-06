@@ -679,6 +679,7 @@
         "CHANNELS_LIST_HIDDEN_HINT": "下のボタンまたは ⌘/Ctrl+B で再表示できます。"
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "再生中のチャンネルを表示",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "アップロードまたは他のプレイリストを選択",
         "ALL_CHANNELS": "すべてのチャンネル",
         "GROUPS": "グループ",
@@ -838,6 +839,7 @@
             "ZOOM_DAY": "1日表示",
             "ZOOM_HOURS": "時間単位",
             "ZOOM_DETAIL": "詳細",
+            "ZOOM_TOOLTIP": "ズーム: {{level}} · ⌘/Ctrl + スクロールで微調整",
             "GROUP_SHORT": "短い番組",
             "GROUP_EXPAND": "表示 ›"
         }

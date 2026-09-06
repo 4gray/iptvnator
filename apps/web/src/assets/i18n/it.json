@@ -679,6 +679,7 @@
         "CHANNELS_LIST_HIDDEN_HINT": "Mostralo di nuovo con il pulsante qui sotto o premi ⌘/Ctrl+B."
     },
     "CHANNELS": {
+        "SHOW_PLAYING_CHANNEL": "Mostra il canale in riproduzione",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Carica o seleziona un'altra playlist",
         "ALL_CHANNELS": "Tutti i canali",
         "GROUPS": "Gruppi",
@@ -838,6 +839,7 @@
             "ZOOM_DAY": "Panoramica giorno",
             "ZOOM_HOURS": "Per ora",
             "ZOOM_DETAIL": "Dettagliato",
+            "ZOOM_TOOLTIP": "Zoom: {{level}} · ⌘/Ctrl + rotella per regolare",
             "GROUP_SHORT": "prog. brevi",
             "GROUP_EXPAND": "mostra ›"
         }
