@@ -1,0 +1,296 @@
+@use '../epg-theme' as *;
+
+:host {
+    display: flex;
+    height: 100%;
+    box-sizing: border-box;
+    border-bottom: 1px solid $line;
+    background: var(--app-content-bg);
+
+    &:hover {
+        background: $surface-3;
+    }
+    &.is-active {
+        background: var(--app-selection-surface);
+    }
+    &.is-focused {
+        box-shadow: inset 0 0 0 2px $accent-blue;
+    }
+}
+
+.epg-guide-row__channel {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    flex: 0 0 var(--epg-guide-channel-col, 232px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px 0 14px;
+    box-sizing: border-box;
+    background: inherit;
+    border-right: 1px solid $line-strong;
+    cursor: pointer;
+    color: $text-primary;
+
+    :host(.is-active) &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: $accent-blue;
+    }
+}
+
+.epg-guide-row__num {
+    width: 22px;
+    text-align: right;
+    font: 11px $font-mono;
+    color: $text-tertiary;
+    font-variant-numeric: tabular-nums;
+}
+
+.epg-guide-row__logo {
+    flex: 0 0 auto;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    background: $surface-1;
+    border: 1px solid $line;
+    color: $text-tertiary;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+    :host(.is-compact) & {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+    }
+}
+
+.epg-guide-row__name {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    b {
+        font-weight: 500;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    small {
+        font-size: 10.5px;
+        color: $text-tertiary;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    :host(.is-active) & small {
+        color: $accent-text;
+    }
+}
+
+.epg-guide-row__playing {
+    color: $accent-blue;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.epg-guide-row__lane {
+    position: relative;
+    flex: 0 0 auto;
+    height: 100%;
+}
+
+.epg-guide-row__empty {
+    position: absolute;
+    left: 14px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-style: italic;
+    color: $text-tertiary;
+}
+
+.epg-guide-row__skeleton {
+    position: absolute;
+    top: 9px;
+    bottom: 9px;
+    border-radius: 8px;
+    background: $surface-2;
+    opacity: 0.6;
+}
+
+.epg-guide-row__block {
+    position: absolute;
+    top: 7px;
+    bottom: 7px;
+    box-sizing: border-box;
+    border-radius: 8px;
+    padding: 6px 10px;
+    border: 1px solid $line-strong;
+    background: $surface-1;
+    color: $text-primary;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-width: 0;
+    transition:
+        border-color 120ms,
+        transform 120ms;
+
+    &:hover {
+        border-color: $accent-blue;
+        transform: translateY(-1px);
+        z-index: 3;
+    }
+    &.is-focused {
+        outline: 2px solid $accent-blue;
+        outline-offset: 1px;
+        z-index: 3;
+    }
+    &.is-past {
+        background: transparent;
+        border-color: $line;
+
+        .epg-guide-row__title {
+            color: $text-secondary;
+            font-weight: 400;
+        }
+    }
+    &.is-now {
+        background: var(--app-selection-surface);
+        border-color: $accent-blue;
+
+        .epg-guide-row__title {
+            font-weight: 600;
+        }
+    }
+    &.is-playing {
+        background: var(--app-selection-surface-strong);
+    }
+    &[data-tier='narrow'] {
+        padding: 6px 8px;
+
+        .epg-guide-row__time,
+        .epg-guide-row__tag {
+            display: none;
+        }
+    }
+    &[data-tier='micro'] {
+        padding: 0;
+        border-radius: 4px;
+
+        .epg-guide-row__time,
+        .epg-guide-row__title,
+        .epg-guide-row__tag {
+            display: none;
+        }
+    }
+    :host(.is-compact) & {
+        top: 5px;
+        bottom: 5px;
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        border-radius: 6px;
+        padding: 0 9px;
+    }
+}
+
+.epg-guide-row__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: color-mix(in srgb, $accent-blue 14%, transparent);
+    pointer-events: none;
+}
+
+.epg-guide-row__time {
+    position: relative;
+    font: 10.5px $font-mono;
+    color: $text-secondary;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.epg-guide-row__title {
+    position: relative;
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.epg-guide-row__tag {
+    position: absolute;
+    right: 8px;
+    top: 7px;
+    font: 600 9px $font-mono;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: $accent-text;
+
+    &::before {
+        content: '';
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: $accent-live;
+        margin-right: 4px;
+        vertical-align: 1px;
+    }
+    :host(.is-compact) & {
+        position: static;
+        margin-left: auto;
+    }
+}
+
+.epg-guide-row__watch {
+    position: absolute;
+    right: 6px;
+    bottom: 5px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: $text-secondary;
+    cursor: pointer;
+
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+    &:hover {
+        color: $accent-text;
+    }
+}

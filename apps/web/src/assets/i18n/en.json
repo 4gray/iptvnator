@@ -753,7 +753,7 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_MULTI_EPG": "Open Multi-EPG view"
+        "OPEN_EPG_GUIDE": "Programme guide"
     },
     "EPG": {
         "NEXT_DAY": "Next day",
@@ -803,7 +803,42 @@
         "ARCHIVE_PLAYBACK": "Archive playback",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
+        "GUIDE": {
+            "TITLE": "Programme guide",
+            "CLOSE": "Close guide",
+            "CHANNEL": "Channel",
+            "TODAY": "Today",
+            "NOW": "Now",
+            "JUMP_NOW": "Jump to now",
+            "SCOPE": "Channels shown",
+            "ONLY_WITH_EPG": "Only with EPG",
+            "ONLY_WITH_EPG_HINT": "Hide channels without programme data",
+            "DENSITY_COMFORTABLE": "Comfortable rows",
+            "DENSITY_COMPACT": "Compact rows",
+            "ZOOM": "Zoom",
+            "FILTER_CHANNELS": "Filter channels…",
+            "SEARCH_PROGRAMMES": "Search programmes…",
+            "NO_RESULTS": "No programmes found",
+            "NO_PROGRAMME_INFO": "No programme information",
+            "NO_PROGRAMME_INFO_LONG": "No programme information for this channel",
+            "PLAYING": "Playing",
+            "NO_CHANNELS": "No channels match \"{{query}}\"",
+            "CLEAR_FILTER": "Clear filter",
+            "COLLAPSE_PLAYER": "Collapse player",
+            "EXPAND_PLAYER": "Expand player",
+            "KEYS": {
+                "CHANNEL": "channel",
+                "PROGRAMME": "programme",
+                "PLAY": "play",
+                "DETAILS": "details",
+                "NOW": "now",
+                "DAY": "day",
+                "CLOSE": "close"
+            }
+        },
         "TIMELINE": {
+            "GUIDE": "Guide",
+            "OPEN_GUIDE": "Open the programme guide",
             "TODAY": "Today",
             "NOW": "Now",
             "JUMP_NOW": "Jump to now",
@@ -1525,7 +1560,7 @@
                 "ACCOUNT_INFO_DESCRIPTION": "Show Xtream server account details",
                 "OPEN_VIEW_DESCRIPTION": "Navigate to {{view}}",
                 "CLEAR_CURRENT_VIEW_DESCRIPTION": "Clear all visible {{type}} items in this view",
-                "OPEN_MULTI_EPG_DESCRIPTION": "Open the multi-channel EPG view",
+                "OPEN_EPG_GUIDE_DESCRIPTION": "Open the programme guide for this playlist",
                 "GO_TO_VOD_LABEL": "Movies",
                 "GO_TO_VOD_DESCRIPTION": "Jump to movies section",
                 "GO_TO_LIVE_LABEL": "Live TV",

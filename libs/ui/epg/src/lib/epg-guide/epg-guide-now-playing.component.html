@@ -1,0 +1,53 @@
+<div class="now-playing" [class.now-playing--collapsed]="collapsed()">
+    <div class="now-playing__body">
+        <div class="now-playing__eyebrow">
+            <span>{{ channelName() }}</span>
+            @if (isOnNow()) {
+                <span class="now-playing__on">{{
+                    'EPG.TIMELINE.ON_NOW' | translate
+                }}</span>
+            }
+        </div>
+        @if (program(); as program) {
+            <div class="now-playing__title">{{ program.title }}</div>
+            @if (!collapsed() && program.desc) {
+                <div class="now-playing__desc">{{ program.desc }}</div>
+            }
+            @if (!collapsed() && progress() !== null) {
+                <div class="now-playing__progress">
+                    <span>{{ startMs() | date: 'HH:mm' }}</span>
+                    <i aria-hidden="true"
+                        ><b [style.width.%]="progress()"></b
+                    ></i>
+                    <span>{{ stopMs() | date: 'HH:mm' }}</span>
+                </div>
+            }
+        } @else {
+            <div class="now-playing__title now-playing__title--muted">
+                {{ 'EPG.GUIDE.NO_PROGRAMME_INFO' | translate }}
+            </div>
+        }
+    </div>
+    <div class="now-playing__actions">
+        <button
+            type="button"
+            mat-stroked-button
+            (click)="closeRequested.emit()"
+        >
+            {{ 'EPG.GUIDE.CLOSE' | translate }} <kbd>Esc</kbd>
+        </button>
+        <button
+            type="button"
+            mat-button
+            (click)="collapsedChange.emit(!collapsed())"
+            [attr.aria-expanded]="!collapsed()"
+        >
+            {{
+                (collapsed()
+                    ? 'EPG.GUIDE.EXPAND_PLAYER'
+                    : 'EPG.GUIDE.COLLAPSE_PLAYER'
+                ) | translate
+            }}
+        </button>
+    </div>
+</div>

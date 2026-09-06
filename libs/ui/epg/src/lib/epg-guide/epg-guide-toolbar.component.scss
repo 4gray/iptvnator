@@ -1,0 +1,238 @@
+@use '../epg-theme' as *;
+
+:host {
+    display: block;
+}
+
+.guide-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 52px;
+    padding: 0 18px;
+    border-bottom: 1px solid $line;
+    background: var(--app-content-bg);
+    color: $text-primary;
+
+    button,
+    label,
+    input {
+        font: inherit;
+    }
+}
+
+.guide-toolbar__day {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid $line-strong;
+    border-radius: 8px;
+    height: 30px;
+    overflow: hidden;
+
+    button {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+    }
+}
+
+.guide-toolbar__date {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-left: 1px solid $line-strong;
+    border-right: 1px solid $line-strong;
+    height: 100%;
+
+    small {
+        font: 10px $font-mono;
+        letter-spacing: 0.1em;
+        color: $text-tertiary;
+    }
+}
+
+.guide-toolbar__now,
+.guide-toolbar__scope {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid $line-strong;
+    background: transparent;
+    color: $text-primary;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+        background: $surface-2;
+    }
+    &:focus-visible {
+        outline: 2px solid $accent-blue;
+        outline-offset: 1px;
+    }
+}
+
+.guide-toolbar__now {
+    border-color: $accent-blue;
+    color: $accent-text;
+    background: var(--app-selection-surface);
+
+    &::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: $accent-live;
+        box-shadow: 0 0 0 3px color-mix(in srgb, $accent-live 20%, transparent);
+    }
+}
+
+.guide-toolbar__scope mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    margin-right: -6px;
+}
+
+.guide-toolbar__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    cursor: pointer;
+    white-space: nowrap;
+
+    input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    i {
+        width: 30px;
+        height: 16px;
+        border-radius: 99px;
+        background: $surface-3;
+        position: relative;
+        transition: background 120ms;
+
+        &::after {
+            content: '';
+            position: absolute;
+            left: 2px;
+            top: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: $text-tertiary;
+            transition:
+                left 120ms,
+                background 120ms;
+        }
+    }
+    &.is-on i {
+        background: $accent-blue;
+
+        &::after {
+            left: 16px;
+            background: var(--app-content-bg);
+        }
+    }
+    &:has(input:disabled) {
+        opacity: 0.5;
+        cursor: default;
+    }
+    &:has(input:focus-visible) i {
+        outline: 2px solid $accent-blue;
+        outline-offset: 2px;
+    }
+}
+
+.guide-toolbar__zoom {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: $text-secondary;
+
+    input[type='range'] {
+        width: 110px;
+        accent-color: $accent-blue;
+    }
+}
+
+.guide-toolbar__spacer {
+    flex: 1;
+    min-width: 8px;
+}
+
+.guide-toolbar__input {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 4px 0 10px;
+    width: 190px;
+    border: 1px solid $line-strong;
+    border-radius: 8px;
+    background: $surface-1;
+    color: $text-tertiary;
+
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+    }
+    input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        color: $text-primary;
+        font-size: 12px;
+        outline: none;
+
+        &::placeholder {
+            color: $text-tertiary;
+        }
+    }
+    button {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+
+        mat-icon {
+            font-size: 14px;
+        }
+    }
+    &:focus-within {
+        border-color: $accent-blue;
+    }
+}
+
+.guide-toolbar__input--search {
+    width: 230px;
+}
+
+.guide-toolbar__count {
+    font: 10.5px $font-mono;
+    color: $text-tertiary;
+    white-space: nowrap;
+}
+
+// CDK menus render outside the component, so the scope menu needs a piercing
+// rule rather than component-scoped styling.
+::ng-deep .guide-toolbar__scope-menu {
+    max-height: 60vh;
+
+    .is-selected {
+        color: var(--app-selection-color);
+        font-weight: 600;
+    }
+}

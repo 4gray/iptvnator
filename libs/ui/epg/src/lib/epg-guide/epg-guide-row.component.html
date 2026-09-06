@@ -1,0 +1,110 @@
+<div
+    class="epg-guide-row__channel"
+    role="button"
+    tabindex="-1"
+    [attr.aria-label]="channel().name"
+    [attr.aria-pressed]="active()"
+    (click)="channelActivated.emit()"
+    (dblclick)="channelCommitted.emit()"
+>
+    <span class="epg-guide-row__num">{{ channel().number }}</span>
+    <span class="epg-guide-row__logo">
+        @if (channel().logoUrl; as logo) {
+            <img [src]="logo" alt="" loading="lazy" />
+        } @else {
+            <mat-icon>live_tv</mat-icon>
+        }
+    </span>
+    <span class="epg-guide-row__name">
+        <b>{{ channel().name }}</b>
+        @if (density() === 'comfortable') {
+            <small>
+                @if (active()) {
+                    &#9654; {{ 'EPG.GUIDE.PLAYING' | translate }}
+                } @else if (nowBlock(); as now) {
+                    {{ now.block.program.title }}
+                } @else if (showEmpty()) {
+                    {{ 'EPG.GUIDE.NO_PROGRAMME_INFO' | translate }}
+                }
+            </small>
+        }
+    </span>
+    @if (active()) {
+        <mat-icon class="epg-guide-row__playing">equalizer</mat-icon>
+    }
+</div>
+
+<div class="epg-guide-row__lane" [style.width.px]="trackWidthPx()">
+    @if (showEmpty()) {
+        <span class="epg-guide-row__empty">{{
+            'EPG.GUIDE.NO_PROGRAMME_INFO_LONG' | translate
+        }}</span>
+    } @else if (isLoading()) {
+        <span
+            class="epg-guide-row__skeleton"
+            style="left: 24px; width: 180px"
+        ></span>
+        <span
+            class="epg-guide-row__skeleton"
+            style="left: 220px; width: 260px"
+        ></span>
+        <span
+            class="epg-guide-row__skeleton"
+            style="left: 500px; width: 200px"
+        ></span>
+    }
+    @for (item of blocks(); track item.key; let index = $index) {
+        <div
+            class="epg-guide-row__block"
+            role="button"
+            tabindex="-1"
+            [attr.data-tier]="item.tier"
+            [class.is-past]="item.block.when === 'past'"
+            [class.is-now]="item.block.when === 'now'"
+            [class.is-future]="item.block.when === 'future'"
+            [class.is-playing]="active() && item.block.when === 'now'"
+            [class.is-focused]="focusedBlock() === index"
+            [style.left.px]="item.leftPx"
+            [style.width.px]="item.widthPx"
+            [matTooltip]="
+                item.tier === 'micro' || item.tier === 'narrow'
+                    ? item.block.program.title
+                    : ''
+            "
+            [attr.aria-label]="item.block.program.title"
+            (click)="onBlockClick(item)"
+            (dblclick)="onBlockDoubleClick(item)"
+        >
+            @if (item.block.when === 'now') {
+                <span
+                    class="epg-guide-row__fill"
+                    [style.width.%]="item.nowFillPercent"
+                ></span>
+            }
+            <span class="epg-guide-row__time">
+                {{ item.block.startMs | date: 'HH:mm' }}
+                @if (density() === 'comfortable') {
+                    &ndash; {{ item.block.stopMs | date: 'HH:mm' }}
+                }
+            </span>
+            <span class="epg-guide-row__title">{{
+                item.block.program.title
+            }}</span>
+            @if (item.block.when === 'now') {
+                <span class="epg-guide-row__tag">{{
+                    'EPG.TIMELINE.ON_NOW' | translate
+                }}</span>
+            }
+            @if (item.canCatchUp && item.block.when === 'past') {
+                <button
+                    type="button"
+                    class="epg-guide-row__watch"
+                    (click)="onWatchClick($event, item)"
+                    [attr.aria-label]="'EPG.TIMELINE.WATCH' | translate"
+                >
+                    <mat-icon>replay</mat-icon>
+                </button>
+            }
+        </div>
+    }
+</div>

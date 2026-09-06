@@ -1,0 +1,148 @@
+<div class="guide-toolbar">
+    <div class="guide-toolbar__day">
+        <button
+            type="button"
+            mat-icon-button
+            (click)="stepDay.emit('prev')"
+            [attr.aria-label]="'EPG.PREVIOUS_DAY' | translate"
+        >
+            <mat-icon>chevron_left</mat-icon>
+        </button>
+        <span class="guide-toolbar__date">
+            {{ dayMs() | date: 'EEE, d MMM' : '' : currentLocale() }}
+            @if (isToday()) {
+                <small>{{ 'EPG.GUIDE.TODAY' | translate }}</small>
+            }
+        </span>
+        <button
+            type="button"
+            mat-icon-button
+            (click)="stepDay.emit('next')"
+            [attr.aria-label]="'EPG.NEXT_DAY' | translate"
+        >
+            <mat-icon>chevron_right</mat-icon>
+        </button>
+    </div>
+
+    <button
+        type="button"
+        class="guide-toolbar__now"
+        (click)="jumpNow.emit()"
+        [matTooltip]="'EPG.GUIDE.JUMP_NOW' | translate"
+    >
+        {{ 'EPG.GUIDE.NOW' | translate }}
+    </button>
+
+    <button
+        type="button"
+        class="guide-toolbar__scope"
+        [matMenuTriggerFor]="scopeMenu"
+        [attr.aria-label]="'EPG.GUIDE.SCOPE' | translate"
+    >
+        {{ scopeLabel() }} <mat-icon>arrow_drop_down</mat-icon>
+    </button>
+    <mat-menu #scopeMenu="matMenu" class="guide-toolbar__scope-menu">
+        @for (scope of scopes(); track scope.id) {
+            <button
+                mat-menu-item
+                [class.is-selected]="scope.id === scopeId()"
+                (click)="scopeChange.emit(scope.id)"
+            >
+                {{ scope.label }}
+            </button>
+        }
+    </mat-menu>
+
+    <label
+        class="guide-toolbar__toggle"
+        [class.is-on]="onlyWithEpg()"
+        [matTooltip]="'EPG.GUIDE.ONLY_WITH_EPG_HINT' | translate"
+    >
+        <input
+            type="checkbox"
+            [checked]="onlyWithEpg()"
+            [disabled]="!coverageLoaded()"
+            (change)="onlyWithEpgChange.emit(!onlyWithEpg())"
+        />
+        <i aria-hidden="true"></i>
+        <span>{{ 'EPG.GUIDE.ONLY_WITH_EPG' | translate }}</span>
+    </label>
+
+    <button
+        type="button"
+        mat-icon-button
+        class="guide-toolbar__density"
+        (click)="toggleDensity()"
+        [matTooltip]="densityLabelKey() | translate"
+        [attr.aria-label]="densityLabelKey() | translate"
+    >
+        <mat-icon>{{ densityIcon() }}</mat-icon>
+    </button>
+
+    <label
+        class="guide-toolbar__zoom"
+        [matTooltip]="'EPG.GUIDE.ZOOM' | translate"
+    >
+        <mat-icon>zoom_in</mat-icon>
+        <input
+            type="range"
+            [min]="zoomMin"
+            [max]="zoomMax"
+            [step]="zoomStep"
+            [value]="zoom()"
+            (input)="onZoomInput($event)"
+            [attr.aria-label]="'EPG.GUIDE.ZOOM' | translate"
+        />
+    </label>
+
+    <span class="guide-toolbar__spacer"></span>
+
+    <label class="guide-toolbar__input">
+        <mat-icon>search</mat-icon>
+        <input
+            type="text"
+            [value]="filter()"
+            (input)="onFilterInput($event)"
+            (keydown.escape)="onFilterEscape($event)"
+            [placeholder]="'EPG.GUIDE.FILTER_CHANNELS' | translate"
+            autocomplete="off"
+        />
+        @if (filter()) {
+            <span class="guide-toolbar__count"
+                >{{ shownCount() }} / {{ totalCount() }}</span
+            >
+            <button
+                type="button"
+                mat-icon-button
+                (click)="filterChange.emit('')"
+                [attr.aria-label]="'EPG.GUIDE.CLEAR_FILTER' | translate"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        }
+    </label>
+
+    @if (searchEnabled()) {
+        <label class="guide-toolbar__input guide-toolbar__input--search">
+            <mat-icon>manage_search</mat-icon>
+            <input
+                type="text"
+                [value]="searchQuery()"
+                (input)="onSearchInput($event)"
+                (keydown.escape)="onSearchEscape($event)"
+                [placeholder]="'EPG.GUIDE.SEARCH_PROGRAMMES' | translate"
+                autocomplete="off"
+            />
+            @if (searchQuery()) {
+                <button
+                    type="button"
+                    mat-icon-button
+                    (click)="searchQueryChange.emit('')"
+                    [attr.aria-label]="'CLEAR' | translate"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+        </label>
+    }
+</div>

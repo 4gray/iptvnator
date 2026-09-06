@@ -1,0 +1,164 @@
+<app-epg-guide-toolbar
+    [dayMs]="axis().startMs"
+    [isToday]="isToday()"
+    [currentLocale]="currentLocale()"
+    [scopes]="scopes()"
+    [scopeId]="scopeId()"
+    [onlyWithEpg]="onlyWithEpg()"
+    [coverageLoaded]="coverageLoaded()"
+    [density]="density()"
+    [zoom]="zoom()"
+    [filter]="filter()"
+    [searchEnabled]="searchEnabled"
+    [searchQuery]="searchQuery()"
+    [shownCount]="rows().length"
+    [totalCount]="totalCount()"
+    (stepDay)="stepDay($event)"
+    (jumpNow)="jumpNow()"
+    (scopeChange)="setScope($event)"
+    (onlyWithEpgChange)="setOnlyWithEpg($event)"
+    (densityChange)="setDensity($event)"
+    (zoomChange)="setZoom($event)"
+    (filterChange)="setFilter($event)"
+    (searchQueryChange)="onSearchQueryChange($event)"
+/>
+
+@if (searchEnabled && searchQuery().trim().length >= 2) {
+    <div class="epg-guide__search-results" role="listbox">
+        @for (
+            hit of searchResults();
+            track hit.program.channel + hit.program.start
+        ) {
+            <button
+                type="button"
+                class="epg-guide__search-result"
+                role="option"
+                [attr.aria-selected]="false"
+                (click)="openSearchResult(hit)"
+            >
+                <span class="epg-guide__search-title">{{
+                    hit.program.title
+                }}</span>
+                <span class="epg-guide__search-meta">
+                    {{
+                        hit.program.start
+                            | date: 'EEE d MMM HH:mm' : '' : currentLocale()
+                    }}
+                    · {{ hit.program.channel }}
+                </span>
+            </button>
+        } @empty {
+            <div class="epg-guide__search-empty">
+                {{ 'EPG.GUIDE.NO_RESULTS' | translate }}
+            </div>
+        }
+    </div>
+}
+
+<div
+    class="epg-guide__grid"
+    [style.--epg-guide-channel-col.px]="channelColumnPx"
+>
+    <div class="epg-guide__ruler">
+        <div class="epg-guide__corner">
+            {{ 'EPG.GUIDE.CHANNEL' | translate }}
+        </div>
+        <div class="epg-guide__ruler-clip">
+            <div
+                class="epg-guide__ruler-track"
+                [style.width.px]="trackWidthPx()"
+                [style.transform]="'translateX(' + -scrollLeft() + 'px)'"
+            >
+                @for (tick of ticks(); track tick.ms) {
+                    <div
+                        class="epg-guide__tick"
+                        [class.is-half]="tick.kind === 'half'"
+                        [style.left.px]="tick.leftPx"
+                    >
+                        {{ tick.ms | date: 'HH:mm' }}
+                    </div>
+                }
+                @if (nowLeftPx(); as nowX) {
+                    <div class="epg-guide__now-badge" [style.left.px]="nowX">
+                        {{ nowMs() | date: 'HH:mm' }}
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <cdk-virtual-scroll-viewport
+        #viewport
+        class="epg-guide__viewport"
+        [itemSize]="rowHeightPx()"
+        [minBufferPx]="rowHeightPx() * 6"
+        [maxBufferPx]="rowHeightPx() * 12"
+        (scroll)="onViewportScroll($event)"
+    >
+        <app-epg-guide-row
+            *cdkVirtualFor="
+                let channel of rows();
+                trackBy: trackRow;
+                let index = index
+            "
+            [channel]="channel"
+            [programs]="programsFor(channel.id)"
+            [status]="statusFor(channel.id)"
+            [axis]="axis()"
+            [hourWidthPx]="zoom()"
+            [nowMs]="nowMs()"
+            [offsetMinutes]="offsetMinutes()"
+            [catchUpAvailable]="catchUpAvailable"
+            [active]="channel.id === activeChannelId()"
+            [density]="density()"
+            [rowFocused]="focus()?.row === index"
+            [focusedBlock]="focusedBlockFor(index)"
+            [style.height.px]="rowHeightPx()"
+            (channelActivated)="activateRow(channel)"
+            (channelCommitted)="commitRow(channel)"
+            (detailsRequested)="openDetails(channel, $event)"
+            (watchRequested)="watch(channel, $event)"
+        />
+        @if (rows().length === 0) {
+            <div class="epg-guide__no-rows">
+                <mat-icon>search_off</mat-icon>
+                <p>
+                    {{
+                        'EPG.GUIDE.NO_CHANNELS' | translate: { query: filter() }
+                    }}
+                </p>
+                @if (filter()) {
+                    <button type="button" mat-button (click)="setFilter('')">
+                        {{ 'EPG.GUIDE.CLEAR_FILTER' | translate }}
+                    </button>
+                }
+            </div>
+        }
+    </cdk-virtual-scroll-viewport>
+
+    @if (nowLeftPx(); as nowX) {
+        <div
+            class="epg-guide__now-line"
+            [style.left.px]="channelColumnPx + nowX - scrollLeft()"
+        ></div>
+    }
+</div>
+
+<div class="epg-guide__keys" aria-hidden="true">
+    <span
+        ><kbd>&uarr;</kbd><kbd>&darr;</kbd
+        >{{ 'EPG.GUIDE.KEYS.CHANNEL' | translate }}</span
+    >
+    <span
+        ><kbd>&larr;</kbd><kbd>&rarr;</kbd
+        >{{ 'EPG.GUIDE.KEYS.PROGRAMME' | translate }}</span
+    >
+    <span><kbd>Enter</kbd>{{ 'EPG.GUIDE.KEYS.PLAY' | translate }}</span>
+    <span><kbd>I</kbd>{{ 'EPG.GUIDE.KEYS.DETAILS' | translate }}</span>
+    <span><kbd>N</kbd>{{ 'EPG.GUIDE.KEYS.NOW' | translate }}</span>
+    <span
+        ><kbd>PgUp</kbd><kbd>PgDn</kbd
+        >{{ 'EPG.GUIDE.KEYS.DAY' | translate }}</span
+    >
+    <span><kbd>Esc</kbd>{{ 'EPG.GUIDE.KEYS.CLOSE' | translate }}</span>
+</div>
