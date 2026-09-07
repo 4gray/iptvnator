@@ -1,3 +1,4 @@
+import { catchupForDownload } from './download-catchup';
 import { and, eq, sql } from 'drizzle-orm';
 import { accessSync, constants } from 'node:fs';
 import { basename, dirname } from 'node:path';
@@ -60,6 +61,7 @@ export async function redownloadMissingRequest(
         return { error: 'Download folder is unavailable', success: false };
     }
 
+    const catchup = catchupForDownload(item);
     await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
     const headers = await resolveStoredDownloadHeaders(db, item);
 
@@ -100,6 +102,7 @@ export async function redownloadMissingRequest(
     }
 
     enqueueDownload({
+        catchup,
         directory: dirname(item.filePath),
         fileName: basename(item.filePath),
         filePath: item.filePath,

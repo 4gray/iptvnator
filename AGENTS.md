@@ -1027,3 +1027,15 @@ Xtream/M3U archives, including Favorites/Recent. `EpgArchiveCopyService` owns
 clipboard feedback; hosts resolve URLs without mutating playback. Stalker and
 the currently non-catch-up M3U guide expose no action. See
 `docs/architecture/m3u-playlist-module.md` (Copy archive URL).
+
+## Xtream Archive Downloads
+
+Desktop Xtream Live TV programme details can enqueue completed catch-up as
+`contentType: catchup`. The queue uses the existing timeshift resolver, original
+timestamps and playback headers. `programme_start` plus playlist/channel provides
+identity; JSON `catchup` metadata retains channel, broadcast window and known
+expiry. `download-schema.ts` owns the transactional CHECK/index migration.
+Archive transfers validate TS framing, restart from byte zero after interruption
+and check expiry again at transfer start. Completed cards play locally and never
+route to VOD details. Contract and EOF/duration limits:
+`docs/architecture/download-manager.md` (Xtream archive downloads).

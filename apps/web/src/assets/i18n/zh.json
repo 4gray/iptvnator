@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "复制回看链接",
             "ARCHIVE_URL_COPIED": "已复制回看链接",
             "ARCHIVE_URL_FAILED": "无法复制回看链接",
-            "ARCHIVE_URL_NOTICE": "链接可能包含账户凭据。外部播放器可能还需要此来源的 HTTP 请求头。"
+            "ARCHIVE_URL_NOTICE": "链接可能包含账户凭据。外部播放器可能还需要此来源的 HTTP 请求头。",
+            "DOWNLOAD_ARCHIVE": "下载节目 (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "节目已加入下载列表",
+            "ARCHIVE_DOWNLOAD_FAILED": "无法下载此节目，它可能已不可用。",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "回看下载目前仅支持 TS 流。",
+            "ARCHIVE_DOWNLOAD_EXISTS": "此节目已在下载列表中。"
         },
         "FETCH_SUCCESS": "EPG 获取成功",
         "IMPORT_PROGRESS": "EPG 导入",
@@ -1375,9 +1380,12 @@
             "RETRY": "重试 {{title}}",
             "MORE_ACTIONS": "{{title}} 的更多操作",
             "COPY_URL": "复制 {{title}} 的下载 URL",
-            "DOWNLOAD_AGAIN": "再次下载 {{title}}"
+            "DOWNLOAD_AGAIN": "再次下载 {{title}}",
+            "RESTART_ARCHIVE": "从头下载 {{title}}"
         },
-        "DOWNLOAD_AGAIN": "再次下载"
+        "DOWNLOAD_AGAIN": "再次下载",
+        "CATCHUP": "电视节目",
+        "ARCHIVE_RESTART_NOTE": "中断后，回看节目的下载将从头开始。"
     },
     "REMOTE_CONTROL": {
         "TITLE": "远程控制",

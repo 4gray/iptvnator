@@ -1,5 +1,8 @@
 import { and, eq, isNull, or } from 'drizzle-orm';
-import type { ElectronBridgeEpisodeIdentityScope } from '@iptvnator/shared/interfaces';
+import type {
+    CatchupDownloadMetadata,
+    ElectronBridgeEpisodeIdentityScope,
+} from '@iptvnator/shared/interfaces';
 import * as schema from '../../database/schema';
 import type { DownloadsDatabase } from './download-task';
 
@@ -29,6 +32,7 @@ export type ExistingDownloadIdentityResolution =
     DownloadIdentityNone | DownloadIdentityConflict | DownloadIdentityMatch;
 
 export interface DownloadIdentityRequest {
+    catchup?: CatchupDownloadMetadata | null;
     contentType: DownloadRow['contentType'];
     episodeNumber?: number;
     episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
@@ -92,7 +96,13 @@ export async function resolveExistingDownloadIdentity(
             and(
                 eq(schema.downloads.playlistId, request.playlistId),
                 eq(schema.downloads.contentType, request.contentType),
-                eq(schema.downloads.xtreamId, request.xtreamId)
+                eq(schema.downloads.xtreamId, request.xtreamId),
+                request.contentType === 'catchup'
+                    ? eq(
+                          schema.downloads.programmeStart,
+                          request.catchup?.startTimestamp ?? 0
+                      )
+                    : undefined
             )
         )
         .limit(1);

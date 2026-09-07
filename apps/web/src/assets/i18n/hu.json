@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "Archív URL másolása",
             "ARCHIVE_URL_COPIED": "Archív URL másolva",
             "ARCHIVE_URL_FAILED": "Az archív URL másolása sikertelen",
-            "ARCHIVE_URL_NOTICE": "Az URL bejelentkezési adatokat tartalmazhat. A külső lejátszóknak a forrás HTTP-fejléceire is szükségük lehet."
+            "ARCHIVE_URL_NOTICE": "Az URL bejelentkezési adatokat tartalmazhat. A külső lejátszóknak a forrás HTTP-fejléceire is szükségük lehet.",
+            "DOWNLOAD_ARCHIVE": "Műsor letöltése (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "Műsor hozzáadva a letöltésekhez",
+            "ARCHIVE_DOWNLOAD_FAILED": "A műsor nem tölthető le. Lehet, hogy már nem érhető el.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "Az archívum letöltése jelenleg csak TS adatfolyamokkal működik.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "Ez a műsor már szerepel a letöltések között."
         },
         "FETCH_SUCCESS": "Az EPG lekérése sikerült",
         "IMPORT_PROGRESS": "EPG importálása",
@@ -1375,9 +1380,12 @@
             "RETRY": "{{title}} újrapróbálása",
             "MORE_ACTIONS": "További műveletek: {{title}}",
             "COPY_URL": "{{title}} letöltési URL-jének másolása",
-            "DOWNLOAD_AGAIN": "{{title}} letöltése újra"
+            "DOWNLOAD_AGAIN": "{{title}} letöltése újra",
+            "RESTART_ARCHIVE": "{{title}} letöltése elölről"
         },
-        "DOWNLOAD_AGAIN": "Letöltés újra"
+        "DOWNLOAD_AGAIN": "Letöltés újra",
+        "CATCHUP": "TV-műsor",
+        "ARCHIVE_RESTART_NOTE": "Megszakítás után az archív műsor letöltése elölről indul."
     },
     "REMOTE_CONTROL": {
         "TITLE": "Távvezérlés",

@@ -1,11 +1,16 @@
-import type {
-    DownloadMetadataSnapshot,
-    ElectronBridgeEpisodeIdentityScope,
-    ElectronBridgeDownloadStartResult,
-} from '@iptvnator/shared/interfaces';
+import {
+    sanitizeFilename,
+    createFileName,
+    createHeaders,
+    serializeHeaders,
+    type StartDownloadRequest,
+} from './download-request-options';
+export type { StartDownloadRequest } from './download-request-options';
+import { catchupForDownload } from './download-catchup';
+import type { ElectronBridgeDownloadStartResult } from '@iptvnator/shared/interfaces';
 import { ELECTRON_BRIDGE_DOWNLOAD_START_REASONS } from '@iptvnator/shared/interfaces';
 import { and, eq, sql } from 'drizzle-orm';
-import { basename, dirname, extname } from 'node:path';
+import { basename, dirname } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
@@ -22,77 +27,11 @@ import {
 } from './download-metadata-snapshot';
 import { enqueueDownload } from './download-runtime';
 
-export interface StartDownloadRequest {
-    playlistId: string;
-    xtreamId: number;
-    contentType: 'vod' | 'episode';
-    title: string;
-    url: string;
-    posterUrl?: string;
-    metadataSnapshot?: DownloadMetadataSnapshot;
-    downloadFolder: string;
-    headers?: { userAgent?: string; referer?: string; origin?: string };
-    seriesXtreamId?: number;
-    seasonNumber?: number;
-    episodeNumber?: number;
-    episodeIdentityScope?: ElectronBridgeEpisodeIdentityScope;
-    playlistName?: string;
-    playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
-    serverUrl?: string;
-    portalUrl?: string;
-    macAddress?: string;
-}
-
-function sanitizeFilename(name: string): string {
-    return name.replace(/[<>:"/\\|?*]/g, '_').trim();
-}
-
-function getExtensionFromUrl(url: string): string {
-    try {
-        // Sanitize too: URL pathnames may legally contain characters like ':'
-        // that would create NTFS alternate data streams on Windows.
-        const extension = sanitizeFilename(extname(new URL(url).pathname));
-        return extension.startsWith('.') ? extension : '.mp4';
-    } catch {
-        return '.mp4';
-    }
-}
-
-function createFileName(title: string, url: string): string {
-    return sanitizeFilename(title) + getExtensionFromUrl(url);
-}
-
-function createHeaders(
-    headers: StartDownloadRequest['headers']
-): Record<string, string> | undefined {
-    if (!headers) {
-        return undefined;
-    }
-
-    const result: Record<string, string> = {};
-    if (headers.userAgent) {
-        result['User-Agent'] = headers.userAgent;
-    }
-    if (headers.origin) {
-        result.Origin = headers.origin;
-    }
-    if (headers.referer) {
-        result.Referer = headers.referer;
-    }
-
-    return Object.keys(result).length > 0 ? result : undefined;
-}
-
-function serializeHeaders(
-    headers: Record<string, string> | undefined
-): string | null {
-    return headers ? JSON.stringify(headers) : null;
-}
-
 export async function startDownloadRequest(
     data: StartDownloadRequest,
     authorizer: DownloadDirectoryAuthorizer
 ): Promise<ElectronBridgeDownloadStartResult> {
+    const catchup = catchupForDownload(data);
     const encodedMetadataSnapshot =
         data.metadataSnapshot === undefined
             ? undefined
@@ -128,7 +67,9 @@ export async function startDownloadRequest(
             success: false,
         };
     }
-    const fileName = createFileName(data.title, data.url);
+    const fileName = catchup
+        ? sanitizeFilename(data.title) + '.ts'
+        : createFileName(data.title, data.url);
     const headers = createHeaders(data.headers);
 
     if (identity.kind === 'match') {
@@ -147,7 +88,11 @@ export async function startDownloadRequest(
                 data.url
             );
         }
-        if (item.contentType === 'episode' && item.status === 'completed') {
+        if (
+            (item.contentType === 'episode' ||
+                item.contentType === 'catchup') &&
+            item.status === 'completed'
+        ) {
             const completedFileAvailability =
                 await getDownloadFileAvailabilityWithTimeoutAsync(item);
             if (completedFileAvailability === 'unknown') {
@@ -198,6 +143,8 @@ export async function startDownloadRequest(
         await db
             .update(schema.downloads)
             .set({
+                catchup,
+                programmeStart: catchup?.startTimestamp ?? 0,
                 bytesDownloaded: 0,
                 errorMessage: null,
                 fileName,
@@ -220,6 +167,7 @@ export async function startDownloadRequest(
             })
             .where(eq(schema.downloads.id, item.id));
         enqueueDownload({
+            catchup,
             directory,
             fileName,
             headers,
@@ -256,6 +204,8 @@ export async function startDownloadRequest(
 
     const result = await db.insert(schema.downloads).values({
         contentType: data.contentType,
+        catchup,
+        programmeStart: catchup?.startTimestamp ?? 0,
         episodeNumber: data.episodeNumber,
         episodeIdentityScope: data.episodeIdentityScope,
         fileName,
@@ -272,6 +222,7 @@ export async function startDownloadRequest(
     });
     const insertedId = Number(result.lastInsertRowid);
     enqueueDownload({
+        catchup,
         directory,
         fileName,
         headers,
@@ -299,6 +250,7 @@ export async function retryDownloadRequest(
     }
 
     const item = existing[0];
+    const catchup = catchupForDownload(item);
     await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
     if (!['failed', 'canceled'].includes(item.status)) {
         return {
@@ -317,7 +269,9 @@ export async function retryDownloadRequest(
         : await authorizer.requireAuthorized(downloadFolder);
     const fileName = retainedFilePath
         ? basename(retainedFilePath)
-        : createFileName(item.title, item.url);
+        : catchup
+          ? sanitizeFilename(item.title) + '.ts'
+          : createFileName(item.title, item.url);
     const headers = await resolveStoredDownloadHeaders(db, item);
     const queuedUpdate = retainedFilePath
         ? {
@@ -341,6 +295,7 @@ export async function retryDownloadRequest(
         .set(queuedUpdate)
         .where(eq(schema.downloads.id, downloadId));
     enqueueDownload({
+        catchup,
         directory,
         fileName,
         filePath: retainedFilePath,
@@ -371,6 +326,7 @@ export async function resumeDownloadRequest(
     }
 
     const item = existing[0];
+    const catchup = catchupForDownload(item);
     await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
     if (item.status !== 'paused') {
         return {
@@ -386,7 +342,9 @@ export async function resumeDownloadRequest(
         : await authorizer.requireAuthorized(downloadFolder);
     const fileName = item.filePath
         ? basename(item.filePath)
-        : createFileName(item.title, item.url);
+        : catchup
+          ? sanitizeFilename(item.title) + '.ts'
+          : createFileName(item.title, item.url);
     const headers = await resolveStoredDownloadHeaders(db, item);
 
     // Claim the row atomically: a concurrent resume for the same id loses
@@ -413,6 +371,7 @@ export async function resumeDownloadRequest(
     }
 
     enqueueDownload({
+        catchup,
         directory,
         fileName,
         filePath: item.filePath,

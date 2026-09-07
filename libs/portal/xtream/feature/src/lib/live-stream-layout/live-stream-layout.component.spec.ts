@@ -24,6 +24,7 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    EpgArchiveDownloadService,
     EpgArchiveCopyService,
     EpgListViewComponent,
     EpgTimelineComponent,
@@ -44,6 +45,8 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 import {
+    sampleChannel,
+    playlist,
     StubEpgTimelineComponent,
     StubGridListComponent,
     StubPortalChannelsListComponent,
@@ -60,20 +63,6 @@ describe('LiveStreamLayoutComponent', () => {
         ReturnType<typeof convertToParamMap>
     >;
     const fixedNow = new Date('2026-04-05T12:00:00.000Z');
-
-    const sampleChannel = {
-        xtream_id: 101,
-        name: 'Channel 101',
-        stream_icon: 'channel-101.png',
-        tv_archive: 1,
-        tv_archive_duration: 3,
-    };
-    const playlist = {
-        id: 'playlist-1',
-        serverUrl: 'http://demo.example',
-        username: 'demo',
-        password: 'secret',
-    };
 
     const categories = signal([{ category_id: 1, category_name: 'News' }]);
     const categoryItemCounts = signal(new Map<number, number>([[1, 1]]));
@@ -187,6 +176,14 @@ describe('LiveStreamLayoutComponent', () => {
             imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
             providers: [
                 {
+                    provide: EpgArchiveDownloadService,
+                    useValue: {
+                        start: jest.fn(async (_input, resolve) => {
+                            await resolve();
+                        }),
+                    },
+                },
+                {
                     provide: EpgArchiveCopyService,
                     useValue: {
                         copy: jest.fn(
@@ -226,6 +223,7 @@ describe('LiveStreamLayoutComponent', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
+                        supportsDownloads: true,
                         get supportsEpg() {
                             return Boolean(window.electron);
                         },
@@ -783,6 +781,42 @@ describe('LiveStreamLayoutComponent', () => {
                 isLive: false,
             })
         );
+    });
+
+    it('queues a completed programme with its channel identity and headers without changing playback', async () => {
+        const before = component.activePlayback();
+        const start = Math.floor(Date.now() / 1000) - 7200;
+        await component.onProgramActivated({
+            type: 'download-catchup',
+            program: {
+                start: new Date(start * 1000).toISOString(),
+                stop: new Date((start + 3600) * 1000).toISOString(),
+                startTimestamp: start,
+                stopTimestamp: start + 3600,
+                channel: 'channel-101',
+                title: 'Archive',
+                desc: null,
+                category: null,
+            },
+        });
+        expect(
+            TestBed.inject(EpgArchiveDownloadService).start
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: playlist.id,
+                xtreamId: 101,
+                title: 'Archive',
+                catchup: expect.objectContaining({
+                    startTimestamp: start,
+                    stopTimestamp: start + 3600,
+                }),
+                headers: expect.objectContaining({
+                    userAgent: expect.any(String),
+                }),
+            }),
+            expect.any(Function)
+        );
+        expect(component.activePlayback()).toEqual(before);
     });
 
     it('copies the programme URL without changing playback or channel selection', async () => {

@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "다시보기 URL 복사",
             "ARCHIVE_URL_COPIED": "다시보기 URL이 복사되었습니다",
             "ARCHIVE_URL_FAILED": "다시보기 URL을 복사하지 못했습니다",
-            "ARCHIVE_URL_NOTICE": "URL에 계정 인증 정보가 포함될 수 있습니다. 외부 플레이어에는 소스의 HTTP 헤더도 필요할 수 있습니다."
+            "ARCHIVE_URL_NOTICE": "URL에 계정 인증 정보가 포함될 수 있습니다. 외부 플레이어에는 소스의 HTTP 헤더도 필요할 수 있습니다.",
+            "DOWNLOAD_ARCHIVE": "프로그램 다운로드 (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "프로그램을 다운로드에 추가했습니다",
+            "ARCHIVE_DOWNLOAD_FAILED": "프로그램을 다운로드할 수 없습니다. 더 이상 제공되지 않을 수 있습니다.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "보관 프로그램 다운로드는 현재 TS 스트림만 지원합니다.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "이 프로그램은 이미 다운로드 목록에 있습니다."
         },
         "FETCH_SUCCESS": "EPG를 성공적으로 가져왔습니다",
         "IMPORT_PROGRESS": "EPG 가져오기",
@@ -1375,9 +1380,12 @@
             "RETRY": "{{title}} 다시 시도",
             "MORE_ACTIONS": "{{title}} 추가 작업",
             "COPY_URL": "{{title}} 다운로드 URL 복사",
-            "DOWNLOAD_AGAIN": "{{title}} 다시 다운로드"
+            "DOWNLOAD_AGAIN": "{{title}} 다시 다운로드",
+            "RESTART_ARCHIVE": "{{title}} 처음부터 다운로드"
         },
-        "DOWNLOAD_AGAIN": "다시 다운로드"
+        "DOWNLOAD_AGAIN": "다시 다운로드",
+        "CATCHUP": "TV 프로그램",
+        "ARCHIVE_RESTART_NOTE": "중단 후에는 보관 프로그램 다운로드를 처음부터 다시 시작합니다."
     },
     "REMOTE_CONTROL": {
         "TITLE": "원격 제어",

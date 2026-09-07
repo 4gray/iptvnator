@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "Archief-URL kopiëren",
             "ARCHIVE_URL_COPIED": "Archief-URL gekopieerd",
             "ARCHIVE_URL_FAILED": "Kan archief-URL niet kopiëren",
-            "ARCHIVE_URL_NOTICE": "De URL kan inloggegevens bevatten. Externe spelers hebben mogelijk ook de HTTP-headers van de bron nodig."
+            "ARCHIVE_URL_NOTICE": "De URL kan inloggegevens bevatten. Externe spelers hebben mogelijk ook de HTTP-headers van de bron nodig.",
+            "DOWNLOAD_ARCHIVE": "Programma downloaden (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "Programma toegevoegd aan Downloads",
+            "ARCHIVE_DOWNLOAD_FAILED": "Het programma kon niet worden gedownload. Het is mogelijk niet meer beschikbaar.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "Archiefdownloads ondersteunen momenteel alleen TS-streams.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "Dit programma staat al in Downloads."
         },
         "FETCH_SUCCESS": "TV-Gids bijgewerkt",
         "IMPORT_PROGRESS": "EPG-import",
@@ -1375,9 +1380,12 @@
             "RETRY": "{{title}} opnieuw proberen",
             "MORE_ACTIONS": "Meer acties voor {{title}}",
             "COPY_URL": "Download-URL voor {{title}} kopiëren",
-            "DOWNLOAD_AGAIN": "{{title}} opnieuw downloaden"
+            "DOWNLOAD_AGAIN": "{{title}} opnieuw downloaden",
+            "RESTART_ARCHIVE": "{{title}} vanaf het begin downloaden"
         },
-        "DOWNLOAD_AGAIN": "Opnieuw downloaden"
+        "DOWNLOAD_AGAIN": "Opnieuw downloaden",
+        "CATCHUP": "TV-programma",
+        "ARCHIVE_RESTART_NOTE": "Na een onderbreking begint de archiefdownload opnieuw."
     },
     "REMOTE_CONTROL": {
         "TITLE": "Afstandsbediening",

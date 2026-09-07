@@ -316,3 +316,11 @@ or without, the account-info check. The same timezone lets
 clock the panel wrote them in (`parseXtreamServerLocalDateTime`);
 `start_timestamp` still wins whenever it is present. Formatting uses
 `hourCycle: 'h23'`, so server midnight renders as `00`, never `24`.
+
+### Downloading completed catch-up programmes
+
+Desktop Xtream Live TV exposes a TS-only download action in programme details.
+It reuses the canonical timeshift resolver and original timestamps, preserves
+playback headers and does not change playback. See
+[Download Manager](download-manager.md#xtream-archive-downloads) for identity,
+restart, expiry and transport-completion limits.

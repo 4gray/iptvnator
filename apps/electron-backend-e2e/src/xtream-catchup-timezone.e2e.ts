@@ -1,3 +1,9 @@
+import {
+    getDownloadPlayPaths,
+    installDownloadPlayCapture,
+} from './downloads.e2e-support';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import {
     addXtreamPortal,
@@ -304,6 +310,135 @@ test('@epg @xtream @electron copies the archive URL without starting archive pla
         );
         // Main-process archive probes do not appear as renderer playback requests.
         expect(captured).toEqual([]);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
+test('@downloads @epg @xtream @electron downloads a completed archive into the local library', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(120000);
+    const credentials = { username: 'epg', password: 'epg' };
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, credentials);
+    let app = await launchElectronApp(dataDir, {
+        env: { TZ: VIEWER_TIMEZONE },
+    });
+    try {
+        const folder = join(dataDir, 'archive-downloads');
+        mkdirSync(folder, { recursive: true });
+        await app.electronApp.evaluate(({ dialog }, target) => {
+            dialog.showOpenDialog = async () =>
+                ({ canceled: false, filePaths: [target] }) as Awaited<
+                    ReturnType<typeof dialog.showOpenDialog>
+                >;
+        }, folder);
+        await app.mainWindow.evaluate(async () => {
+            await window.electron.downloadsSelectFolder();
+        });
+        await addXtreamPortal(app.mainWindow, {
+            name: 'Archive downloads',
+            ...credentials,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openTimezoneNewsInLiveTv(app.mainWindow, fixture.categoryName);
+        const captured = captureTimeshiftRequests(app.mainWindow);
+        const block = app.mainWindow
+            .locator('app-epg-timeline .epg-timeline__block')
+            .filter({ hasText: PAST_PROGRAM })
+            .first();
+        await expect(block).toBeVisible({ timeout: 20000 });
+        await block.locator('.epg-timeline__info').click();
+        await app.mainWindow
+            .getByRole('dialog')
+            .getByRole('button', {
+                name: 'Download programme (TS)',
+                exact: true,
+            })
+            .click();
+        await expect(
+            app.mainWindow.getByText('Programme added to Downloads', {
+                exact: true,
+            })
+        ).toBeVisible();
+        await expect
+            .poll(
+                async () => {
+                    const rows = await app.mainWindow.evaluate(() =>
+                        window.electron.downloadsGetList()
+                    );
+                    return rows.find((row) => row.contentType === 'catchup')
+                        ?.status;
+                },
+                { timeout: 30000 }
+            )
+            .toBe('completed');
+        const rows = await app.mainWindow.evaluate(() =>
+            window.electron.downloadsGetList()
+        );
+        const row = rows.find((entry) => entry.contentType === 'catchup');
+        expect(row?.catchup?.channelName).toBe(CHANNEL);
+        expect(row?.title).toBe(PAST_PROGRAM);
+        expect(row?.filePath).toMatch(/archive-downloads.*\.ts$/);
+        if (!row?.filePath) throw new Error('No archive file');
+        expect(readFileSync(row.filePath)).toEqual(
+            readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
+        );
+        expect(captured).toEqual([]);
+        // Repeated clicks on the same programme reuse its identity.
+        await block.locator('.epg-timeline__info').click();
+        await app.mainWindow
+            .getByRole('dialog')
+            .getByRole('button', {
+                name: 'Download programme (TS)',
+                exact: true,
+            })
+            .click();
+        await expect(
+            app.mainWindow.getByText(
+                'This programme is already in Downloads.',
+                { exact: true }
+            )
+        ).toBeVisible();
+        expect(
+            await app.mainWindow.evaluate(
+                async () => (await window.electron.downloadsGetList()).length
+            )
+        ).toBe(1);
+        await app.mainWindow
+            .getByRole('button', { name: 'Open downloads', exact: true })
+            .click();
+        const card = app.mainWindow.getByTestId(
+            `download-library-catchup-${row.id}`
+        );
+        await expect(card).toBeVisible();
+        await expect(card).toContainText('TV programme');
+        await expect(card).toContainText(CHANNEL);
+        await app.mainWindow.screenshot({
+            path: test.info().outputPath('archive-download-library.png'),
+        });
+        await installDownloadPlayCapture(app);
+        await card
+            .getByRole('button', { name: `Play: ${PAST_PROGRAM}`, exact: true })
+            .click();
+        await expect
+            .poll(() => getDownloadPlayPaths(app))
+            .toEqual([row.filePath]);
+        await expect(app.mainWindow).toHaveURL(
+            /\/workspace\/downloads(?:\?.*)?$/
+        );
+        // Library remains usable after a restart, including archive metadata.
+        app = await restartElectronApp(app, dataDir, {
+            env: { TZ: VIEWER_TIMEZONE },
+        });
+        await app.mainWindow
+            .getByRole('button', { name: 'Open downloads', exact: true })
+            .click();
+        await expect(
+            app.mainWindow.getByTestId(`download-library-catchup-${row.id}`)
+        ).toBeVisible();
     } finally {
         await closeElectronApp(app);
     }

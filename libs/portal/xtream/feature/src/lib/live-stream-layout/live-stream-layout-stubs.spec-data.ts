@@ -73,6 +73,7 @@ export class StubEpgTimelineComponent {
     readonly channelLogo = input('');
     readonly sourceLabel = input('');
     readonly archivePlaybackAvailable = input(false);
+    readonly archiveDownloadAvailable = input(false);
     readonly archiveContextKey = input<string | null>(null);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
@@ -94,3 +95,17 @@ export class StubEpgTimelineComponent {
     standalone: true,
 })
 export class StubResizableDirective {}
+
+export const sampleChannel = {
+    xtream_id: 101,
+    name: 'Channel 101',
+    stream_icon: 'channel-101.png',
+    tv_archive: 1,
+    tv_archive_duration: 3,
+};
+export const playlist = {
+    id: 'playlist-1',
+    serverUrl: 'http://demo.example',
+    username: 'demo',
+    password: 'secret',
+};

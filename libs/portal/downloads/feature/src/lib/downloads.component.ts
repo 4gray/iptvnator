@@ -328,6 +328,10 @@ export class DownloadsComponent {
     }
 
     openOfflineDetail(item: DownloadItem): void {
+        if (item.contentType === 'catchup') {
+            void this.actions.run({ type: 'play', item });
+            return;
+        }
         if (this.pendingIds().has(item.id)) {
             return;
         }
@@ -338,6 +342,7 @@ export class DownloadsComponent {
     }
 
     async openInLibrary(item: DownloadItem): Promise<void> {
+        if (item.contentType === 'catchup') return;
         if (this.pendingIds().has(item.id)) {
             return;
         }

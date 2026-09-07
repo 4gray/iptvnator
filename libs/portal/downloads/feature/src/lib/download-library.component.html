@@ -29,8 +29,10 @@
                             "
                             [disabled]="isPending(representativeOf(entity))"
                             [attr.aria-label]="
-                                'DOWNLOADS.OPEN_ARTWORK'
-                                    | translate: { title: entityTitle(entity) }
+                                (entity.kind === 'catchup'
+                                    ? 'DOWNLOADS.PLAY'
+                                    : 'DOWNLOADS.OPEN_ARTWORK'
+                                ) | translate: { title: entityTitle(entity) }
                             "
                             (click)="openDetails(representativeOf(entity))"
                         >
@@ -199,7 +201,10 @@
                             "
                             [disabled]="isPending(representativeOf(entity))"
                             [attr.aria-label]="
-                                ('DOWNLOADS.OPEN_DETAILS' | translate) +
+                                ((entity.kind === 'catchup'
+                                    ? 'DOWNLOADS.PLAY'
+                                    : 'DOWNLOADS.OPEN_DETAILS'
+                                ) | translate) +
                                 ': ' +
                                 entityTitle(entity)
                             "
@@ -258,6 +263,18 @@
                                         }
                                     </span>
                                 }
+                            </div>
+                        }
+                        @if (
+                            entity.kind === 'catchup' && entity.item.catchup;
+                            as archive
+                        ) {
+                            <div class="download-library__facts">
+                                {{ archive.channelName }} ·
+                                {{
+                                    archive.startTimestamp * 1000
+                                        | date: 'medium'
+                                }}
                             </div>
                         }
                         @if (entity.kind === 'episode' && entity.episodeLabel) {

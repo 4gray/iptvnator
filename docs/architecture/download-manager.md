@@ -7,6 +7,51 @@ views. Backend work is handled in the Electron process while the Angular
 renderer exposes the global `/workspace/downloads` page, source-scoped route
 variants, contextual buttons, and theme-aware styling.
 
+## Xtream archive downloads
+
+The desktop Xtream Live TV programme dialog offers **Download programme (TS)**
+for completed, available catch-up programmes in both timeline and list views.
+The host captures the playlist, channel and original programme timestamps before
+resolving the existing timeshift URL (including the panel timezone). A channel
+change while the dialog is open invalidates its action. Downloading does not
+select the programme or change playback. Collection views retain archive URL
+copying; archive downloads are initially exposed through Xtream Live TV only.
+M3U, Stalker and PWA archive downloads, HLS assembly and recording future broadcasts
+are outside this feature.
+
+`EpgArchiveDownloadService` submits the resolved URL and the playlist's playback
+header allowlist to the existing desktop queue. HLS URLs are refused explicitly;
+the backend also checks the response type and every 188-byte MPEG-TS packet.
+No transcoder or media helper is required. The file always uses `.ts`.
+
+The `catchup` download type stores `programme_start` and JSON metadata containing
+channel name, start/stop Unix seconds and the known archive expiry. Its unique
+identity is `(playlist_id, xtream_id, programme_start)`; movies and episodes keep
+their existing identity. `download-schema.ts` widens the SQLite CHECK in a
+transaction after older additive migrations, preserving row IDs, files, headers,
+resume state and metadata. It also replaces the former global unique index with
+separate catch-up and non-catch-up indexes.
+
+Only ended programmes can be enqueued. Known expiry is checked on enqueue,
+retry, resume, missing-file recovery and when the queued transfer starts.
+Pause keeps its owned partial file, but **resume/retry restarts from byte zero**,
+without Range, If-Range, or automatic reconnect append. The queue explains this.
+A retained archive cannot use the VOD byte-count completion shortcut. Transfers
+have a 30-second idle timeout and a total deadline of twice programme duration
+plus ten minutes, capped at 24 hours. Failure never promotes the partial to the
+library, and errors omit credential-bearing URLs.
+
+Completion means clean HTTP EOF, matching Content-Length when supplied, and
+valid nonempty TS packet framing. **It does not verify media duration or the
+provider's programme boundaries.** A provider can return a shorter valid clip
+with clean EOF; this version cannot identify that without demuxing duration.
+Unknown-length responses show indeterminate progress until EOF.
+
+Completed archive cards appear under All with programme title, channel and
+broadcast date. Clicking a card plays the local file through the download action;
+it does not navigate to a movie or series detail route. Files and metadata remain
+available after restart and after the source archive expires.
+
 ## Backend responsibilities
 
 - **Queue control (`apps/electron-backend/src/app/events/database/download-runtime.ts`)**
@@ -294,12 +339,12 @@ display snapshot via `playlistDisplayLabel`).
 - **Lifecycle tracking** is owned by `EmbeddedMpvRecordingTracker`
   (`apps/electron-backend/src/app/services/embedded-mpv-recording-tracker.ts`):
   explicit start/stop hooks in `EmbeddedMpvNativeService` plus a
-  session-snapshot observer. The stop hook is a *request*, not an outcome —
+  session-snapshot observer. The stop hook is a _request_, not an outcome —
   `addon.stopRecording()` only dispatches (async mpv property set, or a
   command written to the frame-copy helper), so finalization always waits for
   the snapshot reporting the recording inactive; statting or unlinking
   earlier would report a short recording as failed and could delete bytes mpv
-  is still flushing. macOS native-view clears `recordingActive` *before*
+  is still flushing. macOS native-view clears `recordingActive` _before_
   dispatching the async property set and restores it if that request is
   rejected, so an inactive snapshot must additionally survive a 1.5 s settle
   window (three poll cycles) before it counts as an acknowledgement; a revived
@@ -355,7 +400,7 @@ display snapshot via `playlistDisplayLabel`).
   `RecordingStartMetadata` (channel name/logo, playlist id + display-label
   snapshot, source type, EPG key, current program) that flows
   `WebPlayerViewComponent → EmbeddedMpvPlayerComponent →
-  EmbeddedMpvControlsAdapter → EmbeddedMpvRecordingStartOptions.metadata`.
+EmbeddedMpvControlsAdapter → EmbeddedMpvRecordingStartOptions.metadata`.
   `EmbeddedMpvPlayerComponent` watches the session snapshot for the
   active→inactive recording edge and emits `recordingStopped` — one owner for
   every trigger, including a Stop clicked in the download manager, which
@@ -377,14 +422,14 @@ display snapshot via `playlistDisplayLabel`).
   target path — that is how a recording spanning a program boundary lists
   every covered show. The handler is deliberately independent of finalization: it
   looks the row up in **any** status (the newest for that path — `openSync
-  ('wx')` keeps a reserved path exclusive while its recording owns it) and
+('wx')` keeps a reserved path exclusive while its recording owns it) and
   `finalize()` never touches `programs_json`, so the two writes commit in
   either order. The only wait is the tracker's queue drain, which guarantees
   the row's INSERT exists — no deadline, and therefore no way for a one-shot
   enrichment to be dropped by a clock. A recording stopped while no player is mounted on that
   channel keeps its start snapshot.
 - **IPC surface** (`recordings.events.ts`): `RECORDINGS_GET_LIST/GET/STOP/
-  REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated
+REMOVE/UPDATE_PROGRAMS/REVEAL_FILE/PLAY_FILE` plus the dedicated
   `RECORDINGS_UPDATE_EVENT` bare ping (not shared with downloads, so
   recording transitions do not force availability-probed download refetches).
   Active rows are decorated with a live `fs.stat` size — `file_size_bytes` is

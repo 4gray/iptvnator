@@ -309,7 +309,22 @@ function installStreamRoutes(
     app.get('/series/:username/:password/:streamId.:ext', seriesResponse);
     app.all(
         '/timeshift/:username/:password/:duration/:start/:streamId.ts',
-        streamResponse
+        (request, response) => {
+            if (request.params['username'] === 'epg') {
+                response
+                    .type('video/mp2t')
+                    .send(
+                        readFileSync(
+                            join(
+                                process.cwd(),
+                                'apps/xtream-mock-server/src/fixtures/live.mpegts'
+                            )
+                        )
+                    );
+                return;
+            }
+            streamResponse(request, response);
+        }
     );
     app.all('/streaming/timeshift.php', streamResponse);
 }

@@ -33,7 +33,7 @@
                             'DOWNLOADS.ARIA.OPEN'
                                 | translate: { title: row.item.title }
                         "
-                        [disabled]="isPending(row.item.id)"
+                        [disabled]="isPending(row.item.id) || row.item.contentType === 'catchup'"
                         (click)="requestOpen(row.item)"
                     >
                         @if (hasPoster(row.item)) {
@@ -55,9 +55,9 @@
                             >
                                 <mat-icon aria-hidden="true">
                                     {{
-                                        row.item.contentType === 'episode'
-                                            ? 'tv'
-                                            : 'movie'
+                                        row.item.contentType === 'vod'
+                                            ? 'movie'
+                                            : 'tv'
                                     }}
                                 </mat-icon>
                             </span>
@@ -74,7 +74,7 @@
                                     'DOWNLOADS.ARIA.OPEN'
                                         | translate: { title: row.item.title }
                                 "
-                                [disabled]="isPending(row.item.id)"
+                                [disabled]="isPending(row.item.id) || row.item.contentType === 'catchup'"
                                 (click)="requestOpen(row.item)"
                             >
                                 {{ row.item.title }}
@@ -86,6 +86,13 @@
                             }
                         </div>
 
+                        @if (row.item.contentType === 'catchup') {
+                            <p class="download-queue__episode">
+                                {{
+                                    'DOWNLOADS.ARCHIVE_RESTART_NOTE' | translate
+                                }}
+                            </p>
+                        }
                         <div class="download-queue__metadata">
                             <span
                                 class="download-queue__status"
@@ -178,12 +185,18 @@
                                         data-test-action="resume"
                                         [disabled]="isPending(row.item.id)"
                                         [attr.aria-label]="
-                                            'DOWNLOADS.ARIA.RESUME'
+                                            (row.item.contentType === 'catchup'
+                                                ? 'DOWNLOADS.ARIA.RESTART_ARCHIVE'
+                                                : 'DOWNLOADS.ARIA.RESUME'
+                                            )
                                                 | translate
                                                     : { title: row.item.title }
                                         "
                                         [matTooltip]="
-                                            'DOWNLOADS.ARIA.RESUME'
+                                            (row.item.contentType === 'catchup'
+                                                ? 'DOWNLOADS.ARIA.RESTART_ARCHIVE'
+                                                : 'DOWNLOADS.ARIA.RESUME'
+                                            )
                                                 | translate
                                                     : { title: row.item.title }
                                         "

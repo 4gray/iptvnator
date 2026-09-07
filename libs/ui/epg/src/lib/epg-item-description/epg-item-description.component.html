@@ -111,6 +111,17 @@
                     {{ 'EPG.PROGRAM_DIALOG.COPY_ARCHIVE_URL' | translate }}
                 </button>
             }
+            @if (dialogData.archiveDownloadAvailable) {
+                <button
+                    type="button"
+                    class="epg-dialog__btn epg-dialog__btn--ghost"
+                    data-testid="download-catchup"
+                    [mat-dialog-close]="'download-catchup'"
+                >
+                    <mat-icon>download</mat-icon>
+                    {{ 'EPG.PROGRAM_DIALOG.DOWNLOAD_ARCHIVE' | translate }}
+                </button>
+            }
             @if (archiveUnavailableNote) {
                 <span class="epg-dialog__note">{{
                     'EPG.TIMELINE.ARCHIVE_UNAVAILABLE_NOTE' | translate

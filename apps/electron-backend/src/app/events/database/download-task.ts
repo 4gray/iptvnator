@@ -1,3 +1,4 @@
+import type { CatchupDownloadMetadata } from '@iptvnator/shared/interfaces';
 import type { getDatabase } from '../../database/connection';
 
 export type DownloadsDatabase = Awaited<ReturnType<typeof getDatabase>>;
@@ -12,6 +13,7 @@ export interface CompletedPartialProgress extends TransferProgress {
 }
 
 export interface DownloadTask {
+    catchup?: CatchupDownloadMetadata;
     id: number;
     url: string;
     fileName: string;

@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "Arşiv URL’sini kopyala",
             "ARCHIVE_URL_COPIED": "Arşiv URL’si kopyalandı",
             "ARCHIVE_URL_FAILED": "Arşiv URL’si kopyalanamadı",
-            "ARCHIVE_URL_NOTICE": "URL hesap bilgileri içerebilir. Harici oynatıcılar kaynağın HTTP başlıklarına da ihtiyaç duyabilir."
+            "ARCHIVE_URL_NOTICE": "URL hesap bilgileri içerebilir. Harici oynatıcılar kaynağın HTTP başlıklarına da ihtiyaç duyabilir.",
+            "DOWNLOAD_ARCHIVE": "Programı indir (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "Program indirmelere eklendi",
+            "ARCHIVE_DOWNLOAD_FAILED": "Program indirilemedi. Artık mevcut olmayabilir.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "Arşiv indirmeleri şu anda yalnızca TS akışlarını destekler.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "Bu program zaten indirmelerde."
         },
         "FETCH_SUCCESS": "EPG verileri başarıyla alındı",
         "IMPORT_PROGRESS": "EPG İçe Aktarımı",
@@ -1375,9 +1380,12 @@
             "RETRY": "{{title}} için yeniden dene",
             "MORE_ACTIONS": "{{title}} için daha fazla eylem",
             "COPY_URL": "{{title}} için indirme URL’sini kopyala",
-            "DOWNLOAD_AGAIN": "{{title}} öğesini yeniden indir"
+            "DOWNLOAD_AGAIN": "{{title}} öğesini yeniden indir",
+            "RESTART_ARCHIVE": "{{title}} programını baştan indir"
         },
-        "DOWNLOAD_AGAIN": "Yeniden indir"
+        "DOWNLOAD_AGAIN": "Yeniden indir",
+        "CATCHUP": "TV programı",
+        "ARCHIVE_RESTART_NOTE": "Kesintiden sonra arşiv indirmesi baştan başlar."
     },
     "REMOTE_CONTROL": {
         "TITLE": "Uzaktan kontrol",

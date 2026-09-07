@@ -374,7 +374,11 @@ export function buildDownloadOfflineDetail({
     }
 
     const representative = downloads.find(({ id }) => id === downloadId);
-    if (!representative || !isLocallyAvailable(representative)) {
+    if (
+        !representative ||
+        representative.contentType === 'catchup' ||
+        !isLocallyAvailable(representative)
+    ) {
         return undefined;
     }
 

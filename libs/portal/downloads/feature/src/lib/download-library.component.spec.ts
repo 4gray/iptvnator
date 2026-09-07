@@ -135,6 +135,38 @@ describe('DownloadLibraryComponent', () => {
     let fixture: ComponentFixture<DownloadLibraryComponent>;
     let component: DownloadLibraryComponent;
 
+    it('plays an archive card locally instead of opening provider details', async () => {
+        const archive = item({
+            contentType: 'catchup',
+            catchup: {
+                channelName: 'News TV',
+                startTimestamp: 1788800000,
+                stopTimestamp: 1788803600,
+            },
+        });
+        fixture.componentRef.setInput('entities', [
+            {
+                kind: 'catchup',
+                key: 'catchup:1',
+                item: archive,
+                newestTimestamp: 0,
+                sourceName: 'Source',
+                trackedBytes: 0,
+            },
+        ]);
+        await fixture.whenStable();
+        const actions = jest.fn(),
+            open = jest.fn();
+        component.itemAction.subscribe(actions);
+        component.openRequested.subscribe(open);
+        fixture.nativeElement
+            .querySelector('.download-library__title-button')
+            .click();
+        expect(actions).toHaveBeenCalledWith({ type: 'play', item: archive });
+        expect(open).not.toHaveBeenCalled();
+        expect(fixture.nativeElement.textContent).toContain('News TV');
+    });
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [

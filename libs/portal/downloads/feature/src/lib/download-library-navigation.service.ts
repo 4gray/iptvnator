@@ -32,6 +32,7 @@ export class DownloadLibraryNavigationService {
         availablePlaylistIds: ReadonlySet<string>
     ): boolean {
         return (
+            item.contentType !== 'catchup' &&
             availablePlaylistIds.has(item.playlistId) &&
             this.targetId(item) !== null
         );
@@ -47,6 +48,7 @@ export class DownloadLibraryNavigationService {
     async resolveProviderTarget(
         item: DownloadItem
     ): Promise<WorkspaceNavigationTarget | null> {
+        if (item.contentType === 'catchup') return null;
         const targetId = this.targetId(item);
         if (targetId === null) {
             return null;
@@ -198,7 +200,7 @@ export class DownloadLibraryNavigationService {
             const matched = findMatchingStalkerDownloadRecent(
                 recent,
                 targetId,
-                item.contentType
+                item.contentType === 'episode' ? 'episode' : 'vod'
             );
 
             if (matched) {

@@ -86,6 +86,8 @@ async function setupStartMetadataRequest(
 
 function createStartDownloadRow(overrides: Partial<Download> = {}): Download {
     return {
+        catchup: null,
+        programmeStart: 0,
         bytesDownloaded: 0,
         contentType: 'episode',
         createdAt: '2026-08-02 10:00:00',

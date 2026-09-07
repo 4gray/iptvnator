@@ -238,7 +238,7 @@ export class DownloadOfflineMetadataService {
                     provider: findMatchingStalkerDownloadRecent(
                         recent,
                         targetId(detail),
-                        item.contentType
+                        item.contentType === 'episode' ? 'episode' : 'vod'
                     ),
                 };
             } catch {

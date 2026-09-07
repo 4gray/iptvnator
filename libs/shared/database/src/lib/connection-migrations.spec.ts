@@ -56,7 +56,7 @@ const completedMigrationStateRule: HandlerRule = [
 
 /** The live title index, already carrying the folding tokenizer. */
 const foldedIndexRule: HandlerRule = [
-    'SELECT sql FROM sqlite_master',
+    "name = 'content_title_fts'",
     {
         get: () => ({
             sql: "CREATE VIRTUAL TABLE content_title_fts USING fts5(title, tokenize='trigram remove_diacritics 1')",

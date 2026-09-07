@@ -21,6 +21,10 @@ export interface DownloadMovieCardViewModel extends DownloadItemLibraryEntityBas
     readonly kind: 'movie';
 }
 
+export interface DownloadCatchupCardViewModel extends DownloadItemLibraryEntityBase {
+    readonly kind: 'catchup';
+}
+
 export interface DownloadEpisodeCardViewModel extends DownloadItemLibraryEntityBase {
     readonly kind: 'episode';
     readonly episodeLabel: string;
@@ -39,6 +43,7 @@ export interface DownloadSeriesCardViewModel extends DownloadLibraryEntityBase {
 
 export type DownloadLibraryEntity =
     | DownloadMovieCardViewModel
+    | DownloadCatchupCardViewModel
     | DownloadEpisodeCardViewModel
     | DownloadSeriesCardViewModel;
 
@@ -216,10 +221,10 @@ export function buildDownloadLibrary(
 
     for (const row of rows) {
         const { item } = row;
-        if (item.contentType === 'vod') {
+        if (item.contentType === 'vod' || item.contentType === 'catchup') {
             entities.push({
-                kind: 'movie',
-                key: `movie:${item.id}`,
+                kind: item.contentType === 'catchup' ? 'catchup' : 'movie',
+                key: `${item.contentType === 'catchup' ? 'catchup' : 'movie'}:${item.id}`,
                 item,
                 newestTimestamp: normalizedDownloadTimestamp(item.createdAt),
                 sourceName: row.sourceName,

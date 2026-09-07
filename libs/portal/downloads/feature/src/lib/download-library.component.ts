@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
@@ -25,6 +26,7 @@ import { DownloadSourceMenuHeaderComponent } from './download-source-menu-header
     selector: 'app-download-library',
     standalone: true,
     imports: [
+        DatePipe,
         MatButtonModule,
         MatIconModule,
         MatMenuModule,
@@ -46,6 +48,8 @@ export class DownloadLibraryComponent {
 
     protected libraryTestId(entity: DownloadLibraryEntity): string {
         switch (entity.kind) {
+            case 'catchup':
+                return `download-library-catchup-${entity.item.id}`;
             case 'movie':
                 return `download-library-movie-${entity.item.id}`;
             case 'episode':
@@ -65,6 +69,8 @@ export class DownloadLibraryComponent {
 
     protected typeKey(entity: DownloadLibraryEntity): string {
         switch (entity.kind) {
+            case 'catchup':
+                return 'DOWNLOADS.CATCHUP';
             case 'movie':
                 return 'DOWNLOADS.MOVIE';
             case 'episode':
@@ -78,6 +84,7 @@ export class DownloadLibraryComponent {
         switch (entity.kind) {
             case 'movie':
                 return 'movie';
+            case 'catchup':
             case 'episode':
                 return 'live_tv';
             case 'series':
@@ -129,7 +136,9 @@ export class DownloadLibraryComponent {
 
     protected openDetails(item: DownloadItem): void {
         if (!this.isPending(item)) {
-            this.openRequested.emit(item);
+            if (item.contentType === 'catchup')
+                this.itemAction.emit({ type: 'play', item });
+            else this.openRequested.emit(item);
         }
     }
 

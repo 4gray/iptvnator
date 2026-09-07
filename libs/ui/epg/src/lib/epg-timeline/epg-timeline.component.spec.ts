@@ -152,6 +152,7 @@ describe('EpgTimelineComponent', () => {
         setInputs({
             programs: [programAt(-180, 60, 'Earlier')],
             archivePlaybackAvailable: true,
+            archiveDownloadAvailable: true,
             archiveDays: 7,
         });
         const past = component.blocks().find((b) => b.when === 'past');
@@ -166,6 +167,7 @@ describe('EpgTimelineComponent', () => {
         setInputs({
             programs: [programAt(-180, 60, 'Earlier')],
             archivePlaybackAvailable: true,
+            archiveDownloadAvailable: true,
             archiveDays: 7,
         });
         const past = component.blocks().find((b) => b.when === 'past');
@@ -188,56 +190,84 @@ describe('EpgTimelineComponent', () => {
         expect(returned).toBe(true);
     });
 
-    it('forwards archive copy separately from playback and keeps selection', () => {
-        const past = programAt(-180, 60, 'Earlier');
-        setInputs({
-            programs: [past],
-            selectedDate: localDateKey(past.start),
-            archivePlaybackAvailable: true,
-            archiveDays: 7,
-        });
-        jest.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-            afterClosed: () => of('copy-catchup-url'),
-        } as never);
-        const events: string[] = [];
-        component.programActivated.subscribe((event) =>
-            events.push(event.type)
-        );
-        const selection = component.selectedKey();
-        component.openDetails(
-            component
-                .blocks()
-                .find((block) => block.when === 'past') as TimelineBlock
-        );
-        expect(events).toEqual(['copy-catchup-url']);
-        expect(component.selectedKey()).toBe(selection);
-    });
+    it.each(['copy-catchup-url', 'download-catchup'])(
+        'forwards %s separately from playback and keeps selection',
+        (action) => {
+            const past = programAt(-180, 60, 'Earlier');
+            setInputs({
+                programs: [past],
+                selectedDate: localDateKey(past.start),
+                archivePlaybackAvailable: true,
+                archiveDownloadAvailable: true,
+                archiveDays: 7,
+            });
+            jest.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+                afterClosed: () => of(action),
+            } as never);
+            const events: string[] = [];
+            component.programActivated.subscribe((event) =>
+                events.push(event.type)
+            );
+            const selection = component.selectedKey();
+            component.openDetails(
+                component
+                    .blocks()
+                    .find((block) => block.when === 'past') as TimelineBlock
+            );
+            expect(events).toEqual([action]);
+            expect(component.selectedKey()).toBe(selection);
+        }
+    );
 
-    it('does not copy a programme from a dialog belonging to the previous channel', () => {
-        const past = programAt(-180, 60, 'Earlier');
+    it.each(['copy-catchup-url', 'download-catchup'])(
+        'does not dispatch %s from the previous channel dialog',
+        (action) => {
+            const past = programAt(-180, 60, 'Earlier');
+            setInputs({
+                programs: [past],
+                selectedDate: localDateKey(past.start),
+                archivePlaybackAvailable: true,
+                archiveDownloadAvailable: true,
+                archiveDays: 7,
+                archiveContextKey: 'source:channel-a',
+            });
+            const result = new BehaviorSubject<string | undefined>(undefined);
+            jest.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+                afterClosed: () => result,
+            } as never);
+            const events: string[] = [];
+            component.programActivated.subscribe((event) =>
+                events.push(event.type)
+            );
+            component.openDetails(
+                component
+                    .blocks()
+                    .find((block) => block.when === 'past') as TimelineBlock
+            );
+            setInputs({ archiveContextKey: 'source:channel-b' });
+            result.next(action);
+            expect(events).toEqual([]);
+        }
+    );
+
+    it('never dispatches a download for the current programme', () => {
         setInputs({
-            programs: [past],
-            selectedDate: localDateKey(past.start),
+            programs: [programAt(-10, 60, 'Current')],
             archivePlaybackAvailable: true,
+            archiveDownloadAvailable: true,
             archiveDays: 7,
-            archiveContextKey: 'source:channel-a',
         });
-        const result = new BehaviorSubject<string | undefined>(undefined);
         jest.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
-            afterClosed: () => result,
+            afterClosed: () => of('download-catchup'),
         } as never);
-        const events: string[] = [];
-        component.programActivated.subscribe((event) =>
-            events.push(event.type)
-        );
+        const events = jest.fn();
+        component.programActivated.subscribe(events);
         component.openDetails(
             component
                 .blocks()
-                .find((block) => block.when === 'past') as TimelineBlock
+                .find((block) => block.when === 'now') as TimelineBlock
         );
-        setInputs({ archiveContextKey: 'source:channel-b' });
-        result.next('copy-catchup-url');
-        expect(events).toEqual([]);
+        expect(events).not.toHaveBeenCalled();
     });
 
     it('emits the centred day when stepping forward', () => {

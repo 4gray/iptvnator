@@ -1,7 +1,7 @@
 import type {
     ElectronBridgeDownloadStatus,
     ElectronBridgeEpisodeIdentityScope,
-    ElectronBridgePlaybackContentType,
+    DownloadContentType,
     ElectronDownloadFileAvailability,
 } from '@iptvnator/shared/interfaces';
 
@@ -18,7 +18,7 @@ export interface EpisodeDownloadIdentity {
 export interface EpisodeDownloadRecord {
     readonly id: number;
     readonly playlistId: string;
-    readonly contentType: ElectronBridgePlaybackContentType;
+    readonly contentType: DownloadContentType;
     readonly xtreamId: number;
     readonly seriesXtreamId?: number | null;
     readonly seasonNumber?: number | null;

@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "Copy archive URL",
             "ARCHIVE_URL_COPIED": "Archive URL copied",
             "ARCHIVE_URL_FAILED": "Could not copy the archive URL",
-            "ARCHIVE_URL_NOTICE": "The URL may contain account credentials. External players may also need your source’s HTTP headers."
+            "ARCHIVE_URL_NOTICE": "The URL may contain account credentials. External players may also need your source’s HTTP headers.",
+            "DOWNLOAD_ARCHIVE": "Download programme (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "Programme added to Downloads",
+            "ARCHIVE_DOWNLOAD_FAILED": "Could not download this programme. It may no longer be available.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "Archive downloads currently support TS streams only.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "This programme is already in Downloads."
         },
         "FETCH_SUCCESS": "EPG was fetched successfully",
         "IMPORT_PROGRESS": "EPG Import",
@@ -1375,9 +1380,12 @@
             "RETRY": "Retry {{title}}",
             "MORE_ACTIONS": "More actions for {{title}}",
             "COPY_URL": "Copy download URL for {{title}}",
-            "DOWNLOAD_AGAIN": "Download {{title}} again"
+            "DOWNLOAD_AGAIN": "Download {{title}} again",
+            "RESTART_ARCHIVE": "Restart {{title}} from the beginning"
         },
-        "DOWNLOAD_AGAIN": "Download again"
+        "DOWNLOAD_AGAIN": "Download again",
+        "CATCHUP": "TV programme",
+        "ARCHIVE_RESTART_NOTE": "Archive downloads restart from the beginning after an interruption."
     },
     "REMOTE_CONTROL": {
         "TITLE": "Remote control",

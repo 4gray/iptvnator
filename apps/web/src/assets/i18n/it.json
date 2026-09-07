@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "Copia URL archivio",
             "ARCHIVE_URL_COPIED": "URL archivio copiato",
             "ARCHIVE_URL_FAILED": "Impossibile copiare URL archivio",
-            "ARCHIVE_URL_NOTICE": "L’URL può contenere credenziali. I lettori esterni potrebbero richiedere anche le intestazioni HTTP della sorgente."
+            "ARCHIVE_URL_NOTICE": "L’URL può contenere credenziali. I lettori esterni potrebbero richiedere anche le intestazioni HTTP della sorgente.",
+            "DOWNLOAD_ARCHIVE": "Scarica programma (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "Programma aggiunto ai download",
+            "ARCHIVE_DOWNLOAD_FAILED": "Impossibile scaricare il programma. Potrebbe non essere più disponibile.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "I download dall’archivio supportano solo flussi TS.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "Questo programma è già nei download."
         },
         "FETCH_SUCCESS": "EPG scaricato correttamente",
         "IMPORT_PROGRESS": "Importazione EPG",
@@ -1375,9 +1380,12 @@
             "RETRY": "Riprova {{title}}",
             "MORE_ACTIONS": "Altre azioni per {{title}}",
             "COPY_URL": "Copia URL di download per {{title}}",
-            "DOWNLOAD_AGAIN": "Scarica di nuovo {{title}}"
+            "DOWNLOAD_AGAIN": "Scarica di nuovo {{title}}",
+            "RESTART_ARCHIVE": "Scarica {{title}} dall’inizio"
         },
-        "DOWNLOAD_AGAIN": "Scarica di nuovo"
+        "DOWNLOAD_AGAIN": "Scarica di nuovo",
+        "CATCHUP": "Programma TV",
+        "ARCHIVE_RESTART_NOTE": "Dopo un’interruzione, il download dall’archivio ricomincia dall’inizio."
     },
     "REMOTE_CONTROL": {
         "TITLE": "Controllo remoto",

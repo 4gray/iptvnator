@@ -3,6 +3,7 @@ import type { Playlist } from '@iptvnator/shared/interfaces';
 import {
     buildDownloadManagerViewModel,
     normalizeDownloadFilter,
+    type DownloadCatchupCardViewModel,
     type DownloadEpisodeCardViewModel,
     type DownloadLibraryEntity,
     type DownloadManagerViewModel,
@@ -13,6 +14,7 @@ import {
 type PlaylistSummary = Pick<Playlist, '_id' | 'title'>;
 type ExpectedDownloadLibraryEntity =
     | DownloadMovieCardViewModel
+    | DownloadCatchupCardViewModel
     | DownloadEpisodeCardViewModel
     | DownloadSeriesCardViewModel;
 
@@ -1091,4 +1093,19 @@ describe('buildDownloadManagerViewModel', () => {
             expect(series.members.map(({ id }) => id)).toEqual([1, 2]);
         }
     });
+});
+
+it('keeps separate archive programmes out of movie and series counts', () => {
+    const items = [
+        download(1, { contentType: 'catchup', xtreamId: 100 }),
+        download(2, { contentType: 'catchup', xtreamId: 100 }),
+    ];
+    const model = build(items);
+    expect(model.library.map(({ kind }) => kind)).toEqual([
+        'catchup',
+        'catchup',
+    ]);
+    expect(model.counts).toMatchObject({ all: 2, movie: 0, series: 0 });
+    expect(build(items, { filter: 'movie' }).library).toEqual([]);
+    expect(build(items, { filter: 'series' }).library).toEqual([]);
 });

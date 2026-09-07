@@ -11,6 +11,7 @@ import {
 } from './download-library.viewmodel';
 
 export type {
+    DownloadCatchupCardViewModel,
     DownloadEpisodeCardViewModel,
     DownloadLibraryEntity,
     DownloadMovieCardViewModel,
@@ -18,11 +19,7 @@ export type {
 } from './download-library.viewmodel';
 
 export type DownloadFilterId =
-    | 'all'
-    | 'movie'
-    | 'series'
-    | 'in-progress'
-    | 'recording';
+    'all' | 'movie' | 'series' | 'in-progress' | 'recording';
 
 export type DownloadAttentionReason = 'file-missing' | 'transfer';
 
@@ -231,7 +228,9 @@ export function buildDownloadManagerViewModel({
             series:
                 countContentType(scopedActive, 'episode') +
                 countContentType(scopedAttention, 'episode') +
-                scopedLibrary.filter(({ kind }) => kind !== 'movie').length,
+                scopedLibrary.filter(
+                    ({ kind }) => kind === 'series' || kind === 'episode'
+                ).length,
             inProgress: scopedActive.length,
         },
         activeCount: scopedItems.filter(

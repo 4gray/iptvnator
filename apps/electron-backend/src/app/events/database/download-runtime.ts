@@ -1,3 +1,4 @@
+import { transferCatchupToPartialFile } from './download-catchup-transfer';
 import { eq, sql } from 'drizzle-orm';
 import { existsSync } from 'node:fs';
 import { rename } from 'node:fs/promises';
@@ -239,7 +240,9 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        const progress = await transferWithReconnects(db, task, reservation);
+        const progress = await (task.catchup
+            ? transferCatchupToPartialFile(db, task, reservation)
+            : transferWithReconnects(db, task, reservation));
         if (task.cancelRequested) {
             await persistCancellation(db, task);
             return;

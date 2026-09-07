@@ -30,3 +30,5 @@ export * from './lib/epg-guide/epg-guide.component';
 export * from './lib/epg-guide/epg-guide-now-playing.component';
 
 export * from './lib/epg-archive-copy.service';
+
+export * from './lib/epg-archive-download.service';

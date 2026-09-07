@@ -1,3 +1,4 @@
+import { isAllowedArchiveAction } from '../epg-program-activation-event';
 import { DatePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -83,6 +84,7 @@ export class EpgListViewComponent {
     readonly sourceLabel = input('Programme guide');
     readonly archivePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
+    readonly archiveDownloadAvailable = input(false);
     readonly archiveContextKey = input<string | null>(null);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
@@ -291,6 +293,10 @@ export class EpgListViewComponent {
                 channelName: this.channelName(),
                 channelLogo: this.channelLogo(),
                 archiveUrlAvailable: row.canCatchUp,
+                archiveDownloadAvailable:
+                    this.archiveDownloadAvailable() &&
+                    row.when === 'past' &&
+                    row.canCatchUp,
                 primaryAction: epgDialogActionFor(row.when, row.canCatchUp),
                 archiveUnavailableNote:
                     row.when === 'past' && !this.archivePlaybackAvailable(),
@@ -300,7 +306,13 @@ export class EpgListViewComponent {
                 if (archiveContextKey !== this.archiveContextKey()) return;
                 if (result === 'live') {
                     this.returnToLive.emit();
-                } else if (result === 'copy-catchup-url' && row.canCatchUp) {
+                } else if (
+                    isAllowedArchiveAction(
+                        result,
+                        row.canCatchUp,
+                        this.archiveDownloadAvailable() && row.when === 'past'
+                    )
+                ) {
                     this.programActivated.emit({
                         program: row.program,
                         type: result,

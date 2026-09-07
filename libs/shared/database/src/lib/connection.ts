@@ -1,3 +1,8 @@
+import {
+    DOWNLOADS_TABLE_SQL,
+    DOWNLOADS_INDEX_STATEMENTS,
+    ensureDownloadsCatchupSchema,
+} from './download-schema';
 /**
  * Database connection and initialization for IPTVnator
  * Uses Drizzle ORM with better-sqlite3
@@ -90,35 +95,6 @@ const TMDB_METADATA_TABLE_SQL = `CREATE TABLE IF NOT EXISTS tmdb_metadata (
       fetched_at TEXT DEFAULT (datetime('now'))
   )`;
 const TMDB_METADATA_INDEX_SQL = `CREATE UNIQUE INDEX IF NOT EXISTS tmdb_metadata_lookup_unique ON tmdb_metadata(media_type, lookup_key, language)`;
-const DOWNLOADS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS downloads (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      playlist_id TEXT NOT NULL,
-      xtream_id INTEGER NOT NULL,
-      content_type TEXT NOT NULL CHECK (content_type IN ('vod', 'episode')),
-      series_xtream_id INTEGER,
-      season_number INTEGER,
-      episode_number INTEGER,
-      episode_identity_scope TEXT,
-      title TEXT NOT NULL,
-      url TEXT NOT NULL,
-      file_name TEXT,
-      file_path TEXT,
-      poster_url TEXT,
-      request_headers TEXT,
-      resume_validator TEXT,
-      metadata_snapshot TEXT,
-      status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'downloading', 'paused', 'completed', 'failed', 'canceled')),
-      bytes_downloaded INTEGER DEFAULT 0,
-      total_bytes INTEGER,
-      error_message TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
-  )`;
-const DOWNLOADS_INDEX_STATEMENTS = [
-    `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
-    `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
-    `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
-];
 // No unique index: re-recording the same channel is a normal workflow, and
 // playlist_id carries no FK so recordings survive source deletion.
 const RECORDINGS_TABLE_SQL = `CREATE TABLE IF NOT EXISTS recordings (
@@ -1165,6 +1141,7 @@ function runMigrations(sqliteDb: Database.Database): void {
     cleanupLegacyTmdbSearchCache(sqliteDb);
     ensureDownloadsPauseResumeSchema(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
+    ensureDownloadsCatchupSchema(sqliteDb);
     // The tokenizer upgrade recreates and rebuilds the index itself, so the
     // plain rebuild below would only repeat work it just did.
     if (!upgradeContentTitleFtsTokenizer(sqliteDb)) {

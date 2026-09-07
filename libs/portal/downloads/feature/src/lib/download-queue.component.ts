@@ -114,6 +114,7 @@ export class DownloadQueueComponent {
     }
 
     requestOpen(item: DownloadItem): void {
+        if (item.contentType === 'catchup') return;
         if (!this.isPending(item.id)) {
             this.openRequested.emit(item);
         }

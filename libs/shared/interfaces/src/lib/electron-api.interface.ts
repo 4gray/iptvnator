@@ -1,3 +1,7 @@
+import type {
+    CatchupDownloadMetadata,
+    DownloadContentType,
+} from './catchup-download.interface';
 import {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
@@ -585,7 +589,8 @@ export interface ElectronBridgeDownloadHeaders {
 export interface ElectronBridgeDownloadStartPayload {
     playlistId: string;
     xtreamId: number;
-    contentType: ElectronBridgePlaybackContentType;
+    contentType: DownloadContentType;
+    catchup?: CatchupDownloadMetadata | null;
     title: string;
     url: string;
     posterUrl?: string;
@@ -616,7 +621,8 @@ export interface ElectronDownloadItem {
     id: number;
     playlistId: string;
     xtreamId: number;
-    contentType: ElectronBridgePlaybackContentType;
+    contentType: DownloadContentType;
+    catchup?: CatchupDownloadMetadata | null;
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;

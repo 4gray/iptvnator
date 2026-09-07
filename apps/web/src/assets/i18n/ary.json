@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "نسخ رابط الأرشيف",
             "ARCHIVE_URL_COPIED": "تنسخ رابط الأرشيف",
             "ARCHIVE_URL_FAILED": "ما قدرناش ننسخو رابط الأرشيف",
-            "ARCHIVE_URL_NOTICE": "الرابط يقدر يكون فيه معلومات الدخول. المشغلات الخارجية تقدر تحتاج حتى ترويسات HTTP ديال المصدر."
+            "ARCHIVE_URL_NOTICE": "الرابط يقدر يكون فيه معلومات الدخول. المشغلات الخارجية تقدر تحتاج حتى ترويسات HTTP ديال المصدر.",
+            "DOWNLOAD_ARCHIVE": "حمّل البرنامج (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "تزاد البرنامج للتنزيلات",
+            "ARCHIVE_DOWNLOAD_FAILED": "ما قدرناش نحمّلو البرنامج. يمكن ما بقاش متوفر.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "تنزيلات الأرشيف كتدعم دابا غير تدفقات TS.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "هاد البرنامج راه كاين فالتنزيلات."
         },
         "FETCH_SUCCESS": "EPG تجلب بنجاح",
         "IMPORT_PROGRESS": "استيراد EPG",
@@ -1375,9 +1380,12 @@
             "RETRY": "عاود جرّب {{title}}",
             "MORE_ACTIONS": "إجراءات أخرى لـ {{title}}",
             "COPY_URL": "نسخ رابط تحميل {{title}}",
-            "DOWNLOAD_AGAIN": "عاود حمّل {{title}}"
+            "DOWNLOAD_AGAIN": "عاود حمّل {{title}}",
+            "RESTART_ARCHIVE": "حمّل {{title}} من الأول"
         },
-        "DOWNLOAD_AGAIN": "عاود حمّل"
+        "DOWNLOAD_AGAIN": "عاود حمّل",
+        "CATCHUP": "برنامج تلفزيوني",
+        "ARCHIVE_RESTART_NOTE": "من بعد الانقطاع، تنزيل الأرشيف كيبدا من الأول."
     },
     "REMOTE_CONTROL": {
         "TITLE": "التحكم عن بعد",

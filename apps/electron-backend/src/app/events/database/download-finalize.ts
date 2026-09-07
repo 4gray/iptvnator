@@ -263,6 +263,7 @@ export async function getExistingCompletedFileProgress(
 export function getCompletedPartialProgress(
     task: DownloadTask
 ): CompletedPartialProgress | null {
+    if (task.catchup) return null;
     if (
         !task.filePath ||
         task.totalBytes === null ||

@@ -18,6 +18,8 @@ const episodeRequest = {
 
 function createDownloadRow(overrides: Partial<DownloadRow> = {}): DownloadRow {
     return {
+        catchup: null,
+        programmeStart: 0,
         bytesDownloaded: 0,
         contentType: 'episode',
         createdAt: '2026-08-02 10:00:00',

@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "Copier le lien de rattrapage",
             "ARCHIVE_URL_COPIED": "Lien de rattrapage copié",
             "ARCHIVE_URL_FAILED": "Impossible de copier le lien de rattrapage",
-            "ARCHIVE_URL_NOTICE": "Le lien peut contenir des identifiants. Les lecteurs externes peuvent aussi nécessiter les en-têtes HTTP de la source."
+            "ARCHIVE_URL_NOTICE": "Le lien peut contenir des identifiants. Les lecteurs externes peuvent aussi nécessiter les en-têtes HTTP de la source.",
+            "DOWNLOAD_ARCHIVE": "Télécharger l’émission (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "Émission ajoutée aux téléchargements",
+            "ARCHIVE_DOWNLOAD_FAILED": "Impossible de télécharger cette émission. Elle n’est peut-être plus disponible.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "Seuls les flux TS sont pris en charge pour le téléchargement des archives.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "Cette émission figure déjà dans les téléchargements."
         },
         "FETCH_SUCCESS": "L'EPG a été récupéré avec succès",
         "IMPORT_PROGRESS": "Importation EPG",
@@ -1375,9 +1380,12 @@
             "RETRY": "Réessayer {{title}}",
             "MORE_ACTIONS": "Plus d’actions pour {{title}}",
             "COPY_URL": "Copier l’URL de téléchargement de {{title}}",
-            "DOWNLOAD_AGAIN": "Télécharger à nouveau {{title}}"
+            "DOWNLOAD_AGAIN": "Télécharger à nouveau {{title}}",
+            "RESTART_ARCHIVE": "Retélécharger {{title}} depuis le début"
         },
-        "DOWNLOAD_AGAIN": "Télécharger à nouveau"
+        "DOWNLOAD_AGAIN": "Télécharger à nouveau",
+        "CATCHUP": "Émission TV",
+        "ARCHIVE_RESTART_NOTE": "Après une interruption, le téléchargement de l’archive reprend depuis le début."
     },
     "REMOTE_CONTROL": {
         "TITLE": "Télécommande",

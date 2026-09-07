@@ -1,3 +1,4 @@
+import type { CatchupDownloadMetadata } from '@iptvnator/shared/interfaces';
 /**
  * Drizzle ORM schema for IPTVnator database
  * This schema defines the structure for Xtream Codes API data storage
@@ -344,8 +345,12 @@ export const downloads = sqliteTable(
         // Content identifiers
         xtreamId: integer('xtream_id').notNull(),
         contentType: text('content_type', {
-            enum: ['vod', 'episode'],
+            enum: ['vod', 'episode', 'catchup'],
         }).notNull(),
+        programmeStart: integer('programme_start').notNull().default(0),
+        catchup: text('catchup', {
+            mode: 'json',
+        }).$type<CatchupDownloadMetadata>(),
         // For episodes: store series info
         seriesXtreamId: integer('series_xtream_id'),
         seasonNumber: integer('season_number'),
@@ -383,9 +388,12 @@ export const downloads = sqliteTable(
     (table) => ({
         playlistIdx: index('downloads_playlist_idx').on(table.playlistId),
         statusIdx: index('downloads_status_idx').on(table.status),
-        xtreamPlaylistUnique: uniqueIndex(
-            'downloads_xtream_playlist_unique'
-        ).on(table.xtreamId, table.playlistId, table.contentType),
+        xtreamPlaylistUnique: uniqueIndex('downloads_xtream_playlist_unique')
+            .on(table.xtreamId, table.playlistId, table.contentType)
+            .where(sql`${table.contentType} != 'catchup'`),
+        catchupUnique: uniqueIndex('downloads_catchup_unique')
+            .on(table.xtreamId, table.playlistId, table.programmeStart)
+            .where(sql`${table.contentType} = 'catchup'`),
     })
 );
 

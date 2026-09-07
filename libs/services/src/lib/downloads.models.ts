@@ -1,4 +1,6 @@
 import type {
+    CatchupDownloadMetadata,
+    DownloadContentType,
     DownloadMetadataSnapshot,
     ElectronBridgeDownloadStatus,
     ElectronBridgeDownloadStartPayload,
@@ -16,7 +18,8 @@ export interface DownloadItem {
     id: number;
     playlistId: string;
     xtreamId: number;
-    contentType: 'vod' | 'episode';
+    contentType: DownloadContentType;
+    catchup?: CatchupDownloadMetadata | null;
     seriesXtreamId?: number;
     seasonNumber?: number;
     episodeNumber?: number;

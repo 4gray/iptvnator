@@ -94,3 +94,5 @@ export * from './lib/stalker-vod-details.interface';
 // Unified VOD details (discriminated union + adapters)
 export * from './lib/vod-details-adapters';
 export * from './lib/vod-details-item.interface';
+
+export * from './lib/catchup-download.interface';

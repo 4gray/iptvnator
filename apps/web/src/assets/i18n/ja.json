@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "アーカイブURLをコピー",
             "ARCHIVE_URL_COPIED": "アーカイブURLをコピーしました",
             "ARCHIVE_URL_FAILED": "アーカイブURLをコピーできませんでした",
-            "ARCHIVE_URL_NOTICE": "URLにはアカウントの認証情報が含まれる場合があります。外部プレーヤーではソースのHTTPヘッダーも必要になることがあります。"
+            "ARCHIVE_URL_NOTICE": "URLにはアカウントの認証情報が含まれる場合があります。外部プレーヤーではソースのHTTPヘッダーも必要になることがあります。",
+            "DOWNLOAD_ARCHIVE": "番組をダウンロード (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "番組をダウンロードに追加しました",
+            "ARCHIVE_DOWNLOAD_FAILED": "番組をダウンロードできませんでした。配信が終了している可能性があります。",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "アーカイブのダウンロードは現在TSストリームのみ対応しています。",
+            "ARCHIVE_DOWNLOAD_EXISTS": "この番組はすでにダウンロードにあります。"
         },
         "FETCH_SUCCESS": "EPGの取得に成功しました",
         "IMPORT_PROGRESS": "EPGインポート",
@@ -1375,9 +1380,12 @@
             "RETRY": "{{title}} を再試行",
             "MORE_ACTIONS": "{{title}} のその他の操作",
             "COPY_URL": "{{title}} のダウンロード URL をコピー",
-            "DOWNLOAD_AGAIN": "{{title}} を再ダウンロード"
+            "DOWNLOAD_AGAIN": "{{title}} を再ダウンロード",
+            "RESTART_ARCHIVE": "{{title}}を最初からダウンロード"
         },
-        "DOWNLOAD_AGAIN": "再ダウンロード"
+        "DOWNLOAD_AGAIN": "再ダウンロード",
+        "CATCHUP": "テレビ番組",
+        "ARCHIVE_RESTART_NOTE": "中断後はアーカイブのダウンロードを最初からやり直します。"
     },
     "REMOTE_CONTROL": {
         "TITLE": "リモートコントロール",

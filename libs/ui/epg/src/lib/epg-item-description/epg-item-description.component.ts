@@ -11,11 +11,13 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { getProgramTimeMs } from '../epg-program.utils';
 
-export type EpgItemDialogAction = 'live' | 'timeshift' | 'copy-catchup-url';
+export type EpgItemDialogAction =
+    'live' | 'timeshift' | 'copy-catchup-url' | 'download-catchup';
 
 export type EpgItemDialogData = EpgProgram & {
     /** Host can resolve an archive URL without starting playback. */
     archiveUrlAvailable?: boolean;
+    archiveDownloadAvailable?: boolean;
     channelName?: string | null;
     channel_name?: string | null;
     display_name?: string | null;

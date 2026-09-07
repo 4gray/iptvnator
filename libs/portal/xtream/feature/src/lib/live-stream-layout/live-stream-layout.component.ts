@@ -1,3 +1,5 @@
+import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
+import { XTREAM_CLIENT_USER_AGENT } from '@iptvnator/shared/interfaces';
 import { NgTemplateOutlet } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -152,6 +154,10 @@ export class LiveStreamLayoutComponent
             this.xtreamStore.currentPlaylist()?.serverUrl,
             this.selectedLiveItem()?.xtream_id,
         ])
+    );
+    private readonly archiveDownloads = inject(EpgArchiveDownloadService);
+    readonly archiveDownloadsAvailable = computed(
+        () => this.runtime.supportsDownloads && this.archivePlaybackAvailable()
     );
     private readonly archiveCopy = inject(EpgArchiveCopyService);
     private readonly xtreamUrlService = inject(XtreamUrlService);
@@ -619,6 +625,66 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        if (event.type === 'download-catchup') {
+            const playlist = this.xtreamStore.currentPlaylist();
+            const start = this.getProgramTimestampSeconds(
+                event.program.start,
+                event.program.startTimestamp
+            );
+            const stop = this.getProgramTimestampSeconds(
+                event.program.stop,
+                event.program.stopTimestamp
+            );
+            if (
+                !this.archiveDownloadsAvailable() ||
+                !playlist ||
+                !start ||
+                !stop ||
+                stop > Date.now() / 1000 ||
+                stop <= start
+            )
+                return;
+            const days = Number(selectedItem.tv_archive_duration ?? 0);
+            await this.archiveDownloads.start(
+                {
+                    playlistId: playlist.id,
+                    xtreamId: selectedItem.xtream_id,
+                    playlistType: 'xtream',
+                    serverUrl: playlist.serverUrl,
+                    title: event.program.title,
+                    posterUrl:
+                        selectedItem.poster_url ??
+                        selectedItem.stream_icon ??
+                        undefined,
+                    catchup: {
+                        channelName:
+                            selectedItem.title ?? selectedItem.name ?? '',
+                        startTimestamp: start,
+                        stopTimestamp: stop,
+                        ...(days > 0
+                            ? { expiresAt: Math.floor(start + days * 86400) }
+                            : {}),
+                    },
+                    headers: {
+                        userAgent:
+                            playlist.userAgent?.trim() ||
+                            XTREAM_CLIENT_USER_AGENT,
+                        referer: playlist.referrer,
+                        origin: playlist.origin,
+                    },
+                },
+                () =>
+                    this.xtreamUrlService.resolveCatchupUrl(
+                        playlist.id,
+                        playlist,
+                        selectedItem.xtream_id,
+                        start,
+                        stop,
+                        playlist.serverTimezone
+                    )
+            );
+            return;
+        }
         if (event.type === 'copy-catchup-url') {
             const playlist = this.xtreamStore.currentPlaylist();
             await this.archiveCopy.copy(() => {

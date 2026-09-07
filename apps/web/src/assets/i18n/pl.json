@@ -796,7 +796,12 @@
             "COPY_ARCHIVE_URL": "Kopiuj adres archiwum",
             "ARCHIVE_URL_COPIED": "Skopiowano adres archiwum",
             "ARCHIVE_URL_FAILED": "Nie udało się skopiować adresu archiwum",
-            "ARCHIVE_URL_NOTICE": "Adres może zawierać dane logowania. Odtwarzacze zewnętrzne mogą też wymagać nagłówków HTTP źródła."
+            "ARCHIVE_URL_NOTICE": "Adres może zawierać dane logowania. Odtwarzacze zewnętrzne mogą też wymagać nagłówków HTTP źródła.",
+            "DOWNLOAD_ARCHIVE": "Pobierz program (TS)",
+            "ARCHIVE_DOWNLOAD_QUEUED": "Program dodany do pobierania",
+            "ARCHIVE_DOWNLOAD_FAILED": "Nie udało się pobrać programu. Może już być niedostępny.",
+            "ARCHIVE_DOWNLOAD_TS_ONLY": "Pobieranie z archiwum obsługuje obecnie tylko strumienie TS.",
+            "ARCHIVE_DOWNLOAD_EXISTS": "Ten program jest już na liście pobierania."
         },
         "FETCH_SUCCESS": "EPG zostało pomyślnie pobrane",
         "IMPORT_PROGRESS": "Import EPG",
@@ -1375,9 +1380,12 @@
             "RETRY": "Ponów {{title}}",
             "MORE_ACTIONS": "Więcej akcji dla {{title}}",
             "COPY_URL": "Kopiuj URL pobierania dla {{title}}",
-            "DOWNLOAD_AGAIN": "Pobierz {{title}} ponownie"
+            "DOWNLOAD_AGAIN": "Pobierz {{title}} ponownie",
+            "RESTART_ARCHIVE": "Pobierz {{title}} od początku"
         },
-        "DOWNLOAD_AGAIN": "Pobierz ponownie"
+        "DOWNLOAD_AGAIN": "Pobierz ponownie",
+        "CATCHUP": "Program TV",
+        "ARCHIVE_RESTART_NOTE": "Po przerwaniu pobieranie z archiwum zaczyna się od początku."
     },
     "REMOTE_CONTROL": {
         "TITLE": "Zdalne sterowanie",

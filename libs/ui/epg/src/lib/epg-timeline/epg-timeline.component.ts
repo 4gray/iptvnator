@@ -1,3 +1,4 @@
+import { isAllowedArchiveAction } from '../epg-program-activation-event';
 import { DatePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -92,6 +93,7 @@ export class EpgTimelineComponent {
     readonly sourceLabel = input('Timeline');
     readonly archivePlaybackAvailable = input(false);
     /** Source/channel identity captured by programme details, independent of playback. */
+    readonly archiveDownloadAvailable = input(false);
     readonly archiveContextKey = input<string | null>(null);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
@@ -382,14 +384,19 @@ export class EpgTimelineComponent {
     }
 
     openDetails(block: TimelineBlock): void {
+        const canCatchUp = this.canCatchUp(block);
         const archiveContextKey = this.archiveContextKey();
         this.programmeDialog
             .open({
                 ...block.program,
                 channelName: this.channelName(),
                 channelLogo: this.channelLogo(),
-                archiveUrlAvailable: this.canCatchUp(block),
-                primaryAction: this.dialogActionFor(block),
+                archiveUrlAvailable: canCatchUp,
+                archiveDownloadAvailable:
+                    this.archiveDownloadAvailable() &&
+                    block.when === 'past' &&
+                    canCatchUp,
+                primaryAction: epgDialogActionFor(block.when, canCatchUp),
                 archiveUnavailableNote:
                     block.when === 'past' && !this.archivePlaybackAvailable(),
             })
@@ -399,8 +406,11 @@ export class EpgTimelineComponent {
                 if (result === 'live') {
                     this.returnToLive.emit();
                 } else if (
-                    result === 'copy-catchup-url' &&
-                    this.canCatchUp(block)
+                    isAllowedArchiveAction(
+                        result,
+                        this.canCatchUp(block),
+                        this.archiveDownloadAvailable() && block.when === 'past'
+                    )
                 ) {
                     this.programActivated.emit({
                         program: block.program,
@@ -450,9 +460,5 @@ export class EpgTimelineComponent {
         }
         this.viewDayKey.set(dayKey);
         this.selectedDateChange.emit(dayKey);
-    }
-
-    private dialogActionFor(block: TimelineBlock): EpgItemDialogAction | null {
-        return epgDialogActionFor(block.when, this.canCatchUp(block));
     }
 }
