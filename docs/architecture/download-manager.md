@@ -67,7 +67,9 @@ journal also makes startup partial cleanup identity-aware. A journaled partial
 whose identity changed is preserved and detached from the failed row; Retry
 reserves a fresh path instead of adopting or truncating it. The journal remains with
 completed archives until they are removed. An explicitly restarted transfer
-clears the previous attempt's proof before network requests or partial-file writes. Process-local proof allows immediate
+carries the journaled source identity through any destination renaming and checks
+it against the opened descriptor. Only then does it clear the previous proof,
+before truncation or writes; a rejected replacement keeps its journal for retry. Process-local proof allows immediate
 recovery after a transient completion DB error without waiting for a restart.
 Fallback copying observes pause/cancel between bounded 64 KiB reads/writes and
 before publication completes. Interruption removes only the owned copy and

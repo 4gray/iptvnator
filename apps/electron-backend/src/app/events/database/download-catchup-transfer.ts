@@ -71,7 +71,6 @@ export async function transferCatchupToPartialFile(
     let output: Awaited<ReturnType<typeof openCatchupOutput>> | undefined;
     let pendingProgress = Promise.resolve();
     try {
-        await clearArchiveFinalization(db, task.id);
         const response = await requestWithValidatedRedirects<Readable>(
             task.url,
             {
@@ -100,7 +99,11 @@ export async function transferCatchupToPartialFile(
             Number.isSafeInteger(length) && length > 0 ? length : null;
         // Restart safely before measuring space: the retained file is
         // reclaimable only after its verified descriptor has been truncated.
-        output = await openCatchupOutput(reservation.partialPath);
+        output = await openCatchupOutput(
+            reservation.partialPath,
+            task.catchupExpectedPartialIdentity,
+            () => clearArchiveFinalization(db, task.id)
+        );
         output.stream.on('error', () => undefined);
         task.catchupPartialIdentity = output.identity;
         const byteLimit = await getArchiveByteLimit(

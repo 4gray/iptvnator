@@ -1,3 +1,7 @@
+import {
+    clearArchiveFinalization,
+    readArchiveFinalizations,
+} from './download-catchup-journal';
 import { cleanupSelectedCatchupPartial } from './download-catchup-cleanup';
 import {
     persistCancellation,
@@ -196,6 +200,17 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
+        if (task.catchup) {
+            if (task.filePath) {
+                const proof = (
+                    await readArchiveFinalizations(db, [task.id])
+                ).get(task.id);
+                task.catchupExpectedPartialIdentity = proof?.partialIdentity;
+            } else {
+                // A fresh reservation must not inherit a previous attempt's proof.
+                await clearArchiveFinalization(db, task.id);
+            }
+        }
         reservation = await reserveTarget(task);
         task.fileName = reservation.filename;
         task.filePath = reservation.path;

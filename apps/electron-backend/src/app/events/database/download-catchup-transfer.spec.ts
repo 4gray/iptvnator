@@ -224,7 +224,7 @@ describe('TS archive transfer', () => {
     });
 });
 
-it.each(['symlink', 'hardlink'])(
+it.each(['symlink', 'hardlink', 'regular file'])(
     'refuses a retained archive partial replaced by a %s',
     async (kind) => {
         const directory = await mkdtemp(join(tmpdir(), 'archive-replaced-'));
@@ -234,7 +234,9 @@ it.each(['symlink', 'hardlink'])(
             await writeFile(target, 'keep this file intact');
             await (kind === 'symlink'
                 ? symlink(target, path + '.part')
-                : link(target, path + '.part'));
+                : kind === 'hardlink'
+                  ? link(target, path + '.part')
+                  : writeFile(path + '.part', 'keep this file intact'));
             jest.mocked(requestWithValidatedRedirects).mockResolvedValue({
                 status: 200,
                 headers: { 'content-type': 'video/mp2t' },
@@ -242,11 +244,14 @@ it.each(['symlink', 'hardlink'])(
             } as never);
             const task: DownloadTask = {
                 id: 3,
+                catchupExpectedPartialIdentity: await stat(target),
                 url: 'https://host/archive.ts',
                 fileName: 'archive.ts',
                 directory,
                 catchup: metadata,
             };
+            const journalClears = jest.mocked(clearArchiveFinalization).mock
+                .calls.length;
             await expect(
                 transferCatchupToPartialFile({} as DownloadsDatabase, task, {
                     path,
@@ -254,6 +259,12 @@ it.each(['symlink', 'hardlink'])(
                     filename: 'archive.ts',
                 })
             ).rejects.toThrow();
+            expect(
+                jest.mocked(clearArchiveFinalization).mock.calls.length
+            ).toBe(journalClears);
+            expect(await readFile(path + '.part', 'utf8')).toBe(
+                'keep this file intact'
+            );
             expect(await readFile(target, 'utf8')).toBe(
                 'keep this file intact'
             );

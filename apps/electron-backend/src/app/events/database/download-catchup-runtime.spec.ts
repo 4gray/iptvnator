@@ -11,10 +11,13 @@ import { join } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import { transferCatchupToPartialFile } from './download-catchup-transfer';
 import { enqueueDownload } from './download-runtime';
+import { readArchiveFinalizations } from './download-catchup-journal';
 import type { DownloadTask } from './download-task';
 
 jest.mock('./download-catchup-journal', () => ({
     recordArchiveFinalization: jest.fn().mockResolvedValue(undefined),
+    clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
+    readArchiveFinalizations: jest.fn().mockResolvedValue(new Map()),
 }));
 jest.mock('../../database/connection', () => ({ getDatabase: jest.fn() }));
 jest.mock('./download-catchup-transfer', () => ({
@@ -61,6 +64,12 @@ it.each(['failed', 'canceled'])(
                 active.catchupPartialIdentity = await lstat(
                     reservation.partialPath
                 );
+                expect(active.catchupExpectedPartialIdentity).toEqual(
+                    expect.objectContaining({
+                        dev: active.catchupPartialIdentity.dev,
+                        ino: active.catchupPartialIdentity.ino,
+                    })
+                );
                 await rename(
                     reservation.partialPath,
                     join(directory, 'original')
@@ -74,6 +83,23 @@ it.each(['failed', 'canceled'])(
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
         try {
+            task.filePath = join(directory, 'show.ts');
+            await writeFile(task.filePath + '.part', 'retained archive');
+            const partial = await lstat(task.filePath + '.part');
+            jest.mocked(readArchiveFinalizations).mockResolvedValueOnce(
+                new Map([
+                    [
+                        task.id,
+                        {
+                            version: 1,
+                            filePath: task.filePath,
+                            size: partial.size,
+                            partialIdentity: partial,
+                            finalIdentity: partial,
+                        },
+                    ],
+                ])
+            );
             enqueueDownload(task);
             await completed;
             // Let the queue's finally block retire this task before the next case.
