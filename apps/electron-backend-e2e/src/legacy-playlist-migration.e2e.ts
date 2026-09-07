@@ -532,9 +532,10 @@ test.describe('v0.19 profile migration', () => {
                 .poll(() =>
                     recovered.app.evaluate(
                         () =>
-                            typeof globalThis[
-                                '__resolveLegacyRecoveryDialog'
-                            ] === 'function'
+                            typeof (
+                                globalThis as typeof globalThis &
+                                    StartupTestGlobals
+                            )['__resolveLegacyRecoveryDialog'] === 'function'
                     )
                 )
                 .toBe(true);
