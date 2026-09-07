@@ -18,6 +18,7 @@ import {
     openSettingsSection,
 } from './electron-test-fixtures';
 import { seedLegacyProfile, legacyPlaylists } from './legacy-profile-fixture';
+import { applyTheme } from './theme-contrast';
 
 interface StartupTestGlobals {
     __failPlaylistReads: boolean;
@@ -203,7 +204,7 @@ test.describe('v0.19 profile migration', () => {
     for (const fault of ['defer-epg', 'fail-playlist-reads'] as const) {
         test(`keeps startup actionable after declining recovery: ${fault}`, async ({
             dataDir,
-        }) => {
+        }, testInfo) => {
             const initial = await launchElectronApp(dataDir);
             try {
                 await initial.mainWindow.evaluate(() =>
@@ -268,6 +269,23 @@ test.describe('v0.19 profile migration', () => {
                             )
                         )
                         .toBe(true);
+                    for (const theme of ['light', 'dark'] as const) {
+                        await applyTheme(page, theme);
+                        await page.screenshot({
+                            path: testInfo.outputPath(`startup-${theme}.png`),
+                            animations: 'disabled',
+                        });
+                    }
+                    await page.setViewportSize({ width: 480, height: 640 });
+                    await expect(page.locator('body')).toHaveJSProperty(
+                        'scrollWidth',
+                        480
+                    );
+                    await page.screenshot({
+                        path: testInfo.outputPath('startup-dark-narrow.png'),
+                        animations: 'disabled',
+                    });
+                    await page.setViewportSize({ width: 1280, height: 720 });
                     await app.evaluate(() =>
                         (globalThis as typeof globalThis & StartupTestGlobals)[
                             '__releaseStartupEpg'

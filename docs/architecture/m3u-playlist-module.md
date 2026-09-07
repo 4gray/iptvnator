@@ -95,7 +95,9 @@ an older source set. Repeated cleanup failure leaves Retry available.
 Every inventory load clears readiness, including reloads after backup import,
 so a later read failure also exposes Retry. A successfully loaded empty inventory
 is distinct from a failed read. The preparation/error surface remains a native
-window drag region, with Retry excluded so it stays clickable.
+window drag region, with Retry excluded so it stays clickable. Its static,
+monochrome SVG watermark inherits the theme heading color, fades toward the
+content, and is clipped, pointer-transparent and hidden from assistive technology.
 
 Validation: `electron-backend-e2e:e2e-ci--src/legacy-playlist-migration.e2e.ts`
 seeds the exact v0.19 IndexedDB schema and verbatim SQL CREATE statements with
