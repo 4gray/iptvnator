@@ -1,3 +1,4 @@
+import { EpgArchiveCopyService } from '@iptvnator/ui/epg';
 import { Component, Directive, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -131,6 +132,10 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
             imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
             providers: [
                 {
+                    provide: EpgArchiveCopyService,
+                    useValue: { copy: jest.fn() },
+                },
+                {
                     provide: ActivatedRoute,
                     useValue: {
                         snapshot: {
@@ -182,7 +187,10 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
                         openExternalPlayback: jest.fn(),
                     },
                 },
-                { provide: LIVE_CATEGORIES_POPOVER, useValue: categoriesPopover },
+                {
+                    provide: LIVE_CATEGORIES_POPOVER,
+                    useValue: categoriesPopover,
+                },
             ],
         })
             .overrideComponent(LiveStreamLayoutComponent, {
