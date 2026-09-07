@@ -39,6 +39,7 @@ export function createPlaybackSourceMetadata(
     const mimeType = input.mimeType?.trim() || undefined;
 
     return {
+        ...(input.drmSystems?.length ? { drmSystems: input.drmSystems } : {}),
         url: input.url,
         extension,
         container: extension || inferContainerFromMimeType(mimeType),

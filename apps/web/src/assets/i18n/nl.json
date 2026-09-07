@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Stream laden",
+        "STAGE_DEMUX": "Container verwerken",
+        "DETAIL_STAGE": "Foutfase",
+        "DETAIL_DRM_SYSTEMS": "DRM opgegeven door de bron",
+        "STAGE_MANIFEST": "Manifest laden",
+        "STAGE_PLAYLIST": "Media-afspeellijst laden",
+        "STAGE_SEGMENT": "Mediasegment laden",
+        "STAGE_KEY": "Versleutelingssleutel laden",
+        "STAGE_LICENSE": "DRM-licentie-uitwisseling",
+        "STAGE_MEDIA": "Mediaverwerking",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Deze streamcontainer wordt waarschijnlijk niet ondersteund door de browserspeler",
             "DESCRIPTION": "De browserspeler kan deze container mogelijk niet inline decoderen. Kopieer de stream-URL en open deze in een externe speler zoals MPV, VLC of IINA voor bredere codec-ondersteuning."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Audiocodecs",
         "DETAIL_NATIVE_ERROR_CODE": "Native foutcode",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Native foutmelding",
-        "DETAIL_ERROR_DETAILS": "Foutdetails"
+        "DETAIL_ERROR_DETAILS": "Foutdetails",
+        "DRM_CONFIGURATION_UNSUPPORTED": "Deze speler ondersteunt de DRM-configuratie van de stream niet. Vraag uw aanbieder om een compatibele stream.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "De gevraagde DRM-configuratie is hier niet beschikbaar. Controleer de browserinstellingen voor beveiligde inhoud of vraag om een compatibele stream.",
+        "LICENSE_REQUEST_FAILED": "De speler kon geen DRM-licentie ophalen. Controleer uw verbinding en afspeelrechten bij uw aanbieder.",
+        "LICENSE_RESPONSE_REJECTED": "De DRM-module heeft het licentieantwoord geweigerd. Neem contact op met uw aanbieder om de licentie te controleren.",
+        "LICENSE_SERVER_MISSING": "Er is geen licentieserver ingesteld voor deze beveiligde stream. Vraag uw aanbieder om de afspeelinstellingen.",
+        "SEGMENT_ACCESS_DENIED": "De server heeft toegang tot de mediasegmenten geweigerd. Controleer uw afspeelrechten bij uw aanbieder.",
+        "ACTION_COPY_DIAGNOSTIC": "Diagnose kopiëren",
+        "REPORT_COPIED": "Diagnose gekopieerd",
+        "COPY_FAILED": "Kopiëren mislukt. Probeer opnieuw.",
+        "REPORT_PRIVACY": "Kopieert technische gegevens zonder stream-URL’s, inloggegevens of onbewerkte foutmeldingen."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Zenderlijst verbergen",

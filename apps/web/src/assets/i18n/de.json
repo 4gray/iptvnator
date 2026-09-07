@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Stream laden",
+        "STAGE_DEMUX": "Container verarbeiten",
+        "DETAIL_STAGE": "Fehlerphase",
+        "DETAIL_DRM_SYSTEMS": "Von der Quelle angegebenes DRM",
+        "STAGE_MANIFEST": "Manifest laden",
+        "STAGE_PLAYLIST": "Medienplaylist laden",
+        "STAGE_SEGMENT": "Mediensegment laden",
+        "STAGE_KEY": "Verschlüsselungsschlüssel laden",
+        "STAGE_LICENSE": "DRM-Lizenzaustausch",
+        "STAGE_MEDIA": "Medienverarbeitung",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Dieser Stream-Container wird wahrscheinlich nicht vom Browser-Player unterstützt",
             "DESCRIPTION": "Der Browser-Player kann diesen Container möglicherweise nicht direkt dekodieren. Kopiere die Stream-URL und öffne sie für breitere Codec-Unterstützung in einem externen Player wie MPV, VLC oder IINA."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Audio-Codecs",
         "DETAIL_NATIVE_ERROR_CODE": "Nativer Fehlercode",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Native Fehlermeldung",
-        "DETAIL_ERROR_DETAILS": "Fehlerdetails"
+        "DETAIL_ERROR_DETAILS": "Fehlerdetails",
+        "DRM_CONFIGURATION_UNSUPPORTED": "Dieser Player unterstützt die DRM-Konfiguration des Streams nicht. Fragen Sie Ihren Anbieter nach einem kompatiblen Stream.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "Die angeforderte DRM-Konfiguration ist hier nicht verfügbar. Prüfen Sie die Browser-Einstellungen für geschützte Inhalte oder fragen Sie Ihren Anbieter nach einem kompatiblen Stream.",
+        "LICENSE_REQUEST_FAILED": "Der Player konnte keine DRM-Lizenz abrufen. Prüfen Sie Ihre Verbindung und die Wiedergabeberechtigung beim Anbieter.",
+        "LICENSE_RESPONSE_REJECTED": "Das DRM-Modul hat die Lizenzantwort abgelehnt. Wenden Sie sich zur Lizenzprüfung an Ihren Anbieter.",
+        "LICENSE_SERVER_MISSING": "Für diesen geschützten Stream ist kein Lizenzserver konfiguriert. Fragen Sie Ihren Anbieter nach den Wiedergabeeinstellungen.",
+        "SEGMENT_ACCESS_DENIED": "Der Server hat den Zugriff auf die Mediensegmente verweigert. Prüfen Sie die Wiedergabeberechtigung beim Anbieter.",
+        "ACTION_COPY_DIAGNOSTIC": "Diagnose kopieren",
+        "REPORT_COPIED": "Diagnose kopiert",
+        "COPY_FAILED": "Kopieren fehlgeschlagen. Erneut versuchen.",
+        "REPORT_PRIVACY": "Kopiert technische Daten ohne Stream-URLs, Zugangsdaten oder rohe Fehlermeldungen."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Senderliste ausblenden",

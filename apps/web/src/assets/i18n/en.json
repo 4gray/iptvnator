@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Stream loading",
+        "STAGE_DEMUX": "Container parsing",
+        "DETAIL_STAGE": "Failure stage",
+        "DETAIL_DRM_SYSTEMS": "DRM declared by source",
+        "STAGE_MANIFEST": "Manifest loading",
+        "STAGE_PLAYLIST": "Media playlist loading",
+        "STAGE_SEGMENT": "Media segment loading",
+        "STAGE_KEY": "Encryption key loading",
+        "STAGE_LICENSE": "DRM license exchange",
+        "STAGE_MEDIA": "Media processing",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",
             "DESCRIPTION": "The browser player may not decode this container inline. Copy the stream URL and open it in an external player such as MPV, VLC, or IINA for broader codec support."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Audio codecs",
         "DETAIL_NATIVE_ERROR_CODE": "Native error code",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Native error message",
-        "DETAIL_ERROR_DETAILS": "Error details"
+        "DETAIL_ERROR_DETAILS": "Error details",
+        "DRM_CONFIGURATION_UNSUPPORTED": "This player does not support the stream’s DRM configuration. Ask your provider for a compatible stream.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "The requested DRM configuration is unavailable in this environment. Check the browser’s protected-content settings or ask your provider for a compatible stream.",
+        "LICENSE_REQUEST_FAILED": "The player could not obtain a DRM license. Check your connection and playback access with your provider.",
+        "LICENSE_RESPONSE_REJECTED": "The DRM module rejected the license response. Contact your provider to check the license.",
+        "LICENSE_SERVER_MISSING": "No license server is configured for this protected stream. Ask your provider for the required playback configuration.",
+        "SEGMENT_ACCESS_DENIED": "The server denied access to the media segments. Check playback access with your provider.",
+        "ACTION_COPY_DIAGNOSTIC": "Copy diagnostics",
+        "REPORT_COPIED": "Diagnostics copied",
+        "COPY_FAILED": "Copy failed. Try again.",
+        "REPORT_PRIVACY": "Copies technical facts without stream URLs, credentials or raw error messages."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Hide channels list",

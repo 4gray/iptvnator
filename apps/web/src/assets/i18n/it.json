@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Caricamento del flusso",
+        "STAGE_DEMUX": "Analisi del contenitore",
+        "DETAIL_STAGE": "Fase dell’errore",
+        "DETAIL_DRM_SYSTEMS": "DRM dichiarato dalla sorgente",
+        "STAGE_MANIFEST": "Caricamento del manifest",
+        "STAGE_PLAYLIST": "Caricamento della playlist multimediale",
+        "STAGE_SEGMENT": "Caricamento del segmento multimediale",
+        "STAGE_KEY": "Caricamento della chiave di cifratura",
+        "STAGE_LICENSE": "Scambio della licenza DRM",
+        "STAGE_MEDIA": "Elaborazione multimediale",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Questo contenitore dello stream probabilmente non è supportato dal player del browser",
             "DESCRIPTION": "Il player del browser potrebbe non decodificare questo contenitore inline. Copia l’URL dello stream e aprilo in un player esterno come MPV, VLC o IINA per un supporto codec più ampio."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Codec audio",
         "DETAIL_NATIVE_ERROR_CODE": "Codice errore nativo",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Messaggio errore nativo",
-        "DETAIL_ERROR_DETAILS": "Dettagli errore"
+        "DETAIL_ERROR_DETAILS": "Dettagli errore",
+        "DRM_CONFIGURATION_UNSUPPORTED": "Il lettore non supporta la configurazione DRM del flusso. Richiedi un flusso compatibile al fornitore.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "La configurazione DRM richiesta non è disponibile in questo ambiente. Controlla le impostazioni dei contenuti protetti del browser o richiedi un flusso compatibile.",
+        "LICENSE_REQUEST_FAILED": "Il lettore non ha ottenuto una licenza DRM. Controlla la connessione e i diritti di riproduzione con il fornitore.",
+        "LICENSE_RESPONSE_REJECTED": "Il modulo DRM ha rifiutato la risposta della licenza. Contatta il fornitore per verificarla.",
+        "LICENSE_SERVER_MISSING": "Nessun server di licenze è configurato per questo flusso protetto. Richiedi al fornitore le impostazioni di riproduzione.",
+        "SEGMENT_ACCESS_DENIED": "Il server ha negato l’accesso ai segmenti multimediali. Verifica i diritti di riproduzione con il fornitore.",
+        "ACTION_COPY_DIAGNOSTIC": "Copia diagnostica",
+        "REPORT_COPIED": "Diagnostica copiata",
+        "COPY_FAILED": "Copia non riuscita. Riprova.",
+        "REPORT_PRIVACY": "Copia dati tecnici senza URL del flusso, credenziali o messaggi di errore originali."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Nascondi elenco canali",

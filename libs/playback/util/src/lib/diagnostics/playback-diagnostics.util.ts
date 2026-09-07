@@ -231,6 +231,9 @@ export function createPlaybackDiagnostic(options: {
     return {
         code,
         source,
+        ...(metadata.drmSystems?.length
+            ? { drmSystems: metadata.drmSystems }
+            : {}),
         sourceUrl: metadata.url,
         container: metadata.container,
         mimeType: metadata.mimeType,

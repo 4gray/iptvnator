@@ -149,7 +149,15 @@ test('@web @m3u @dash unsupported DRM shows the encryption diagnostic', async ({
 
     const banner = page.locator('[data-test-id="playback-diagnostic-banner"]');
     await expect(banner).toBeVisible({ timeout: 15_000 });
-    await expect(banner).toContainText(/encrypted or DRM-protected/i);
+    await expect(banner).toContainText(
+        'This player does not support the stream’s DRM configuration.'
+    );
+    await banner.locator('summary').click();
+    const details = banner.locator(
+        '[data-test-id="playback-diagnostic-details"]'
+    );
+    await expect(details).toContainText('DRM declared by source');
+    await expect(details).toContainText('Widevine');
     await expect(
         banner.locator('[data-test-id="playback-fallback-mpv"]')
     ).toHaveCount(0);
@@ -159,4 +167,112 @@ test('@web @m3u @dash unsupported DRM shows the encryption diagnostic', async ({
     await expect(
         banner.locator('[data-test-id^="playback-recommendation-"]')
     ).toHaveCount(0);
+});
+
+test('@web @m3u @dash manifest DRM and codecs survive a startup failure', async ({
+    page,
+}) => {
+    await serveDashFixtures(page);
+    let manifestRequests = 0;
+    const body = readFileSync(
+        join(FIXTURE_DIR, 'clear.mpd'),
+        'utf8'
+    ).replaceAll(
+        '<Representation ',
+        '<ContentProtection schemeIdUri="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"/>' +
+            '<ContentProtection schemeIdUri="urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95"/>' +
+            '<!-- private-license-marker -->' +
+            '<Representation '
+    );
+    await page.route(`${FIXTURE_HOST}/clear.mpd`, async (route) => {
+        manifestRequests += 1;
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/dash+xml',
+            body,
+        });
+    });
+    await importDashPlaylist(page);
+    await page.getByText('2. Clear DASH').click();
+    const banner = page.locator('[data-test-id="playback-diagnostic-banner"]');
+    await expect(banner).toBeVisible({ timeout: 20_000 });
+    await banner.locator('summary').click();
+    const details = banner.locator(
+        '[data-test-id="playback-diagnostic-details"]'
+    );
+    await expect(details).toContainText('Widevine, PlayReady');
+    await expect(details).toContainText('vp09.00.11.08.01.02.02.02.00');
+    await expect(details).toContainText('opus');
+    await expect(details).not.toContainText('private-license-marker');
+    expect(manifestRequests).toBe(1);
+});
+
+test('@web @m3u @dash segment failures show their stage and preserve codecs', async ({
+    page,
+    context,
+}) => {
+    await serveDashFixtures(page);
+    await page.route(`${FIXTURE_HOST}/clear-video.mp4`, (route) =>
+        route.fulfill({ status: 403, body: 'private-response-marker' })
+    );
+    await importDashPlaylist(page);
+    await page.getByText('2. Clear DASH').click();
+    const banner = page.locator('[data-test-id="playback-diagnostic-banner"]');
+    await expect(banner).toBeVisible({ timeout: 20_000 });
+    await banner.locator('summary').click();
+    const details = banner.locator(
+        '[data-test-id="playback-diagnostic-details"]'
+    );
+    await expect(details).toContainText('Media segment loading');
+    await expect(details).toContainText('vp09.00.11.08.01.02.02.02.00');
+    await expect(details).toContainText('HTTP 403');
+    await expect(details).not.toContainText('private-response-marker');
+    await expect(details).not.toContainText('DRM declared by source');
+    await expect(banner).toContainText(
+        'The server denied access to the media segments.'
+    );
+    await expect(banner).not.toContainText(/token.*expired/i);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const copy = banner.getByRole('button', {
+        name: 'Copy diagnostics',
+        exact: true,
+    });
+    await copy.click();
+    await expect(
+        banner.locator('[data-test-id="playback-copy-diagnostic-status"]')
+    ).toHaveText('Diagnostics copied');
+    const reportText = await page.evaluate(() =>
+        navigator.clipboard.readText()
+    );
+    expect(JSON.parse(reportText)).toMatchObject({
+        app: 'IPTVnator',
+        engine: 'shaka',
+        stage: 'segment',
+        httpStatus: 403,
+        videoCodecs: ['vp09.00.11.08.01.02.02.02.00'],
+    });
+    for (const secret of [
+        'private-response-marker',
+        FIXTURE_HOST,
+        'sourceUrl',
+    ]) {
+        expect(reportText).not.toContain(secret);
+    }
+    await page.getByText('3. Widevine DASH').click();
+    await expect(banner).toContainText(
+        'This player does not support the stream’s DRM configuration.'
+    );
+    await expect(
+        banner.locator('[data-test-id="playback-copy-diagnostic-status"]')
+    ).toBeEmpty();
+    await copy.click();
+    const next = JSON.parse(
+        await page.evaluate(() => navigator.clipboard.readText())
+    );
+    expect(next).toMatchObject({
+        code: 'drm-or-encryption',
+        drmSystems: ['widevine'],
+    });
+    expect(next).not.toHaveProperty('httpStatus');
+    expect(next).not.toHaveProperty('stage');
 });

@@ -3,6 +3,7 @@ import {
     InlinePlaybackPlayer,
     type PlaybackDiagnostic,
     classifyMpegTsPlaybackIssue,
+    collectPlaybackCodecs,
     createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
@@ -62,6 +63,7 @@ export class VjsMpegTsSession {
                 classifyMpegTsPlaybackIssue(
                     createMpegTsPlaybackEvidence(type, details, info),
                     createPlaybackSourceMetadata({
+                        ...collectPlaybackCodecs([engine.mediaInfo ?? {}]),
                         url,
                         mimeType: 'video/mp2t',
                         player: InlinePlaybackPlayer.VideoJs,

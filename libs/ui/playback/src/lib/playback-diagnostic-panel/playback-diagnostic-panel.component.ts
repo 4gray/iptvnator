@@ -1,8 +1,13 @@
+import { DOCUMENT } from '@angular/common';
+import packageJson from '@package';
+import { createDiagnosticReport } from './playback-diagnostic-report.util';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    inject,
+    signal,
     input,
     output,
 } from '@angular/core';
@@ -77,6 +82,30 @@ export class PlaybackDiagnosticPanelComponent {
     readonly playerRequested = output<PlaybackRecommendationTarget>();
     readonly alternativeSourceRequested = output<string>();
     readonly sourceCheckRequested = output<string>();
+
+    private readonly document = inject(DOCUMENT);
+    private readonly copyResult = signal<{
+        issue: PlaybackDiagnostic;
+        success: boolean;
+    } | null>(null);
+    readonly diagnosticReport = computed(() =>
+        createDiagnosticReport(
+            this.diagnostic(),
+            packageJson.version,
+            this.document.defaultView?.navigator.userAgent ?? ''
+        )
+    );
+    readonly copyStatusKey = computed(() => {
+        const result = this.copyResult();
+        if (!result || result.issue !== this.diagnostic()) return '';
+        return result.success
+            ? 'PLAYBACK_DIAGNOSTICS.REPORT_COPIED'
+            : 'PLAYBACK_DIAGNOSTICS.COPY_FAILED';
+    });
+
+    onReportCopied(success: boolean): void {
+        this.copyResult.set({ issue: this.diagnostic(), success });
+    }
 
     readonly visibleAlternatives = computed(() =>
         this.alternativeSources().slice(0, ERROR_SCREEN_ALTERNATIVES)

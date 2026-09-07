@@ -113,26 +113,30 @@ describe('VjsMpegTsSession', () => {
 
     it('emits structured HTTP evidence with Video.js source metadata', () => {
         const mpegTsPlayer = createMpegTsPlayer();
+        Object.assign(mpegTsPlayer, {
+            mediaInfo: {
+                audioCodec: 'aac',
+                videoCodec: 'h264',
+                url: 'private-media-info-url',
+            },
+        });
         createPlayerMock.mockReturnValue(mpegTsPlayer);
         const video = document.createElement('video');
         const { session, emitPlaybackIssue } = createSession();
         const secret = 'vjs-mpegts-secret';
 
         session.start('https://example.test/live/stream.ts', video);
-        mpegTsPlayer.emit(
-            'error',
-            'NetworkError',
-            'HttpStatusCodeInvalid',
-            {
-                code: 503,
-                msg: `Service Unavailable ${secret}`,
-                headers: { Authorization: secret },
-            }
-        );
+        mpegTsPlayer.emit('error', 'NetworkError', 'HttpStatusCodeInvalid', {
+            code: 503,
+            msg: `Service Unavailable ${secret}`,
+            headers: { Authorization: secret },
+        });
 
         expect(emitPlaybackIssue).toHaveBeenCalledWith(
             expect.objectContaining({
                 code: 'network-error',
+                audioCodecs: ['aac'],
+                videoCodecs: ['h264'],
                 source: 'mpegts',
                 sourceUrl: 'https://example.test/live/stream.ts',
                 player: 'videojs',
@@ -144,6 +148,9 @@ describe('VjsMpegTsSession', () => {
                     httpStatus: 503,
                 }),
             })
+        );
+        expect(JSON.stringify(emitPlaybackIssue.mock.calls)).not.toContain(
+            'private-media-info-url'
         );
         expect(JSON.stringify(emitPlaybackIssue.mock.calls)).not.toContain(
             secret

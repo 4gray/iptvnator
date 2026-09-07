@@ -17,6 +17,7 @@ import { createPlaybackDiagnostic } from './playback-diagnostics.util';
 import { SHAKA_ERROR_CODE } from './shaka-error-contract';
 import { createShakaPlaybackEvidence } from './shaka-playback-evidence.util';
 import type { ShakaErrorLike } from './shaka-error.types';
+import { getPlaybackDrmSystem } from './playback-stream-metadata';
 
 export {
     SHAKA_DIAGNOSTIC_VERSION,
@@ -81,14 +82,16 @@ function getDiagnosticCode(
  * handle. Provider-supplied license strings are intentionally not retained.
  */
 export function createUnsupportedDrmDiagnostic(
-    _licenseType: string,
+    licenseType: string,
     metadata: PlaybackSourceMetadata
 ): PlaybackDiagnostic {
+    const system = getPlaybackDrmSystem(licenseType);
     return createPlaybackDiagnostic({
         code: DiagnosticCode.DrmOrEncryption,
         source: DiagnosticSource.Shaka,
-        metadata,
+        metadata: system ? { ...metadata, drmSystems: [system] } : metadata,
         details: 'Unsupported DRM license configuration',
+        runtimeSupport: PlaybackRuntimeSupport.DrmConfigurationUnsupported,
     });
 }
 

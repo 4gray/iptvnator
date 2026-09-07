@@ -4,6 +4,7 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { ErrorDetails, ErrorTypes } from 'hls.js';
+import type { PlaybackDrmSystem } from './playback-stream-metadata';
 import type { MpegTsPlaybackEvidence } from './mpegts-playback-evidence.model';
 
 export * from './mpegts-playback-evidence.model';
@@ -34,6 +35,7 @@ export type PlaybackDiagnosticSource =
     (typeof PlaybackDiagnosticSource)[keyof typeof PlaybackDiagnosticSource];
 
 export const PlaybackRuntimeSupport = {
+    DrmConfigurationUnsupported: 'drm-configuration-unsupported',
     ShakaBrowserUnsupported: 'shaka-browser-unsupported',
 } as const;
 
@@ -50,6 +52,7 @@ export type InlinePlaybackPlayer =
     (typeof InlinePlaybackPlayer)[keyof typeof InlinePlaybackPlayer];
 
 export interface PlaybackSourceMetadataInput {
+    readonly drmSystems?: readonly PlaybackDrmSystem[];
     readonly url: string;
     readonly mimeType?: string;
     readonly player?: InlinePlaybackPlayer;
@@ -58,6 +61,7 @@ export interface PlaybackSourceMetadataInput {
 }
 
 export interface PlaybackSourceMetadata {
+    readonly drmSystems?: readonly PlaybackDrmSystem[];
     readonly url: string;
     readonly extension: string;
     readonly container: string;
@@ -255,6 +259,8 @@ export interface ShakaPlaybackEvidence {
 }
 
 export interface PlaybackDiagnostic {
+    /** Declared by the source/configuration, not proof of usable licenses. */
+    readonly drmSystems?: readonly PlaybackDrmSystem[];
     readonly code: PlaybackDiagnosticCode;
     readonly source: PlaybackDiagnosticSource;
     readonly sourceUrl: string;

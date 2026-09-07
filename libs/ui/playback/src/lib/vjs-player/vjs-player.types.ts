@@ -1,5 +1,6 @@
 import type videoJs from 'video.js';
 import type { NativePlaybackErrorInput } from '@iptvnator/playback/util';
+import { collectPlaybackCodecs } from '@iptvnator/playback/util';
 
 export type VideoPlayerSource = {
     src: string;
@@ -62,14 +63,16 @@ export type VideoJsQualityLevel = {
     enabled: boolean;
 };
 
-export type VideoJsQualityLevelList =
-    VideoJsTrackList<VideoJsQualityLevel> & {
-        selectedIndex?: number;
-    };
+export type VideoJsQualityLevelList = VideoJsTrackList<VideoJsQualityLevel> & {
+    selectedIndex?: number;
+};
 
 export type VideoJsTech = {
     el?: () => Element | null;
     vhs?: {
+        representations?: () => {
+            codecs?: { audio?: unknown; video?: unknown };
+        }[];
         playlists?: {
             main?: { mediaGroups?: { AUDIO?: Record<string, unknown> } };
             master?: { mediaGroups?: { AUDIO?: Record<string, unknown> } };
@@ -123,5 +126,22 @@ export function hasActiveVhsSourceHandler(
         return typeof vhs === 'object' && vhs !== null;
     } catch {
         return false;
+    }
+}
+
+export function getVideoJsPlaybackCodecs(player: Pick<VideoJsPlayer, 'tech'>) {
+    try {
+        const variants =
+            player
+                .tech({ IWillNotUseThisInPlugins: true })
+                ?.vhs?.representations?.() ?? [];
+        return collectPlaybackCodecs(
+            variants.slice(0, 256).map((variant) => ({
+                audioCodec: variant.codecs?.audio,
+                videoCodec: variant.codecs?.video,
+            }))
+        );
+    } catch {
+        return collectPlaybackCodecs([]);
     }
 }

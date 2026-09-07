@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "تحميل البث",
+        "STAGE_DEMUX": "تحليل الحاوية",
+        "DETAIL_STAGE": "مرحلة الفشل",
+        "DETAIL_DRM_SYSTEMS": "DRM المعلن من المصدر",
+        "STAGE_MANIFEST": "تحميل ملف الوصف",
+        "STAGE_PLAYLIST": "تحميل قائمة الوسائط",
+        "STAGE_SEGMENT": "تحميل مقطع الوسائط",
+        "STAGE_KEY": "تحميل مفتاح التشفير",
+        "STAGE_LICENSE": "تبادل ترخيص DRM",
+        "STAGE_MEDIA": "معالجة الوسائط",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "قد لا تكون حاوية هذا البث مدعومة في مشغل المتصفح",
             "DESCRIPTION": "قد لا يستطيع مشغل المتصفح فك ترميز هذه الحاوية داخل التطبيق. انسخ رابط البث وافتحه في مشغل خارجي مثل MPV أو VLC أو IINA للحصول على دعم أوسع للترميزات."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "ترميزات الصوت",
         "DETAIL_NATIVE_ERROR_CODE": "رمز الخطأ الأصلي",
         "DETAIL_NATIVE_ERROR_MESSAGE": "رسالة الخطأ الأصلية",
-        "DETAIL_ERROR_DETAILS": "تفاصيل الخطأ"
+        "DETAIL_ERROR_DETAILS": "تفاصيل الخطأ",
+        "DRM_CONFIGURATION_UNSUPPORTED": "لا يدعم هذا المشغل إعداد DRM للبث. اطلب بثًا متوافقًا من مزود الخدمة.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "إعداد DRM المطلوب غير متاح في هذه البيئة. تحقق من إعدادات المحتوى المحمي في المتصفح أو اطلب بثًا متوافقًا.",
+        "LICENSE_REQUEST_FAILED": "تعذر على المشغل الحصول على ترخيص DRM. تحقق من الاتصال وصلاحية المشاهدة لدى مزود الخدمة.",
+        "LICENSE_RESPONSE_REJECTED": "رفضت وحدة DRM استجابة الترخيص. اتصل بمزود الخدمة للتحقق من الترخيص.",
+        "LICENSE_SERVER_MISSING": "لم يتم إعداد خادم تراخيص لهذا البث المحمي. اطلب إعدادات التشغيل من مزود الخدمة.",
+        "SEGMENT_ACCESS_DENIED": "رفض الخادم الوصول إلى مقاطع الوسائط. تحقق من صلاحية المشاهدة لدى مزود الخدمة.",
+        "ACTION_COPY_DIAGNOSTIC": "نسخ التشخيص",
+        "REPORT_COPIED": "تم نسخ التشخيص",
+        "COPY_FAILED": "فشل النسخ. حاول مجددًا.",
+        "REPORT_PRIVACY": "ينسخ البيانات التقنية دون روابط البث أو بيانات الاعتماد أو رسائل الخطأ الأصلية."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "إخفاء قائمة القنوات",

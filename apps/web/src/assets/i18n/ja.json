@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "ストリームの読み込み",
+        "STAGE_DEMUX": "コンテナの解析",
+        "DETAIL_STAGE": "失敗した段階",
+        "DETAIL_DRM_SYSTEMS": "ソースが宣言したDRM",
+        "STAGE_MANIFEST": "マニフェストの読み込み",
+        "STAGE_PLAYLIST": "メディアプレイリストの読み込み",
+        "STAGE_SEGMENT": "メディアセグメントの読み込み",
+        "STAGE_KEY": "暗号化キーの読み込み",
+        "STAGE_LICENSE": "DRMライセンスの交換",
+        "STAGE_MEDIA": "メディア処理",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "このストリームのコンテナはブラウザプレーヤーでサポートされていない可能性があります",
             "DESCRIPTION": "ブラウザプレーヤーでは、このコンテナをアプリ内でデコードできない場合があります。より広いコーデック対応が必要な場合は、ストリーム URL をコピーして MPV、VLC、IINA などの外部プレーヤーで開いてください。"
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "音声コーデック",
         "DETAIL_NATIVE_ERROR_CODE": "ネイティブエラーコード",
         "DETAIL_NATIVE_ERROR_MESSAGE": "ネイティブエラーメッセージ",
-        "DETAIL_ERROR_DETAILS": "エラー詳細"
+        "DETAIL_ERROR_DETAILS": "エラー詳細",
+        "DRM_CONFIGURATION_UNSUPPORTED": "このプレーヤーはストリームのDRM構成に対応していません。対応するストリームを配信元にお問い合わせください。",
+        "DRM_CONFIGURATION_UNAVAILABLE": "要求されたDRM構成はこの環境では利用できません。ブラウザーの保護されたコンテンツの設定を確認するか、対応するストリームを配信元にお問い合わせください。",
+        "LICENSE_REQUEST_FAILED": "DRMライセンスを取得できませんでした。接続と視聴権限を配信元に確認してください。",
+        "LICENSE_RESPONSE_REJECTED": "DRMモジュールがライセンス応答を拒否しました。ライセンスについて配信元にお問い合わせください。",
+        "LICENSE_SERVER_MISSING": "この保護されたストリームにはライセンスサーバーが設定されていません。必要な再生設定を配信元にお問い合わせください。",
+        "SEGMENT_ACCESS_DENIED": "サーバーがメディアセグメントへのアクセスを拒否しました。視聴権限を配信元に確認してください。",
+        "ACTION_COPY_DIAGNOSTIC": "診断情報をコピー",
+        "REPORT_COPIED": "診断情報をコピーしました",
+        "COPY_FAILED": "コピーできませんでした。再試行してください。",
+        "REPORT_PRIVACY": "ストリームURL、認証情報、生のエラーメッセージを含めずに技術情報をコピーします。"
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "チャンネル一覧を非表示",

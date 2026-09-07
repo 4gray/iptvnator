@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "加载流",
+        "STAGE_DEMUX": "解析容器",
+        "DETAIL_STAGE": "失败阶段",
+        "DETAIL_DRM_SYSTEMS": "来源声明的 DRM",
+        "STAGE_MANIFEST": "加载清单",
+        "STAGE_PLAYLIST": "加载媒体播放列表",
+        "STAGE_SEGMENT": "加载媒体分段",
+        "STAGE_KEY": "加载加密密钥",
+        "STAGE_LICENSE": "DRM 许可证交换",
+        "STAGE_MEDIA": "媒体处理",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "浏览器播放器可能不支持此流容器",
             "DESCRIPTION": "浏览器播放器可能无法在应用内解码此容器。复制流 URL，并用 MPV、VLC 或 IINA 等外部播放器打开，可获得更广泛的编解码支持。"
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "音频编码",
         "DETAIL_NATIVE_ERROR_CODE": "原生错误代码",
         "DETAIL_NATIVE_ERROR_MESSAGE": "原生错误信息",
-        "DETAIL_ERROR_DETAILS": "错误详情"
+        "DETAIL_ERROR_DETAILS": "错误详情",
+        "DRM_CONFIGURATION_UNSUPPORTED": "此播放器不支持该流的 DRM 配置。请向提供商索取兼容的流。",
+        "DRM_CONFIGURATION_UNAVAILABLE": "此环境无法使用所请求的 DRM 配置。请检查浏览器的受保护内容设置，或向提供商索取兼容的流。",
+        "LICENSE_REQUEST_FAILED": "播放器无法获取 DRM 许可证。请检查网络连接并向提供商确认播放权限。",
+        "LICENSE_RESPONSE_REJECTED": "DRM 模块拒绝了许可证响应。请联系提供商检查许可证。",
+        "LICENSE_SERVER_MISSING": "此受保护的流未配置许可证服务器。请向提供商索取所需的播放配置。",
+        "SEGMENT_ACCESS_DENIED": "服务器拒绝访问媒体分段。请向提供商确认播放权限。",
+        "ACTION_COPY_DIAGNOSTIC": "复制诊断信息",
+        "REPORT_COPIED": "诊断信息已复制",
+        "COPY_FAILED": "复制失败。请重试。",
+        "REPORT_PRIVACY": "复制技术信息，不包含流地址、凭据或原始错误消息。"
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "隐藏频道列表",

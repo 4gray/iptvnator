@@ -17,13 +17,8 @@ import { createDevLogger } from '@iptvnator/shared/interfaces';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
 import 'videojs-quality-selector-hls';
-import {
-    InlinePlaybackPlayer,
-    type PlaybackDiagnostic,
-    classifyNativePlaybackIssue,
-    classifyVhsPlaybackIssue,
-    createPlaybackSourceMetadata,
-} from '@iptvnator/playback/util';
+import { type PlaybackDiagnostic } from '@iptvnator/playback/util';
+import { createVideoJsPlaybackDiagnostic } from './vjs-playback-diagnostics';
 import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
@@ -52,7 +47,6 @@ import {
     type VideoPlayerOptions,
     type VideoPlayerSource,
     getVideoJsTechVideo,
-    hasActiveVhsSourceHandler,
 } from './vjs-player.types';
 import { VjsVideoElementSession } from './vjs-video-element-session';
 
@@ -266,23 +260,9 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.videoSession.video() ??
             getVideoJsTechVideo(this.player) ??
             this.target().nativeElement;
-        const playerError =
-            typeof this.player.error === 'function'
-                ? this.player.error()
-                : null;
-        const metadata = createPlaybackSourceMetadata({
-            url: source?.src ?? video.currentSrc ?? '',
-            mimeType: source?.type,
-            player: InlinePlaybackPlayer.VideoJs,
-        });
         this.mpegTsSession.syncDuration();
         this.playbackIssue.emit(
-            playerError && hasActiveVhsSourceHandler(this.player)
-                ? classifyVhsPlaybackIssue(playerError, metadata)
-                : classifyNativePlaybackIssue(
-                      playerError ?? video.error,
-                      metadata
-                  )
+            createVideoJsPlaybackDiagnostic(this.player, source, video)
         );
     };
 

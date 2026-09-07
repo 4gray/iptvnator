@@ -560,7 +560,9 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
             .click();
         const banner = app.mainWindow.getByTestId('playback-diagnostic-banner');
         await expect(banner).toBeVisible({ timeout: 15_000 });
-        await expect(banner).toContainText(/encrypted or DRM-protected/i);
+        await expect(banner).toContainText(
+            'This player does not support the stream’s DRM configuration.'
+        );
         await expect(
             banner.locator('[data-test-id="playback-fallback-mpv"]')
         ).toHaveCount(0);
@@ -575,6 +577,32 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
         );
         await widevineDetails.locator('summary').click();
         await expect(widevineDetails).toContainText('drm-or-encryption');
+        await expect(widevineDetails).toContainText('Widevine');
+        const copyDiagnostic = banner.getByRole('button', {
+            name: 'Copy diagnostics',
+            exact: true,
+        });
+        await copyDiagnostic.click();
+        await expect(
+            banner.getByTestId('playback-copy-diagnostic-status')
+        ).toHaveText('Diagnostics copied');
+        const drmReport = await app.electronApp.evaluate(({ clipboard }) =>
+            clipboard.readText()
+        );
+        expect(JSON.parse(drmReport)).toMatchObject({
+            app: 'IPTVnator',
+            runtime: 'electron',
+            code: 'drm-or-encryption',
+            drmSystems: ['widevine'],
+        });
+        for (const secret of [
+            fixtureServer.origin,
+            'license.example.com',
+            CLEARKEY_KEY,
+            CLEARKEY_KID,
+        ]) {
+            expect(drmReport).not.toContain(secret);
+        }
 
         await installPlaybackRecommendationLaunchCapture(app);
         await channelItemByTitle(app.mainWindow, 'Unsupported MKV')
@@ -589,6 +617,20 @@ test('@electron @dash ClearKey DASH filters DRM fallback and reports external la
         );
         await mkvDetails.locator('summary').click();
         await expect(mkvDetails).toContainText('unsupported-container');
+        await expect(
+            banner.getByTestId('playback-copy-diagnostic-status')
+        ).toBeEmpty();
+        await copyDiagnostic.click();
+        const mkvReport = JSON.parse(
+            await app.electronApp.evaluate(({ clipboard }) =>
+                clipboard.readText()
+            )
+        );
+        expect(mkvReport).toMatchObject({
+            code: 'unsupported-container',
+            drmSystems: [],
+        });
+        expect(mkvReport).not.toHaveProperty('runtimeSupport');
 
         const mpvFallback = banner.locator(
             '[data-test-id="playback-fallback-mpv"]'

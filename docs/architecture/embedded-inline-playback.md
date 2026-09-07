@@ -556,7 +556,12 @@ code-derived stage and failure kind, and a validated HTTP status. A direct
 `Network.BAD_HTTP_STATUS` may expose `data[1]` as the status; the same status is
 accepted from the documented nested networking error for
 `Drm.LICENSE_REQUEST_FAILED` and
-`Drm.SERVER_CERTIFICATE_REQUEST_FAILED`. No other `error.data` value is read.
+`Drm.SERVER_CERTIFICATE_REQUEST_FAILED`. For direct network errors, the
+public request type also identifies the stage: `BAD_HTTP_STATUS.data[4]`,
+`HTTP_ERROR.data[2]`, or `TIMEOUT.data[1]`. Only MANIFEST, SEGMENT and LICENSE
+are mapped, with their numeric values checked against the installed Shaka
+contract. Other types and malformed slots remain unknown; request URLs, bodies
+and headers are never inspected to guess the stage.
 
 A recoverable Shaka `error` event does not become a terminal playback
 diagnostic because the engine continues its retry/recovery lifecycle. A
@@ -588,10 +593,11 @@ the launch contract cannot transfer the key configuration.
 
 Shaka messages, URLs, headers, request/response bodies, credentials,
 license/key payloads, and arbitrary `error.data` objects are neither retained
-nor rendered. Technical details show only sanitized stage, failure, severity,
+nor rendered. Structured error details show only sanitized stage, failure, severity,
 category, code, disposition, and optional HTTP status. Unsupported playlist
 DRM uses a fixed safe description rather than echoing provider license
-configuration.
+configuration. A recognized configured license type can add only its
+allowlisted display name.
 
 `network-error` is reserved for provider/network loading failures. Engines that expose concrete browser security evidence, such as CORS, mixed content, Content Security Policy, or private-network-access blocks, use `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
 
@@ -656,6 +662,62 @@ universal codec guarantee: native source or decode failures still produce a
 diagnostic whose ranked actions may include MPV/VLC.
 
 Portal VOD and episode payloads with `contentInfo` are treated as non-live by the inline players unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. Embedded MPV uses the same live decision rule and shows an unknown duration placeholder for VOD/episode snapshots until MPV reports a finite duration. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
+
+### Source metadata in diagnostics
+
+The existing technical-details list has localized failure-stage and declared-DRM
+rows. Unknown stages are omitted from the dedicated row and remain visible as
+`unknown` in raw structured details. These rows do not change the original
+failure classification or recovery ranking.
+
+`ShakaManifestMetadata` observes the active Shaka networking engine's existing
+MANIFEST responses through a public response filter. It reads only DASH
+`AdaptationSet`/`Representation` codec attributes and `ContentProtection`
+scheme IDs, before licensing can fail. Inspection is bounded to 2 MiB and
+bounded element/codec counts. Non-DASH, malformed, DTD-bearing and oversized
+XML is ignored; the response is never changed, and an inspection failure never
+fails playback. No internal Shaka manifest API or extra fetch is used.
+
+Only known Widevine, PlayReady, ClearKey and FairPlay identifiers are retained.
+Generic CENC/common PSSH does not prove a particular DRM system. Configuration
+may also supply a known system name, including ClearKey; these are source facts,
+not proof that EME initialized or that a license is usable. No manifest body,
+key ID, key, license URL, header or arbitrary provider string enters the added
+metadata. Each observer belongs to one engine, unregisters on teardown and
+ignores late callbacks; switching channels cannot reuse the previous evidence.
+
+Fatal HLS errors retain the current hls.js level codec metadata, Video.js reads
+its current VHS representations, and MPEG-TS errors read the current engine's
+`mediaInfo`. DASH lists the advertised manifest codecs, which may include
+alternative renditions, rather than claiming they were successfully decoded.
+All added codec values pass a bounded identifier allowlist. An unrecognized or
+unavailable codec is omitted. Metadata does not itself trigger a failure or
+prove that a browser supports a codec.
+
+### Evidence-backed summaries and support reports
+
+The shared diagnostic panel refines its description only from owned evidence:
+`drm-configuration-unsupported` marks an app-rejected DRM configuration; Shaka
+6001 means the requested DRM configuration is unavailable (including denied
+permission or unsupported features, not proof that a particular CDM is absent).
+Shaka 6007, 6008 and 6012 distinguish license acquisition failure, a rejected
+license response and missing license-server configuration. An owned license
+network request also identifies acquisition failure. Confirmed segment requests
+with HTTP 401/403 report access refusal, without asserting token expiry. Source
+DRM names and arbitrary messages never select these explanations. Existing
+classification, recovery ranking and generic descriptions remain the fallback.
+
+**Copy diagnostics** writes a versioned JSON report to the local clipboard on
+explicit activation. The report allowlists app version, coarse OS/runtime,
+player/engine, diagnostic and numeric error codes, stage, HTTP status, container,
+codec identifiers and declared DRM names. Unknown values are omitted or marked
+unknown. It never serializes the diagnostic object, raw user agent, URL, title,
+provider message, headers, credentials, key IDs or licenses. It issues no network
+request and sends nothing to support automatically. The independent **Copy URL**
+action still copies the original stream URL and may include access credentials.
+Copy success/failure is announced accessibly; changing diagnostics refreshes the
+report and clears the prior result. The report contains source facts, not proof
+that a license, codec or stream is playable.
 
 ## Recovery Recommendation Policy
 

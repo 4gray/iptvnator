@@ -931,6 +931,14 @@ app as a real argument, so it is not an option.
   most three actions, and `WebPlayerViewComponent` executes only the action
   the user selects. The policy is a sibling of `PlayerController`; shared
   controls only gate interaction while the diagnostic panel is visible.
+  Technical details also expose localized stages, safe engine codec metadata
+  and allowlisted source DRM names. DASH observes existing Shaka manifest
+  responses (bounded to 2 MiB); it does not fetch again or retain license URLs,
+  keys or XML. Evidence is scoped to one engine and never proves playability.
+  The panel refines descriptions only from explicit runtime/engine evidence;
+  HTTP 401/403 segment failures never imply token expiry. Copy diagnostics
+  creates an allowlisted local report without URLs, credentials or raw messages;
+  its content and copy status follow the current diagnostic.
   `WebPlayerViewComponent` owns a host-derived content-session key that is
   stable for the mounted logical selection, attempted target IDs, the temporary
   player override, and VOD handoff position. Its `PlaybackBinding` is exactly
