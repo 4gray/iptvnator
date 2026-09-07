@@ -56,6 +56,7 @@ import {
             display: contents;
         }
         section {
+            app-region: drag;
             min-height: 100dvh;
             display: flex;
             flex-direction: column;

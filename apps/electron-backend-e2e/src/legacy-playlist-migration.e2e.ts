@@ -14,8 +14,16 @@ import {
     electronMainPath,
     workspaceRoot,
     openSources,
+    openSettings,
+    openSettingsSection,
 } from './electron-test-fixtures';
 import { seedLegacyProfile, legacyPlaylists } from './legacy-profile-fixture';
+
+interface StartupTestGlobals {
+    __failPlaylistReads: boolean;
+    __releaseStartupEpg: () => void;
+    __resolveLegacyRecoveryDialog: () => void;
+}
 
 const migrationKey = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const recoveryKey = 'playlists-electron-backend-profile-v1';
@@ -98,6 +106,46 @@ require(${JSON.stringify(electronMainPath)});`
     }
 }
 
+/** Exercise the same failure after a real backup import clears a loaded store. */
+async function verifyBackupReloadRecovery(
+    app: ElectronApplication,
+    page: Page,
+    dataDir: string
+) {
+    const backupPath = join(dataDir, 'startup-retry-backup.json');
+    await app.evaluate(({ dialog }, filePath) => {
+        dialog.showSaveDialog = async () => ({ canceled: false, filePath });
+    }, backupPath);
+    await openSettings(page);
+    await openSettingsSection(page, 'backup');
+    const backup = page.locator('#backup');
+    await backup.getByRole('button', { name: 'Export', exact: true }).click();
+    await expect(page.getByText('Playlist backup exported.')).toBeVisible();
+    await app.evaluate(() => {
+        (globalThis as typeof globalThis & StartupTestGlobals)[
+            '__failPlaylistReads'
+        ] = true;
+    });
+    const chooser = page.waitForEvent('filechooser');
+    await backup.getByRole('button', { name: 'Import', exact: true }).click();
+    await (await chooser).setFiles(backupPath);
+    const startup = page.locator('app-startup-status');
+    await expect(startup.getByRole('alert')).toContainText(
+        'Your sources could not be loaded'
+    );
+    await app.evaluate(() => {
+        (globalThis as typeof globalThis & StartupTestGlobals)[
+            '__failPlaylistReads'
+        ] = false;
+    });
+    await startup.getByRole('button', { name: 'Retry', exact: true }).click();
+    await openSources(page);
+    await expect(
+        page.getByText('Current synthetic source', { exact: true })
+    ).toBeVisible();
+    await expect(startup.locator('section')).toHaveCount(0);
+}
+
 test.describe('v0.19 profile migration', () => {
     for (const response of [0, 1]) {
         test(`keeps current sources usable with a corrupt legacy profile: choice ${response}`, async ({
@@ -161,7 +209,19 @@ test.describe('v0.19 profile migration', () => {
                     window.electron.dbUpsertAppPlaylist({
                         _id: 'current',
                         title: 'Current synthetic source',
-                        count: 0,
+                        count: 1,
+                        playlist: {
+                            header: { raw: '#EXTM3U' },
+                            items: [
+                                {
+                                    id: 'synthetic-channel',
+                                    raw: '#EXTINF:-1,Synthetic channel\nhttps://channel.invalid/live',
+                                    name: 'Synthetic channel',
+                                    url: 'https://channel.invalid/live',
+                                    group: { title: 'Test' },
+                                },
+                            ],
+                        },
                         importDate: '2026-01-01',
                         lastUsage: '2026-01-01',
                         autoRefresh: false,
@@ -187,28 +247,45 @@ test.describe('v0.19 profile migration', () => {
                         )
                     )
                     .toBe('declined');
+                const startup = page.locator('app-startup-status section');
+                await expect(startup).toHaveCSS('app-region', 'drag');
                 if (fault === 'defer-epg') {
-                    await expect(page.getByRole('status')).toContainText(
-                        'Preparing your library'
+                    await expect(page.locator('#initial-splash')).toHaveCount(
+                        0
                     );
+                    await expect(
+                        page.locator('app-startup-status').getByRole('status')
+                    ).toContainText('Preparing your library');
                     await expect
                         .poll(() =>
                             app.evaluate(
                                 () =>
-                                    typeof globalThis['__releaseStartupEpg'] ===
-                                    'function'
+                                    typeof (
+                                        globalThis as typeof globalThis &
+                                            StartupTestGlobals
+                                    )['__releaseStartupEpg'] === 'function'
                             )
                         )
                         .toBe(true);
                     await app.evaluate(() =>
-                        globalThis['__releaseStartupEpg']()
+                        (globalThis as typeof globalThis & StartupTestGlobals)[
+                            '__releaseStartupEpg'
+                        ]()
                     );
                 } else {
                     await expect(page.getByRole('alert')).toContainText(
                         'Your sources could not be loaded'
                     );
+                    await expect(
+                        startup.getByRole('button', {
+                            name: 'Retry',
+                            exact: true,
+                        })
+                    ).toHaveCSS('app-region', 'no-drag');
                     await app.evaluate(() => {
-                        globalThis['__failPlaylistReads'] = false;
+                        (globalThis as typeof globalThis & StartupTestGlobals)[
+                            '__failPlaylistReads'
+                        ] = false;
                     });
                     await page
                         .getByRole('button', { name: 'Retry', exact: true })
@@ -221,6 +298,9 @@ test.describe('v0.19 profile migration', () => {
                 await expect(
                     page.locator('app-startup-status section')
                 ).toHaveCount(0);
+                if (fault === 'fail-playlist-reads') {
+                    await verifyBackupReloadRecovery(app, page, dataDir);
+                }
             } finally {
                 await closeElectronApp({ electronApp: app, mainWindow: page });
             }
@@ -459,7 +539,9 @@ test.describe('v0.19 profile migration', () => {
                 )
                 .toBe(true);
             await recovered.app.evaluate(() =>
-                globalThis['__resolveLegacyRecoveryDialog']()
+                (globalThis as typeof globalThis & StartupTestGlobals)[
+                    '__resolveLegacyRecoveryDialog'
+                ]()
             );
             await expect
                 .poll(() =>

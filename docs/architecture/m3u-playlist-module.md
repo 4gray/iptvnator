@@ -87,7 +87,10 @@ Source inventory reads recreate the storage request for one automatic retry
 after 300 ms. Exhausted retries emit `Load Playlists Failure` without raw error
 details and leave `allPlaylistsLoaded` false. The startup error offers Retry,
 which dispatches a fresh load without restarting or changing saved sources.
-A successfully loaded empty inventory is distinct from a failed read.
+Every inventory load clears readiness, including reloads after backup import,
+so a later read failure also exposes Retry. A successfully loaded empty inventory
+is distinct from a failed read. The preparation/error surface remains a native
+window drag region, with Retry excluded so it stays clickable.
 
 Validation: `electron-backend-e2e:e2e-ci--src/legacy-playlist-migration.e2e.ts`
 seeds the exact v0.19 IndexedDB schema and verbatim SQL CREATE statements with
@@ -98,7 +101,8 @@ migration. The refusal case holds a mocked recovery dialog pending until startup
 reaches it, then checks that Sources renders the current source in the same
 launch. Native operating-system dialogs still require separate manual verification.
 The same suite holds EPG reconciliation pending and injects failed metadata reads
-to check preparation, error feedback and recovery through Retry. These use
+to check preparation, error feedback and recovery through Retry, including a
+second failure after importing a backup into an already loaded session. These use
 controlled IPC faults rather than adding a large, timing-dependent database to CI.
 Local macOS Electron verification does not substitute for installed
 Linux Mint MATE, Snap, or Flatpak upgrade testing.
