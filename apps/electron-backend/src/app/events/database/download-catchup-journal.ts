@@ -1,4 +1,4 @@
-import { inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { lstatSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import * as schema from '../../database/schema';
@@ -36,6 +36,16 @@ export async function recordArchiveFinalization(
             target: schema.downloadArchiveFinalizations.downloadId,
             set: { proof: serialized },
         });
+}
+
+/** An explicitly restarted transfer must never inherit an earlier attempt's proof. */
+export async function clearArchiveFinalization(
+    db: DownloadsDatabase,
+    downloadId: number
+): Promise<void> {
+    await db
+        .delete(schema.downloadArchiveFinalizations)
+        .where(eq(schema.downloadArchiveFinalizations.downloadId, downloadId));
 }
 
 function identity(value: unknown): value is ArchiveFileIdentity {

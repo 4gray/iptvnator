@@ -1,3 +1,4 @@
+import { clearArchiveFinalization } from './download-catchup-journal';
 import {
     assertArchiveCopyHeadroom,
     createArchiveByteGuard,
@@ -70,6 +71,7 @@ export async function transferCatchupToPartialFile(
     let output: Awaited<ReturnType<typeof openCatchupOutput>> | undefined;
     let pendingProgress = Promise.resolve();
     try {
+        await clearArchiveFinalization(db, task.id);
         const response = await requestWithValidatedRedirects<Readable>(
             task.url,
             {

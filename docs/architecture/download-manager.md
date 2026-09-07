@@ -64,7 +64,8 @@ requires that proof and a matching regular file, identity and size to recover an
 archive; termination before promotion leaves the verified partial paused. An
 owned incomplete copy is removed by journal identity before the source resumes. The
 journal also makes startup partial cleanup identity-aware and remains with
-completed archives until they are removed. Process-local proof allows immediate
+completed archives until they are removed. An explicitly restarted transfer
+clears the previous attempt's proof before network requests or partial-file writes. Process-local proof allows immediate
 recovery after a transient completion DB error without waiting for a restart.
 An explicit cancellation of a queued/paused archive captures the selected regular
 partial using the same cleanup helper; symlink entries are preserved.

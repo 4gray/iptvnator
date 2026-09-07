@@ -1,3 +1,4 @@
+import { removePartialDownloadFile } from './download-file-path';
 import { constants } from 'node:fs';
 import { copyFile, link, stat, unlink } from 'node:fs/promises';
 import type { ReservedPartialDownloadFile } from './download-file-path';
@@ -60,4 +61,17 @@ function canCopyCompletedPartialAfterLinkFailure(error: unknown): boolean {
         errorCode === 'EPERM' ||
         errorCode === 'EXDEV'
     );
+}
+
+/** @returns false when a .part exists but could not be deleted. */
+export function removePartialFile(
+    filePath: string | null | undefined
+): boolean {
+    try {
+        removePartialDownloadFile(filePath);
+        return true;
+    } catch (error) {
+        console.error('[Downloads] Failed to delete partial file:', error);
+        return false;
+    }
 }

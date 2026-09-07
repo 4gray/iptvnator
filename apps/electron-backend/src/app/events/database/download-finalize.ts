@@ -1,5 +1,8 @@
 import { recordArchiveFinalization } from './download-catchup-journal';
-import { finalizePartialDownload } from './download-file-finalize';
+import {
+    finalizePartialDownload,
+    removePartialFile,
+} from './download-file-finalize';
 import { cleanupCatchupPartial } from './download-catchup-cleanup';
 import {
     finalizeCatchupPartial,
@@ -12,7 +15,6 @@ import * as schema from '../../database/schema';
 import {
     getPartialDownloadPath,
     getPartialDownloadSize,
-    removePartialDownloadFile,
     type ReservedPartialDownloadFile,
 } from './download-file-path';
 import type {
@@ -343,15 +345,4 @@ export function getPausedByteCount(task: DownloadTask): number {
     }
 }
 
-/** @returns false when a .part exists but could not be deleted. */
-export function removePartialFile(
-    filePath: string | null | undefined
-): boolean {
-    try {
-        removePartialDownloadFile(filePath);
-        return true;
-    } catch (error) {
-        console.error('[Downloads] Failed to delete partial file:', error);
-        return false;
-    }
-}
+export { removePartialFile } from './download-file-finalize';

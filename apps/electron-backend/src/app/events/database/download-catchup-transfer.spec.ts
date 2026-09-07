@@ -1,3 +1,4 @@
+import { clearArchiveFinalization } from './download-catchup-journal';
 import {
     mkdtemp,
     readFile,
@@ -26,6 +27,10 @@ import {
 } from './download-catchup-limits';
 import { stat } from 'node:fs/promises';
 
+jest.mock('./download-catchup-journal', () => ({
+    ...jest.requireActual('./download-catchup-journal'),
+    clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('./download-catchup-limits', () => {
     const actual = jest.requireActual('./download-catchup-limits');
     return {
@@ -118,6 +123,14 @@ describe('TS archive transfer', () => {
         };
         try {
             await writeFile(path + '.part', 'old data');
+            jest.mocked(clearArchiveFinalization).mockImplementationOnce(
+                async (_db, id) => {
+                    expect(id).toBe(task.id);
+                    expect(await readFile(path + '.part', 'utf8')).toBe(
+                        'old data'
+                    );
+                }
+            );
             const actualLimit = jest.requireActual<
                 typeof import('./download-catchup-limits')
             >('./download-catchup-limits').getArchiveByteLimit;
@@ -167,6 +180,10 @@ describe('TS archive transfer', () => {
                 expect.anything()
             );
             expect(task.resumeValidator).toBeNull();
+            expect(clearArchiveFinalization).toHaveBeenCalledWith(
+                expect.anything(),
+                task.id
+            );
         } finally {
             await rm(dir, { recursive: true, force: true });
         }
