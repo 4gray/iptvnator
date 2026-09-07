@@ -8,7 +8,7 @@ import {
     type ArchiveFinalizationProof,
 } from './download-catchup-journal';
 import { inArray, sql } from 'drizzle-orm';
-import { statSync } from 'node:fs';
+import { lstatSync, statSync } from 'node:fs';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import {
@@ -23,6 +23,27 @@ interface StaleDownload {
     id: number;
     status: string;
     totalBytes: number | null;
+}
+
+/** A journaled source cannot be adopted again after an unrelated replacement. */
+function hasReplacedArchivePartial(download: StaleDownload): boolean {
+    if (
+        download.contentType !== 'catchup' ||
+        !download.proof ||
+        !download.filePath
+    )
+        return false;
+    try {
+        const file = lstatSync(`${download.filePath}.part`);
+        const expected = download.proof.partialIdentity;
+        return (
+            !file.isFile() ||
+            file.dev !== expected.dev ||
+            file.ino !== expected.ino
+        );
+    } catch (error) {
+        return (error as NodeJS.ErrnoException).code !== 'ENOENT';
+    }
 }
 
 function getRecoverablePartialSize(download: StaleDownload): number {
@@ -193,7 +214,9 @@ export async function resetStaleDownloads(): Promise<void> {
             }))
             .filter(
                 (download) =>
-                    download.status === 'queued' || download.bytesDownloaded > 0
+                    !hasReplacedArchivePartial(download) &&
+                    (download.status === 'queued' ||
+                        download.bytesDownloaded > 0)
             );
         const recoverableIds = new Set(
             recoverableDownloads.map((download) => download.id)
@@ -206,7 +229,11 @@ export async function resetStaleDownloads(): Promise<void> {
         const cleanupResult = await Promise.all(
             failedDownloads.map(async (download) => ({
                 ...download,
-                partialRemoved: await removeFailedPartial(download),
+                // Detach a known replacement without touching it. A later retry
+                // reserves another path instead of truncating the unrelated file.
+                partialRemoved:
+                    hasReplacedArchivePartial(download) ||
+                    (await removeFailedPartial(download)),
             }))
         );
         const failedIdsWithRemovedPartials = cleanupResult

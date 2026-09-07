@@ -231,3 +231,31 @@ it('does not remove a valid journaled final when a retry was queued at shutdown'
         expect.objectContaining({ status: 'paused' })
     );
 });
+
+it.each(['downloading', 'queued'])(
+    'detaches a replaced journaled partial instead of making %s recoverable',
+    async (status) => {
+        const { partial } = await prepare();
+        await recordArchiveFinalization(db, 1, {
+            version: 1,
+            filePath,
+            size: partial.size,
+            partialIdentity: partial,
+            finalIdentity: partial,
+        });
+        await rename(filePath + '.part', join(directory, 'original'));
+        await writeFile(filePath + '.part', 'unrelated user file');
+        rows[0].status = status;
+        await resetStaleDownloads();
+        expect(updates).toContainEqual(
+            expect.objectContaining({
+                status: 'failed',
+                filePath: null,
+            })
+        );
+        expect(updates.some((value) => value.status === 'paused')).toBe(false);
+        expect(await readFile(filePath + '.part', 'utf8')).toBe(
+            'unrelated user file'
+        );
+    }
+);

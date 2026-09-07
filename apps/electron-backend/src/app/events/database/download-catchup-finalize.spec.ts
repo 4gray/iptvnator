@@ -8,6 +8,7 @@ import {
     writeFile,
 } from 'node:fs/promises';
 import { join } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { finalizeCatchupPartial } from './download-catchup-finalize';
 
@@ -180,4 +181,37 @@ describe('archive file promotion', () => {
         ).rejects.toMatchObject({ code: 'EEXIST' });
         expect(await readFile(reservation.path, 'utf8')).toBe('keep me');
     });
+    it.each(['pause', 'cancel'])(
+        'stops an in-progress fallback copy on %s',
+        async () => {
+            const { reservation } = await prepare();
+            const bytes = Buffer.alloc(192 * 1024, 0x47);
+            await writeFile(reservation.partialPath, bytes);
+            const identity = await lstat(reservation.partialPath);
+            jest.mocked(link).mockRejectedValueOnce(
+                Object.assign(new Error('unsupported'), { code: 'ENOTSUP' })
+            );
+            let observedBytes = 0;
+            await expect(
+                finalizeCatchupPartial(
+                    reservation,
+                    identity,
+                    bytes.length,
+                    undefined,
+                    () => {
+                        observedBytes = existsSync(reservation.path)
+                            ? statSync(reservation.path).size
+                            : 0;
+                        return observedBytes > 0;
+                    }
+                )
+            ).rejects.toThrow('interrupted');
+            expect(observedBytes).toBeGreaterThan(0);
+            expect(observedBytes).toBeLessThan(bytes.length);
+            expect(await readFile(reservation.partialPath)).toEqual(bytes);
+            await expect(lstat(reservation.path)).rejects.toMatchObject({
+                code: 'ENOENT',
+            });
+        }
+    );
 });

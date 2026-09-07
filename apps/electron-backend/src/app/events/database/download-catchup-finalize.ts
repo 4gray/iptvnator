@@ -27,8 +27,13 @@ export async function finalizeCatchupPartial(
     reservation: ReservedPartialDownloadFile,
     identity: ArchiveFileIdentity | undefined,
     size: number,
-    recordProof?: (identity: ArchiveFileIdentity) => Promise<void>
+    recordProof?: (identity: ArchiveFileIdentity) => Promise<void>,
+    shouldInterrupt: () => boolean = () => false
 ): Promise<{ size: number; identity: ArchiveFileIdentity }> {
+    const checkInterruption = () => {
+        if (shouldInterrupt()) throw new Error('Archive promotion interrupted');
+    };
+    checkInterruption();
     if (!identity) throw new Error('Archive transfer identity is unavailable');
     verify(await lstat(reservation.partialPath), identity, size);
     const source = await open(
@@ -41,6 +46,7 @@ export async function finalizeCatchupPartial(
         // A hardlink can become complete immediately: persist its expected
         // identity before publishing it, while the verified partial still exists.
         await recordProof?.(identity);
+        checkInterruption();
         try {
             await link(reservation.partialPath, reservation.path);
             // The link we created belongs to the verified source, even if
@@ -73,6 +79,7 @@ export async function finalizeCatchupPartial(
                 const buffer = Buffer.alloc(64 * 1024);
                 let position = 0;
                 while (position < size) {
+                    checkInterruption();
                     const { bytesRead } = await source.read(
                         buffer,
                         0,
@@ -85,6 +92,7 @@ export async function finalizeCatchupPartial(
                         );
                     let written = 0;
                     while (written < bytesRead) {
+                        checkInterruption();
                         const { bytesWritten } = await target.write(
                             buffer,
                             written,
@@ -103,7 +111,9 @@ export async function finalizeCatchupPartial(
                 await target.close();
             }
         }
+        checkInterruption();
         verify(await lstat(reservation.path), created, size);
+        checkInterruption();
         await cleanupCatchupFile(reservation.partialPath, identity).catch(
             () => undefined
         );

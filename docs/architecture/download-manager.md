@@ -63,10 +63,22 @@ unknown-length file has durable proof before the completion-status write. Startu
 requires that proof and a matching regular file, identity and size to recover an
 archive; termination before promotion leaves the verified partial paused. An
 owned incomplete copy is removed by journal identity before the source resumes. The
-journal also makes startup partial cleanup identity-aware and remains with
+journal also makes startup partial cleanup identity-aware. A journaled partial
+whose identity changed is preserved and detached from the failed row; Retry
+reserves a fresh path instead of adopting or truncating it. The journal remains with
 completed archives until they are removed. An explicitly restarted transfer
 clears the previous attempt's proof before network requests or partial-file writes. Process-local proof allows immediate
 recovery after a transient completion DB error without waiting for a restart.
+Fallback copying observes pause/cancel between bounded 64 KiB reads/writes and
+before publication completes. Interruption removes only the owned copy and
+leaves the source for the runtime pause/cancel handler.
+A kill between exclusive copy-file creation and its identity journal commit can
+leave an unowned **empty** destination: no bytes are written before the commit.
+Recovery preserves that file rather than guessing ownership; Retry uses a
+numbered free destination. SQLite and filesystem creation cannot commit
+atomically, and portable rename cannot guarantee no-clobber publication on the
+filesystems that need this fallback. This bounded orphan is preferred to deleting
+or overwriting an unrelated file.
 An explicit cancellation of a queued/paused archive captures the selected regular
 partial using the same cleanup helper; symlink entries are preserved.
 A retained archive cannot use the VOD byte-count completion shortcut. Transfers
