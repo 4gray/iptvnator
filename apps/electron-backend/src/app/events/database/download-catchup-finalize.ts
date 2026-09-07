@@ -38,8 +38,10 @@ export async function finalizeCatchupPartial(
         verify(await source.stat(), identity, size);
         try {
             await link(reservation.partialPath, reservation.path);
+            // The link we created belongs to the verified source, even if
+            // another writer replaces its public name before lstat completes.
+            created = identity;
             const promoted = await lstat(reservation.path);
-            created = promoted;
             verify(promoted, identity, size);
         } catch (error) {
             const code = (error as NodeJS.ErrnoException).code;

@@ -22,7 +22,7 @@ export async function getArchiveByteLimit(
         Math.min(
             (durationSeconds + 60) * 12_500_000,
             64 * GiB,
-            await availableBytes(directory)
+            (await availableBytes(directory)) / 2
         )
     );
     if (limit < 188 * 3 || (declaredBytes !== null && declaredBytes > limit))
@@ -50,7 +50,9 @@ export function createArchiveByteGuard(
                 availableBytes(directory).then(
                     (available) => {
                         callback(
-                            available < chunk.length ? limitError() : null,
+                            available < received + chunk.length
+                                ? limitError()
+                                : null,
                             chunk
                         );
                     },

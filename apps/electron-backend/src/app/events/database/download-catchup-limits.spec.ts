@@ -21,7 +21,7 @@ it('bounds even undeclared streams by duration, a hard cap and free space', asyn
     expect(await getArchiveByteLimit('/downloads', 86400, null)).toBe(
         64 * 1024 ** 3
     );
-    jest.mocked(statfs).mockResolvedValue(disk(ARCHIVE_DISK_RESERVE + 1000));
+    jest.mocked(statfs).mockResolvedValue(disk(ARCHIVE_DISK_RESERVE + 2000));
     expect(await getArchiveByteLimit('/downloads', 60, null)).toBe(1000);
 });
 
@@ -30,7 +30,7 @@ it('refuses insufficient space and oversized Content-Length before writing', asy
     await expect(getArchiveByteLimit('/downloads', 60, null)).rejects.toThrow(
         'limit'
     );
-    jest.mocked(statfs).mockResolvedValue(disk(ARCHIVE_DISK_RESERVE + 1000));
+    jest.mocked(statfs).mockResolvedValue(disk(ARCHIVE_DISK_RESERVE + 2000));
     await expect(getArchiveByteLimit('/downloads', 60, 1001)).rejects.toThrow(
         'limit'
     );

@@ -16,8 +16,20 @@ import {
 } from './download-catchup-transfer';
 import { requestWithValidatedRedirects } from '../../util/validated-axios';
 import type { DownloadsDatabase, DownloadTask } from './download-task';
-import { getCompletedPartialProgress } from './download-finalize';
+import {
+    getCompletedPartialProgress,
+    getExistingCompletedFileProgress,
+} from './download-finalize';
+import { getArchiveByteLimit } from './download-catchup-limits';
+import { stat } from 'node:fs/promises';
 
+jest.mock('./download-catchup-limits', () => {
+    const actual = jest.requireActual('./download-catchup-limits');
+    return {
+        ...actual,
+        getArchiveByteLimit: jest.fn(actual.getArchiveByteLimit),
+    };
+});
 jest.mock('../../util/validated-axios', () => ({
     requestWithValidatedRedirects: jest.fn(),
 }));
@@ -63,7 +75,18 @@ describe('TS archive transfer', () => {
             ).rejects.toThrow();
         }
     );
-    it('does not consider a byte-complete retained archive safe to finalize', () => {
+    it('does not consider a byte-complete retained archive safe to finalize', async () => {
+        expect(
+            await getExistingCompletedFileProgress({
+                id: 1,
+                url: 'https://host/1.ts',
+                fileName: 'a.ts',
+                directory: '/tmp',
+                filePath: '/tmp/a.ts',
+                totalBytes: 1880,
+                catchup: metadata,
+            })
+        ).toBeNull();
         expect(
             getCompletedPartialProgress({
                 id: 1,
@@ -91,6 +114,15 @@ describe('TS archive transfer', () => {
         };
         try {
             await writeFile(path + '.part', 'old data');
+            const actualLimit = jest.requireActual<
+                typeof import('./download-catchup-limits')
+            >('./download-catchup-limits').getArchiveByteLimit;
+            jest.mocked(getArchiveByteLimit).mockImplementationOnce(
+                async (...args) => {
+                    expect((await stat(path + '.part')).size).toBe(0);
+                    return actualLimit(...args);
+                }
+            );
             jest.mocked(requestWithValidatedRedirects).mockResolvedValue({
                 status: 200,
                 headers: {

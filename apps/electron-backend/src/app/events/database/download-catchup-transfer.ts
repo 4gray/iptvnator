@@ -4,7 +4,7 @@ import {
 } from './download-catchup-limits';
 import { openCatchupOutput } from './download-catchup-output';
 import { Readable, Transform } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
+import { finished, pipeline } from 'node:stream/promises';
 import { requestWithValidatedRedirects } from '../../util/validated-axios';
 import { validateCatchupDownload } from './download-catchup';
 import type { ReservedPartialDownloadFile } from './download-file-path';
@@ -66,6 +66,7 @@ export async function transferCatchupToPartialFile(
     );
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let readable: Readable | undefined;
+    let output: Awaited<ReturnType<typeof openCatchupOutput>> | undefined;
     let pendingProgress = Promise.resolve();
     try {
         const response = await requestWithValidatedRedirects<Readable>(
@@ -94,6 +95,11 @@ export async function transferCatchupToPartialFile(
         const length = Number(response.headers['content-length']);
         const totalBytes =
             Number.isSafeInteger(length) && length > 0 ? length : null;
+        // Restart safely before measuring space: the retained file is
+        // reclaimable only after its verified descriptor has been truncated.
+        output = await openCatchupOutput(reservation.partialPath);
+        output.stream.on('error', () => undefined);
+        task.catchupPartialIdentity = output.identity;
         const byteLimit = await getArchiveByteLimit(
             task.directory,
             metadata.stopTimestamp - metadata.startTimestamp,
@@ -121,8 +127,6 @@ export async function transferCatchupToPartialFile(
                 } else callback(null, chunk);
             },
         });
-        const output = await openCatchupOutput(reservation.partialPath);
-        task.catchupPartialIdentity = output.identity;
         await pipeline(
             readable,
             createArchiveByteGuard(task.directory, byteLimit),
@@ -144,6 +148,11 @@ export async function transferCatchupToPartialFile(
         clearTimeout(timer);
         readable?.on('error', () => undefined);
         readable?.destroy();
+        if (output) {
+            const closed = finished(output.stream).catch(() => undefined);
+            output.stream.destroy();
+            await closed;
+        }
         await pendingProgress.catch(() => undefined);
     }
 }

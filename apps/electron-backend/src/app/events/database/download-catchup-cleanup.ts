@@ -39,3 +39,33 @@ export async function cleanupCatchupFile(
         await rmdir(directory).catch(() => undefined);
     }
 }
+
+/** Failed/canceled transfers may only remove the partial that they opened. */
+export async function cleanupCatchupPartial(
+    filePath: string | null | undefined,
+    identity: ArchiveFileIdentity | undefined
+): Promise<boolean> {
+    if (!filePath) return true;
+    const path = filePath + '.part';
+    try {
+        if (identity) await cleanupCatchupFile(path, identity);
+        await lstat(path);
+        return false;
+    } catch (error) {
+        return (error as NodeJS.ErrnoException).code === 'ENOENT';
+    }
+}
+
+/** Explicit cancellation of a queued/paused archive owns the selected entry. */
+export async function cleanupSelectedCatchupPartial(
+    filePath: string | null | undefined
+): Promise<boolean> {
+    if (!filePath) return true;
+    try {
+        const stats = await lstat(filePath + '.part');
+        if (!stats.isFile()) return false;
+        return cleanupCatchupPartial(filePath, stats);
+    } catch (error) {
+        return (error as NodeJS.ErrnoException).code === 'ENOENT';
+    }
+}

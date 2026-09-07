@@ -10,7 +10,11 @@ import {
 } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { cleanupCatchupFile } from './download-catchup-cleanup';
+import {
+    cleanupCatchupFile,
+    cleanupCatchupPartial,
+    cleanupSelectedCatchupPartial,
+} from './download-catchup-cleanup';
 
 jest.mock('node:fs/promises', () => {
     const actual = jest.requireActual('node:fs/promises');
@@ -79,9 +83,10 @@ it.each(['EEXIST', 'ENOTSUP'])(
             const quarantine = (await readdir(directory)).find((entry) =>
                 entry.startsWith('.iptvnator-cleanup-')
             );
-            expect(quarantine).toBeDefined();
+            if (!quarantine)
+                throw new Error('Expected a retained recovery directory');
             expect(
-                await readFile(join(directory, quarantine!, 'entry'), 'utf8')
+                await readFile(join(directory, quarantine, 'entry'), 'utf8')
             ).toBe('replacement');
             expect(warning).toHaveBeenCalled();
         } finally {
@@ -89,3 +94,12 @@ it.each(['EEXIST', 'ENOTSUP'])(
         }
     }
 );
+
+it('preserves an unopened partial after failure but removes it on explicit queued cancellation', async () => {
+    const { path } = await prepare();
+    const final = path.slice(0, -'.part'.length);
+    expect(await cleanupCatchupPartial(final, undefined)).toBe(false);
+    expect(await readFile(path, 'utf8')).toBe('archive');
+    expect(await cleanupSelectedCatchupPartial(final)).toBe(true);
+    await expect(lstat(path)).rejects.toMatchObject({ code: 'ENOENT' });
+});

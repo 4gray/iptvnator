@@ -1,7 +1,9 @@
+import { finalizePartialDownload } from './download-file-finalize';
+import { cleanupCatchupPartial } from './download-catchup-cleanup';
 import { finalizeCatchupPartial } from './download-catchup-finalize';
 import { eq, sql } from 'drizzle-orm';
-import { constants, existsSync } from 'node:fs';
-import { copyFile, link, stat, unlink } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import * as schema from '../../database/schema';
 import {
     getPartialDownloadPath,
@@ -83,12 +85,17 @@ export async function handleDownloadFailure(
         `[Downloads] Error downloading ${task.fileName}:`,
         describeError(error)
     );
-    removePartialFile(task.filePath);
+    const removed = task.catchup
+        ? await cleanupCatchupPartial(
+              task.filePath,
+              task.catchupPartialIdentity
+          )
+        : removePartialFile(task.filePath);
     await db
         .update(schema.downloads)
         .set({
             errorMessage: describeError(error),
-            filePath: null,
+            filePath: task.catchup && !removed ? (task.filePath ?? null) : null,
             resumeValidator: null,
             status: 'failed',
             updatedAt: sql`CURRENT_TIMESTAMP`,
@@ -241,6 +248,7 @@ async function persistRetainedPartialFailure(
 export async function getExistingCompletedFileProgress(
     task: DownloadTask
 ): Promise<CompletedPartialProgress | null> {
+    if (task.catchup) return null;
     if (
         !task.filePath ||
         task.totalBytes === null ||
@@ -306,66 +314,6 @@ export function getPausedByteCount(task: DownloadTask): number {
         console.error('[Downloads] Failed to inspect partial file:', error);
         return 0;
     }
-}
-
-async function finalizePartialDownload(
-    reservation: ReservedPartialDownloadFile,
-    expectedFileSize: number
-): Promise<number> {
-    try {
-        await link(reservation.partialPath, reservation.path);
-    } catch (error) {
-        if (!canCopyCompletedPartialAfterLinkFailure(error)) {
-            throw error;
-        }
-        await copyFile(
-            reservation.partialPath,
-            reservation.path,
-            constants.COPYFILE_EXCL
-        );
-    }
-    try {
-        await unlink(reservation.partialPath);
-    } catch (error) {
-        const fileSize = await getExpectedFinalFileSize(
-            reservation.path,
-            expectedFileSize
-        );
-        if (fileSize !== null) {
-            console.error(
-                '[Downloads] Failed to delete completed partial file:',
-                error
-            );
-            return fileSize;
-        }
-        throw error;
-    }
-    const fileStats = await stat(reservation.path);
-    return fileStats.size;
-}
-
-async function getExpectedFinalFileSize(
-    filePath: string,
-    expectedFileSize: number
-): Promise<number | null> {
-    try {
-        const fileStats = await stat(filePath);
-        return fileStats.size === expectedFileSize ? fileStats.size : null;
-    } catch {
-        return null;
-    }
-}
-
-function canCopyCompletedPartialAfterLinkFailure(error: unknown): boolean {
-    const errorCode = (error as NodeJS.ErrnoException).code;
-    return (
-        errorCode === 'EACCES' ||
-        errorCode === 'ENOSYS' ||
-        errorCode === 'ENOTSUP' ||
-        errorCode === 'EOPNOTSUPP' ||
-        errorCode === 'EPERM' ||
-        errorCode === 'EXDEV'
-    );
 }
 
 /** @returns false when a .part exists but could not be deleted. */

@@ -54,7 +54,7 @@ describe('archive file promotion', () => {
             code: 'ENOENT',
         });
     });
-    it('rejects a replacement during link promotion without leaving a completed file', async () => {
+    it('rejects a replacement during link promotion without deleting the unowned entry', async () => {
         const { reservation, identity } = await prepare();
         jest.mocked(link).mockImplementationOnce(async (from, to) => {
             await rename(from, join(directory, 'original'));
@@ -64,11 +64,28 @@ describe('archive file promotion', () => {
         await expect(
             finalizeCatchupPartial(reservation, identity, identity.size)
         ).rejects.toThrow('changed');
-        await expect(lstat(reservation.path)).rejects.toMatchObject({
-            code: 'ENOENT',
-        });
+        expect(await readFile(reservation.path, 'utf8')).toBe(
+            'untrusted bytes'
+        );
         expect(await readFile(reservation.partialPath, 'utf8')).toBe(
             'untrusted bytes'
+        );
+    });
+    it('does not claim the identity of a destination replaced after link succeeds', async () => {
+        const { reservation, identity } = await prepare();
+        jest.mocked(link).mockImplementationOnce(async (from, to) => {
+            await actualLink(from, to);
+            await rename(to, join(directory, 'linked-original'));
+            await writeFile(to, 'untrusted bytes');
+        });
+        await expect(
+            finalizeCatchupPartial(reservation, identity, identity.size)
+        ).rejects.toThrow('changed');
+        expect(await readFile(reservation.path, 'utf8')).toBe(
+            'untrusted bytes'
+        );
+        expect(await readFile(reservation.partialPath, 'utf8')).toBe(
+            'validated bytes'
         );
     });
     it.each(['ENOTSUP', 'EACCES'])(
