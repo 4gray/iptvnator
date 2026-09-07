@@ -26,6 +26,7 @@ export class StubEpgTimelineComponent {
     readonly channelName = input('');
     readonly channelLogo = input('');
     readonly archivePlaybackAvailable = input(false);
+    readonly archiveContextKey = input<string | null>(null);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
     readonly isLivePlayback = input(true);

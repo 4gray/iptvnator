@@ -181,6 +181,7 @@
 
 /* ── actions ── */
 .epg-dialog__actions {
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     gap: 10px;

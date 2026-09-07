@@ -44,6 +44,7 @@ import {
     UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/data-access';
 import {
+    EpgArchiveCopyService,
     EpgDateNavigationDirection,
     EpgListViewComponent,
     EpgProgramActivationEvent,
@@ -135,6 +136,14 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     /** The rail is owned by the page header toggle; ask it to expand. */
     readonly restoreSidebarRequested = output<void>();
 
+    readonly archiveContextKey = computed(() =>
+        JSON.stringify([
+            this.activeItem()?.uid,
+            this.activeItem()?.playlistId,
+            this.currentM3uChannel()?.url,
+        ])
+    );
+    private readonly archiveCopy = inject(EpgArchiveCopyService);
     private readonly streamResolver = inject(StreamResolverService);
     private readonly recentData = inject(UnifiedRecentDataService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -644,6 +653,33 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     }
 
     onTimelineProgramActivated(event: EpgProgramActivationEvent): void {
+        if (event.type === 'copy-catchup-url') {
+            const channel = this.currentM3uChannel();
+            const item = this.activeItem();
+            const isM3u = this.isM3uSelection();
+            void this.archiveCopy.copy(() => {
+                if (isM3u) return resolveM3uCatchupUrl(channel, event.program);
+                const start = toEpochSeconds(
+                    event.program.startTimestamp,
+                    event.program.start
+                );
+                const stop = toEpochSeconds(
+                    event.program.stopTimestamp,
+                    event.program.stop
+                );
+                return item?.xtreamId &&
+                    start != null &&
+                    stop != null &&
+                    stop > start
+                    ? this.streamResolver.resolveXtreamCatchupUrl(
+                          item,
+                          start,
+                          stop
+                      )
+                    : null;
+            });
+            return;
+        }
         if (event.type === 'live') {
             this.returnToLivePlayback();
             return;

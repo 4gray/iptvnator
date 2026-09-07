@@ -32,12 +32,14 @@ function localDateKey(iso: string): string {
 describe('EpgListViewComponent', () => {
     let fixture: ComponentFixture<EpgListViewComponent>;
     let component: EpgListViewComponent;
-    let dialogResult: BehaviorSubject<'live' | 'timeshift' | undefined>;
+    let dialogResult: BehaviorSubject<
+        'live' | 'timeshift' | 'copy-catchup-url' | undefined
+    >;
 
     beforeEach(() => {
-        dialogResult = new BehaviorSubject<'live' | 'timeshift' | undefined>(
-            undefined
-        );
+        dialogResult = new BehaviorSubject<
+            'live' | 'timeshift' | 'copy-catchup-url' | undefined
+        >(undefined);
         TestBed.configureTestingModule({
             imports: [EpgListViewComponent],
             providers: [
@@ -216,6 +218,48 @@ describe('EpgListViewComponent', () => {
 
         component.openDetails(rowWhen('past'));
         expect(events).toEqual(['timeshift']);
+    });
+
+    it('copies an archive URL without selecting or activating playback', () => {
+        const past = programAt(-180, 60, 'Earlier');
+        setInputs({
+            programs: [past],
+            selectedDate: localDateKey(past.start),
+            archivePlaybackAvailable: true,
+            archiveDays: 7,
+        });
+        dialogResult.next('copy-catchup-url');
+        const events: string[] = [];
+        component.programActivated.subscribe((event) =>
+            events.push(event.type)
+        );
+        const selection = component.selectedKey();
+        component.openDetails(rowWhen('past'));
+        expect(events).toEqual(['copy-catchup-url']);
+        expect(component.selectedKey()).toBe(selection);
+    });
+
+    it('does not copy a programme from a dialog belonging to the previous channel', () => {
+        const past = programAt(-180, 60, 'Earlier');
+        setInputs({
+            programs: [past],
+            selectedDate: localDateKey(past.start),
+            archivePlaybackAvailable: true,
+            archiveDays: 7,
+            archiveContextKey: 'source:channel-a',
+        });
+        const result = new BehaviorSubject<string | undefined>(undefined);
+        jest.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+            afterClosed: () => result,
+        } as never);
+        const events: string[] = [];
+        component.programActivated.subscribe((event) =>
+            events.push(event.type)
+        );
+        component.openDetails(rowWhen('past'));
+        setInputs({ archiveContextKey: 'source:channel-b' });
+        result.next('copy-catchup-url');
+        expect(events).toEqual([]);
     });
 
     it('emits the day when stepping forward', () => {

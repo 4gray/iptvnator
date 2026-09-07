@@ -71,6 +71,28 @@ describe('EpgItemDescriptionComponent', () => {
         );
     });
 
+    it('offers archive URL copying only with explicit capability and explains credentials', () => {
+        Object.assign(component.dialogData, { archiveUrlAvailable: true });
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="copy-catchup-url"]'
+            )
+        ).toBeTruthy();
+        expect(fixture.nativeElement.textContent).toContain(
+            'EPG.PROGRAM_DIALOG.ARCHIVE_URL_NOTICE'
+        );
+        Object.assign(component.dialogData, { archiveUrlAvailable: false });
+        fixture.changeDetectorRef.markForCheck();
+        fixture.detectChanges();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="copy-catchup-url"]'
+            )
+        ).toBeNull();
+    });
+
     it('applies the stored EPG display offset to the dialog timestamps', () => {
         const start = Date.parse('2026-04-05T11:30:00.000Z');
         const stop = Date.parse('2026-04-05T12:30:00.000Z');

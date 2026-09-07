@@ -792,7 +792,11 @@
             "LANGUAGE": "Taal",
             "SHOW_PROGRAM_DETAILS": "Details over dit programma tonen",
             "EPISODE": "Aflevering",
-            "DURATION": "Duur"
+            "DURATION": "Duur",
+            "COPY_ARCHIVE_URL": "Archief-URL kopiëren",
+            "ARCHIVE_URL_COPIED": "Archief-URL gekopieerd",
+            "ARCHIVE_URL_FAILED": "Kan archief-URL niet kopiëren",
+            "ARCHIVE_URL_NOTICE": "De URL kan inloggegevens bevatten. Externe spelers hebben mogelijk ook de HTTP-headers van de bron nodig."
         },
         "FETCH_SUCCESS": "TV-Gids bijgewerkt",
         "IMPORT_PROGRESS": "EPG-import",

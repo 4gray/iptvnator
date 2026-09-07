@@ -239,3 +239,72 @@ test('@epg @xtream @electron derives the panel offset from its clock pair when t
         await closeElectronApp(app);
     }
 });
+
+test('@epg @xtream @electron copies the archive URL without starting archive playback', async ({
+    dataDir,
+    request,
+}) => {
+    test.setTimeout(120000);
+    const credentials = { username: 'epg', password: 'epg' };
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, credentials);
+    const app = await launchElectronApp(dataDir, {
+        env: { TZ: VIEWER_TIMEZONE },
+    });
+    try {
+        await addXtreamPortal(app.mainWindow, {
+            name: 'Copy archive URL',
+            ...credentials,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openTimezoneNewsInLiveTv(app.mainWindow, fixture.categoryName);
+        const captured = captureTimeshiftRequests(app.mainWindow);
+        const block = app.mainWindow
+            .locator('app-epg-timeline .epg-timeline__block')
+            .filter({ hasText: PAST_PROGRAM })
+            .first();
+        await expect(block).toBeVisible({ timeout: 20000 });
+        await block.locator('.epg-timeline__info').click();
+        const dialog = app.mainWindow.getByRole('dialog');
+        await expect(
+            dialog.getByText(/URL may contain account credentials/)
+        ).toBeVisible();
+        for (const dark of [false, true]) {
+            await app.mainWindow.evaluate((enabled) => {
+                document.body.classList.toggle('dark-theme', enabled);
+            }, dark);
+            await expect(
+                dialog.getByRole('button', {
+                    name: 'Copy archive URL',
+                    exact: true,
+                })
+            ).toBeInViewport();
+            await dialog.screenshot({
+                path: test
+                    .info()
+                    .outputPath(`archive-copy-${dark ? 'dark' : 'light'}.png`),
+            });
+        }
+        await dialog
+            .getByRole('button', { name: 'Copy archive URL', exact: true })
+            .click();
+        await expect(
+            app.mainWindow.getByText('Archive URL copied', { exact: true })
+        ).toBeVisible();
+        const url = await app.electronApp.evaluate(({ clipboard }) =>
+            clipboard.readText()
+        );
+        expect(url).toContain('/timeshift/epg/epg/');
+        const start = TIMESHIFT_SEGMENT.exec(url)?.[1];
+        expect(start).toBeTruthy();
+        await expectServerClock(
+            start!,
+            [await pastProgramWindows(request, credentials)],
+            0
+        );
+        // Main-process archive probes do not appear as renderer playback requests.
+        expect(captured).toEqual([]);
+    } finally {
+        await closeElectronApp(app);
+    }
+});

@@ -1830,3 +1830,11 @@ beside the resize handle. `PortalDetailShellComponent` owns a visible native
 scrollbar and guarded initial page focus. Contracts:
 `docs/architecture/iptvnator-ui-guidelines.md` and
 `docs/architecture/portal-detail-navigation.md`.
+
+## Catch-Up URL Copying
+
+EPG timeline/list programme details expose Copy archive URL for supported
+Xtream/M3U archives, including Favorites/Recent. `EpgArchiveCopyService` owns
+clipboard feedback; hosts resolve URLs without mutating playback. Stalker and
+the currently non-catch-up M3U guide expose no action. See
+`docs/architecture/m3u-playlist-module.md` (Copy archive URL).

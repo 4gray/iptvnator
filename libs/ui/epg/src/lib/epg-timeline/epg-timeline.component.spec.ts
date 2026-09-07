@@ -188,6 +188,58 @@ describe('EpgTimelineComponent', () => {
         expect(returned).toBe(true);
     });
 
+    it('forwards archive copy separately from playback and keeps selection', () => {
+        const past = programAt(-180, 60, 'Earlier');
+        setInputs({
+            programs: [past],
+            selectedDate: localDateKey(past.start),
+            archivePlaybackAvailable: true,
+            archiveDays: 7,
+        });
+        jest.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+            afterClosed: () => of('copy-catchup-url'),
+        } as never);
+        const events: string[] = [];
+        component.programActivated.subscribe((event) =>
+            events.push(event.type)
+        );
+        const selection = component.selectedKey();
+        component.openDetails(
+            component
+                .blocks()
+                .find((block) => block.when === 'past') as TimelineBlock
+        );
+        expect(events).toEqual(['copy-catchup-url']);
+        expect(component.selectedKey()).toBe(selection);
+    });
+
+    it('does not copy a programme from a dialog belonging to the previous channel', () => {
+        const past = programAt(-180, 60, 'Earlier');
+        setInputs({
+            programs: [past],
+            selectedDate: localDateKey(past.start),
+            archivePlaybackAvailable: true,
+            archiveDays: 7,
+            archiveContextKey: 'source:channel-a',
+        });
+        const result = new BehaviorSubject<string | undefined>(undefined);
+        jest.spyOn(TestBed.inject(MatDialog), 'open').mockReturnValue({
+            afterClosed: () => result,
+        } as never);
+        const events: string[] = [];
+        component.programActivated.subscribe((event) =>
+            events.push(event.type)
+        );
+        component.openDetails(
+            component
+                .blocks()
+                .find((block) => block.when === 'past') as TimelineBlock
+        );
+        setInputs({ archiveContextKey: 'source:channel-b' });
+        result.next('copy-catchup-url');
+        expect(events).toEqual([]);
+    });
+
     it('emits the centred day when stepping forward', () => {
         setInputs({ programs: [programAt(-30, 60)] });
         const emitted: string[] = [];

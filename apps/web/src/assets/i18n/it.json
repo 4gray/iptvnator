@@ -792,7 +792,11 @@
             "LANGUAGE": "Lingua",
             "SHOW_PROGRAM_DETAILS": "Mostra dettagli su questo programma",
             "EPISODE": "Episodio",
-            "DURATION": "Durata"
+            "DURATION": "Durata",
+            "COPY_ARCHIVE_URL": "Copia URL archivio",
+            "ARCHIVE_URL_COPIED": "URL archivio copiato",
+            "ARCHIVE_URL_FAILED": "Impossibile copiare URL archivio",
+            "ARCHIVE_URL_NOTICE": "L’URL può contenere credenziali. I lettori esterni potrebbero richiedere anche le intestazioni HTTP della sorgente."
         },
         "FETCH_SUCCESS": "EPG scaricato correttamente",
         "IMPORT_PROGRESS": "Importazione EPG",

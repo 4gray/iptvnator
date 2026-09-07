@@ -1123,6 +1123,23 @@ class EpgService {
   for a programme the user clicked, both hosts surface a
   `EPG.TIMELINE.CATCHUP_FAILED` snackbar instead of doing nothing.
 
+### Copy archive URL
+
+Programme details opened from the EPG timeline or list offer **Copy archive
+URL** when catch-up is available. Xtream Live TV, M3U playback and their
+Favorites/Recent live tabs resolve the same URL as archive playback without
+selecting a programme or changing the player. Stalker and unsupported/expired
+archive entries expose no copy action. The full M3U guide currently has no
+catch-up capability and therefore does not expose this action.
+
+The URL can contain account credentials; the dialog explains that external
+players may also need the source's HTTP headers. Copy is explicit, errors use
+localized feedback without raw URLs, and repeated clicks share one pending
+copy operation. Timeline/list dialogs capture the host's source/channel
+`archiveContextKey`, refuse actions after it changes, and unsubscribe when
+the view is destroyed. A copied M3U start-over URL need not stop at the programme's
+end. Copying a URL does not download or preserve an expiring archive.
+
 ### Programme guide
 
 `app-epg-guide` (`libs/ui/epg/src/lib/epg-guide/`) is a host-agnostic

@@ -11,9 +11,11 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { getProgramTimeMs } from '../epg-program.utils';
 
-export type EpgItemDialogAction = 'live' | 'timeshift';
+export type EpgItemDialogAction = 'live' | 'timeshift' | 'copy-catchup-url';
 
 export type EpgItemDialogData = EpgProgram & {
+    /** Host can resolve an archive URL without starting playback. */
+    archiveUrlAvailable?: boolean;
     channelName?: string | null;
     channel_name?: string | null;
     display_name?: string | null;
@@ -64,10 +66,11 @@ export class EpgItemDescriptionComponent {
     constructor() {
         this.epgProgram = this.dialogData;
         // Check multiple possible field names for channel name
-        this.channelName = this.dialogData.channelName
-            || this.dialogData.channel_name
-            || this.dialogData.display_name
-            || null;
+        this.channelName =
+            this.dialogData.channelName ||
+            this.dialogData.channel_name ||
+            this.dialogData.display_name ||
+            null;
         // Prefer the channel logo; fall back to the programme/EPG icon
         // (M3U playlists without tvg-logo still get an icon from the EPG feed).
         this.channelLogo =
@@ -105,7 +108,9 @@ export class EpgItemDescriptionComponent {
             }
             const hours = Math.floor(mins / 60);
             const remainingMins = mins % 60;
-            return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+            return remainingMins > 0
+                ? `${hours}h ${remainingMins}m`
+                : `${hours}h`;
         } catch {
             return null;
         }

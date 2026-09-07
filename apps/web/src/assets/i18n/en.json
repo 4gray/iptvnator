@@ -792,7 +792,11 @@
             "LANGUAGE": "Language",
             "SHOW_PROGRAM_DETAILS": "Show details about this program",
             "EPISODE": "Episode",
-            "DURATION": "Duration"
+            "DURATION": "Duration",
+            "COPY_ARCHIVE_URL": "Copy archive URL",
+            "ARCHIVE_URL_COPIED": "Archive URL copied",
+            "ARCHIVE_URL_FAILED": "Could not copy the archive URL",
+            "ARCHIVE_URL_NOTICE": "The URL may contain account credentials. External players may also need your source’s HTTP headers."
         },
         "FETCH_SUCCESS": "EPG was fetched successfully",
         "IMPORT_PROGRESS": "EPG Import",

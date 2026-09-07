@@ -24,6 +24,7 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    EpgArchiveCopyService,
     EpgListViewComponent,
     EpgTimelineComponent,
 } from '@iptvnator/ui/epg';
@@ -186,6 +187,16 @@ describe('LiveStreamLayoutComponent', () => {
             imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
             providers: [
                 {
+                    provide: EpgArchiveCopyService,
+                    useValue: {
+                        copy: jest.fn(
+                            async (resolve: () => Promise<string | null>) => {
+                                await resolve();
+                            }
+                        ),
+                    },
+                },
+                {
                     provide: ActivatedRoute,
                     useValue: {
                         snapshot: {
@@ -237,6 +248,7 @@ describe('LiveStreamLayoutComponent', () => {
             .overrideComponent(LiveStreamLayoutComponent, {
                 remove: {
                     imports: [
+                        EpgArchiveCopyService,
                         EpgListViewComponent,
                         EpgTimelineComponent,
                         GridListComponent,
@@ -265,11 +277,17 @@ describe('LiveStreamLayoutComponent', () => {
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         component = fixture.componentInstance;
 
-        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState(
+            'portal',
+            'expanded'
+        );
     });
 
     afterEach(() => {
-        TestBed.inject(LiveLayoutSidebarStateService).setState('portal', 'expanded');
+        TestBed.inject(LiveLayoutSidebarStateService).setState(
+            'portal',
+            'expanded'
+        );
         fixture.destroy();
         jest.useRealTimers();
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
@@ -765,6 +783,35 @@ describe('LiveStreamLayoutComponent', () => {
                 isLive: false,
             })
         );
+    });
+
+    it('copies the programme URL without changing playback or channel selection', async () => {
+        const before = component.activePlayback();
+        xtreamStore.openPlayer.mockClear();
+        xtreamStore.setSelectedItem.mockClear();
+        await component.onProgramActivated({
+            type: 'copy-catchup-url',
+            program: {
+                start: '2026-04-04T10:00:00Z',
+                stop: '2026-04-04T11:00:00Z',
+                channel: 'channel-101',
+                title: 'Archive',
+                desc: null,
+                category: null,
+            },
+        });
+        expect(TestBed.inject(EpgArchiveCopyService).copy).toHaveBeenCalled();
+        expect(xtreamUrlService.resolveCatchupUrl).toHaveBeenCalledWith(
+            playlist.id,
+            expect.objectContaining({ serverUrl: playlist.serverUrl }),
+            101,
+            1775296800,
+            1775300400,
+            undefined
+        );
+        expect(component.activePlayback()).toBe(before);
+        expect(xtreamStore.openPlayer).not.toHaveBeenCalled();
+        expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
     });
 
     it('does not attach a pending catchup result to a newer live owner', async () => {

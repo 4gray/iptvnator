@@ -1,3 +1,4 @@
+import { Clipboard } from '@angular/cdk/clipboard';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -17,6 +18,8 @@ import {
 import { Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
 import {
+    activeChannel,
+    buildAiringProgram,
     dataServiceMock,
     epgServiceMock,
     epgUrlSetting,
@@ -228,5 +231,28 @@ describe('VideoPlayerComponent — guide gating', () => {
         pressGuideKey(dialogButton);
         expect(component.guideOpen()).toBe(true);
         overlayContainer.remove();
+    });
+    it('copies the archive URL without dispatching playback or opening the guide', async () => {
+        const copy = jest
+            .spyOn(TestBed.inject(Clipboard), 'copy')
+            .mockReturnValue(true);
+        activeChannel.set({
+            ...sampleChannel,
+            catchup: { type: 'shift', days: '7' },
+        });
+        const program = buildAiringProgram('Archive');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        storeMock.dispatch.mockClear();
+        component.onTimelineProgramActivated({
+            type: 'copy-catchup-url',
+            program,
+        });
+        await fixture.whenStable();
+        expect(copy).toHaveBeenCalledWith(
+            expect.stringContaining(`utc=${program.startTimestamp}`)
+        );
+        expect(storeMock.dispatch).not.toHaveBeenCalled();
+        copy.mockRestore();
     });
 });

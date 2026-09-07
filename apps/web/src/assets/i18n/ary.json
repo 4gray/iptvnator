@@ -792,7 +792,11 @@
             "LANGUAGE": "اللغة",
             "SHOW_PROGRAM_DETAILS": "وري تفاصيل هاد البرنامج",
             "EPISODE": "الحلقة",
-            "DURATION": "المدة"
+            "DURATION": "المدة",
+            "COPY_ARCHIVE_URL": "نسخ رابط الأرشيف",
+            "ARCHIVE_URL_COPIED": "تنسخ رابط الأرشيف",
+            "ARCHIVE_URL_FAILED": "ما قدرناش ننسخو رابط الأرشيف",
+            "ARCHIVE_URL_NOTICE": "الرابط يقدر يكون فيه معلومات الدخول. المشغلات الخارجية تقدر تحتاج حتى ترويسات HTTP ديال المصدر."
         },
         "FETCH_SUCCESS": "EPG تجلب بنجاح",
         "IMPORT_PROGRESS": "استيراد EPG",

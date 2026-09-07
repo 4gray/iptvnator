@@ -792,7 +792,11 @@
             "LANGUAGE": "언어",
             "SHOW_PROGRAM_DETAILS": "이 프로그램의 상세 정보 표시",
             "EPISODE": "에피소드",
-            "DURATION": "재생 시간"
+            "DURATION": "재생 시간",
+            "COPY_ARCHIVE_URL": "다시보기 URL 복사",
+            "ARCHIVE_URL_COPIED": "다시보기 URL이 복사되었습니다",
+            "ARCHIVE_URL_FAILED": "다시보기 URL을 복사하지 못했습니다",
+            "ARCHIVE_URL_NOTICE": "URL에 계정 인증 정보가 포함될 수 있습니다. 외부 플레이어에는 소스의 HTTP 헤더도 필요할 수 있습니다."
         },
         "FETCH_SUCCESS": "EPG를 성공적으로 가져왔습니다",
         "IMPORT_PROGRESS": "EPG 가져오기",

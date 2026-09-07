@@ -792,7 +792,11 @@
             "LANGUAGE": "语言",
             "SHOW_PROGRAM_DETAILS": "显示此节目的详细信息",
             "EPISODE": "剧集",
-            "DURATION": "时长"
+            "DURATION": "时长",
+            "COPY_ARCHIVE_URL": "复制回看链接",
+            "ARCHIVE_URL_COPIED": "已复制回看链接",
+            "ARCHIVE_URL_FAILED": "无法复制回看链接",
+            "ARCHIVE_URL_NOTICE": "链接可能包含账户凭据。外部播放器可能还需要此来源的 HTTP 请求头。"
         },
         "FETCH_SUCCESS": "EPG 获取成功",
         "IMPORT_PROGRESS": "EPG 导入",

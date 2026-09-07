@@ -792,7 +792,11 @@
             "LANGUAGE": "Langue",
             "SHOW_PROGRAM_DETAILS": "Afficher les détails de ce programme",
             "EPISODE": "Épisode",
-            "DURATION": "Durée"
+            "DURATION": "Durée",
+            "COPY_ARCHIVE_URL": "Copier le lien de rattrapage",
+            "ARCHIVE_URL_COPIED": "Lien de rattrapage copié",
+            "ARCHIVE_URL_FAILED": "Impossible de copier le lien de rattrapage",
+            "ARCHIVE_URL_NOTICE": "Le lien peut contenir des identifiants. Les lecteurs externes peuvent aussi nécessiter les en-têtes HTTP de la source."
         },
         "FETCH_SUCCESS": "L'EPG a été récupéré avec succès",
         "IMPORT_PROGRESS": "Importation EPG",

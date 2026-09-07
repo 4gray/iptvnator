@@ -792,7 +792,11 @@
             "LANGUAGE": "言語",
             "SHOW_PROGRAM_DETAILS": "この番組の詳細を表示",
             "EPISODE": "エピソード",
-            "DURATION": "長さ"
+            "DURATION": "長さ",
+            "COPY_ARCHIVE_URL": "アーカイブURLをコピー",
+            "ARCHIVE_URL_COPIED": "アーカイブURLをコピーしました",
+            "ARCHIVE_URL_FAILED": "アーカイブURLをコピーできませんでした",
+            "ARCHIVE_URL_NOTICE": "URLにはアカウントの認証情報が含まれる場合があります。外部プレーヤーではソースのHTTPヘッダーも必要になることがあります。"
         },
         "FETCH_SUCCESS": "EPGの取得に成功しました",
         "IMPORT_PROGRESS": "EPGインポート",

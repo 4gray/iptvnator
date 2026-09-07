@@ -29,7 +29,9 @@
 
     <div class="epg-dialog__body">
         <div class="epg-dialog__meta">
-            <span>{{ startMs | date: 'EEE d MMM' : '' : currentLocale() }}</span>
+            <span>{{
+                startMs | date: 'EEE d MMM' : '' : currentLocale()
+            }}</span>
             <span class="epg-dialog__dot"></span>
             <span
                 >{{ startMs | date: 'HH:mm' }} –
@@ -73,6 +75,11 @@
             </div>
         }
 
+        @if (dialogData.archiveUrlAvailable) {
+            <p class="epg-dialog__note">
+                {{ 'EPG.PROGRAM_DIALOG.ARCHIVE_URL_NOTICE' | translate }}
+            </p>
+        }
         <div class="epg-dialog__actions">
             @if (primaryAction === 'live') {
                 <button
@@ -91,6 +98,17 @@
                 >
                     <mat-icon>replay</mat-icon>
                     {{ 'EPG.TIMELINE.WATCH_FROM_START' | translate }}
+                </button>
+            }
+            @if (dialogData.archiveUrlAvailable) {
+                <button
+                    type="button"
+                    class="epg-dialog__btn epg-dialog__btn--ghost"
+                    data-testid="copy-catchup-url"
+                    [mat-dialog-close]="'copy-catchup-url'"
+                >
+                    <mat-icon>content_copy</mat-icon>
+                    {{ 'EPG.PROGRAM_DIALOG.COPY_ARCHIVE_URL' | translate }}
                 </button>
             }
             @if (archiveUnavailableNote) {

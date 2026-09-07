@@ -792,7 +792,11 @@
             "LANGUAGE": "Nyelv",
             "SHOW_PROGRAM_DETAILS": "Műsor részleteinek megjelenítése",
             "EPISODE": "Epizód",
-            "DURATION": "Időtartam"
+            "DURATION": "Időtartam",
+            "COPY_ARCHIVE_URL": "Archív URL másolása",
+            "ARCHIVE_URL_COPIED": "Archív URL másolva",
+            "ARCHIVE_URL_FAILED": "Az archív URL másolása sikertelen",
+            "ARCHIVE_URL_NOTICE": "Az URL bejelentkezési adatokat tartalmazhat. A külső lejátszóknak a forrás HTTP-fejléceire is szükségük lehet."
         },
         "FETCH_SUCCESS": "Az EPG lekérése sikerült",
         "IMPORT_PROGRESS": "EPG importálása",

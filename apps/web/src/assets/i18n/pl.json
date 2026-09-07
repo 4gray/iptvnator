@@ -792,7 +792,11 @@
             "LANGUAGE": "Język",
             "SHOW_PROGRAM_DETAILS": "Pokaż szczegóły tego programu",
             "EPISODE": "Odcinek",
-            "DURATION": "Czas trwania"
+            "DURATION": "Czas trwania",
+            "COPY_ARCHIVE_URL": "Kopiuj adres archiwum",
+            "ARCHIVE_URL_COPIED": "Skopiowano adres archiwum",
+            "ARCHIVE_URL_FAILED": "Nie udało się skopiować adresu archiwum",
+            "ARCHIVE_URL_NOTICE": "Adres może zawierać dane logowania. Odtwarzacze zewnętrzne mogą też wymagać nagłówków HTTP źródła."
         },
         "FETCH_SUCCESS": "EPG zostało pomyślnie pobrane",
         "IMPORT_PROGRESS": "Import EPG",

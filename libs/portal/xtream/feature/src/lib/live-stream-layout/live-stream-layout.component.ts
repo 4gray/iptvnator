@@ -54,6 +54,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    EpgArchiveCopyService,
     EpgDateNavigationDirection,
     EpgListViewComponent,
     EpgProgramActivationEvent,
@@ -145,6 +146,14 @@ export class LiveStreamLayoutComponent
     private readonly router = inject(Router);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
+    readonly archiveContextKey = computed(() =>
+        JSON.stringify([
+            this.xtreamStore.currentPlaylist()?.id,
+            this.xtreamStore.currentPlaylist()?.serverUrl,
+            this.selectedLiveItem()?.xtream_id,
+        ])
+    );
+    private readonly archiveCopy = inject(EpgArchiveCopyService);
     private readonly xtreamUrlService = inject(XtreamUrlService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
@@ -610,6 +619,30 @@ export class LiveStreamLayoutComponent
             return;
         }
 
+        if (event.type === 'copy-catchup-url') {
+            const playlist = this.xtreamStore.currentPlaylist();
+            await this.archiveCopy.copy(() => {
+                const start = this.getProgramTimestampSeconds(
+                    event.program.start,
+                    event.program.startTimestamp
+                );
+                const stop = this.getProgramTimestampSeconds(
+                    event.program.stop,
+                    event.program.stopTimestamp
+                );
+                return playlist && start && stop && stop > start
+                    ? this.xtreamUrlService.resolveCatchupUrl(
+                          playlist.id,
+                          playlist,
+                          selectedItem.xtream_id,
+                          start,
+                          stop,
+                          playlist.serverTimezone
+                      )
+                    : null;
+            });
+            return;
+        }
         if (event.type === 'live') {
             this.playLive(selectedItem, true);
             return;

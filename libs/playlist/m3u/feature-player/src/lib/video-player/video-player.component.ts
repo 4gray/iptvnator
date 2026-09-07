@@ -32,9 +32,11 @@ import {
     isDashStreamUrl,
     isLikelyM3uMovie,
     isM3uCatchupPlaybackSupported,
+    resolveM3uCatchupUrl,
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
+    EpgArchiveCopyService,
     EPG_GUIDE_SOURCE,
     EpgDateNavigationDirection,
     EpgGuideComponent,
@@ -307,6 +309,14 @@ export class VideoPlayerComponent
     readonly fullscreenPanelChannels = computed(() =>
         this.channels().filter((channel) => this.keepsInlinePlayer(channel))
     );
+    readonly archiveContextKey = computed(() =>
+        JSON.stringify([
+            this.activePlaylistId(),
+            this.activeChannel()?.id,
+            this.activeChannel()?.url,
+        ])
+    );
+    private readonly archiveCopy = inject(EpgArchiveCopyService);
     private readonly guideSource = inject(M3uEpgGuideSourceService);
     /** Guide mode: sidebar and timeline give way to the multi-channel grid. */
     readonly guideOpen = signal(false);
@@ -1108,6 +1118,13 @@ export class VideoPlayerComponent
     }
 
     onTimelineProgramActivated(event: EpgProgramActivationEvent): void {
+        if (event.type === 'copy-catchup-url') {
+            const channel = this.activeChannel();
+            void this.archiveCopy.copy(() =>
+                resolveM3uCatchupUrl(channel, event.program)
+            );
+            return;
+        }
         if (event.type === 'live') {
             this.returnToLivePlayback();
             return;

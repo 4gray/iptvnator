@@ -792,7 +792,11 @@
             "LANGUAGE": "اللغة",
             "SHOW_PROGRAM_DETAILS": "عرض تفاصيل هذا البرنامج",
             "EPISODE": "الحلقة",
-            "DURATION": "المدة"
+            "DURATION": "المدة",
+            "COPY_ARCHIVE_URL": "نسخ رابط الأرشيف",
+            "ARCHIVE_URL_COPIED": "تم نسخ رابط الأرشيف",
+            "ARCHIVE_URL_FAILED": "تعذّر نسخ رابط الأرشيف",
+            "ARCHIVE_URL_NOTICE": "قد يحتوي الرابط على بيانات الدخول. قد تحتاج المشغلات الخارجية أيضًا إلى ترويسات HTTP الخاصة بالمصدر."
         },
         "FETCH_SUCCESS": "تم جلب الدليل بنجاح.",
         "IMPORT_PROGRESS": "استيراد EPG",

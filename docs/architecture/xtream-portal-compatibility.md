@@ -257,6 +257,11 @@ tab can gate the timeline's archive window. `tv_archive_duration` is
 interpreted as **days** everywhere, matching
 `live-stream-layout.controlledArchiveDays` (issue #1138).
 
+Programme details in the Live TV and Favorites/Recent EPG timeline/list also
+offer **Copy archive URL**. This uses the same resolver and persisted server
+timezone without changing playback. See the M3U module's "Copy archive URL"
+contract for clipboard feedback and credential/header handling.
+
 ### Start time is the panel's clock, not the viewer's
 
 The `{start}` segment (`Y-m-d:H-M`) is read by the panel with `strtotime()`

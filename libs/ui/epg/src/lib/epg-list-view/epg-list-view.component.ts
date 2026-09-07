@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     computed,
     ElementRef,
     inject,
@@ -11,7 +12,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
@@ -81,6 +82,8 @@ export class EpgListViewComponent {
      * timeline's literal "Timeline" while in list mode. */
     readonly sourceLabel = input('Programme guide');
     readonly archivePlaybackAvailable = input(false);
+    /** Source/channel identity captured by programme details, independent of playback. */
+    readonly archiveContextKey = input<string | null>(null);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
     readonly isLivePlayback = input(true);
@@ -102,6 +105,7 @@ export class EpgListViewComponent {
     readonly collapsedChange = output<boolean>();
     readonly openGuide = output<void>();
 
+    private readonly destroyRef = inject(DestroyRef);
     private readonly programmeDialog = inject(EpgProgrammeDialogService);
     private readonly translate = inject(TranslateService);
 
@@ -280,18 +284,27 @@ export class EpgListViewComponent {
     }
 
     openDetails(row: EpgListRow): void {
+        const archiveContextKey = this.archiveContextKey();
         this.programmeDialog
             .open({
                 ...row.program,
                 channelName: this.channelName(),
                 channelLogo: this.channelLogo(),
+                archiveUrlAvailable: row.canCatchUp,
                 primaryAction: epgDialogActionFor(row.when, row.canCatchUp),
                 archiveUnavailableNote:
                     row.when === 'past' && !this.archivePlaybackAvailable(),
             })
+            .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe((result: EpgItemDialogAction | undefined) => {
+                if (archiveContextKey !== this.archiveContextKey()) return;
                 if (result === 'live') {
                     this.returnToLive.emit();
+                } else if (result === 'copy-catchup-url' && row.canCatchUp) {
+                    this.programActivated.emit({
+                        program: row.program,
+                        type: result,
+                    });
                 } else if (result === 'timeshift') {
                     this.selectedKey.set(row.key);
                     this.programActivated.emit({

@@ -792,7 +792,11 @@
             "LANGUAGE": "語言",
             "SHOW_PROGRAM_DETAILS": "顯示關於該節目的詳細資訊",
             "EPISODE": "集數",
-            "DURATION": "時長"
+            "DURATION": "時長",
+            "COPY_ARCHIVE_URL": "複製回看連結",
+            "ARCHIVE_URL_COPIED": "已複製回看連結",
+            "ARCHIVE_URL_FAILED": "無法複製回看連結",
+            "ARCHIVE_URL_NOTICE": "連結可能包含帳戶憑證。外部播放器可能還需要此來源的 HTTP 標頭。"
         },
         "FETCH_SUCCESS": "EPG 已成功擷取",
         "IMPORT_PROGRESS": "EPG 匯入",

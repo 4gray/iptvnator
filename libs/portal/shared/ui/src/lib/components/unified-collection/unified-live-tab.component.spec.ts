@@ -1,3 +1,12 @@
+import {
+    buildLiveItem,
+    buildProgram,
+    buildCurrentProgram,
+    buildEpgItem,
+    buildCurrentEpgItem,
+    createDeferred,
+} from './unified-live-tab.spec-data';
+import { Clipboard } from '@angular/cdk/clipboard';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -18,11 +27,7 @@ import {
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import {
-    EpgItem,
-    EpgProgram,
-    VideoPlayer,
-} from '@iptvnator/shared/interfaces';
+import { EpgItem, EpgProgram, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     PORTAL_PLAYER,
     UnifiedCollectionItem,
@@ -983,6 +988,25 @@ describe('UnifiedLiveTabComponent', () => {
             type: 'timeshift',
         });
 
+        it('copies M3U archive URLs without changing the active playback', async () => {
+            await selectCatchupChannel();
+            const before = component.inlinePlayback();
+            const copy = jest
+                .spyOn(TestBed.inject(Clipboard), 'copy')
+                .mockReturnValue(true);
+            component.onTimelineProgramActivated({
+                ...timeshiftEvent(),
+                type: 'copy-catchup-url',
+            });
+            await fixture.whenStable();
+            expect(copy).toHaveBeenCalledWith(
+                expect.stringContaining('https://example.com/m3u.m3u8?utc=')
+            );
+            expect(component.inlinePlayback()).toBe(before);
+            expect(component.activeTimeshift()).toBeNull();
+            copy.mockRestore();
+        });
+
         it('switches the inline player to the catch-up stream on Watch', async () => {
             portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
             await selectCatchupChannel();
@@ -1120,6 +1144,28 @@ describe('UnifiedLiveTabComponent', () => {
             fixture.debugElement.query(By.directive(StubEpgTimelineComponent))
                 .componentInstance as StubEpgTimelineComponent;
 
+        it('copies Xtream archive URLs without changing the active playback', async () => {
+            streamResolver.resolveXtreamCatchupUrl.mockResolvedValue(
+                'https://example.com/timeshift.ts'
+            );
+            await selectXtreamArchiveChannel();
+            const before = component.inlinePlayback();
+            const copy = jest
+                .spyOn(TestBed.inject(Clipboard), 'copy')
+                .mockReturnValue(true);
+            component.onTimelineProgramActivated({
+                ...timeshiftEvent(),
+                type: 'copy-catchup-url',
+            });
+            await fixture.whenStable();
+            expect(copy).toHaveBeenCalledWith(
+                'https://example.com/timeshift.ts'
+            );
+            expect(component.inlinePlayback()).toBe(before);
+            expect(component.activeTimeshift()).toBeNull();
+            copy.mockRestore();
+        });
+
         it('exposes the provider archive window to the timeline in days', async () => {
             // Regression: tv_archive_duration is days (matching
             // live-stream-layout.controlledArchiveDays), not hours — a
@@ -1215,120 +1261,3 @@ describe('UnifiedLiveTabComponent', () => {
         });
     });
 });
-
-function buildLiveItem(
-    sourceType: 'm3u' | 'xtream' | 'stalker'
-): UnifiedCollectionItem {
-    if (sourceType === 'm3u') {
-        return {
-            uid: 'm3u::pl-1::m3u-channel',
-            name: 'M3U Live',
-            contentType: 'live',
-            sourceType: 'm3u',
-            playlistId: 'pl-1',
-            playlistName: 'Playlist One',
-            streamUrl: 'https://example.com/m3u.m3u8',
-            channelId: 'm3u-channel',
-            tvgId: 'm3u-channel',
-            logo: 'm3u.png',
-            radio: 'false',
-        };
-    }
-
-    if (sourceType === 'xtream') {
-        return {
-            uid: 'xtream::pl-2::20',
-            name: 'Xtream Live',
-            contentType: 'live',
-            sourceType: 'xtream',
-            playlistId: 'pl-2',
-            playlistName: 'Playlist Two',
-            xtreamId: 20,
-            tvgId: '20',
-            logo: 'xtream.png',
-        };
-    }
-
-    return {
-        uid: 'stalker::pl-3::30',
-        name: 'Stalker Live',
-        contentType: 'live',
-        sourceType: 'stalker',
-        playlistId: 'pl-3',
-        playlistName: 'Playlist Three',
-        stalkerId: '30',
-        stalkerCmd: 'ffmpeg http://stalker/30',
-        tvgId: '30',
-        logo: 'stalker.png',
-    };
-}
-
-function buildProgram(title: string): EpgProgram {
-    return {
-        start: '2026-03-26T11:00:00.000Z',
-        stop: '2026-03-26T12:00:00.000Z',
-        channel: 'test-channel',
-        title,
-        desc: `${title} description`,
-        category: null,
-    };
-}
-
-function buildCurrentProgram(title: string): EpgProgram {
-    const now = Date.now();
-    return {
-        start: new Date(now - 10 * 60 * 1000).toISOString(),
-        stop: new Date(now + 10 * 60 * 1000).toISOString(),
-        channel: 'test-channel',
-        title,
-        desc: `${title} description`,
-        category: null,
-    };
-}
-
-function buildEpgItem(title: string): EpgItem {
-    return {
-        id: '1',
-        epg_id: '',
-        title,
-        description: `${title} description`,
-        lang: '',
-        start: '2026-03-26T11:00:00.000Z',
-        end: '2026-03-26T12:00:00.000Z',
-        stop: '2026-03-26T12:00:00.000Z',
-        channel_id: '1',
-        start_timestamp: '1774522800',
-        stop_timestamp: '1774526400',
-    };
-}
-
-function buildCurrentEpgItem(title: string): EpgItem {
-    const now = Date.now();
-    const start = now - 10 * 60 * 1000;
-    const stop = now + 10 * 60 * 1000;
-
-    return {
-        id: '1',
-        epg_id: '',
-        title,
-        description: `${title} description`,
-        lang: '',
-        start: new Date(start).toISOString(),
-        end: new Date(stop).toISOString(),
-        stop: new Date(stop).toISOString(),
-        channel_id: '1',
-        start_timestamp: String(Math.floor(start / 1000)),
-        stop_timestamp: String(Math.floor(stop / 1000)),
-    };
-}
-
-function createDeferred<T>() {
-    let resolve!: (value: T) => void;
-    let reject!: (reason?: unknown) => void;
-    const promise = new Promise<T>((res, rej) => {
-        resolve = res;
-        reject = rej;
-    });
-
-    return { promise, resolve, reject };
-}

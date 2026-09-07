@@ -792,7 +792,11 @@
             "LANGUAGE": "Dil",
             "SHOW_PROGRAM_DETAILS": "Bu programın ayrıntılarını göster",
             "EPISODE": "Bölüm",
-            "DURATION": "Süre"
+            "DURATION": "Süre",
+            "COPY_ARCHIVE_URL": "Arşiv URL’sini kopyala",
+            "ARCHIVE_URL_COPIED": "Arşiv URL’si kopyalandı",
+            "ARCHIVE_URL_FAILED": "Arşiv URL’si kopyalanamadı",
+            "ARCHIVE_URL_NOTICE": "URL hesap bilgileri içerebilir. Harici oynatıcılar kaynağın HTTP başlıklarına da ihtiyaç duyabilir."
         },
         "FETCH_SUCCESS": "EPG verileri başarıyla alındı",
         "IMPORT_PROGRESS": "EPG İçe Aktarımı",

@@ -792,7 +792,11 @@
             "LANGUAGE": "Sprache",
             "SHOW_PROGRAM_DETAILS": "Details zu dieser Sendung anzeigen",
             "EPISODE": "Episode",
-            "DURATION": "Dauer"
+            "DURATION": "Dauer",
+            "COPY_ARCHIVE_URL": "Archiv-URL kopieren",
+            "ARCHIVE_URL_COPIED": "Archiv-URL kopiert",
+            "ARCHIVE_URL_FAILED": "Archiv-URL konnte nicht kopiert werden",
+            "ARCHIVE_URL_NOTICE": "Die URL kann Zugangsdaten enthalten. Externe Player benötigen möglicherweise auch die HTTP-Header der Quelle."
         },
         "FETCH_SUCCESS": "EPG wurde erfolgreich abgerufen",
         "IMPORT_PROGRESS": "EPG-Import",
