@@ -9,6 +9,7 @@ export const playlistsAdapter: EntityAdapter<PlaylistMeta> =
 export interface PlaylistMetaState extends EntityState<PlaylistMeta> {
     selectedId: string;
     allPlaylistsLoaded: boolean;
+    loadFailed: boolean;
     selectedFilters: string[];
 }
 
@@ -16,6 +17,7 @@ export const initialPlaylistMetaState: PlaylistMetaState =
     playlistsAdapter.getInitialState({
         selectedId: '',
         allPlaylistsLoaded: false,
+        loadFailed: false,
         selectedFilters: ['m3u', 'xtream', 'stalker'],
     });
 

@@ -13,12 +13,16 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
 import {
     EMPTY,
+    catchError,
     concatMap,
+    defer,
     filter,
     firstValueFrom,
     from,
     map,
     mergeMap,
+    of,
+    retry,
     switchMap,
     tap,
     withLatestFrom,
@@ -257,7 +261,10 @@ export class PlaylistEffects {
         return this.actions$.pipe(
             ofType(PlaylistActions.loadPlaylists),
             switchMap(() =>
-                this.playlistsService.getAllPlaylists().pipe(
+                defer(() => this.playlistsService.getAllPlaylists()).pipe(
+                    // Recreate the storage request once for transient failures.
+                    // A final failure is state, not an empty source inventory.
+                    retry({ count: 1, delay: 300 }),
                     tap((playlists) => {
                         this.fetchPlaylistScopedEpgForPlaylists(playlists);
                     }),
@@ -265,7 +272,8 @@ export class PlaylistEffects {
                         PlaylistActions.loadPlaylistsSuccess({
                             playlists,
                         })
-                    )
+                    ),
+                    catchError(() => of(PlaylistActions.loadPlaylistsFailure()))
                 )
             )
         );

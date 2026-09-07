@@ -1718,5 +1718,11 @@
             "NO_ACCOUNT_DATA_TITLE": "沒有帳戶資料",
             "NO_ACCOUNT_DATA_DESCRIPTION": "此入口網站不提供此裝置的帳戶資訊。"
         }
+    },
+    "STARTUP": {
+        "PREPARING": "正在準備媒體庫",
+        "PREPARING_DETAIL": "正在載入來源並檢查節目指南。較大的媒體庫可能需要更長時間。",
+        "FAILED": "無法載入來源",
+        "FAILED_DETAIL": "請重試讀取已儲存的來源。您的資料未被刪除。"
     }
 }

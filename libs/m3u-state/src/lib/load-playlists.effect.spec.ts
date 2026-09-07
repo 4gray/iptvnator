@@ -1,0 +1,85 @@
+import { Injector, runInInjectionContext } from '@angular/core';
+import { Router } from '@angular/router';
+import { Actions } from '@ngrx/effects';
+import { Store } from '@ngrx/store';
+import { EpgService } from '@iptvnator/epg/data-access';
+import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import { EMPTY, of, Subject, throwError } from 'rxjs';
+import { PlaylistActions } from './actions';
+import { PlaylistEffects } from './effects';
+
+// Each subscription must create a fresh storage request, not replay the same
+// rejected promise. Exhausted retries must leave the action stream usable.
+describe('PlaylistEffects loadPlaylists$', () => {
+    let actions$: Subject<unknown>;
+    let getAllPlaylists: jest.Mock;
+    let effects: PlaylistEffects;
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        actions$ = new Subject();
+        getAllPlaylists = jest.fn(() => of([]));
+        const injector = Injector.create({
+            parent: { get: () => ({}) } as unknown as Injector,
+            providers: [
+                { provide: Actions, useValue: new Actions(actions$) },
+                { provide: Store, useValue: { select: () => EMPTY } },
+                { provide: PlaylistsService, useValue: { getAllPlaylists } },
+                { provide: EpgService, useValue: { fetchEpg: jest.fn() } },
+                { provide: Router, useValue: {} },
+                {
+                    provide: SettingsStore,
+                    useValue: { getSettings: () => ({ epgUrl: [] }) },
+                },
+            ],
+        });
+        effects = runInInjectionContext(injector, () => new PlaylistEffects());
+    });
+
+    afterEach(() => jest.useRealTimers());
+
+    it('recovers a transient read error without restarting', async () => {
+        getAllPlaylists.mockReturnValueOnce(
+            throwError(() => new Error('temporary'))
+        );
+        const results: unknown[] = [];
+        const errors: unknown[] = [];
+        const subscription = effects.loadPlaylists$.subscribe({
+            next: (value) => results.push(value),
+            error: (error) => errors.push(error),
+        });
+        actions$.next(PlaylistActions.loadPlaylists());
+        await jest.runAllTimersAsync();
+        expect(errors).toEqual([]);
+        expect(getAllPlaylists).toHaveBeenCalledTimes(2);
+        expect(results).toEqual([
+            PlaylistActions.loadPlaylistsSuccess({ playlists: [] }),
+        ]);
+        subscription.unsubscribe();
+    });
+
+    it('reports persistent failure without treating it as an empty library and accepts Retry', async () => {
+        getAllPlaylists.mockReturnValue(
+            throwError(() => new Error('private storage error'))
+        );
+        const results: unknown[] = [];
+        const errors: unknown[] = [];
+        const subscription = effects.loadPlaylists$.subscribe({
+            next: (value) => results.push(value),
+            error: (error) => errors.push(error),
+        });
+        actions$.next(PlaylistActions.loadPlaylists());
+        await jest.runAllTimersAsync();
+        expect(errors).toEqual([]);
+        expect(getAllPlaylists).toHaveBeenCalledTimes(2);
+        expect(results).toEqual([
+            { type: '[Playlists] Load Playlists Failure' },
+        ]);
+        getAllPlaylists.mockReturnValue(of([]));
+        actions$.next(PlaylistActions.loadPlaylists());
+        expect(results.at(-1)).toEqual(
+            PlaylistActions.loadPlaylistsSuccess({ playlists: [] })
+        );
+        subscription.unsubscribe();
+    });
+});

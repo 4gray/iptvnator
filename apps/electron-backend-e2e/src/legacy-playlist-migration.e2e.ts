@@ -4,7 +4,7 @@ import {
     Page,
 } from '@playwright/test';
 import { join } from 'path';
-import { writeFile } from 'fs/promises';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 import {
     test,
     expect,
@@ -56,12 +56,23 @@ async function sourceCount(page: Page) {
 async function launchWithRecoveryChoice(
     dataDir: string,
     response: number,
-    retry = false
+    retry = false,
+    deferChoice = false,
+    startupFault?: 'defer-epg' | 'fail-playlist-reads'
 ) {
     const wrapper = join(dataDir, 'recovery-launch.cjs');
     await writeFile(
         wrapper,
-        `const {dialog}=require('electron'); dialog.showMessageBox=async()=>({response:${response},checkboxChecked:false}); require(${JSON.stringify(electronMainPath)});`
+        `const {dialog,ipcMain}=require('electron');
+dialog.showMessageBox=()=>new Promise(resolve=>{const choose=()=>resolve({response:${response},checkboxChecked:false}); ${deferChoice ? 'globalThis.__resolveLegacyRecoveryDialog=choose;' : 'choose();'}});
+globalThis.__failPlaylistReads=${startupFault === 'fail-playlist-reads'};
+const handle=ipcMain.handle.bind(ipcMain);
+ipcMain.handle=(channel,handler)=>handle(channel,async(...args)=>{
+    if(channel==='DB_GET_APP_PLAYLIST_METAS' && globalThis.__failPlaylistReads) throw new Error('Synthetic playlist read failure');
+    if(channel==='EPG_RECONCILE_SOURCES' && ${startupFault === 'defer-epg'}) await new Promise(resolve=>{globalThis.__releaseStartupEpg=resolve;});
+    return handler(...args);
+});
+require(${JSON.stringify(electronMainPath)});`
     );
     const app = await electron.launch({
         args: [
@@ -74,14 +85,148 @@ async function launchWithRecoveryChoice(
         env: buildElectronLaunchEnvironment(dataDir),
     });
     const page = await app.firstWindow();
-    await page.waitForSelector('app-root');
-    await page.waitForFunction(
-        () => typeof window.electron?.dbGetAppPlaylists === 'function'
-    );
-    return { app, page };
+    try {
+        // The route is intentionally still empty while recovery is pending.
+        await page.waitForSelector('app-root', { state: 'attached' });
+        await page.waitForFunction(
+            () => typeof window.electron?.dbGetAppPlaylists === 'function'
+        );
+        return { app, page };
+    } catch (error) {
+        await closeElectronApp({ electronApp: app, mainWindow: page });
+        throw error;
+    }
 }
 
 test.describe('v0.19 profile migration', () => {
+    for (const response of [0, 1]) {
+        test(`keeps current sources usable with a corrupt legacy profile: choice ${response}`, async ({
+            dataDir,
+        }) => {
+            const initial = await launchElectronApp(dataDir);
+            try {
+                await initial.mainWindow.evaluate(() =>
+                    window.electron.dbUpsertAppPlaylist({
+                        _id: 'current',
+                        title: 'Current synthetic source',
+                        count: 0,
+                        importDate: '2026-01-01',
+                        lastUsage: '2026-01-01',
+                        autoRefresh: false,
+                    })
+                );
+            } finally {
+                await closeElectronApp(initial);
+            }
+            const legacy = join(
+                dataDir,
+                'electron-backend',
+                'IndexedDB',
+                'file__0.indexeddb.leveldb'
+            );
+            await mkdir(legacy, { recursive: true });
+            const marker = join(legacy, 'CURRENT');
+            const corruptManifest = 'Synthetic invalid LevelDB manifest';
+            await writeFile(marker, corruptManifest);
+            const { app, page } = await launchWithRecoveryChoice(
+                dataDir,
+                response
+            );
+            try {
+                await openSources(page);
+                await expect(
+                    page.getByText('Current synthetic source', { exact: true })
+                ).toBeVisible();
+                expect(await sourceCount(page)).toBe(1);
+                expect(await readFile(marker, 'utf8')).toBe(corruptManifest);
+                expect(
+                    await page.evaluate(
+                        (key) => window.electron.dbGetAppState(key),
+                        recoveryKey
+                    )
+                ).toBe(response === 0 ? 'declined' : null);
+            } finally {
+                await closeElectronApp({ electronApp: app, mainWindow: page });
+            }
+        });
+    }
+
+    for (const fault of ['defer-epg', 'fail-playlist-reads'] as const) {
+        test(`keeps startup actionable after declining recovery: ${fault}`, async ({
+            dataDir,
+        }) => {
+            const initial = await launchElectronApp(dataDir);
+            try {
+                await initial.mainWindow.evaluate(() =>
+                    window.electron.dbUpsertAppPlaylist({
+                        _id: 'current',
+                        title: 'Current synthetic source',
+                        count: 0,
+                        importDate: '2026-01-01',
+                        lastUsage: '2026-01-01',
+                        autoRefresh: false,
+                    })
+                );
+            } finally {
+                await closeElectronApp(initial);
+            }
+            await seedLegacyProfile(dataDir, 'm3u', false);
+            const { app, page } = await launchWithRecoveryChoice(
+                dataDir,
+                0,
+                false,
+                false,
+                fault
+            );
+            try {
+                await expect
+                    .poll(() =>
+                        page.evaluate(
+                            (key) => window.electron.dbGetAppState(key),
+                            recoveryKey
+                        )
+                    )
+                    .toBe('declined');
+                if (fault === 'defer-epg') {
+                    await expect(page.getByRole('status')).toContainText(
+                        'Preparing your library'
+                    );
+                    await expect
+                        .poll(() =>
+                            app.evaluate(
+                                () =>
+                                    typeof globalThis['__releaseStartupEpg'] ===
+                                    'function'
+                            )
+                        )
+                        .toBe(true);
+                    await app.evaluate(() =>
+                        globalThis['__releaseStartupEpg']()
+                    );
+                } else {
+                    await expect(page.getByRole('alert')).toContainText(
+                        'Your sources could not be loaded'
+                    );
+                    await app.evaluate(() => {
+                        globalThis['__failPlaylistReads'] = false;
+                    });
+                    await page
+                        .getByRole('button', { name: 'Retry', exact: true })
+                        .click();
+                }
+                await openSources(page);
+                await expect(
+                    page.getByText('Current synthetic source', { exact: true })
+                ).toBeVisible();
+                await expect(
+                    page.locator('app-startup-status section')
+                ).toHaveCount(0);
+            } finally {
+                await closeElectronApp({ electronApp: app, mainWindow: page });
+            }
+        });
+    }
+
     for (const active of ['xtream-2', 'stalker-60', 'm3u']) {
         test(`imports all 65 sources with ${active} last active, offline`, async ({
             dataDir,
@@ -298,8 +443,24 @@ test.describe('v0.19 profile migration', () => {
             await closeElectronApp(initial);
         }
         await seedLegacyProfile(dataDir, 'xtream-2', false);
-        let recovered = await launchWithRecoveryChoice(dataDir, 0);
+        let recovered = await launchWithRecoveryChoice(dataDir, 0, false, true);
         try {
+            // Leave the offer pending until renderer startup has reached it.
+            // A synchronous stub plus raw DB reads cannot detect a blank route
+            // after the real user eventually chooses Keep current sources.
+            await expect
+                .poll(() =>
+                    recovered.app.evaluate(
+                        () =>
+                            typeof globalThis[
+                                '__resolveLegacyRecoveryDialog'
+                            ] === 'function'
+                    )
+                )
+                .toBe(true);
+            await recovered.app.evaluate(() =>
+                globalThis['__resolveLegacyRecoveryDialog']()
+            );
             await expect
                 .poll(() =>
                     recovered.page.evaluate(
@@ -314,6 +475,12 @@ test.describe('v0.19 profile migration', () => {
                     app.getPath('userData')
                 )
             ).toBe(join(dataDir, 'user-data'));
+            await openSources(recovered.page);
+            await expect(
+                recovered.page.getByText('Current edited source', {
+                    exact: true,
+                })
+            ).toBeVisible();
         } finally {
             await closeElectronApp({
                 electronApp: recovered.app,

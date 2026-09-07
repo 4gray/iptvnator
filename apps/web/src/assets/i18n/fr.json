@@ -1718,5 +1718,11 @@
             "NO_ACCOUNT_DATA_TITLE": "Aucune donnée de compte",
             "NO_ACCOUNT_DATA_DESCRIPTION": "Ce portail ne publie pas d’informations de compte pour cet appareil."
         }
+    },
+    "STARTUP": {
+        "PREPARING": "Préparation de la bibliothèque",
+        "PREPARING_DETAIL": "Chargement des sources et vérification du guide TV. Les grandes bibliothèques peuvent prendre plus de temps.",
+        "FAILED": "Impossible de charger vos sources",
+        "FAILED_DETAIL": "Réessayez de lire les sources enregistrées. Vos données n’ont pas été supprimées."
     }
 }

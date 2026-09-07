@@ -1,4 +1,11 @@
-import { Component, effect, HostBinding, inject, OnInit } from '@angular/core';
+import {
+    Component,
+    effect,
+    HostBinding,
+    inject,
+    OnInit,
+    signal,
+} from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
@@ -34,6 +41,7 @@ import { SettingsService } from './services/settings.service';
 import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service';
 import { PlaylistOpenRequestService } from './services/playlist-open-request.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
+import { AppStartupStatusComponent } from './app-startup-status.component';
 
 const debugAppComponent = createDevLogger('AppComponent');
 
@@ -41,6 +49,7 @@ const debugAppComponent = createDevLogger('AppComponent');
     selector: 'app-root',
     templateUrl: './app.component.html',
     imports: [
+        AppStartupStatusComponent,
         AppUpdateNotificationPanelComponent,
         EpgProgressPanelComponent,
         RouterOutlet,
@@ -48,6 +57,7 @@ const debugAppComponent = createDevLogger('AppComponent');
     ],
 })
 export class AppComponent implements OnInit {
+    readonly routeReady = signal(false);
     @HostBinding('class.macos-platform') get isMacOS() {
         return this.runtime.isMacOS;
     }

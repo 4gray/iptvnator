@@ -1718,5 +1718,11 @@
             "NO_ACCOUNT_DATA_TITLE": "Sin datos de la cuenta",
             "NO_ACCOUNT_DATA_DESCRIPTION": "Este portal no publica información de la cuenta para este dispositivo."
         }
+    },
+    "STARTUP": {
+        "PREPARING": "Preparando tu biblioteca",
+        "PREPARING_DETAIL": "Cargando fuentes y comprobando la guía de programación. Las bibliotecas grandes pueden tardar un poco más.",
+        "FAILED": "No se pudieron cargar tus fuentes",
+        "FAILED_DETAIL": "Vuelve a intentar leer las fuentes guardadas. Tus datos no se han eliminado."
     }
 }

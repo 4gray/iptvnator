@@ -1718,5 +1718,11 @@
             "NO_ACCOUNT_DATA_TITLE": "Keine Kontodaten",
             "NO_ACCOUNT_DATA_DESCRIPTION": "Dieses Portal stellt für dieses Gerät keine Kontoinformationen bereit."
         }
+    },
+    "STARTUP": {
+        "PREPARING": "Bibliothek wird vorbereitet",
+        "PREPARING_DETAIL": "Quellen werden geladen und der Programmführer geprüft. Große Bibliotheken können etwas länger dauern.",
+        "FAILED": "Quellen konnten nicht geladen werden",
+        "FAILED_DETAIL": "Versuche erneut, die gespeicherten Quellen zu lesen. Deine Daten wurden nicht gelöscht."
     }
 }
