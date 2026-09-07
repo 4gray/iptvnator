@@ -1134,8 +1134,9 @@ catch-up capability and therefore does not expose this action.
 
 The URL can contain account credentials; the dialog explains that external
 players may also need the source's HTTP headers. Copy is explicit, errors use
-localized feedback without raw URLs, and repeated clicks share one pending
-copy operation. Timeline/list dialogs capture the host's source/channel
+localized feedback without raw URLs, and each explicit request supersedes older
+unresolved copies. Only the latest request may update the clipboard or feedback,
+so a slow resolver cannot block another channel or overwrite its copied URL. Timeline/list dialogs capture the host's source/channel
 `archiveContextKey`, refuse actions after it changes, and unsubscribe when
 the view is destroyed. A copied M3U start-over URL need not stop at the programme's
 end. Copying a URL does not download or preserve an expiring archive.

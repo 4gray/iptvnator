@@ -57,19 +57,49 @@ describe('EpgArchiveCopyService', () => {
             'EPG.PROGRAM_DIALOG.ARCHIVE_URL_FAILED',
         ]);
     });
-    it('coalesces repeated clicks while the URL is resolving', async () => {
-        let resolve!: (url: string) => void;
-        const pending = service.copy(
+    it.each([false, true])(
+        'lets a new copy replace a slow request (old failure: %s)',
+        async (failOld) => {
+            let finish!: (url: string) => void;
+            let reject!: (error: Error) => void;
+            const first = service.copy(
+                () =>
+                    new Promise<string>((resolve, fail) => {
+                        finish = resolve;
+                        reject = fail;
+                    })
+            );
+            const latest = jest.fn(async () => 'https://provider.test/new.ts');
+            await service.copy(latest);
+            expect(latest).toHaveBeenCalledTimes(1);
+            if (failOld) reject(new Error('secret old request'));
+            else finish('https://provider.test/old.ts');
+            await first;
+            expect(copy.mock.calls).toEqual([['https://provider.test/new.ts']]);
+            expect(open).toHaveBeenCalledTimes(1);
+        }
+    );
+    it('discards an old result even while the newer request is still pending', async () => {
+        let finishOld!: (url: string) => void,
+            finishNew!: (url: string) => void;
+        const first = service.copy(
             () =>
-                new Promise<string>((done) => {
-                    resolve = done;
+                new Promise<string>((resolve) => {
+                    finishOld = resolve;
                 })
         );
-        const duplicate = jest.fn();
-        await service.copy(duplicate);
-        expect(duplicate).not.toHaveBeenCalled();
-        resolve('https://provider.test/archive.ts');
-        await pending;
-        expect(copy).toHaveBeenCalledTimes(1);
+        const second = service.copy(
+            () =>
+                new Promise<string>((resolve) => {
+                    finishNew = resolve;
+                })
+        );
+        finishOld('https://provider.test/old.ts');
+        await first;
+        expect(copy).not.toHaveBeenCalled();
+        expect(open).not.toHaveBeenCalled();
+        finishNew('https://provider.test/new.ts');
+        await second;
+        expect(copy).toHaveBeenCalledWith('https://provider.test/new.ts');
     });
 });
