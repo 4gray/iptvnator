@@ -1,4 +1,4 @@
-import { createWriteStream } from 'node:fs';
+import { openCatchupOutput } from './download-catchup-output';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { requestWithValidatedRedirects } from '../../util/validated-axios';
@@ -116,7 +116,7 @@ export async function transferCatchupToPartialFile(
             readable,
             createTsValidator(),
             progress,
-            createWriteStream(reservation.partialPath, { flags: 'w' }),
+            await openCatchupOutput(reservation.partialPath),
             { signal: controller.signal }
         );
         if (totalBytes !== null && bytesDownloaded !== totalBytes) {

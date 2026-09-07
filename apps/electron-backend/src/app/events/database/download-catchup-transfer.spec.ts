@@ -1,4 +1,11 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+    mkdtemp,
+    readFile,
+    rm,
+    writeFile,
+    symlink,
+    link,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Readable, Writable } from 'node:stream';
@@ -152,3 +159,42 @@ describe('TS archive transfer', () => {
         }
     });
 });
+
+it.each(['symlink', 'hardlink'])(
+    'refuses a retained archive partial replaced by a %s',
+    async (kind) => {
+        const directory = await mkdtemp(join(tmpdir(), 'archive-replaced-'));
+        const path = join(directory, 'archive.ts'),
+            target = join(directory, 'unrelated.txt');
+        try {
+            await writeFile(target, 'keep this file intact');
+            await (kind === 'symlink'
+                ? symlink(target, path + '.part')
+                : link(target, path + '.part'));
+            jest.mocked(requestWithValidatedRedirects).mockResolvedValue({
+                status: 200,
+                headers: { 'content-type': 'video/mp2t' },
+                data: Readable.from([packets]),
+            } as never);
+            const task: DownloadTask = {
+                id: 3,
+                url: 'https://host/archive.ts',
+                fileName: 'archive.ts',
+                directory,
+                catchup: metadata,
+            };
+            await expect(
+                transferCatchupToPartialFile({} as DownloadsDatabase, task, {
+                    path,
+                    partialPath: path + '.part',
+                    filename: 'archive.ts',
+                })
+            ).rejects.toThrow();
+            expect(await readFile(target, 'utf8')).toBe(
+                'keep this file intact'
+            );
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    }
+);

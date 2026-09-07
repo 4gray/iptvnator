@@ -20,7 +20,9 @@ M3U, Stalker and PWA archive downloads, HLS assembly and recording future broadc
 are outside this feature.
 
 `EpgArchiveDownloadService` submits the resolved URL and the playlist's playback
-header allowlist to the existing desktop queue. HLS URLs are refused explicitly;
+header allowlist to the existing desktop queue. Pending submission suppression
+is per programme identity, so slow resolution does not discard a different
+programme's request. HLS URLs are refused explicitly;
 the backend also checks the response type and every 188-byte MPEG-TS packet.
 No transcoder or media helper is required. The file always uses `.ts`.
 
@@ -36,6 +38,10 @@ Only ended programmes can be enqueued. Known expiry is checked on enqueue,
 retry, resume, missing-file recovery and when the queued transfer starts.
 Pause keeps its owned partial file, but **resume/retry restarts from byte zero**,
 without Range, If-Range, or automatic reconnect append. The queue explains this.
+Before truncating, `download-catchup-output.ts` rejects symlinks and hardlinks,
+opens without truncation (with O_NOFOLLOW where available), checks descriptor
+identity against lstat, then truncates and writes through that same descriptor.
+An absent partial is created exclusively, so a replaced path cannot redirect writes.
 A retained archive cannot use the VOD byte-count completion shortcut. Transfers
 have a 30-second idle timeout and a total deadline of twice programme duration
 plus ten minutes, capped at 24 hours. Failure never promotes the partial to the

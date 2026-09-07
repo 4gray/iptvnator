@@ -8,14 +8,21 @@ export class EpgArchiveDownloadService {
     private readonly downloads = inject(DownloadsService);
     private readonly snackbar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
-    private pending = false;
+    private readonly pending = new Set<string>();
 
     async start(
         input: Omit<DownloadStartInput, 'url' | 'contentType'>,
         resolve: () => Promise<string>
     ): Promise<void> {
-        if (this.pending || !this.downloads.isAvailable()) return;
-        this.pending = true;
+        if (!this.downloads.isAvailable()) return;
+        const key = JSON.stringify([
+            input.playlistId,
+            input.xtreamId,
+            input.catchup?.startTimestamp,
+            input.catchup?.stopTimestamp,
+        ]);
+        if (this.pending.has(key)) return;
+        this.pending.add(key);
         let message = 'ARCHIVE_DOWNLOAD_FAILED';
         try {
             const url = await resolve();
@@ -43,7 +50,7 @@ export class EpgArchiveDownloadService {
         } catch {
             // Neither URLs nor provider error messages are suitable for a toast.
         } finally {
-            this.pending = false;
+            this.pending.delete(key);
         }
         this.snackbar.open(
             this.translate.instant(`EPG.PROGRAM_DIALOG.${message}`),

@@ -1,3 +1,4 @@
+import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
 import { EpgArchiveCopyService } from '@iptvnator/ui/epg';
 import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -90,6 +91,10 @@ describe('Xtream live auto-open playback queue', () => {
         await TestBed.configureTestingModule({
             imports: [LiveStreamLayoutComponent],
             providers: [
+                {
+                    provide: EpgArchiveDownloadService,
+                    useValue: { start: jest.fn() },
+                },
                 {
                     provide: EpgArchiveCopyService,
                     useValue: { copy: jest.fn() },

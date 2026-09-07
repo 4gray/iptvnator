@@ -64,6 +64,25 @@ describe('archive download feedback', () => {
         await service.start(input, resolve);
         expect(resolve).not.toHaveBeenCalled();
     });
+    it('allows distinct programmes to resolve independently', async () => {
+        let finish!: (url: string) => void;
+        const first = service.start(
+            input,
+            () =>
+                new Promise<string>((resolve) => {
+                    finish = resolve;
+                })
+        );
+        const another = { ...input, xtreamId: 2 };
+        await service.start(another, async () => 'https://host/2.ts');
+        expect(startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ xtreamId: 2 })
+        );
+        finish('https://host/1.ts');
+        await first;
+        expect(startDownload).toHaveBeenCalledTimes(2);
+    });
+
     it('coalesces pending clicks and hides provider credentials on failure', async () => {
         let reject!: (error: Error) => void;
         const first = service.start(

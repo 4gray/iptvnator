@@ -1,3 +1,4 @@
+import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
 import { EpgArchiveCopyService } from '@iptvnator/ui/epg';
 import { Component, Directive, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -131,6 +132,10 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         await TestBed.configureTestingModule({
             imports: [LiveStreamLayoutComponent, NoopAnimationsModule],
             providers: [
+                {
+                    provide: EpgArchiveDownloadService,
+                    useValue: { start: jest.fn() },
+                },
                 {
                     provide: EpgArchiveCopyService,
                     useValue: { copy: jest.fn() },
