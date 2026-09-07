@@ -42,6 +42,7 @@ export class EpgSourceSettingsService {
     private readonly injector = inject(Injector);
     private activeUrls = new Set<string>();
     private reconciliation: Promise<void> | undefined;
+    private failedReconciliation: { urls: string[] } | undefined;
     readonly revision = signal(0);
     readonly changed$ = new Subject<void>();
 
@@ -63,6 +64,18 @@ export class EpgSourceSettingsService {
     async waitForReconciliation(): Promise<void> {
         while (this.reconciliation) {
             await this.reconciliation.catch(() => undefined);
+        }
+    }
+
+    /** A recovered inventory must finish any previously authorized cleanup. */
+    async retryFailedReconciliation(): Promise<void> {
+        // A save can start between the wait resolving and this continuation.
+        // Recheck ownership before scheduling a retry of the failed URL set.
+        do {
+            await this.waitForReconciliation();
+        } while (this.reconciliation);
+        if (this.failedReconciliation) {
+            await this.synchronize(this.failedReconciliation.urls);
         }
     }
 
@@ -108,7 +121,9 @@ export class EpgSourceSettingsService {
                 await window.electron.reconcileEpgSources(normalized);
             if (!result.success)
                 throw new Error('EPG source reconciliation failed');
+            this.failedReconciliation = undefined;
         } catch {
+            this.failedReconciliation = { urls: normalized };
             throw new EpgSourceReconciliationError();
         } finally {
             this.revision.update((revision) => revision + 1);

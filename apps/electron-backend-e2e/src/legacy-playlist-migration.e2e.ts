@@ -21,6 +21,7 @@ import { seedLegacyProfile, legacyPlaylists } from './legacy-profile-fixture';
 
 interface StartupTestGlobals {
     __failPlaylistReads: boolean;
+    __deferRecoveredEpg: boolean;
     __releaseStartupEpg: () => void;
     __resolveLegacyRecoveryDialog: () => void;
 }
@@ -77,7 +78,7 @@ globalThis.__failPlaylistReads=${startupFault === 'fail-playlist-reads'};
 const handle=ipcMain.handle.bind(ipcMain);
 ipcMain.handle=(channel,handler)=>handle(channel,async(...args)=>{
     if(channel==='DB_GET_APP_PLAYLIST_METAS' && globalThis.__failPlaylistReads) throw new Error('Synthetic playlist read failure');
-    if(channel==='EPG_RECONCILE_SOURCES' && ${startupFault === 'defer-epg'}) await new Promise(resolve=>{globalThis.__releaseStartupEpg=resolve;});
+    if(channel==='EPG_RECONCILE_SOURCES' && (${startupFault === 'defer-epg'} || globalThis.__deferRecoveredEpg)) await new Promise(resolve=>{globalThis.__releaseStartupEpg=resolve;});
     return handler(...args);
 });
 require(${JSON.stringify(electronMainPath)});`
@@ -283,13 +284,34 @@ test.describe('v0.19 profile migration', () => {
                         })
                     ).toHaveCSS('app-region', 'no-drag');
                     await app.evaluate(() => {
-                        (globalThis as typeof globalThis & StartupTestGlobals)[
-                            '__failPlaylistReads'
-                        ] = false;
+                        const hooks = globalThis as typeof globalThis &
+                            StartupTestGlobals;
+                        hooks.__failPlaylistReads = false;
+                        hooks.__deferRecoveredEpg = true;
                     });
                     await page
                         .getByRole('button', { name: 'Retry', exact: true })
                         .click();
+                    // Metadata is readable again, but startup must still wait
+                    // for the reconciliation that failed during settings load.
+                    await expect
+                        .poll(() =>
+                            app.evaluate(
+                                () =>
+                                    typeof (
+                                        globalThis as typeof globalThis &
+                                            StartupTestGlobals
+                                    ).__releaseStartupEpg
+                            )
+                        )
+                        .toBe('function');
+                    await expect(startup).toHaveAttribute('role', 'status');
+                    await app.evaluate(() => {
+                        const hooks = globalThis as typeof globalThis &
+                            StartupTestGlobals;
+                        hooks.__deferRecoveredEpg = false;
+                        hooks.__releaseStartupEpg();
+                    });
                 }
                 await openSources(page);
                 await expect(

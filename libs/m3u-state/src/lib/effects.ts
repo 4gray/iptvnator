@@ -29,6 +29,7 @@ import {
 } from 'rxjs';
 import {
     DataService,
+    EpgSourceSettingsService,
     PlaylistsService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -76,6 +77,7 @@ export class PlaylistEffects {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
+    private epgSources = inject(EpgSourceSettingsService);
     private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
     updateFavorites$ = createEffect(
@@ -265,6 +267,11 @@ export class PlaylistEffects {
                     // Recreate the storage request once for transient failures.
                     // A final failure is state, not an empty source inventory.
                     retry({ count: 1, delay: 300 }),
+                    switchMap((playlists) =>
+                        from(this.epgSources.retryFailedReconciliation()).pipe(
+                            map(() => playlists)
+                        )
+                    ),
                     tap((playlists) => {
                         this.fetchPlaylistScopedEpgForPlaylists(playlists);
                     }),
