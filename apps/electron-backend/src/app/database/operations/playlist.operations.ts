@@ -1,4 +1,4 @@
-import { eq, sql, type SQL } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
 import {
@@ -23,6 +23,11 @@ import {
     reportOperationProgress,
 } from './operation-control';
 import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
+import {
+    playlistConflictUpdate,
+    readPayloadServerTimezone,
+    serverTimezoneInvalidation,
+} from './playlist-server-timezone.operations';
 
 const PLAYLIST_TYPES = {
     XTREAM: 'xtream',
@@ -233,48 +238,6 @@ export function buildPlaylistRow(
         payload: JSON.stringify(playlist),
         lastUsage: getStringValue(playlist.lastUsage) ?? nowIso,
     };
-}
-
-/**
- * The `DO UPDATE` half of an app-playlist upsert. A full upsert is built
- * from a snapshot the caller read earlier; when that snapshot carries no
- * panel clock while the stored row does — `setPlaylistServerTimezone`
- * landed in between — the stored clock is carried over as long as the row
- * still points at the same panel, so a favorites, recent-items or metadata
- * write cannot hand a clockless payload back to the past (issue #1562).
- * A snapshot that carries its own clock, or moves the source, wins as is.
- * Nested CASE, not AND: SQLite may reorder AND terms, and the json_*
- * readers raise on a malformed payload unless json_valid ran first.
- */
-type PlaylistConflictUpdate = {
-    [K in keyof schema.NewPlaylist]?: schema.NewPlaylist[K] | SQL;
-};
-
-function playlistConflictUpdate(
-    row: schema.NewPlaylist,
-    playlist: Record<string, unknown>
-): PlaylistConflictUpdate {
-    if (getStringValue(playlist.serverTimezone)) {
-        return row;
-    }
-    const stored = schema.playlists;
-    const payload = sql`CASE
-        WHEN json_valid(${stored.payload})
-        THEN CASE
-            WHEN json_type(${stored.payload}, '$.serverTimezone') = 'text'
-                AND ${stored.serverUrl} IS excluded.${sql.raw(stored.serverUrl.name)}
-                AND ${stored.username} IS excluded.${sql.raw(stored.username.name)}
-                AND ${stored.password} IS excluded.${sql.raw(stored.password.name)}
-            THEN json_set(
-                excluded.${sql.raw(stored.payload.name)},
-                '$.serverTimezone',
-                json_extract(${stored.payload}, '$.serverTimezone')
-            )
-            ELSE excluded.${sql.raw(stored.payload.name)}
-        END
-        ELSE excluded.${sql.raw(stored.payload.name)}
-    END`;
-    return { ...row, payload };
 }
 
 function getPlaylistItemCount(
@@ -632,10 +595,7 @@ export async function getPlaylist(db: AppDatabase, playlistId: string) {
         return null;
     }
 
-    const serverTimezone = getStringValue(
-        parseJsonValue<Record<string, unknown> | null>(row.payload, null)
-            ?.serverTimezone
-    );
+    const serverTimezone = readPayloadServerTimezone(row.payload);
     return serverTimezone ? { ...row, serverTimezone } : row;
 }
 
@@ -661,73 +621,6 @@ export async function updatePlaylist(
         .where(eq(schema.playlists.id, playlistId));
 
     return { success: true };
-}
-
-/**
- * The persisted panel clock (`serverTimezone`, payload-only) belongs to the
- * panel it was learned from: pointing the row at another server drops it,
- * so Favorites / Recent catch-up cannot keep rendering the OLD panel's
- * clock until the next account-info check (issue #1562). The removal is
- * one SQL expression inside the same UPDATE — the worker interleaves
- * requests, so a read-modify-write of the payload could hand a concurrent
- * upsert's newer payload back to the past.
- */
-function serverTimezoneInvalidation(nextServerUrl: string) {
-    return sql`CASE
-        WHEN ${schema.playlists.serverUrl} IS NOT ${nextServerUrl}
-            AND json_valid(${schema.playlists.payload})
-        THEN json_remove(${schema.playlists.payload}, '$.serverTimezone')
-        ELSE ${schema.playlists.payload}
-    END`;
-}
-
-export interface PlaylistConnectionIdentity {
-    serverUrl: string;
-    username: string;
-    password: string;
-}
-
-/**
- * Records the panel clock a successful account-info check learned
- * (`serverTimezone`, payload-only) as ONE conditional UPDATE: the row must
- * still point at the panel the answer came from (`DB_UPDATE_PLAYLIST` may
- * have moved it meanwhile), a payload already carrying the value is left
- * untouched, and a malformed payload is never rewritten. No read precedes
- * the write, so it can neither hand a concurrent upsert's newer payload
- * back to the past nor undo an edit that landed in between (issue #1562).
- */
-export async function setPlaylistServerTimezone(
-    db: AppDatabase,
-    playlistId: string,
-    connection: PlaylistConnectionIdentity,
-    serverTimezone: string
-): Promise<{ updated: boolean }> {
-    const result = await db
-        .update(schema.playlists)
-        .set({
-            payload: sql`CASE
-                WHEN ${schema.playlists.payload} IS NULL
-                THEN json_object('serverTimezone', ${serverTimezone})
-                ELSE json_set(${schema.playlists.payload}, '$.serverTimezone', ${serverTimezone})
-            END`,
-        })
-        .where(
-            // CASE, not AND: SQLite may reorder AND terms, and json_extract
-            // raises on a malformed payload unless json_valid ran first.
-            sql`${schema.playlists.id} = ${playlistId}
-                AND ${schema.playlists.serverUrl} IS ${connection.serverUrl}
-                AND ${schema.playlists.username} IS ${connection.username}
-                AND ${schema.playlists.password} IS ${connection.password}
-                AND CASE
-                    WHEN ${schema.playlists.payload} IS NULL THEN 1
-                    WHEN json_valid(${schema.playlists.payload})
-                    THEN json_extract(${schema.playlists.payload}, '$.serverTimezone') IS NOT ${serverTimezone}
-                    ELSE 0
-                END`
-        )
-        .run();
-
-    return { updated: result.changes > 0 };
 }
 
 interface PlaylistDeletionCollection {

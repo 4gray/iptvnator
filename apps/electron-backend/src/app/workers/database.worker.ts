@@ -69,13 +69,13 @@ import {
     getAppState,
     getPlaylist,
     setAppState,
-    setPlaylistServerTimezone,
     type AppPlaylistGetPhaseCapture,
     type AppPlaylistUpsertPhaseCapture,
     updatePlaylist,
     upsertAppPlaylist,
     upsertAppPlaylists,
 } from '../database/operations/playlist.operations';
+import { setPlaylistServerTimezone } from '../database/operations/playlist-server-timezone.operations';
 import {
     addRecentItem,
     clearPlaylistRecentItems,

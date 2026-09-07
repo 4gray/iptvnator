@@ -36,6 +36,9 @@ function runPlaylistUpdateScenario(scenario: string): unknown {
     const operationsUrl = pathToFileURL(
         resolve(__dirname, 'playlist.operations.ts')
     ).href;
+    const timezoneOperationsUrl = pathToFileURL(
+        resolve(__dirname, 'playlist-server-timezone.operations.ts')
+    ).href;
     const connectionUrl = pathToFileURL(
         resolve(process.cwd(), 'libs/shared/database/src/lib/connection.ts')
     ).href;
@@ -43,7 +46,8 @@ function runPlaylistUpdateScenario(scenario: string): unknown {
         const { default: Database } = await import('better-sqlite3');
         const { drizzle } = await import('drizzle-orm/better-sqlite3');
         const schema = await import('@iptvnator/shared/database/schema');
-        const { updatePlaylist, setPlaylistServerTimezone, upsertAppPlaylist, upsertAppPlaylists } = await import(${JSON.stringify(operationsUrl)});
+        const { updatePlaylist, upsertAppPlaylist, upsertAppPlaylists } = await import(${JSON.stringify(operationsUrl)});
+        const { setPlaylistServerTimezone } = await import(${JSON.stringify(timezoneOperationsUrl)});
         const { __databaseConnectionTestHooks } = await import(${JSON.stringify(connectionUrl)});
         const sqlite = new Database(':memory:');
         const statements = [
