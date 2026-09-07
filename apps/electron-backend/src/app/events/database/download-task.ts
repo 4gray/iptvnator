@@ -1,3 +1,4 @@
+import type { ArchiveFileIdentity } from './download-catchup-output';
 import type { CatchupDownloadMetadata } from '@iptvnator/shared/interfaces';
 import type { getDatabase } from '../../database/connection';
 
@@ -14,6 +15,7 @@ export interface CompletedPartialProgress extends TransferProgress {
 
 export interface DownloadTask {
     catchup?: CatchupDownloadMetadata;
+    catchupPartialIdentity?: ArchiveFileIdentity;
     id: number;
     url: string;
     fileName: string;

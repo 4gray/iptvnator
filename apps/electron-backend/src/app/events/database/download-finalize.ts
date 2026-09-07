@@ -1,3 +1,4 @@
+import { finalizeCatchupPartial } from './download-catchup-finalize';
 import { eq, sql } from 'drizzle-orm';
 import { constants, existsSync } from 'node:fs';
 import { copyFile, link, stat, unlink } from 'node:fs/promises';
@@ -103,10 +104,16 @@ export async function completeDownloadFromPartial(
 ): Promise<void> {
     let fileSize: number;
     try {
-        fileSize = await finalizePartialDownload(
-            reservation,
-            progress.bytesDownloaded
-        );
+        fileSize = task.catchup
+            ? await finalizeCatchupPartial(
+                  reservation,
+                  task.catchupPartialIdentity,
+                  progress.bytesDownloaded
+              )
+            : await finalizePartialDownload(
+                  reservation,
+                  progress.bytesDownloaded
+              );
     } catch (error) {
         if (task.cancelRequested || task.pauseRequested) {
             throw error;

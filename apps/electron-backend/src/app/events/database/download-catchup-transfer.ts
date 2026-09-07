@@ -112,13 +112,11 @@ export async function transferCatchupToPartialFile(
                 } else callback(null, chunk);
             },
         });
-        await pipeline(
-            readable,
-            createTsValidator(),
-            progress,
-            await openCatchupOutput(reservation.partialPath),
-            { signal: controller.signal }
-        );
+        const output = await openCatchupOutput(reservation.partialPath);
+        task.catchupPartialIdentity = output.identity;
+        await pipeline(readable, createTsValidator(), progress, output.stream, {
+            signal: controller.signal,
+        });
         if (totalBytes !== null && bytesDownloaded !== totalBytes) {
             throw new Error('The archive stream ended before it was complete');
         }

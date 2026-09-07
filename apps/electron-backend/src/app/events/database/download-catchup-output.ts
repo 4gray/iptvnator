@@ -1,10 +1,15 @@
 import { constants, type WriteStream } from 'node:fs';
 import { lstat, open } from 'node:fs/promises';
 
+export interface ArchiveFileIdentity {
+    readonly dev: number;
+    readonly ino: number;
+}
+
 /** Open without truncation first: a replaced partial must not damage its target. */
 export async function openCatchupOutput(
     partialPath: string
-): Promise<WriteStream> {
+): Promise<{ stream: WriteStream; identity: ArchiveFileIdentity }> {
     const before = await lstat(partialPath).catch(
         (error: NodeJS.ErrnoException) => {
             if (error.code === 'ENOENT') return undefined;
@@ -35,7 +40,10 @@ export async function openCatchupOutput(
         }
         await handle.truncate(0);
         // All writes use this verified descriptor; never reopen by pathname.
-        return handle.createWriteStream({ autoClose: true });
+        return {
+            stream: handle.createWriteStream({ autoClose: true }),
+            identity: { dev: current.dev, ino: current.ino },
+        };
     } catch (error) {
         await handle.close();
         throw error;
