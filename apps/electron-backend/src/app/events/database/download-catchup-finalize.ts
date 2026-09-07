@@ -28,7 +28,8 @@ export async function finalizeCatchupPartial(
     identity: ArchiveFileIdentity | undefined,
     size: number,
     recordProof?: (identity: ArchiveFileIdentity) => Promise<void>,
-    shouldInterrupt: () => boolean = () => false
+    shouldInterrupt: () => boolean = () => false,
+    beginCommit: () => void = () => undefined
 ): Promise<{ size: number; identity: ArchiveFileIdentity }> {
     const checkInterruption = () => {
         if (shouldInterrupt()) throw new Error('Archive promotion interrupted');
@@ -114,6 +115,9 @@ export async function finalizeCatchupPartial(
         checkInterruption();
         verify(await lstat(reservation.path), created, size);
         checkInterruption();
+        // Publication is verified. Fence new commands before awaited cleanup
+        // and the completion write; accepted commands were handled above.
+        beginCommit();
         await cleanupCatchupFile(reservation.partialPath, identity).catch(
             () => undefined
         );

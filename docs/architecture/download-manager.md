@@ -73,7 +73,11 @@ before truncation or writes; a rejected replacement keeps its journal for retry.
 recovery after a transient completion DB error without waiting for a restart.
 Fallback copying observes pause/cancel between bounded 64 KiB reads/writes and
 before publication completes. Interruption removes only the owned copy and
-leaves the source for the runtime pause/cancel handler.
+leaves the source for the runtime pause/cancel handler. Once publication identity
+and size pass the final check, the task synchronously enters completion commit
+before awaited partial cleanup and the SQLite completion write. Pause/cancel then
+return false without setting flags; a command is never accepted and subsequently
+overwritten by completion.
 A kill between exclusive copy-file creation and its identity journal commit can
 leave an unowned **empty** destination: no bytes are written before the commit.
 Recovery preserves that file rather than guessing ownership; Retry uses a

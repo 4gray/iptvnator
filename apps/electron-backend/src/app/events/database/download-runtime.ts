@@ -57,8 +57,7 @@ export function enqueueDownload(task: DownloadTask): void {
 
 export async function pauseDownload(downloadId: number): Promise<boolean> {
     if (activeDownload?.id === downloadId) {
-        requestDownloadPause(activeDownload);
-        return true;
+        return requestDownloadPause(activeDownload);
     }
 
     const queueIndex = downloadQueue.findIndex(
@@ -84,8 +83,7 @@ export async function pauseDownload(downloadId: number): Promise<boolean> {
 
 export async function cancelDownload(downloadId: number): Promise<boolean> {
     if (activeDownload?.id === downloadId) {
-        requestDownloadCancellation(activeDownload);
-        return true;
+        return requestDownloadCancellation(activeDownload);
     }
 
     const queueIndex = downloadQueue.findIndex(

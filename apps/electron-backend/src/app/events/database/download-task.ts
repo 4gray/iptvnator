@@ -17,6 +17,7 @@ export interface DownloadTask {
     catchup?: CatchupDownloadMetadata;
     catchupPartialIdentity?: ArchiveFileIdentity;
     catchupExpectedPartialIdentity?: ArchiveFileIdentity;
+    catchupCommitStarted?: boolean;
     catchupFinalized?: {
         filePath: string;
         identity: ArchiveFileIdentity;
@@ -52,12 +53,16 @@ export interface DownloadTask {
     probeEof?: boolean;
 }
 
-export function requestDownloadCancellation(task: DownloadTask): void {
+export function requestDownloadCancellation(task: DownloadTask): boolean {
+    if (task.catchupCommitStarted) return false;
     task.cancelRequested = true;
     task.abortController?.abort();
+    return true;
 }
 
-export function requestDownloadPause(task: DownloadTask): void {
+export function requestDownloadPause(task: DownloadTask): boolean {
+    if (task.catchupCommitStarted) return false;
     task.pauseRequested = true;
     task.abortController?.abort();
+    return true;
 }

@@ -138,7 +138,8 @@ export async function completeDownloadFromPartial(
                         partialIdentity,
                         finalIdentity,
                     }),
-                () => !!(task.cancelRequested || task.pauseRequested)
+                () => !!(task.cancelRequested || task.pauseRequested),
+                () => (task.catchupCommitStarted = true)
             );
             task.catchupFinalized = {
                 ...finalized,

@@ -10,10 +10,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import { transferCatchupToPartialFile } from './download-catchup-transfer';
-import { enqueueDownload } from './download-runtime';
+import {
+    enqueueDownload,
+    pauseDownload,
+    cancelDownload,
+} from './download-runtime';
+import { cleanupCatchupFile } from './download-catchup-cleanup';
 import { readArchiveFinalizations } from './download-catchup-journal';
 import type { DownloadTask } from './download-task';
 
+jest.mock('./download-catchup-cleanup', () => {
+    const actual = jest.requireActual('./download-catchup-cleanup');
+    return {
+        ...actual,
+        cleanupCatchupFile: jest.fn(actual.cleanupCatchupFile),
+    };
+});
 jest.mock('./download-catchup-journal', () => ({
     recordArchiveFinalization: jest.fn().mockResolvedValue(undefined),
     clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
@@ -179,10 +191,27 @@ it.each([1880, null])(
                 };
             }
         );
+        const lateCommands: boolean[] = [];
+        jest.mocked(cleanupCatchupFile).mockImplementationOnce(
+            async (path, identity) => {
+                // The file is verified, but cleanup is still awaiting filesystem I/O.
+                expect(path).toBe(join(directory, 'show.ts.part'));
+                lateCommands.push(await pauseDownload(task.id));
+                lateCommands.push(await cancelDownload(task.id));
+                expect(task.pauseRequested).not.toBe(true);
+                expect(task.cancelRequested).not.toBe(true);
+                return jest
+                    .requireActual<typeof import('./download-catchup-cleanup')>(
+                        './download-catchup-cleanup'
+                    )
+                    .cleanupCatchupFile(path, identity);
+            }
+        );
         try {
             enqueueDownload(task);
             await settled;
             await new Promise((resolve) => setImmediate(resolve));
+            expect(lateCommands).toEqual([false, false]);
             expect(terminalStatus).toBe('completed');
             expect(completionAttempts).toBe(2);
             expect(await readFile(join(directory, 'show.ts'))).toEqual(body);
