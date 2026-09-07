@@ -2,7 +2,7 @@ import {
     getDownloadPlayPaths,
     installDownloadPlayCapture,
 } from './downloads.e2e-support';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import {
@@ -21,6 +21,7 @@ import {
     switchUnifiedCollectionScope,
     test,
     waitForXtreamWorkspaceReady,
+    workspaceRoot,
 } from './electron-test-fixtures';
 import { fetchXtreamEpgFixture } from './portal-mock-fixtures';
 
@@ -429,7 +430,51 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
         await expect(app.mainWindow).toHaveURL(
             /\/workspace\/downloads(?:\?.*)?$/
         );
-        // Library remains usable after a restart, including archive metadata.
+        // Model termination after verified promotion but before the completion
+        // DB write, including a response without Content-Length. Keep only the
+        // real SQLite journal written by the transfer; the next process has no task.
+        const durableProof = await app.electronApp.evaluate(
+            (_electron, { dependency, file, id }) => {
+                const Database = process
+                    .getBuiltinModule('module')
+                    .createRequire(dependency)(dependency);
+                const db = new Database(file);
+                try {
+                    const journal = db
+                        .prepare(
+                            'SELECT proof FROM download_archive_finalizations WHERE download_id=?'
+                        )
+                        .get(id) as { proof: string } | undefined;
+                    if (!journal)
+                        throw new Error(
+                            'Archive promotion journal was not persisted'
+                        );
+                    db.prepare(
+                        "UPDATE downloads SET status='downloading', total_bytes=NULL WHERE id=?"
+                    ).run(id);
+                    return JSON.parse(journal.proof) as {
+                        version: number;
+                        filePath: string;
+                        size: number;
+                    };
+                } finally {
+                    db.close();
+                }
+            },
+            {
+                dependency: join(workspaceRoot, 'node_modules/better-sqlite3'),
+                file: join(dataDir, 'databases/iptvnator.db'),
+                id: row.id,
+            }
+        );
+        expect(durableProof).toEqual(
+            expect.objectContaining({
+                version: 1,
+                filePath: row.filePath,
+                size: readFileSync(row.filePath).length,
+            })
+        );
+        // Library remains usable after recovery, including archive metadata.
         app = await restartElectronApp(app, dataDir, {
             env: { TZ: VIEWER_TIMEZONE },
         });
@@ -439,6 +484,22 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
         await expect(
             app.mainWindow.getByTestId(`download-library-catchup-${row.id}`)
         ).toBeVisible();
+        const recovered = await app.mainWindow.evaluate(async () =>
+            (await window.electron.downloadsGetList()).find(
+                (entry) => entry.contentType === 'catchup'
+            )
+        );
+        expect(recovered).toEqual(
+            expect.objectContaining({
+                id: row.id,
+                status: 'completed',
+                filePath: row.filePath,
+                totalBytes: durableProof.size,
+            })
+        );
+        expect(
+            readdirSync(folder).filter((name) => name.endsWith('.ts'))
+        ).toHaveLength(1);
     } finally {
         await closeElectronApp(app);
     }

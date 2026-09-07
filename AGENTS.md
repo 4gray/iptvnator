@@ -1034,7 +1034,11 @@ Desktop Xtream Live TV programme details can enqueue completed catch-up as
 `contentType: catchup`. The queue uses the existing timeshift resolver, original
 timestamps and playback headers. `programme_start` plus playlist/channel provides
 identity; JSON `catchup` metadata retains channel, broadcast window and known
-expiry. `download-schema.ts` owns the transactional CHECK/index migration.
+expiry. `download-schema.ts` owns the transactional CHECK/index migration;
+`download-tables.ts` exports the download tables. The cascading
+`download_archive_finalizations` table records write-ahead file identity/size
+proof before promotion (before writing a fallback copy), allowing startup to
+recover completed unknown-length archives and clean only their owned partials.
 Archive transfers validate TS framing, restart from byte zero after interruption
 and check expiry again at transfer start. Completed cards play locally and never
 route to VOD details. Contract and EOF/duration limits:

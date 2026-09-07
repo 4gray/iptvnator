@@ -26,7 +26,8 @@ function verify(
 export async function finalizeCatchupPartial(
     reservation: ReservedPartialDownloadFile,
     identity: ArchiveFileIdentity | undefined,
-    size: number
+    size: number,
+    recordProof?: (identity: ArchiveFileIdentity) => Promise<void>
 ): Promise<{ size: number; identity: ArchiveFileIdentity }> {
     if (!identity) throw new Error('Archive transfer identity is unavailable');
     verify(await lstat(reservation.partialPath), identity, size);
@@ -37,6 +38,9 @@ export async function finalizeCatchupPartial(
     let created: ArchiveFileIdentity | undefined;
     try {
         verify(await source.stat(), identity, size);
+        // A hardlink can become complete immediately: persist its expected
+        // identity before publishing it, while the verified partial still exists.
+        await recordProof?.(identity);
         try {
             await link(reservation.partialPath, reservation.path);
             // The link we created belongs to the verified source, even if
@@ -63,6 +67,9 @@ export async function finalizeCatchupPartial(
             const target = await open(reservation.path, 'wx', 0o600);
             try {
                 created = await target.stat();
+                // For a copy, record the exclusively created target identity
+                // before the first byte, so a complete file never lacks proof.
+                await recordProof?.(created);
                 const buffer = Buffer.alloc(64 * 1024);
                 let position = 0;
                 while (position < size) {

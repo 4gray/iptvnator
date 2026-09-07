@@ -132,6 +132,46 @@ describe('archive file promotion', () => {
             code: 'ENOENT',
         });
     });
+    it.each(['hardlink', 'copy'])(
+        'records write-ahead identity before %s can publish complete bytes',
+        async (mode) => {
+            const { reservation, identity } = await prepare();
+            if (mode === 'copy')
+                jest.mocked(link).mockRejectedValueOnce(
+                    Object.assign(new Error('unsupported'), { code: 'ENOTSUP' })
+                );
+            let checkpoints = 0;
+            await finalizeCatchupPartial(
+                reservation,
+                identity,
+                identity.size,
+                async (expected) => {
+                    checkpoints++;
+                    if (checkpoints === 1) {
+                        expect(expected).toEqual(
+                            expect.objectContaining({
+                                dev: identity.dev,
+                                ino: identity.ino,
+                            })
+                        );
+                        await expect(
+                            lstat(reservation.path)
+                        ).rejects.toMatchObject({ code: 'ENOENT' });
+                    } else {
+                        const created = await lstat(reservation.path);
+                        expect(created).toEqual(
+                            expect.objectContaining({
+                                dev: expected.dev,
+                                ino: expected.ino,
+                                size: 0,
+                            })
+                        );
+                    }
+                }
+            );
+            expect(checkpoints).toBe(mode === 'copy' ? 2 : 1);
+        }
+    );
     it('never overwrites an occupied final destination', async () => {
         const { reservation, identity } = await prepare();
         await writeFile(reservation.path, 'keep me');

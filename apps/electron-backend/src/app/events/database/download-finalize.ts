@@ -1,3 +1,4 @@
+import { recordArchiveFinalization } from './download-catchup-journal';
 import { finalizePartialDownload } from './download-file-finalize';
 import { cleanupCatchupPartial } from './download-catchup-cleanup';
 import {
@@ -120,10 +121,21 @@ export async function completeDownloadFromPartial(
     let fileSize: number;
     try {
         if (task.catchup) {
+            const partialIdentity = task.catchupPartialIdentity;
+            if (!partialIdentity)
+                throw new Error('Archive transfer identity is unavailable');
             const finalized = await finalizeCatchupPartial(
                 reservation,
                 task.catchupPartialIdentity,
-                progress.bytesDownloaded
+                progress.bytesDownloaded,
+                (finalIdentity) =>
+                    recordArchiveFinalization(db, task.id, {
+                        version: 1,
+                        filePath: reservation.path,
+                        size: progress.bytesDownloaded,
+                        partialIdentity,
+                        finalIdentity,
+                    })
             );
             task.catchupFinalized = {
                 ...finalized,

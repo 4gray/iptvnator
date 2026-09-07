@@ -13,6 +13,9 @@ import { transferCatchupToPartialFile } from './download-catchup-transfer';
 import { enqueueDownload } from './download-runtime';
 import type { DownloadTask } from './download-task';
 
+jest.mock('./download-catchup-journal', () => ({
+    recordArchiveFinalization: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock('../../database/connection', () => ({ getDatabase: jest.fn() }));
 jest.mock('./download-catchup-transfer', () => ({
     transferCatchupToPartialFile: jest.fn(),

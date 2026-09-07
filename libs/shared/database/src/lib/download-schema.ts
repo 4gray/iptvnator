@@ -32,6 +32,11 @@ export const DOWNLOADS_INDEX_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
 ];
 
+const ARCHIVE_FINALIZATIONS_SQL = `CREATE TABLE IF NOT EXISTS download_archive_finalizations (
+    download_id INTEGER PRIMARY KEY REFERENCES downloads(id) ON DELETE CASCADE,
+    proof TEXT NOT NULL
+)`;
+
 const CATCHUP_INDEX = `CREATE UNIQUE INDEX IF NOT EXISTS downloads_catchup_unique
     ON downloads(xtream_id, playlist_id, programme_start) WHERE content_type = 'catchup'`;
 
@@ -45,6 +50,7 @@ export function ensureDownloadsCatchupSchema(db: Database.Database): void {
     if (!row) return;
     if (row.sql.includes("'catchup'")) {
         db.exec(CATCHUP_INDEX);
+        db.exec(ARCHIVE_FINALIZATIONS_SQL);
         return;
     }
     const columns = [
@@ -83,5 +89,6 @@ export function ensureDownloadsCatchupSchema(db: Database.Database): void {
         db.exec('DROP TABLE downloads_catchup_legacy');
         for (const statement of DOWNLOADS_INDEX_STATEMENTS) db.exec(statement);
         db.exec(CATCHUP_INDEX);
+        db.exec(ARCHIVE_FINALIZATIONS_SQL);
     })();
 }

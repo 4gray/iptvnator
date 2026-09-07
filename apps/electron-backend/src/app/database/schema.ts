@@ -16,6 +16,7 @@ export {
     epgPrograms,
     playbackPositions,
     downloads,
+    downloadArchiveFinalizations,
     recordings,
     appState,
     // Types

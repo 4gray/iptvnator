@@ -1,3 +1,12 @@
+import {
+    cleanupCatchupFile,
+    cleanupCatchupPartial,
+} from './download-catchup-cleanup';
+import {
+    readArchiveFinalizations,
+    verifiedArchiveSize,
+    type ArchiveFinalizationProof,
+} from './download-catchup-journal';
 import { inArray, sql } from 'drizzle-orm';
 import { statSync } from 'node:fs';
 import { getDatabase } from '../../database/connection';
@@ -8,6 +17,8 @@ import {
 } from './download-file-path';
 
 interface StaleDownload {
+    contentType?: string;
+    proof?: ArchiveFinalizationProof;
     filePath: string | null;
     id: number;
     status: string;
@@ -40,6 +51,10 @@ function getRecoverablePartialSize(download: StaleDownload): number {
  * commits the completion instead of orphaning the file and re-downloading.
  */
 function getFinalizedFileSize(download: StaleDownload): number | null {
+    if (download.contentType === 'catchup')
+        return download.status === 'downloading'
+            ? verifiedArchiveSize(download.filePath, download.proof)
+            : null;
     if (
         download.status !== 'downloading' ||
         !download.filePath ||
@@ -58,7 +73,12 @@ function getFinalizedFileSize(download: StaleDownload): number | null {
     }
 }
 
-function removeFailedPartial(download: StaleDownload): boolean {
+async function removeFailedPartial(download: StaleDownload): Promise<boolean> {
+    if (download.contentType === 'catchup')
+        return cleanupCatchupPartial(
+            download.filePath,
+            download.proof?.partialIdentity
+        );
     if (!download.filePath) {
         return true;
     }
@@ -76,7 +96,14 @@ function removeFailedPartial(download: StaleDownload): boolean {
     }
 }
 
-function removeCompletedPartial(download: StaleDownload): void {
+async function removeCompletedPartial(download: StaleDownload): Promise<void> {
+    if (download.contentType === 'catchup') {
+        await cleanupCatchupPartial(
+            download.filePath,
+            download.proof?.partialIdentity
+        );
+        return;
+    }
     if (!download.filePath) {
         return;
     }
@@ -95,9 +122,10 @@ function removeCompletedPartial(download: StaleDownload): void {
 export async function resetStaleDownloads(): Promise<void> {
     try {
         const db = await getDatabase();
-        const downloads = await db
+        const rows = await db
             .select({
                 filePath: schema.downloads.filePath,
+                contentType: schema.downloads.contentType,
                 id: schema.downloads.id,
                 status: schema.downloads.status,
                 totalBytes: schema.downloads.totalBytes,
@@ -110,6 +138,19 @@ export async function resetStaleDownloads(): Promise<void> {
                     'completed',
                 ])
             );
+        const proofs = await readArchiveFinalizations(
+            db,
+            rows
+                .filter((row) => row.contentType === 'catchup')
+                .map((row) => row.id)
+        );
+        const downloads = rows.map((row) => {
+            const proof = proofs.get(row.id);
+            return {
+                ...row,
+                proof: proof?.filePath === row.filePath ? proof : undefined,
+            };
+        });
         const completedDownloads = downloads.filter(
             (download) => download.status === 'completed'
         );
@@ -125,6 +166,21 @@ export async function resetStaleDownloads(): Promise<void> {
         const finalizedIds = new Set(
             finalizedDownloads.map((download) => download.id)
         );
+        // A killed copy may have left an incomplete owned destination. Remove
+        // only that journal-bound entry before resuming the retained source.
+        for (const download of staleDownloads) {
+            if (
+                download.contentType === 'catchup' &&
+                download.proof &&
+                !finalizedIds.has(download.id) &&
+                verifiedArchiveSize(download.filePath, download.proof) === null
+            ) {
+                await cleanupCatchupFile(
+                    download.proof.filePath,
+                    download.proof.finalIdentity
+                ).catch(() => undefined);
+            }
+        }
         // Queued rows are recoverable even without partial bytes: a resumed
         // download waiting behind an active one is persisted as 'queued' with
         // its retained .part, and a never-started queued row loses nothing by
@@ -147,10 +203,12 @@ export async function resetStaleDownloads(): Promise<void> {
                 !recoverableIds.has(download.id) &&
                 !finalizedIds.has(download.id)
         );
-        const cleanupResult = failedDownloads.map((download) => ({
-            ...download,
-            partialRemoved: removeFailedPartial(download),
-        }));
+        const cleanupResult = await Promise.all(
+            failedDownloads.map(async (download) => ({
+                ...download,
+                partialRemoved: await removeFailedPartial(download),
+            }))
+        );
         const failedIdsWithRemovedPartials = cleanupResult
             .filter((download) => download.partialRemoved)
             .map((download) => download.id);
@@ -158,15 +216,16 @@ export async function resetStaleDownloads(): Promise<void> {
             .filter((download) => !download.partialRemoved)
             .map((download) => download.id);
 
-        completedDownloads.forEach(removeCompletedPartial);
+        await Promise.all(completedDownloads.map(removeCompletedPartial));
 
         for (const download of finalizedDownloads) {
             // The interrupted commit may also have left the .part behind.
-            removeCompletedPartial(download);
+            await removeCompletedPartial(download);
             await db
                 .update(schema.downloads)
                 .set({
                     bytesDownloaded: download.finalizedSize,
+                    totalBytes: download.finalizedSize,
                     errorMessage: null,
                     status: 'completed',
                     updatedAt: sql`CURRENT_TIMESTAMP`,
@@ -196,7 +255,9 @@ export async function resetStaleDownloads(): Promise<void> {
                     status: 'failed',
                     updatedAt: sql`CURRENT_TIMESTAMP`,
                 })
-                .where(inArray(schema.downloads.id, failedIdsWithRemovedPartials));
+                .where(
+                    inArray(schema.downloads.id, failedIdsWithRemovedPartials)
+                );
         }
 
         if (failedIdsWithRetainedPartials.length > 0) {
@@ -207,7 +268,9 @@ export async function resetStaleDownloads(): Promise<void> {
                     status: 'failed',
                     updatedAt: sql`CURRENT_TIMESTAMP`,
                 })
-                .where(inArray(schema.downloads.id, failedIdsWithRetainedPartials));
+                .where(
+                    inArray(schema.downloads.id, failedIdsWithRetainedPartials)
+                );
         }
 
         console.log('[Downloads] Reset stale downloads');

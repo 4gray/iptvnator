@@ -55,17 +55,23 @@ the predictable-path check/unlink window; it does not isolate files from
 same-user processes that deliberately enter the private temporary directory.
 Active failure and cancellation use the same captured transfer identity; a
 partial that was never safely opened is preserved instead of being deleted.
-A successfully promoted archive stores its size and final descriptor identity on
-the live task before the completion DB write. If that write fails, recovery can
-retry it only after the final pathname still matches this explicit proof; a
-same-size unverified file cannot authorize completion. This works for both known
-and unknown response lengths.
+`download_archive_finalizations` is a write-ahead SQLite journal keyed by download
+ID (cascade-deleted with the download). It records the path, size, source identity
+and expected final identity **before hardlink promotion**, or before the first
+byte is written to an exclusively created copy destination. Thus even a completed
+unknown-length file has durable proof before the completion-status write. Startup
+requires that proof and a matching regular file, identity and size to recover an
+archive; termination before promotion leaves the verified partial paused. An
+owned incomplete copy is removed by journal identity before the source resumes. The
+journal also makes startup partial cleanup identity-aware and remains with
+completed archives until they are removed. Process-local proof allows immediate
+recovery after a transient completion DB error without waiting for a restart.
 An explicit cancellation of a queued/paused archive captures the selected regular
 partial using the same cleanup helper; symlink entries are preserved.
 A retained archive cannot use the VOD byte-count completion shortcut. Transfers
 have a 30-second idle timeout and a total deadline of twice programme duration
 plus ten minutes, capped at 24 hours. Transfers also stop at the smallest of a
-100 Mbit/s budget for the programme duration plus one minute, 64 GiB, and the
+100 Mbit/s budget for the programme duration plus one minute, 64 GiB, and
 half of the initial available space after subtracting a 1 GiB reserve (reserving a second
 copy for filesystems without hardlinks). The retained partial is safely truncated
 through its verified descriptor before computing this budget, so Resume/Retry
