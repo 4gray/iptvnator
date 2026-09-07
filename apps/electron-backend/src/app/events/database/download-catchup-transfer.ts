@@ -1,3 +1,7 @@
+import {
+    createArchiveByteGuard,
+    getArchiveByteLimit,
+} from './download-catchup-limits';
 import { openCatchupOutput } from './download-catchup-output';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -90,6 +94,11 @@ export async function transferCatchupToPartialFile(
         const length = Number(response.headers['content-length']);
         const totalBytes =
             Number.isSafeInteger(length) && length > 0 ? length : null;
+        const byteLimit = await getArchiveByteLimit(
+            task.directory,
+            metadata.stopTimestamp - metadata.startTimestamp,
+            totalBytes
+        );
         task.totalBytes = totalBytes;
         task.resumeValidator = null;
         await persistTransferStart(db, task, 0, totalBytes);
@@ -114,9 +123,14 @@ export async function transferCatchupToPartialFile(
         });
         const output = await openCatchupOutput(reservation.partialPath);
         task.catchupPartialIdentity = output.identity;
-        await pipeline(readable, createTsValidator(), progress, output.stream, {
-            signal: controller.signal,
-        });
+        await pipeline(
+            readable,
+            createArchiveByteGuard(task.directory, byteLimit),
+            createTsValidator(),
+            progress,
+            output.stream,
+            { signal: controller.signal }
+        );
         if (totalBytes !== null && bytesDownloaded !== totalBytes) {
             throw new Error('The archive stream ended before it was complete');
         }
@@ -124,7 +138,7 @@ export async function transferCatchupToPartialFile(
     } catch {
         // Network errors can embed credential-bearing request URLs.
         throw new Error(
-            'Archive download failed: the stream was interrupted, expired, or is not a complete TS response. Retry starts from the beginning.'
+            'Archive download failed: the stream was interrupted, expired, exceeded the size or free-space limit, or is not a complete TS response. Retry starts from the beginning.'
         );
     } finally {
         clearTimeout(timer);

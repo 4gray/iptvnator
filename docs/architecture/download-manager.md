@@ -45,10 +45,22 @@ An absent partial is created exclusively, so a replaced path cannot redirect wri
 The task retains that descriptor's device/inode identity through promotion:
 `download-catchup-finalize.ts` verifies the source and published file, rejects a
 replaced partial, and copies from the verified descriptor on filesystems without
-hardlinks. Existing destination files are never overwritten.
+hardlinks. Existing destination files are never overwritten. Cleanup atomically
+moves the public pathname into a private temporary directory before checking its
+identity and removing it. A captured replacement is restored with no-clobber
+linking; if restoration is unavailable or the original pathname is occupied,
+the file is retained in `.iptvnator-cleanup-*/entry` and its recovery location
+is logged. Cleanup never recursively deletes a nonempty quarantine. This closes
+the predictable-path check/unlink window; it does not isolate files from
+same-user processes that deliberately enter the private temporary directory.
 A retained archive cannot use the VOD byte-count completion shortcut. Transfers
 have a 30-second idle timeout and a total deadline of twice programme duration
-plus ten minutes, capped at 24 hours. Failure never promotes the partial to the
+plus ten minutes, capped at 24 hours. Transfers also stop at the smallest of a
+100 Mbit/s budget for the programme duration plus one minute, 64 GiB, and the
+initial available space minus a 1 GiB reserve. Known Content-Length values above
+that budget are rejected before writing; unknown-length responses are counted
+before forwarding chunks. Free space is rechecked every 16 MiB to account for
+other disk activity. These safety limits apply to TS archives only. Failure never promotes the partial to the
 library, and errors omit credential-bearing URLs.
 
 Completion means clean HTTP EOF, matching Content-Length when supplied, and

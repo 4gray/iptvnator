@@ -1,5 +1,6 @@
+import { cleanupCatchupFile } from './download-catchup-cleanup';
 import { constants, type Stats } from 'node:fs';
-import { link, lstat, open, unlink } from 'node:fs/promises';
+import { link, lstat, open } from 'node:fs/promises';
 import type { ArchiveFileIdentity } from './download-catchup-output';
 import type { ReservedPartialDownloadFile } from './download-file-path';
 
@@ -44,9 +45,14 @@ export async function finalizeCatchupPartial(
             const code = (error as NodeJS.ErrnoException).code;
             if (
                 created ||
-                !['EPERM', 'EXDEV', 'ENOSYS', 'ENOTSUP', 'EOPNOTSUPP'].includes(
-                    code ?? ''
-                )
+                ![
+                    'EACCES',
+                    'EPERM',
+                    'EXDEV',
+                    'ENOSYS',
+                    'ENOTSUP',
+                    'EOPNOTSUPP',
+                ].includes(code ?? '')
             )
                 throw error;
             // FAT/network filesystems may not support links. Never reopen the
@@ -88,22 +94,15 @@ export async function finalizeCatchupPartial(
             }
         }
         verify(await lstat(reservation.path), created, size);
-        // A replaced .part belongs to somebody else. Leave it untouched.
-        await lstat(reservation.partialPath)
-            .then(async (stats) => {
-                if (stats.isFile() && sameFile(stats, identity))
-                    await unlink(reservation.partialPath);
-            })
-            .catch(() => undefined);
+        await cleanupCatchupFile(reservation.partialPath, identity).catch(
+            () => undefined
+        );
         return size;
     } catch (error) {
         if (created) {
-            const owned = created;
-            await lstat(reservation.path)
-                .then(async (stats) => {
-                    if (sameFile(stats, owned)) await unlink(reservation.path);
-                })
-                .catch(() => undefined);
+            await cleanupCatchupFile(reservation.path, created).catch(
+                () => undefined
+            );
         }
         throw error;
     } finally {

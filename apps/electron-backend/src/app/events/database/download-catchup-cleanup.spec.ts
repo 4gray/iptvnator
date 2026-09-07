@@ -1,0 +1,91 @@
+import {
+    link,
+    lstat,
+    mkdtemp,
+    readdir,
+    readFile,
+    rename,
+    rm,
+    writeFile,
+} from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { cleanupCatchupFile } from './download-catchup-cleanup';
+
+jest.mock('node:fs/promises', () => {
+    const actual = jest.requireActual('node:fs/promises');
+    return {
+        ...actual,
+        rename: jest.fn(actual.rename),
+        link: jest.fn(actual.link),
+    };
+});
+const actual =
+    jest.requireActual<typeof import('node:fs/promises')>('node:fs/promises');
+let directory: string;
+beforeEach(async () => {
+    directory = await mkdtemp(join(tmpdir(), 'archive-cleanup-'));
+    jest.mocked(rename).mockReset().mockImplementation(actual.rename);
+    jest.mocked(link).mockReset().mockImplementation(actual.link);
+});
+afterEach(async () => {
+    await rm(directory, { recursive: true, force: true });
+});
+async function prepare() {
+    const path = join(directory, 'show.ts.part');
+    await writeFile(path, 'archive');
+    return { path, identity: await lstat(path) };
+}
+it('removes the captured owned entry and its empty quarantine', async () => {
+    const { path, identity } = await prepare();
+    await cleanupCatchupFile(path, identity);
+    expect(await readdir(directory)).toEqual([]);
+});
+it('preserves a replacement at the public pathname after atomic capture', async () => {
+    const { path, identity } = await prepare();
+    jest.mocked(rename).mockImplementationOnce(async (from, to) => {
+        await actual.rename(from, to);
+        await writeFile(from, 'replacement');
+    });
+    await cleanupCatchupFile(path, identity);
+    expect(await readFile(path, 'utf8')).toBe('replacement');
+    expect(await readdir(directory)).toEqual(['show.ts.part']);
+});
+it('restores a replacement that arrives before atomic capture', async () => {
+    const { path, identity } = await prepare();
+    jest.mocked(rename).mockImplementationOnce(async (from, to) => {
+        await actual.rename(from, join(directory, 'original'));
+        await writeFile(from, 'replacement');
+        await actual.rename(from, to);
+    });
+    await cleanupCatchupFile(path, identity);
+    expect(await readFile(path, 'utf8')).toBe('replacement');
+    expect(await readFile(join(directory, 'original'), 'utf8')).toBe('archive');
+});
+it.each(['EEXIST', 'ENOTSUP'])(
+    'retains a captured replacement if restoring it fails with %s',
+    async (code) => {
+        const { path, identity } = await prepare();
+        await actual.rename(path, join(directory, 'original'));
+        await writeFile(path, 'replacement');
+        jest.mocked(link).mockRejectedValueOnce(
+            Object.assign(new Error('cannot restore'), { code })
+        );
+        const warning = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        try {
+            await cleanupCatchupFile(path, identity);
+            const quarantine = (await readdir(directory)).find((entry) =>
+                entry.startsWith('.iptvnator-cleanup-')
+            );
+            expect(quarantine).toBeDefined();
+            expect(
+                await readFile(join(directory, quarantine!, 'entry'), 'utf8')
+            ).toBe('replacement');
+            expect(warning).toHaveBeenCalled();
+        } finally {
+            warning.mockRestore();
+        }
+    }
+);

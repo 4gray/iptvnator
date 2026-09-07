@@ -71,23 +71,26 @@ describe('archive file promotion', () => {
             'untrusted bytes'
         );
     });
-    it('copies from the verified descriptor on filesystems without hardlinks', async () => {
-        const { reservation, identity } = await prepare();
-        jest.mocked(link).mockImplementationOnce(async (from) => {
-            await rename(from, join(directory, 'original'));
-            await writeFile(from, 'untrusted bytes');
-            throw Object.assign(new Error('unsupported'), { code: 'ENOTSUP' });
-        });
-        await expect(
-            finalizeCatchupPartial(reservation, identity, identity.size)
-        ).resolves.toBe(identity.size);
-        expect(await readFile(reservation.path, 'utf8')).toBe(
-            'validated bytes'
-        );
-        expect(await readFile(reservation.partialPath, 'utf8')).toBe(
-            'untrusted bytes'
-        );
-    });
+    it.each(['ENOTSUP', 'EACCES'])(
+        'copies from the verified descriptor when hardlinks fail with %s',
+        async (code) => {
+            const { reservation, identity } = await prepare();
+            jest.mocked(link).mockImplementationOnce(async (from) => {
+                await rename(from, join(directory, 'original'));
+                await writeFile(from, 'untrusted bytes');
+                throw Object.assign(new Error('unsupported'), { code });
+            });
+            await expect(
+                finalizeCatchupPartial(reservation, identity, identity.size)
+            ).resolves.toBe(identity.size);
+            expect(await readFile(reservation.path, 'utf8')).toBe(
+                'validated bytes'
+            );
+            expect(await readFile(reservation.partialPath, 'utf8')).toBe(
+                'untrusted bytes'
+            );
+        }
+    );
     it('promotes the verified file and removes its partial', async () => {
         const { reservation, identity } = await prepare();
         await expect(
