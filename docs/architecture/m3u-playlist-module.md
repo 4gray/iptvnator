@@ -87,8 +87,8 @@ Source inventory reads recreate the storage request for one automatic retry
 after 300 ms. Exhausted retries emit `Load Playlists Failure` without raw error
 details and leave `allPlaylistsLoaded` false. The startup error offers Retry,
 which dispatches a fresh load without restarting or changing saved sources.
-Before publishing a successful inventory, the effect waits for any active EPG
-reconciliation and retries the last failed synchronization using its committed,
+Before publishing a successful inventory, the effect waits for settings loading
+to register initial cleanup, then waits for any active EPG reconciliation and retries the last failed synchronization using its committed,
 normalized global URLs. A settings-read failure never supplies defaults to this
 retry; a newer successful synchronization clears the failure instead of replaying
 an older source set. Repeated cleanup failure leaves Retry available.

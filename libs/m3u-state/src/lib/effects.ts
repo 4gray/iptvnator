@@ -268,9 +268,13 @@ export class PlaylistEffects {
                     // A final failure is state, not an empty source inventory.
                     retry({ count: 1, delay: 300 }),
                     switchMap((playlists) =>
-                        from(this.epgSources.retryFailedReconciliation()).pipe(
-                            map(() => playlists)
-                        )
+                        defer(async () => {
+                            // Settings can register initial cleanup after the
+                            // faster inventory read has already completed.
+                            await this.settingsStore.loadSettings();
+                            await this.epgSources.retryFailedReconciliation();
+                            return playlists;
+                        })
                     ),
                     tap((playlists) => {
                         this.fetchPlaylistScopedEpgForPlaylists(playlists);

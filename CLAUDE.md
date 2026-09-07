@@ -339,7 +339,8 @@ replay deleted sources. Contract and recovery limits:
 Startup shows `AppStartupStatusComponent` until the initial route and source
 inventory are ready, including XMLTV reconciliation. Inventory reads retry once;
 failed reads show an explicit Retry action instead of an empty library. Successful
-inventory reads wait for pending XMLTV reconciliation and retry failed cleanup
+inventory reads first await settings loading, then pending XMLTV reconciliation,
+and retry failed cleanup
 with its last committed URLs before exposing the workspace. See the
 same contract for startup readiness and error handling.
 

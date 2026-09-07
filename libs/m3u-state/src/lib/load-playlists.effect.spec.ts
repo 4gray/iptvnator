@@ -19,12 +19,14 @@ describe('PlaylistEffects loadPlaylists$', () => {
     let getAllPlaylists: jest.Mock;
     let effects: PlaylistEffects;
     let retryFailedReconciliation: jest.Mock;
+    let loadSettings: jest.Mock;
 
     beforeEach(() => {
         jest.useFakeTimers();
         actions$ = new Subject();
         getAllPlaylists = jest.fn(() => of([]));
         retryFailedReconciliation = jest.fn().mockResolvedValue(undefined);
+        loadSettings = jest.fn().mockResolvedValue(undefined);
         const injector = Injector.create({
             parent: { get: () => ({}) } as unknown as Injector,
             providers: [
@@ -39,7 +41,10 @@ describe('PlaylistEffects loadPlaylists$', () => {
                 },
                 {
                     provide: SettingsStore,
-                    useValue: { getSettings: () => ({ epgUrl: [] }) },
+                    useValue: {
+                        loadSettings,
+                        getSettings: () => ({ epgUrl: [] }),
+                    },
                 },
             ],
         });
@@ -47,6 +52,37 @@ describe('PlaylistEffects loadPlaylists$', () => {
     });
 
     afterEach(() => jest.useRealTimers());
+
+    it('waits for slow settings to register initial cleanup before publishing inventory', async () => {
+        let finishSettings!: () => void;
+        loadSettings.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                finishSettings = resolve;
+            })
+        );
+        const results: unknown[] = [];
+        const subscription = effects.loadPlaylists$.subscribe((value) =>
+            results.push(value)
+        );
+        actions$.next(PlaylistActions.loadPlaylists());
+        await jest.runAllTimersAsync();
+        expect(getAllPlaylists).toHaveBeenCalledTimes(1);
+        expect(results).toEqual([]);
+        expect(retryFailedReconciliation).not.toHaveBeenCalled();
+        // SettingsStore completes after swallowing the first cleanup failure.
+        retryFailedReconciliation.mockImplementationOnce(() =>
+            Promise.reject(new Error('cleanup still unavailable'))
+        );
+        finishSettings();
+        await jest.runAllTimersAsync();
+        expect(results).toEqual([PlaylistActions.loadPlaylistsFailure()]);
+        actions$.next(PlaylistActions.loadPlaylists());
+        await jest.runAllTimersAsync();
+        expect(results.at(-1)).toEqual(
+            PlaylistActions.loadPlaylistsSuccess({ playlists: [] })
+        );
+        subscription.unsubscribe();
+    });
 
     it('waits for failed EPG reconciliation to recover before exposing sources', async () => {
         let finish!: () => void;
