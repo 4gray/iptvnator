@@ -62,3 +62,11 @@ export function createArchiveByteGuard(
         },
     });
 }
+
+/** Recheck after the output stream closes, including a sub-checkpoint tail. */
+export async function assertArchiveCopyHeadroom(
+    directory: string,
+    finalSize: number
+): Promise<void> {
+    if ((await availableBytes(directory)) < finalSize) throw limitError();
+}

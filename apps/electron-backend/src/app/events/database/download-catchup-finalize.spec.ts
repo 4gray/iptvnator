@@ -99,7 +99,13 @@ describe('archive file promotion', () => {
             });
             await expect(
                 finalizeCatchupPartial(reservation, identity, identity.size)
-            ).resolves.toBe(identity.size);
+            ).resolves.toEqual({
+                size: identity.size,
+                identity: expect.objectContaining({
+                    dev: expect.any(Number),
+                    ino: expect.any(Number),
+                }),
+            });
             expect(await readFile(reservation.path, 'utf8')).toBe(
                 'validated bytes'
             );
@@ -112,7 +118,13 @@ describe('archive file promotion', () => {
         const { reservation, identity } = await prepare();
         await expect(
             finalizeCatchupPartial(reservation, identity, identity.size)
-        ).resolves.toBe(identity.size);
+        ).resolves.toEqual({
+            size: identity.size,
+            identity: expect.objectContaining({
+                dev: expect.any(Number),
+                ino: expect.any(Number),
+            }),
+        });
         expect(await readFile(reservation.path, 'utf8')).toBe(
             'validated bytes'
         );

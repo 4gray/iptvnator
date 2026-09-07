@@ -20,7 +20,10 @@ import {
     getCompletedPartialProgress,
     getExistingCompletedFileProgress,
 } from './download-finalize';
-import { getArchiveByteLimit } from './download-catchup-limits';
+import {
+    assertArchiveCopyHeadroom,
+    getArchiveByteLimit,
+} from './download-catchup-limits';
 import { stat } from 'node:fs/promises';
 
 jest.mock('./download-catchup-limits', () => {
@@ -28,6 +31,7 @@ jest.mock('./download-catchup-limits', () => {
     return {
         ...actual,
         getArchiveByteLimit: jest.fn(actual.getArchiveByteLimit),
+        assertArchiveCopyHeadroom: jest.fn(actual.assertArchiveCopyHeadroom),
     };
 });
 jest.mock('../../util/validated-axios', () => ({
@@ -131,6 +135,17 @@ describe('TS archive transfer', () => {
                 },
                 data: Readable.from([packets]),
             } as never);
+            jest.mocked(assertArchiveCopyHeadroom).mockImplementationOnce(
+                async (directory, size) => {
+                    expect(await readFile(path + '.part')).toEqual(packets);
+                    expect(size).toBe(packets.length);
+                    return jest
+                        .requireActual<
+                            typeof import('./download-catchup-limits')
+                        >('./download-catchup-limits')
+                        .assertArchiveCopyHeadroom(directory, size);
+                }
+            );
             const progress = await transferCatchupToPartialFile(
                 {} as DownloadsDatabase,
                 task,
@@ -230,3 +245,38 @@ it.each(['symlink', 'hardlink'])(
         }
     }
 );
+
+it('requires both finalization proof and unchanged identity to recover completion', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'archive-proof-'));
+    const filePath = join(directory, 'show.ts');
+    try {
+        await writeFile(filePath, packets);
+        const task: DownloadTask = {
+            id: 9,
+            directory,
+            fileName: 'show.ts',
+            filePath,
+            url: 'https://host/show.ts',
+            catchup: metadata,
+            totalBytes: packets.length,
+        };
+        expect(await getExistingCompletedFileProgress(task)).toBeNull();
+        task.catchupFinalized = {
+            filePath,
+            identity: await stat(filePath),
+            size: packets.length,
+        };
+        expect(await getExistingCompletedFileProgress(task)).toEqual({
+            filePath,
+            bytesDownloaded: packets.length,
+            totalBytes: packets.length,
+        });
+        await (
+            await import('node:fs/promises')
+        ).rename(filePath, join(directory, 'original'));
+        await writeFile(filePath, packets);
+        expect(await getExistingCompletedFileProgress(task)).toBeNull();
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});

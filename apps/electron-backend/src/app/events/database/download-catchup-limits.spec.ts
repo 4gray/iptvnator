@@ -3,6 +3,7 @@ import { Readable, Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import {
     ARCHIVE_DISK_RESERVE,
+    assertArchiveCopyHeadroom,
     createArchiveByteGuard,
     getArchiveByteLimit,
 } from './download-catchup-limits';
@@ -69,4 +70,14 @@ it('stops when other disk activity consumes the reserve during transfer', async 
         )
     ).rejects.toThrow('limit');
     expect(written).toBe(0);
+});
+
+it('rechecks copy headroom at EOF, including tails below the periodic checkpoint', async () => {
+    jest.mocked(statfs).mockResolvedValue(disk(ARCHIVE_DISK_RESERVE + 1000));
+    await expect(assertArchiveCopyHeadroom('/downloads', 1001)).rejects.toThrow(
+        'limit'
+    );
+    await expect(
+        assertArchiveCopyHeadroom('/downloads', 1000)
+    ).resolves.toBeUndefined();
 });

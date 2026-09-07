@@ -1,3 +1,4 @@
+import type { DownloadTask, CompletedPartialProgress } from './download-task';
 import { cleanupCatchupFile } from './download-catchup-cleanup';
 import { constants, type Stats } from 'node:fs';
 import { link, lstat, open } from 'node:fs/promises';
@@ -26,7 +27,7 @@ export async function finalizeCatchupPartial(
     reservation: ReservedPartialDownloadFile,
     identity: ArchiveFileIdentity | undefined,
     size: number
-): Promise<number> {
+): Promise<{ size: number; identity: ArchiveFileIdentity }> {
     if (!identity) throw new Error('Archive transfer identity is unavailable');
     verify(await lstat(reservation.partialPath), identity, size);
     const source = await open(
@@ -99,7 +100,7 @@ export async function finalizeCatchupPartial(
         await cleanupCatchupFile(reservation.partialPath, identity).catch(
             () => undefined
         );
-        return size;
+        return { size, identity: { dev: created.dev, ino: created.ino } };
     } catch (error) {
         if (created) {
             await cleanupCatchupFile(reservation.path, created).catch(
@@ -109,5 +110,28 @@ export async function finalizeCatchupPartial(
         throw error;
     } finally {
         await source.close();
+    }
+}
+
+/** A DB retry can reuse completion only with explicit, still-current proof. */
+export async function recoverCatchupCompletion(
+    task: DownloadTask
+): Promise<CompletedPartialProgress | null> {
+    const proof = task.catchupFinalized;
+    if (!proof || proof.filePath !== task.filePath) return null;
+    try {
+        const file = await lstat(proof.filePath);
+        return file.isFile() &&
+            file.dev === proof.identity.dev &&
+            file.ino === proof.identity.ino &&
+            file.size === proof.size
+            ? {
+                  filePath: proof.filePath,
+                  bytesDownloaded: proof.size,
+                  totalBytes: proof.size,
+              }
+            : null;
+    } catch {
+        return null;
     }
 }

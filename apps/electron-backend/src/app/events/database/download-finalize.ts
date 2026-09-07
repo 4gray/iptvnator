@@ -1,6 +1,9 @@
 import { finalizePartialDownload } from './download-file-finalize';
 import { cleanupCatchupPartial } from './download-catchup-cleanup';
-import { finalizeCatchupPartial } from './download-catchup-finalize';
+import {
+    finalizeCatchupPartial,
+    recoverCatchupCompletion,
+} from './download-catchup-finalize';
 import { eq, sql } from 'drizzle-orm';
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -58,7 +61,12 @@ export async function handleDownloadFailure(
     const existingCompletedFileProgress =
         await getExistingCompletedFileProgress(task);
     if (existingCompletedFileProgress) {
-        removePartialFile(existingCompletedFileProgress.filePath);
+        if (task.catchup) {
+            await cleanupCatchupPartial(
+                task.filePath,
+                task.catchupPartialIdentity
+            );
+        } else removePartialFile(existingCompletedFileProgress.filePath);
         await persistCompletion(
             db,
             task,
@@ -111,16 +119,23 @@ export async function completeDownloadFromPartial(
 ): Promise<void> {
     let fileSize: number;
     try {
-        fileSize = task.catchup
-            ? await finalizeCatchupPartial(
-                  reservation,
-                  task.catchupPartialIdentity,
-                  progress.bytesDownloaded
-              )
-            : await finalizePartialDownload(
-                  reservation,
-                  progress.bytesDownloaded
-              );
+        if (task.catchup) {
+            const finalized = await finalizeCatchupPartial(
+                reservation,
+                task.catchupPartialIdentity,
+                progress.bytesDownloaded
+            );
+            task.catchupFinalized = {
+                ...finalized,
+                filePath: reservation.path,
+            };
+            fileSize = finalized.size;
+        } else {
+            fileSize = await finalizePartialDownload(
+                reservation,
+                progress.bytesDownloaded
+            );
+        }
     } catch (error) {
         if (task.cancelRequested || task.pauseRequested) {
             throw error;
@@ -248,7 +263,7 @@ async function persistRetainedPartialFailure(
 export async function getExistingCompletedFileProgress(
     task: DownloadTask
 ): Promise<CompletedPartialProgress | null> {
-    if (task.catchup) return null;
+    if (task.catchup) return recoverCatchupCompletion(task);
     if (
         !task.filePath ||
         task.totalBytes === null ||

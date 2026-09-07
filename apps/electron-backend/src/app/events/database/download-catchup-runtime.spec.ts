@@ -20,6 +20,7 @@ jest.mock('./download-catchup-transfer', () => ({
 jest.mock('./download-broadcast', () => ({
     broadcastDownloadUpdate: jest.fn(),
 }));
+beforeEach(() => jest.mocked(transferCatchupToPartialFile).mockReset());
 
 it.each(['failed', 'canceled'])(
     'preserves a replaced partial when the active archive becomes %s',
@@ -88,6 +89,79 @@ it.each(['failed', 'canceled'])(
             );
         } finally {
             errorLog.mockRestore();
+            await rm(directory, { recursive: true, force: true });
+        }
+    }
+);
+
+it.each([1880, null])(
+    'recovers a verified archive after one completion-write failure (response length %s)',
+    async (totalBytes) => {
+        const directory = await mkdtemp(join(tmpdir(), 'archive-persistence-'));
+        const body = Buffer.alloc(1880, 0x47);
+        const task: DownloadTask = {
+            id: 992,
+            directory,
+            fileName: 'show.ts',
+            url: 'https://provider.test/show.ts',
+            catchup: {
+                channelName: 'News',
+                startTimestamp: 100,
+                stopTimestamp: 200,
+            },
+        };
+        let done!: () => void;
+        const settled = new Promise<void>((resolve) => {
+            done = resolve;
+        });
+        let completionAttempts = 0;
+        let terminalStatus: unknown;
+        const db = {
+            update: () => ({
+                set: (value: Record<string, unknown>) => ({
+                    where: async () => {
+                        if (
+                            value.status === 'completed' &&
+                            ++completionAttempts === 1
+                        )
+                            throw new Error('SQLITE_BUSY');
+                        if (
+                            value.status === 'completed' ||
+                            value.status === 'failed'
+                        ) {
+                            terminalStatus = value.status;
+                            done();
+                        }
+                    },
+                }),
+            }),
+        };
+        jest.mocked(getDatabase).mockResolvedValue(db as never);
+        jest.mocked(transferCatchupToPartialFile).mockImplementationOnce(
+            async (_db, active, reservation) => {
+                await writeFile(reservation.partialPath, body);
+                active.catchupPartialIdentity = await lstat(
+                    reservation.partialPath
+                );
+                active.totalBytes = totalBytes;
+                return {
+                    bytesDownloaded: body.length,
+                    totalBytes: body.length,
+                };
+            }
+        );
+        try {
+            enqueueDownload(task);
+            await settled;
+            await new Promise((resolve) => setImmediate(resolve));
+            expect(terminalStatus).toBe('completed');
+            expect(completionAttempts).toBe(2);
+            expect(await readFile(join(directory, 'show.ts'))).toEqual(body);
+            await expect(
+                lstat(join(directory, 'show.ts.part'))
+            ).rejects.toMatchObject({ code: 'ENOENT' });
+            expect(transferCatchupToPartialFile).toHaveBeenCalledTimes(1);
+        } finally {
             await rm(directory, { recursive: true, force: true });
         }
     }

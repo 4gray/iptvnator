@@ -55,6 +55,11 @@ the predictable-path check/unlink window; it does not isolate files from
 same-user processes that deliberately enter the private temporary directory.
 Active failure and cancellation use the same captured transfer identity; a
 partial that was never safely opened is preserved instead of being deleted.
+A successfully promoted archive stores its size and final descriptor identity on
+the live task before the completion DB write. If that write fails, recovery can
+retry it only after the final pathname still matches this explicit proof; a
+same-size unverified file cannot authorize completion. This works for both known
+and unknown response lengths.
 An explicit cancellation of a queued/paused archive captures the selected regular
 partial using the same cleanup helper; symlink entries are preserved.
 A retained archive cannot use the VOD byte-count completion shortcut. Transfers
@@ -67,7 +72,8 @@ through its verified descriptor before computing this budget, so Resume/Retry
 can reuse its released space. Known Content-Length values above
 that budget are rejected before writing; unknown-length responses are counted
 before forwarding chunks. Free space is rechecked every 16 MiB to account for
-other disk activity. These safety limits apply to TS archives only. Failure never promotes the partial to the
+other disk activity, and copy headroom is checked again against the final byte
+count after the output stream closes, including short tails below that interval. These safety limits apply to TS archives only. Failure never promotes the partial to the
 library, and errors omit credential-bearing URLs.
 
 Completion means clean HTTP EOF, matching Content-Length when supplied, and

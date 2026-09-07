@@ -16,6 +16,11 @@ export interface CompletedPartialProgress extends TransferProgress {
 export interface DownloadTask {
     catchup?: CatchupDownloadMetadata;
     catchupPartialIdentity?: ArchiveFileIdentity;
+    catchupFinalized?: {
+        filePath: string;
+        identity: ArchiveFileIdentity;
+        size: number;
+    };
     id: number;
     url: string;
     fileName: string;

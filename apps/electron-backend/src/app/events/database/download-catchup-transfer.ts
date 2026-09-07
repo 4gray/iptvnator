@@ -1,4 +1,5 @@
 import {
+    assertArchiveCopyHeadroom,
     createArchiveByteGuard,
     getArchiveByteLimit,
 } from './download-catchup-limits';
@@ -138,6 +139,7 @@ export async function transferCatchupToPartialFile(
         if (totalBytes !== null && bytesDownloaded !== totalBytes) {
             throw new Error('The archive stream ended before it was complete');
         }
+        await assertArchiveCopyHeadroom(task.directory, bytesDownloaded);
         return { bytesDownloaded, totalBytes: totalBytes ?? bytesDownloaded };
     } catch {
         // Network errors can embed credential-bearing request URLs.
