@@ -41,7 +41,7 @@
                 "{workspaceRoot}/tools/eslint-rules/**/*",
                 "{workspaceRoot}/tools/eslint/**/*"
             ],
-            "command": "eslint \"tools/release/*.mjs\" \"tools/release/capture-release-screenshots.ts\" \"tools/release/capture-app-driver.ts\" \"tools/release/capture-navigation.ts\" \"tools/release/capture-network-gate.ts\" \"tools/release/capture-tmdb-check.ts\""
+            "command": "eslint \"tools/release/*.mjs\" \"tools/release/capture-release-screenshots.ts\" \"tools/release/capture-app-driver.ts\" \"tools/release/capture-navigation.ts\" \"tools/release/capture-navigation-helpers.ts\" \"tools/release/capture-navigation-setup-actions.ts\" \"tools/release/capture-navigation-portal-actions.ts\" \"tools/release/capture-navigation-download-actions.ts\" \"tools/release/capture-network-gate.ts\" \"tools/release/capture-tmdb-check.ts\""
         }
     },
     "tags": [

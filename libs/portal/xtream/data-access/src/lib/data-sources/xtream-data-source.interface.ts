@@ -165,6 +165,23 @@ export interface IXtreamDataSource {
     ): Promise<void>;
 
     /**
+     * Persist the panel clock a successful account-info check learned
+     * (`resolveXtreamServerTimezone`) onto the stored playlist row, which
+     * the Favorites / Recent catch-up resolver reads instead of the store
+     * (issue #1562). Each runtime applies it atomically against the row's
+     * current connection: the write lands only while the row still points
+     * at `credentials`, so an edit that moved the source meanwhile keeps
+     * the clock the edit flow dropped, and a row already carrying the value
+     * is left untouched. Never rejects — a failed write is retried by the
+     * next check.
+     */
+    rememberServerTimezone(
+        playlistId: string,
+        credentials: XtreamCredentials,
+        serverTimezone: string
+    ): Promise<void>;
+
+    /**
      * Delete a playlist and all its data
      */
     deletePlaylist(playlistId: string): Promise<void>;

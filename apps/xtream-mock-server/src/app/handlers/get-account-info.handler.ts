@@ -5,6 +5,19 @@ export function handleGetAccountInfo(req: Request, res: Response): void {
     const { username = '', password = '' } = req.query as Record<string, string>;
     const data = getPortalData(username, password);
     const { scenario } = data;
+    const serverClock = scenario.serverClock ?? {
+        timezone: 'UTC',
+        utcOffsetMinutes: 0,
+    };
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    // A real panel formats `time_now` with `date()` in its own timezone:
+    // the same instant as `timestamp_now`, shifted by the panel's offset.
+    const timeNow = new Date(
+        (nowSeconds + serverClock.utcOffsetMinutes * 60) * 1000
+    )
+        .toISOString()
+        .replace('T', ' ')
+        .replace('.000Z', '');
 
     res.json({
         user_info: {
@@ -26,9 +39,9 @@ export function handleGetAccountInfo(req: Request, res: Response): void {
             https_port: '',
             server_protocol: 'http',
             rtmp_port: '',
-            timezone: 'UTC',
-            timestamp_now: Math.floor(Date.now() / 1000),
-            time_now: new Date().toISOString().replace('T', ' ').replace('.000Z', ''),
+            timezone: serverClock.timezone,
+            timestamp_now: nowSeconds,
+            time_now: timeNow,
         },
     });
 }

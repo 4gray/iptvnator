@@ -391,6 +391,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
+            serverTimezone: playlist.serverTimezone,
         };
 
         const visibleIds = new Set<number>(channels.map((ch) => ch.xtream_id));

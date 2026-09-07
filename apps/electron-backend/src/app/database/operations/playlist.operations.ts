@@ -23,6 +23,11 @@ import {
     reportOperationProgress,
 } from './operation-control';
 import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
+import {
+    playlistConflictUpdate,
+    readPayloadServerTimezone,
+    serverTimezoneInvalidation,
+} from './playlist-server-timezone.operations';
 
 const PLAYLIST_TYPES = {
     XTREAM: 'xtream',
@@ -371,10 +376,13 @@ export async function upsertAppPlaylist(
     }
 
     const write = async () => {
-        await db.insert(schema.playlists).values(row).onConflictDoUpdate({
-            target: schema.playlists.id,
-            set: row,
-        });
+        await db
+            .insert(schema.playlists)
+            .values(row)
+            .onConflictDoUpdate({
+                target: schema.playlists.id,
+                set: playlistConflictUpdate(row, playlist),
+            });
     };
     if (capturePhase) {
         await capturePhase.captureAsync(
@@ -400,20 +408,27 @@ export async function upsertAppPlaylists(
     }
 
     const rows = playlists
-        .map((playlist) => buildPlaylistRow(playlist))
-        .filter((row): row is NonNullable<typeof row> => row !== null);
+        .map((playlist) => ({ playlist, row: buildPlaylistRow(playlist) }))
+        .filter(
+            (
+                entry
+            ): entry is {
+                playlist: Record<string, unknown>;
+                row: NonNullable<typeof entry.row>;
+            } => entry.row !== null
+        );
 
     if (rows.length === 0) {
         return { success: true, count: 0 };
     }
 
     await db.transaction((tx) => {
-        for (const row of rows) {
+        for (const { playlist, row } of rows) {
             tx.insert(schema.playlists)
                 .values(row)
                 .onConflictDoUpdate({
                     target: schema.playlists.id,
-                    set: row,
+                    set: playlistConflictUpdate(row, playlist),
                 })
                 .run();
         }
@@ -563,14 +578,25 @@ export async function getAppPlaylistFavoriteChannels(
     return resolved.sort((a, b) => a.favoriteIndex - b.favoriteIndex);
 }
 
+/**
+ * The raw row plus the fields the Xtream store needs from the JSON payload:
+ * `serverTimezone` has no column, and the store seeds `currentPlaylist`
+ * from this read before (or without) the account-info check that learns
+ * it (issue #1562).
+ */
 export async function getPlaylist(db: AppDatabase, playlistId: string) {
     const result = await db
         .select()
         .from(schema.playlists)
         .where(eq(schema.playlists.id, playlistId))
         .limit(1);
+    const row = result[0];
+    if (!row) {
+        return null;
+    }
 
-    return result[0] || null;
+    const serverTimezone = readPayloadServerTimezone(row.payload);
+    return serverTimezone ? { ...row, serverTimezone } : row;
 }
 
 export async function updatePlaylist(
@@ -586,7 +612,12 @@ export async function updatePlaylist(
 ): Promise<{ success: boolean }> {
     await db
         .update(schema.playlists)
-        .set(updates)
+        .set({
+            ...updates,
+            ...(updates.serverUrl === undefined
+                ? {}
+                : { payload: serverTimezoneInvalidation(updates.serverUrl) }),
+        })
         .where(eq(schema.playlists.id, playlistId));
 
     return { success: true };

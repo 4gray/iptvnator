@@ -12,6 +12,7 @@ import {
     XtreamVodStream,
     XTREAM_REQUEST,
     normalizeXtreamServerUrl,
+    parseXtreamServerLocalDateTime,
 } from '@iptvnator/shared/interfaces';
 import { XtreamAccountInfo } from '../account-info/account-info.interface';
 
@@ -23,6 +24,13 @@ export interface XtreamCredentials {
     serverUrl: string;
     username: string;
     password: string;
+    /**
+     * The panel's timezone as persisted from its account info
+     * (`resolveXtreamServerTimezone`); lets EPG `start`/`end` strings that
+     * arrive without `start_timestamp` be read in the clock the panel wrote
+     * them in instead of the viewer's.
+     */
+    serverTimezone?: string;
 }
 
 /**
@@ -331,7 +339,10 @@ export class XtreamApiService {
             options
         );
 
-        return this.normalizeShortEpgItems(response);
+        return this.normalizeShortEpgItems(
+            response,
+            credentials.serverTimezone
+        );
     }
 
     /**
@@ -354,7 +365,10 @@ export class XtreamApiService {
                 },
                 options
             );
-            const items = this.normalizeFullEpgItems(response);
+            const items = this.normalizeFullEpgItems(
+                response,
+                credentials.serverTimezone
+            );
             if (items.length > 0) {
                 return items;
             }
@@ -373,7 +387,10 @@ export class XtreamApiService {
             options
         );
 
-        return this.normalizeFullEpgItems(fallbackResponse);
+        return this.normalizeFullEpgItems(
+            fallbackResponse,
+            credentials.serverTimezone
+        );
     }
 
     /**
@@ -411,7 +428,10 @@ export class XtreamApiService {
         return Object.values(listings);
     }
 
-    private normalizeShortEpgItems(response: EpgResponse): EpgItem[] {
+    private normalizeShortEpgItems(
+        response: EpgResponse,
+        serverTimezone?: string
+    ): EpgItem[] {
         return this.getEpgListings(response)
             .map((item, index) => {
                 const startTimestamp = this.parseUnixTimestamp(
@@ -422,10 +442,13 @@ export class XtreamApiService {
                 );
                 const normalizedStart =
                     this.toIsoString(startTimestamp) ??
-                    this.normalizeDateString(item.start);
+                    this.normalizeDateString(item.start, serverTimezone);
                 const normalizedStop =
                     this.toIsoString(stopTimestamp) ??
-                    this.normalizeDateString(item.stop ?? item.end);
+                    this.normalizeDateString(
+                        item.stop ?? item.end,
+                        serverTimezone
+                    );
 
                 return {
                     id: String(item.id ?? index),
@@ -459,7 +482,10 @@ export class XtreamApiService {
             );
     }
 
-    private normalizeFullEpgItems(response: EpgResponse): EpgItem[] {
+    private normalizeFullEpgItems(
+        response: EpgResponse,
+        serverTimezone?: string
+    ): EpgItem[] {
         return this.getEpgListings(response)
             .map((item, index) => {
                 const startTimestamp = this.parseUnixTimestamp(
@@ -470,10 +496,13 @@ export class XtreamApiService {
                 );
                 const normalizedStart =
                     this.toIsoString(startTimestamp) ??
-                    this.normalizeDateString(item.start);
+                    this.normalizeDateString(item.start, serverTimezone);
                 const normalizedStop =
                     this.toIsoString(stopTimestamp) ??
-                    this.normalizeDateString(item.stop ?? item.end);
+                    this.normalizeDateString(
+                        item.stop ?? item.end,
+                        serverTimezone
+                    );
 
                 return {
                     id: String(item.id ?? index),
@@ -516,10 +545,27 @@ export class XtreamApiService {
         return timestamp ? new Date(timestamp * 1000).toISOString() : null;
     }
 
-    private normalizeDateString(value: unknown): string {
+    /**
+     * A panel writes `start`/`end` in its own timezone. With that timezone
+     * known the string is converted exactly; without it, `Date.parse` reads
+     * it in the viewer's clock — the best remaining guess, and the reason
+     * `start_timestamp` is preferred whenever present.
+     */
+    private normalizeDateString(
+        value: unknown,
+        serverTimezone?: string
+    ): string {
         const rawValue = String(value ?? '').trim();
         if (!rawValue) {
             return '';
+        }
+
+        const serverLocal = parseXtreamServerLocalDateTime(
+            rawValue,
+            serverTimezone
+        );
+        if (serverLocal !== null) {
+            return new Date(serverLocal * 1000).toISOString();
         }
 
         const parsed = Date.parse(rawValue.replace(' ', 'T'));

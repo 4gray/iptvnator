@@ -129,6 +129,7 @@ export function withEpg() {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    serverTimezone: playlist.serverTimezone,
                 };
             };
 

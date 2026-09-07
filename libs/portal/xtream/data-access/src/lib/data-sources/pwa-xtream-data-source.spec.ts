@@ -15,6 +15,7 @@ describe('PwaXtreamDataSource', () => {
     };
     let playlistsService: {
         getPlaylistById: jest.Mock;
+        transformPlaylistMeta: jest.Mock;
     };
 
     const credentials: XtreamCredentials = {
@@ -31,6 +32,7 @@ describe('PwaXtreamDataSource', () => {
         };
         playlistsService = {
             getPlaylistById: jest.fn(() => of(undefined)),
+            transformPlaylistMeta: jest.fn(() => of(null)),
         };
 
         TestBed.configureTestingModule({
@@ -106,6 +108,73 @@ describe('PwaXtreamDataSource', () => {
         await expect(dataSource.getPlaylist('playlist-1')).resolves.toEqual(
             expect.objectContaining({
                 password: credentials.password,
+            })
+        );
+    });
+
+    it('persists the panel timezone through one IndexedDB transform guarded by the request connection (issue #1562)', async () => {
+        const credentials = {
+            serverUrl: 'http://panel.example:8080',
+            username: 'user',
+            password: 'pass',
+        };
+        const row = {
+            _id: 'playlist-1',
+            title: 'Xtream',
+            ...credentials,
+        };
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Xtream',
+            type: 'xtream',
+            ...credentials,
+        });
+        playlistsService.transformPlaylistMeta.mockImplementation(
+            (_id: string, transform: (current: unknown) => unknown) =>
+                of(transform(row))
+        );
+
+        await dataSource.rememberServerTimezone(
+            'playlist-1',
+            credentials,
+            'UTC+03:00'
+        );
+
+        const [, transform] = playlistsService.transformPlaylistMeta.mock
+            .calls[0] as [string, (current: unknown) => unknown];
+        // The row still points at the panel → written, with the clock.
+        expect(transform(row)).toEqual({ ...row, serverTimezone: 'UTC+03:00' });
+        // Already carrying it, or moved to another panel → no write.
+        expect(transform({ ...row, serverTimezone: 'UTC+03:00' })).toBeNull();
+        expect(
+            transform({ ...row, serverUrl: 'http://moved.example:8080' })
+        ).toBeNull();
+        // The localStorage copy follows the successful write.
+        await expect(dataSource.getPlaylist('playlist-1')).resolves.toEqual(
+            expect.objectContaining({ serverTimezone: 'UTC+03:00' })
+        );
+    });
+
+    it('carries the persisted panel timezone from the IndexedDB row into the store playlist (issue #1562)', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'playlist-1',
+                title: 'Xtream',
+                importDate: '2026-04-01T00:00:00.000Z',
+                lastUsage: '2026-04-01T00:00:00.000Z',
+                count: 0,
+                autoRefresh: false,
+                serverUrl: 'http://panel.example:8080',
+                username: 'user',
+                password: 'pass',
+                serverTimezone: 'UTC+03:00',
+            })
+        );
+
+        await expect(dataSource.getPlaylist('playlist-1')).resolves.toEqual(
+            expect.objectContaining({
+                id: 'playlist-1',
+                serverTimezone: 'UTC+03:00',
             })
         );
     });
@@ -656,12 +725,8 @@ describe('PwaXtreamDataSource', () => {
             expect(setItemSpy).toHaveBeenCalledTimes(1);
             setItemSpy.mockRestore();
 
-            const stored = JSON.parse(
-                localStorage.getItem(storageKey) || '{}'
-            );
-            const playlistRows = stored[
-                'playlist-1'
-            ] as PlaybackPositionData[];
+            const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
+            const playlistRows = stored['playlist-1'] as PlaybackPositionData[];
             expect(playlistRows).toHaveLength(2);
 
             const replaced = playlistRows.find(
@@ -721,9 +786,7 @@ describe('PwaXtreamDataSource', () => {
             expect(setItemSpy).toHaveBeenCalledTimes(1);
             setItemSpy.mockRestore();
 
-            const stored = JSON.parse(
-                localStorage.getItem(storageKey) || '{}'
-            );
+            const stored = JSON.parse(localStorage.getItem(storageKey) || '{}');
             expect(stored['playlist-1']).toEqual([
                 expect.objectContaining({
                     contentXtreamId: 202,

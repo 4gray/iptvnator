@@ -755,6 +755,16 @@ export class PlaylistsService {
             ...(updatedPlaylist.portalUrl != null
                 ? { portalUrl: updatedPlaylist.portalUrl }
                 : {}),
+            // A learned panel clock belongs to the panel it was learned
+            // from: an update that points the source at another server
+            // drops it until the next account-info check, unless the
+            // update itself supplies one (issue #1562).
+            ...(updatedPlaylist.serverTimezone != null
+                ? { serverTimezone: updatedPlaylist.serverTimezone }
+                : updatedPlaylist.serverUrl != null &&
+                    updatedPlaylist.serverUrl !== playlist.serverUrl
+                  ? { serverTimezone: undefined }
+                  : {}),
             ...(updatedPlaylist.isFullStalkerPortal !== undefined
                 ? {
                       isFullStalkerPortal: updatedPlaylist.isFullStalkerPortal,

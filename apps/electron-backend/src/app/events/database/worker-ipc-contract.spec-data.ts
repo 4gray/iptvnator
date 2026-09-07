@@ -41,7 +41,9 @@ const playbackBatchItems = [
         durationSeconds: 1200,
     },
 ];
-const playbackClearBatchItems = [{ contentXtreamId: 42, contentType: 'episode' }];
+const playbackClearBatchItems = [
+    { contentXtreamId: 42, contentType: 'episode' },
+];
 const tmdbCacheEntry = {
     mediaType: 'movie',
     lookupKey: 'id:603',
@@ -112,6 +114,23 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_UPDATE_PLAYLIST',
         args: [playlistId, playlistUpdates],
         payload: { playlistId, updates: playlistUpdates },
+    },
+    {
+        operation: 'DB_SET_PLAYLIST_SERVER_TIMEZONE',
+        args: [
+            playlistId,
+            { serverUrl: 'http://panel.example', username: 'u', password: 'p' },
+            'Europe/London',
+        ],
+        payload: {
+            playlistId,
+            connection: {
+                serverUrl: 'http://panel.example',
+                username: 'u',
+                password: 'p',
+            },
+            serverTimezone: 'Europe/London',
+        },
     },
     {
         operation: 'DB_GET_APP_STATE',

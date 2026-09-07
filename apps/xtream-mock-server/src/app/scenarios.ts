@@ -13,6 +13,14 @@ export interface ScenarioConfig {
     expiryDate: string;
     /** Optional deterministic EPG fixture profile for scenario-specific tests. */
     epgFixture?: 'timezone-focus';
+    /**
+     * Optional `server_info` clock override. `timezone` is reported
+     * verbatim (real panels sometimes send spellings such as `UTC+3` that
+     * no ICU knows), while `time_now` is rendered at `utcOffsetMinutes`
+     * from the epoch so a client can derive the offset from the clock pair
+     * the way it must for such a panel (issue #1562). Default: `UTC`.
+     */
+    serverClock?: { timezone: string; utcOffsetMinutes: number };
     /** Optional deterministic VOD detail profile for metadata fallback tests. */
     vodDetailsFixture?: 'empty-metadata';
     /** Optional fictional release-marketing dataset with local demo artwork. */
@@ -143,6 +151,20 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         accountStatus: 'Active',
         expiryDate: '2099-12-31',
         epgFixture: 'timezone-focus',
+    },
+    'tzoffset:tzoffset': {
+        name: 'epg-fixture-offset-clock',
+        description:
+            'The EPG fixture behind a panel whose timezone name is unusable (`UTC+3`) but whose clock pair reveals a +03:00 offset',
+        seed: 6006,
+        categoryCount: { live: 2, vod: 1, series: 1 },
+        itemsPerCategory: 3,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        epgFixture: 'timezone-focus',
+        serverClock: { timezone: 'UTC+3', utcOffsetMinutes: 180 },
     },
     'emptyvod:emptyvod': {
         name: 'empty-vod-metadata',

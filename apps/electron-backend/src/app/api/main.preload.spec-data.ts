@@ -131,6 +131,20 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [playlistId, playlistUpdates],
     },
     {
+        method: 'dbSetPlaylistServerTimezone',
+        args: [
+            playlistId,
+            { serverUrl: 'http://panel.example', username: 'u', password: 'p' },
+            'Europe/London',
+        ],
+        channel: 'DB_SET_PLAYLIST_SERVER_TIMEZONE',
+        forwardedArgs: [
+            playlistId,
+            { serverUrl: 'http://panel.example', username: 'u', password: 'p' },
+            'Europe/London',
+        ],
+    },
+    {
         method: 'dbDeletePlaylist',
         args: [playlistId, operationId],
         channel: 'DB_DELETE_PLAYLIST',

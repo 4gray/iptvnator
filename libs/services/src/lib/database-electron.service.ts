@@ -57,6 +57,8 @@ export interface XtreamPlaylist {
     username: string;
     password: string;
     type: string;
+    /** Projected from the row payload by `DB_GET_PLAYLIST` (issue #1562). */
+    serverTimezone?: string;
 }
 
 type XtreamDatabasePlaylistUpdate = {
@@ -120,11 +122,7 @@ export interface DbOperationOptions {
 }
 
 export type XtreamImportStatus =
-    | 'idle'
-    | 'importing'
-    | 'completed'
-    | 'cancelled'
-    | 'failed';
+    'idle' | 'importing' | 'completed' | 'cancelled' | 'failed';
 
 export function isDbAbortError(error: unknown): boolean {
     return error instanceof Error && error.name === 'AbortError';
@@ -133,11 +131,7 @@ export function isDbAbortError(error: unknown): boolean {
 export type GlobalRecentlyAddedKind = 'all' | 'vod' | 'series';
 
 export type GlobalRecentlyAddedPlaylistType =
-    | 'xtream'
-    | 'stalker'
-    | 'm3u-file'
-    | 'm3u-text'
-    | 'm3u-url';
+    'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
 
 export interface GlobalRecentlyAddedItem extends XtreamContent {
     playlist_id: string;
@@ -375,6 +369,34 @@ export class DatabaseService {
             return true;
         } catch (error) {
             console.error('Error updating playlist details:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Records the panel clock a successful account-info check learned, as
+     * one conditional UPDATE on the row payload (issue #1562). A no-op when
+     * the row no longer points at the given connection or already carries
+     * the value; never reads before writing, so it cannot undo a concurrent
+     * edit or upsert. Resolves `true` when the row now carries the clock.
+     */
+    async setXtreamPlaylistServerTimezone(
+        playlistId: string,
+        connection: { serverUrl: string; username: string; password: string },
+        serverTimezone: string
+    ): Promise<boolean> {
+        if (!window.electron?.dbSetPlaylistServerTimezone) {
+            return false;
+        }
+        try {
+            await window.electron.dbSetPlaylistServerTimezone(
+                playlistId,
+                connection,
+                serverTimezone
+            );
+            return true;
+        } catch (error) {
+            console.error('Error persisting the portal timezone:', error);
             return false;
         }
     }

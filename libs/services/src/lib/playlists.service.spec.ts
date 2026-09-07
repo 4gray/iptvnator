@@ -652,6 +652,60 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it('drops the learned panel timezone when a metadata update points the source at another server (issue #1562)', async () => {
+        const existingPlaylist = {
+            _id: 'xtream-1',
+            title: 'Portal',
+            serverUrl: 'https://old.example.com',
+            username: 'user',
+            password: 'pass',
+            serverTimezone: 'Europe/London',
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(existingPlaylist)),
+            update: jest.fn((_storeName: string, playlist: Playlist) =>
+                of(playlist)
+            ),
+        };
+        testWindow.electron = undefined;
+        const service = createService(dbService);
+
+        await firstValueFrom(
+            service.updatePlaylistMeta({
+                _id: 'xtream-1',
+                title: 'Portal',
+                serverUrl: 'https://new.example.com',
+            } as PlaylistMeta)
+        );
+        const [, moved] = dbService.update.mock.calls[0];
+        expect(moved.serverUrl).toBe('https://new.example.com');
+        expect(moved.serverTimezone).toBeUndefined();
+
+        dbService.update.mockClear();
+        await firstValueFrom(
+            service.updatePlaylistMeta({
+                _id: 'xtream-1',
+                title: 'Renamed portal',
+                serverUrl: 'https://old.example.com',
+            } as PlaylistMeta)
+        );
+        const [, renamed] = dbService.update.mock.calls[0];
+        expect(renamed.serverTimezone).toBe('Europe/London');
+
+        dbService.update.mockClear();
+        await firstValueFrom(
+            service.updatePlaylistMeta({
+                _id: 'xtream-1',
+                title: 'Portal',
+                serverUrl: 'https://new.example.com',
+                serverTimezone: 'UTC+03:00',
+            } as PlaylistMeta)
+        );
+        const [, relearned] = dbService.update.mock.calls[0];
+        expect(relearned.serverTimezone).toBe('UTC+03:00');
+    });
+
     it('aborts a guarded metadata update in one readwrite transaction when the row no longer matches', async () => {
         const replacementPlaylist = {
             _id: 'stalker-replaced',

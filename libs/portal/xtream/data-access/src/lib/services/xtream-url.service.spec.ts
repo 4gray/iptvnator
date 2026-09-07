@@ -411,5 +411,44 @@ describe('XtreamUrlService', () => {
             const expected = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}:${pad(date.getHours())}-${pad(date.getMinutes())}`;
             expect(url).toContain(expected);
         });
+
+        it('formats in the clock-derived fixed offset persisted for a panel with an unusable timezone name', () => {
+            // 02:00 UTC at UTC+03:00 is 05:00 the same day; at UTC-03:30 it
+            // is 22:30 the previous day.
+            expect(
+                service.constructCatchupUrl(
+                    credentials,
+                    101,
+                    timestamp,
+                    timestamp + 3600,
+                    'rest',
+                    'UTC+03:00'
+                )
+            ).toContain('/60/2025-03-01:05-00/101.ts');
+            expect(
+                service.constructCatchupUrl(
+                    credentials,
+                    101,
+                    timestamp,
+                    timestamp + 3600,
+                    'legacy',
+                    'UTC-03:30'
+                )
+            ).toContain('start=2025-02-28%3A22-30');
+        });
+
+        it('renders server midnight as 00, never 24', () => {
+            // 2025-03-01 05:00:00 UTC = 2025-03-01 00:00 America/New_York
+            const midnightInNewYork = 1740805200;
+            const url = service.constructCatchupUrl(
+                credentials,
+                101,
+                midnightInNewYork,
+                midnightInNewYork + 1800,
+                'rest',
+                'America/New_York'
+            );
+            expect(url).toContain('/30/2025-03-01:00-00/101.ts');
+        });
     });
 });

@@ -104,22 +104,23 @@ media. Barriers and delays are coordination tools, not timing inputs.
 
 ## Available Scenarios (credential pairs)
 
-| Username      | Password      | Scenario               | Live cats | VOD cats | Series cats | Items/cat | Status   |
-| ------------- | ------------- | ---------------------- | --------- | -------- | ----------- | --------- | -------- |
-| `user1`       | `pass1`       | default                | 8         | 8        | 8           | 40        | active   |
-| `large`       | `large`       | large catalog          | 20        | 20       | 20          | 200       | active   |
-| `stress`      | `stress`      | stress catalog         | 16        | 16       | 16          | 120       | active   |
-| `performance` | `performance` | performance-100k       | 60        | 20       | 20          | 1,000     | active   |
-| `series`      | `series`      | series-heavy           | 3         | 4        | 15          | 30        | active   |
-| `minimal`     | `minimal`     | minimal (edge cases)   | 2         | 2        | 2           | 5         | active   |
-| `epg`         | `epg`         | EPG fixture            | 2         | 1        | 1           | 3         | active   |
-| `emptyvod`    | `emptyvod`    | empty VOD metadata     | 2         | 2        | 2           | 5         | active   |
-| `marketing`   | `marketing`   | fictional release demo | 4         | 4        | 4           | curated   | active   |
-| `marketing2`  | `marketing2`  | same catalog, 2nd copy | 4         | 4        | 4           | curated   | active   |
-| `multisrc1`   | `multisrc1`   | multi-source portal A  | 1         | 2        | 1           | 5         | active   |
-| `multisrc2`   | `multisrc2`   | multi-source portal B  | 1         | 2        | 1           | 5         | active   |
-| `expired`     | `expired`     | expired account        | 4         | 4        | 4           | 10        | Expired  |
-| `inactive`    | `inactive`    | disabled account       | 4         | 4        | 4           | 10        | Disabled |
+| Username      | Password      | Scenario                   | Live cats | VOD cats | Series cats | Items/cat | Status   |
+| ------------- | ------------- | -------------------------- | --------- | -------- | ----------- | --------- | -------- |
+| `user1`       | `pass1`       | default                    | 8         | 8        | 8           | 40        | active   |
+| `large`       | `large`       | large catalog              | 20        | 20       | 20          | 200       | active   |
+| `stress`      | `stress`      | stress catalog             | 16        | 16       | 16          | 120       | active   |
+| `performance` | `performance` | performance-100k           | 60        | 20       | 20          | 1,000     | active   |
+| `series`      | `series`      | series-heavy               | 3         | 4        | 15          | 30        | active   |
+| `minimal`     | `minimal`     | minimal (edge cases)       | 2         | 2        | 2           | 5         | active   |
+| `epg`         | `epg`         | EPG fixture                | 2         | 1        | 1           | 3         | active   |
+| `tzoffset`    | `tzoffset`    | EPG fixture, `UTC+3` clock | 2         | 1        | 1           | 3         | active   |
+| `emptyvod`    | `emptyvod`    | empty VOD metadata         | 2         | 2        | 2           | 5         | active   |
+| `marketing`   | `marketing`   | fictional release demo     | 4         | 4        | 4           | curated   | active   |
+| `marketing2`  | `marketing2`  | same catalog, 2nd copy     | 4         | 4        | 4           | curated   | active   |
+| `multisrc1`   | `multisrc1`   | multi-source portal A      | 1         | 2        | 1           | 5         | active   |
+| `multisrc2`   | `multisrc2`   | multi-source portal B      | 1         | 2        | 1           | 5         | active   |
+| `expired`     | `expired`     | expired account            | 4         | 4        | 4           | 10        | Expired  |
+| `inactive`    | `inactive`    | disabled account           | 4         | 4        | 4           | 10        | Disabled |
 
 Any other credential pair is auto-generated using a hash of `username:password` as the faker seed (6 categories, 30 items each, active account).
 
@@ -230,6 +231,7 @@ application code.
 - **Cached per session**: Data generated once on first request, reused until `/reset`
 - **EPG**: Titles and descriptions are base64-encoded (matches real Xtream API)
 - **Dedicated EPG fixture**: `epg:epg` returns stable live channels plus deterministic `get_short_epg` and `get_simple_data_table` payloads for timezone-focused tests
+- **Unusable timezone name**: `tzoffset:tzoffset` serves the same EPG fixture behind a panel whose `server_info.timezone` is the ICU-unknown spelling `UTC+3`, while its `time_now` / `timestamp_now` clock pair reveals a +03:00 offset — the catch-up URL must be derived from the clock pair (issue #1562)
 - **Release screenshot fixture**: `marketing:marketing` returns fictional live, VOD, and series data with local generated artwork under `apps/xtream-mock-server/public/marketing`
 - **Alternative-source fixture**: `marketing2:marketing2` returns the identical marketing catalog under a second credential pair, so a movie added from both looks like the same film in two playlists (the premise of the VOD multi-source chip); guide screenshots seed it as a "backup subscription"
 - **Local download media**: `marketing:marketing` also serves `/movie/...`, `/series/...` and `/live/...` stream URLs from generated bytes (`downloadStreamFixture: 'local-media'`; movies finish in under a second, episodes trickle for about 20 s) so release and guide screenshots of the download manager complete without any request leaving the machine. Other scenarios keep redirecting streams to the public HLS stub.

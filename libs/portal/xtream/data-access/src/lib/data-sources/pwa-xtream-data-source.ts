@@ -128,6 +128,34 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
     }
 
+    async rememberServerTimezone(
+        playlistId: string,
+        credentials: XtreamCredentials,
+        serverTimezone: string
+    ): Promise<void> {
+        try {
+            // `transformPlaylistMeta` runs the read and the write inside
+            // one IndexedDB readwrite cursor transaction, so the
+            // connection check below cannot be overtaken by an edit.
+            const playlistsService = this.injector.get(PlaylistsService);
+            const written = await firstValueFrom(
+                playlistsService.transformPlaylistMeta(playlistId, (row) =>
+                    row.serverUrl !== credentials.serverUrl ||
+                    row.username !== credentials.username ||
+                    row.password !== credentials.password ||
+                    row.serverTimezone === serverTimezone
+                        ? null
+                        : { ...row, serverTimezone }
+                )
+            );
+            if (written) {
+                await this.updatePlaylist(playlistId, { serverTimezone });
+            }
+        } catch (error) {
+            this.logger.error('Failed to persist the portal timezone', error);
+        }
+    }
+
     async deletePlaylist(playlistId: string): Promise<void> {
         const playlists = this.getPlaylistsFromStorage();
         const filtered = playlists.filter((p) => p.id !== playlistId);
@@ -212,6 +240,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             userAgent: playlist.userAgent,
             referrer: playlist.referrer,
             origin: playlist.origin,
+            serverTimezone: playlist.serverTimezone,
         };
     }
 
@@ -388,9 +417,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const cachedContent = this.contentCache.get(cacheKey);
         if (cachedContent) {
             return cachedContent as
-                | XtreamLiveStream[]
-                | XtreamVodStream[]
-                | XtreamSerieItem[];
+                XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[];
         }
 
         // Fetch from API

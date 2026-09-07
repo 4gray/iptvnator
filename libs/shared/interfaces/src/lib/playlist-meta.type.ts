@@ -28,6 +28,7 @@ export type PlaylistMeta = Pick<
     | 'hiddenGroupTitles'
     | 'portalUrl'
     | 'recentlyViewed'
+    | 'serverTimezone'
     | 'isFullStalkerPortal'
     | 'stalkerSerialNumber'
     | 'stalkerDeviceId1'

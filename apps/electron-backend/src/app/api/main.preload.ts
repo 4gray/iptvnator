@@ -749,6 +749,17 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
     dbGetPlaylist: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_PLAYLIST', playlistId),
+    dbSetPlaylistServerTimezone: (
+        playlistId: string,
+        connection: { serverUrl: string; username: string; password: string },
+        serverTimezone: string
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_PLAYLIST_SERVER_TIMEZONE',
+            playlistId,
+            connection,
+            serverTimezone
+        ),
     dbUpsertAppPlaylist: (playlist: Playlist, _operationId?: string) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLIST', playlist),
     dbMigrateAppPlaylists: (playlists: Playlist[]) =>

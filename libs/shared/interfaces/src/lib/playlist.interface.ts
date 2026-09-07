@@ -54,7 +54,14 @@ export interface Playlist {
     recentlyViewed?: PlaylistRecentlyViewedItem[];
     /** Indicates if this is a full stalker portal URL (e.g., /stalker_portal/c) requiring handshake authentication */
     isFullStalkerPortal?: boolean;
-    /** Xtream server timezone string for catch-up URL construction */
+    /**
+     * The Xtream panel's own timezone, learned from `server_info` of the
+     * account-info response and normalized by `resolveXtreamServerTimezone`
+     * (an IANA name, or a clock-derived `UTC±HH:MM`). Persisted on the row so
+     * every catch-up URL builder — the Live TV layout AND the Favorites /
+     * Recent resolver, which reads the stored row — renders programme start
+     * times in the clock the panel's `strtotime()` expects (issue #1562).
+     */
     serverTimezone?: string;
     /** Session token for full stalker portal authentication - persisted for session */
     stalkerToken?: string;
