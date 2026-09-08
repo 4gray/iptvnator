@@ -67,8 +67,8 @@ export async function openCatchupOutput(
             current.nlink !== 1 ||
             (before && !sameArchiveFileIdentity(current, before)) ||
             (before &&
-                expectedIdentity &&
-                !sameArchiveFileIdentity(current, expectedIdentity))
+                (!expectedIdentity ||
+                    !sameArchiveFileIdentity(current, expectedIdentity)))
         ) {
             throw new ArchivePartialReplacedError();
         }

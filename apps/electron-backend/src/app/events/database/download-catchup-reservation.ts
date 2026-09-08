@@ -1,8 +1,13 @@
+import { closeSync, fstatSync, openSync } from 'node:fs';
 import { lstat } from 'node:fs/promises';
 import { cleanupStoredCatchupPartial } from './download-catchup-removal';
-import { clearArchiveFinalization } from './download-catchup-journal';
+import {
+    clearArchiveFinalization,
+    recordArchivePartial,
+} from './download-catchup-journal';
 import {
     ArchivePartialReplacedError,
+    archiveFileIdentity,
     sameArchiveFileIdentity,
 } from './download-catchup-output';
 import { reserveAvailablePartialDownloadFile } from './download-file-path';
@@ -34,6 +39,34 @@ export async function reserveFreshCatchupTarget(
         }
     }
     await clearArchiveFinalization(db, task.id);
+    return reserveOwnedCatchupTarget(db, task);
+}
+
+/** Capture ownership from the exclusive creation descriptor, before any network wait. */
+export async function reserveOwnedCatchupTarget(
+    db: DownloadsDatabase,
+    task: DownloadTask
+) {
     task.catchupExpectedPartialIdentity = undefined;
-    return reserveAvailablePartialDownloadFile(task.directory, task.fileName);
+    const reservation = reserveAvailablePartialDownloadFile(
+        task.directory,
+        task.fileName,
+        (partialPath) => {
+            const descriptor = openSync(partialPath, 'wx', 0o600);
+            try {
+                task.catchupExpectedPartialIdentity = archiveFileIdentity(
+                    fstatSync(descriptor)
+                );
+            } finally {
+                closeSync(descriptor);
+            }
+        }
+    );
+    task.filePath = reservation.path;
+    task.fileName = reservation.filename;
+    const identity = task.catchupExpectedPartialIdentity;
+    if (!identity)
+        throw new Error('Archive reservation identity is unavailable');
+    await recordArchivePartial(db, task.id, reservation.path, identity);
+    return reservation;
 }

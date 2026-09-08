@@ -1,3 +1,4 @@
+import { openCatchupOutput } from './download-catchup-output';
 import {
     mkdtemp,
     lstat,
@@ -12,6 +13,7 @@ import { reserveTarget } from './download-runtime-reservation';
 import { reserveFreshCatchupTarget } from './download-catchup-reservation';
 import {
     clearArchiveFinalization,
+    recordArchivePartial,
     readArchiveFinalizations,
 } from './download-catchup-journal';
 import type { DownloadsDatabase, DownloadTask } from './download-task';
@@ -21,6 +23,7 @@ jest.mock('./download-catchup-journal', () => ({
     clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
     readArchiveFinalizations: jest.fn(),
     recordArchiveCleanupPath: jest.fn(),
+    recordArchivePartial: jest.fn().mockResolvedValue(undefined),
 }));
 
 it.each([false, true])(
@@ -83,7 +86,13 @@ it.each([false, true])(
                 await expect(lstat(filePath + '.part')).rejects.toMatchObject({
                     code: 'ENOENT',
                 });
-                expect(task.catchupExpectedPartialIdentity).toBeUndefined();
+                expect(
+                    await lstat(join(directory, 'show (1).ts.part'))
+                ).toEqual(
+                    expect.objectContaining(
+                        task.catchupExpectedPartialIdentity!
+                    )
+                );
             }
             expect(await readFile(filePath, 'utf8')).toBe('unrelated final');
         } finally {
@@ -126,6 +135,46 @@ it('removes a journaled incomplete final before retrying the retained archive', 
         await expect(lstat(filePath)).rejects.toMatchObject({ code: 'ENOENT' });
         expect(await readFile(filePath + '.part', 'utf8')).toBe(
             'complete source'
+        );
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});
+
+it('binds a fresh reservation before a replacement can arrive during the HTTP wait', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'archive-fresh-owner-'));
+    const task: DownloadTask = {
+        id: 19,
+        directory,
+        fileName: 'show.ts',
+        url: 'https://provider.test/archive.ts',
+        catchup: {
+            channelName: 'News',
+            startTimestamp: 100,
+            stopTimestamp: 200,
+        },
+    };
+    try {
+        const reservation = await reserveTarget({} as DownloadsDatabase, task);
+        expect(recordArchivePartial).toHaveBeenCalledWith(
+            expect.anything(),
+            task.id,
+            reservation.path,
+            task.catchupExpectedPartialIdentity
+        );
+        await rename(reservation.partialPath, join(directory, 'original'));
+        await writeFile(
+            reservation.partialPath,
+            'foreign file created before the response'
+        );
+        await expect(
+            openCatchupOutput(
+                reservation.partialPath,
+                task.catchupExpectedPartialIdentity
+            )
+        ).rejects.toThrow('changed');
+        expect(await readFile(reservation.partialPath, 'utf8')).toBe(
+            'foreign file created before the response'
         );
     } finally {
         await rm(directory, { recursive: true, force: true });

@@ -102,7 +102,10 @@ re-download and repeated programme submissions use journal-backed private
 capture for archive partial cleanup;
 unknown or replaced entries are preserved. Ownership includes a positive file
 creation timestamp as well as device/inode, so inode reuse after unlink cannot
-bless a new entry; proofs lacking creation time remain untrusted. Before capture, a synchronous SQLite
+bless a new entry; proofs lacking creation time remain untrusted. Fresh
+reservations capture this identity from their exclusive creation descriptor and
+journal it before the HTTP wait. Existing partials without matching expected
+ownership are never truncated, including before the first response. Before capture, a synchronous SQLite
 write records `partialCleanupPath` (or `finalCleanupPath` for failed promotion)
 in the existing ownership proof. Active cancellation/failure, promotion and
 startup recovery use the same journal-backed cleanup as manual actions. Cancel,

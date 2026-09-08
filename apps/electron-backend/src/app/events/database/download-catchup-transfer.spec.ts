@@ -123,6 +123,7 @@ describe('TS archive transfer', () => {
         };
         try {
             await writeFile(path + '.part', 'old data');
+            task.catchupExpectedPartialIdentity = await stat(path + '.part');
             jest.mocked(recordArchivePartial).mockImplementationOnce(
                 async (_db, id, filePath, identity) => {
                     expect(filePath).toBe(path);

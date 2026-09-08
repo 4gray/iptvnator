@@ -5,7 +5,10 @@ import {
     verifiedArchiveSize,
 } from './download-catchup-journal';
 import { cleanupStoredCatchupFinal } from './download-catchup-removal';
-import { reserveFreshCatchupTarget } from './download-catchup-reservation';
+import {
+    reserveFreshCatchupTarget,
+    reserveOwnedCatchupTarget,
+} from './download-catchup-reservation';
 import {
     findAvailableFinalPath,
     getPartialDownloadPath,
@@ -62,5 +65,7 @@ export async function reserveTarget(
         };
     }
 
-    return reserveAvailablePartialDownloadFile(task.directory, task.fileName);
+    return task.catchup
+        ? reserveOwnedCatchupTarget(db, task)
+        : reserveAvailablePartialDownloadFile(task.directory, task.fileName);
 }

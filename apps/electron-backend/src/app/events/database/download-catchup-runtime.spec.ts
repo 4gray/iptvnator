@@ -49,6 +49,16 @@ function mockRememberCapture(
 }
 jest.mock('./download-catchup-journal', () => ({
     ...jest.requireActual('./download-catchup-journal'),
+    recordArchivePartial: jest.fn(
+        async (_db, id, filePath, partialIdentity) => {
+            mockProofs.set(id, {
+                version: 1,
+                phase: 'transfer',
+                filePath,
+                partialIdentity,
+            });
+        }
+    ),
     recordArchiveFinalization: jest.fn(async (_db, id, proof) => {
         mockProofs.set(id, proof);
     }),

@@ -278,3 +278,12 @@ it('does not recover a same-size final from a reused inode or a legacy proof wit
         )
     ).toBeUndefined();
 });
+
+it('never truncates a preexisting file without expected ownership', async () => {
+    const record = jest.fn();
+    await expect(
+        openCatchupOutput(filePath + '.part', undefined, record)
+    ).rejects.toThrow('changed');
+    expect(record).not.toHaveBeenCalled();
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
+});
