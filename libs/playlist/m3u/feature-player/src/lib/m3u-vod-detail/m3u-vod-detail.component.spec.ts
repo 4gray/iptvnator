@@ -31,6 +31,7 @@ class StubPortalDetailShellComponent {
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     readonly backLabel = input<string>();
+    readonly backAvailable = input(true);
     readonly playbackActive = input(false);
     readonly backClicked = output<void>();
     readonly closePlayerRequested = output<void>();

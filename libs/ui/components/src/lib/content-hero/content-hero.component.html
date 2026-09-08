@@ -1,14 +1,5 @@
 <!-- Hero Section with Backdrop -->
 <section class="hero">
-    <!-- Back Button -->
-    <button
-        class="hero__back-button"
-        type="button"
-        [attr.aria-label]="backLabel() || ('BACK' | translate)"
-        (click)="onBack()"
-    >
-        <mat-icon aria-hidden="true">arrow_back</mat-icon>
-    </button>
     @if (errorMessage()) {
         <div class="hero__content hero__error">
             <mat-icon class="error-icon">cloud_off</mat-icon>

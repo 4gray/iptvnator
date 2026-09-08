@@ -40,6 +40,48 @@
     --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
 }
 
+.shell__navigation {
+    // Direct child of the scroll owner: sticky lasts through the entire page.
+    position: sticky;
+    top: 16px;
+    height: 0;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.shell__back-button {
+    position: absolute;
+    left: 16px;
+    pointer-events: auto;
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--app-widget-bg, var(--surface-bg));
+    color: var(--app-on-surface, var(--text-primary));
+    border: 1px solid var(--app-separator, var(--tag-border));
+    cursor: pointer;
+
+    &:hover {
+        background: var(--app-card-hover-bg, var(--surface-bg));
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: 2px;
+    }
+
+    mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
+    }
+}
+
 // ============================================================================
 // Hero collapse (browse ↔ watch morph, ~300ms, no height measuring)
 // ============================================================================

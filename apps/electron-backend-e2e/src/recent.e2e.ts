@@ -74,7 +74,9 @@ test.describe('Electron Recently Viewed', () => {
                 'Stable Recent Channel'
             ).first();
             const livePlayer = app.mainWindow
-                .locator('app-unified-live-tab .content-container .video-player')
+                .locator(
+                    'app-unified-live-tab .content-container .video-player'
+                )
                 .first();
 
             await item.click();
@@ -129,7 +131,10 @@ test.describe('Electron Recently Viewed', () => {
                 .poll(() => visibleLiveTitles(app.mainWindow))
                 .toEqual(['Recent Channel Two', 'Recent Channel One']);
 
-            await toggleFavoriteForChannel(app.mainWindow, 'Recent Channel Two');
+            await toggleFavoriteForChannel(
+                app.mainWindow,
+                'Recent Channel Two'
+            );
             await expect
                 .poll(() => visibleLiveTitles(app.mainWindow))
                 .toEqual(['Recent Channel Two', 'Recent Channel One']);
@@ -649,7 +654,7 @@ async function expectUnifiedLiveDetailOpen(
 
 async function goBackFromDetail(page: Page): Promise<void> {
     const backButton = page
-        .locator('app-content-hero .hero__back-button')
+        .locator('app-portal-detail-shell .shell__back-button')
         .first();
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
@@ -677,7 +682,7 @@ async function expectInlineCollectionDetail(
     await expect(page.locator('app-workspace-context-panel')).toHaveCount(0);
     await expect(page.locator('app-content-hero')).toContainText(params.title);
     await expect(
-        page.locator('app-content-hero .hero__back-button').first()
+        page.locator('app-portal-detail-shell .shell__back-button').first()
     ).toBeVisible({ timeout: 20000 });
 }
 

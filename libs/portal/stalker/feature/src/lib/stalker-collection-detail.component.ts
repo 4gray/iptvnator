@@ -80,7 +80,10 @@ import {
                 "
             />
         } @else {
-            <app-portal-detail-shell [isLoading]="true" />
+            <app-portal-detail-shell
+                [isLoading]="true"
+                [backAvailable]="false"
+            />
         }
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,

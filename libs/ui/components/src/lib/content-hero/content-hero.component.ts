@@ -5,7 +5,6 @@ import {
     effect,
     inject,
     input,
-    output,
     signal,
     untracked,
     viewChild,
@@ -37,9 +36,7 @@ export class ContentHeroComponent {
     readonly backdropUrl = input<string>();
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
-    readonly backLabel = input<string>();
 
-    readonly backClicked = output<void>();
     readonly posterError = signal(false);
     private readonly failedBackdropUrl = signal<string | undefined>(undefined);
     readonly backdropSourceUrl = computed(
@@ -122,10 +119,6 @@ export class ContentHeroComponent {
         const h2 = (hue + 60) % 360;
         return `linear-gradient(135deg, hsl(${hue}, 50%, 15%) 0%, hsl(${h2}, 80%, 5%) 100%)`;
     });
-
-    onBack(): void {
-        this.backClicked.emit();
-    }
 
     toggleDescription(): void {
         this.isDescriptionExpanded.update((v) => !v);

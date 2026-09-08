@@ -23,6 +23,27 @@ do not reach global player shortcuts. Descendant controls retain their native
 keys and Tab order. Entering watch still scrolls to the top; Back and saved
 catalog scroll positions retain the existing navigation contract below.
 
+The shell owns a single sticky Back control, outside the collapsing hero. Its
+zero-height wrapper is a direct child of the scroll owner, so the control stays
+16 px from the top throughout long episode lists without shifting the hero.
+The button has an opaque app-themed surface, visible keyboard focus, an Escape
+shortcut tooltip and Electron `no-drag` hit testing.
+
+The sticky control and Escape unwind one level: watch emits
+`closePlayerRequested`, browse emits `backClicked`. Hosts retain their existing
+route/inline/collection return behavior. The now-playing bar's separate route
+Back action still returns directly to the list. Browse Escape requires focus
+inside this shell; watch keeps the existing global close shortcut, including
+M3U playback started from its sidebar. Handled events, key repeats/modifiers,
+editable fields, inert/hidden shells, fullscreen, dialogs and menus are ignored.
+After closing a player, lost focus moves to the sticky control (or the shell
+when there is no browse Back), without scrolling or stealing existing focus.
+
+Hosts without browse navigation set `backAvailable=false`: M3U uses its channel
+sidebar, and collection bootstrap placeholders have no return handler. They
+have no browse button or browse Escape action; M3U watch still offers Close
+player. Loading/error shells with a return handler keep Back available.
+
 ## Summary
 
 - Xtream category browsing uses a route-first detail model.
@@ -30,7 +51,8 @@ catalog scroll positions retain the existing navigation contract below.
 - Detail pages themselves are two-state (browse ↔ watch) inside
   `PortalDetailShellComponent`; entering/leaving watch is a layout state,
   not a navigation. Route-level back semantics are unchanged; the
-  watch-state back button only closes the inline player. See
+  sticky watch control closes the inline player, while the now-playing bar
+  retains its separate direct return to the list. See
   [Embedded Inline Playback](./embedded-inline-playback.md).
 - Favorites and recently viewed collections now use collection-owned inline detail
   for non-live Xtream and Stalker items.

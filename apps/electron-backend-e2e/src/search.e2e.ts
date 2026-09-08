@@ -1541,7 +1541,7 @@ async function addCurrentDetailToFavorites(page: Page): Promise<void> {
 
 async function goBackFromDetail(page: Page): Promise<void> {
     const backButton = page
-        .locator('app-content-hero .hero__back-button')
+        .locator('app-portal-detail-shell .shell__back-button')
         .first();
 
     await expect(backButton).toBeVisible({ timeout: 20000 });

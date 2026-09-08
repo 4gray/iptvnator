@@ -188,7 +188,9 @@ for (const theme of ['light', 'dark']) {
                     .poll(() => shell.evaluate((el) => el.scrollTop))
                     .toBeGreaterThan(0);
                 await page.keyboard.press('Tab');
-                await expect(shell.locator('.hero__back-button')).toBeFocused();
+                await expect(
+                    shell.locator('.shell__back-button')
+                ).toBeFocused();
                 await page.keyboard.press('Enter');
                 await expect(shell).toHaveCount(0);
             }

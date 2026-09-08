@@ -3,13 +3,18 @@ import {
     afterNextRender,
     Component,
     ElementRef,
+    Injector,
     computed,
     contentChild,
     effect,
     inject,
     input,
     output,
+    viewChild,
 } from '@angular/core';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 import { ContentHeroComponent } from '../content-hero/content-hero.component';
 import { ContentAboutComponent } from './content-about.component';
 import {
@@ -34,7 +39,14 @@ import {
 @Component({
     selector: 'app-portal-detail-shell',
     standalone: true,
-    imports: [ContentHeroComponent, ContentAboutComponent, NgTemplateOutlet],
+    imports: [
+        ContentHeroComponent,
+        ContentAboutComponent,
+        NgTemplateOutlet,
+        MatIconModule,
+        MatTooltipModule,
+        TranslateModule,
+    ],
     templateUrl: './portal-detail-shell.component.html',
     styleUrls: ['./portal-detail-shell.component.scss'],
     host: {
@@ -48,6 +60,9 @@ import {
 })
 export class PortalDetailShellComponent {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+    private readonly injector = inject(Injector);
+    private readonly backButton =
+        viewChild<ElementRef<HTMLButtonElement>>('backButton');
 
     readonly title = input<string>();
     readonly description = input<string>();
@@ -56,11 +71,13 @@ export class PortalDetailShellComponent {
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     readonly backLabel = input<string>();
+    /** False for hosts whose browse state has no parent navigation. */
+    readonly backAvailable = input(true);
     /** True while inline playback is active — flips the layout to watch state. */
     readonly playbackActive = input(false);
 
     readonly backClicked = output<void>();
-    /** Emitted when Escape is pressed during inline playback. */
+    /** Emitted by the sticky control or Escape during inline playback. */
     readonly closePlayerRequested = output<void>();
 
     protected readonly tagsTemplate = contentChild(DetailTagsTemplateDirective);
@@ -117,19 +134,91 @@ export class PortalDetailShellComponent {
     }
 
     onEscape(event: Event): void {
-        if (!this.playbackActive()) return;
-        if (event.defaultPrevented) return;
+        const keyboard = event as KeyboardEvent;
+        const element = this.host.nativeElement;
+        const document = element.ownerDocument;
+        if (
+            event.defaultPrevented ||
+            keyboard.repeat ||
+            keyboard.altKey ||
+            keyboard.ctrlKey ||
+            keyboard.metaKey ||
+            keyboard.shiftKey
+        )
+            return;
+        if (!this.playbackActive() && !this.backAvailable()) return;
+        if (
+            element.closest('[inert], [hidden], [aria-hidden="true"]') ||
+            element.checkVisibility?.({ checkVisibilityCSS: true }) === false
+        )
+            return;
         // Browser fullscreen owns Escape (exits fullscreen first).
         if (document.fullscreenElement) return;
         const target = event.target as HTMLElement | null;
+        // Browse navigation belongs to the focused detail. Watch retains its
+        // existing global close shortcut (M3U selection keeps sidebar focus).
+        if (!target || (!this.playbackActive() && !element.contains(target)))
+            return;
         if (
-            target &&
-            (target.isContentEditable ||
-                ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
-        ) {
+            target.isContentEditable ||
+            target.closest(
+                'input, textarea, select, [contenteditable]:not([contenteditable="false"])'
+            )
+        )
+            return;
+        // Menus may keep focus on their trigger. Their own Escape listener
+        // closes them; do not also dismiss the page/player behind them.
+        const overlaySelector =
+            '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+        if (
+            event
+                .composedPath()
+                .some(
+                    (node) =>
+                        node instanceof Element && node.matches(overlaySelector)
+                )
+        )
+            return;
+        if (document.querySelector('.cdk-overlay-backdrop')) return;
+        if (
+            Array.from(
+                document.querySelectorAll<HTMLElement>(overlaySelector)
+            ).some(
+                (overlay) =>
+                    !overlay.closest(
+                        '[hidden], [inert], [aria-hidden="true"]'
+                    ) &&
+                    overlay.checkVisibility?.({ checkVisibilityCSS: true }) !==
+                        false
+            )
+        )
+            return;
+        event.preventDefault();
+        this.onBack();
+    }
+
+    onBack(): void {
+        if (!this.playbackActive()) {
+            if (this.backAvailable()) this.backClicked.emit();
             return;
         }
         this.closePlayerRequested.emit();
+        afterNextRender(
+            () => {
+                const element = this.host.nativeElement;
+                if (
+                    element.isConnected &&
+                    !element.closest('[inert]') &&
+                    element.ownerDocument.activeElement ===
+                        element.ownerDocument.body
+                ) {
+                    (this.backButton()?.nativeElement ?? element).focus({
+                        preventScroll: true,
+                    });
+                }
+            },
+            { injector: this.injector }
+        );
     }
 
     private scrollToTop(): void {

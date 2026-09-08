@@ -250,6 +250,17 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
+    // M3U has no browse Back target, but the sticky watch control can close it.
+    const shell = detail(page).locator('app-portal-detail-shell');
+    await shell
+        .getByRole('button', { name: 'Close player', exact: true })
+        .first()
+        .click();
+    await expect(inlineVideo(page)).toHaveCount(0);
+    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
+    await shell.focus();
+    await page.keyboard.press('Escape');
+    await expect(playButton).toBeVisible();
 });
 
 for (const theme of ['light', 'dark']) {

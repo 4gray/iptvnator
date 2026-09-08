@@ -42,26 +42,6 @@ describe('ContentHeroComponent', () => {
         expect(host.textContent).toContain('Plain description');
     });
 
-    it('renders an accessible button with the translated fallback back label', () => {
-        fixture.detectChanges();
-
-        const back = (fixture.nativeElement as HTMLElement).querySelector(
-            '.hero__back-button'
-        ) as HTMLButtonElement;
-        expect(back.type).toBe('button');
-        expect(back.getAttribute('aria-label')).toBe('Go back');
-    });
-
-    it('uses an explicit back label when supplied', () => {
-        fixture.componentRef.setInput('backLabel', 'Back to downloads');
-        fixture.detectChanges();
-
-        const back = (fixture.nativeElement as HTMLElement).querySelector(
-            '.hero__back-button'
-        ) as HTMLButtonElement;
-        expect(back.getAttribute('aria-label')).toBe('Back to downloads');
-    });
-
     it('resets a poster failure when the poster URL changes', () => {
         fixture.componentRef.setInput('posterUrl', 'broken.jpg');
         fixture.detectChanges();

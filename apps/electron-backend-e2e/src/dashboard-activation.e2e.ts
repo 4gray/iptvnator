@@ -97,7 +97,10 @@ test.describe('Dashboard Activation', () => {
             await app.mainWindow
                 .getByTestId('dashboard-favorite-vod-rail-manage-all')
                 .click();
-            await expectPathname(app.mainWindow, /\/workspace\/global-favorites$/);
+            await expectPathname(
+                app.mainWindow,
+                /\/workspace\/global-favorites$/
+            );
             await expectVisibleContentCardTitle(app.mainWindow, movieTitle);
 
             await app.mainWindow.goBack();
@@ -223,7 +226,10 @@ const xtreamCredentials = {
     password: defaultXtreamPassword,
 };
 
-async function expectDashboardRail(page: Page, railTestId: string): Promise<void> {
+async function expectDashboardRail(
+    page: Page,
+    railTestId: string
+): Promise<void> {
     await expect(page.locator(`[data-test-id="${railTestId}"]`)).toBeVisible({
         timeout: 20000,
     });
@@ -234,14 +240,17 @@ function dashboardRailCardByTitle(
     railTestId: string,
     title: string
 ) {
-    return page.locator(`[data-test-id="${railTestId}-card"]`).filter({
-        hasText: title,
-    }).first();
+    return page
+        .locator(`[data-test-id="${railTestId}-card"]`)
+        .filter({
+            hasText: title,
+        })
+        .first();
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
     const backButton = page
-        .locator('app-content-hero .hero__back-button')
+        .locator('app-portal-detail-shell .shell__back-button')
         .first();
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
@@ -282,7 +291,7 @@ async function expectInlineCollectionDetail(
     await expect(page.locator('app-workspace-context-panel')).toHaveCount(0);
     await expect(page.locator('app-content-hero')).toContainText(params.title);
     await expect(
-        page.locator('app-content-hero .hero__back-button').first()
+        page.locator('app-portal-detail-shell .shell__back-button').first()
     ).toBeVisible({ timeout: 20000 });
 }
 

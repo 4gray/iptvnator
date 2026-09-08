@@ -162,9 +162,12 @@ Contracts:
   player subtree, so shell state changes cannot recreate the `<video>`.
 - **External MPV/VLC sessions do not flip the layout to watch** — browse
   layout stays, and the primary CTA keeps its "Stop <player>" behavior.
-- Escape closes inline playback: the shell emits `closePlayerRequested`
-  when playback is active, the event was not `defaultPrevented`, and no
-  element is in browser fullscreen; hosts wire it to `closeInlinePlayer()`.
+- The shell's sticky control and Escape close inline playback through
+  `closePlayerRequested`; hosts wire it to `closeInlinePlayer()`. From browse,
+  they emit the host-owned `backClicked` instead (unless `backAvailable=false`).
+  Escape respects fullscreen, menus/dialogs, editable fields and hidden/inert
+  surfaces, and consumes a handled key so one press performs only one action.
+  See [Portal Detail Navigation](./portal-detail-navigation.md).
 - The now-playing bar separates two exits: the back arrow emits
   `backClicked`, which hosts wire to their route-level `goBack()` (straight
   back to the list — everything browse offers is also visible in watch, so
