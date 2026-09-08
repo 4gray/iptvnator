@@ -12,6 +12,7 @@ import {
 import { dirname, join } from 'node:path';
 import {
     readArchiveFinalizations,
+    verifiedArchiveSize,
     recordArchiveCleanupPath,
     type ArchiveDownloadProof,
 } from './download-catchup-journal';
@@ -82,7 +83,7 @@ export async function cleanupStoredCatchupPartial(
     db: DownloadsDatabase,
     downloadId: number,
     filePath: string | null | undefined,
-    removeFinal = false
+    removeFinal: boolean | 'incomplete' = false
 ): Promise<boolean> {
     if (!filePath) return true;
     try {
@@ -96,7 +97,9 @@ export async function cleanupStoredCatchupPartial(
                 if (proof)
                     recordArchiveCleanupPath(db, downloadId, proof, path, kind);
             },
-            removeFinal
+            removeFinal === true ||
+                (removeFinal === 'incomplete' &&
+                    verifiedArchiveSize(filePath, proof) === null)
         );
         return true;
     } catch (error) {

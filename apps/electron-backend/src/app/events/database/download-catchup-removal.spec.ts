@@ -13,6 +13,7 @@ import { join } from 'node:path';
 import {
     removeJournaledCatchupPartial,
     cleanupStoredCatchupFinal,
+    cleanupStoredCatchupPartial,
 } from './download-catchup-removal';
 import type {
     ArchivePartialProof,
@@ -189,5 +190,43 @@ it.each([false, true])(
             expect(() => lstatSync(filePath)).toThrow();
             expect(() => lstatSync(journal.finalCleanupPath!)).toThrow();
         } else expect(readFileSync(filePath, 'utf8')).toBe('unfinished copy');
+    }
+);
+
+it.each([false, true])(
+    'restart cleanup preserves completed promotion and removes unfinished copies (complete=%s)',
+    async (complete) => {
+        writeFileSync(filePath, 'archive');
+        let journal: ArchiveFinalizationProof = {
+            ...proof,
+            phase: 'finalization',
+            size: complete ? 7 : 100,
+            finalIdentity: lstatSync(filePath),
+        };
+        const db = {
+            select: () => ({
+                from: () => ({
+                    where: async () => [
+                        { downloadId: 1, proof: JSON.stringify(journal) },
+                    ],
+                }),
+            }),
+            update: () => ({
+                set: (value: { proof: string }) => ({
+                    where: () => ({
+                        run: () => {
+                            journal = JSON.parse(value.proof);
+                            return { changes: 1 };
+                        },
+                    }),
+                }),
+            }),
+        };
+        await expect(
+            cleanupStoredCatchupPartial(db as never, 1, filePath, 'incomplete')
+        ).resolves.toBe(true);
+        expect(() => lstatSync(filePath + '.part')).toThrow();
+        if (complete) expect(readFileSync(filePath, 'utf8')).toBe('archive');
+        else expect(() => lstatSync(filePath)).toThrow();
     }
 );

@@ -9,6 +9,7 @@ import {
     mockPrepareArchiveRemoval,
     mockRemoveJournaledPartial,
     mockArchiveProofs,
+    mockVerifiedArchiveSize,
     mockRecordArchiveCleanupPath,
     mockRemovePartialDownloadFile,
     mockTerminalRows,
@@ -106,6 +107,39 @@ describe('downloads events: partial-file cleanup', () => {
             );
             if (locked) expect(deleteWhere).not.toHaveBeenCalled();
             else expect(deleteWhere).toHaveBeenCalled();
+        }
+    );
+
+    it.each(['remove', 'clear'])(
+        'preserves a proven completed archive after failed status writes on %s',
+        async (action) => {
+            const proof = { version: 1, phase: 'finalization', size: 188 };
+            const id = action === 'remove' ? 42 : 1;
+            const row = {
+                ...createDownloadRow(
+                    action === 'remove' ? 'downloading' : 'failed'
+                ),
+                contentType: 'catchup',
+            };
+            if (action === 'remove') mockDownloadRow(row);
+            else mockTerminalRows([row]);
+            mockArchiveProofs.mockResolvedValue(new Map([[id, proof]]));
+            mockVerifiedArchiveSize.mockReturnValue(188);
+            const result =
+                action === 'remove'
+                    ? getHandler('DOWNLOADS_REMOVE')(null, id)
+                    : getHandler('DOWNLOADS_CLEAR_COMPLETED')(null);
+            await expect(result).resolves.toEqual({ success: true });
+            expect(mockVerifiedArchiveSize).toHaveBeenCalledWith(
+                row.filePath,
+                proof
+            );
+            expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
+                row.filePath,
+                proof,
+                expect.any(Function),
+                false
+            );
         }
     );
 

@@ -15,6 +15,7 @@ export const mockIsDownloadCommitting = jest.fn();
 export const mockHasRuntimeDownload = jest.fn();
 export const mockPrepareArchiveRemoval = jest.fn();
 export const mockArchiveProofs = jest.fn();
+export const mockVerifiedArchiveSize = jest.fn();
 export const mockRecordArchiveCleanupPath = jest.fn();
 export const mockRemoveJournaledPartial = jest.fn();
 export const mockBroadcastDownloadUpdate = jest.fn();
@@ -62,6 +63,7 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     mockIsDownloadCommitting.mockReset().mockReturnValue(false);
     mockHasRuntimeDownload.mockReset().mockReturnValue(false);
     mockPrepareArchiveRemoval.mockReset().mockResolvedValue(true);
+    mockVerifiedArchiveSize.mockReset().mockReturnValue(null);
     mockArchiveProofs.mockReset().mockResolvedValue(new Map());
     mockRecordArchiveCleanupPath.mockReset();
     mockRemoveJournaledPartial.mockReset();
@@ -125,6 +127,7 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     }));
     jest.doMock('./download-catchup-journal', () => ({
         readArchiveFinalizations: mockArchiveProofs,
+        verifiedArchiveSize: mockVerifiedArchiveSize,
         recordArchiveCleanupPath: mockRecordArchiveCleanupPath,
     }));
     jest.doMock('./download-catchup-removal', () => ({

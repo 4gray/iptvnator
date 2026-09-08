@@ -3,6 +3,7 @@ import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import {
     readArchiveFinalizations,
+    verifiedArchiveSize,
     recordArchiveCleanupPath,
 } from './download-catchup-journal';
 import { removeJournaledCatchupPartial } from './download-catchup-removal';
@@ -78,7 +79,8 @@ export async function removeDownloadRequest(downloadId: number) {
                                     kind
                                 );
                         },
-                        row.status !== 'completed'
+                        row.status !== 'completed' &&
+                            verifiedArchiveSize(row.filePath, proof) === null
                     );
                 else removePartialDownloadFile(row.filePath);
             } catch (cleanupError) {
@@ -159,7 +161,11 @@ export async function clearCompletedDownloadsRequest(playlistId?: string) {
                                         kind
                                     );
                             },
-                            row.status !== 'completed'
+                            row.status !== 'completed' &&
+                                verifiedArchiveSize(
+                                    row.filePath,
+                                    proofs.get(row.id)
+                                ) === null
                         );
                     else removePartialDownloadFile(row.filePath);
                 } catch (error) {

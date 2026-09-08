@@ -6,6 +6,7 @@ import {
     type StartDownloadRequest,
 } from './download-request-options';
 export type { StartDownloadRequest } from './download-request-options';
+import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import { catchupForDownload } from './download-catchup';
 import type { ElectronBridgeDownloadStartResult } from '@iptvnator/shared/interfaces';
 import { ELECTRON_BRIDGE_DOWNLOAD_START_REASONS } from '@iptvnator/shared/interfaces';
@@ -125,8 +126,17 @@ export async function startDownloadRequest(
             // A terminal row can still reference a retained .part; delete it
             // before the restart clears filePath, or the file is orphaned.
             // An unavailable or slow .part must keep its database owner.
-            const cleanup = await removePartialDownloadFileAsync(item.filePath);
-            if (cleanup === 'unknown') {
+            const cleaned =
+                item.contentType === 'catchup'
+                    ? await cleanupStoredCatchupPartial(
+                          db,
+                          item.id,
+                          item.filePath,
+                          'incomplete'
+                      )
+                    : (await removePartialDownloadFileAsync(item.filePath)) !==
+                      'unknown';
+            if (!cleaned) {
                 console.error(
                     '[Downloads] Could not verify retained partial cleanup'
                 );

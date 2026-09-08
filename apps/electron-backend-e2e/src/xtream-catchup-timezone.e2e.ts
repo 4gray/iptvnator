@@ -415,6 +415,48 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
                 async () => (await window.electron.downloadsGetList()).length
             )
         ).toBe(1);
+        // Submitting the programme again after its file disappears must use
+        // journal ownership too, not delete a replacement at the old .part path.
+        const firstPath = row.filePath;
+        unlinkSync(firstPath);
+        writeFileSync(firstPath + '.part', 'unrelated submission partial');
+        await block.locator('.epg-timeline__info').click();
+        await app.mainWindow
+            .getByRole('dialog')
+            .getByRole('button', {
+                name: 'Download programme (TS)',
+                exact: true,
+            })
+            .click();
+        await expect
+            .poll(async () => {
+                const current = (
+                    await app.mainWindow.evaluate(() =>
+                        window.electron.downloadsGetList()
+                    )
+                ).find((entry) => entry.id === row.id);
+                return (
+                    current?.status === 'completed' &&
+                    !!current.filePath &&
+                    current.filePath !== firstPath
+                );
+            })
+            .toBe(true);
+        const resubmitted = (
+            await app.mainWindow.evaluate(() =>
+                window.electron.downloadsGetList()
+            )
+        ).find((entry) => entry.id === row.id);
+        if (!resubmitted?.filePath)
+            throw new Error('Missing resubmitted archive');
+        expect(resubmitted.filePath).not.toBe(firstPath);
+        expect(readFileSync(firstPath + '.part', 'utf8')).toBe(
+            'unrelated submission partial'
+        );
+        row.filePath = resubmitted.filePath;
+        expect(readFileSync(row.filePath)).toEqual(
+            readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
+        );
         await app.mainWindow
             .getByRole('button', { name: 'Open downloads', exact: true })
             .click();

@@ -1,3 +1,13 @@
+import {
+    mkdtemp,
+    writeFile,
+    readFile,
+    lstat,
+    rename,
+    rm,
+} from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import type { Download } from '../../database/schema';
 import type { DownloadDirectoryAuthorizer } from './download-directory-authorization';
@@ -1056,4 +1066,86 @@ describe('download requests resume', () => {
         expect(set).not.toHaveBeenCalled();
         expect(enqueueDownload).not.toHaveBeenCalled();
     });
+});
+
+describe('catch-up submissions restarting terminal rows', () => {
+    it.each([false, true])(
+        'preserves replaced partials and retains ownership on cleanup errors (locked=%s)',
+        async (locked) => {
+            const directory = await mkdtemp(
+                join(tmpdir(), 'archive-resubmit-')
+            );
+            const filePath = join(directory, 'show.ts');
+            try {
+                await writeFile(filePath + '.part', 'owned bytes');
+                const partialIdentity = await lstat(filePath + '.part');
+                await rename(filePath + '.part', join(directory, 'original'));
+                await writeFile(filePath + '.part', 'unrelated replacement');
+                const catchup = {
+                    channelName: 'News',
+                    startTimestamp: 100,
+                    stopTimestamp: 200,
+                };
+                const proof = {
+                    version: 1,
+                    phase: 'transfer',
+                    filePath,
+                    partialIdentity,
+                };
+                jest.doMock('./download-catchup-journal', () => ({
+                    ...jest.requireActual('./download-catchup-journal'),
+                    readArchiveFinalizations: jest.fn(async () => {
+                        if (locked) throw new Error('SQLITE_BUSY');
+                        return new Map([[42, proof]]);
+                    }),
+                    recordArchiveCleanupPath: jest.fn(),
+                }));
+                jest.dontMock('./download-catchup-removal');
+                const h = await setupStartMetadataRequest(
+                    createStartDownloadRow({
+                        id: 42,
+                        contentType: 'catchup',
+                        status: 'completed',
+                        filePath,
+                        catchup,
+                        programmeStart: 100,
+                    })
+                );
+                await expect(
+                    h.startDownloadRequest(
+                        {
+                            contentType: 'catchup',
+                            catchup,
+                            playlistId: 'playlist-1',
+                            xtreamId: 77,
+                            title: 'Show',
+                            url: 'https://provider.test/archive.ts',
+                            downloadFolder: directory,
+                        },
+                        h.authorizer
+                    )
+                ).resolves.toMatchObject({ success: !locked });
+                expect(await readFile(filePath + '.part', 'utf8')).toBe(
+                    'unrelated replacement'
+                );
+                if (locked) {
+                    expect(h.set).not.toHaveBeenCalled();
+                    expect(h.enqueueDownload).not.toHaveBeenCalled();
+                } else {
+                    expect(h.set).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            filePath: null,
+                            status: 'queued',
+                        })
+                    );
+                    expect(h.enqueueDownload).toHaveBeenCalledWith(
+                        expect.not.objectContaining({ filePath })
+                    );
+                }
+            } finally {
+                jest.dontMock('./download-catchup-journal');
+                await rm(directory, { recursive: true, force: true });
+            }
+        }
+    );
 });
