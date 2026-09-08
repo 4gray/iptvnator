@@ -1,5 +1,6 @@
 import { closeSync, fstatSync, openSync } from 'node:fs';
 import { lstat } from 'node:fs/promises';
+import { cleanupCatchupPartial } from './download-catchup-cleanup';
 import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import {
     clearArchiveFinalization,
@@ -67,6 +68,13 @@ export async function reserveOwnedCatchupTarget(
     const identity = task.catchupExpectedPartialIdentity;
     if (!identity)
         throw new Error('Archive reservation identity is unavailable');
-    await recordArchivePartial(db, task.id, reservation.path, identity);
+    try {
+        await recordArchivePartial(db, task.id, reservation.path, identity);
+    } catch (error) {
+        // No media bytes have been written. Without a usable journal, remove
+        // only the empty reservation whose identity came from our descriptor.
+        await cleanupCatchupPartial(reservation.path, identity);
+        throw error;
+    }
     return reservation;
 }

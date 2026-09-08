@@ -180,3 +180,48 @@ it('binds a fresh reservation before a replacement can arrive during the HTTP wa
         await rm(directory, { recursive: true, force: true });
     }
 });
+
+it.each([false, true])(
+    'cleans a failed reservation journal without deleting a replacement (replaced=%s)',
+    async (replaced) => {
+        const directory = await mkdtemp(
+            join(tmpdir(), 'archive-reservation-failure-')
+        );
+        const filePath = join(directory, 'show.ts');
+        const task: DownloadTask = {
+            id: 20,
+            directory,
+            fileName: 'show.ts',
+            url: 'https://provider.test/archive.ts',
+            catchup: {
+                channelName: 'News',
+                startTimestamp: 100,
+                stopTimestamp: 200,
+            },
+        };
+        const failure = new Error('SQLite write failed');
+        jest.mocked(recordArchivePartial).mockImplementationOnce(async () => {
+            if (replaced) {
+                await rename(filePath + '.part', join(directory, 'original'));
+                await writeFile(filePath + '.part', 'foreign bytes');
+            }
+            throw failure;
+        });
+        try {
+            await expect(
+                reserveTarget({} as DownloadsDatabase, task)
+            ).rejects.toBe(failure);
+            if (replaced) {
+                expect(await readFile(filePath + '.part', 'utf8')).toBe(
+                    'foreign bytes'
+                );
+            } else {
+                await expect(lstat(filePath + '.part')).rejects.toMatchObject({
+                    code: 'ENOENT',
+                });
+            }
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    }
+);
