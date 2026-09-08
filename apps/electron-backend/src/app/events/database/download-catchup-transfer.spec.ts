@@ -129,7 +129,7 @@ describe('TS archive transfer', () => {
                     expect(filePath).toBe(path);
                     expect(identity).toEqual(
                         expect.objectContaining({
-                            ino: (await stat(path + '.part')).ino,
+                            ino: String((await stat(path + '.part')).ino),
                         })
                     );
                     expect(id).toBe(task.id);
@@ -192,8 +192,8 @@ describe('TS archive transfer', () => {
                 task.id,
                 path,
                 expect.objectContaining({
-                    dev: expect.any(Number),
-                    ino: expect.any(Number),
+                    dev: expect.any(String),
+                    ino: expect.any(String),
                 })
             );
         } finally {

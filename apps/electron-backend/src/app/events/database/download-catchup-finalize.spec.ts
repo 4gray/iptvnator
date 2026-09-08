@@ -1,3 +1,4 @@
+import { archiveFileStats } from './download-catchup-stats';
 import {
     mkdtemp,
     lstat,
@@ -103,8 +104,8 @@ describe('archive file promotion', () => {
             ).resolves.toEqual({
                 size: identity.size,
                 identity: expect.objectContaining({
-                    dev: expect.any(Number),
-                    ino: expect.any(Number),
+                    dev: expect.any(String),
+                    ino: expect.any(String),
                 }),
             });
             expect(await readFile(reservation.path, 'utf8')).toBe(
@@ -122,8 +123,8 @@ describe('archive file promotion', () => {
         ).resolves.toEqual({
             size: identity.size,
             identity: expect.objectContaining({
-                dev: expect.any(Number),
-                ino: expect.any(Number),
+                dev: expect.any(String),
+                ino: expect.any(String),
             }),
         });
         expect(await readFile(reservation.path, 'utf8')).toBe(
@@ -159,7 +160,9 @@ describe('archive file promotion', () => {
                             lstat(reservation.path)
                         ).rejects.toMatchObject({ code: 'ENOENT' });
                     } else {
-                        const created = await lstat(reservation.path);
+                        const created = archiveFileStats(
+                            await lstat(reservation.path)
+                        );
                         expect(created).toEqual(
                             expect.objectContaining({
                                 dev: expected.dev,

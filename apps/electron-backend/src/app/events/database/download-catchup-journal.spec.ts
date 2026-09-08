@@ -62,7 +62,7 @@ it('commits the reservation path and ownership together before transfer setup', 
     expect(JSON.parse(result.proofs[0].proof)).toMatchObject({
         phase: 'transfer',
         filePath: result.row.file_path,
-        partialIdentity: { dev: 1, ino: 2, birthtimeMs: 1000 },
+        partialIdentity: { dev: '1', ino: '2', birthtimeMs: 1000 },
     });
 });
 

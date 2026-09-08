@@ -1862,7 +1862,8 @@ The same journal stores transfer-phase descriptor identity before truncation;
 Resume checks it at open, and rejected replacements are preserved and detached
 so Retry can reserve a fresh path. A synchronous completion-commit boundary
 rejects late pause/cancel commands before awaited cleanup and persistence.
-Archive ownership includes device, inode and positive creation time to reject
+Archive ownership reads device/inode as BigInt and journals decimal strings
+without losing 64-bit Windows file references, alongside positive creation time to reject
 reused inodes after unlink; old proofs without creation time remain untrusted.
 Fresh reservations atomically commit their row path/name and captured ownership
 before the initial HTTP wait;

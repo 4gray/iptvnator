@@ -1,4 +1,5 @@
-import { link, lstat, mkdtemp, rename, rmdir, unlink } from 'node:fs/promises';
+import { readArchiveStats } from './download-catchup-stats';
+import { link, mkdtemp, rename, rmdir, unlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import {
     sameArchiveFileIdentity,
@@ -16,7 +17,7 @@ export async function cleanupCatchupFile(
     const captured = join(directory, 'entry');
     try {
         await rename(path, captured);
-        const stats = await lstat(captured);
+        const stats = await readArchiveStats(captured);
         if (stats.isFile() && sameArchiveFileIdentity(stats, identity)) {
             await unlink(captured);
         } else {
@@ -49,7 +50,7 @@ export async function cleanupCatchupPartial(
     const path = filePath + '.part';
     try {
         if (identity) await cleanupCatchupFile(path, identity);
-        await lstat(path);
+        await readArchiveStats(path);
         return false;
     } catch (error) {
         return (error as NodeJS.ErrnoException).code === 'ENOENT';

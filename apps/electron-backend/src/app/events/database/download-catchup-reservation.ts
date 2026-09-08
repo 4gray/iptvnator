@@ -1,5 +1,5 @@
+import { archiveFileStats, readArchiveStats } from './download-catchup-stats';
 import { closeSync, fstatSync, openSync } from 'node:fs';
-import { lstat } from 'node:fs/promises';
 import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import {
     clearArchiveFinalization,
@@ -19,7 +19,7 @@ export async function reserveFreshCatchupTarget(
     task: DownloadTask
 ) {
     if (task.filePath) {
-        const partial = await lstat(`${task.filePath}.part`).catch(
+        const partial = await readArchiveStats(`${task.filePath}.part`).catch(
             (error: NodeJS.ErrnoException) => {
                 if (error.code === 'ENOENT') return undefined;
                 throw error;
@@ -55,7 +55,7 @@ export async function reserveOwnedCatchupTarget(
             const descriptor = openSync(partialPath, 'wx', 0o600);
             try {
                 task.catchupExpectedPartialIdentity = archiveFileIdentity(
-                    fstatSync(descriptor)
+                    archiveFileStats(fstatSync(descriptor, { bigint: true }))
                 );
             } finally {
                 closeSync(descriptor);

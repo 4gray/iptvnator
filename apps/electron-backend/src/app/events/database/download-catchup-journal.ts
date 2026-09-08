@@ -1,10 +1,11 @@
+import { readArchiveStatsSync } from './download-catchup-stats';
 import { cleanupArchiveCapture } from './download-catchup-capture';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { lstatSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import * as schema from '../../database/schema';
 import {
     archiveFileIdentity,
+    isArchiveFileId,
     sameArchiveFileIdentity,
     type ArchiveFileIdentity,
 } from './download-catchup-output';
@@ -147,8 +148,8 @@ function identity(value: unknown): value is ArchiveFileIdentity {
     if (!value || typeof value !== 'object') return false;
     const candidate = value as ArchiveFileIdentity;
     return (
-        Number.isSafeInteger(candidate.dev) &&
-        Number.isSafeInteger(candidate.ino) &&
+        isArchiveFileId(candidate.dev) &&
+        isArchiveFileId(candidate.ino) &&
         Number.isFinite(candidate.birthtimeMs) &&
         candidate.birthtimeMs > 0
     );
@@ -220,7 +221,7 @@ export function verifiedArchiveSize(
     if (!proof || proof.phase === 'transfer' || proof.filePath !== filePath)
         return null;
     try {
-        const file = lstatSync(proof.filePath);
+        const file = readArchiveStatsSync(proof.filePath);
         return file.isFile() &&
             sameArchiveFileIdentity(file, proof.finalIdentity) &&
             file.size === proof.size

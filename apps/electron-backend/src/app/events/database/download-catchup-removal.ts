@@ -1,7 +1,9 @@
+import {
+    readArchiveStatsSync,
+    type ArchiveFileStats,
+} from './download-catchup-stats';
 import { cleanupArchiveCapture } from './download-catchup-capture';
 import {
-    lstatSync,
-    type Stats,
     mkdtempSync,
     renameSync,
     linkSync,
@@ -45,10 +47,10 @@ function removeOwnedEntry(
     identity: ArchiveFileIdentity,
     recordCapture: (path: string) => void
 ): void {
-    const matches = (file: Stats, identity: ArchiveFileIdentity) =>
+    const matches = (file: ArchiveFileStats, identity: ArchiveFileIdentity) =>
         file.isFile() && sameArchiveFileIdentity(file, identity);
     try {
-        if (!matches(lstatSync(path), identity)) return;
+        if (!matches(readArchiveStatsSync(path), identity)) return;
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
         throw error;
@@ -58,7 +60,7 @@ function removeOwnedEntry(
     try {
         recordCapture(captured);
         renameSync(path, captured);
-        if (matches(lstatSync(captured), identity)) {
+        if (matches(readArchiveStatsSync(captured), identity)) {
             unlinkSync(captured);
         } else {
             try {

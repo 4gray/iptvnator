@@ -100,8 +100,8 @@ that apply only to another remote transfer; retained cleanup failures keep their
 journal. Remove, Clear completed and missing-file
 re-download and repeated programme submissions use journal-backed private
 capture for archive partial cleanup;
-unknown or replaced entries are preserved. Ownership includes a positive file
-creation timestamp as well as device/inode, so inode reuse after unlink cannot
+unknown or replaced entries are preserved. Ownership reads device/inode as BigInt and journals decimal strings without
+losing 64-bit Windows file references, alongside a positive file creation timestamp, so inode reuse after unlink cannot
 bless a new entry; proofs lacking creation time remain untrusted. Fresh
 reservations capture this identity from their exclusive creation descriptor and
 commit it together with the downloads row path/name in one SQLite transaction

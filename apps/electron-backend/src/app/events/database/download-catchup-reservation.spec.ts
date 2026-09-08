@@ -1,3 +1,4 @@
+import { archiveFileStats } from './download-catchup-stats';
 import { openCatchupOutput } from './download-catchup-output';
 import {
     mkdtemp,
@@ -87,7 +88,9 @@ it.each([false, true])(
                     code: 'ENOENT',
                 });
                 expect(
-                    await lstat(join(directory, 'show (1).ts.part'))
+                    archiveFileStats(
+                        await lstat(join(directory, 'show (1).ts.part'))
+                    )
                 ).toEqual(
                     expect.objectContaining(
                         task.catchupExpectedPartialIdentity!

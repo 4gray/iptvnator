@@ -400,6 +400,42 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
             )
         );
         expect(captured).toEqual([]);
+        const ownership = await app.electronApp.evaluate(
+            (_electron, { dependency, file, id, mediaPath }) => {
+                const Database = process
+                    .getBuiltinModule('module')
+                    .createRequire(dependency)(dependency);
+                const db = new Database(file);
+                try {
+                    const proof = JSON.parse(
+                        db
+                            .prepare(
+                                'SELECT proof FROM download_archive_finalizations WHERE download_id=?'
+                            )
+                            .get(id).proof
+                    );
+                    const stats = process
+                        .getBuiltinModule('fs')
+                        .lstatSync(mediaPath, { bigint: true });
+                    return {
+                        recorded: proof.finalIdentity,
+                        actual: {
+                            dev: String(stats.dev),
+                            ino: String(stats.ino),
+                        },
+                    };
+                } finally {
+                    db.close();
+                }
+            },
+            {
+                dependency: join(workspaceRoot, 'node_modules/better-sqlite3'),
+                file: join(dataDir, 'databases/iptvnator.db'),
+                id: row.id,
+                mediaPath: row.filePath,
+            }
+        );
+        expect(ownership.recorded).toMatchObject(ownership.actual);
         // A failed completion status write must recover the proven file in place
         // on a repeated EPG submission, without a duplicate transfer.
         await app.electronApp.evaluate(

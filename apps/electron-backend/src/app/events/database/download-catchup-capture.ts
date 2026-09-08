@@ -1,4 +1,5 @@
-import { linkSync, lstatSync, rmdirSync, unlinkSync } from 'node:fs';
+import { readArchiveStatsSync } from './download-catchup-stats';
+import { linkSync, rmdirSync, unlinkSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
     sameArchiveFileIdentity,
@@ -32,7 +33,7 @@ function cleanupCapture(
     if (!path) return;
     let file;
     try {
-        file = lstatSync(path);
+        file = readArchiveStatsSync(path);
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
@@ -45,7 +46,10 @@ function cleanupCapture(
             } catch (error) {
                 if (
                     (error as NodeJS.ErrnoException).code !== 'EEXIST' ||
-                    !sameArchiveFileIdentity(lstatSync(publicPath), file)
+                    !sameArchiveFileIdentity(
+                        readArchiveStatsSync(publicPath),
+                        file
+                    )
                 )
                     throw error;
             }

@@ -1,3 +1,4 @@
+import { readArchiveStatsSync } from './download-catchup-stats';
 import { sameArchiveFileIdentity } from './download-catchup-output';
 import {
     cleanupStoredCatchupPartial,
@@ -10,7 +11,7 @@ import {
     type ArchiveDownloadProof,
 } from './download-catchup-journal';
 import { inArray, sql } from 'drizzle-orm';
-import { lstatSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import {
@@ -36,7 +37,7 @@ function hasReplacedArchivePartial(download: StaleDownload): boolean {
     )
         return false;
     try {
-        const file = lstatSync(`${download.filePath}.part`);
+        const file = readArchiveStatsSync(`${download.filePath}.part`);
         const expected = download.proof.partialIdentity;
         return !file.isFile() || !sameArchiveFileIdentity(file, expected);
     } catch (error) {

@@ -1,7 +1,12 @@
+import {
+    archiveFileStats,
+    readArchiveStats,
+    type ArchiveFileStats,
+} from './download-catchup-stats';
 import type { DownloadTask, CompletedPartialProgress } from './download-task';
 import { cleanupCatchupFile } from './download-catchup-cleanup';
-import { constants, type Stats } from 'node:fs';
-import { link, lstat, open } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { link, open } from 'node:fs/promises';
 import {
     archiveFileIdentity,
     sameArchiveFileIdentity,
@@ -10,7 +15,7 @@ import {
 import type { ReservedPartialDownloadFile } from './download-file-path';
 
 function verify(
-    stats: Stats,
+    stats: ArchiveFileStats,
     identity: ArchiveFileIdentity,
     size: number
 ): void {
@@ -41,7 +46,7 @@ export async function finalizeCatchupPartial(
     };
     checkInterruption();
     if (!identity) throw new Error('Archive transfer identity is unavailable');
-    verify(await lstat(reservation.partialPath), identity, size);
+    verify(await readArchiveStats(reservation.partialPath), identity, size);
     const source = await open(
         reservation.partialPath,
         constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)
@@ -49,7 +54,11 @@ export async function finalizeCatchupPartial(
     let created: ArchiveFileIdentity | undefined;
     let sourceClosed = false;
     try {
-        verify(await source.stat(), identity, size);
+        verify(
+            archiveFileStats(await source.stat({ bigint: true })),
+            identity,
+            size
+        );
         // A hardlink can become complete immediately: persist its expected
         // identity before publishing it, while the verified partial still exists.
         await recordProof?.(identity);
@@ -59,7 +68,7 @@ export async function finalizeCatchupPartial(
             // The link we created belongs to the verified source, even if
             // another writer replaces its public name before lstat completes.
             created = identity;
-            const promoted = await lstat(reservation.path);
+            const promoted = await readArchiveStats(reservation.path);
             verify(promoted, identity, size);
         } catch (error) {
             const code = (error as NodeJS.ErrnoException).code;
@@ -79,7 +88,7 @@ export async function finalizeCatchupPartial(
             // source by pathname for this copy: it could have been replaced.
             const target = await open(reservation.path, 'wx', 0o600);
             try {
-                created = await target.stat();
+                created = archiveFileStats(await target.stat({ bigint: true }));
                 // For a copy, record the exclusively created target identity
                 // before the first byte, so a complete file never lacks proof.
                 await recordProof?.(created);
@@ -121,7 +130,7 @@ export async function finalizeCatchupPartial(
         await source.close();
         sourceClosed = true;
         checkInterruption();
-        verify(await lstat(reservation.path), created, size);
+        verify(await readArchiveStats(reservation.path), created, size);
         checkInterruption();
         // Publication is verified. Fence new commands before awaited cleanup
         // and the completion write; accepted commands were handled above.
@@ -153,7 +162,7 @@ export async function recoverCatchupCompletion(
     const proof = task.catchupFinalized;
     if (!proof || proof.filePath !== task.filePath) return null;
     try {
-        const file = await lstat(proof.filePath);
+        const file = await readArchiveStats(proof.filePath);
         return file.isFile() &&
             sameArchiveFileIdentity(file, proof.identity) &&
             file.size === proof.size
