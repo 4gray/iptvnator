@@ -2,7 +2,13 @@ import {
     getDownloadPlayPaths,
     installDownloadPlayCapture,
 } from './downloads.e2e-support';
-import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import {
+    mkdirSync,
+    readFileSync,
+    readdirSync,
+    unlinkSync,
+    writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import {
@@ -500,6 +506,58 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
         expect(
             readdirSync(folder).filter((name) => name.endsWith('.ts'))
         ).toHaveLength(1);
+        // Missing-file recovery must reserve fresh output and preserve a foreign
+        // entry at the old partial name, even with a completed journal present.
+        unlinkSync(row.filePath);
+        writeFileSync(row.filePath + '.part', 'unrelated retained file');
+        expect(
+            await app.mainWindow.evaluate(
+                (id) => window.electron.downloadsRedownloadMissing(id),
+                row.id
+            )
+        ).toEqual({ success: true });
+        await expect
+            .poll(
+                async () =>
+                    (
+                        await app.mainWindow.evaluate(() =>
+                            window.electron.downloadsGetList()
+                        )
+                    ).find((entry) => entry.id === row.id)?.status
+            )
+            .toBe('completed');
+        const redownloaded = (
+            await app.mainWindow.evaluate(() =>
+                window.electron.downloadsGetList()
+            )
+        ).find((entry) => entry.id === row.id);
+        if (!redownloaded?.filePath)
+            throw new Error('Missing re-downloaded archive');
+        expect(redownloaded.filePath).not.toBe(row.filePath);
+        expect(readFileSync(row.filePath + '.part', 'utf8')).toBe(
+            'unrelated retained file'
+        );
+        expect(readFileSync(redownloaded.filePath)).toEqual(
+            readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
+        );
+        writeFileSync(
+            redownloaded.filePath + '.part',
+            'unrelated terminal file'
+        );
+        expect(
+            await app.mainWindow.evaluate(
+                (id) => window.electron.downloadsRemove(id),
+                row.id
+            )
+        ).toEqual({ success: true });
+        expect(readFileSync(redownloaded.filePath + '.part', 'utf8')).toBe(
+            'unrelated terminal file'
+        );
+        expect(
+            await app.mainWindow.evaluate(() =>
+                window.electron.downloadsGetList()
+            )
+        ).toEqual([]);
     } finally {
         await closeElectronApp(app);
     }

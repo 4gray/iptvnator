@@ -1,5 +1,9 @@
+import {
+    clearCompletedDownloadsRequest,
+    removeDownloadRequest,
+} from './download-removal-requests';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
-import { and, eq, inArray } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { app, dialog, ipcMain, shell } from 'electron';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -10,7 +14,6 @@ import {
     decorateDownloadItemAsync,
     isAvailableDownloadFile,
 } from './download-file-availability';
-import { removePartialDownloadFile } from './download-file-path';
 import { updateDownloadMetadataRequest } from './download-metadata-update';
 import {
     resumeDownloadRequest,
@@ -23,19 +26,9 @@ import { resetStaleDownloads } from './download-recovery';
 import {
     broadcastDownloadUpdate,
     cancelDownload,
-    isDownloadCommitting,
     pauseDownload,
-    removeDownloadFromRuntime,
     setMainWindow,
 } from './download-runtime';
-
-const removablePartialStatuses = new Set([
-    'queued',
-    'paused',
-    'completed',
-    'failed',
-    'canceled',
-]);
 
 function getDownloadAuthorizationPath(): string {
     return join(
@@ -177,58 +170,9 @@ ipcMain.handle(
     }
 );
 
-ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
-    try {
-        console.log('[Downloads] Remove download:', downloadId);
-        const db = await getDatabase();
-        const rows = await db
-            .select({
-                filePath: schema.downloads.filePath,
-                status: schema.downloads.status,
-            })
-            .from(schema.downloads)
-            .where(eq(schema.downloads.id, downloadId))
-            .limit(1);
-        const row = rows[0];
-        if (isDownloadCommitting(downloadId))
-            return {
-                success: false,
-                error: 'Download is completing; try again shortly',
-            };
-        if (row?.filePath && removablePartialStatuses.has(row.status)) {
-            try {
-                removePartialDownloadFile(row.filePath);
-            } catch (cleanupError) {
-                // Keep the row (and its runtime entry) so the .part is never
-                // orphaned, but answer with a structured failure the UI can
-                // surface instead of an opaque IPC rejection. Retrying the
-                // remove re-attempts the deletion.
-                console.error(
-                    '[Downloads] Failed to delete partial file on remove:',
-                    row.filePath,
-                    cleanupError
-                );
-                return {
-                    error: 'Could not delete the partial file',
-                    success: false,
-                };
-            }
-        }
-        if (removeDownloadFromRuntime(downloadId) === false)
-            return {
-                success: false,
-                error: 'Download is completing; try again shortly',
-            };
-        await db
-            .delete(schema.downloads)
-            .where(eq(schema.downloads.id, downloadId));
-        broadcastDownloadUpdate();
-        return { success: true };
-    } catch (error) {
-        console.error('[Downloads] Error removing download:', error);
-        throw error;
-    }
-});
+ipcMain.handle('DOWNLOADS_REMOVE', (_event, downloadId: number) =>
+    removeDownloadRequest(downloadId)
+);
 
 ipcMain.handle('DOWNLOADS_GET_LIST', async (_event, playlistId?: string) => {
     try {
@@ -315,63 +259,8 @@ ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
         : { error: 'File not found', success: false };
 });
 
-ipcMain.handle(
-    'DOWNLOADS_CLEAR_COMPLETED',
-    async (_event, playlistId?: string) => {
-        try {
-            const db = await getDatabase();
-            const terminalStatus = inArray(schema.downloads.status, [
-                'completed',
-                'failed',
-                'canceled',
-            ]);
-            const terminalFilter = playlistId
-                ? and(
-                      eq(schema.downloads.playlistId, playlistId),
-                      terminalStatus
-                  )
-                : terminalStatus;
-            const rows = await db
-                .select({
-                    id: schema.downloads.id,
-                    filePath: schema.downloads.filePath,
-                    status: schema.downloads.status,
-                })
-                .from(schema.downloads)
-                .where(terminalFilter);
-            const downloadIdsToDelete: number[] = [];
-            for (const row of rows) {
-                if (isDownloadCommitting(row.id)) continue;
-                if (row.filePath && removablePartialStatuses.has(row.status)) {
-                    try {
-                        removePartialDownloadFile(row.filePath);
-                    } catch (error) {
-                        console.error(
-                            '[Downloads] Retaining download after partial cleanup failed:',
-                            error
-                        );
-                        continue;
-                    }
-                }
-                downloadIdsToDelete.push(row.id);
-            }
-            if (downloadIdsToDelete.length > 0) {
-                await db
-                    .delete(schema.downloads)
-                    .where(
-                        and(
-                            terminalFilter,
-                            inArray(schema.downloads.id, downloadIdsToDelete)
-                        )
-                    );
-                broadcastDownloadUpdate();
-            }
-            return { success: true };
-        } catch (error) {
-            console.error('[Downloads] Error clearing completed:', error);
-            throw error;
-        }
-    }
+ipcMain.handle('DOWNLOADS_CLEAR_COMPLETED', (_event, playlistId?: string) =>
+    clearCompletedDownloadsRequest(playlistId)
 );
 
 export { resetStaleDownloads, setMainWindow };

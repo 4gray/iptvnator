@@ -134,6 +134,13 @@ export async function cancelDownload(downloadId: number): Promise<boolean> {
     return true;
 }
 
+export function hasRuntimeDownload(downloadId: number): boolean {
+    return (
+        activeDownload?.id === downloadId ||
+        downloadQueue.some((task) => task.id === downloadId)
+    );
+}
+
 export function isDownloadCommitting(downloadId: number): boolean {
     return (
         activeDownload?.id === downloadId &&

@@ -67,6 +67,8 @@ async function setup(options: SetupOptions = {}) {
         }
     });
     const enqueueDownload = jest.fn();
+    const proof = { version: 1, phase: 'transfer' };
+    const removeJournaledCatchupPartial = jest.fn();
 
     jest.doMock('node:fs', () => ({
         ...jest.requireActual<typeof import('node:fs')>('node:fs'),
@@ -78,6 +80,14 @@ async function setup(options: SetupOptions = {}) {
     }));
     jest.doMock('../url-safety', () => ({ assertRemoteUrlAllowed }));
     jest.doMock('./download-file-path', () => ({ removePartialDownloadFile }));
+    jest.doMock('./download-catchup-journal', () => ({
+        readArchiveFinalizations: jest
+            .fn()
+            .mockResolvedValue(new Map([[42, proof]])),
+    }));
+    jest.doMock('./download-catchup-removal', () => ({
+        removeJournaledCatchupPartial,
+    }));
     jest.doMock('./download-runtime', () => ({ enqueueDownload }));
 
     const { redownloadMissingRequest } = await import('./download-redownload');
@@ -85,6 +95,8 @@ async function setup(options: SetupOptions = {}) {
         accessSync,
         assertRemoteUrlAllowed,
         enqueueDownload,
+        removeJournaledCatchupPartial,
+        proof,
         lstatSync,
         redownloadMissingRequest,
         removePartialDownloadFile,
@@ -122,6 +134,29 @@ describe('redownload missing completed file', () => {
             totalBytes: null,
             url: 'https://example.test/movie.mp4',
         });
+    });
+
+    it('reserves a fresh archive path and uses journal-backed previous-partial cleanup', async () => {
+        const catchup = {
+            channelName: 'News',
+            startTimestamp: 100,
+            stopTimestamp: 200,
+        };
+        const h = await setup({ row: { contentType: 'catchup', catchup } });
+        await expect(h.redownloadMissingRequest(42)).resolves.toEqual({
+            success: true,
+        });
+        expect(h.removeJournaledCatchupPartial).toHaveBeenCalledWith(
+            '/downloads/movie.mp4',
+            h.proof
+        );
+        expect(h.removePartialDownloadFile).not.toHaveBeenCalled();
+        expect(h.set).toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'queued', filePath: null })
+        );
+        expect(h.enqueueDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ catchup, filePath: null })
+        );
     });
 
     it('adds the Xtream fallback User-Agent to a legacy row', async () => {

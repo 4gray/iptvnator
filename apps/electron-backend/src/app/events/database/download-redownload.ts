@@ -1,3 +1,5 @@
+import { readArchiveFinalizations } from './download-catchup-journal';
+import { removeJournaledCatchupPartial } from './download-catchup-removal';
 import { catchupForDownload } from './download-catchup';
 import { and, eq, sql } from 'drizzle-orm';
 import { accessSync, constants } from 'node:fs';
@@ -66,7 +68,12 @@ export async function redownloadMissingRequest(
     const headers = await resolveStoredDownloadHeaders(db, item);
 
     try {
-        removePartialDownloadFile(item.filePath);
+        if (catchup) {
+            const proof = (await readArchiveFinalizations(db, [item.id])).get(
+                item.id
+            );
+            removeJournaledCatchupPartial(item.filePath, proof);
+        } else removePartialDownloadFile(item.filePath);
     } catch (error) {
         console.error(
             '[Downloads] Failed to delete partial before missing-file recovery:',
@@ -82,6 +89,7 @@ export async function redownloadMissingRequest(
         .update(schema.downloads)
         .set({
             bytesDownloaded: 0,
+            ...(catchup ? { filePath: null } : {}),
             errorMessage: null,
             resumeValidator: null,
             status: 'queued',
@@ -105,7 +113,7 @@ export async function redownloadMissingRequest(
         catchup,
         directory: dirname(item.filePath),
         fileName: basename(item.filePath),
-        filePath: item.filePath,
+        filePath: catchup ? null : item.filePath,
         headers,
         id: item.id,
         resumeValidator: null,

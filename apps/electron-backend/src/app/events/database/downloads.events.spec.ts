@@ -5,6 +5,9 @@ import {
     mockDownloadRow,
     mockRemoveDownloadFromRuntime,
     mockIsDownloadCommitting,
+    mockHasRuntimeDownload,
+    mockRemoveJournaledPartial,
+    mockArchiveProofs,
     mockRemovePartialDownloadFile,
     mockTerminalRows,
     setupDownloadsEventsHarness,
@@ -35,12 +38,46 @@ describe('downloads events: partial-file cleanup', () => {
         const { deleteWhere } = mockTerminalRows([
             createDownloadRow('completed'),
         ]);
-        mockIsDownloadCommitting.mockReturnValue(true);
+        mockHasRuntimeDownload.mockReturnValue(true);
         await expect(
             getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
         ).resolves.toEqual({ success: true });
         expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
         expect(deleteWhere).not.toHaveBeenCalled();
+    });
+
+    it('routes archive Remove through durable cleanup instead of pathname unlink', async () => {
+        const { deleteWhere } = mockDownloadRow({
+            ...createDownloadRow('failed'),
+            contentType: 'catchup',
+        });
+        const proof = { version: 1, phase: 'transfer' };
+        mockArchiveProofs.mockResolvedValue(new Map([[42, proof]]));
+        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual(
+            { success: true }
+        );
+        expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
+            '/downloads/resume.mp4',
+            proof
+        );
+        expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
+        expect(deleteWhere).toHaveBeenCalled();
+    });
+
+    it('routes archive Clear completed through durable cleanup', async () => {
+        mockTerminalRows([
+            { ...createDownloadRow('canceled'), contentType: 'catchup' },
+        ]);
+        const proof = { version: 1, phase: 'transfer' };
+        mockArchiveProofs.mockResolvedValue(new Map([[1, proof]]));
+        await expect(
+            getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
+        ).resolves.toEqual({ success: true });
+        expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
+            '/downloads/resume.mp4',
+            proof
+        );
+        expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
     });
 
     it('removes queued resumed partial files before deleting the row', async () => {

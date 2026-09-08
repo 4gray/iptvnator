@@ -36,8 +36,15 @@
                 {
                     "path": "apps/electron-backend/src/app/events/database/downloads.events.ts",
                     "statements": {
-                        "minimumCovered": 86,
-                        "minimumPercent": 58.5
+                        "minimumCovered": 79,
+                        "minimumPercent": 62.69
+                    }
+                },
+                {
+                    "path": "apps/electron-backend/src/app/events/database/download-removal-requests.ts",
+                    "statements": {
+                        "minimumCovered": 53,
+                        "minimumPercent": 91.37
                     }
                 }
             ]
