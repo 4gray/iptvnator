@@ -2,22 +2,23 @@ import type { DownloadTask, CompletedPartialProgress } from './download-task';
 import { cleanupCatchupFile } from './download-catchup-cleanup';
 import { constants, type Stats } from 'node:fs';
 import { link, lstat, open } from 'node:fs/promises';
-import type { ArchiveFileIdentity } from './download-catchup-output';
+import {
+    archiveFileIdentity,
+    sameArchiveFileIdentity,
+    type ArchiveFileIdentity,
+} from './download-catchup-output';
 import type { ReservedPartialDownloadFile } from './download-file-path';
-
-function sameFile(
-    stats: ArchiveFileIdentity,
-    identity: ArchiveFileIdentity
-): boolean {
-    return stats.dev === identity.dev && stats.ino === identity.ino;
-}
 
 function verify(
     stats: Stats,
     identity: ArchiveFileIdentity,
     size: number
 ): void {
-    if (!stats.isFile() || !sameFile(stats, identity) || stats.size !== size) {
+    if (
+        !stats.isFile() ||
+        !sameArchiveFileIdentity(stats, identity) ||
+        stats.size !== size
+    ) {
         throw new Error('Archive partial changed before promotion');
     }
 }
@@ -130,7 +131,7 @@ export async function finalizeCatchupPartial(
                 ? cleanup.partial()
                 : cleanupCatchupFile(reservation.partialPath, identity)
         ).catch(() => undefined);
-        return { size, identity: { dev: created.dev, ino: created.ino } };
+        return { size, identity: archiveFileIdentity(created) };
     } catch (error) {
         if (created) {
             await (
@@ -154,8 +155,7 @@ export async function recoverCatchupCompletion(
     try {
         const file = await lstat(proof.filePath);
         return file.isFile() &&
-            file.dev === proof.identity.dev &&
-            file.ino === proof.identity.ino &&
+            sameArchiveFileIdentity(file, proof.identity) &&
             file.size === proof.size
             ? {
                   filePath: proof.filePath,

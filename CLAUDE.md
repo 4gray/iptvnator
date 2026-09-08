@@ -1854,6 +1854,8 @@ The same journal stores transfer-phase descriptor identity before truncation;
 Resume checks it at open, and rejected replacements are preserved and detached
 so Retry can reserve a fresh path. A synchronous completion-commit boundary
 rejects late pause/cancel commands before awaited cleanup and persistence.
+Archive ownership includes device, inode and positive creation time to reject
+reused inodes after unlink; old proofs without creation time remain untrusted.
 Private cleanup captures are journaled before relocation, keeping failed
 Remove/Clear/cancel cleanup retryable across restarts without hardlinks. Active
 failures, promotion and startup share that cleanup; Remove waits for active

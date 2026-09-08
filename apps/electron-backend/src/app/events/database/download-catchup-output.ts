@@ -4,6 +4,29 @@ import { lstat, open } from 'node:fs/promises';
 export interface ArchiveFileIdentity {
     readonly dev: number;
     readonly ino: number;
+    readonly birthtimeMs: number;
+}
+
+/** Inodes can be reused after unlink; creation time identifies the generation. */
+export function sameArchiveFileIdentity(
+    a: ArchiveFileIdentity,
+    b: ArchiveFileIdentity
+): boolean {
+    return (
+        a.dev === b.dev &&
+        a.ino === b.ino &&
+        Number.isFinite(a.birthtimeMs) &&
+        a.birthtimeMs > 0 &&
+        a.birthtimeMs === b.birthtimeMs
+    );
+}
+
+export function archiveFileIdentity(
+    file: ArchiveFileIdentity
+): ArchiveFileIdentity {
+    if (!Number.isFinite(file.birthtimeMs) || file.birthtimeMs <= 0)
+        throw new Error('Archive filesystem creation time is unavailable');
+    return { dev: file.dev, ino: file.ino, birthtimeMs: file.birthtimeMs };
 }
 
 export class ArchivePartialReplacedError extends Error {
@@ -36,27 +59,26 @@ export async function openCatchupOutput(
     );
     try {
         const current = await handle.stat();
+        const identity = archiveFileIdentity(current);
         // Descriptor identity also protects platforms without O_NOFOLLOW from
         // a link/file replacement between lstat and open. Missing files use wx.
         if (
             !current.isFile() ||
             current.nlink !== 1 ||
-            (before &&
-                (current.dev !== before.dev || current.ino !== before.ino)) ||
+            (before && !sameArchiveFileIdentity(current, before)) ||
             (before &&
                 expectedIdentity &&
-                (current.dev !== expectedIdentity.dev ||
-                    current.ino !== expectedIdentity.ino))
+                !sameArchiveFileIdentity(current, expectedIdentity))
         ) {
             throw new ArchivePartialReplacedError();
         }
         // Keep durable ownership evidence until the actual descriptor passes.
-        await beforeTruncate?.({ dev: current.dev, ino: current.ino });
+        await beforeTruncate?.(identity);
         await handle.truncate(0);
         // All writes use this verified descriptor; never reopen by pathname.
         return {
             stream: handle.createWriteStream({ autoClose: true }),
-            identity: { dev: current.dev, ino: current.ino },
+            identity,
         };
     } catch (error) {
         await handle.close();

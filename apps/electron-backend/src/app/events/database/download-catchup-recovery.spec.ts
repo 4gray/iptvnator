@@ -217,8 +217,8 @@ it.each([
         version: 1,
         filePath: '/tmp/a',
         size: -1,
-        partialIdentity: { dev: 1, ino: 1 },
-        finalIdentity: { dev: 1, ino: 1 },
+        partialIdentity: { dev: 1, ino: 1, birthtimeMs: 1 },
+        finalIdentity: { dev: 1, ino: 1, birthtimeMs: 1 },
     }),
 ])('ignores malformed journal %s', (value) => {
     expect(parseArchiveFinalization(value)).toBeUndefined();

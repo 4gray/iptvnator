@@ -1,3 +1,4 @@
+import { sameArchiveFileIdentity } from './download-catchup-output';
 import {
     cleanupStoredCatchupPartial,
     cleanupStoredCatchupFinal,
@@ -37,11 +38,7 @@ function hasReplacedArchivePartial(download: StaleDownload): boolean {
     try {
         const file = lstatSync(`${download.filePath}.part`);
         const expected = download.proof.partialIdentity;
-        return (
-            !file.isFile() ||
-            file.dev !== expected.dev ||
-            file.ino !== expected.ino
-        );
+        return !file.isFile() || !sameArchiveFileIdentity(file, expected);
     } catch (error) {
         return (error as NodeJS.ErrnoException).code !== 'ENOENT';
     }

@@ -119,6 +119,7 @@ it.each(['failed', 'canceled'])(
                     expect.objectContaining({
                         dev: active.catchupPartialIdentity.dev,
                         ino: active.catchupPartialIdentity.ino,
+                        birthtimeMs: active.catchupPartialIdentity.birthtimeMs,
                     })
                 );
                 await rename(

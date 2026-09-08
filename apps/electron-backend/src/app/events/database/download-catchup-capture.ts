@@ -1,6 +1,9 @@
 import { lstatSync, rmdirSync, unlinkSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { ArchiveFileIdentity } from './download-catchup-output';
+import {
+    sameArchiveFileIdentity,
+    type ArchiveFileIdentity,
+} from './download-catchup-output';
 import type { ArchiveDownloadProof } from './download-catchup-journal';
 
 /** Retry a journaled private capture without ever deleting a replacement. */
@@ -20,11 +23,7 @@ function cleanupCapture(
     if (!path) return;
     try {
         const file = lstatSync(path);
-        if (
-            file.isFile() &&
-            file.dev === identity.dev &&
-            file.ino === identity.ino
-        ) {
+        if (file.isFile() && sameArchiveFileIdentity(file, identity)) {
             unlinkSync(path);
         } else {
             console.warn(

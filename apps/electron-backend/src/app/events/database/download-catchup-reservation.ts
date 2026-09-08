@@ -1,7 +1,10 @@
 import { lstat } from 'node:fs/promises';
 import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import { clearArchiveFinalization } from './download-catchup-journal';
-import { ArchivePartialReplacedError } from './download-catchup-output';
+import {
+    ArchivePartialReplacedError,
+    sameArchiveFileIdentity,
+} from './download-catchup-output';
 import { reserveAvailablePartialDownloadFile } from './download-file-path';
 import type { DownloadsDatabase, DownloadTask } from './download-task';
 
@@ -22,8 +25,7 @@ export async function reserveFreshCatchupTarget(
             partial &&
             (!expected ||
                 !partial.isFile() ||
-                partial.dev !== expected.dev ||
-                partial.ino !== expected.ino)
+                !sameArchiveFileIdentity(partial, expected))
         ) {
             throw new ArchivePartialReplacedError();
         }

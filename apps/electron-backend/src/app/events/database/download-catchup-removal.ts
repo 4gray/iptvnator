@@ -17,7 +17,10 @@ import {
     type ArchiveDownloadProof,
 } from './download-catchup-journal';
 import type { DownloadsDatabase } from './download-task';
-import type { ArchiveFileIdentity } from './download-catchup-output';
+import {
+    sameArchiveFileIdentity,
+    type ArchiveFileIdentity,
+} from './download-catchup-output';
 
 /** IPC removal stays synchronous after its runtime guard, like VOD cleanup. */
 export function removeJournaledCatchupPartial(
@@ -44,7 +47,7 @@ function removeOwnedEntry(
     recordCapture: (path: string) => void
 ): void {
     const matches = (file: Stats, identity: ArchiveFileIdentity) =>
-        file.isFile() && file.dev === identity.dev && file.ino === identity.ino;
+        file.isFile() && sameArchiveFileIdentity(file, identity);
     try {
         if (!matches(lstatSync(path), identity)) return;
     } catch (error) {
@@ -127,8 +130,7 @@ export async function cleanupStoredCatchupFinal(
             proof.phase === 'transfer' ||
             proof.filePath !== filePath ||
             (createdIdentity &&
-                (createdIdentity.dev !== proof.finalIdentity.dev ||
-                    createdIdentity.ino !== proof.finalIdentity.ino))
+                !sameArchiveFileIdentity(createdIdentity, proof.finalIdentity))
         ) {
             // Only the exclusively created empty target can precede final proof;
             // no copy bytes are written until its identity has committed.

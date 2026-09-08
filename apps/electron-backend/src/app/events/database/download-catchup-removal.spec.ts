@@ -1,3 +1,8 @@
+import { openCatchupOutput } from './download-catchup-output';
+import {
+    verifiedArchiveSize,
+    parseArchiveFinalization,
+} from './download-catchup-journal';
 import {
     mkdtempSync,
     lstatSync,
@@ -230,3 +235,46 @@ it.each([false, true])(
         else expect(() => lstatSync(filePath)).toThrow();
     }
 );
+
+it('preserves a replacement when the filesystem reuses its predecessor inode', () => {
+    proof.partialIdentity = {
+        ...proof.partialIdentity,
+        birthtimeMs: proof.partialIdentity.birthtimeMs - 1,
+    };
+    removeJournaledCatchupPartial(filePath, proof, recordCapture);
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
+    expect(renameSync).not.toHaveBeenCalled();
+});
+
+it('rejects a reused inode before truncating or replacing the journal proof', async () => {
+    const previous = {
+        ...proof.partialIdentity,
+        birthtimeMs: proof.partialIdentity.birthtimeMs - 1,
+    };
+    const record = jest.fn();
+    await expect(
+        openCatchupOutput(filePath + '.part', previous, record)
+    ).rejects.toThrow('changed');
+    expect(record).not.toHaveBeenCalled();
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
+});
+
+it('does not recover a same-size final from a reused inode or a legacy proof without creation time', () => {
+    writeFileSync(filePath, 'foreign archive');
+    const final = lstatSync(filePath);
+    const journal: ArchiveFinalizationProof = {
+        ...proof,
+        phase: 'finalization',
+        size: final.size,
+        finalIdentity: { ...final, birthtimeMs: final.birthtimeMs - 1 },
+    };
+    expect(verifiedArchiveSize(filePath, journal)).toBeNull();
+    expect(
+        parseArchiveFinalization(
+            JSON.stringify({
+                ...journal,
+                finalIdentity: { dev: final.dev, ino: final.ino },
+            })
+        )
+    ).toBeUndefined();
+});

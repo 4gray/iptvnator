@@ -92,7 +92,7 @@ cancellation to settle before reading/deleting its row; queued archives are
 canceled first, and a concurrent new runtime attempt blocks removal. A settled
 archive still marked downloading after a failed status write also retries
 journal cleanup before row deletion. Remove/Clear preserve a final file whose
-journaled identity and full size prove completed promotion, even when completion
+journaled device/inode/creation-time identity and full size prove completed promotion, even when completion
 status writes failed and its stored status is stale. Repeat submissions, Retry
 and Resume restore such a journal-proven completion in place before any new
 transfer or ownership reset, before expiry, provider DNS and new-folder checks
@@ -100,7 +100,9 @@ that apply only to another remote transfer; retained cleanup failures keep their
 journal. Remove, Clear completed and missing-file
 re-download and repeated programme submissions use journal-backed private
 capture for archive partial cleanup;
-unknown or replaced entries are preserved. Before capture, a synchronous SQLite
+unknown or replaced entries are preserved. Ownership includes a positive file
+creation timestamp as well as device/inode, so inode reuse after unlink cannot
+bless a new entry; proofs lacking creation time remain untrusted. Before capture, a synchronous SQLite
 write records `partialCleanupPath` (or `finalCleanupPath` for failed promotion)
 in the existing ownership proof. Active cancellation/failure, promotion and
 startup recovery use the same journal-backed cleanup as manual actions. Cancel,

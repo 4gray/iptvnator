@@ -3,7 +3,11 @@ import { eq, inArray } from 'drizzle-orm';
 import { lstatSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import * as schema from '../../database/schema';
-import type { ArchiveFileIdentity } from './download-catchup-output';
+import {
+    archiveFileIdentity,
+    sameArchiveFileIdentity,
+    type ArchiveFileIdentity,
+} from './download-catchup-output';
 import type { DownloadsDatabase } from './download-task';
 
 export interface ArchiveFinalizationProof {
@@ -57,16 +61,10 @@ async function writeArchiveProof(
 ): Promise<void> {
     const serialized = JSON.stringify({
         ...proof,
-        partialIdentity: {
-            dev: proof.partialIdentity.dev,
-            ino: proof.partialIdentity.ino,
-        },
+        partialIdentity: archiveFileIdentity(proof.partialIdentity),
         ...(proof.phase !== 'transfer'
             ? {
-                  finalIdentity: {
-                      dev: proof.finalIdentity.dev,
-                      ino: proof.finalIdentity.ino,
-                  },
+                  finalIdentity: archiveFileIdentity(proof.finalIdentity),
               }
             : {}),
     });
@@ -121,7 +119,9 @@ function identity(value: unknown): value is ArchiveFileIdentity {
     const candidate = value as ArchiveFileIdentity;
     return (
         Number.isSafeInteger(candidate.dev) &&
-        Number.isSafeInteger(candidate.ino)
+        Number.isSafeInteger(candidate.ino) &&
+        Number.isFinite(candidate.birthtimeMs) &&
+        candidate.birthtimeMs > 0
     );
 }
 
@@ -193,8 +193,7 @@ export function verifiedArchiveSize(
     try {
         const file = lstatSync(proof.filePath);
         return file.isFile() &&
-            file.dev === proof.finalIdentity.dev &&
-            file.ino === proof.finalIdentity.ino &&
+            sameArchiveFileIdentity(file, proof.finalIdentity) &&
             file.size === proof.size
             ? proof.size
             : null;

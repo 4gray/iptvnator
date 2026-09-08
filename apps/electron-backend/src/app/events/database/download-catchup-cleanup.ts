@@ -1,6 +1,9 @@
 import { link, lstat, mkdtemp, rename, rmdir, unlink } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { ArchiveFileIdentity } from './download-catchup-output';
+import {
+    sameArchiveFileIdentity,
+    type ArchiveFileIdentity,
+} from './download-catchup-output';
 
 /** Capture the directory entry atomically before inspecting or removing it. */
 export async function cleanupCatchupFile(
@@ -14,11 +17,7 @@ export async function cleanupCatchupFile(
     try {
         await rename(path, captured);
         const stats = await lstat(captured);
-        if (
-            stats.isFile() &&
-            stats.dev === identity.dev &&
-            stats.ino === identity.ino
-        ) {
+        if (stats.isFile() && sameArchiveFileIdentity(stats, identity)) {
             await unlink(captured);
         } else {
             // A replacement was captured. Restore without clobbering any newer
