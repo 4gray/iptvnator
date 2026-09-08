@@ -337,3 +337,26 @@ it('never truncates a preexisting file without expected ownership', async () => 
     expect(record).not.toHaveBeenCalled();
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
 });
+
+it.each([false, true])(
+    'does not relocate an unproved fallback target (replaced=%s)',
+    async (replaced) => {
+        writeFileSync(filePath, '');
+        const createdIdentity = lstatSync(filePath);
+        if (replaced) {
+            renameSync(filePath, join(directory, 'empty-original'));
+            writeFileSync(filePath, 'foreign final');
+        }
+        const db = {
+            select: () => ({ from: () => ({ where: async () => [] }) }),
+        };
+        jest.mocked(renameSync).mockClear();
+        await expect(
+            cleanupStoredCatchupFinal(db as never, 1, filePath, createdIdentity)
+        ).resolves.toBe(false);
+        expect(readFileSync(filePath, 'utf8')).toBe(
+            replaced ? 'foreign final' : ''
+        );
+        expect(renameSync).not.toHaveBeenCalled();
+    }
+);

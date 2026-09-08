@@ -123,11 +123,13 @@ filesystems without hardlinks. Cleanup remains synchronous after the
 runtime guard, so a completion transition cannot interleave with unlink.
 Missing archive re-downloads claim a fresh reservation instead of inheriting the
 completed file's identity.
-If the initial reservation journal write fails, descriptor-owned cleanup removes
-the empty partial while preserving a replacement. A kill between exclusive
-reservation/copy-file creation and its identity journal commit (or a failure of
-that unjournaled cleanup) can leave an unowned **empty** destination: no bytes
-are written before the commit.
+If the initial reservation journal write fails, persistence is retried once
+before journal-backed cleanup. If SQLite remains unavailable, the empty
+reservation stays at its public path; no unjournaled entry is relocated. An
+empty fallback-copy target whose final proof cannot commit is likewise preserved.
+A kill between exclusive reservation/copy-file creation and its identity journal
+commit, or persistent SQLite failure before that commit, can leave an unowned
+**empty** destination: no bytes are written before the commit.
 Recovery preserves that file rather than guessing ownership; Retry uses a
 numbered free destination. SQLite and filesystem creation cannot commit
 atomically, and portable rename cannot guarantee no-clobber publication on the

@@ -201,8 +201,8 @@ it.each([false, true])(
             },
         };
         const failure = new Error('SQLite write failed');
-        jest.mocked(recordArchiveReservation).mockImplementationOnce(
-            async () => {
+        jest.mocked(recordArchiveReservation)
+            .mockImplementationOnce(async () => {
                 if (replaced) {
                     await rename(
                         filePath + '.part',
@@ -211,8 +211,22 @@ it.each([false, true])(
                     await writeFile(filePath + '.part', 'foreign bytes');
                 }
                 throw failure;
-            }
-        );
+            })
+            .mockImplementationOnce(async (_db, id, path, identity) => {
+                jest.mocked(readArchiveFinalizations).mockResolvedValue(
+                    new Map([
+                        [
+                            id,
+                            {
+                                version: 1,
+                                phase: 'transfer',
+                                filePath: path,
+                                partialIdentity: identity,
+                            },
+                        ],
+                    ])
+                );
+            });
         try {
             await expect(
                 reserveTarget({} as DownloadsDatabase, task)
@@ -226,6 +240,48 @@ it.each([false, true])(
                     code: 'ENOENT',
                 });
             }
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    }
+);
+
+it.each([false, true])(
+    'never relocates an unjournaled reservation when SQLite remains unavailable (replaced=%s)',
+    async (replaced) => {
+        const directory = await mkdtemp(join(tmpdir(), 'archive-no-journal-'));
+        const filePath = join(directory, 'show.ts');
+        const task: DownloadTask = {
+            id: 21,
+            directory,
+            fileName: 'show.ts',
+            url: 'https://provider.test/archive.ts',
+            catchup: {
+                channelName: 'News',
+                startTimestamp: 100,
+                stopTimestamp: 200,
+            },
+        };
+        const failure = new Error('SQLite unavailable');
+        jest.mocked(recordArchiveReservation)
+            .mockImplementationOnce(async () => {
+                if (replaced) {
+                    await rename(
+                        filePath + '.part',
+                        join(directory, 'original')
+                    );
+                    await writeFile(filePath + '.part', 'foreign bytes');
+                }
+                throw failure;
+            })
+            .mockRejectedValueOnce(failure);
+        try {
+            await expect(
+                reserveTarget({} as DownloadsDatabase, task)
+            ).rejects.toBe(failure);
+            expect(await readFile(filePath + '.part', 'utf8')).toBe(
+                replaced ? 'foreign bytes' : ''
+            );
         } finally {
             await rm(directory, { recursive: true, force: true });
         }

@@ -25,11 +25,12 @@ export async function cleanupCatchupFile(
             try {
                 await link(captured, path);
                 await unlink(captured);
-            } catch {
+            } catch (error) {
                 console.warn(
                     '[Downloads] Replaced file retained for recovery:',
                     captured
                 );
+                throw error;
             }
         }
     } finally {

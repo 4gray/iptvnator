@@ -1,4 +1,3 @@
-import { cleanupCatchupFile } from './download-catchup-cleanup';
 import { cleanupArchiveCapture } from './download-catchup-capture';
 import {
     lstatSync,
@@ -133,11 +132,9 @@ export async function cleanupStoredCatchupFinal(
             (createdIdentity &&
                 !sameArchiveFileIdentity(createdIdentity, proof.finalIdentity))
         ) {
-            // Only the exclusively created empty target can precede final proof;
-            // no copy bytes are written until its identity has committed.
-            if (createdIdentity)
-                await cleanupCatchupFile(filePath, createdIdentity);
-            return true;
+            // No copy bytes precede final proof. Preserve an unproved empty
+            // destination in place: relocation needs a durable capture pointer.
+            return !createdIdentity;
         }
         cleanupArchiveCapture(proof);
         removeOwnedEntry(filePath, proof.finalIdentity, (path) =>

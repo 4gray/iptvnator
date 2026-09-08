@@ -78,7 +78,9 @@ it.each(['EEXIST', 'ENOTSUP'])(
             .spyOn(console, 'warn')
             .mockImplementation(() => undefined);
         try {
-            await cleanupCatchupFile(path, identity);
+            await expect(cleanupCatchupFile(path, identity)).rejects.toThrow(
+                'cannot restore'
+            );
             const quarantine = (await readdir(directory)).find((entry) =>
                 entry.startsWith('.iptvnator-cleanup-')
             );
