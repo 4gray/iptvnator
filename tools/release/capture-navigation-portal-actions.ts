@@ -58,7 +58,7 @@ export async function openXtreamSeries(
     await page.waitForTimeout(700);
 }
 
-async function openM3uGroups(page: Page): Promise<void> {
+export async function openM3uGroups(page: Page): Promise<void> {
     const playlistId = requirePlaylistId('playlists');
 
     await goHome(page);

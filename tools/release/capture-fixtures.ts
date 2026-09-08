@@ -60,6 +60,8 @@ export const CAPTURE_DOWNLOAD_FOLDER_NAME = 'IPTVnator downloads';
 export const M3U_FIXTURE_PLAYLIST_URL = `${XTREAM_MOCK_ORIGIN}/demo/channels.m3u8`;
 export const M3U_FIXTURE_PLAYLIST_TITLE = 'Fictional TV playlist';
 export const EPG_FIXTURE_URL = `${XTREAM_MOCK_ORIGIN}/demo/guide.xml.gz`;
+/** Served by the Xtream mock (`/demo/guide.xml`); the EPG-mapping guide shots import it for real. */
+export const DEMO_EPG_URL = `${XTREAM_MOCK_ORIGIN}/demo/guide.xml`;
 
 /** A fictional "your subscription is ready" message for the Auto-detect shot. */
 export const AUTO_DETECT_FIXTURE_MESSAGE = [

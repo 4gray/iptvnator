@@ -1,5 +1,5 @@
 import { Injector } from '@angular/core';
-import { firstValueFrom, of, Subject } from 'rxjs';
+import { firstValueFrom, of, Subject, throwError } from 'rxjs';
 import { EpgSourceSettingsService } from './epg-source-settings.service';
 import { PlaylistsService } from './playlists.service';
 
@@ -108,5 +108,71 @@ describe('EPG source settings synchronization', () => {
             ['b'],
         ]);
         expect(service.retainCurrentSources(['a', 'b'], 0)).toEqual(['b']);
+    });
+    it('retries failed inventory ownership before pruning, using the committed URLs', async () => {
+        const getAllPlaylists = jest
+            .fn()
+            .mockReturnValue(throwError(() => new Error('disk')));
+        const reconcileEpgSources = jest
+            .fn()
+            .mockResolvedValue({ success: true });
+        window.electron = {
+            reconcileEpgSources,
+        } as unknown as typeof window.electron;
+        const injector = Injector.create({
+            providers: [
+                EpgSourceSettingsService,
+                { provide: PlaylistsService, useValue: { getAllPlaylists } },
+            ],
+        });
+        const service = injector.get(EpgSourceSettingsService);
+        // No known committed settings means no permission to prune defaults.
+        await service.retryFailedReconciliation();
+        expect(getAllPlaylists).not.toHaveBeenCalled();
+        await expect(
+            service.synchronize([' current ', 'current'])
+        ).rejects.toThrow();
+        expect(reconcileEpgSources).not.toHaveBeenCalled();
+        getAllPlaylists.mockReturnValue(of([]));
+        await service.retryFailedReconciliation();
+        expect(reconcileEpgSources).toHaveBeenCalledWith(['current']);
+        await service.retryFailedReconciliation();
+        expect(reconcileEpgSources).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for a newer committed synchronization without replaying an older failed set', async () => {
+        let finish!: (result: { success: boolean }) => void;
+        const reconcileEpgSources = jest
+            .fn()
+            .mockResolvedValueOnce({ success: false })
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finish = resolve;
+                    })
+            );
+        window.electron = {
+            reconcileEpgSources,
+        } as unknown as typeof window.electron;
+        const injector = Injector.create({
+            providers: [
+                EpgSourceSettingsService,
+                {
+                    provide: PlaylistsService,
+                    useValue: { getAllPlaylists: () => of([]) },
+                },
+            ],
+        });
+        const service = injector.get(EpgSourceSettingsService);
+        await expect(service.synchronize(['old'])).rejects.toThrow();
+        const recovery = service.retryFailedReconciliation();
+        const latest = service.synchronize(['new']);
+        await Promise.resolve();
+        finish({ success: true });
+        await Promise.all([latest, recovery]);
+        expect(reconcileEpgSources.mock.calls).toEqual([[['old']], [['new']]]);
+        expect(service.retainCurrentSources(['old', 'new'], 0)).toEqual([
+            'new',
+        ]);
     });
 });

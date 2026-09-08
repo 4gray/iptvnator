@@ -8,6 +8,46 @@ import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 const reducer = createReducer(initialState, ...playlistReducers);
 
 describe('playlistReducers', () => {
+    it('keeps a failed initial inventory unready until a retry succeeds', () => {
+        const failed = reducer(
+            initialState,
+            PlaylistActions.loadPlaylistsFailure()
+        );
+        expect(failed.playlists.loadFailed).toBe(true);
+        expect(failed.playlists.allPlaylistsLoaded).toBe(false);
+        const retrying = reducer(failed, PlaylistActions.loadPlaylists());
+        expect(retrying.playlists.loadFailed).toBe(false);
+        expect(retrying.playlists.allPlaylistsLoaded).toBe(false);
+        const recovered = reducer(
+            retrying,
+            PlaylistActions.loadPlaylistsSuccess({ playlists: [] })
+        );
+        expect(recovered.playlists.loadFailed).toBe(false);
+        expect(recovered.playlists.allPlaylistsLoaded).toBe(true);
+    });
+
+    it('clears readiness when a backup replaces an already loaded inventory', () => {
+        const loaded = reducer(
+            initialState,
+            PlaylistActions.loadPlaylistsSuccess({ playlists: [] })
+        );
+        const emptied = reducer(loaded, PlaylistActions.removeAllPlaylists());
+        const loading = reducer(emptied, PlaylistActions.loadPlaylists());
+        expect(loading.playlists.allPlaylistsLoaded).toBe(false);
+        const failed = reducer(loading, PlaylistActions.loadPlaylistsFailure());
+        expect(failed.playlists.allPlaylistsLoaded).toBe(false);
+        expect(failed.playlists.loadFailed).toBe(true);
+        const retrying = reducer(failed, PlaylistActions.loadPlaylists());
+        expect(retrying.playlists.allPlaylistsLoaded).toBe(false);
+        expect(retrying.playlists.loadFailed).toBe(false);
+        const recovered = reducer(
+            retrying,
+            PlaylistActions.loadPlaylistsSuccess({ playlists: [] })
+        );
+        expect(recovered.playlists.allPlaylistsLoaded).toBe(true);
+        expect(recovered.playlists.loadFailed).toBe(false);
+    });
+
     it('persists updateDate and hiddenGroupTitles when playlist meta is updated', () => {
         const existingPlaylist: PlaylistMeta = {
             _id: 'playlist-1',

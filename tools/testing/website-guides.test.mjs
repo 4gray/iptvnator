@@ -57,6 +57,14 @@ const GUIDES = [
       'blog/guides/screenshots/guide-remote-phone-dark.png',
     ],
   },
+  {
+    slug: 'epg-wrong-program-fix',
+    screenshots: [
+      'blog/guides/screenshots/guide-epg-map-menu-dark.png',
+      'blog/guides/screenshots/guide-epg-map-dialog-dark.png',
+      'blog/guides/screenshots/guide-epg-offset-dark.png',
+    ],
+  },
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');

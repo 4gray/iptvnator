@@ -7,7 +7,8 @@
  * (`capture-navigation-setup-actions.ts`: dialogs, settings, remote
  * control; `capture-navigation-portal-actions.ts`: portal browsing and
  * alternative sources; `capture-navigation-download-actions.ts`: the
- * download manager) over the shared page helpers in
+ * download manager; `capture-navigation-epg-actions.ts`: the EPG guide
+ * import and channel mapping) over the shared page helpers in
  * `capture-navigation-helpers.ts`. This file only dispatches a step name
  * and re-exports the API the seeding driver and the capture script use.
  */
@@ -21,6 +22,7 @@ import {
     settleUi,
 } from './capture-navigation-helpers';
 import { DOWNLOAD_ACTIONS } from './capture-navigation-download-actions';
+import { EPG_ACTIONS } from './capture-navigation-epg-actions';
 import { PORTAL_ACTIONS } from './capture-navigation-portal-actions';
 import { SETUP_ACTIONS } from './capture-navigation-setup-actions';
 
@@ -38,6 +40,7 @@ const ACTIONS: Readonly<Record<string, CaptureAction>> = {
     ...SETUP_ACTIONS,
     ...PORTAL_ACTIONS,
     ...DOWNLOAD_ACTIONS,
+    ...EPG_ACTIONS,
 };
 
 /* ------------------------------------------------------------------ */

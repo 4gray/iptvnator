@@ -6,12 +6,25 @@ import { playlistsAdapter } from '../playlists.state';
 import { PlaylistState } from '../state';
 
 export const playlistReducers = [
+    on(PlaylistActions.loadPlaylists, (state): PlaylistState => ({
+        ...state,
+        playlists: {
+            ...state.playlists,
+            allPlaylistsLoaded: false,
+            loadFailed: false,
+        },
+    })),
+    on(PlaylistActions.loadPlaylistsFailure, (state): PlaylistState => ({
+        ...state,
+        playlists: { ...state.playlists, loadFailed: true },
+    })),
     on(PlaylistActions.loadPlaylistsSuccess, (state, action): PlaylistState => {
         return {
             ...state,
             playlists: playlistsAdapter.addMany(action.playlists, {
                 ...state.playlists,
                 allPlaylistsLoaded: true,
+                loadFailed: false,
             }),
         };
     }),

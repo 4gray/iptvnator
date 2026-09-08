@@ -82,7 +82,8 @@ skip shows up in your output.
 Evergreen how-to posts live in the blog collection next to release notes
 (`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx`,
 `m3u-playlist-epg-setup-guide.mdx`, `offline-downloads-guide.mdx`,
-`alternative-sources-guide.mdx` and `remote-control-guide.mdx` in
+`alternative-sources-guide.mdx`, `remote-control-guide.mdx` and
+`epg-wrong-program-fix.mdx` in
 `apps/website/src/content/blog/`). Three conventions set them apart:
 
 - **`ContentDisclaimer`.** Every guide opens with
@@ -119,6 +120,10 @@ Evergreen how-to posts live in the blog collection next to release notes
   `tools/release/capture-release-screenshots.ts`). Its setup selects a live
   channel and saves the remote-control setting, so the app's own server answers
   on port 8765 for the duration of the run.
+  The EPG-mapping shots import the mock's XMLTV guide (`/demo/guide.xml`,
+  channel ids that match no playlist `tvg-id` on purpose) into the isolated
+  database through the settings, then right-click a channel of the M3U
+  fixture and search the dialog.
 
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence

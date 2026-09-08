@@ -1,4 +1,7 @@
-<router-outlet />
+<app-startup-status #startup [routeReady]="routeReady()" />
+<div [style.display]="startup.complete() ? 'contents' : 'none'">
+    <router-outlet (activate)="routeReady.set(true)" />
+</div>
 
 <app-epg-progress-panel />
 

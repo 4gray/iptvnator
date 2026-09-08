@@ -76,12 +76,42 @@ migrations. In particular, `idx_content_epg_channel` must follow the addition of
 `content.epg_channel_id`; creating it in the initial CREATE TABLE pass aborts
 initialization on the v0.19 schema before the playlist migration can run.
 
+Initial workspace routing waits for settings and XMLTV source reconciliation.
+Removing a large obsolete EPG cache can therefore delay the first view even
+after legacy recovery is declined. `AppStartupStatusComponent` shows preparation
+until both the initial routed component and source inventory are ready; routed
+content stays hidden from pointer and keyboard interaction during that interval.
+There is no estimated percentage or timeout that bypasses reconciliation.
+
+Source inventory reads recreate the storage request for one automatic retry
+after 300 ms. Exhausted retries emit `Load Playlists Failure` without raw error
+details and leave `allPlaylistsLoaded` false. The startup error offers Retry,
+which dispatches a fresh load without restarting or changing saved sources.
+Before publishing a successful inventory, the effect waits for settings loading
+to register initial cleanup, then waits for any active EPG reconciliation and retries the last failed synchronization using its committed,
+normalized global URLs. A settings-read failure never supplies defaults to this
+retry; a newer successful synchronization clears the failure instead of replaying
+an older source set. Repeated cleanup failure leaves Retry available.
+Every inventory load clears readiness, including reloads after backup import,
+so a later read failure also exposes Retry. A successfully loaded empty inventory
+is distinct from a failed read. The preparation/error surface remains a native
+window drag region, with Retry excluded so it stays clickable. Its static,
+monochrome SVG watermark inherits the theme heading color, fades toward the
+content, and is clipped, pointer-transparent and hidden from assistive technology.
+
 Validation: `electron-backend-e2e:e2e-ci--src/legacy-playlist-migration.e2e.ts`
 seeds the exact v0.19 IndexedDB schema and verbatim SQL CREATE statements with
 61 Stalker sources, three Xtream sources, M3U, and linked cached user data.
 It exercises source-list UI, alternate last-used sources, retained settings,
 recovery consent, existing data, write failure, restart, and deletion after
-migration. Local macOS Electron verification does not substitute for installed
+migration. The refusal case holds a mocked recovery dialog pending until startup
+reaches it, then checks that Sources renders the current source in the same
+launch. Native operating-system dialogs still require separate manual verification.
+The same suite holds EPG reconciliation pending and injects failed metadata reads
+to check preparation, error feedback and recovery through Retry, including a
+second failure after importing a backup into an already loaded session. These use
+controlled IPC faults rather than adding a large, timing-dependent database to CI.
+Local macOS Electron verification does not substitute for installed
 Linux Mint MATE, Snap, or Flatpak upgrade testing.
 
 ## Module Structure

@@ -336,6 +336,14 @@ retained, current payload rows are preserved, and completed imports never
 replay deleted sources. Contract and recovery limits:
 `docs/architecture/m3u-playlist-module.md` (Desktop upgrades from legacy profiles).
 
+Startup shows `AppStartupStatusComponent` until the initial route and source
+inventory are ready, including XMLTV reconciliation. Inventory reads retry once;
+failed reads show an explicit Retry action instead of an empty library. Successful
+inventory reads first await settings loading, then pending XMLTV reconciliation,
+and retry failed cleanup
+with its last committed URLs before exposing the workspace. See the
+same contract for startup readiness and error handling.
+
 ## Architecture
 
 ### Monorepo Structure (Nx Workspace)

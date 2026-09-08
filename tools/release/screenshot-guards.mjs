@@ -59,6 +59,10 @@ export const KNOWN_ACTIONS = [
     'open-xtream-live-channel',
     'open-settings-remote-control',
     'enable-remote-control',
+    'open-settings-epg-offset',
+    'load-demo-epg',
+    'open-m3u-channel-menu',
+    'open-epg-mapping-dialog',
 ];
 
 /**

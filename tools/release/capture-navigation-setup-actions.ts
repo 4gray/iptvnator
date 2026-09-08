@@ -129,7 +129,8 @@ async function openAddPlaylistM3uUrl(page: Page): Promise<void> {
 /* Settings sections                                                   */
 /* ------------------------------------------------------------------ */
 
-async function openSettingsEpg(page: Page): Promise<void> {
+/** Navigates to Settings › EPG and waits for the section, without staging anything. */
+export async function openEpgSettingsSection(page: Page): Promise<void> {
     await openSettings(page);
     const sectionLink = page
         .locator('[data-test-id="settings-section-epg"]')
@@ -138,20 +139,28 @@ async function openSettingsEpg(page: Page): Promise<void> {
     await sectionLink.waitFor({ state: 'visible', timeout: 15_000 });
     await sectionLink.click({ timeout: 10_000 });
     await page.waitForURL(/\/workspace\/settings\/epg/, { timeout: 15_000 });
+    await page.locator('#epg').waitFor({ state: 'visible', timeout: 15_000 });
+}
 
+async function openSettingsEpg(page: Page): Promise<void> {
+    await openEpgSettingsSection(page);
     const section = page.locator('#epg');
-    await section.waitFor({ state: 'visible', timeout: 15_000 });
+
     // Show a filled source row instead of the empty state. The value
     // is staged in the form only; nothing is saved or fetched. The
     // dirty form is discarded by `discardUnsavedSettings` before the
     // next action or the app teardown — the settings close guard
-    // would otherwise hold `app.close()` open forever.
-    await section
-        .getByRole('button', { name: /add epg source/i })
-        .click({ timeout: 10_000 });
-    const field = section.locator('input[type="url"]').last();
-    await field.waitFor({ state: 'visible', timeout: 10_000 });
-    await field.fill(EPG_FIXTURE_URL, { timeout: 10_000 });
+    // would otherwise hold `app.close()` open forever. A row a previous
+    // step already saved (`load-demo-epg`) fills the frame on its own.
+    if ((await section.locator('.epg-source-row').count()) === 0) {
+        await section
+            .getByRole('button', { name: /add epg source/i })
+            .click({ timeout: 10_000 });
+        const field = section.locator('input[type="url"]').last();
+        await field.waitFor({ state: 'visible', timeout: 10_000 });
+        await field.fill(EPG_FIXTURE_URL, { timeout: 10_000 });
+    }
+
     await page.waitForTimeout(500);
 }
 

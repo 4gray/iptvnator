@@ -13,18 +13,23 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateService } from '@ngx-translate/core';
 import {
     EMPTY,
+    catchError,
     concatMap,
+    defer,
     filter,
     firstValueFrom,
     from,
     map,
     mergeMap,
+    of,
+    retry,
     switchMap,
     tap,
     withLatestFrom,
 } from 'rxjs';
 import {
     DataService,
+    EpgSourceSettingsService,
     PlaylistsService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -72,6 +77,7 @@ export class PlaylistEffects {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
+    private epgSources = inject(EpgSourceSettingsService);
     private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
     updateFavorites$ = createEffect(
@@ -257,7 +263,19 @@ export class PlaylistEffects {
         return this.actions$.pipe(
             ofType(PlaylistActions.loadPlaylists),
             switchMap(() =>
-                this.playlistsService.getAllPlaylists().pipe(
+                defer(() => this.playlistsService.getAllPlaylists()).pipe(
+                    // Recreate the storage request once for transient failures.
+                    // A final failure is state, not an empty source inventory.
+                    retry({ count: 1, delay: 300 }),
+                    switchMap((playlists) =>
+                        defer(async () => {
+                            // Settings can register initial cleanup after the
+                            // faster inventory read has already completed.
+                            await this.settingsStore.loadSettings();
+                            await this.epgSources.retryFailedReconciliation();
+                            return playlists;
+                        })
+                    ),
                     tap((playlists) => {
                         this.fetchPlaylistScopedEpgForPlaylists(playlists);
                     }),
@@ -265,7 +283,8 @@ export class PlaylistEffects {
                         PlaylistActions.loadPlaylistsSuccess({
                             playlists,
                         })
-                    )
+                    ),
+                    catchError(() => of(PlaylistActions.loadPlaylistsFailure()))
                 )
             )
         );

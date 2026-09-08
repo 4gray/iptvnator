@@ -147,6 +147,26 @@ describe('Xtream mock server factory', () => {
         }
     });
 
+    it('serves an XMLTV guide for the marketing live channels at /demo/guide.xml', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const response = await fetch(`${running.origin}/demo/guide.xml`);
+            const xml = await response.text();
+
+            expect(response.status).toBe(200);
+            expect(response.headers.get('content-type')).toContain('xml');
+            expect(xml).toContain('<tv ');
+            expect(xml).toContain('<display-name>Aurora News</display-name>');
+            expect(xml).toContain('channel="aurora-news.fictional"');
+            expect(xml).toContain(`${running.origin}/assets/marketing/logo/aurora-news.svg`);
+            expect(xml).not.toMatch(/https?:\/\/(?!127\.0\.0\.1|localhost)/);
+        } finally {
+            await running.close();
+        }
+    });
+
     it('serves the marketing catalog twice so the second credential pair is an alternative source', async () => {
         const running = await startLoopbackServer(
             createXtreamMockApp({ host: '127.0.0.1', port: 0 })

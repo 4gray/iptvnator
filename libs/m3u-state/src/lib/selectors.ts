@@ -53,6 +53,11 @@ export const selectPlaylistsMetaState = createSelector(
     fromPlaylistState.selectPlaylists
 );
 
+export const selectPlaylistsLoadFailed = createSelector(
+    selectPlaylistsMetaState,
+    (state) => state.loadFailed === true
+);
+
 export const selectAllPlaylistsMeta = createSelector(
     selectPlaylistsMetaState,
     fromPlaylistMetaState.getAllPlaylistsMeta

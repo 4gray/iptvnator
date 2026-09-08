@@ -40,8 +40,19 @@ export {
     XTREAM_MOCK_ORIGIN,
 } from './capture-fixtures';
 
-/** Synthetic categories that only the marketing fixture generator produces. */
-const MOCK_FIXTURE_CATEGORIES = ['Action & Mystery', 'Urban Drama'];
+/**
+ * Synthetic categories that only the marketing fixture generator produces,
+ * per catalog. They must be checked against their OWN endpoint: a series
+ * category can never appear in `get_vod_categories`, and asserting it there
+ * made the reuse path below reject every already-running mock.
+ */
+const MOCK_FIXTURE_CATEGORIES: ReadonlyArray<{
+    action: 'get_vod_categories' | 'get_series_categories';
+    name: string;
+}> = [
+    { action: 'get_vod_categories', name: 'Action & Mystery' },
+    { action: 'get_series_categories', name: 'Urban Drama' },
+];
 /**
  * Live categories of the Stalker mock's marketing-demo scenario, from
  * `MARKETING_LIVE_CATEGORIES` in `@iptvnator/shared/marketing-fixtures`.
@@ -203,27 +214,27 @@ async function assertStalkerMockServerIdentity(): Promise<void> {
  * the marketing catalog with the exact synthetic titles the shots rely on.
  */
 async function assertMockServerIdentity(): Promise<void> {
-    const response = await fetch(
-        `${XTREAM_MOCK_ORIGIN}/player_api.php?username=marketing&password=marketing&action=get_vod_categories`
-    ).catch(() => null);
-
-    if (!response?.ok) {
-        throw new Error(
-            `Something is listening on ${XTREAM_MOCK_ORIGIN} but does not answer the Xtream marketing API — stop it and let this script start the mock server itself.`
-        );
-    }
-
-    const categories = (await response.json().catch(() => null)) as
-        | { category_name?: string }[]
-        | null;
-    const names = new Set(
-        (categories ?? []).map((entry) => entry.category_name)
-    );
-
     for (const expected of MOCK_FIXTURE_CATEGORIES) {
-        if (!names.has(expected)) {
+        const response = await fetch(
+            `${XTREAM_MOCK_ORIGIN}/player_api.php?username=marketing&password=marketing&action=${expected.action}`
+        ).catch(() => null);
+
+        if (!response?.ok) {
             throw new Error(
-                `The server on ${XTREAM_MOCK_ORIGIN} is not the IPTVnator marketing mock (missing category "${expected}"). Refusing to capture screenshots from unknown data.`
+                `Something is listening on ${XTREAM_MOCK_ORIGIN} but does not answer the Xtream marketing API — stop it and let this script start the mock server itself.`
+            );
+        }
+
+        const categories = (await response.json().catch(() => null)) as
+            | { category_name?: string }[]
+            | null;
+        const names = new Set(
+            (categories ?? []).map((entry) => entry.category_name)
+        );
+
+        if (!names.has(expected.name)) {
+            throw new Error(
+                `The server on ${XTREAM_MOCK_ORIGIN} is not the IPTVnator marketing mock (missing ${expected.action} entry "${expected.name}"). Refusing to capture screenshots from unknown data.`
             );
         }
     }

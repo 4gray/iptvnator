@@ -16,6 +16,7 @@ import {
 } from './performance-control.js';
 import { dispatchAction } from './routes/dispatch.js';
 import { getScenario, type ScenarioConfig } from './scenarios.js';
+import { renderDemoXmltv } from './demo-xmltv.js';
 import {
     LOCAL_MEDIA_EPISODE_DOWNLOAD_OPTIONS,
     LOCAL_MEDIA_LIVE_STREAM_OPTIONS,
@@ -107,6 +108,7 @@ export function createXtreamMockApp(
             .send(M3U_FIXTURE);
     });
     installMarketingAssetRoute(app);
+    installDemoGuideRoute(app);
 
     app.get('/player_api.php', (request, response, next) => {
         dispatchWithControl(controller, request, response, next, 'direct', () =>
@@ -212,6 +214,17 @@ function dispatchProxyAction(request: Request, response: Response): void {
         return;
     }
     response.json({ payload, action });
+}
+
+/** XMLTV for the marketing live channels; see `demo-xmltv.ts`. */
+function installDemoGuideRoute(app: express.Express): void {
+    app.get('/demo/guide.xml', (request, response) => {
+        const origin = `${request.protocol}://${request.get('host') ?? `localhost:${DEFAULT_PORT}`}`;
+        response
+            .type('application/xml')
+            .set('Cache-Control', 'no-store')
+            .send(renderDemoXmltv(origin));
+    });
 }
 
 function installMarketingAssetRoute(app: express.Express): void {

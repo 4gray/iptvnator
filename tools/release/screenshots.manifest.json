@@ -171,6 +171,30 @@
                     "height": 1100
                 }
             }
+        },
+        {
+            "slug": "guide-epg-map-menu",
+            "title": "Channel context menu with Map EPG channel",
+            "group": "guides",
+            "setup": [
+                "open-m3u-channel-menu"
+            ]
+        },
+        {
+            "slug": "guide-epg-map-dialog",
+            "title": "Map EPG channel dialog with a search result",
+            "group": "guides",
+            "setup": [
+                "open-epg-mapping-dialog"
+            ]
+        },
+        {
+            "slug": "guide-epg-offset",
+            "title": "Settings: EPG time offset",
+            "group": "guides",
+            "setup": [
+                "open-settings-epg-offset"
+            ]
         }
     ]
 }
