@@ -2,6 +2,8 @@ import {
     AUTO_QUALITY_LEVEL_ID,
     type PlayerTrack,
 } from '../player-controls/player-controls.model';
+import { positiveOrNull } from '../player-controls/positive-number.util';
+import type { WebVideoEngineStats } from '../player-controls/web-video-stream-stats';
 import { buildQualityLevelLabels } from '../web-video-support/quality-level-labels';
 import type {
     VideoJsPlayer,
@@ -107,6 +109,32 @@ export class VjsQualityLevels {
 
     isAutoQualityEnabled(): boolean {
         return this.readManualLevel(this.listLevels()) === null;
+    }
+
+    /**
+     * Bitrate/size of the rendition VHS is currently playing, for the
+     * stream-info popover. `selectedIndex` is VHS's own answer to "which one
+     * is on screen", so it stays correct under ABR as well as manual picks.
+     *
+     * Read-only, unlike everything else here. It lives on this collaborator
+     * rather than in its own file (the way `WebVideoSourceStats` is split off
+     * from `WebVideoSourceTracks`) because the VHS level list has no accessor
+     * of its own: splitting it would mean publishing `levelList` purely to
+     * describe it.
+     */
+    getActiveLevelStats(): WebVideoEngineStats | null {
+        const selectedIndex = this.levelList?.selectedIndex ?? -1;
+        const level =
+            selectedIndex >= 0 ? this.listLevels()[selectedIndex] : undefined;
+        if (!level) {
+            return null;
+        }
+
+        return {
+            videoBitrateBps: positiveOrNull(level.bitrate),
+            width: positiveOrNull(level.width),
+            height: positiveOrNull(level.height),
+        };
     }
 
     private readManualLevel(

@@ -1,3 +1,6 @@
+import { formatBitrate } from '../player-controls/controls-format.utils';
+import { positiveOrNull } from '../player-controls/positive-number.util';
+
 /** Rendition facts an engine can report for one quality level. */
 export interface QualityLevelFacts {
     height?: number | null;
@@ -47,21 +50,8 @@ function baseLabel(level: QualityLevelFacts, index: number): string {
     return formatBitrate(level.bitrate) ?? `Level ${index + 1}`;
 }
 
-function formatBitrate(bitrate: number | null | undefined): string | null {
-    const value = readPositive(bitrate);
-    if (value === null) {
-        return null;
-    }
-    if (value >= 1_000_000) {
-        const mbps = value / 1_000_000;
-        const rendered = mbps >= 10 ? Math.round(mbps).toString() : mbps.toFixed(1);
-        return `${rendered} Mbps`;
-    }
-    return `${Math.round(value / 1000)} kbps`;
-}
-
+/** Dimensions become label text, so they are rounded to whole pixels. */
 function readPositive(value: number | null | undefined): number | null {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0
-        ? Math.round(value)
-        : null;
+    const positive = positiveOrNull(value);
+    return positive === null ? null : Math.round(positive);
 }

@@ -35,6 +35,7 @@ describe('ControlsMenuState', () => {
         'quality',
         'speed',
         'aspect',
+        'stats',
     ] as const)(
         'closes an open %s menu when it becomes unavailable',
         (menu) => {
@@ -48,6 +49,7 @@ describe('ControlsMenuState', () => {
                 quality: menu !== 'quality',
                 speed: menu !== 'speed',
                 aspect: menu !== 'aspect',
+                stats: menu !== 'stats',
             });
 
             expect(changed).toBe(true);
@@ -67,6 +69,7 @@ describe('ControlsMenuState', () => {
                 quality: true,
                 speed: true,
                 aspect: true,
+                stats: true,
             })
         ).toBe(false);
         expect(menus.speedOpen()).toBe(true);
@@ -85,6 +88,7 @@ describe('ControlsMenuState', () => {
                 quality: false,
                 speed: false,
                 aspect: false,
+                stats: false,
             })
         ).toBe(true);
         expect(menus.anyOpen()).toBe(false);
@@ -97,6 +101,7 @@ describe('ControlsMenuState', () => {
         ['quality', {}, { qualityLevels: [] }],
         ['speed', { playbackSpeed: false }, {}],
         ['aspect', { aspectRatio: false }, {}],
+        ['stats', { streamStats: false }, {}],
     ] as const)(
         'maps runtime controller state to %s menu availability',
         (menu, capabilityOverrides, stateOverrides) => {
@@ -113,6 +118,7 @@ describe('ControlsMenuState', () => {
                     qualityLevels: true,
                     playbackSpeed: true,
                     aspectRatio: true,
+                    streamStats: true,
                     ...capabilityOverrides,
                 },
                 {

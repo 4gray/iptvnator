@@ -31,6 +31,7 @@ import {
     PlayerControlsState,
     PlayerStatus,
 } from '../player-controls/player-controls.model';
+import type { PlayerStreamStatsSource } from '../player-controls/player-stream-stats.model';
 import { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import {
     audioTrackLabel,
@@ -41,6 +42,7 @@ import { resolveRecordingFeedback } from './embedded-mpv-controls-recording-feed
 import { EmbeddedMpvControlsRecording } from './embedded-mpv-controls-recording';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvSubtitleSettings } from './embedded-mpv-subtitle-settings';
+import { toPlayerStreamStats } from './embedded-mpv-stream-stats';
 
 export interface EmbeddedMpvControlsContext {
     readonly playback: Signal<ResolvedPortalPlayback>;
@@ -103,6 +105,17 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             : JSON.stringify([playbackIdentity, sessionId]);
     });
     private readonly recordingTick = signal(Date.now());
+    /**
+     * A boolean (not the stats object) so a session update that only moves the
+     * numbers never invalidates the capability set downstream.
+     */
+    private readonly hasStreamStats = computed(
+        () => toPlayerStreamStats(this.controller.session()) !== null
+    );
+
+    readonly streamStats: PlayerStreamStatsSource = {
+        sample: () => toPlayerStreamStats(this.controller.session()),
+    };
 
     readonly capabilities = computed<PlayerControlsCapabilities>(() => {
         const context = this.configuredContext();
@@ -128,6 +141,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             pictureInPicture: false,
             fullscreen: true,
             seriesNavigation: !isLive && context.seriesNavigation() !== null,
+            streamStats: this.hasStreamStats(),
         };
     });
 

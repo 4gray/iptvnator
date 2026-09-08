@@ -175,6 +175,8 @@ interface PlayerController {
     readonly capabilities: Signal<PlayerControlsCapabilities>;
     readonly state: Signal<PlayerControlsState>;
     readonly commands: PlayerControlsCommands;
+    /** Optional; see "Stream info popover". */
+    readonly streamStats?: PlayerStreamStatsSource;
 }
 ```
 
@@ -183,7 +185,8 @@ interface PlayerController {
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
 `audioTracks`, `subtitles`, `externalSubtitles`, `subtitleDelay`,
 `subtitleStyle`, `qualityLevels`, `playbackSpeed`, `aspectRatio`,
-`recording`, `pictureInPicture`, `fullscreen`, and `seriesNavigation`.
+`recording`, `pictureInPicture`, `fullscreen`, `seriesNavigation`, and
+`streamStats`.
 
 The default is all-false. An adapter enables only features that its engine and
 current runtime support. Capability flags primarily control whether optional UI
@@ -284,6 +287,74 @@ It owns only transient presentation behavior:
 - `ControlsTimeline` — scrub state and timeline projections; and
 - `controls-view-model.ts` — derived display state.
 
+### Stream info popover
+
+An `info` button in the **top-right corner** of the overlay opens a popover with
+live technical data about the stream: resolution with its derived aspect ratio,
+measured frame rate, video codec/bitrate, audio codec/bitrate, audio channel
+layout, audio sample rate, container, buffered-ahead seconds, and dropped
+frames. Rows whose value is unknown are omitted; a popover with no rows at all
+shows a short "no data yet" line.
+
+The button renders only when `capabilities.streamStats` is true, which an
+adapter sets from what its engine can actually report — engines that report
+nothing never show the affordance.
+
+Stats are **pulled, not pushed**:
+
+```ts
+interface PlayerStreamStatsSource {
+    sample(): PlayerStreamStats | null;
+}
+```
+
+`PlayerControlsState` deliberately does not carry them. Bitrate, buffer and
+frame counters move every second, and folding them into the state signal would
+re-run every derived control signal on every tick even while nobody is looking.
+`ControlsStreamStats` owns a 1s sampling loop that runs **only while the popover
+is open** (an effect keyed on `menus.statsOpen()`, so every close path — toggle,
+Escape, capability loss, teardown — stops it), and it drops its snapshot on
+close so a reopen never shows the previous stream's numbers.
+
+Formatting lives in `stream-stats-format.utils.ts` as pure functions:
+`buildStreamStatsRows()` returns `{ labelKey, value }` pairs and the template
+only translates and prints them. Aspect ratios snap to a named ratio (16:9,
+2.35:1, …) within 1%, fall back to a greatest-common-divisor reduction while
+both terms stay small, and to a decimal ratio otherwise.
+
+Per engine:
+
+- **Web engines** (`WebVideoStreamStatsSampler`): resolution, buffered-ahead,
+  dropped/total frames and the _measured_ frame rate (presented-frame delta
+  between two samples, so it reflects what the machine actually renders) come
+  from the `<video>` element, so they work on every source kind. The engine adds
+  bitrate, codecs, channel layout, sample rate and container through the
+  optional `getEngineStats` hook — `WebVideoSourceStats` reads the active HLS
+  level plus its audio rendition or the active Shaka variant, and
+  `VjsQualityLevels.getActiveLevelStats()` reads the VHS `selectedIndex`
+  rendition. A native `<video src>` source contributes nothing extra.
+- **Embedded MPV**: the numbers ride along on the session snapshot
+  (`EmbeddedMpvSession.stats`), so `sample()` is a pure read of the current
+  snapshot. This reaches the user under the **frame-copy engine only** — that
+  is the one engine that mounts `app-player-controls`; the native-view dock has
+  no info affordance, though its backends plumb the properties for parity. See
+  [embedded-mpv-native.md](./embedded-mpv-native.md#stream-stats-properties).
+
+### Top scrim
+
+`.player-controls__top-scrim` is a single pointer-transparent gradient at the
+top of the player, mirroring the bottom bar's stops so both edges read as one
+system. It renders whenever there is top chrome to back — the fullscreen media
+title or the corner buttons — and fades with the controls without sliding (a
+moving scrim edge is visible against video in a way a moving control is not).
+
+One element, not a background per consumer: the title and the corner overlap,
+and two gradients would darken the overlap twice. The title therefore carries
+no background of its own, and a windowed player with no title still gets a
+scrim for its corner buttons — which is the only reason a white-on-video icon
+is readable over bright footage. `stream-info.e2e.ts` guards that with the
+same ≥3:1 contrast-on-white assertion the theme suite uses for the bottom bar.
+
 ### Fullscreen media title
 
 The component accepts an optional `mediaTitle` input
@@ -291,7 +362,8 @@ The component accepts an optional `mediaTitle` input
 movie title, channel name, or series name, plus an optional second line such
 as the `S01E03` episode label. The overlay renders at the top of the player
 only in fullscreen while the controls are revealed, follows the same
-auto-hide transition as the bottom bar, and is pointer-transparent. Outside
+auto-hide transition as the bottom bar, and is pointer-transparent. Its
+backdrop comes from the shared top scrim above. Outside
 fullscreen the surrounding page chrome already names the content, so the
 overlay stays hidden.
 
@@ -1192,6 +1264,12 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts
 ├── controls-shortcuts.ts
+├── controls-chrome-interactions.ts
+├── controls-stream-stats.ts
+├── player-stream-stats.model.ts
+├── positive-number.util.ts
+├── stream-stats-format.utils.ts
+├── web-video-stream-stats.ts
 ├── legacy-player-shortcuts.ts
 ├── controls-surface.ts
 ├── controls-view-model.ts
@@ -1230,6 +1308,7 @@ libs/ui/playback/src/lib/embedded-mpv-player/
 ├── embedded-mpv-controls.adapter.ts
 ├── embedded-mpv-controls-recording.ts
 ├── embedded-mpv-controls-recording-feedback.ts
+├── embedded-mpv-stream-stats.ts
 ├── embedded-mpv-player.component.ts
 ├── embedded-mpv-player.component.html
 └── embedded-mpv-session-controller.ts
@@ -1246,6 +1325,7 @@ libs/ui/playback/src/lib/web-video-support/
 ├── web-video-hls-controls.ts
 ├── web-video-native-text-tracks.ts
 ├── web-video-shaka-controls.ts
+├── web-video-source-stats.ts
 ├── web-video-source-tracks.ts
 └── web-video-source-controls.bridge.ts
 ```

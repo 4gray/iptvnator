@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "기본값",
             "SUBTITLE_COLOR_WHITE": "흰색",
             "SUBTITLE_COLOR_YELLOW": "노란색",
-            "SUBTITLE_COLOR_CYAN": "청록색"
+            "SUBTITLE_COLOR_CYAN": "청록색",
+            "STREAM_INFO": "스트림 정보",
+            "STATS_RESOLUTION": "해상도",
+            "STATS_FRAME_RATE": "프레임 속도",
+            "STATS_VIDEO": "비디오",
+            "STATS_AUDIO": "오디오",
+            "STATS_AUDIO_CHANNELS": "채널",
+            "STATS_SAMPLE_RATE": "샘플링 레이트",
+            "STATS_CONTAINER": "컨테이너",
+            "STATS_BUFFER": "버퍼",
+            "STATS_DROPPED_FRAMES": "손실된 프레임",
+            "STATS_UNAVAILABLE": "아직 스트림 데이터가 없습니다"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

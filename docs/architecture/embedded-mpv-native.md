@@ -486,6 +486,67 @@ The renderer learns which features the loaded addon binary supports through the 
 
 Linux audio-track discovery works differently from macOS/Windows because the hand-rolled JSON IPC reply parser only understands scalar `data` values: the poll loop reads `track-list/count` every tick and walks the scalar `track-list/N/{type,id,title,lang,default,forced}` sub-properties only when the count changes. The selected track is reconciled from the scalar `aid` property on every tick (`aid` reads back non-numeric when audio is disabled, which maps to "no selection"). Track switching still goes through `set_property aid` over the same socket.
 
+## Stream Stats Properties
+
+The shared controls' stream-info popover (top-right `info` button, contract in
+[player-controls-contract.md](./player-controls-contract.md#stream-info-popover))
+renders whatever the engine reports as `EmbeddedMpvSession.stats`. Every field
+is optional: an absent key means "mpv has not answered yet" and the row is
+omitted, while a zero (dropped frames, for instance) is a real measurement.
+
+**Where the popover actually appears:** `app-player-controls` mounts only under
+the frame-copy engine (`@if (isFrameCopyEngine() && isSupported())` in
+`embedded-mpv-player.component.html`); the native-view engine keeps its legacy
+controls dock, which has no info affordance. So today the popover is a
+frame-copy-only surface. The macOS native-view and Windows/Linux backends
+plumb the properties anyway, so the rows appear for free whenever those engines
+adopt the shared controls — but do not describe the feature as available there.
+
+All three backends observe these mpv properties at session init and map them
+into their session snapshot:
+
+| mpv property                                    | `stats` field            |
+| ----------------------------------------------- | ------------------------ |
+| `estimated-vf-fps`                              | `fps`                    |
+| `video-bitrate`                                 | `videoBitrateBps`        |
+| `audio-bitrate`                                 | `audioBitrateBps`        |
+| `video-format`                                  | `videoCodec`             |
+| `audio-codec-name`                              | `audioCodec`             |
+| `audio-params/channels`                         | `audioChannels`          |
+| `audio-params/samplerate`                       | `audioSampleRateHz`      |
+| `file-format`                                   | `container`              |
+| `demuxer-cache-duration`                        | `bufferedAheadSeconds`   |
+| `frame-drop-count` + `decoder-frame-drop-count` | `droppedFrames` (summed) |
+
+The resolution row has a different source: it comes from `dwidth`/`dheight` on
+`EmbeddedMpvSession.videoWidth`/`videoHeight`, which **only the frame-copy
+helper observes** (it needs them to size its frames anyway). The native-view
+backends report no size, so a future shared-controls dock there would show
+every row except resolution until they observe those two properties too.
+
+`video-format` and `audio-codec-name` are used rather than `video-codec` /
+`audio-codec`: the popover wants `h264` and `aac`, not
+`H.264/AVC (High Profile)`.
+
+Observation is free in event terms. macOS and Windows build the snapshot lazily
+when the renderer pulls it, and the frame-copy helper already throttles snapshot
+emission to 250 ms, so the extra properties never increase IPC traffic. The
+exception is Linux, whose process-isolated backend polls each property as its
+own JSON IPC round trip: those queries are gated to every second poll tick
+(`linuxStatsPollTick`) so the 500 ms tick keeps its previous cost.
+
+Each backend clears these fields when a new file starts (`MPV_EVENT_START_FILE`,
+or the load path on Linux), so a channel switch can never leave the previous
+stream's codec or bitrate on screen. The frame-copy helper emits its `stats`
+object on **every** snapshot, empty object included: the adapter merges helper
+snapshots field by field, so an omitted key would survive the switch that the
+clear was meant to perform. macOS and Windows build a fresh snapshot object per
+pull and simply leave unknown keys out.
+
+`EmbeddedMpvNativeService` then omits the `stats` key entirely when the engine
+reported nothing, which is what keeps the info button hidden on an engine that
+does not report these properties at all.
+
 ## Session End And Series Navigation
 
 `EmbeddedMpvSessionStatus` includes `ended` for successful EOF only. The native addon maps `MPV_EVENT_END_FILE` to:

@@ -184,6 +184,81 @@ describe('Embedded MPV native source recording invariants', () => {
         }
     });
 
+    it('observes the stream-stats properties on every embedded engine', () => {
+        // The info popover renders whatever the engine reports, so a backend
+        // that stops observing one of these silently loses a row. Source-text
+        // assertions are the only guard the C++ has in CI.
+        const observedProperties = [
+            'estimated-vf-fps',
+            'video-bitrate',
+            'audio-bitrate',
+            'video-format',
+            'audio-codec-name',
+            'file-format',
+            'demuxer-cache-duration',
+            'frame-drop-count',
+            'decoder-frame-drop-count',
+            'audio-params/channels',
+            'audio-params/samplerate',
+        ];
+
+        for (const property of observedProperties) {
+            expect(nativeSource).toContain(`"${property}"`);
+            expect(widCommonSource).toContain(`"${property}"`);
+            expect(frameHelperSource).toContain(`"${property}"`);
+        }
+
+        // The Linux backend polls over the JSON IPC socket instead of
+        // observing, and halves the cadence so the extra round trips stay off
+        // the 500ms tick.
+        expect(widCommonSource).toContain(
+            'queryLinuxMpvNumber(socketPath, "estimated-vf-fps")'
+        );
+        expect(widCommonSource).toContain(
+            'queryLinuxMpvString(socketPath, "audio-params/channels")'
+        );
+        expect(widCommonSource).toContain(
+            '(session->linuxStatsPollTick++ % 2) == 0'
+        );
+    });
+
+    it('serializes stream stats as an optional snapshot object', () => {
+        // An absent value must omit its key: the renderer treats a missing
+        // field as "unknown" and a zero as a real measurement.
+        // Both native-view backends serialize through the same named helper
+        // so the two can be read side by side while porting.
+        for (const source of [nativeSource, widCommonSource]) {
+            expect(source).toContain('void writeStreamStats(');
+            expect(source).toContain('result.Set("stats", stats);');
+            expect(source).toContain('writeStreamStats(env, result, snapshot);');
+        }
+        expect(frameHelperSource).toContain('composeStatsJsonLocked');
+        // Unconditional on the frame-copy path: its snapshots are merged, so
+        // an omitted key would keep the previous stream's numbers.
+        expect(frameHelperSource).toContain(
+            'writer.raw("stats", composeStatsJsonLocked());'
+        );
+    });
+
+    it('clears stream stats when a new file starts so rows never go stale', () => {
+        // One reset per backend, invoked wherever a new file begins — the
+        // Linux load path is the second call site in the wid backend.
+        for (const source of [
+            nativeSource,
+            widCommonSource,
+            frameHelperSource,
+        ]) {
+            expect(source).toContain('void clearStreamStats()');
+        }
+        expect(nativeSource).toContain(
+            'session->snapshot.clearStreamStats();'
+        );
+        expect(
+            widCommonSource.match(/snapshot\.clearStreamStats\(\);/g)
+        ).toHaveLength(2);
+        expect(frameHelperSource).toContain('s.clearStreamStats();');
+    });
+
     it('maps keep-open eof-reached property changes to an ended session status', () => {
         expect(nativeSource).toContain(
             'mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);'

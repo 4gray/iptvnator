@@ -110,6 +110,38 @@ struct SessionSnapshot {
     int64_t selectedSubtitleTrackId = -1;
     double playbackSpeed = 1.0;
     std::string aspectOverride = "no";
+    // Stream diagnostics for the player's info popover. Sentinels mean "mpv
+    // has not answered yet", so an unknown value omits its row instead of
+    // reporting a zero.
+    double fps = 0.0;                  // estimated-vf-fps; <=0 = unknown
+    double videoBitrate = 0.0;         // bits/s; <=0 = unknown
+    double audioBitrate = 0.0;
+    std::string videoCodec;            // video-format, e.g. "h264"
+    std::string audioCodec;            // audio-codec-name, e.g. "aac"
+    std::string audioChannels;         // audio-params/channels, e.g. "5.1"
+    int64_t audioSampleRate = 0;       // audio-params/samplerate; 0 unknown
+    std::string container;             // file-format, e.g. "mpegts"
+    double cacheDuration = -1.0;       // demuxer-cache-duration; <0 = unknown
+    int64_t droppedFrames = -1;        // frame-drop-count; <0 = unknown
+    int64_t decoderDroppedFrames = -1;
+
+    // Every new file starts from "nothing reported yet": the popover must
+    // never show the previous stream's codec or bitrate. Kept next to the
+    // fields so adding one cannot forget the reset.
+    void clearStreamStats()
+    {
+        fps = 0.0;
+        videoBitrate = 0.0;
+        audioBitrate = 0.0;
+        videoCodec.clear();
+        audioCodec.clear();
+        audioChannels.clear();
+        audioSampleRate = 0;
+        container.clear();
+        cacheDuration = -1.0;
+        droppedFrames = -1;
+        decoderDroppedFrames = -1;
+    }
     bool recordingActive = false;
     std::string recordingTargetPath;
     std::string recordingStartedAt;
@@ -1174,6 +1206,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                 session->snapshot.status = SessionStatus::Loading;
                 session->snapshot.error.clear();
                 session->snapshot.engineError = false;
+                session->snapshot.clearStreamStats();
                 session->snapshot.audioTracks.clear();
                 session->snapshot.selectedAudioTrackId = -1;
                 session->snapshot.subtitleTracks.clear();
@@ -1345,6 +1378,67 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     session->snapshot.aspectOverride =
                         aspectValue ? aspectValue : "no";
                     break;
+                }
+
+                if (property->format == MPV_FORMAT_DOUBLE && property->data) {
+                    const double value = *static_cast<double*>(property->data);
+                    if (propertyName == "estimated-vf-fps") {
+                        session->snapshot.fps = value;
+                        break;
+                    }
+                    if (propertyName == "video-bitrate") {
+                        session->snapshot.videoBitrate = value;
+                        break;
+                    }
+                    if (propertyName == "audio-bitrate") {
+                        session->snapshot.audioBitrate = value;
+                        break;
+                    }
+                    if (propertyName == "demuxer-cache-duration") {
+                        session->snapshot.cacheDuration = value;
+                        break;
+                    }
+                }
+
+                if (property->format == MPV_FORMAT_INT64 && property->data) {
+                    const int64_t value =
+                        *static_cast<int64_t*>(property->data);
+                    if (propertyName == "frame-drop-count") {
+                        session->snapshot.droppedFrames = value;
+                        break;
+                    }
+                    if (propertyName == "decoder-frame-drop-count") {
+                        session->snapshot.decoderDroppedFrames = value;
+                        break;
+                    }
+                    if (propertyName == "audio-params/samplerate") {
+                        session->snapshot.audioSampleRate = value;
+                        break;
+                    }
+                }
+
+                if (property->format == MPV_FORMAT_STRING && property->data) {
+                    // MPV_FORMAT_STRING hands over a char**.
+                    const char* const* textValue =
+                        static_cast<char**>(property->data);
+                    const std::string text =
+                        (textValue && *textValue) ? *textValue : "";
+                    if (propertyName == "video-format") {
+                        session->snapshot.videoCodec = text;
+                        break;
+                    }
+                    if (propertyName == "audio-codec-name") {
+                        session->snapshot.audioCodec = text;
+                        break;
+                    }
+                    if (propertyName == "audio-params/channels") {
+                        session->snapshot.audioChannels = text;
+                        break;
+                    }
+                    if (propertyName == "file-format") {
+                        session->snapshot.container = text;
+                        break;
+                    }
                 }
 
                 break;
@@ -1809,6 +1903,74 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         MPV_FORMAT_STRING
     );
     mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);
+    // Stream diagnostics behind the player's info popover. The renderer pulls
+    // snapshots on its own cadence, so observing these adds no IPC traffic.
+    mpv_observe_property(
+        session->handle,
+        12,
+        "estimated-vf-fps",
+        MPV_FORMAT_DOUBLE
+    );
+    mpv_observe_property(
+        session->handle,
+        13,
+        "video-bitrate",
+        MPV_FORMAT_DOUBLE
+    );
+    mpv_observe_property(
+        session->handle,
+        14,
+        "audio-bitrate",
+        MPV_FORMAT_DOUBLE
+    );
+    mpv_observe_property(
+        session->handle,
+        15,
+        "video-format",
+        MPV_FORMAT_STRING
+    );
+    mpv_observe_property(
+        session->handle,
+        16,
+        "audio-codec-name",
+        MPV_FORMAT_STRING
+    );
+    mpv_observe_property(
+        session->handle,
+        17,
+        "file-format",
+        MPV_FORMAT_STRING
+    );
+    mpv_observe_property(
+        session->handle,
+        18,
+        "demuxer-cache-duration",
+        MPV_FORMAT_DOUBLE
+    );
+    mpv_observe_property(
+        session->handle,
+        19,
+        "frame-drop-count",
+        MPV_FORMAT_INT64
+    );
+    mpv_observe_property(
+        session->handle,
+        20,
+        "decoder-frame-drop-count",
+        MPV_FORMAT_INT64
+    );
+    mpv_observe_property(
+        session->handle,
+        21,
+        "audio-params/channels",
+        MPV_FORMAT_STRING
+    );
+    mpv_observe_property(
+        session->handle,
+        22,
+        "audio-params/samplerate",
+        MPV_FORMAT_INT64
+    );
 
     session->running.store(true);
     session->eventThread = std::thread(runEventLoop, session);
@@ -2453,6 +2615,86 @@ Napi::Value StopRecording(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+/** Serializes the optional `stats` object; omits it when nothing is known. */
+void writeStreamStats(
+    Napi::Env env,
+    Napi::Object result,
+    const SessionSnapshot& snapshot
+)
+{
+    auto stats = Napi::Object::New(env);
+    bool hasStats = false;
+    if (snapshot.fps > 0.0) {
+        stats.Set("fps", Napi::Number::New(env, snapshot.fps));
+        hasStats = true;
+    }
+    if (snapshot.videoBitrate > 0.0) {
+        stats.Set(
+            "videoBitrateBps",
+            Napi::Number::New(env, snapshot.videoBitrate)
+        );
+        hasStats = true;
+    }
+    if (snapshot.audioBitrate > 0.0) {
+        stats.Set(
+            "audioBitrateBps",
+            Napi::Number::New(env, snapshot.audioBitrate)
+        );
+        hasStats = true;
+    }
+    if (!snapshot.videoCodec.empty()) {
+        stats.Set("videoCodec", Napi::String::New(env, snapshot.videoCodec));
+        hasStats = true;
+    }
+    if (!snapshot.audioCodec.empty()) {
+        stats.Set("audioCodec", Napi::String::New(env, snapshot.audioCodec));
+        hasStats = true;
+    }
+    if (!snapshot.audioChannels.empty()) {
+        stats.Set(
+            "audioChannels",
+            Napi::String::New(env, snapshot.audioChannels)
+        );
+        hasStats = true;
+    }
+    if (snapshot.audioSampleRate > 0) {
+        stats.Set(
+            "audioSampleRateHz",
+            Napi::Number::New(
+                env,
+                static_cast<double>(snapshot.audioSampleRate)
+            )
+        );
+        hasStats = true;
+    }
+    if (!snapshot.container.empty()) {
+        stats.Set("container", Napi::String::New(env, snapshot.container));
+        hasStats = true;
+    }
+    if (snapshot.cacheDuration >= 0.0) {
+        stats.Set(
+            "bufferedAheadSeconds",
+            Napi::Number::New(env, snapshot.cacheDuration)
+        );
+        hasStats = true;
+    }
+    if (snapshot.droppedFrames >= 0 || snapshot.decoderDroppedFrames >= 0) {
+        // mpv counts render-time and decoder drops separately; the popover
+        // shows the one number a viewer cares about.
+        const int64_t dropped =
+            std::max<int64_t>(0, snapshot.droppedFrames) +
+            std::max<int64_t>(0, snapshot.decoderDroppedFrames);
+        stats.Set(
+            "droppedFrames",
+            Napi::Number::New(env, static_cast<double>(dropped))
+        );
+        hasStats = true;
+    }
+    if (hasStats) {
+        result.Set("stats", stats);
+    }
+}
+
 Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2562,6 +2804,8 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
         "aspectOverride",
         Napi::String::New(env, snapshot.aspectOverride)
     );
+    writeStreamStats(env, result, snapshot);
+
     if (snapshot.recordingActive ||
         !snapshot.recordingTargetPath.empty() ||
         !snapshot.recordingError.empty()) {

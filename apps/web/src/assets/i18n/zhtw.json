@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "預設",
             "SUBTITLE_COLOR_WHITE": "白色",
             "SUBTITLE_COLOR_YELLOW": "黃色",
-            "SUBTITLE_COLOR_CYAN": "青色"
+            "SUBTITLE_COLOR_CYAN": "青色",
+            "STREAM_INFO": "串流資訊",
+            "STATS_RESOLUTION": "解析度",
+            "STATS_FRAME_RATE": "影格率",
+            "STATS_VIDEO": "視訊",
+            "STATS_AUDIO": "音訊",
+            "STATS_AUDIO_CHANNELS": "聲道",
+            "STATS_SAMPLE_RATE": "取樣率",
+            "STATS_CONTAINER": "容器",
+            "STATS_BUFFER": "緩衝",
+            "STATS_DROPPED_FRAMES": "丟棄影格",
+            "STATS_UNAVAILABLE": "尚無串流資料"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

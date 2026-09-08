@@ -61,6 +61,36 @@ struct SnapshotState {
     double volume = 1;           /* 0..1 */
     int64_t videoWidth = 0;      /* mpv dwidth/dheight; 0 = unknown */
     int64_t videoHeight = 0;
+    /* Stream diagnostics for the player's info popover. Sentinels mean
+     * "mpv has not answered yet" so a row is omitted rather than shown as 0. */
+    double fps = 0;                 /* estimated-vf-fps; <=0 = unknown */
+    double videoBitrate = 0;        /* bits/s; <=0 = unknown */
+    double audioBitrate = 0;
+    std::string videoCodec;         /* video-format, e.g. "h264" */
+    std::string audioCodec;         /* audio-codec-name, e.g. "aac" */
+    std::string audioChannels;      /* audio-params/channels, e.g. "5.1" */
+    int64_t audioSampleRate = 0;    /* audio-params/samplerate; 0 unknown */
+    std::string container;          /* file-format, e.g. "mpegts" */
+    double cacheDuration = -1;      /* demuxer-cache-duration; <0 = unknown */
+    int64_t droppedFrames = -1;     /* frame-drop-count; <0 = unknown */
+    int64_t decoderDroppedFrames = -1;
+
+    /* Every new file starts from "nothing reported yet": the popover must
+     * never show the previous stream's codec or bitrate. Kept next to the
+     * fields so adding one cannot forget the reset. */
+    void clearStreamStats() {
+        fps = 0;
+        videoBitrate = 0;
+        audioBitrate = 0;
+        videoCodec.clear();
+        audioCodec.clear();
+        audioChannels.clear();
+        audioSampleRate = 0;
+        container.clear();
+        cacheDuration = -1;
+        droppedFrames = -1;
+        decoderDroppedFrames = -1;
+    }
     std::string streamUrl;
     std::vector<TrackInfo> audioTracks;
     int64_t selectedAudioTrackId = -1;
@@ -135,6 +165,50 @@ std::string tracksJson(const std::vector<TrackInfo>& tracks,
     return out;
 }
 
+/* Compose the `stats` object of the snapshot event. Always emitted, even when
+ * empty: the adapter merges snapshot events field by field, so an omitted key
+ * would leave the previous stream's numbers in place across a channel switch.
+ * Caller holds g_state.mutex. */
+std::string composeStatsJsonLocked() {
+    const SnapshotState& s = g_state.snapshot;
+    JsonWriter stats;
+    if (s.fps > 0) {
+        stats.num("fps", s.fps);
+    }
+    if (s.videoBitrate > 0) {
+        stats.num("videoBitrateBps", s.videoBitrate);
+    }
+    if (s.audioBitrate > 0) {
+        stats.num("audioBitrateBps", s.audioBitrate);
+    }
+    if (!s.videoCodec.empty()) {
+        stats.str("videoCodec", s.videoCodec);
+    }
+    if (!s.audioCodec.empty()) {
+        stats.str("audioCodec", s.audioCodec);
+    }
+    if (!s.audioChannels.empty()) {
+        stats.str("audioChannels", s.audioChannels);
+    }
+    if (s.audioSampleRate > 0) {
+        stats.num("audioSampleRateHz", (double)s.audioSampleRate);
+    }
+    if (!s.container.empty()) {
+        stats.str("container", s.container);
+    }
+    if (s.cacheDuration >= 0) {
+        stats.num("bufferedAheadSeconds", s.cacheDuration);
+    }
+    if (s.droppedFrames >= 0 || s.decoderDroppedFrames >= 0) {
+        /* mpv counts render-time and decoder drops separately; the popover
+         * shows the one number a viewer cares about. */
+        const int64_t dropped = std::max<int64_t>(0, s.droppedFrames) +
+                                std::max<int64_t>(0, s.decoderDroppedFrames);
+        stats.num("droppedFrames", (double)dropped);
+    }
+    return stats.finish();
+}
+
 /* Compose the snapshot event. Caller holds g_state.mutex. */
 std::string composeSnapshotLocked() {
     const SnapshotState& s = g_state.snapshot;
@@ -169,6 +243,7 @@ std::string composeSnapshotLocked() {
     }
     writer.num("playbackSpeed", s.playbackSpeed);
     writer.str("aspectOverride", s.aspectOverride);
+    writer.raw("stats", composeStatsJsonLocked());
     JsonWriter recording;
     recording.boolean("active", s.recordingActive);
     if (!s.recordingTargetPath.empty())
@@ -360,6 +435,41 @@ void handlePropertyChange(const mpv_event_property& property) {
             s.videoHeight = value;
         }
         applyRenderSizeLocked();
+    } else if (name == "estimated-vf-fps" &&
+               property.format == MPV_FORMAT_DOUBLE && property.data) {
+        s.fps = *static_cast<double*>(property.data);
+    } else if (name == "video-bitrate" &&
+               property.format == MPV_FORMAT_DOUBLE && property.data) {
+        s.videoBitrate = *static_cast<double*>(property.data);
+    } else if (name == "audio-bitrate" &&
+               property.format == MPV_FORMAT_DOUBLE && property.data) {
+        s.audioBitrate = *static_cast<double*>(property.data);
+    } else if (name == "demuxer-cache-duration" &&
+               property.format == MPV_FORMAT_DOUBLE && property.data) {
+        s.cacheDuration = *static_cast<double*>(property.data);
+    } else if (name == "audio-params/samplerate" &&
+               property.format == MPV_FORMAT_INT64 && property.data) {
+        s.audioSampleRate = *static_cast<int64_t*>(property.data);
+    } else if (name == "frame-drop-count" &&
+               property.format == MPV_FORMAT_INT64 && property.data) {
+        s.droppedFrames = *static_cast<int64_t*>(property.data);
+    } else if (name == "decoder-frame-drop-count" &&
+               property.format == MPV_FORMAT_INT64 && property.data) {
+        s.decoderDroppedFrames = *static_cast<int64_t*>(property.data);
+    } else if ((name == "video-format" || name == "audio-codec-name" ||
+                name == "audio-params/channels" || name == "file-format") &&
+               property.format == MPV_FORMAT_STRING && property.data) {
+        const char* value = *static_cast<char**>(property.data);
+        const std::string text = value ? value : "";
+        if (name == "video-format") {
+            s.videoCodec = text;
+        } else if (name == "audio-codec-name") {
+            s.audioCodec = text;
+        } else if (name == "audio-params/channels") {
+            s.audioChannels = text;
+        } else if (name == "file-format") {
+            s.container = text;
+        }
     } else if (name == "video-aspect-override" &&
                property.format == MPV_FORMAT_STRING && property.data) {
         const char* value = *static_cast<char**>(property.data);
@@ -390,6 +500,7 @@ void runMpvEventLoop() {
                     s.status = "loading";
                     s.error.clear();
                     s.engineError = false;
+                    s.clearStreamStats();
                     s.audioTracks.clear();
                     s.selectedAudioTrackId = -1;
                     s.subtitleTracks.clear();
@@ -921,6 +1032,26 @@ int main(int argc, char** argv) {
     mpv_observe_property(g_state.mpv, 11, "eof-reached", MPV_FORMAT_FLAG);
     mpv_observe_property(g_state.mpv, 12, "dwidth", MPV_FORMAT_INT64);
     mpv_observe_property(g_state.mpv, 13, "dheight", MPV_FORMAT_INT64);
+    /* Stream diagnostics behind the player's info popover. They change often,
+     * but the snapshot emit stays throttled, so this adds no event traffic. */
+    mpv_observe_property(g_state.mpv, 14, "estimated-vf-fps",
+                         MPV_FORMAT_DOUBLE);
+    mpv_observe_property(g_state.mpv, 15, "video-bitrate", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(g_state.mpv, 16, "audio-bitrate", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(g_state.mpv, 17, "video-format", MPV_FORMAT_STRING);
+    mpv_observe_property(g_state.mpv, 18, "audio-codec-name",
+                         MPV_FORMAT_STRING);
+    mpv_observe_property(g_state.mpv, 19, "file-format", MPV_FORMAT_STRING);
+    mpv_observe_property(g_state.mpv, 20, "demuxer-cache-duration",
+                         MPV_FORMAT_DOUBLE);
+    mpv_observe_property(g_state.mpv, 21, "frame-drop-count",
+                         MPV_FORMAT_INT64);
+    mpv_observe_property(g_state.mpv, 22, "decoder-frame-drop-count",
+                         MPV_FORMAT_INT64);
+    mpv_observe_property(g_state.mpv, 23, "audio-params/channels",
+                         MPV_FORMAT_STRING);
+    mpv_observe_property(g_state.mpv, 24, "audio-params/samplerate",
+                         MPV_FORMAT_INT64);
 
     g_state.pipeline.onGenerationChanged = [](const std::string& name,
                                               int width, int height,

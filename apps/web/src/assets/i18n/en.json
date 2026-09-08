@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "Default",
             "SUBTITLE_COLOR_WHITE": "White",
             "SUBTITLE_COLOR_YELLOW": "Yellow",
-            "SUBTITLE_COLOR_CYAN": "Cyan"
+            "SUBTITLE_COLOR_CYAN": "Cyan",
+            "STREAM_INFO": "Stream info",
+            "STATS_RESOLUTION": "Resolution",
+            "STATS_FRAME_RATE": "Frame rate",
+            "STATS_VIDEO": "Video",
+            "STATS_AUDIO": "Audio",
+            "STATS_AUDIO_CHANNELS": "Channels",
+            "STATS_SAMPLE_RATE": "Sample rate",
+            "STATS_CONTAINER": "Container",
+            "STATS_BUFFER": "Buffer",
+            "STATS_DROPPED_FRAMES": "Dropped frames",
+            "STATS_UNAVAILABLE": "No stream data yet"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

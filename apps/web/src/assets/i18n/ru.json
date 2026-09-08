@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "По умолчанию",
             "SUBTITLE_COLOR_WHITE": "Белый",
             "SUBTITLE_COLOR_YELLOW": "Жёлтый",
-            "SUBTITLE_COLOR_CYAN": "Голубой"
+            "SUBTITLE_COLOR_CYAN": "Голубой",
+            "STREAM_INFO": "Сведения о потоке",
+            "STATS_RESOLUTION": "Разрешение",
+            "STATS_FRAME_RATE": "Частота кадров",
+            "STATS_VIDEO": "Видео",
+            "STATS_AUDIO": "Аудио",
+            "STATS_AUDIO_CHANNELS": "Каналы",
+            "STATS_SAMPLE_RATE": "Частота дискретизации",
+            "STATS_CONTAINER": "Контейнер",
+            "STATS_BUFFER": "Буфер",
+            "STATS_DROPPED_FRAMES": "Пропущенные кадры",
+            "STATS_UNAVAILABLE": "Данных о потоке пока нет"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

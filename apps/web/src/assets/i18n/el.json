@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "Προεπιλογή",
             "SUBTITLE_COLOR_WHITE": "Λευκό",
             "SUBTITLE_COLOR_YELLOW": "Κίτρινο",
-            "SUBTITLE_COLOR_CYAN": "Κυανό"
+            "SUBTITLE_COLOR_CYAN": "Κυανό",
+            "STREAM_INFO": "Πληροφορίες ροής",
+            "STATS_RESOLUTION": "Ανάλυση",
+            "STATS_FRAME_RATE": "Ρυθμός καρέ",
+            "STATS_VIDEO": "Βίντεο",
+            "STATS_AUDIO": "Ήχος",
+            "STATS_AUDIO_CHANNELS": "Κανάλια",
+            "STATS_SAMPLE_RATE": "Ρυθμός δειγματοληψίας",
+            "STATS_CONTAINER": "Κοντέινερ",
+            "STATS_BUFFER": "Ενδιάμεση μνήμη",
+            "STATS_DROPPED_FRAMES": "Απορριφθέντα καρέ",
+            "STATS_UNAVAILABLE": "Δεν υπάρχουν ακόμη δεδομένα ροής"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

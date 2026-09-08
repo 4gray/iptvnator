@@ -1,5 +1,6 @@
 import type { Signal } from '@angular/core';
 import type { PlayerSubtitleStyle } from '@iptvnator/shared/interfaces';
+import type { PlayerStreamStatsSource } from './player-stream-stats.model';
 
 export type PlayerStatus =
     | 'idle'
@@ -29,6 +30,8 @@ export interface PlayerControlsCapabilities {
     pictureInPicture: boolean;
     fullscreen: boolean;
     seriesNavigation: boolean;
+    /** Engine can report live stream data (resolution, frame rate, bitrate). */
+    streamStats: boolean;
 }
 
 // Canonical shape lives in @iptvnator/shared/interfaces so the Electron main
@@ -139,4 +142,10 @@ export interface PlayerController {
     readonly capabilities: Signal<PlayerControlsCapabilities>;
     readonly state: Signal<PlayerControlsState>;
     readonly commands: PlayerControlsCommands;
+    /**
+     * Optional live stream diagnostics behind the controls' info popover.
+     * Absent (or paired with a false `streamStats` capability) means the
+     * engine reports nothing and the info button is not rendered.
+     */
+    readonly streamStats?: PlayerStreamStatsSource;
 }

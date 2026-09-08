@@ -11,6 +11,7 @@ const CONTROL_MENUS = [
     'quality',
     'speed',
     'aspect',
+    'stats',
 ] as const;
 
 export type ControlsMenu = (typeof CONTROL_MENUS)[number];
@@ -40,6 +41,7 @@ function getControlsMenuAvailability(
             state.qualityLevels.length > 1,
         speed: showControls && capabilities.playbackSpeed,
         aspect: showControls && capabilities.aspectRatio,
+        stats: showControls && capabilities.streamStats,
     };
 }
 
@@ -54,6 +56,7 @@ export class ControlsMenuState {
     readonly qualityOpen = signal(false);
     readonly speedOpen = signal(false);
     readonly aspectOpen = signal(false);
+    readonly statsOpen = signal(false);
 
     readonly anyOpen = computed(
         () =>
@@ -62,7 +65,8 @@ export class ControlsMenuState {
             this.subtitleOpen() ||
             this.qualityOpen() ||
             this.speedOpen() ||
-            this.aspectOpen()
+            this.aspectOpen() ||
+            this.statsOpen()
     );
 
     toggle(menu: ControlsMenu): void {
@@ -91,6 +95,7 @@ export class ControlsMenuState {
         this.qualityOpen.set(false);
         this.speedOpen.set(false);
         this.aspectOpen.set(false);
+        this.statsOpen.set(false);
     }
 
     reconcile(availability: ControlsMenuAvailability): boolean {
@@ -129,6 +134,8 @@ export class ControlsMenuState {
                 return this.speedOpen;
             case 'aspect':
                 return this.aspectOpen;
+            case 'stats':
+                return this.statsOpen;
         }
     }
 }

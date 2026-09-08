@@ -20,6 +20,7 @@ export const DEFAULT_PLAYER_CAPABILITIES: PlayerControlsCapabilities = {
     pictureInPicture: false,
     fullscreen: false,
     seriesNavigation: false,
+    streamStats: false,
 };
 
 export const DEFAULT_SPEED_PRESETS: ReadonlyArray<PlayerPreset<number>> = [

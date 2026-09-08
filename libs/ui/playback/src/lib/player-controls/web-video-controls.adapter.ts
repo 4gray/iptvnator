@@ -32,6 +32,10 @@ import {
     WEB_VIDEO_EVENTS,
 } from './web-video-controls.media-helpers';
 import { WebVideoPictureInPictureController } from './web-video-picture-in-picture.controller';
+import {
+    type WebVideoEngineStats,
+    WebVideoStreamStatsSampler,
+} from './web-video-stream-stats';
 
 /**
  * Engine-agnostic accessors a web engine injects so the adapter can read/select
@@ -53,6 +57,12 @@ export interface WebVideoControlsOptions extends WebVideoMetadataOptions {
     getQualityLevels?: () => PlayerTrack[];
     setQualityLevel?: (id: number) => void | Promise<void>;
     isAutoQualityEnabled?: () => boolean;
+    /**
+     * Bitrate/codec/container of the active rendition. Optional: the element
+     * itself covers resolution, frame rate, buffer and dropped frames, so an
+     * engine without a manifest simply reports fewer rows.
+     */
+    getEngineStats?: () => WebVideoEngineStats | null;
 }
 
 interface WebVideoControlsContext {
@@ -72,6 +82,14 @@ export class WebVideoControlsAdapter implements PlayerController {
 
     /** Bumped whenever DOM or engine-specific state must be re-read. */
     private readonly tick = signal(0);
+    /**
+     * Pull-based and sampled only while the info popover is open, so the frame
+     * counters are read exactly when someone is looking at them.
+     */
+    readonly streamStats = new WebVideoStreamStatsSampler(
+        () => this.video,
+        () => this.opts.getEngineStats?.() ?? null
+    );
     private readonly pictureInPicture = new WebVideoPictureInPictureController(
         () => ({
             generation: this.bindingGeneration,
@@ -128,6 +146,8 @@ export class WebVideoControlsAdapter implements PlayerController {
             recording: false,
             pictureInPicture: pictureInPicture.supported,
             seriesNavigation: !isLive && this.seriesNavigation() !== null,
+            // The element always knows its own size and frame counters.
+            streamStats: true,
         };
     });
 
@@ -235,6 +255,7 @@ export class WebVideoControlsAdapter implements PlayerController {
         const generation = this.bindingGeneration;
         this.video = video;
         this.opts = opts;
+        this.streamStats.reset();
 
         const onEvent = () => {
             if (this.video === video && this.bindingGeneration === generation) {
@@ -270,6 +291,7 @@ export class WebVideoControlsAdapter implements PlayerController {
         this.detachFn = null;
         this.video = null;
         this.opts = {};
+        this.streamStats.reset();
         this.pictureInPicture.release(previousVideo);
         this.refresh();
     }

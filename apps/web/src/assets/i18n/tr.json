@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "Varsayılan",
             "SUBTITLE_COLOR_WHITE": "Beyaz",
             "SUBTITLE_COLOR_YELLOW": "Sarı",
-            "SUBTITLE_COLOR_CYAN": "Camgöbeği"
+            "SUBTITLE_COLOR_CYAN": "Camgöbeği",
+            "STREAM_INFO": "Yayın bilgisi",
+            "STATS_RESOLUTION": "Çözünürlük",
+            "STATS_FRAME_RATE": "Kare hızı",
+            "STATS_VIDEO": "Video",
+            "STATS_AUDIO": "Ses",
+            "STATS_AUDIO_CHANNELS": "Kanallar",
+            "STATS_SAMPLE_RATE": "Örnekleme hızı",
+            "STATS_CONTAINER": "Kapsayıcı",
+            "STATS_BUFFER": "Arabellek",
+            "STATS_DROPPED_FRAMES": "Atlanan kareler",
+            "STATS_UNAVAILABLE": "Henüz yayın verisi yok"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

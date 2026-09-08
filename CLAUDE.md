@@ -1072,6 +1072,17 @@ app as a real argument, so it is not an option.
   external fallback only for clear transferable DASH; PWA capability and
   KODIPROP DRM still suppress it. Details in
   `docs/architecture/m3u-playlist-module.md` ("DASH + ClearKey Playback").
+- Stream info popover: an `info` button in the top-right corner of the shared
+  controls overlay shows live stream data — resolution + aspect ratio, measured
+  frame rate, video/audio codec and bitrate, audio channels and sample rate,
+  container, buffer, and dropped frames. Rendered only when the engine reports
+  something (`capabilities.streamStats`), sampled once a second and only while
+  the popover is open. Web engines read the `<video>` element plus the active
+  HLS/Shaka/VHS rendition; embedded MPV gets the numbers from observed mpv
+  properties on the session snapshot (frame-copy engine only — the native-view
+  dock does not mount the shared controls). See
+  `docs/architecture/player-controls-contract.md` ("Stream info popover") and
+  `docs/architecture/embedded-mpv-native.md` ("Stream Stats Properties").
 - External players: MPV, VLC (via IPC to Electron backend)
 - Display sleep during playback: `PlaybackKeepAwakeService`
   (`apps/web/src/app/services/playback-keep-awake.service.ts`) watches every

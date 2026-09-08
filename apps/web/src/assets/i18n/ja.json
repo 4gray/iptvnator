@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "デフォルト",
             "SUBTITLE_COLOR_WHITE": "白",
             "SUBTITLE_COLOR_YELLOW": "黄色",
-            "SUBTITLE_COLOR_CYAN": "シアン"
+            "SUBTITLE_COLOR_CYAN": "シアン",
+            "STREAM_INFO": "ストリーム情報",
+            "STATS_RESOLUTION": "解像度",
+            "STATS_FRAME_RATE": "フレームレート",
+            "STATS_VIDEO": "ビデオ",
+            "STATS_AUDIO": "オーディオ",
+            "STATS_AUDIO_CHANNELS": "チャンネル",
+            "STATS_SAMPLE_RATE": "サンプリングレート",
+            "STATS_CONTAINER": "コンテナ",
+            "STATS_BUFFER": "バッファ",
+            "STATS_DROPPED_FRAMES": "ドロップフレーム",
+            "STATS_UNAVAILABLE": "ストリームデータはまだありません"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

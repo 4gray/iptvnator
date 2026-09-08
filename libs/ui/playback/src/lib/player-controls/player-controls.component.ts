@@ -8,18 +8,19 @@ import {
     inject,
     input,
     output,
-    signal,
     untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { ControlsChromeInteractions } from './controls-chrome-interactions';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
 import { ControlsMenuSelection } from './controls-menu-selection';
-import { ControlsMenuState } from './controls-menu-state';
+import { type ControlsMenu, ControlsMenuState } from './controls-menu-state';
 import { ControlsShortcuts } from './controls-shortcuts';
+import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
 import { ControlsVisibility } from './controls-visibility';
@@ -69,8 +70,6 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
-    readonly barHovered = signal(false);
-    private readonly barFocused = signal(false);
     readonly menus = new ControlsMenuState();
     readonly feedback = new ControlsFeedback();
     readonly anyMenuOpen = this.menus.anyOpen;
@@ -118,6 +117,14 @@ export class PlayerControlsComponent implements OnDestroy {
         canAdjustVolume: () => this.capabilities().volume,
         reveal: (options) => this.reveal(options),
     });
+    readonly chrome = new ControlsChromeInteractions({
+        surface: this.surface,
+        visibility: this.visibility,
+        reveal: (options) => this.reveal(options),
+    });
+    readonly streamStats = new ControlsStreamStats(
+        () => this.controller().streamStats
+    );
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
@@ -140,6 +147,18 @@ export class PlayerControlsComponent implements OnDestroy {
         const mediaTitle = this.mediaTitle();
         return mediaTitle?.primary?.trim() ? mediaTitle : null;
     });
+
+    /**
+     * The top scrim is shared by every piece of top chrome (the fullscreen
+     * media title and the corner buttons): rendering one per consumer would
+     * stack two gradients and darken the overlap twice.
+     */
+    readonly showTopScrim = computed(
+        () =>
+            this.showControls() &&
+            (this.capabilities().streamStats ||
+                this.fullscreenMediaTitle() !== null)
+    );
 
     private readonly vm = createControlsViewModel({
         state: this.state,
@@ -215,6 +234,16 @@ export class PlayerControlsComponent implements OnDestroy {
             );
         });
         effect((onCleanup) => {
+            // Every close path (toggle, Escape, capability loss, teardown)
+            // runs through the signal, so the sampler can never outlive the
+            // panel it feeds.
+            if (!this.menus.statsOpen()) {
+                return;
+            }
+            untracked(() => this.streamStats.start());
+            onCleanup(() => this.streamStats.stop());
+        });
+        effect((onCleanup) => {
             const surface = this.playerSurface();
             if (!surface || !this.hideCursor()) {
                 return;
@@ -259,6 +288,7 @@ export class PlayerControlsComponent implements OnDestroy {
         this.fullscreen.dispose();
         this.volume.dispose();
         this.surface.dispose();
+        this.streamStats.dispose();
     }
     formatTime = formatTime;
     speedLabel = speedLabel;
@@ -315,9 +345,7 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         this.nextEpisodeRequested.emit();
     }
-    toggleMenu(
-        menu: 'audio' | 'subtitle' | 'quality' | 'speed' | 'aspect'
-    ): void {
+    toggleMenu(menu: ControlsMenu): void {
         this.menus.toggle(menu);
         this.reveal();
     }
@@ -363,88 +391,10 @@ export class PlayerControlsComponent implements OnDestroy {
         this.visibility.reveal(options);
     }
 
-    onBarPointerEnter(): void {
-        this.barHovered.set(true);
-        this.reveal({ scheduleHide: false });
-    }
-
-    onBarPointerLeave(): void {
-        this.barHovered.set(false);
-        this.visibility.scheduleHide();
-    }
-
-    /**
-     * A pointer press anywhere in the bar hands the interaction over to the
-     * pointer: a keyboard pin set by an earlier Tab is released here, because
-     * the press may not produce any focus event at all (clicking the control
-     * that is already focused) or only a focus transfer inside the bar, which
-     * `onBarFocusOut` deliberately ignores.
-     */
-    onBarPointerDown(): void {
-        this.barFocused.set(false);
-    }
-
-    /**
-     * A key press that bubbles out of a control inside the bar means the
-     * keyboard is operating that control (Space/Enter on a button, arrows on
-     * a slider): the bar is pinned exactly as if the control had been focused
-     * with Tab. A completed pointer click no longer leaves its control
-     * focused (`onBarClick`), but a press released off the control does,
-     * without a pin, and the key press then produces no new focus event, so
-     * this is the only place that hands ownership back to the keyboard.
-     */
-    onBarKeyDown(): void {
-        this.barFocused.set(true);
-        this.reveal({ scheduleHide: false });
-    }
-
-    /**
-     * A pointer click leaves the clicked control focused (`onBarFocusIn`),
-     * and a focused control captures the keyboard: Space and Enter activate
-     * it again instead of toggling playback, and the playback shortcuts
-     * yield to any interactive element in the key's path — after a click on
-     * the fullscreen button, Space left fullscreen instead of pausing. The
-     * focus was never the keyboard's, so it is released once the click
-     * completes; keyboard activation (an empty click `pointerType`) keeps
-     * focus where Tab put it.
-     */
-    onBarClick(event: MouseEvent): void {
-        const bar = event.currentTarget;
-        if (bar instanceof HTMLElement && this.surface.wasPointerClick(event)) {
-            this.surface.releasePointerFocus(bar);
-        }
-    }
-
-    onBarFocusIn(event: FocusEvent): void {
-        // Chromium moves focus to a clicked <button>. That focus is a side
-        // effect of the click, not keyboard navigation: it must reveal like
-        // any pointer activity, but never pin the bar open; `onBarClick`
-        // drops it again once the click completes (issue: fullscreen button
-        // left the controls on screen until a click-to-pause on the viewport).
-        if (this.surface.wasPointerInteraction(event)) {
-            this.barFocused.set(false);
-            this.reveal();
-            return;
-        }
-        this.barFocused.set(true);
-        this.reveal({ scheduleHide: false });
-    }
-
-    onBarFocusOut(event: FocusEvent): void {
-        const bar = event.currentTarget as HTMLElement | null;
-        const next = event.relatedTarget;
-        if (bar && next instanceof Node && bar.contains(next)) {
-            return;
-        }
-        this.barFocused.set(false);
-        this.visibility.scheduleHide();
-    }
-
     private canHide(): boolean {
         return (
             this.isPlaying() &&
-            !this.barHovered() &&
-            !this.barFocused() &&
+            !this.chrome.engaged &&
             !this.menus.anyOpen() &&
             !this.state().statusMessage
         );

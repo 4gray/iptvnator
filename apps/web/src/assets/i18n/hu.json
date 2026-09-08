@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "Alapértelmezett",
             "SUBTITLE_COLOR_WHITE": "Fehér",
             "SUBTITLE_COLOR_YELLOW": "Sárga",
-            "SUBTITLE_COLOR_CYAN": "Cián"
+            "SUBTITLE_COLOR_CYAN": "Cián",
+            "STREAM_INFO": "Adatfolyam-infó",
+            "STATS_RESOLUTION": "Felbontás",
+            "STATS_FRAME_RATE": "Képkockasebesség",
+            "STATS_VIDEO": "Videó",
+            "STATS_AUDIO": "Hang",
+            "STATS_AUDIO_CHANNELS": "Csatornák",
+            "STATS_SAMPLE_RATE": "Mintavételezési frekvencia",
+            "STATS_CONTAINER": "Konténer",
+            "STATS_BUFFER": "Puffer",
+            "STATS_DROPPED_FRAMES": "Eldobott képkockák",
+            "STATS_UNAVAILABLE": "Még nincsenek adatfolyam-adatok"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

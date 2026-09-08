@@ -739,14 +739,14 @@ describe('PlayerControlsComponent', () => {
     describe('bar-hover state', () => {
         const bar = () => query('.player-controls__bar') as HTMLElement | null;
 
-        it('tracks barHovered on bar pointerenter / pointerleave', () => {
-            expect(fixture.componentInstance.barHovered()).toBe(false);
+        it('tracks chrome hover on bar pointerenter / pointerleave', () => {
+            expect(fixture.componentInstance.chrome.hovered()).toBe(false);
 
             bar()?.dispatchEvent(new MouseEvent('pointerenter'));
-            expect(fixture.componentInstance.barHovered()).toBe(true);
+            expect(fixture.componentInstance.chrome.hovered()).toBe(true);
 
             bar()?.dispatchEvent(new MouseEvent('pointerleave'));
-            expect(fixture.componentInstance.barHovered()).toBe(false);
+            expect(fixture.componentInstance.chrome.hovered()).toBe(false);
         });
     });
 

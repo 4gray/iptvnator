@@ -30,6 +30,7 @@ export class VjsPlayerControlsBridge {
         getQualityLevels: () => this.qualityLevels.getQualityLevels(),
         setQualityLevel: (id) => this.qualityLevels.setQualityLevel(id),
         isAutoQualityEnabled: () => this.qualityLevels.isAutoQualityEnabled(),
+        getEngineStats: () => this.qualityLevels.getActiveLevelStats(),
     };
 
     constructor(private readonly config: VjsPlayerControlsBridgeConfig) {

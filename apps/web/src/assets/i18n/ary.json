@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "افتراضي",
             "SUBTITLE_COLOR_WHITE": "أبيض",
             "SUBTITLE_COLOR_YELLOW": "أصفر",
-            "SUBTITLE_COLOR_CYAN": "سماوي"
+            "SUBTITLE_COLOR_CYAN": "سماوي",
+            "STREAM_INFO": "معلومات ديال البث",
+            "STATS_RESOLUTION": "الدقة",
+            "STATS_FRAME_RATE": "معدل الإطارات",
+            "STATS_VIDEO": "الفيديو",
+            "STATS_AUDIO": "الصوت",
+            "STATS_AUDIO_CHANNELS": "القنوات",
+            "STATS_SAMPLE_RATE": "معدل العينات",
+            "STATS_CONTAINER": "الحاوية",
+            "STATS_BUFFER": "التخزين المؤقت",
+            "STATS_DROPPED_FRAMES": "الإطارات اللي تضاعو",
+            "STATS_UNAVAILABLE": "مازال ماكاينش داتا ديال البث"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

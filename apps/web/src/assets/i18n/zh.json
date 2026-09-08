@@ -595,7 +595,18 @@
             "SUBTITLE_COLOR_DEFAULT": "默认",
             "SUBTITLE_COLOR_WHITE": "白色",
             "SUBTITLE_COLOR_YELLOW": "黄色",
-            "SUBTITLE_COLOR_CYAN": "青色"
+            "SUBTITLE_COLOR_CYAN": "青色",
+            "STREAM_INFO": "流信息",
+            "STATS_RESOLUTION": "分辨率",
+            "STATS_FRAME_RATE": "帧率",
+            "STATS_VIDEO": "视频",
+            "STATS_AUDIO": "音频",
+            "STATS_AUDIO_CHANNELS": "声道",
+            "STATS_SAMPLE_RATE": "采样率",
+            "STATS_CONTAINER": "容器",
+            "STATS_BUFFER": "缓冲",
+            "STATS_DROPPED_FRAMES": "丢帧",
+            "STATS_UNAVAILABLE": "暂无流数据"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
