@@ -736,6 +736,18 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
                 exact: true,
             })
         ).toBeVisible();
+        await app.mainWindow.evaluate(() => {
+            Object.defineProperty(navigator.clipboard, 'writeText', {
+                configurable: true,
+                value: () =>
+                    Promise.reject(new Error('simulated clipboard failure')),
+            });
+        });
+        await recoveryDialog
+            .getByRole('button', { name: 'Copy recovery path', exact: true })
+            .click();
+        await expect(recoveryDialog).toBeVisible();
+        await expect(recoveryDialog).toContainText(capturedPath);
         expect(readFileSync(capturedPath, 'utf8')).toBe(
             'foreign recovery content'
         );

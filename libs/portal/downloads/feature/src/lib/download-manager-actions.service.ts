@@ -208,6 +208,7 @@ export class DownloadManagerActionsService {
     private showRecovery(path: string): void {
         this.dialogs.openConfirmDialog({
             title: this.translate.instant('DOWNLOADS.RECOVERY.TITLE'),
+            keepOpenOnConfirm: true,
             cancelLabel: this.translate.instant('CLOSE'),
             width: '600px',
             message: this.translate.instant('DOWNLOADS.RECOVERY.MESSAGE', {

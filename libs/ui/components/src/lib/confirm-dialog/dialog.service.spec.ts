@@ -83,4 +83,15 @@ describe('DialogService', () => {
 
         expect(onConfirm).toHaveBeenCalledTimes(1);
     });
+    it('does not repeat a persistent dialog action on programmatic close', () => {
+        const onConfirm = jest.fn();
+        dialog.open.mockReturnValue({ afterClosed: () => of(true) });
+        service.openConfirmDialog({
+            title: 'Recovery',
+            message: 'Path',
+            keepOpenOnConfirm: true,
+            onConfirm,
+        });
+        expect(onConfirm).not.toHaveBeenCalled();
+    });
 });

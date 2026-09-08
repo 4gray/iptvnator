@@ -668,6 +668,7 @@ describe('DownloadsComponent', () => {
                     title: 'File recovery needed',
                     message: expect.stringContaining(recoveryPath),
                     confirmLabel: 'Copy recovery path',
+                    keepOpenOnConfirm: true,
                     cancelLabel: 'Close',
                 })
             );

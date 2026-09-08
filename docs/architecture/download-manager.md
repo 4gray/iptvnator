@@ -121,6 +121,7 @@ the capture and its journal for recovery. Even after a foreign entry is restored
 its private recovery copy is never automatically unlinked: another process could
 remove the public link first. Remove/Clear return a structured recovery path and open a persistent, localized
 dialog with the full path, Copy recovery path and manual recovery instructions.
+Copy keeps the dialog open, including on clipboard failure; Close dismisses it.
 After the user recovers it and explicitly removes that private copy, cleanup may release the
 journal. Ordinary owned-file cleanup remains automatic. Remove/Clear, Retry/Resume and fresh
 reservations retry identity-verified cleanup, including after restart and on

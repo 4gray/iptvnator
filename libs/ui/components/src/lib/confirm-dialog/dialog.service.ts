@@ -28,6 +28,8 @@ export class DialogService {
         });
         dialogRef
             .afterClosed()
-            .subscribe((result) => (result ? data.onConfirm() : null));
+            .subscribe((result) =>
+                result && !data.keepOpenOnConfirm ? data.onConfirm() : null
+            );
     }
 }
