@@ -590,9 +590,12 @@ async function firstVisibleGridTitle(page: Page): Promise<string> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
+    // Return to the list: browse uses the sticky Back, watch uses the
+    // now-playing bar's direct Back (the sticky watch action is Close player).
     const backButton = page
-        .locator('app-portal-detail-shell .shell__back-button')
-        .first();
+        .locator('app-portal-detail-shell')
+        .first()
+        .getByRole('button', { name: 'Back', exact: true });
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     try {
