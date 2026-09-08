@@ -392,7 +392,12 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
         expect(row?.filePath).toMatch(/archive-downloads.*\.ts$/);
         if (!row?.filePath) throw new Error('No archive file');
         expect(readFileSync(row.filePath)).toEqual(
-            readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
+            readFileSync(
+                join(
+                    workspaceRoot,
+                    'apps/xtream-mock-server/src/fixtures/live.mpegts'
+                )
+            )
         );
         expect(captured).toEqual([]);
         // A failed completion status write must recover the proven file in place
@@ -476,7 +481,12 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
         );
         row.filePath = resubmitted.filePath;
         expect(readFileSync(row.filePath)).toEqual(
-            readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
+            readFileSync(
+                join(
+                    workspaceRoot,
+                    'apps/xtream-mock-server/src/fixtures/live.mpegts'
+                )
+            )
         );
         await app.mainWindow
             .getByRole('button', { name: 'Open downloads', exact: true })
@@ -602,7 +612,12 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
             'unrelated retained file'
         );
         expect(readFileSync(redownloaded.filePath)).toEqual(
-            readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
+            readFileSync(
+                join(
+                    workspaceRoot,
+                    'apps/xtream-mock-server/src/fixtures/live.mpegts'
+                )
+            )
         );
         // Fail owned cleanup after private capture. Its recovery pointer must
         // survive a process restart without relying on hardlink restoration.
