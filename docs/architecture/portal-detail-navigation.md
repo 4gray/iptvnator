@@ -27,7 +27,8 @@ The shell owns a single sticky Back control, outside the collapsing hero. Its
 zero-height wrapper is a direct child of the scroll owner, so the control stays
 16 px from the top throughout long episode lists without shifting the hero.
 The button has an opaque app-themed surface, visible keyboard focus, an Escape
-shortcut tooltip and Electron `no-drag` hit testing.
+shortcut hint via native `title` and Electron `no-drag` hit testing. The hint
+does not create an overlay that could consume the first Escape press.
 
 The sticky control and Escape unwind one level: watch emits
 `closePlayerRequested`, browse emits `backClicked`. Hosts retain their existing

@@ -1453,6 +1453,11 @@ for (const theme of ['light', 'dark']) {
             ).toBeVisible();
             await shell.focus();
             await page.keyboard.press('End');
+            // Hover/focus must not make a tooltip consume the advertised Esc.
+            await page.clock.install();
+            await back.focus();
+            await back.hover();
+            await page.clock.runFor(500);
             await page.keyboard.press('Escape');
             await expect(shell).toHaveCount(0);
         });

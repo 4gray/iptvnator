@@ -13,7 +13,6 @@ import {
     viewChild,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { ContentHeroComponent } from '../content-hero/content-hero.component';
 import { ContentAboutComponent } from './content-about.component';
@@ -44,7 +43,6 @@ import {
         ContentAboutComponent,
         NgTemplateOutlet,
         MatIconModule,
-        MatTooltipModule,
         TranslateModule,
     ],
     templateUrl: './portal-detail-shell.component.html',
