@@ -31,7 +31,6 @@ export async function startDownloadRequest(
     data: StartDownloadRequest,
     authorizer: DownloadDirectoryAuthorizer
 ): Promise<ElectronBridgeDownloadStartResult> {
-    const catchup = catchupForDownload(data);
     const encodedMetadataSnapshot =
         data.metadataSnapshot === undefined
             ? undefined
@@ -47,8 +46,6 @@ export async function startDownloadRequest(
         throw new Error('Invalid download metadata snapshot');
     }
     console.log('[Downloads] Enqueue download:', data.title);
-    const directory = await authorizer.requireAuthorized(data.downloadFolder);
-    await assertRemoteUrlAllowed(data.url, { allowPrivateNetworks: true });
     const db = await getDatabase();
 
     if (!data.playlistId) {
@@ -67,10 +64,6 @@ export async function startDownloadRequest(
             success: false,
         };
     }
-    const fileName = catchup
-        ? sanitizeFilename(data.title) + '.ts'
-        : createFileName(data.title, data.url);
-    const headers = createHeaders(data.headers);
 
     if (identity.kind === 'match') {
         const item = identity.item;
@@ -132,7 +125,19 @@ export async function startDownloadRequest(
                 reason: ELECTRON_BRIDGE_DOWNLOAD_START_REASONS.AlreadyDownloaded,
             };
         }
+    }
 
+    // These checks authorize another remote transfer, not reuse of a proven file.
+    const catchup = catchupForDownload(data);
+    const directory = await authorizer.requireAuthorized(data.downloadFolder);
+    await assertRemoteUrlAllowed(data.url, { allowPrivateNetworks: true });
+    const fileName = catchup
+        ? sanitizeFilename(data.title) + '.ts'
+        : createFileName(data.title, data.url);
+    const headers = createHeaders(data.headers);
+
+    if (identity.kind === 'match') {
+        const item = identity.item;
         if (
             ['completed', 'failed', 'canceled'].includes(item.status) &&
             item.filePath

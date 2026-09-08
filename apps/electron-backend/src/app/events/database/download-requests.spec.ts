@@ -1174,6 +1174,7 @@ it.each([
                 channelName: 'News',
                 startTimestamp: 100,
                 stopTimestamp: 200,
+                expiresAt: 201,
             };
             jest.doMock('./download-catchup-journal', () => ({
                 ...jest.requireActual('./download-catchup-journal'),
@@ -1202,6 +1203,13 @@ it.each([
                     catchup,
                     programmeStart: 100,
                 })
+            );
+            const { assertRemoteUrlAllowed } = await import('../url-safety');
+            jest.mocked(assertRemoteUrlAllowed).mockRejectedValue(
+                new Error('ENOTFOUND')
+            );
+            jest.mocked(h.authorizer.requireAuthorized).mockRejectedValue(
+                new Error('Folder unavailable')
             );
             const result =
                 action === 'start'
@@ -1240,6 +1248,8 @@ it.each([
                 expect.objectContaining({ filePath: null })
             );
             expect(h.enqueueDownload).not.toHaveBeenCalled();
+            expect(assertRemoteUrlAllowed).not.toHaveBeenCalled();
+            expect(h.authorizer.requireAuthorized).not.toHaveBeenCalled();
             expect(await readFile(filePath, 'utf8')).toBe('complete archive');
         } finally {
             jest.dontMock('./download-catchup-journal');

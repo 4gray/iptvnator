@@ -95,7 +95,9 @@ journal cleanup before row deletion. Remove/Clear preserve a final file whose
 journaled identity and full size prove completed promotion, even when completion
 status writes failed and its stored status is stale. Repeat submissions, Retry
 and Resume restore such a journal-proven completion in place before any new
-transfer or ownership reset; retained cleanup failures keep their journal. Remove, Clear completed and missing-file
+transfer or ownership reset, before expiry, provider DNS and new-folder checks
+that apply only to another remote transfer; retained cleanup failures keep their
+journal. Remove, Clear completed and missing-file
 re-download and repeated programme submissions use journal-backed private
 capture for archive partial cleanup;
 unknown or replaced entries are preserved. Before capture, a synchronous SQLite
