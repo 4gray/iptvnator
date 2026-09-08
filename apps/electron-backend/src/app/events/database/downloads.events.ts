@@ -23,6 +23,7 @@ import { resetStaleDownloads } from './download-recovery';
 import {
     broadcastDownloadUpdate,
     cancelDownload,
+    isDownloadCommitting,
     pauseDownload,
     removeDownloadFromRuntime,
     setMainWindow,
@@ -189,6 +190,11 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
         const row = rows[0];
+        if (isDownloadCommitting(downloadId))
+            return {
+                success: false,
+                error: 'Download is completing; try again shortly',
+            };
         if (row?.filePath && removablePartialStatuses.has(row.status)) {
             try {
                 removePartialDownloadFile(row.filePath);
@@ -208,7 +214,11 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
                 };
             }
         }
-        removeDownloadFromRuntime(downloadId);
+        if (removeDownloadFromRuntime(downloadId) === false)
+            return {
+                success: false,
+                error: 'Download is completing; try again shortly',
+            };
         await db
             .delete(schema.downloads)
             .where(eq(schema.downloads.id, downloadId));
@@ -331,6 +341,7 @@ ipcMain.handle(
                 .where(terminalFilter);
             const downloadIdsToDelete: number[] = [];
             for (const row of rows) {
+                if (isDownloadCommitting(row.id)) continue;
                 if (row.filePath && removablePartialStatuses.has(row.status)) {
                     try {
                         removePartialDownloadFile(row.filePath);

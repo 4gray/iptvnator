@@ -1039,6 +1039,10 @@ expiry. `download-schema.ts` owns the transactional CHECK/index migration;
 `download_archive_finalizations` table records write-ahead file identity/size
 proof before promotion (before writing a fallback copy), allowing startup to
 recover completed unknown-length archives and clean only their owned partials.
+The same journal stores transfer-phase descriptor identity before truncation;
+Resume checks it at open, and rejected replacements are preserved and detached
+so Retry can reserve a fresh path. A synchronous completion-commit boundary
+rejects late pause/cancel commands before awaited cleanup and persistence.
 Archive transfers validate TS framing, restart from byte zero after interruption
 and check expiry again at transfer start. Completed cards play locally and never
 route to VOD details. Contract and EOF/duration limits:

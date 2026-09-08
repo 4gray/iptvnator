@@ -7,10 +7,34 @@ import type { DownloadsDatabase } from './download-task';
 
 export interface ArchiveFinalizationProof {
     version: 1;
+    phase?: 'finalization';
     filePath: string;
     size: number;
     partialIdentity: ArchiveFileIdentity;
     finalIdentity: ArchiveFileIdentity;
+}
+
+export interface ArchivePartialProof {
+    version: 1;
+    phase: 'transfer';
+    filePath: string;
+    partialIdentity: ArchiveFileIdentity;
+}
+export type ArchiveDownloadProof =
+    ArchiveFinalizationProof | ArchivePartialProof;
+
+export async function recordArchivePartial(
+    db: DownloadsDatabase,
+    downloadId: number,
+    filePath: string,
+    partialIdentity: ArchiveFileIdentity
+): Promise<void> {
+    await writeArchiveProof(db, downloadId, {
+        version: 1,
+        phase: 'transfer',
+        filePath,
+        partialIdentity,
+    });
 }
 
 export async function recordArchiveFinalization(
@@ -18,16 +42,28 @@ export async function recordArchiveFinalization(
     downloadId: number,
     proof: ArchiveFinalizationProof
 ): Promise<void> {
+    await writeArchiveProof(db, downloadId, proof);
+}
+
+async function writeArchiveProof(
+    db: DownloadsDatabase,
+    downloadId: number,
+    proof: ArchiveDownloadProof
+): Promise<void> {
     const serialized = JSON.stringify({
         ...proof,
         partialIdentity: {
             dev: proof.partialIdentity.dev,
             ino: proof.partialIdentity.ino,
         },
-        finalIdentity: {
-            dev: proof.finalIdentity.dev,
-            ino: proof.finalIdentity.ino,
-        },
+        ...(proof.phase !== 'transfer'
+            ? {
+                  finalIdentity: {
+                      dev: proof.finalIdentity.dev,
+                      ino: proof.finalIdentity.ino,
+                  },
+              }
+            : {}),
     });
     await db
         .insert(schema.downloadArchiveFinalizations)
@@ -38,7 +74,7 @@ export async function recordArchiveFinalization(
         });
 }
 
-/** An explicitly restarted transfer must never inherit an earlier attempt's proof. */
+/** Fresh reservations must never inherit an earlier attempt's proof. */
 export async function clearArchiveFinalization(
     db: DownloadsDatabase,
     downloadId: number
@@ -59,15 +95,21 @@ function identity(value: unknown): value is ArchiveFileIdentity {
 
 export function parseArchiveFinalization(
     value: string
-): ArchiveFinalizationProof | undefined {
+): ArchiveDownloadProof | undefined {
     try {
-        const proof = JSON.parse(value) as ArchiveFinalizationProof;
-        return proof?.version === 1 &&
-            typeof proof.filePath === 'string' &&
-            isAbsolute(proof.filePath) &&
+        const proof = JSON.parse(value) as ArchiveDownloadProof;
+        if (
+            !proof ||
+            proof.version !== 1 ||
+            typeof proof.filePath !== 'string' ||
+            !isAbsolute(proof.filePath) ||
+            !identity(proof.partialIdentity)
+        )
+            return undefined;
+        if (proof.phase === 'transfer') return proof;
+        return (proof.phase === undefined || proof.phase === 'finalization') &&
             Number.isSafeInteger(proof.size) &&
             proof.size > 0 &&
-            identity(proof.partialIdentity) &&
             identity(proof.finalIdentity)
             ? proof
             : undefined;
@@ -79,9 +121,9 @@ export function parseArchiveFinalization(
 export async function readArchiveFinalizations(
     db: DownloadsDatabase,
     ids: number[]
-): Promise<Map<number, ArchiveFinalizationProof>> {
+): Promise<Map<number, ArchiveDownloadProof>> {
     if (ids.length === 0) return new Map();
-    const result = new Map<number, ArchiveFinalizationProof>();
+    const result = new Map<number, ArchiveDownloadProof>();
     for (let offset = 0; offset < ids.length; offset += 500) {
         const rows = await db
             .select()
@@ -102,9 +144,10 @@ export async function readArchiveFinalizations(
 
 export function verifiedArchiveSize(
     filePath: string | null,
-    proof: ArchiveFinalizationProof | undefined
+    proof: ArchiveDownloadProof | undefined
 ): number | null {
-    if (!proof || proof.filePath !== filePath) return null;
+    if (!proof || proof.phase === 'transfer' || proof.filePath !== filePath)
+        return null;
     try {
         const file = lstatSync(proof.filePath);
         return file.isFile() &&

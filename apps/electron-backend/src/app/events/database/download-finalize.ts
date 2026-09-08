@@ -1,3 +1,4 @@
+import { ArchivePartialReplacedError } from './download-catchup-output';
 import { recordArchiveFinalization } from './download-catchup-journal';
 import {
     finalizePartialDownload,
@@ -106,7 +107,12 @@ export async function handleDownloadFailure(
         .update(schema.downloads)
         .set({
             errorMessage: describeError(error),
-            filePath: task.catchup && !removed ? (task.filePath ?? null) : null,
+            filePath:
+                task.catchup &&
+                !removed &&
+                !(error instanceof ArchivePartialReplacedError)
+                    ? (task.filePath ?? null)
+                    : null,
             resumeValidator: null,
             status: 'failed',
             updatedAt: sql`CURRENT_TIMESTAMP`,
@@ -338,13 +344,7 @@ export function getCompletedPartialProgress(
     }
 }
 
-export function getPausedByteCount(task: DownloadTask): number {
-    try {
-        return getPartialDownloadSize(task.filePath);
-    } catch (error) {
-        console.error('[Downloads] Failed to inspect partial file:', error);
-        return 0;
-    }
-}
-
-export { removePartialFile } from './download-file-finalize';
+export {
+    getPausedByteCount,
+    removePartialFile,
+} from './download-file-finalize';

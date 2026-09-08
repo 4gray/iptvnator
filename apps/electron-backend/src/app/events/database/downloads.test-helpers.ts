@@ -11,6 +11,7 @@ type IpcHandler = (_event: unknown, ...args: unknown[]) => Promise<unknown>;
 export const mockRegisteredHandlers = new Map<string, IpcHandler>();
 export const mockGetDatabase = jest.fn();
 export const mockRemoveDownloadFromRuntime = jest.fn();
+export const mockIsDownloadCommitting = jest.fn();
 export const mockBroadcastDownloadUpdate = jest.fn();
 export const mockRemovePartialDownloadFile = jest.fn();
 export const mockPauseDownload = jest.fn();
@@ -53,6 +54,7 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     mockRegisteredHandlers.clear();
     mockGetDatabase.mockReset();
     mockRemoveDownloadFromRuntime.mockReset();
+    mockIsDownloadCommitting.mockReset().mockReturnValue(false);
     mockBroadcastDownloadUpdate.mockReset();
     mockRemovePartialDownloadFile.mockReset();
     mockPauseDownload.mockReset();
@@ -114,6 +116,7 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     jest.doMock('./download-runtime', () => ({
         broadcastDownloadUpdate: mockBroadcastDownloadUpdate,
         cancelDownload: jest.fn(),
+        isDownloadCommitting: mockIsDownloadCommitting,
         pauseDownload: mockPauseDownload,
         removeDownloadFromRuntime: mockRemoveDownloadFromRuntime,
         setMainWindow: jest.fn(),

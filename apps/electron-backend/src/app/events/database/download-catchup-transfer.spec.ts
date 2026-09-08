@@ -1,4 +1,4 @@
-import { clearArchiveFinalization } from './download-catchup-journal';
+import { recordArchivePartial } from './download-catchup-journal';
 import {
     mkdtemp,
     readFile,
@@ -29,7 +29,7 @@ import { stat } from 'node:fs/promises';
 
 jest.mock('./download-catchup-journal', () => ({
     ...jest.requireActual('./download-catchup-journal'),
-    clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
+    recordArchivePartial: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('./download-catchup-limits', () => {
     const actual = jest.requireActual('./download-catchup-limits');
@@ -123,8 +123,14 @@ describe('TS archive transfer', () => {
         };
         try {
             await writeFile(path + '.part', 'old data');
-            jest.mocked(clearArchiveFinalization).mockImplementationOnce(
-                async (_db, id) => {
+            jest.mocked(recordArchivePartial).mockImplementationOnce(
+                async (_db, id, filePath, identity) => {
+                    expect(filePath).toBe(path);
+                    expect(identity).toEqual(
+                        expect.objectContaining({
+                            ino: (await stat(path + '.part')).ino,
+                        })
+                    );
                     expect(id).toBe(task.id);
                     expect(await readFile(path + '.part', 'utf8')).toBe(
                         'old data'
@@ -180,9 +186,14 @@ describe('TS archive transfer', () => {
                 expect.anything()
             );
             expect(task.resumeValidator).toBeNull();
-            expect(clearArchiveFinalization).toHaveBeenCalledWith(
+            expect(recordArchivePartial).toHaveBeenCalledWith(
                 expect.anything(),
-                task.id
+                task.id,
+                path,
+                expect.objectContaining({
+                    dev: expect.any(Number),
+                    ino: expect.any(Number),
+                })
             );
         } finally {
             await rm(dir, { recursive: true, force: true });
@@ -250,8 +261,8 @@ it.each(['symlink', 'hardlink', 'regular file'])(
                 directory,
                 catchup: metadata,
             };
-            const journalClears = jest.mocked(clearArchiveFinalization).mock
-                .calls.length;
+            const journalClears =
+                jest.mocked(recordArchivePartial).mock.calls.length;
             await expect(
                 transferCatchupToPartialFile({} as DownloadsDatabase, task, {
                     path,
@@ -259,9 +270,9 @@ it.each(['symlink', 'hardlink', 'regular file'])(
                     filename: 'archive.ts',
                 })
             ).rejects.toThrow();
-            expect(
-                jest.mocked(clearArchiveFinalization).mock.calls.length
-            ).toBe(journalClears);
+            expect(jest.mocked(recordArchivePartial).mock.calls.length).toBe(
+                journalClears
+            );
             expect(await readFile(path + '.part', 'utf8')).toBe(
                 'keep this file intact'
             );

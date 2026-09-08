@@ -6,11 +6,17 @@ export interface ArchiveFileIdentity {
     readonly ino: number;
 }
 
+export class ArchivePartialReplacedError extends Error {
+    constructor() {
+        super('Archive partial changed before opening');
+    }
+}
+
 /** Open without truncation first: a replaced partial must not damage its target. */
 export async function openCatchupOutput(
     partialPath: string,
     expectedIdentity?: ArchiveFileIdentity,
-    beforeTruncate?: () => Promise<void>
+    beforeTruncate?: (identity: ArchiveFileIdentity) => Promise<void>
 ): Promise<{ stream: WriteStream; identity: ArchiveFileIdentity }> {
     const before = await lstat(partialPath).catch(
         (error: NodeJS.ErrnoException) => {
@@ -19,7 +25,7 @@ export async function openCatchupOutput(
         }
     );
     if (before && (!before.isFile() || before.nlink !== 1)) {
-        throw new Error('Archive partial is not an exclusive regular file');
+        throw new ArchivePartialReplacedError();
     }
     const handle = await open(
         partialPath,
@@ -42,10 +48,10 @@ export async function openCatchupOutput(
                 (current.dev !== expectedIdentity.dev ||
                     current.ino !== expectedIdentity.ino))
         ) {
-            throw new Error('Archive partial changed before opening');
+            throw new ArchivePartialReplacedError();
         }
         // Keep durable ownership evidence until the actual descriptor passes.
-        await beforeTruncate?.();
+        await beforeTruncate?.({ dev: current.dev, ino: current.ino });
         await handle.truncate(0);
         // All writes use this verified descriptor; never reopen by pathname.
         return {

@@ -14,6 +14,7 @@ import * as schema from '../../database/schema';
 import { finalizeCatchupPartial } from './download-catchup-finalize';
 import {
     recordArchiveFinalization,
+    recordArchivePartial,
     parseArchiveFinalization,
 } from './download-catchup-journal';
 import { resetStaleDownloads } from './download-recovery';
@@ -256,6 +257,35 @@ it.each(['downloading', 'queued'])(
         expect(updates.some((value) => value.status === 'paused')).toBe(false);
         expect(await readFile(filePath + '.part', 'utf8')).toBe(
             'unrelated user file'
+        );
+    }
+);
+
+it.each([false, true])(
+    'recovers transfer-phase identity without treating it as completion (replaced=%s)',
+    async (replaced) => {
+        const { partial } = await prepare();
+        await recordArchivePartial(db, 1, filePath, partial);
+        // A same-sized final is insufficient without a finalization-phase journal.
+        await writeFile(filePath, 'verified archive');
+        if (replaced) {
+            await rename(filePath + '.part', join(directory, 'original'));
+            await writeFile(filePath + '.part', 'unrelated bytes!');
+        }
+        await resetStaleDownloads();
+        expect(updates).toContainEqual(
+            expect.objectContaining(
+                replaced
+                    ? { status: 'failed', filePath: null }
+                    : { status: 'paused' }
+            )
+        );
+        expect(updates.some((value) => value.status === 'completed')).toBe(
+            false
+        );
+        expect(await readFile(filePath, 'utf8')).toBe('verified archive');
+        expect(await readFile(filePath + '.part', 'utf8')).toBe(
+            replaced ? 'unrelated bytes!' : 'verified archive'
         );
     }
 );

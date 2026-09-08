@@ -1,4 +1,8 @@
-import { removePartialDownloadFile } from './download-file-path';
+import type { DownloadTask } from './download-task';
+import {
+    getPartialDownloadSize,
+    removePartialDownloadFile,
+} from './download-file-path';
 import { constants } from 'node:fs';
 import { copyFile, link, stat, unlink } from 'node:fs/promises';
 import type { ReservedPartialDownloadFile } from './download-file-path';
@@ -73,5 +77,14 @@ export function removePartialFile(
     } catch (error) {
         console.error('[Downloads] Failed to delete partial file:', error);
         return false;
+    }
+}
+
+export function getPausedByteCount(task: DownloadTask): number {
+    try {
+        return getPartialDownloadSize(task.filePath);
+    } catch (error) {
+        console.error('[Downloads] Failed to inspect partial file:', error);
+        return 0;
     }
 }

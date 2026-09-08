@@ -1,3 +1,5 @@
+import { ArchivePartialReplacedError } from './download-catchup-output';
+import { handleDownloadFailure } from './download-finalize';
 import {
     lstat,
     mkdtemp,
@@ -14,6 +16,8 @@ import {
     enqueueDownload,
     pauseDownload,
     cancelDownload,
+    isDownloadCommitting,
+    removeDownloadFromRuntime,
 } from './download-runtime';
 import { cleanupCatchupFile } from './download-catchup-cleanup';
 import { readArchiveFinalizations } from './download-catchup-journal';
@@ -195,9 +199,11 @@ it.each([1880, null])(
         jest.mocked(cleanupCatchupFile).mockImplementationOnce(
             async (path, identity) => {
                 // The file is verified, but cleanup is still awaiting filesystem I/O.
-                expect(path).toBe(join(directory, 'show.ts.part'));
+                expect(path).toBe(task.filePath + '.part');
                 lateCommands.push(await pauseDownload(task.id));
                 lateCommands.push(await cancelDownload(task.id));
+                expect(isDownloadCommitting(task.id)).toBe(true);
+                lateCommands.push(removeDownloadFromRuntime(task.id));
                 expect(task.pauseRequested).not.toBe(true);
                 expect(task.cancelRequested).not.toBe(true);
                 return jest
@@ -208,19 +214,76 @@ it.each([1880, null])(
             }
         );
         try {
+            if (totalBytes === null) {
+                task.filePath = join(directory, 'show.ts');
+                await writeFile(
+                    task.filePath + '.part',
+                    'unproven retained file'
+                );
+            }
             enqueueDownload(task);
             await settled;
             await new Promise((resolve) => setImmediate(resolve));
-            expect(lateCommands).toEqual([false, false]);
+            expect(lateCommands).toEqual([false, false, false]);
             expect(terminalStatus).toBe('completed');
             expect(completionAttempts).toBe(2);
-            expect(await readFile(join(directory, 'show.ts'))).toEqual(body);
-            await expect(
-                lstat(join(directory, 'show.ts.part'))
-            ).rejects.toMatchObject({ code: 'ENOENT' });
+            expect(await readFile(task.filePath!)).toEqual(body);
+            if (totalBytes === null) {
+                expect(task.filePath).toBe(join(directory, 'show (1).ts'));
+                expect(
+                    await readFile(join(directory, 'show.ts.part'), 'utf8')
+                ).toBe('unproven retained file');
+            }
+            await expect(lstat(task.filePath + '.part')).rejects.toMatchObject({
+                code: 'ENOENT',
+            });
             expect(transferCatchupToPartialFile).toHaveBeenCalledTimes(1);
         } finally {
             await rm(directory, { recursive: true, force: true });
         }
     }
 );
+
+it('detaches a rejected replacement so Retry can reserve a fresh path', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'archive-detached-'));
+    const filePath = join(directory, 'show.ts');
+    const task: DownloadTask = {
+        id: 994,
+        directory,
+        filePath,
+        fileName: 'show.ts',
+        url: 'https://provider.test/show.ts',
+        catchup: {
+            channelName: 'News',
+            startTimestamp: 100,
+            stopTimestamp: 200,
+        },
+    };
+    const updates: Record<string, unknown>[] = [];
+    const db = {
+        update: () => ({
+            set: (value: Record<string, unknown>) => ({
+                where: async () => {
+                    updates.push(value);
+                },
+            }),
+        }),
+    };
+    try {
+        await writeFile(filePath + '.part', 'unrelated user file');
+        await handleDownloadFailure(
+            db as never,
+            task,
+            undefined,
+            new ArchivePartialReplacedError()
+        );
+        expect(updates.at(-1)).toEqual(
+            expect.objectContaining({ status: 'failed', filePath: null })
+        );
+        expect(await readFile(filePath + '.part', 'utf8')).toBe(
+            'unrelated user file'
+        );
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});

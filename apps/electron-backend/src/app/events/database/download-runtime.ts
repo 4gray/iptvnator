@@ -1,3 +1,4 @@
+import { reserveFreshCatchupTarget } from './download-catchup-reservation';
 import {
     clearArchiveFinalization,
     readArchiveFinalizations,
@@ -32,6 +33,7 @@ import {
     requestDownloadCancellation,
     requestDownloadPause,
     type DownloadTask,
+    type DownloadsDatabase,
 } from './download-task';
 import { describeError } from './download-transfer';
 
@@ -132,9 +134,16 @@ export async function cancelDownload(downloadId: number): Promise<boolean> {
     return true;
 }
 
-export function removeDownloadFromRuntime(downloadId: number): void {
+export function isDownloadCommitting(downloadId: number): boolean {
+    return (
+        activeDownload?.id === downloadId &&
+        !!activeDownload.catchupCommitStarted
+    );
+}
+
+export function removeDownloadFromRuntime(downloadId: number): boolean {
     if (activeDownload?.id === downloadId) {
-        requestDownloadCancellation(activeDownload);
+        if (!requestDownloadCancellation(activeDownload)) return false;
     }
 
     const queueIndex = downloadQueue.findIndex(
@@ -143,6 +152,7 @@ export function removeDownloadFromRuntime(downloadId: number): void {
     if (queueIndex !== -1) {
         downloadQueue.splice(queueIndex, 1);
     }
+    return true;
 }
 
 async function processQueue(): Promise<void> {
@@ -204,12 +214,16 @@ async function startDownload(task: DownloadTask): Promise<void> {
                     await readArchiveFinalizations(db, [task.id])
                 ).get(task.id);
                 task.catchupExpectedPartialIdentity = proof?.partialIdentity;
-            } else {
+                // No durable ownership evidence: preserve the old entry and
+                // reserve a fresh destination instead of adopting it.
+                if (!proof) task.filePath = null;
+            }
+            if (!task.filePath) {
                 // A fresh reservation must not inherit a previous attempt's proof.
                 await clearArchiveFinalization(db, task.id);
             }
         }
-        reservation = await reserveTarget(task);
+        reservation = await reserveTarget(db, task);
         task.fileName = reservation.filename;
         task.filePath = reservation.path;
         await db
@@ -273,6 +287,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
 }
 
 async function reserveTarget(
+    db: DownloadsDatabase,
     task: DownloadTask
 ): Promise<ReservedPartialDownloadFile> {
     if (task.filePath) {
@@ -283,6 +298,8 @@ async function reserveTarget(
                 path: task.filePath,
             };
         }
+
+        if (task.catchup) return reserveFreshCatchupTarget(db, task);
 
         // Something now occupies the recorded destination — possibly a file
         // the user created while this download was paused or failed. Never

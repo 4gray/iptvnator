@@ -5,7 +5,7 @@ import {
 import {
     readArchiveFinalizations,
     verifiedArchiveSize,
-    type ArchiveFinalizationProof,
+    type ArchiveDownloadProof,
 } from './download-catchup-journal';
 import { inArray, sql } from 'drizzle-orm';
 import { lstatSync, statSync } from 'node:fs';
@@ -18,7 +18,7 @@ import {
 
 interface StaleDownload {
     contentType?: string;
-    proof?: ArchiveFinalizationProof;
+    proof?: ArchiveDownloadProof;
     filePath: string | null;
     id: number;
     status: string;
@@ -193,6 +193,7 @@ export async function resetStaleDownloads(): Promise<void> {
             if (
                 download.contentType === 'catchup' &&
                 download.proof &&
+                download.proof.phase !== 'transfer' &&
                 !finalizedIds.has(download.id) &&
                 verifiedArchiveSize(download.filePath, download.proof) === null
             ) {

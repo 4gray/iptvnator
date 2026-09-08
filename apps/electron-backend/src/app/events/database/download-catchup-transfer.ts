@@ -1,4 +1,4 @@
-import { clearArchiveFinalization } from './download-catchup-journal';
+import { recordArchivePartial } from './download-catchup-journal';
 import {
     assertArchiveCopyHeadroom,
     createArchiveByteGuard,
@@ -102,7 +102,8 @@ export async function transferCatchupToPartialFile(
         output = await openCatchupOutput(
             reservation.partialPath,
             task.catchupExpectedPartialIdentity,
-            () => clearArchiveFinalization(db, task.id)
+            (identity) =>
+                recordArchivePartial(db, task.id, reservation.path, identity)
         );
         output.stream.on('error', () => undefined);
         task.catchupPartialIdentity = output.identity;

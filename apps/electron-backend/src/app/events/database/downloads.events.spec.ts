@@ -4,6 +4,7 @@ import {
     mockBroadcastDownloadUpdate,
     mockDownloadRow,
     mockRemoveDownloadFromRuntime,
+    mockIsDownloadCommitting,
     mockRemovePartialDownloadFile,
     mockTerminalRows,
     setupDownloadsEventsHarness,
@@ -12,6 +13,34 @@ import {
 describe('downloads events: partial-file cleanup', () => {
     beforeEach(async () => {
         await setupDownloadsEventsHarness();
+    });
+
+    it('keeps a committing archive row and journal intact on Remove', async () => {
+        const { deleteWhere } = mockDownloadRow(
+            createDownloadRow('downloading')
+        );
+        mockIsDownloadCommitting.mockReturnValue(true);
+        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual(
+            {
+                success: false,
+                error: 'Download is completing; try again shortly',
+            }
+        );
+        expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
+        expect(mockRemoveDownloadFromRuntime).not.toHaveBeenCalled();
+        expect(deleteWhere).not.toHaveBeenCalled();
+    });
+
+    it('skips completion commits when clearing terminal rows', async () => {
+        const { deleteWhere } = mockTerminalRows([
+            createDownloadRow('completed'),
+        ]);
+        mockIsDownloadCommitting.mockReturnValue(true);
+        await expect(
+            getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
+        ).resolves.toEqual({ success: true });
+        expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
+        expect(deleteWhere).not.toHaveBeenCalled();
     });
 
     it('removes queued resumed partial files before deleting the row', async () => {

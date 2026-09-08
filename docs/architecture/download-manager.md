@@ -67,9 +67,17 @@ journal also makes startup partial cleanup identity-aware. A journaled partial
 whose identity changed is preserved and detached from the failed row; Retry
 reserves a fresh path instead of adopting or truncating it. The journal remains with
 completed archives until they are removed. An explicitly restarted transfer
-carries the journaled source identity through any destination renaming and checks
-it against the opened descriptor. Only then does it clear the previous proof,
-before truncation or writes; a rejected replacement keeps its journal for retry. Process-local proof allows immediate
+carries the journaled source identity to output opening and checks
+it against the opened descriptor. Only then does it replace the previous proof,
+before truncation or writes, replacing the old finalization proof with a
+transfer-phase journal containing the newly opened identity. That identity
+survives pause, failure and restart without claiming the file is complete. A
+rejected replacement is detached from the failed row without deletion, so Retry
+reserves a new path. Retained catch-up paths without any durable proof are also
+preserved and redirected to a fresh reservation. On a final-path collision,
+archives never relocate a retained partial: only a verified owned partial is
+discarded before reserving a new filename, because archive retries restart at zero. The transfer proof is upgraded to finalization proof only
+after validated EOF. Process-local proof allows immediate
 recovery after a transient completion DB error without waiting for a restart.
 Fallback copying observes pause/cancel between bounded 64 KiB reads/writes and
 before publication completes. Interruption removes only the owned copy and
@@ -77,7 +85,9 @@ leaves the source for the runtime pause/cancel handler. Once publication identit
 and size pass the final check, the task synchronously enters completion commit
 before awaited partial cleanup and the SQLite completion write. Pause/cancel then
 return false without setting flags; a command is never accepted and subsequently
-overwritten by completion.
+overwritten by completion. Remove rejects this committing row before partial
+cleanup or deletion, and Clear completed skips it, preserving the cascading
+journal until completion finishes.
 A kill between exclusive copy-file creation and its identity journal commit can
 leave an unowned **empty** destination: no bytes are written before the commit.
 Recovery preserves that file rather than guessing ownership; Retry uses a
