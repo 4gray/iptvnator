@@ -78,6 +78,37 @@ describe('downloads events: partial-file cleanup', () => {
         );
     });
 
+    it.each([false, true])(
+        'retries settled archive cleanup despite a failed cancellation status write (locked=%s)',
+        async (locked) => {
+            const { deleteWhere } = mockDownloadRow({
+                ...createDownloadRow('downloading'),
+                contentType: 'catchup',
+            });
+            const proof = {
+                version: 1,
+                phase: 'transfer',
+                partialCleanupPath: '/downloads/.iptvnator-cleanup-test/entry',
+            };
+            mockArchiveProofs.mockResolvedValue(new Map([[42, proof]]));
+            if (locked)
+                mockRemoveJournaledPartial.mockImplementation(() => {
+                    throw new Error('EACCES');
+                });
+            await expect(
+                getHandler('DOWNLOADS_REMOVE')(null, 42)
+            ).resolves.toMatchObject({ success: !locked });
+            expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
+                '/downloads/resume.mp4',
+                proof,
+                expect.any(Function),
+                true
+            );
+            if (locked) expect(deleteWhere).not.toHaveBeenCalled();
+            else expect(deleteWhere).toHaveBeenCalled();
+        }
+    );
+
     it('keeps a committing archive row and journal intact on Remove', async () => {
         const { deleteWhere } = mockDownloadRow(
             createDownloadRow('downloading')

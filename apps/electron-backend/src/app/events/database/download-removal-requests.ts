@@ -56,7 +56,13 @@ export async function removeDownloadRequest(downloadId: number) {
                 success: false,
                 error: 'Download is completing; try again shortly',
             };
-        if (row?.filePath && removablePartialStatuses.has(row.status)) {
+        // A settled archive can still say downloading when its cancellation
+        // status write failed. Its journal must be drained before row deletion.
+        if (
+            row?.filePath &&
+            (row.contentType === 'catchup' ||
+                removablePartialStatuses.has(row.status))
+        ) {
             try {
                 if (row.contentType === 'catchup')
                     removeJournaledCatchupPartial(

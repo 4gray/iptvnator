@@ -89,7 +89,9 @@ overwritten by completion. Remove rejects this committing row before partial
 cleanup or deletion, and Clear completed skips it, preserving the cascading
 journal until completion finishes. Remove waits for an accepted active archive
 cancellation to settle before reading/deleting its row; queued archives are
-canceled first, and a concurrent new runtime attempt blocks removal. Remove, Clear completed and missing-file
+canceled first, and a concurrent new runtime attempt blocks removal. A settled
+archive still marked downloading after a failed status write also retries
+journal cleanup before row deletion. Remove, Clear completed and missing-file
 re-download use journal-backed private capture for archive partial cleanup;
 unknown or replaced entries are preserved. Before capture, a synchronous SQLite
 write records `partialCleanupPath` (or `finalCleanupPath` for failed promotion)
