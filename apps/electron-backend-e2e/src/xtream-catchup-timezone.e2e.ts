@@ -7,6 +7,7 @@ import {
     linkSync,
     readFileSync,
     readdirSync,
+    renameSync,
     unlinkSync,
     writeFileSync,
 } from 'node:fs';
@@ -709,6 +710,41 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
         expect(readFileSync(capturedPath)).toEqual(
             readFileSync(redownloaded.filePath)
         );
+        // A foreign replacement in the retained capture must survive restart
+        // and be discoverable without backend logs. Retain the original too.
+        renameSync(capturedPath, capturedPath + '.owned');
+        writeFileSync(capturedPath, 'foreign recovery content');
+        app = await restartElectronApp(app, dataDir, {
+            env: { TZ: VIEWER_TIMEZONE },
+        });
+        await app.mainWindow
+            .getByRole('button', { name: 'Open downloads', exact: true })
+            .click();
+        await app.mainWindow
+            .getByRole('button', { name: 'Clear finished', exact: true })
+            .click();
+        await app.mainWindow
+            .getByRole('dialog')
+            .getByRole('button', { name: 'Clear finished', exact: true })
+            .click();
+        const recoveryDialog = app.mainWindow.getByRole('dialog');
+        await expect(recoveryDialog).toContainText('File recovery needed');
+        await expect(recoveryDialog).toContainText(capturedPath);
+        await expect(
+            recoveryDialog.getByRole('button', {
+                name: 'Copy recovery path',
+                exact: true,
+            })
+        ).toBeVisible();
+        expect(readFileSync(capturedPath, 'utf8')).toBe(
+            'foreign recovery content'
+        );
+        await recoveryDialog
+            .getByRole('button', { name: 'Close', exact: true })
+            .click();
+        // Simulate explicit user recovery; the app never deletes this copy.
+        unlinkSync(capturedPath);
+        renameSync(capturedPath + '.owned', capturedPath);
         app = await restartElectronApp(app, dataDir, {
             env: { TZ: VIEWER_TIMEZONE },
         });

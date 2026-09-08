@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Información",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Se requiere recuperar un archivo",
+            "MESSAGE": "Se ha conservado un archivo ajeno a esta descarga en: {{path}}. Recupera el contenido que necesites, elimina esta copia de recuperación y vuelve a intentarlo.",
+            "COPY_PATH": "Copiar ruta de recuperación"
+        },
         "TITLE": "Descargas",
         "DOWNLOAD": "Descargar",
         "PLAY_LOCAL": "Reproducir localmente",

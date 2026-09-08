@@ -119,8 +119,9 @@ deletion/replacement. Later cleanup retries no-clobber restoration of captured
 foreign entries; an occupied public path or unsupported hardlinks preserves both
 the capture and its journal for recovery. Even after a foreign entry is restored,
 its private recovery copy is never automatically unlinked: another process could
-remove the public link first. The error names the recovery file; after the user
-recovers it and explicitly removes that private copy, cleanup may release the
+remove the public link first. Remove/Clear return a structured recovery path and open a persistent, localized
+dialog with the full path, Copy recovery path and manual recovery instructions.
+After the user recovers it and explicitly removes that private copy, cleanup may release the
 journal. Ordinary owned-file cleanup remains automatic. Remove/Clear, Retry/Resume and fresh
 reservations retry identity-verified cleanup, including after restart and on
 filesystems without hardlinks. Cleanup remains synchronous after the

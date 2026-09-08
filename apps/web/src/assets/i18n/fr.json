@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Récupération du fichier nécessaire",
+            "MESSAGE": "Un fichier sans rapport avec ce téléchargement a été conservé ici : {{path}}. Récupérez le contenu utile, supprimez cette copie de récupération, puis réessayez.",
+            "COPY_PATH": "Copier le chemin de récupération"
+        },
         "TITLE": "Téléchargements",
         "DOWNLOAD": "Télécharger",
         "PLAY_LOCAL": "Lire localement",

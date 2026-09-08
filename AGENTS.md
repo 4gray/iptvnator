@@ -1058,7 +1058,9 @@ Fresh reservations atomically commit their row path/name and captured ownership
 before the initial HTTP wait;
 no preexisting partial is truncated without matching expected ownership.
 Captured foreign files retain their recovery copy and journal even after public
-restoration, until the user explicitly removes the recovery copy.
+restoration, until the user explicitly removes the recovery copy. Remove/Clear
+show its full path and recovery instructions in a persistent dialog with Copy
+recovery path.
 Private cleanup captures are journaled before relocation, keeping failed
 Remove/Clear/cancel cleanup retryable across restarts without hardlinks. Active
 failures, promotion and startup share that cleanup; Remove waits for active

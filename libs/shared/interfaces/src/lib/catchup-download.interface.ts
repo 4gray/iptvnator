@@ -8,3 +8,10 @@ export interface CatchupDownloadMetadata {
 }
 
 export type DownloadContentType = 'vod' | 'episode' | 'catchup';
+
+/** Manual recovery is required before a captured unrelated file can be released. */
+export interface DownloadRecoveryResult {
+    success: boolean;
+    error?: string;
+    recoveryPath?: string;
+}

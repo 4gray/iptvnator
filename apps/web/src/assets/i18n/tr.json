@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Bilgi",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Dosya kurtarma gerekiyor",
+            "MESSAGE": "Bu indirmeyle ilgisi olmayan bir dosya şurada korundu: {{path}}. Gerekli içeriği kurtarın, bu kurtarma kopyasını silin ve yeniden deneyin.",
+            "COPY_PATH": "Kurtarma yolunu kopyala"
+        },
         "TITLE": "İndirilenler",
         "DOWNLOAD": "İndir",
         "PLAY_LOCAL": "Yerel olarak oynat",

@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Dateiwiederherstellung erforderlich",
+            "MESSAGE": "Eine fremde Datei wurde hier gesichert: {{path}}. Sichern Sie benötigte Inhalte, löschen Sie diese Wiederherstellungskopie und versuchen Sie es erneut.",
+            "COPY_PATH": "Wiederherstellungspfad kopieren"
+        },
         "TITLE": "Downloads",
         "DOWNLOAD": "Herunterladen",
         "PLAY_LOCAL": "Lokal abspielen",

@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Informazioni",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Recupero del file necessario",
+            "MESSAGE": "Un file estraneo a questo download è stato conservato in: {{path}}. Recupera i contenuti necessari, elimina questa copia di recupero e riprova.",
+            "COPY_PATH": "Copia percorso di recupero"
+        },
         "TITLE": "Download",
         "DOWNLOAD": "Scarica",
         "PLAY_LOCAL": "Riproduci localmente",

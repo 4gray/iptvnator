@@ -7,6 +7,17 @@ import {
 } from './download-catchup-output';
 import type { ArchiveDownloadProof } from './download-catchup-journal';
 
+export class ArchiveRecoveryRequiredError extends Error {
+    constructor(
+        readonly recoveryPath: string,
+        reason?: unknown
+    ) {
+        super(
+            `Archive cleanup preserved an unrelated recovery file: ${recoveryPath}${reason instanceof Error ? `. ${reason.message}` : ''}`
+        );
+    }
+}
+
 /** Retry a journaled private capture without ever deleting a replacement. */
 export function cleanupArchiveCapture(
     proof: ArchiveDownloadProof | undefined
@@ -55,19 +66,21 @@ export function restoreArchiveReplacement(
     captured: string,
     publicPath: string
 ): never {
-    const file = readArchiveStatsSync(captured);
     try {
-        linkSync(captured, publicPath);
+        const file = readArchiveStatsSync(captured);
+        try {
+            linkSync(captured, publicPath);
+        } catch (error) {
+            if (
+                (error as NodeJS.ErrnoException).code !== 'EEXIST' ||
+                !sameArchiveFileIdentity(readArchiveStatsSync(publicPath), file)
+            )
+                throw error;
+        }
     } catch (error) {
-        if (
-            (error as NodeJS.ErrnoException).code !== 'EEXIST' ||
-            !sameArchiveFileIdentity(readArchiveStatsSync(publicPath), file)
-        )
-            throw error;
+        throw new ArchiveRecoveryRequiredError(captured, error);
     }
     // A second process can remove the public link at any time. Only an explicit
     // user cleanup of this recovery copy may release its durable journal entry.
-    throw new Error(
-        `Archive cleanup preserved an unrelated recovery file: ${captured}`
-    );
+    throw new ArchiveRecoveryRequiredError(captured);
 }

@@ -21,6 +21,40 @@ describe('downloads events: partial-file cleanup', () => {
         await setupDownloadsEventsHarness();
     });
 
+    it.each(['remove', 'clear'])(
+        'returns a recoverable path and retains the row on %s',
+        async (action) => {
+            const { ArchiveRecoveryRequiredError } =
+                await import('./download-catchup-capture');
+            const row = {
+                ...createDownloadRow('failed'),
+                contentType: 'catchup',
+            };
+            const { deleteWhere } =
+                action === 'remove'
+                    ? mockDownloadRow(row)
+                    : mockTerminalRows([row]);
+            const recoveryPath = '/downloads/.iptvnator-cleanup-test/entry';
+            mockRemoveJournaledPartial.mockImplementation(() => {
+                throw new ArchiveRecoveryRequiredError(recoveryPath);
+            });
+            const consoleError = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+            try {
+                const result =
+                    action === 'remove'
+                        ? await getHandler('DOWNLOADS_REMOVE')(null, 42)
+                        : await getHandler('DOWNLOADS_CLEAR_COMPLETED')(null);
+                expect(result).toMatchObject({ success: false, recoveryPath });
+                expect(deleteWhere).not.toHaveBeenCalled();
+                expect(mockRemoveDownloadFromRuntime).not.toHaveBeenCalled();
+            } finally {
+                consoleError.mockRestore();
+            }
+        }
+    );
+
     it('waits for active archive cancellation before reading or deleting the row', async () => {
         const { db, deleteWhere } = mockDownloadRow(
             createDownloadRow('canceled')

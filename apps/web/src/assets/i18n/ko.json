@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "정보",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "파일 복구 필요",
+            "MESSAGE": "이 다운로드와 관련 없는 파일이 {{path}}에 보관되었습니다. 필요한 내용을 복구하고 이 복구용 사본을 삭제한 후 다시 시도하세요.",
+            "COPY_PATH": "복구 경로 복사"
+        },
         "TITLE": "다운로드",
         "DOWNLOAD": "다운로드",
         "PLAY_LOCAL": "로컬 재생",

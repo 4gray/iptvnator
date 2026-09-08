@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "File recovery needed",
+            "MESSAGE": "A file unrelated to this download was preserved at: {{path}}. Recover any content you need, delete this recovery copy, then try again.",
+            "COPY_PATH": "Copy recovery path"
+        },
         "TITLE": "Downloads",
         "DOWNLOAD": "Download",
         "PLAY_LOCAL": "Play Local",

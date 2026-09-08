@@ -1,3 +1,4 @@
+import type { DownloadRecoveryResult } from '@iptvnator/shared/interfaces';
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import type { ElectronBridgeDownloadStartResult } from '@iptvnator/shared/interfaces';
@@ -288,9 +289,7 @@ export class DownloadsService implements OnDestroy {
     /**
      * Remove a download from the list
      */
-    async removeDownload(
-        downloadId: number
-    ): Promise<{ success: boolean; error?: string }> {
+    async removeDownload(downloadId: number): Promise<DownloadRecoveryResult> {
         if (!this.isAvailable()) {
             return { success: false, error: 'Downloads not available' };
         }
@@ -379,7 +378,7 @@ export class DownloadsService implements OnDestroy {
     /**
      * Clear completed/failed downloads
      */
-    async clearCompleted(playlistId?: string): Promise<{ success: boolean }> {
+    async clearCompleted(playlistId?: string): Promise<DownloadRecoveryResult> {
         if (!this.isAvailable()) {
             return { success: false };
         }

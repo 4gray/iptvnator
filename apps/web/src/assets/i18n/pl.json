@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Informacje",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Wymagane odzyskanie pliku",
+            "MESSAGE": "Plik niezwiązany z tym pobieraniem zachowano pod ścieżką: {{path}}. Odzyskaj potrzebną zawartość, usuń tę kopię odzyskiwania i spróbuj ponownie.",
+            "COPY_PATH": "Kopiuj ścieżkę odzyskiwania"
+        },
         "TITLE": "Pobrane",
         "DOWNLOAD": "Pobierz",
         "PLAY_LOCAL": "Odtwórz plik lokalny",

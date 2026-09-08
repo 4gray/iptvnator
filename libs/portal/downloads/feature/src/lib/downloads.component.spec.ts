@@ -39,6 +39,8 @@ interface Deferred<T> {
 }
 
 interface ConfirmConfig {
+    readonly confirmLabel?: string;
+    readonly cancelLabel?: string;
     readonly title: string;
     readonly message: string;
     readonly onConfirm: () => Promise<void> | void;
@@ -335,8 +337,15 @@ describe('DownloadsComponent', () => {
 
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('en', {
+            CLOSE: 'Close',
             DOWNLOADS: {
                 TITLE: 'Downloads',
+                RECOVERY: {
+                    TITLE: 'File recovery needed',
+                    MESSAGE:
+                        'Recover any needed content at {{path}}, remove that recovery copy, then try again.',
+                    COPY_PATH: 'Copy recovery path',
+                },
                 ACTIVE_COUNT: '{{count}} active',
                 TRACKED_DOWNLOADS: 'Tracked downloads',
                 CHANGE_FOLDER: 'Change folder',
@@ -637,6 +646,50 @@ describe('DownloadsComponent', () => {
 
             await dialogConfigs[0].onConfirm();
             expect(downloadsService.removeDownload).toHaveBeenCalledWith(7);
+        }
+    );
+
+    it.each(['remove', 'clear'])(
+        'shows a persistent recovery dialog with a copyable path on %s',
+        async (action) => {
+            const recoveryPath = '/downloads/.iptvnator-cleanup-example/entry';
+            const result = { success: false, recoveryPath };
+            downloadsService.removeDownload.mockResolvedValueOnce(result);
+            downloadsService.clearCompleted.mockResolvedValueOnce(result);
+            if (action === 'remove')
+                component.runAction({
+                    type: 'remove',
+                    item: download(7, { status: 'failed' }),
+                });
+            else component.clearFinished();
+            await dialogConfigs[0].onConfirm();
+            expect(dialogConfigs[1]).toEqual(
+                expect.objectContaining({
+                    title: 'File recovery needed',
+                    message: expect.stringContaining(recoveryPath),
+                    confirmLabel: 'Copy recovery path',
+                    cancelLabel: 'Close',
+                })
+            );
+            expect(snackBar.open).not.toHaveBeenCalled();
+            expect(component.pendingIds().size).toBe(0);
+            const original = Object.getOwnPropertyDescriptor(
+                navigator,
+                'clipboard'
+            );
+            const writeText = jest.fn().mockResolvedValue(undefined);
+            Object.defineProperty(navigator, 'clipboard', {
+                configurable: true,
+                value: { writeText },
+            });
+            try {
+                await dialogConfigs[1].onConfirm();
+                expect(writeText).toHaveBeenCalledWith(recoveryPath);
+            } finally {
+                if (original)
+                    Object.defineProperty(navigator, 'clipboard', original);
+                else Reflect.deleteProperty(navigator, 'clipboard');
+            }
         }
     );
 

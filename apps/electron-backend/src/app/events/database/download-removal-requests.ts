@@ -1,3 +1,4 @@
+import { ArchiveRecoveryRequiredError } from './download-catchup-capture';
 import { and, eq, inArray } from 'drizzle-orm';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
@@ -95,6 +96,9 @@ export async function removeDownloadRequest(downloadId: number) {
                 );
                 return {
                     error: 'Could not delete the partial file',
+                    ...(cleanupError instanceof ArchiveRecoveryRequiredError
+                        ? { recoveryPath: cleanupError.recoveryPath }
+                        : {}),
                     success: false,
                 };
             }
@@ -142,6 +146,7 @@ export async function clearCompletedDownloadsRequest(playlistId?: string) {
                 .map((row) => row.id)
         );
         const downloadIdsToDelete: number[] = [];
+        let recoveryPath: string | undefined;
         for (const row of rows) {
             if (hasRuntimeDownload(row.id)) continue;
             if (row.filePath && removablePartialStatuses.has(row.status)) {
@@ -169,6 +174,8 @@ export async function clearCompletedDownloadsRequest(playlistId?: string) {
                         );
                     else removePartialDownloadFile(row.filePath);
                 } catch (error) {
+                    if (error instanceof ArchiveRecoveryRequiredError)
+                        recoveryPath ??= error.recoveryPath;
                     console.error(
                         '[Downloads] Retaining download after partial cleanup failed:',
                         error
@@ -189,7 +196,9 @@ export async function clearCompletedDownloadsRequest(playlistId?: string) {
                 );
             broadcastDownloadUpdate();
         }
-        return { success: true };
+        return recoveryPath
+            ? { success: false, recoveryPath }
+            : { success: true };
     } catch (error) {
         console.error('[Downloads] Error clearing completed:', error);
         throw error;

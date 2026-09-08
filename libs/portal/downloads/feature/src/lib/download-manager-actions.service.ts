@@ -11,6 +11,7 @@ import type {
 interface DownloadOperationResult {
     readonly success: boolean;
     readonly error?: string;
+    readonly recoveryPath?: string;
 }
 
 @Injectable()
@@ -104,7 +105,8 @@ export class DownloadManagerActionsService {
         try {
             const result = await this.downloads.clearCompleted(scopePlaylistId);
             if (!result.success) {
-                this.showActionError();
+                if (result.recoveryPath) this.showRecovery(result.recoveryPath);
+                else this.showActionError();
             }
         } catch (error) {
             this.showActionError(
@@ -172,6 +174,10 @@ export class DownloadManagerActionsService {
             let failed = false;
             try {
                 const result = await operation();
+                if (result.recoveryPath) {
+                    this.showRecovery(result.recoveryPath);
+                    return 'failed';
+                }
                 failed = !result.success;
                 failure = result.error;
             } catch (error) {
@@ -197,6 +203,27 @@ export class DownloadManagerActionsService {
                 return next;
             });
         }
+    }
+
+    private showRecovery(path: string): void {
+        this.dialogs.openConfirmDialog({
+            title: this.translate.instant('DOWNLOADS.RECOVERY.TITLE'),
+            cancelLabel: this.translate.instant('CLOSE'),
+            width: '600px',
+            message: this.translate.instant('DOWNLOADS.RECOVERY.MESSAGE', {
+                path,
+            }),
+            confirmLabel: this.translate.instant(
+                'DOWNLOADS.RECOVERY.COPY_PATH'
+            ),
+            onConfirm: async () => {
+                try {
+                    await navigator.clipboard.writeText(path);
+                } catch {
+                    this.showActionError();
+                }
+            },
+        });
     }
 
     private showFileActionError(error?: string): void {

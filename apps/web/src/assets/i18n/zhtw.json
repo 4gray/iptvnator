@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "資訊",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "需要復原檔案",
+            "MESSAGE": "與此下載無關的檔案已保存在：{{path}}。請儲存所需內容，刪除此復原副本，然後重試。",
+            "COPY_PATH": "複製復原路徑"
+        },
         "TITLE": "下載",
         "DOWNLOAD": "下載",
         "PLAY_LOCAL": "播放本機檔案",

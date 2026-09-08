@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Informatie",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Bestandsherstel nodig",
+            "MESSAGE": "Een bestand dat niet bij deze download hoort, is bewaard op: {{path}}. Bewaar de benodigde inhoud, verwijder deze herstelkopie en probeer het opnieuw.",
+            "COPY_PATH": "Herstelpad kopiëren"
+        },
         "TITLE": "Downloads",
         "DOWNLOAD": "Downloaden",
         "PLAY_LOCAL": "Lokaal bestand afspelen",

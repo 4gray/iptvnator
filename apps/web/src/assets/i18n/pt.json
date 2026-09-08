@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Informação",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "É necessário recuperar um ficheiro",
+            "MESSAGE": "Um ficheiro alheio a esta transferência foi preservado em: {{path}}. Recupere o conteúdo necessário, elimine esta cópia de recuperação e tente novamente.",
+            "COPY_PATH": "Copiar caminho de recuperação"
+        },
         "TITLE": "Downloads",
         "DOWNLOAD": "Baixar",
         "PLAY_LOCAL": "Reproduzir local",

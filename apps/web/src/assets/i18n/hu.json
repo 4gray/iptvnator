@@ -1246,6 +1246,11 @@
     },
     "INFORMATION": "Információk",
     "DOWNLOADS": {
+        "RECOVERY": {
+            "TITLE": "Fájlhelyreállítás szükséges",
+            "MESSAGE": "A letöltéshez nem tartozó fájlt megőriztük itt: {{path}}. Mentse a szükséges tartalmat, törölje ezt a helyreállítási másolatot, majd próbálja újra.",
+            "COPY_PATH": "Helyreállítási útvonal másolása"
+        },
         "TITLE": "Letöltések",
         "DOWNLOAD": "Letöltés",
         "PLAY_LOCAL": "Helyi fájl lejátszása",
