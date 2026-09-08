@@ -306,6 +306,9 @@ describe('ArtPlayerSourceSession', () => {
             player
         );
 
+        Object.assign(hlsInstances[0], {
+            levels: [{ audioCodec: 'mp4a.40.2', videoCodec: 'avc1.64001e' }],
+        });
         hlsInstances[0].emit(MockHls.Events.ERROR, null, {
             type: 'networkError',
             details: 'manifestLoadError',
@@ -327,6 +330,8 @@ describe('ArtPlayerSourceSession', () => {
         expect(emitted).toEqual([
             expect.objectContaining({
                 code: 'network-error',
+                audioCodecs: ['mp4a.40.2'],
+                videoCodecs: ['avc1.64001e'],
                 source: 'hls',
                 httpStatus: 503,
                 hls: {

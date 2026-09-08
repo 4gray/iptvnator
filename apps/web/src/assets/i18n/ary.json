@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "تحميل البث",
+        "STAGE_DEMUX": "تحليل الحاوية",
+        "DETAIL_STAGE": "مرحلة الخطأ",
+        "DETAIL_DRM_SYSTEMS": "DRM اللي صرّح به المصدر",
+        "STAGE_MANIFEST": "تحميل ملف الوصف",
+        "STAGE_PLAYLIST": "تحميل لائحة الوسائط",
+        "STAGE_SEGMENT": "تحميل مقطع الوسائط",
+        "STAGE_KEY": "تحميل مفتاح التشفير",
+        "STAGE_LICENSE": "تبادل رخصة DRM",
+        "STAGE_MEDIA": "معالجة الوسائط",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "حاوية هاد البث غالباً ما مدعومةش فمشغل المتصفح",
             "DESCRIPTION": "مشغل المتصفح يمكن ما يقدرش يفك هاد الحاوية داخل التطبيق. نسخ رابط البث وحلو فمشغل خارجي بحال MPV ولا VLC ولا IINA لدعم كوديكات أوسع."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "كوديكات الصوت",
         "DETAIL_NATIVE_ERROR_CODE": "كود الخطأ المحلي",
         "DETAIL_NATIVE_ERROR_MESSAGE": "رسالة الخطأ المحلية",
-        "DETAIL_ERROR_DETAILS": "تفاصيل الخطأ"
+        "DETAIL_ERROR_DETAILS": "تفاصيل الخطأ",
+        "DRM_CONFIGURATION_UNSUPPORTED": "هاد المشغل ما كيدعمش إعداد DRM ديال البث. طلب بث متوافق من المزوّد.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "إعداد DRM المطلوب ما متوفرش فهاد البيئة. راجع إعدادات المحتوى المحمي فالمتصفح ولا طلب بث متوافق.",
+        "LICENSE_REQUEST_FAILED": "المشغل ما قدرش يجيب رخصة DRM. تأكد من الاتصال ومن حق المشاهدة عند المزوّد.",
+        "LICENSE_RESPONSE_REJECTED": "وحدة DRM رفضات جواب الرخصة. تاصل بالمزوّد باش يتأكد من الرخصة.",
+        "LICENSE_SERVER_MISSING": "ما تهيّأ حتى خادم رخص لهاد البث المحمي. طلب إعدادات التشغيل من المزوّد.",
+        "SEGMENT_ACCESS_DENIED": "الخادم رفض الوصول لمقاطع البث. تأكد من حق المشاهدة عند المزوّد.",
+        "ACTION_COPY_DIAGNOSTIC": "نسخ التشخيص",
+        "REPORT_COPIED": "تنسخ التشخيص",
+        "COPY_FAILED": "فشل النسخ. عاود حاول.",
+        "REPORT_PRIVACY": "كينسخ المعطيات التقنية بلا روابط البث ولا معلومات الدخول ولا رسائل الخطأ الأصلية."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "إخفاء قائمة القنوات",

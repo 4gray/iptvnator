@@ -9,6 +9,8 @@ import {
     createHlsPlaybackEvidence,
     createMpegTsPlaybackEvidence,
     createPlaybackSourceMetadata,
+    collectPlaybackCodecs,
+    type PlaybackCodecTrack,
 } from '@iptvnator/playback/util';
 import { isBrowserMediaTypeSupported } from '../web-video-support/browser-media-type-support';
 
@@ -59,11 +61,18 @@ export function emitUnsupportedHlsManifestCodecs(
 export function emitFatalHlsPlaybackError(
     url: string,
     data: ErrorData,
-    emitPlaybackIssue: (issue: PlaybackDiagnostic) => void
+    emitPlaybackIssue: (issue: PlaybackDiagnostic) => void,
+    levels: readonly PlaybackCodecTrack[] = []
 ): void {
+    const codecs = collectPlaybackCodecs(levels);
     const issue = classifyHlsPlaybackIssue(
         createHlsPlaybackEvidence(data),
-        createHtml5SourceMetadata(url, 'application/x-mpegURL')
+        createHtml5SourceMetadata(
+            url,
+            'application/x-mpegURL',
+            codecs.audioCodecs,
+            codecs.videoCodecs
+        )
     );
     if (!issue) {
         return;
@@ -75,16 +84,19 @@ export function emitFatalHlsPlaybackError(
 export function emitMpegTsPlaybackError(
     url: string,
     error: { type: unknown; details: unknown; info: unknown },
-    emitPlaybackIssue: (issue: PlaybackDiagnostic) => void
+    emitPlaybackIssue: (issue: PlaybackDiagnostic) => void,
+    mediaInfo: unknown = {}
 ): void {
+    const codecs = collectPlaybackCodecs([mediaInfo]);
     emitPlaybackIssue(
         classifyMpegTsPlaybackIssue(
-            createMpegTsPlaybackEvidence(
-                error.type,
-                error.details,
-                error.info
-            ),
-            createHtml5SourceMetadata(url, 'video/mp2t')
+            createMpegTsPlaybackEvidence(error.type, error.details, error.info),
+            createHtml5SourceMetadata(
+                url,
+                'video/mp2t',
+                codecs.audioCodecs,
+                codecs.videoCodecs
+            )
         )
     );
 }

@@ -3,6 +3,8 @@ import {
     PlaybackDiagnosticCode,
     getLikelyBrowserUnsupportedCodecLabels,
 } from '@iptvnator/playback/util';
+import { getDiagnosticSummaryKey } from './playback-diagnostic-summary.util';
+import { getDiagnosticEvidenceDetails } from './playback-diagnostic-evidence-view.util';
 
 const UNTRANSFERABLE_EXTERNAL_RECOVERY_COPY_CODES: ReadonlySet<
     PlaybackDiagnostic['code']
@@ -16,6 +18,7 @@ const UNTRANSFERABLE_EXTERNAL_RECOVERY_COPY_CODES: ReadonlySet<
 export type PlaybackDiagnosticDetail = {
     readonly labelKey: string;
     readonly value: string;
+    readonly valueKey?: string;
 };
 
 export function getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
@@ -27,6 +30,8 @@ export function getDiagnosticDescriptionKey(
     supportsManagedExternalPlayers: boolean,
     playbackExternallyTransferable: boolean
 ): string {
+    const summary = getDiagnosticSummaryKey(issue);
+    if (summary) return summary;
     if (
         !playbackExternallyTransferable &&
         UNTRANSFERABLE_EXTERNAL_RECOVERY_COPY_CODES.has(issue.code)
@@ -77,6 +82,7 @@ export function getDiagnosticDetails(
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
             value: formatDiagnosticSource(issue.source),
         },
+        ...getDiagnosticEvidenceDetails(issue),
         {
             labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CONTAINER',
             value: issue.container,

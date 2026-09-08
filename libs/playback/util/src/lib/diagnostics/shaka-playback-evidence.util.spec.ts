@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import * as shakaDiagnostics from './shaka-error-classifier';
+import { SHAKA_REQUEST_TYPE } from './shaka-error-contract';
 
 interface ShakaErrorInput {
     readonly severity?: unknown;
@@ -21,6 +22,7 @@ interface ExpectedShakaPlaybackEvidence {
 }
 
 interface InstalledShakaContract {
+    readonly requestTypes: Readonly<Record<string, number>>;
     readonly version: string;
     readonly severity: Readonly<Record<string, number>>;
     readonly category: Readonly<Record<string, number>>;
@@ -41,8 +43,33 @@ interface ShakaEvidenceExports {
 const exportsUnderTest = shakaDiagnostics as ShakaEvidenceExports;
 
 describe('Shaka playback evidence', () => {
+    it.each([
+        [1001, ['secret-url', 403, 'secret-body', {}, 0], 'manifest'],
+        [1001, ['secret-url', 404, null, {}, 1], 'segment'],
+        [1001, ['secret-url', 403, null, {}, 2], 'license'],
+        [1002, ['secret-url', new Error('secret'), 1], 'segment'],
+        [1003, ['secret-url', 0], 'manifest'],
+        [1003, ['secret-url', 2], 'license'],
+        [1003, ['secret-url', 5], 'unknown'],
+        [1001, ['secret-url', 404, null, {}, '1'], 'unknown'],
+        [1001, ['secret-url', 404, null, {}, 999], 'unknown'],
+    ])(
+        'reads documented network request slots for code %s',
+        (code, data, stage) => {
+            const evidence = exportsUnderTest.createShakaPlaybackEvidence?.(
+                { severity: 2, category: 1, code, data },
+                'terminal'
+            );
+            expect(evidence?.stage).toBe(stage);
+            expect(JSON.stringify(evidence)).not.toContain('secret');
+        }
+    );
+
     it('matches the installed public Shaka 5.2.4 error contract', () => {
         const installed = getInstalledShakaContract();
+        expect(installed.requestTypes).toEqual(
+            expect.objectContaining(SHAKA_REQUEST_TYPE)
+        );
 
         expect(exportsUnderTest.SHAKA_DIAGNOSTIC_VERSION).toBe(
             installed.version
@@ -89,7 +116,7 @@ describe('Shaka playback evidence', () => {
             category: 'network',
             engineCode: 1001,
             disposition: 'terminal',
-            stage: 'unknown',
+            stage: 'manifest',
             failure: 'network',
             httpStatus: 503,
         });
@@ -361,6 +388,7 @@ import('shaka-player').then((module) => {
         severity: shaka.util.Error.Severity,
         category: shaka.util.Error.Category,
         code: shaka.util.Error.Code,
+        requestTypes: shaka.net.NetworkingEngine.RequestType,
     }));
 }).catch((error) => {
     console.error(error);

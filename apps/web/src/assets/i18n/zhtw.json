@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "載入串流",
+        "STAGE_DEMUX": "解析容器",
+        "DETAIL_STAGE": "失敗階段",
+        "DETAIL_DRM_SYSTEMS": "來源宣告的 DRM",
+        "STAGE_MANIFEST": "載入資訊清單",
+        "STAGE_PLAYLIST": "載入媒體播放清單",
+        "STAGE_SEGMENT": "載入媒體片段",
+        "STAGE_KEY": "載入加密金鑰",
+        "STAGE_LICENSE": "DRM 授權交換",
+        "STAGE_MEDIA": "媒體處理",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "瀏覽器播放器可能不支援此串流容器",
             "DESCRIPTION": "瀏覽器播放器可能無法在應用程式內解碼此容器。複製串流 URL，並用 MPV、VLC 或 IINA 等外部播放器開啟，可取得更廣泛的編解碼支援。"
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "音訊編碼",
         "DETAIL_NATIVE_ERROR_CODE": "原生錯誤代碼",
         "DETAIL_NATIVE_ERROR_MESSAGE": "原生錯誤訊息",
-        "DETAIL_ERROR_DETAILS": "錯誤詳情"
+        "DETAIL_ERROR_DETAILS": "錯誤詳情",
+        "DRM_CONFIGURATION_UNSUPPORTED": "此播放器不支援串流的 DRM 設定。請向供應商索取相容的串流。",
+        "DRM_CONFIGURATION_UNAVAILABLE": "此環境無法使用所要求的 DRM 設定。請檢查瀏覽器的受保護內容設定，或向供應商索取相容的串流。",
+        "LICENSE_REQUEST_FAILED": "播放器無法取得 DRM 授權。請檢查網路連線並向供應商確認播放權限。",
+        "LICENSE_RESPONSE_REJECTED": "DRM 模組拒絕了授權回應。請聯絡供應商檢查授權。",
+        "LICENSE_SERVER_MISSING": "此受保護的串流未設定授權伺服器。請向供應商索取所需的播放設定。",
+        "SEGMENT_ACCESS_DENIED": "伺服器拒絕存取媒體片段。請向供應商確認播放權限。",
+        "ACTION_COPY_DIAGNOSTIC": "複製診斷資訊",
+        "REPORT_COPIED": "已複製診斷資訊",
+        "COPY_FAILED": "複製失敗。請重試。",
+        "REPORT_PRIVACY": "複製技術資訊，不包含串流網址、認證資料或原始錯誤訊息。"
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "隱藏頻道列表",

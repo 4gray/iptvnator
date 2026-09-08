@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Adatfolyam betöltése",
+        "STAGE_DEMUX": "Konténer elemzése",
+        "DETAIL_STAGE": "Hiba szakasza",
+        "DETAIL_DRM_SYSTEMS": "A forrás által jelzett DRM",
+        "STAGE_MANIFEST": "Jegyzék betöltése",
+        "STAGE_PLAYLIST": "Médialejátszási lista betöltése",
+        "STAGE_SEGMENT": "Médiaszegmens betöltése",
+        "STAGE_KEY": "Titkosítási kulcs betöltése",
+        "STAGE_LICENSE": "DRM-licenccsere",
+        "STAGE_MEDIA": "Médiafeldolgozás",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Ezt az adatfolyam-konténert a böngészős lejátszó valószínűleg nem támogatja",
             "DESCRIPTION": "Előfordulhat, hogy a böngészős lejátszó nem tudja helyben dekódolni ezt a konténerformátumot. Másolja ki az adatfolyam URL-jét, és nyissa meg szélesebb kodektámogatást nyújtó külső lejátszóban, például MPV-ben, VLC-ben vagy IINA-ban."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Hangkodekek",
         "DETAIL_NATIVE_ERROR_CODE": "Natív hibakód",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Natív hibaüzenet",
-        "DETAIL_ERROR_DETAILS": "A hiba részletei"
+        "DETAIL_ERROR_DETAILS": "A hiba részletei",
+        "DRM_CONFIGURATION_UNSUPPORTED": "A lejátszó nem támogatja a stream DRM-konfigurációját. Kérjen kompatibilis streamet a szolgáltatótól.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "A kért DRM-konfiguráció ebben a környezetben nem érhető el. Ellenőrizze a böngésző védett tartalmakra vonatkozó beállításait, vagy kérjen kompatibilis streamet.",
+        "LICENSE_REQUEST_FAILED": "A lejátszó nem tudott DRM-licencet szerezni. Ellenőrizze a kapcsolatot és a lejátszási jogosultságot a szolgáltatónál.",
+        "LICENSE_RESPONSE_REJECTED": "A DRM-modul elutasította a licencválaszt. Forduljon a szolgáltatóhoz a licenc ellenőrzéséhez.",
+        "LICENSE_SERVER_MISSING": "Ehhez a védett streamhez nincs licenckiszolgáló beállítva. Kérje a lejátszási beállításokat a szolgáltatótól.",
+        "SEGMENT_ACCESS_DENIED": "A kiszolgáló megtagadta a médiaszegmensek elérését. Ellenőrizze a lejátszási jogosultságot a szolgáltatónál.",
+        "ACTION_COPY_DIAGNOSTIC": "Diagnosztika másolása",
+        "REPORT_COPIED": "Diagnosztika másolva",
+        "COPY_FAILED": "Sikertelen másolás. Próbálja újra.",
+        "REPORT_PRIVACY": "Technikai adatokat másol streamcímek, hitelesítő adatok és nyers hibaüzenetek nélkül."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Csatornalista elrejtése",

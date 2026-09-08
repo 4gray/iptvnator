@@ -3,10 +3,9 @@ import { ChannelDrm, ChannelDrmClearKeys } from '@iptvnator/shared/interfaces';
 /**
  * `#KODIPROP:` DRM extraction.
  *
- * The playlist parser does not understand `#KODIPROP:` lines, but it appends
- * every unknown line between `#EXTINF` and the stream URL to `item.raw`
- * (the dominant Kodi/TiviMate layout). This module post-processes that raw
- * block into a typed {@link ChannelDrm} value.
+ * The playlist parser preserves `#KODIPROP:` lines before `#EXTINF` or
+ * between it and the stream URL in `item.raw`. This module post-processes
+ * that raw block into a typed {@link ChannelDrm} value.
  *
  * Supported properties:
  * - `inputstream.adaptive.license_type` + `inputstream.adaptive.license_key`
@@ -81,9 +80,7 @@ export function extractDrmFromRaw(
     };
 }
 
-function collectKodipropValues(
-    raw: string | undefined
-): Map<string, string> {
+function collectKodipropValues(raw: string | undefined): Map<string, string> {
     const props = new Map<string, string>();
     if (!raw) {
         return props;
@@ -220,7 +217,8 @@ function parseClearKeyMap(
 
 /**
  * Normalizes a 128-bit key component to 32 lowercase hex chars. Accepts plain
- * or dashed (UUID-style) hex and base64url (the W3C license encoding).
+ * or dashed (UUID-style) hex, base64url (the W3C license encoding), and
+ * standard Base64 used by some playlist exporters.
  */
 function normalizeKeyComponent(value: string | undefined): string | undefined {
     const compact = value?.trim().replace(/-/g, '').toLowerCase();
@@ -232,14 +230,14 @@ function normalizeKeyComponent(value: string | undefined): string | undefined {
         return compact;
     }
 
-    const fromBase64 = base64UrlToHex(value?.trim() ?? '');
+    const fromBase64 = base64ToHex(value?.trim() ?? '');
     return fromBase64 && HEX_128_BIT_PATTERN.test(fromBase64)
         ? fromBase64
         : undefined;
 }
 
-function base64UrlToHex(value: string): string | undefined {
-    if (!/^[A-Za-z0-9_-]+={0,2}$/.test(value)) {
+function base64ToHex(value: string): string | undefined {
+    if (!/^[A-Za-z0-9_+/-]+={0,2}$/.test(value)) {
         return undefined;
     }
 

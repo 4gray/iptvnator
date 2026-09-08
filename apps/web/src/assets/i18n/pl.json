@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Ładowanie strumienia",
+        "STAGE_DEMUX": "Analiza kontenera",
+        "DETAIL_STAGE": "Etap błędu",
+        "DETAIL_DRM_SYSTEMS": "DRM zadeklarowany przez źródło",
+        "STAGE_MANIFEST": "Ładowanie manifestu",
+        "STAGE_PLAYLIST": "Ładowanie listy multimediów",
+        "STAGE_SEGMENT": "Ładowanie segmentu multimediów",
+        "STAGE_KEY": "Ładowanie klucza szyfrowania",
+        "STAGE_LICENSE": "Wymiana licencji DRM",
+        "STAGE_MEDIA": "Przetwarzanie multimediów",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Ten kontener strumienia prawdopodobnie nie jest obsługiwany przez odtwarzacz przeglądarkowy",
             "DESCRIPTION": "Odtwarzacz przeglądarkowy może nie zdekodować tego kontenera bezpośrednio w aplikacji. Skopiuj URL strumienia i otwórz go w zewnętrznym odtwarzaczu, takim jak MPV, VLC lub IINA, aby skorzystać z szerszej obsługi kodeków."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Kodeki audio",
         "DETAIL_NATIVE_ERROR_CODE": "Natywny kod błędu",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Natywny komunikat błędu",
-        "DETAIL_ERROR_DETAILS": "Szczegóły błędu"
+        "DETAIL_ERROR_DETAILS": "Szczegóły błędu",
+        "DRM_CONFIGURATION_UNSUPPORTED": "Odtwarzacz nie obsługuje konfiguracji DRM tego strumienia. Poproś dostawcę o zgodny strumień.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "Żądana konfiguracja DRM jest niedostępna w tym środowisku. Sprawdź ustawienia chronionych treści przeglądarki lub poproś o zgodny strumień.",
+        "LICENSE_REQUEST_FAILED": "Odtwarzacz nie uzyskał licencji DRM. Sprawdź połączenie i uprawnienia do odtwarzania u dostawcy.",
+        "LICENSE_RESPONSE_REJECTED": "Moduł DRM odrzucił odpowiedź licencyjną. Skontaktuj się z dostawcą w celu sprawdzenia licencji.",
+        "LICENSE_SERVER_MISSING": "Nie skonfigurowano serwera licencji dla tego chronionego strumienia. Poproś dostawcę o ustawienia odtwarzania.",
+        "SEGMENT_ACCESS_DENIED": "Serwer odmówił dostępu do segmentów multimediów. Sprawdź uprawnienia do odtwarzania u dostawcy.",
+        "ACTION_COPY_DIAGNOSTIC": "Kopiuj diagnostykę",
+        "REPORT_COPIED": "Diagnostyka skopiowana",
+        "COPY_FAILED": "Kopiowanie nie powiodło się. Spróbuj ponownie.",
+        "REPORT_PRIVACY": "Kopiuje dane techniczne bez adresów strumieni, danych logowania i surowych komunikatów błędów."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Ukryj listę kanałów",

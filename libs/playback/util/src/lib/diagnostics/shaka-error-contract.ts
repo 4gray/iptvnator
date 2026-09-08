@@ -123,3 +123,9 @@ export const SHAKA_ERROR_CODE = {
     MISSING_EME_SUPPORT: 6020,
     LOAD_INTERRUPTED: 7000,
 } as const;
+/** Shaka 5.2.4 public NetworkingEngine request types used by diagnostics. */
+export const SHAKA_REQUEST_TYPE = {
+    MANIFEST: 0,
+    SEGMENT: 1,
+    LICENSE: 2,
+} as const;

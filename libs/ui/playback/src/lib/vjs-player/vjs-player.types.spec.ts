@@ -2,6 +2,44 @@ import { type VideoJsPlayer, getVideoJsTechVideo } from './vjs-player.types';
 import * as playerTypes from './vjs-player.types';
 
 describe('getVideoJsTechVideo', () => {
+    it('reads safe codecs from the public VHS representations API', () => {
+        const read = (
+            playerTypes as unknown as {
+                getVideoJsPlaybackCodecs: (player: unknown) => unknown;
+            }
+        ).getVideoJsPlaybackCodecs;
+        expect(read).toBeDefined();
+        expect(
+            read({
+                tech: () => ({
+                    vhs: {
+                        representations: () => [
+                            {
+                                codecs: {
+                                    video: 'avc1.64001e',
+                                    audio: 'mp4a.40.2',
+                                },
+                                uri: 'secret-url',
+                            },
+                            {
+                                codecs: {
+                                    video: 'https://secret.test',
+                                    audio: 'secret',
+                                },
+                            },
+                        ],
+                    },
+                }),
+            })
+        ).toEqual({ videoCodecs: ['avc1.64001e'], audioCodecs: ['mp4a.40.2'] });
+        expect(
+            read({
+                tech: () => {
+                    throw new Error('disposed');
+                },
+            })
+        ).toEqual({ videoCodecs: [], audioCodecs: [] });
+    });
     it('returns the current Video.js Tech video element', () => {
         const video = document.createElement('video');
         const tech = jest.fn(() => ({ el: () => video }));

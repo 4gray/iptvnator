@@ -40,7 +40,18 @@ export interface ShakaVariantTrackLike {
 
 export type { ShakaErrorLike } from '@iptvnator/playback/util';
 
+export type ShakaResponseFilter = (
+    type: number,
+    response: { data: BufferSource }
+) => void;
+
+export interface ShakaNetworkingEngineLike {
+    registerResponseFilter(filter: ShakaResponseFilter): void;
+    unregisterResponseFilter(filter: ShakaResponseFilter): void;
+}
+
 export interface ShakaPlayerLike {
+    getNetworkingEngine?(): ShakaNetworkingEngineLike | null;
     attach(mediaElement: HTMLMediaElement): Promise<unknown>;
     configure(config: Record<string, unknown>): boolean;
     load(assetUri: string): Promise<unknown>;

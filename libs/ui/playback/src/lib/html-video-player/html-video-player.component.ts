@@ -244,13 +244,16 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     this.videoPlayer.nativeElement
                 );
                 this.bindControlsSource({ kind: 'mpegts' });
+                const engine = this.mpegtsPlayer;
                 this.mpegtsPlayer.on(
                     mpegts.Events.ERROR,
                     (type: string, details: string, info: unknown): void => {
+                        if (this.mpegtsPlayer !== engine) return;
                         emitMpegTsPlaybackError(
                             url,
                             { type, details, info },
-                            (issue) => this.playbackIssue.emit(issue)
+                            (issue) => this.playbackIssue.emit(issue),
+                            engine.mediaInfo
                         );
                     }
                 );
@@ -269,9 +272,11 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 const hls = new Hls();
                 this.hls = hls;
                 hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+                    if (this.hls !== hls) return;
                     this.handleHlsManifestParsed(url, data);
                 });
                 hls.on(Hls.Events.ERROR, (_, data) => {
+                    if (this.hls !== hls) return;
                     this.handleHlsError(url, data);
                 });
                 hls.attachMedia(this.videoPlayer.nativeElement);
@@ -348,8 +353,11 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     private handleHlsError(url: string, data: ErrorData): void {
-        emitFatalHlsPlaybackError(url, data, (issue) =>
-            this.playbackIssue.emit(issue)
+        emitFatalHlsPlaybackError(
+            url,
+            data,
+            (issue) => this.playbackIssue.emit(issue),
+            this.hls?.levels ?? []
         );
     }
 

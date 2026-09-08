@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Akış yükleme",
+        "STAGE_DEMUX": "Kapsayıcı ayrıştırma",
+        "DETAIL_STAGE": "Hata aşaması",
+        "DETAIL_DRM_SYSTEMS": "Kaynağın bildirdiği DRM",
+        "STAGE_MANIFEST": "Manifest yükleme",
+        "STAGE_PLAYLIST": "Medya oynatma listesi yükleme",
+        "STAGE_SEGMENT": "Medya bölümü yükleme",
+        "STAGE_KEY": "Şifreleme anahtarı yükleme",
+        "STAGE_LICENSE": "DRM lisans alışverişi",
+        "STAGE_MEDIA": "Medya işleme",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Bu akış kapsayıcısı muhtemelen tarayıcı oynatıcısı tarafından desteklenmiyor",
             "DESCRIPTION": "Tarayıcı oynatıcısı bu kapsayıcıyı uygulama içinde çözemeyebilir. Daha geniş kodek desteği için akış URL’sini kopyalayıp MPV, VLC veya IINA gibi harici bir oynatıcıda açın."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Ses kodekleri",
         "DETAIL_NATIVE_ERROR_CODE": "Yerel hata kodu",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Yerel hata iletisi",
-        "DETAIL_ERROR_DETAILS": "Hata ayrıntıları"
+        "DETAIL_ERROR_DETAILS": "Hata ayrıntıları",
+        "DRM_CONFIGURATION_UNSUPPORTED": "Bu oynatıcı akışın DRM yapılandırmasını desteklemiyor. Sağlayıcınızdan uyumlu bir akış isteyin.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "İstenen DRM yapılandırması bu ortamda kullanılamıyor. Tarayıcının korumalı içerik ayarlarını kontrol edin veya uyumlu bir akış isteyin.",
+        "LICENSE_REQUEST_FAILED": "Oynatıcı DRM lisansı alamadı. Bağlantınızı ve oynatma erişiminizi sağlayıcınızla kontrol edin.",
+        "LICENSE_RESPONSE_REJECTED": "DRM modülü lisans yanıtını reddetti. Lisansı kontrol etmek için sağlayıcınızla iletişime geçin.",
+        "LICENSE_SERVER_MISSING": "Bu korumalı akış için lisans sunucusu yapılandırılmamış. Sağlayıcınızdan oynatma ayarlarını isteyin.",
+        "SEGMENT_ACCESS_DENIED": "Sunucu medya segmentlerine erişimi reddetti. Oynatma erişiminizi sağlayıcınızla kontrol edin.",
+        "ACTION_COPY_DIAGNOSTIC": "Tanılamayı kopyala",
+        "REPORT_COPIED": "Tanılama kopyalandı",
+        "COPY_FAILED": "Kopyalanamadı. Tekrar deneyin.",
+        "REPORT_PRIVACY": "Akış adresleri, kimlik bilgileri ve ham hata mesajları olmadan teknik bilgileri kopyalar."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Kanal listesini gizle",

@@ -175,6 +175,23 @@
             <button
                 class="web-player-diagnostic__utility-button"
                 type="button"
+                [cdkCopyToClipboard]="diagnosticReport()"
+                (cdkCopyToClipboardCopied)="onReportCopied($event)"
+                [matTooltip]="'PLAYBACK_DIAGNOSTICS.REPORT_PRIVACY' | translate"
+                data-test-id="playback-copy-diagnostic"
+            >
+                <mat-icon aria-hidden="true">content_copy</mat-icon>
+                {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_DIAGNOSTIC' | translate }}
+            </button>
+            <span
+                aria-live="polite"
+                data-test-id="playback-copy-diagnostic-status"
+            >
+                {{ copyStatusKey() ? (copyStatusKey() | translate) : '' }}
+            </span>
+            <button
+                class="web-player-diagnostic__utility-button"
+                type="button"
                 [cdkCopyToClipboard]="playback().streamUrl"
                 [matTooltip]="playback().streamUrl"
                 data-test-id="playback-copy-url"
@@ -203,7 +220,13 @@
                     ) {
                         <div class="web-player-diagnostic__detail-row">
                             <dt>{{ detail.labelKey | translate }}</dt>
-                            <dd>{{ detail.value }}</dd>
+                            <dd>
+                                {{
+                                    detail.valueKey
+                                        ? (detail.valueKey | translate)
+                                        : detail.value
+                                }}
+                            </dd>
                         </div>
                     }
                 </dl>

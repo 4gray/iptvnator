@@ -12,6 +12,39 @@ import {
 } from './playback-diagnostic-view.util';
 
 describe('playback diagnostic view formatters', () => {
+    it('shows separate source DRM and failure-stage facts', () => {
+        const details = getDiagnosticDetails({
+            code: PlaybackDiagnosticCode.NetworkError,
+            source: PlaybackDiagnosticSource.Shaka,
+            sourceUrl: 'https://example.test/live.mpd',
+            container: 'mpd',
+            audioCodecs: [],
+            videoCodecs: [],
+            drmSystems: ['widevine', 'playready'],
+            shaka: {
+                severity: 'critical',
+                category: 'network',
+                engineCode: 1001,
+                disposition: 'terminal',
+                stage: 'segment',
+                failure: 'network',
+                httpStatus: 403,
+            },
+        });
+        expect(details).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_STAGE',
+                    value: 'segment',
+                }),
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_DRM_SYSTEMS',
+                    value: 'Widevine, PlayReady',
+                },
+            ])
+        );
+    });
+
     const issue: PlaybackDiagnostic = {
         code: PlaybackDiagnosticCode.UnsupportedCodec,
         source: PlaybackDiagnosticSource.Native,
@@ -47,8 +80,7 @@ describe('playback diagnostic view formatters', () => {
         {
             diagnostic: 'browser access',
             code: PlaybackDiagnosticCode.BrowserAccessError,
-            desktopKey:
-                'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION',
+            desktopKey: 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION',
             pwaKey: 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION',
         },
         {
@@ -62,8 +94,7 @@ describe('playback diagnostic view formatters', () => {
             code: PlaybackDiagnosticCode.UnsupportedContainer,
             desktopKey:
                 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER.DESCRIPTION',
-            pwaKey:
-                'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER.DESCRIPTION',
+            pwaKey: 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER.DESCRIPTION',
         },
         {
             diagnostic: 'media decode',
@@ -85,18 +116,18 @@ describe('playback diagnostic view formatters', () => {
                 supportsManagedExternalPlayers: false,
                 expected: pwaKey,
             },
-        ])('preserves transferable $runtime copy', ({
-            supportsManagedExternalPlayers,
-            expected,
-        }) => {
-            expect(
-                getDiagnosticDescriptionKey(
-                    diagnosticIssue,
-                    supportsManagedExternalPlayers,
-                    true
-                )
-            ).toBe(expected);
-        });
+        ])(
+            'preserves transferable $runtime copy',
+            ({ supportsManagedExternalPlayers, expected }) => {
+                expect(
+                    getDiagnosticDescriptionKey(
+                        diagnosticIssue,
+                        supportsManagedExternalPlayers,
+                        true
+                    )
+                ).toBe(expected);
+            }
+        );
 
         it.each([
             ['desktop', true],
@@ -131,9 +162,12 @@ describe('playback diagnostic view formatters', () => {
             PlaybackDiagnosticCode.DrmOrEncryption,
             'PLAYBACK_DIAGNOSTICS.DRM_OR_ENCRYPTION.DESCRIPTION',
         ],
-    ])('preserves neutral %s copy for protected playback', (_label, code, expected) => {
-        expect(
-            getDiagnosticDescriptionKey({ ...issue, code }, true, false)
-        ).toBe(expected);
-    });
+    ])(
+        'preserves neutral %s copy for protected playback',
+        (_label, code, expected) => {
+            expect(
+                getDiagnosticDescriptionKey({ ...issue, code }, true, false)
+            ).toBe(expected);
+        }
+    );
 });

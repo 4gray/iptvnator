@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Chargement du flux",
+        "STAGE_DEMUX": "Analyse du conteneur",
+        "DETAIL_STAGE": "Étape de l’échec",
+        "DETAIL_DRM_SYSTEMS": "DRM déclaré par la source",
+        "STAGE_MANIFEST": "Chargement du manifeste",
+        "STAGE_PLAYLIST": "Chargement de la playlist média",
+        "STAGE_SEGMENT": "Chargement du segment média",
+        "STAGE_KEY": "Chargement de la clé de chiffrement",
+        "STAGE_LICENSE": "Échange de licence DRM",
+        "STAGE_MEDIA": "Traitement du média",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Ce conteneur de flux n’est probablement pas pris en charge par le lecteur du navigateur",
             "DESCRIPTION": "Le lecteur du navigateur pourrait ne pas décoder ce conteneur en ligne. Copiez l’URL du flux et ouvrez-la dans un lecteur externe comme MPV, VLC ou IINA pour une meilleure prise en charge des codecs."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Codecs audio",
         "DETAIL_NATIVE_ERROR_CODE": "Code d’erreur natif",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Message d’erreur natif",
-        "DETAIL_ERROR_DETAILS": "Détails de l’erreur"
+        "DETAIL_ERROR_DETAILS": "Détails de l’erreur",
+        "DRM_CONFIGURATION_UNSUPPORTED": "Ce lecteur ne prend pas en charge la configuration DRM du flux. Demandez un flux compatible à votre fournisseur.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "La configuration DRM demandée est indisponible ici. Vérifiez les paramètres de contenu protégé du navigateur ou demandez un flux compatible.",
+        "LICENSE_REQUEST_FAILED": "Le lecteur n’a pas pu obtenir de licence DRM. Vérifiez votre connexion et vos droits de lecture auprès du fournisseur.",
+        "LICENSE_RESPONSE_REJECTED": "Le module DRM a rejeté la réponse de licence. Contactez votre fournisseur pour la vérifier.",
+        "LICENSE_SERVER_MISSING": "Aucun serveur de licences n’est configuré pour ce flux protégé. Demandez les paramètres de lecture à votre fournisseur.",
+        "SEGMENT_ACCESS_DENIED": "Le serveur a refusé l’accès aux segments multimédias. Vérifiez vos droits de lecture auprès du fournisseur.",
+        "ACTION_COPY_DIAGNOSTIC": "Copier le diagnostic",
+        "REPORT_COPIED": "Diagnostic copié",
+        "COPY_FAILED": "Échec de la copie. Réessayez.",
+        "REPORT_PRIVACY": "Copie les données techniques sans URL du flux, identifiants ni messages d’erreur bruts."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Masquer la liste des chaînes",

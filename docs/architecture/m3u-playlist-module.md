@@ -1313,7 +1313,12 @@ player in settings.
    `inputstream.adaptive.license_type`, `license_key`, and the combined
    `drm_legacy` property. ClearKey key formats: `kid:key` hex (single or
    comma-separated), the W3C ClearKey license JSON, and a plain `{kid: key}`
-   JSON map. Unsupported license types (Widevine, PlayReady, license-server
+   JSON map. Key components also accept Base64URL and ordinary Base64 (`+`/`/`),
+   with or without padding; decoded keys and KIDs must remain exactly 128 bits.
+   This includes JSON exports that use ordinary Base64 instead of the W3C
+   Base64URL alphabet. Refresh an already imported source to replace a cached
+   `drm.supported: false` result after a parser compatibility update.
+   Unsupported license types (Widevine, PlayReady, license-server
    URLs, malformed values) are preserved as `supported: false` — never a
    throw.
 3. The typed result lands on `Channel.drm` (`ChannelDrm` in
@@ -1338,8 +1343,11 @@ player in settings.
   `PlaybackDiagnosticSource.Shaka` evidence, ignores recoverable error events,
   and treats a rejected load as terminal even if its final retry error retains
   recoverable severity. Raw messages and `error.data` never cross the boundary;
-  only the documented direct/nested `BAD_HTTP_STATUS` slot may contribute a
-  validated HTTP status. Exact category/code pairs classify failures, while an
+  only documented direct/nested `BAD_HTTP_STATUS` slots contribute HTTP
+  status, and direct network request-type slots identify manifest, segment or
+  license stages. A session-owned response observer adds safe advertised codec
+  and DRM names from the already fetched DASH manifest; it never fetches extra
+  data or retains license URLs, keys or the manifest body. Exact category/code pairs classify failures, while an
   ambiguous Manifest category or unknown pair remains an unknown diagnostic.
   The public streaming-startup code `5006` is retained exactly but keeps
   unknown stage/failure. Public DASH text-parser codes likewise retain their

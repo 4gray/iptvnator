@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "Carregamento do fluxo",
+        "STAGE_DEMUX": "Análise do contêiner",
+        "DETAIL_STAGE": "Etapa da falha",
+        "DETAIL_DRM_SYSTEMS": "DRM declarado pela fonte",
+        "STAGE_MANIFEST": "Carregamento do manifesto",
+        "STAGE_PLAYLIST": "Carregamento da lista de mídia",
+        "STAGE_SEGMENT": "Carregamento do segmento de mídia",
+        "STAGE_KEY": "Carregamento da chave de criptografia",
+        "STAGE_LICENSE": "Troca de licença DRM",
+        "STAGE_MEDIA": "Processamento de mídia",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Este contêiner de stream provavelmente não é compatível com o reprodutor do navegador",
             "DESCRIPTION": "O reprodutor do navegador talvez não consiga decodificar este contêiner no app. Copie a URL do stream e abra em um reprodutor externo como MPV, VLC ou IINA para ter suporte mais amplo a codecs."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "Codecs de áudio",
         "DETAIL_NATIVE_ERROR_CODE": "Código de erro nativo",
         "DETAIL_NATIVE_ERROR_MESSAGE": "Mensagem de erro nativo",
-        "DETAIL_ERROR_DETAILS": "Detalhes do erro"
+        "DETAIL_ERROR_DETAILS": "Detalhes do erro",
+        "DRM_CONFIGURATION_UNSUPPORTED": "Este leitor não suporta a configuração DRM do fluxo. Peça um fluxo compatível ao fornecedor.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "A configuração DRM solicitada não está disponível neste ambiente. Verifique as definições de conteúdo protegido do navegador ou peça um fluxo compatível.",
+        "LICENSE_REQUEST_FAILED": "O leitor não conseguiu obter uma licença DRM. Verifique a ligação e o acesso à reprodução com o fornecedor.",
+        "LICENSE_RESPONSE_REJECTED": "O módulo DRM rejeitou a resposta da licença. Contacte o fornecedor para a verificar.",
+        "LICENSE_SERVER_MISSING": "Não há servidor de licenças configurado para este fluxo protegido. Peça as definições de reprodução ao fornecedor.",
+        "SEGMENT_ACCESS_DENIED": "O servidor negou acesso aos segmentos multimédia. Verifique o acesso à reprodução com o fornecedor.",
+        "ACTION_COPY_DIAGNOSTIC": "Copiar diagnóstico",
+        "REPORT_COPIED": "Diagnóstico copiado",
+        "COPY_FAILED": "Falha ao copiar. Tente novamente.",
+        "REPORT_PRIVACY": "Copia dados técnicos sem URLs do fluxo, credenciais ou mensagens de erro originais."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Ocultar lista de canais",

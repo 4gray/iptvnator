@@ -1,6 +1,6 @@
 /**
- * Fixture identities shared by the capture driver (seeding) and the named
- * setup actions (guide shots that re-enter the add-playlist dialog). Kept in
+ * Fixture identities and M3U generation shared by the capture driver and
+ * the named setup actions (guide shots that re-enter the add-playlist dialog). Kept in
  * a leaf module so capture-navigation.ts can import them without pulling in
  * the driver, which itself imports the navigation module.
  *
@@ -9,6 +9,9 @@
  * credentials, so the auto-detect hand-out deliberately uses labeled lines
  * instead of a `get.php?username=…` link.
  */
+
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
 
 import { FICTIONAL_STALKER_MAC } from './screenshot-guards.mjs';
 
@@ -74,23 +77,30 @@ export const AUTO_DETECT_FIXTURE_MESSAGE = [
     'Use these details in any Xtream Codes compatible player.',
 ].join('\n');
 
-/**
- * Synthetic categories that only the marketing fixture generator produces,
- * per catalog. They must be checked against their OWN endpoint: a series
- * category can never appear in `get_vod_categories`, and asserting it there
- * made the reuse path below reject every already-running mock.
- */
-export const MOCK_FIXTURE_CATEGORIES: ReadonlyArray<{
-    action: 'get_vod_categories' | 'get_series_categories';
-    name: string;
-}> = [
-    { action: 'get_vod_categories', name: 'Action & Mystery' },
-    { action: 'get_series_categories', name: 'Urban Drama' },
-];
-/**
- * Live categories of the Stalker mock's marketing-demo scenario, from
- * `MARKETING_LIVE_CATEGORIES` in `@iptvnator/shared/marketing-fixtures`.
- * Spelled out here because `pnpm release:screenshots` runs tsx without the
- * base tsconfig, so workspace path aliases do not resolve in this file.
- */
-export const STALKER_MOCK_FIXTURE_CATEGORIES = ['Newsroom', 'Culture & Docs'];
+/** Entirely synthetic channels; streams and logos point at the mock. */
+export function writeM3uFixture(dataDir: string): string {
+    const channels = [
+        ['Newsroom', 'Aurora Local', 'aurora-local'],
+        ['Newsroom', 'Civic Pulse', 'civic-pulse'],
+        ['Sports', 'Fieldside One', 'fieldside-one'],
+        ['Sports', 'Motion Arena', 'motion-arena'],
+        ['Kids', 'Horizon Kids', 'horizon-kids'],
+        ['Kids', 'Story Lantern', 'story-lantern'],
+        ['Culture', 'Atlas Culture', 'atlas-culture'],
+        ['Culture', 'Night Music', 'night-music'],
+    ];
+    const stream = `${XTREAM_MOCK_ORIGIN}/live/marketing/marketing/52000.m3u8`;
+    const lines = ['#EXTM3U'];
+
+    channels.forEach(([group, title, slug], index) => {
+        lines.push(
+            `#EXTINF:-1 tvg-id="demo-${index + 1}" tvg-name="${title}" tvg-logo="${XTREAM_MOCK_ORIGIN}/assets/marketing/logo/${slug}.svg?size=256x256" group-title="${group}",${title}`,
+            stream
+        );
+    });
+
+    const filePath = path.join(dataDir, `${M3U_FIXTURE_TITLE}.m3u`);
+    writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
+
+    return filePath;
+}

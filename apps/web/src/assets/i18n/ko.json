@@ -599,6 +599,16 @@
         }
     },
     "PLAYBACK_DIAGNOSTICS": {
+        "STAGE_LOADER": "스트림 로드",
+        "STAGE_DEMUX": "컨테이너 분석",
+        "DETAIL_STAGE": "오류 발생 단계",
+        "DETAIL_DRM_SYSTEMS": "소스에서 선언한 DRM",
+        "STAGE_MANIFEST": "매니페스트 로드",
+        "STAGE_PLAYLIST": "미디어 재생목록 로드",
+        "STAGE_SEGMENT": "미디어 세그먼트 로드",
+        "STAGE_KEY": "암호화 키 로드",
+        "STAGE_LICENSE": "DRM 라이선스 교환",
+        "STAGE_MEDIA": "미디어 처리",
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "이 스트림 컨테이너는 브라우저 플레이어에서 지원되지 않을 수 있습니다",
             "DESCRIPTION": "브라우저 플레이어가 이 컨테이너를 앱 안에서 디코딩하지 못할 수 있습니다. 더 넓은 코덱 지원이 필요하면 스트림 URL을 복사해 MPV, VLC, IINA 같은 외부 플레이어에서 여세요."
@@ -669,7 +679,17 @@
         "DETAIL_AUDIO_CODECS": "오디오 코덱",
         "DETAIL_NATIVE_ERROR_CODE": "네이티브 오류 코드",
         "DETAIL_NATIVE_ERROR_MESSAGE": "네이티브 오류 메시지",
-        "DETAIL_ERROR_DETAILS": "오류 세부 정보"
+        "DETAIL_ERROR_DETAILS": "오류 세부 정보",
+        "DRM_CONFIGURATION_UNSUPPORTED": "이 플레이어는 스트림의 DRM 구성을 지원하지 않습니다. 제공업체에 호환 스트림을 요청하세요.",
+        "DRM_CONFIGURATION_UNAVAILABLE": "요청한 DRM 구성을 이 환경에서 사용할 수 없습니다. 브라우저의 보호된 콘텐츠 설정을 확인하거나 호환 스트림을 요청하세요.",
+        "LICENSE_REQUEST_FAILED": "DRM 라이선스를 가져오지 못했습니다. 연결과 재생 권한을 제공업체에 확인하세요.",
+        "LICENSE_RESPONSE_REJECTED": "DRM 모듈이 라이선스 응답을 거부했습니다. 라이선스 확인을 위해 제공업체에 문의하세요.",
+        "LICENSE_SERVER_MISSING": "이 보호된 스트림에 라이선스 서버가 설정되지 않았습니다. 제공업체에 재생 설정을 요청하세요.",
+        "SEGMENT_ACCESS_DENIED": "서버가 미디어 세그먼트 접근을 거부했습니다. 제공업체에 재생 권한을 확인하세요.",
+        "ACTION_COPY_DIAGNOSTIC": "진단 정보 복사",
+        "REPORT_COPIED": "진단 정보가 복사되었습니다",
+        "COPY_FAILED": "복사하지 못했습니다. 다시 시도하세요.",
+        "REPORT_PRIVACY": "스트림 URL, 인증 정보 및 원본 오류 메시지를 제외한 기술 정보를 복사합니다."
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "채널 목록 숨기기",

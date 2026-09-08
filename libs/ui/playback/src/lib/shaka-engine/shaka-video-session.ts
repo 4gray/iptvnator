@@ -13,6 +13,7 @@ import {
     type PlaybackSourceMetadata,
 } from '@iptvnator/playback/util';
 import { ShakaTextTrackSuppression } from './shaka-text-track-suppression';
+import { ShakaManifestMetadata } from './shaka-manifest-metadata';
 import {
     loadShakaModule,
     type ShakaErrorLike,
@@ -54,6 +55,7 @@ const PLAYER_REFRESH_EVENTS = [
 export class ShakaVideoSession {
     private module: ShakaModuleLike | null = null;
     private player: ShakaPlayerLike | null = null;
+    private manifestMetadata: ShakaManifestMetadata | null = null;
     private playerErrorListener: ((event: Event) => void) | null = null;
     private playerRefreshListener: (() => void) | null = null;
     private readonly refreshListeners = new Set<() => void>();
@@ -151,6 +153,10 @@ export class ShakaVideoSession {
 
         const player = new module.Player();
         this.player = player;
+        this.manifestMetadata = new ShakaManifestMetadata(
+            player.getNetworkingEngine?.() ?? null,
+            drm?.licenseType
+        );
         this.bindPlayerListeners(player, generation, url);
 
         if (drm?.clearKeys) {
@@ -274,6 +280,8 @@ export class ShakaVideoSession {
      * {@link pendingTeardown} before attaching to the media element.
      */
     private beginPlayerTeardown(): void {
+        this.manifestMetadata?.destroy();
+        this.manifestMetadata = null;
         const player = this.player;
         this.player = null;
         this.textSuppression.reset();
@@ -316,6 +324,7 @@ export class ShakaVideoSession {
 
     private createMetadata(url: string): PlaybackSourceMetadata {
         return createPlaybackSourceMetadata({
+            ...this.manifestMetadata?.read(),
             url,
             mimeType: DASH_MIME_TYPE,
             player: this.config.player,

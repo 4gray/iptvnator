@@ -1,3 +1,4 @@
+import { CdkCopyToClipboard } from '@angular/cdk/clipboard';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -496,6 +497,39 @@ describe('PlaybackDiagnosticPanelComponent', () => {
         expect(retries).toEqual([undefined]);
         expect(playedSources).toEqual(['playlist-8:xtream:8']);
         expect(checkedSources).toEqual(['playlist-8:xtream:8']);
+    });
+
+    it('copies a safe report and reports success or failure for the current diagnostic', () => {
+        fixture.detectChanges();
+        const button = fixture.debugElement.query(
+            By.css('[data-test-id="playback-copy-diagnostic"]')
+        );
+        expect(button).not.toBeNull();
+        const copy = button.injector.get(CdkCopyToClipboard);
+        expect(JSON.parse(copy.text)).toMatchObject({
+            app: 'IPTVnator',
+            code: DIAGNOSTIC.code,
+        });
+        expect(copy.text).not.toContain('example.com');
+        copy.copied.emit(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.COPY_FAILED'
+        );
+        copy.copied.emit(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.REPORT_COPIED'
+        );
+        fixture.componentRef.setInput('diagnostic', {
+            ...DIAGNOSTIC,
+            code: PlaybackDiagnosticCode.NetworkError,
+        });
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).not.toContain(
+            'PLAYBACK_DIAGNOSTICS.REPORT_COPIED'
+        );
+        expect(JSON.parse(copy.text).code).toBe('network-error');
     });
 
     it('always renders Copy URL and Technical details utilities', () => {

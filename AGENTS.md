@@ -562,7 +562,9 @@ Key files:
 - DASH (`.mpd`) sources play through a lazily imported Shaka Player source
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
-  `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
+  `Channel.drm` (hex, Base64URL or ordinary Base64, strictly 128-bit key/KID;
+  refresh replaces cached unsupported parser results), and the shared bridge
+  exposes Shaka audio/text tracks via
   source kind `shaka`. The DOM-free Shaka `5.2.4` diagnostic boundary lives in
   `libs/playback/util`; it version-locks public severity/category/code evidence,
   ignores recoverable error events,
@@ -589,6 +591,14 @@ Key files:
   most three actions, and `WebPlayerViewComponent` executes only the action
   the user selects. The policy is a sibling of `PlayerController`; shared
   controls only gate interaction while the diagnostic panel is visible.
+  Technical details also expose localized stages, safe engine codec metadata
+  and allowlisted source DRM names. DASH observes existing Shaka manifest
+  responses (bounded to 2 MiB); it does not fetch again or retain license URLs,
+  keys or XML. Evidence is scoped to one engine and never proves playability.
+  The panel refines descriptions only from explicit runtime/engine evidence;
+  HTTP 401/403 segment failures never imply token expiry. Copy diagnostics
+  creates an allowlisted local report without URLs, credentials or raw messages;
+  its content and copy status follow the current diagnostic.
   `WebPlayerViewComponent` owns a host-derived content-session key that is
   stable for the mounted logical selection, attempted target IDs, the temporary
   player override, and VOD handoff position. Its `PlaybackBinding` is exactly

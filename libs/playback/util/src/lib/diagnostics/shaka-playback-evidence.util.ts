@@ -14,6 +14,7 @@ import {
     SHAKA_ERROR_CATEGORY,
     SHAKA_ERROR_CODE,
     SHAKA_ERROR_SEVERITY,
+    SHAKA_REQUEST_TYPE,
 } from './shaka-error-contract';
 import {
     SHAKA_AMBIGUOUS_MANIFEST_CODES,
@@ -43,11 +44,39 @@ export function createShakaPlaybackEvidence(
         category,
         engineCode,
         disposition,
-        stage: getStage(category, engineCode),
+        stage: getNetworkStage(error) ?? getStage(category, engineCode),
         failure: getFailure(category, engineCode),
     };
 
     return httpStatus === undefined ? evidence : { ...evidence, httpStatus };
+}
+
+/** Public error.data request-type slots in Shaka 5.2.4; no URL inspection. */
+function getNetworkStage(error: Partial<ShakaErrorLike> | null | undefined) {
+    if (
+        error?.category !== SHAKA_ERROR_CATEGORY.NETWORK ||
+        !Array.isArray(error.data)
+    )
+        return undefined;
+    const slot =
+        error.code === SHAKA_ERROR_CODE.BAD_HTTP_STATUS
+            ? 4
+            : error.code === SHAKA_ERROR_CODE.HTTP_ERROR
+              ? 2
+              : error.code === SHAKA_ERROR_CODE.TIMEOUT
+                ? 1
+                : undefined;
+    const type = slot === undefined ? undefined : error.data?.[slot];
+    switch (type) {
+        case SHAKA_REQUEST_TYPE.MANIFEST:
+            return ShakaPlaybackStage.Manifest;
+        case SHAKA_REQUEST_TYPE.SEGMENT:
+            return ShakaPlaybackStage.Segment;
+        case SHAKA_REQUEST_TYPE.LICENSE:
+            return ShakaPlaybackStage.License;
+        default:
+            return undefined;
+    }
 }
 
 function getSeverity(value: unknown): ShakaPlaybackEvidence['severity'] {
