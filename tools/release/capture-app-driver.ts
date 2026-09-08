@@ -6,7 +6,7 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import {
     _electron as electron,
@@ -15,7 +15,6 @@ import {
 } from '@playwright/test';
 
 import {
-    M3U_FIXTURE_TITLE,
     STALKER_FIXTURE_MAC,
     STALKER_FIXTURE_PORTAL_URL,
     STALKER_FIXTURE_TITLE,
@@ -38,6 +37,7 @@ export {
     M3U_FIXTURE_TITLE,
     XTREAM_FIXTURE_TITLE,
     XTREAM_MOCK_ORIGIN,
+    writeM3uFixture,
 } from './capture-fixtures';
 
 /**
@@ -65,34 +65,6 @@ const STALKER_MOCK_FIXTURE_CATEGORIES = ['Newsroom', 'Culture & Docs'];
 /* ------------------------------------------------------------------ */
 /* Fixtures                                                            */
 /* ------------------------------------------------------------------ */
-
-/** Entirely synthetic channels; streams and logos point at the mock. */
-export function writeM3uFixture(dataDir: string): string {
-    const channels = [
-        ['Newsroom', 'Aurora Local', 'aurora-local'],
-        ['Newsroom', 'Civic Pulse', 'civic-pulse'],
-        ['Sports', 'Fieldside One', 'fieldside-one'],
-        ['Sports', 'Motion Arena', 'motion-arena'],
-        ['Kids', 'Horizon Kids', 'horizon-kids'],
-        ['Kids', 'Story Lantern', 'story-lantern'],
-        ['Culture', 'Atlas Culture', 'atlas-culture'],
-        ['Culture', 'Night Music', 'night-music'],
-    ];
-    const stream = `${XTREAM_MOCK_ORIGIN}/live/marketing/marketing/52000.m3u8`;
-    const lines = ['#EXTM3U'];
-
-    channels.forEach(([group, title, slug], index) => {
-        lines.push(
-            `#EXTINF:-1 tvg-id="demo-${index + 1}" tvg-name="${title}" tvg-logo="${XTREAM_MOCK_ORIGIN}/assets/marketing/logo/${slug}.svg?size=256x256" group-title="${group}",${title}`,
-            stream
-        );
-    });
-
-    const filePath = path.join(dataDir, `${M3U_FIXTURE_TITLE}.m3u`);
-    writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf8');
-
-    return filePath;
-}
 
 export async function ensureXtreamMockServer(
     workspaceRoot: string
