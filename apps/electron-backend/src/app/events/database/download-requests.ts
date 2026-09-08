@@ -6,6 +6,7 @@ import {
     type StartDownloadRequest,
 } from './download-request-options';
 export type { StartDownloadRequest } from './download-request-options';
+import { recoverStoredCatchupCompletion } from './download-catchup-recover-completion';
 import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import { catchupForDownload } from './download-catchup';
 import type { ElectronBridgeDownloadStartResult } from '@iptvnator/shared/interfaces';
@@ -24,7 +25,7 @@ import {
     decodeDownloadMetadataSnapshot,
     encodeDownloadMetadataSnapshot,
 } from './download-metadata-snapshot';
-import { enqueueDownload } from './download-runtime';
+import { enqueueDownload, hasRuntimeDownload } from './download-runtime';
 
 export async function startDownloadRequest(
     data: StartDownloadRequest,
@@ -116,6 +117,19 @@ export async function startDownloadRequest(
                 id: item.id,
                 reason: 'already-in-progress',
                 success: false,
+            };
+        }
+
+        if (
+            await recoverStoredCatchupCompletion(db, item, () =>
+                hasRuntimeDownload(item.id)
+            )
+        ) {
+            return {
+                id: item.id,
+                success: false,
+                error: 'Download already completed',
+                reason: ELECTRON_BRIDGE_DOWNLOAD_START_REASONS.AlreadyDownloaded,
             };
         }
 

@@ -395,7 +395,28 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
             readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
         );
         expect(captured).toEqual([]);
-        // Repeated clicks on the same programme reuse its identity.
+        // A failed completion status write must recover the proven file in place
+        // on a repeated EPG submission, without a duplicate transfer.
+        await app.electronApp.evaluate(
+            (_electron, { dependency, file, id }) => {
+                const Database = process
+                    .getBuiltinModule('module')
+                    .createRequire(dependency)(dependency);
+                const db = new Database(file);
+                try {
+                    db.prepare(
+                        "UPDATE downloads SET status='failed' WHERE id=?"
+                    ).run(id);
+                } finally {
+                    db.close();
+                }
+            },
+            {
+                dependency: join(workspaceRoot, 'node_modules/better-sqlite3'),
+                file: join(dataDir, 'databases/iptvnator.db'),
+                id: row.id,
+            }
+        );
         await block.locator('.epg-timeline__info').click();
         await app.mainWindow
             .getByRole('dialog')

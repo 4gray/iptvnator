@@ -1,3 +1,4 @@
+import { recoverStoredCatchupCompletion } from './download-catchup-recover-completion';
 import { and, eq, sql } from 'drizzle-orm';
 import { basename, dirname } from 'node:path';
 import { getDatabase } from '../../database/connection';
@@ -7,7 +8,7 @@ import { DownloadDirectoryAuthorizer } from './download-directory-authorization'
 import { catchupForDownload } from './download-catchup';
 import { sanitizeFilename, createFileName } from './download-request-options';
 import { resolveStoredDownloadHeaders } from './download-request-headers';
-import { enqueueDownload } from './download-runtime';
+import { enqueueDownload, hasRuntimeDownload } from './download-runtime';
 
 export async function retryDownloadRequest(
     downloadId: number,
@@ -27,8 +28,6 @@ export async function retryDownloadRequest(
     }
 
     const item = existing[0];
-    const catchup = catchupForDownload(item);
-    await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
     if (!['failed', 'canceled'].includes(item.status)) {
         return {
             error: 'Can only retry failed or canceled downloads',
@@ -36,8 +35,19 @@ export async function retryDownloadRequest(
         };
     }
 
+    if (
+        await recoverStoredCatchupCompletion(db, item, () =>
+            hasRuntimeDownload(item.id)
+        )
+    )
+        return { success: true };
+    const catchup = catchupForDownload(item);
+    await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
+
     const retainedFilePath =
-        item.status === 'failed' && item.filePath ? item.filePath : null;
+        (item.status === 'failed' || catchup) && item.filePath
+            ? item.filePath
+            : null;
     // A retained filePath was written by the main process after its folder
     // was authorized; requiring the folder to still be the CURRENT selection
     // would strand the retry after the user switches download folders.
@@ -103,14 +113,21 @@ export async function resumeDownloadRequest(
     }
 
     const item = existing[0];
-    const catchup = catchupForDownload(item);
-    await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
     if (item.status !== 'paused') {
         return {
             error: 'Can only resume paused downloads',
             success: false,
         };
     }
+
+    if (
+        await recoverStoredCatchupCompletion(db, item, () =>
+            hasRuntimeDownload(item.id)
+        )
+    )
+        return { success: true };
+    const catchup = catchupForDownload(item);
+    await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
 
     // See retryDownloadRequest: DB-recorded retained paths stay usable after
     // the user switches download folders.
