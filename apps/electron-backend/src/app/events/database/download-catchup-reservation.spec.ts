@@ -8,12 +8,19 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { reserveTarget } from './download-runtime-reservation';
 import { reserveFreshCatchupTarget } from './download-catchup-reservation';
-import { clearArchiveFinalization } from './download-catchup-journal';
+import {
+    clearArchiveFinalization,
+    readArchiveFinalizations,
+} from './download-catchup-journal';
 import type { DownloadsDatabase, DownloadTask } from './download-task';
 
 jest.mock('./download-catchup-journal', () => ({
+    ...jest.requireActual('./download-catchup-journal'),
     clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
+    readArchiveFinalizations: jest.fn(),
+    recordArchiveCleanupPath: jest.fn(),
 }));
 
 it.each([false, true])(
@@ -32,6 +39,20 @@ it.each([false, true])(
                 url: 'https://provider.test/archive.ts',
                 catchupExpectedPartialIdentity: await lstat(filePath + '.part'),
             };
+            jest.mocked(readArchiveFinalizations).mockResolvedValue(
+                new Map([
+                    [
+                        1,
+                        {
+                            version: 1,
+                            phase: 'transfer',
+                            filePath,
+                            partialIdentity:
+                                task.catchupExpectedPartialIdentity!,
+                        },
+                    ],
+                ])
+            );
             if (replaced) {
                 await rename(
                     filePath + '.part',
@@ -70,3 +91,43 @@ it.each([false, true])(
         }
     }
 );
+
+it('removes a journaled incomplete final before retrying the retained archive', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'archive-retry-copy-'));
+    const filePath = join(directory, 'show.ts');
+    try {
+        await writeFile(filePath, 'incomplete');
+        await writeFile(filePath + '.part', 'complete source');
+        const proof = {
+            version: 1 as const,
+            filePath,
+            size: 100,
+            partialIdentity: await lstat(filePath + '.part'),
+            finalIdentity: await lstat(filePath),
+        };
+        jest.mocked(readArchiveFinalizations).mockResolvedValue(
+            new Map([[1, proof]])
+        );
+        const task: DownloadTask = {
+            id: 1,
+            filePath,
+            fileName: 'show.ts',
+            directory,
+            url: 'https://provider.test/archive.ts',
+            catchup: {
+                channelName: 'News',
+                startTimestamp: 100,
+                stopTimestamp: 200,
+            },
+        };
+        await expect(
+            reserveTarget({} as DownloadsDatabase, task)
+        ).resolves.toMatchObject({ path: filePath });
+        await expect(lstat(filePath)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect(await readFile(filePath + '.part', 'utf8')).toBe(
+            'complete source'
+        );
+    } finally {
+        await rm(directory, { recursive: true, force: true });
+    }
+});

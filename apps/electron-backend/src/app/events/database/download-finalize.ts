@@ -1,14 +1,11 @@
 import { ArchivePartialReplacedError } from './download-catchup-output';
-import { recordArchiveFinalization } from './download-catchup-journal';
 import {
     finalizePartialDownload,
     removePartialFile,
 } from './download-file-finalize';
-import { cleanupCatchupPartial } from './download-catchup-cleanup';
-import {
-    finalizeCatchupPartial,
-    recoverCatchupCompletion,
-} from './download-catchup-finalize';
+import { cleanupStoredCatchupPartial } from './download-catchup-removal';
+import { promoteCatchupDownload } from './download-catchup-completion';
+import { recoverCatchupCompletion } from './download-catchup-finalize';
 import { eq, sql } from 'drizzle-orm';
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -66,10 +63,7 @@ export async function handleDownloadFailure(
         await getExistingCompletedFileProgress(task);
     if (existingCompletedFileProgress) {
         if (task.catchup) {
-            await cleanupCatchupPartial(
-                task.filePath,
-                task.catchupPartialIdentity
-            );
+            await cleanupStoredCatchupPartial(db, task.id, task.filePath);
         } else removePartialFile(existingCompletedFileProgress.filePath);
         await persistCompletion(
             db,
@@ -98,10 +92,7 @@ export async function handleDownloadFailure(
         describeError(error)
     );
     const removed = task.catchup
-        ? await cleanupCatchupPartial(
-              task.filePath,
-              task.catchupPartialIdentity
-          )
+        ? await cleanupStoredCatchupPartial(db, task.id, task.filePath, true)
         : removePartialFile(task.filePath);
     await db
         .update(schema.downloads)
@@ -129,29 +120,12 @@ export async function completeDownloadFromPartial(
     let fileSize: number;
     try {
         if (task.catchup) {
-            const partialIdentity = task.catchupPartialIdentity;
-            if (!partialIdentity)
-                throw new Error('Archive transfer identity is unavailable');
-            const finalized = await finalizeCatchupPartial(
+            fileSize = await promoteCatchupDownload(
+                db,
+                task,
                 reservation,
-                task.catchupPartialIdentity,
-                progress.bytesDownloaded,
-                (finalIdentity) =>
-                    recordArchiveFinalization(db, task.id, {
-                        version: 1,
-                        filePath: reservation.path,
-                        size: progress.bytesDownloaded,
-                        partialIdentity,
-                        finalIdentity,
-                    }),
-                () => !!(task.cancelRequested || task.pauseRequested),
-                () => (task.catchupCommitStarted = true)
+                progress
             );
-            task.catchupFinalized = {
-                ...finalized,
-                filePath: reservation.path,
-            };
-            fileSize = finalized.size;
         } else {
             fileSize = await finalizePartialDownload(
                 reservation,

@@ -60,11 +60,24 @@ beforeEach(async () => {
                 },
             }),
         }),
-        update: () => ({
+        update: (table: unknown) => ({
             set: (value: Record<string, unknown>) => ({
-                where: async () => {
-                    updates.push(value);
-                },
+                where: () => ({
+                    then: (resolve: (value: undefined) => unknown) => {
+                        updates.push(value);
+                        return Promise.resolve(resolve(undefined));
+                    },
+                    run: () => {
+                        if (
+                            table === schema.downloadArchiveFinalizations &&
+                            journals.length
+                        ) {
+                            journals[0].proof = value.proof as string;
+                            return { changes: 1 };
+                        }
+                        return { changes: 0 };
+                    },
+                }),
             }),
         }),
     } as unknown as DownloadsDatabase;

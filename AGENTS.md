@@ -1044,7 +1044,9 @@ Resume checks it at open, and rejected replacements are preserved and detached
 so Retry can reserve a fresh path. A synchronous completion-commit boundary
 rejects late pause/cancel commands before awaited cleanup and persistence.
 Private cleanup captures are journaled before relocation, keeping failed
-Remove/Clear/cancel cleanup retryable across restarts without hardlinks.
+Remove/Clear/cancel cleanup retryable across restarts without hardlinks. Active
+failures, promotion and startup share that cleanup; Remove waits for active
+archive cancellation to settle before deleting its row and journal.
 Archive transfers validate TS framing, restart from byte zero after interruption
 and check expiry again at transfer start. Completed cards play locally and never
 route to VOD details. Contract and EOF/duration limits:

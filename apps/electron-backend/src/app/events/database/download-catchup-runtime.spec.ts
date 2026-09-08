@@ -1,3 +1,5 @@
+import { unlinkSync } from 'node:fs';
+import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import { ArchivePartialReplacedError } from './download-catchup-output';
 import { handleDownloadFailure } from './download-finalize';
 import {
@@ -18,23 +20,43 @@ import {
     cancelDownload,
     isDownloadCommitting,
     removeDownloadFromRuntime,
+    prepareArchiveRemoval,
+    hasRuntimeDownload,
 } from './download-runtime';
-import { cleanupCatchupFile } from './download-catchup-cleanup';
-import { readArchiveFinalizations } from './download-catchup-journal';
+import {
+    readArchiveFinalizations,
+    recordArchiveCleanupPath,
+    type ArchiveDownloadProof,
+} from './download-catchup-journal';
 import type { DownloadTask } from './download-task';
 
-jest.mock('./download-catchup-cleanup', () => {
-    const actual = jest.requireActual('./download-catchup-cleanup');
-    return {
-        ...actual,
-        cleanupCatchupFile: jest.fn(actual.cleanupCatchupFile),
-    };
+jest.mock('node:fs', () => {
+    const actual = jest.requireActual('node:fs');
+    return { ...actual, unlinkSync: jest.fn(actual.unlinkSync) };
 });
+const mockProofs = new Map<number, ArchiveDownloadProof>();
+function mockRememberCapture(
+    _db: unknown,
+    id: number,
+    proof: ArchiveDownloadProof,
+    path: string,
+    kind = 'partial'
+) {
+    mockProofs.set(id, {
+        ...proof,
+        [kind === 'partial' ? 'partialCleanupPath' : 'finalCleanupPath']: path,
+    });
+}
 jest.mock('./download-catchup-journal', () => ({
-    recordArchiveFinalization: jest.fn().mockResolvedValue(undefined),
-    recordArchiveCleanupPath: jest.fn(),
-    clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
-    readArchiveFinalizations: jest.fn().mockResolvedValue(new Map()),
+    ...jest.requireActual('./download-catchup-journal'),
+    recordArchiveFinalization: jest.fn(async (_db, id, proof) => {
+        mockProofs.set(id, proof);
+    }),
+    recordArchiveCleanupPath: jest.fn(mockRememberCapture),
+    clearArchiveFinalization: jest.fn(async (_db, id) => {
+        mockProofs.delete(id);
+    }),
+    readArchiveFinalizations: jest.fn(async () => new Map(mockProofs)),
 }));
 jest.mock('../../database/connection', () => ({ getDatabase: jest.fn() }));
 jest.mock('./download-catchup-transfer', () => ({
@@ -43,7 +65,19 @@ jest.mock('./download-catchup-transfer', () => ({
 jest.mock('./download-broadcast', () => ({
     broadcastDownloadUpdate: jest.fn(),
 }));
-beforeEach(() => jest.mocked(transferCatchupToPartialFile).mockReset());
+beforeEach(() => {
+    mockProofs.clear();
+    jest.mocked(unlinkSync)
+        .mockReset()
+        .mockImplementation(jest.requireActual('node:fs').unlinkSync);
+    jest.mocked(transferCatchupToPartialFile).mockReset();
+    jest.mocked(readArchiveFinalizations)
+        .mockReset()
+        .mockImplementation(async () => new Map(mockProofs));
+    jest.mocked(recordArchiveCleanupPath)
+        .mockReset()
+        .mockImplementation(mockRememberCapture);
+});
 
 it.each(['failed', 'canceled'])(
     'preserves a replaced partial when the active archive becomes %s',
@@ -130,7 +164,7 @@ it.each(['failed', 'canceled'])(
             expect(updates.at(-1)).toEqual(
                 expect.objectContaining({
                     status,
-                    filePath: join(directory, 'show.ts'),
+                    filePath: null,
                 })
             );
         } finally {
@@ -196,22 +230,13 @@ it.each([1880, null])(
                 };
             }
         );
-        const lateCommands: boolean[] = [];
-        jest.mocked(cleanupCatchupFile).mockImplementationOnce(
-            async (path, identity) => {
-                // The file is verified, but cleanup is still awaiting filesystem I/O.
-                expect(path).toBe(task.filePath + '.part');
-                lateCommands.push(await pauseDownload(task.id));
-                lateCommands.push(await cancelDownload(task.id));
-                expect(isDownloadCommitting(task.id)).toBe(true);
+        const lateCommands: Array<boolean | Promise<boolean>> = [];
+        jest.mocked(recordArchiveCleanupPath).mockImplementationOnce(
+            (database, id, proof, path, kind) => {
+                mockRememberCapture(database, id, proof, path, kind);
+                lateCommands.push(pauseDownload(task.id));
+                lateCommands.push(cancelDownload(task.id));
                 lateCommands.push(removeDownloadFromRuntime(task.id));
-                expect(task.pauseRequested).not.toBe(true);
-                expect(task.cancelRequested).not.toBe(true);
-                return jest
-                    .requireActual<typeof import('./download-catchup-cleanup')>(
-                        './download-catchup-cleanup'
-                    )
-                    .cleanupCatchupFile(path, identity);
             }
         );
         try {
@@ -225,7 +250,11 @@ it.each([1880, null])(
             enqueueDownload(task);
             await settled;
             await new Promise((resolve) => setImmediate(resolve));
-            expect(lateCommands).toEqual([false, false, false]);
+            expect(await Promise.all(lateCommands)).toEqual([
+                false,
+                false,
+                false,
+            ]);
             expect(terminalStatus).toBe('completed');
             expect(completionAttempts).toBe(2);
             expect(await readFile(task.filePath!)).toEqual(body);
@@ -353,6 +382,107 @@ it.each([false, true])(
                     code: 'ENOENT',
                 });
         } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    }
+);
+
+it.each(['failed', 'canceled'])(
+    'keeps active %s cleanup captures durable until retry',
+    async (status) => {
+        const directory = await mkdtemp(
+            join(tmpdir(), 'active-archive-cleanup-')
+        );
+        const task: DownloadTask = {
+            id: 996,
+            directory,
+            fileName: 'show.ts',
+            url: 'https://provider.test/archive.ts',
+            catchup: {
+                channelName: 'News',
+                startTimestamp: 100,
+                stopTimestamp: 200,
+            },
+        };
+        let ready!: () => void, release!: () => void, finish!: () => void;
+        const started = new Promise<void>((resolve) => {
+            ready = resolve;
+        });
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const settled = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        const updates: Record<string, unknown>[] = [];
+        const db = {
+            update: () => ({
+                set: (value: Record<string, unknown>) => ({
+                    where: async () => {
+                        updates.push(value);
+                        if (value.status === status) finish();
+                    },
+                }),
+            }),
+        };
+        jest.mocked(getDatabase).mockResolvedValue(db as never);
+        jest.mocked(transferCatchupToPartialFile).mockImplementationOnce(
+            async (_db, active, reservation) => {
+                await writeFile(
+                    reservation.partialPath,
+                    'verified archive bytes'
+                );
+                active.catchupPartialIdentity = await lstat(
+                    reservation.partialPath
+                );
+                mockProofs.set(active.id, {
+                    version: 1,
+                    phase: 'transfer',
+                    filePath: reservation.path,
+                    partialIdentity: active.catchupPartialIdentity,
+                });
+                ready();
+                await gate;
+                throw new Error('interrupted transfer');
+            }
+        );
+        jest.mocked(unlinkSync).mockImplementationOnce(() => {
+            throw Object.assign(new Error('locked'), { code: 'EACCES' });
+        });
+        try {
+            enqueueDownload(task);
+            await started;
+            let removal: Promise<boolean> | undefined;
+            if (status === 'canceled') {
+                removal = prepareArchiveRemoval(task.id);
+                let returned = false;
+                void removal.then(() => {
+                    returned = true;
+                });
+                await new Promise((resolve) => setImmediate(resolve));
+                expect(returned).toBe(false);
+                expect(hasRuntimeDownload(task.id)).toBe(true);
+            }
+            release();
+            await settled;
+            if (removal) await expect(removal).resolves.toBe(true);
+            await new Promise((resolve) => setImmediate(resolve));
+            const pointer = mockProofs.get(task.id)?.partialCleanupPath;
+            expect(pointer).toBeDefined();
+            expect(await readFile(pointer!, 'utf8')).toBe(
+                'verified archive bytes'
+            );
+            expect(updates.at(-1)).toEqual(
+                expect.objectContaining({ status, filePath: task.filePath })
+            );
+            await expect(
+                cleanupStoredCatchupPartial(db as never, task.id, task.filePath)
+            ).resolves.toBe(true);
+            await expect(lstat(pointer!)).rejects.toMatchObject({
+                code: 'ENOENT',
+            });
+        } finally {
+            release();
             await rm(directory, { recursive: true, force: true });
         }
     }

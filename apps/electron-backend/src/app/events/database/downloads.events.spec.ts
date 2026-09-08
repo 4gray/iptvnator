@@ -6,6 +6,7 @@ import {
     mockRemoveDownloadFromRuntime,
     mockIsDownloadCommitting,
     mockHasRuntimeDownload,
+    mockPrepareArchiveRemoval,
     mockRemoveJournaledPartial,
     mockArchiveProofs,
     mockRecordArchiveCleanupPath,
@@ -17,6 +18,64 @@ import {
 describe('downloads events: partial-file cleanup', () => {
     beforeEach(async () => {
         await setupDownloadsEventsHarness();
+    });
+
+    it('waits for active archive cancellation before reading or deleting the row', async () => {
+        const { db, deleteWhere } = mockDownloadRow(
+            createDownloadRow('canceled')
+        );
+        let release!: (ready: boolean) => void;
+        mockPrepareArchiveRemoval.mockReturnValue(
+            new Promise<boolean>((resolve) => {
+                release = resolve;
+            })
+        );
+        const remove = getHandler('DOWNLOADS_REMOVE')(null, 42);
+        expect(db.select).not.toHaveBeenCalled();
+        expect(deleteWhere).not.toHaveBeenCalled();
+        release(true);
+        await expect(remove).resolves.toEqual({ success: true });
+    });
+
+    it('rejects Remove before reading storage when completion already owns the task', async () => {
+        const { db, deleteWhere } = mockDownloadRow(
+            createDownloadRow('downloading')
+        );
+        mockPrepareArchiveRemoval.mockResolvedValue(false);
+        await expect(
+            getHandler('DOWNLOADS_REMOVE')(null, 42)
+        ).resolves.toMatchObject({ success: false });
+        expect(db.select).not.toHaveBeenCalled();
+        expect(deleteWhere).not.toHaveBeenCalled();
+    });
+
+    it('keeps a new archive attempt that starts while Remove reads storage', async () => {
+        const { deleteWhere } = mockDownloadRow({
+            ...createDownloadRow('failed'),
+            contentType: 'catchup',
+        });
+        mockHasRuntimeDownload.mockReturnValue(true);
+        await expect(
+            getHandler('DOWNLOADS_REMOVE')(null, 42)
+        ).resolves.toMatchObject({ success: false });
+        expect(mockRemoveJournaledPartial).not.toHaveBeenCalled();
+        expect(deleteWhere).not.toHaveBeenCalled();
+    });
+
+    it('preserves completed archive media when removing its library row', async () => {
+        mockDownloadRow({
+            ...createDownloadRow('completed'),
+            contentType: 'catchup',
+        });
+        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual(
+            { success: true }
+        );
+        expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
+            '/downloads/resume.mp4',
+            undefined,
+            expect.any(Function),
+            false
+        );
     });
 
     it('keeps a committing archive row and journal intact on Remove', async () => {
@@ -54,7 +113,7 @@ describe('downloads events: partial-file cleanup', () => {
         });
         const proof = { version: 1, phase: 'transfer' };
         mockRemoveJournaledPartial.mockImplementation((_path, _proof, record) =>
-            record('/downloads/.iptvnator-cleanup-test/entry')
+            record('/downloads/.iptvnator-cleanup-test/entry', 'partial')
         );
         mockArchiveProofs.mockResolvedValue(new Map([[42, proof]]));
         await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual(
@@ -63,14 +122,16 @@ describe('downloads events: partial-file cleanup', () => {
         expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
             '/downloads/resume.mp4',
             proof,
-            expect.any(Function)
+            expect.any(Function),
+            true
         );
         expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
         expect(mockRecordArchiveCleanupPath).toHaveBeenCalledWith(
             expect.anything(),
             42,
             proof,
-            '/downloads/.iptvnator-cleanup-test/entry'
+            '/downloads/.iptvnator-cleanup-test/entry',
+            'partial'
         );
         expect(deleteWhere).toHaveBeenCalled();
     });
@@ -81,7 +142,7 @@ describe('downloads events: partial-file cleanup', () => {
         ]);
         const proof = { version: 1, phase: 'transfer' };
         mockRemoveJournaledPartial.mockImplementation((_path, _proof, record) =>
-            record('/downloads/.iptvnator-cleanup-test/entry')
+            record('/downloads/.iptvnator-cleanup-test/entry', 'partial')
         );
         mockArchiveProofs.mockResolvedValue(new Map([[1, proof]]));
         await expect(
@@ -90,13 +151,15 @@ describe('downloads events: partial-file cleanup', () => {
         expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
             '/downloads/resume.mp4',
             proof,
-            expect.any(Function)
+            expect.any(Function),
+            true
         );
         expect(mockRecordArchiveCleanupPath).toHaveBeenCalledWith(
             expect.anything(),
             1,
             proof,
-            '/downloads/.iptvnator-cleanup-test/entry'
+            '/downloads/.iptvnator-cleanup-test/entry',
+            'partial'
         );
         expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
     });

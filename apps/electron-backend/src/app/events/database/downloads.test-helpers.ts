@@ -13,6 +13,7 @@ export const mockGetDatabase = jest.fn();
 export const mockRemoveDownloadFromRuntime = jest.fn();
 export const mockIsDownloadCommitting = jest.fn();
 export const mockHasRuntimeDownload = jest.fn();
+export const mockPrepareArchiveRemoval = jest.fn();
 export const mockArchiveProofs = jest.fn();
 export const mockRecordArchiveCleanupPath = jest.fn();
 export const mockRemoveJournaledPartial = jest.fn();
@@ -60,6 +61,7 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
     mockRemoveDownloadFromRuntime.mockReset();
     mockIsDownloadCommitting.mockReset().mockReturnValue(false);
     mockHasRuntimeDownload.mockReset().mockReturnValue(false);
+    mockPrepareArchiveRemoval.mockReset().mockResolvedValue(true);
     mockArchiveProofs.mockReset().mockResolvedValue(new Map());
     mockRecordArchiveCleanupPath.mockReset();
     mockRemoveJournaledPartial.mockReset();
@@ -133,6 +135,7 @@ export async function setupDownloadsEventsHarness(): Promise<void> {
         cancelDownload: jest.fn(),
         isDownloadCommitting: mockIsDownloadCommitting,
         hasRuntimeDownload: mockHasRuntimeDownload,
+        prepareArchiveRemoval: mockPrepareArchiveRemoval,
         pauseDownload: mockPauseDownload,
         removeDownloadFromRuntime: mockRemoveDownloadFromRuntime,
         setMainWindow: jest.fn(),

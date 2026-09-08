@@ -1,19 +1,29 @@
 import { lstatSync, rmdirSync, unlinkSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { ArchiveFileIdentity } from './download-catchup-output';
 import type { ArchiveDownloadProof } from './download-catchup-journal';
 
 /** Retry a journaled private capture without ever deleting a replacement. */
 export function cleanupArchiveCapture(
     proof: ArchiveDownloadProof | undefined
 ): void {
-    const path = proof?.partialCleanupPath;
-    if (!path || !proof) return;
+    if (!proof) return;
+    cleanupCapture(proof.partialCleanupPath, proof.partialIdentity);
+    if (proof.phase !== 'transfer')
+        cleanupCapture(proof.finalCleanupPath, proof.finalIdentity);
+}
+
+function cleanupCapture(
+    path: string | undefined,
+    identity: ArchiveFileIdentity
+): void {
+    if (!path) return;
     try {
         const file = lstatSync(path);
         if (
             file.isFile() &&
-            file.dev === proof.partialIdentity.dev &&
-            file.ino === proof.partialIdentity.ino
+            file.dev === identity.dev &&
+            file.ino === identity.ino
         ) {
             unlinkSync(path);
         } else {

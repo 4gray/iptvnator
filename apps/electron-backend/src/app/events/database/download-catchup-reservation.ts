@@ -1,5 +1,5 @@
 import { lstat } from 'node:fs/promises';
-import { cleanupCatchupPartial } from './download-catchup-cleanup';
+import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import { clearArchiveFinalization } from './download-catchup-journal';
 import { ArchivePartialReplacedError } from './download-catchup-output';
 import { reserveAvailablePartialDownloadFile } from './download-file-path';
@@ -27,7 +27,7 @@ export async function reserveFreshCatchupTarget(
         ) {
             throw new ArchivePartialReplacedError();
         }
-        if (!(await cleanupCatchupPartial(task.filePath, expected))) {
+        if (!(await cleanupStoredCatchupPartial(db, task.id, task.filePath))) {
             throw new Error('Could not remove the owned archive partial');
         }
     }

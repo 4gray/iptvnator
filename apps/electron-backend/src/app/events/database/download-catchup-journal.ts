@@ -13,6 +13,7 @@ export interface ArchiveFinalizationProof {
     size: number;
     partialIdentity: ArchiveFileIdentity;
     partialCleanupPath?: string;
+    finalCleanupPath?: string;
     finalIdentity: ArchiveFileIdentity;
 }
 
@@ -22,6 +23,7 @@ export interface ArchivePartialProof {
     filePath: string;
     partialIdentity: ArchiveFileIdentity;
     partialCleanupPath?: string;
+    finalCleanupPath?: string;
 }
 export type ArchiveDownloadProof =
     ArchiveFinalizationProof | ArchivePartialProof;
@@ -82,11 +84,19 @@ export function recordArchiveCleanupPath(
     db: DownloadsDatabase,
     downloadId: number,
     proof: ArchiveDownloadProof,
-    path: string
+    path: string,
+    kind: 'partial' | 'final' = 'partial'
 ): void {
     const result = db
         .update(schema.downloadArchiveFinalizations)
-        .set({ proof: JSON.stringify({ ...proof, partialCleanupPath: path }) })
+        .set({
+            proof: JSON.stringify({
+                ...proof,
+                [kind === 'partial'
+                    ? 'partialCleanupPath'
+                    : 'finalCleanupPath']: path,
+            }),
+        })
         .where(eq(schema.downloadArchiveFinalizations.downloadId, downloadId))
         .run();
     if (result.changes !== 1)
@@ -131,7 +141,14 @@ export function parseArchiveFinalization(
                     !isAbsolute(proof.partialCleanupPath)))
         )
             return undefined;
-        if (proof.phase === 'transfer') return proof;
+        if (
+            proof.finalCleanupPath !== undefined &&
+            (typeof proof.finalCleanupPath !== 'string' ||
+                !isAbsolute(proof.finalCleanupPath))
+        )
+            return undefined;
+        if (proof.phase === 'transfer')
+            return proof.finalCleanupPath === undefined ? proof : undefined;
         return (proof.phase === undefined || proof.phase === 'finalization') &&
             Number.isSafeInteger(proof.size) &&
             proof.size > 0 &&

@@ -10,8 +10,14 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { removeJournaledCatchupPartial } from './download-catchup-removal';
-import type { ArchivePartialProof } from './download-catchup-journal';
+import {
+    removeJournaledCatchupPartial,
+    cleanupStoredCatchupFinal,
+} from './download-catchup-removal';
+import type {
+    ArchivePartialProof,
+    ArchiveFinalizationProof,
+} from './download-catchup-journal';
 jest.mock('node:fs', () => {
     const actual = jest.requireActual('node:fs');
     return {
@@ -94,3 +100,94 @@ it('does not capture the entry when write-ahead persistence fails', () => {
     expect(renameSync).not.toHaveBeenCalled();
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
 });
+
+it('journals a failed final-file capture without confusing it with the source', async () => {
+    writeFileSync(filePath, 'partial final copy');
+    let journal: ArchiveFinalizationProof = {
+        version: 1,
+        filePath,
+        partialIdentity: proof.partialIdentity,
+        finalIdentity: lstatSync(filePath),
+        size: 100,
+    };
+    const db = {
+        select: () => ({
+            from: () => ({
+                where: async () => [
+                    { downloadId: 1, proof: JSON.stringify(journal) },
+                ],
+            }),
+        }),
+        update: () => ({
+            set: (value: { proof: string }) => ({
+                where: () => ({
+                    run: () => {
+                        journal = JSON.parse(value.proof);
+                        return { changes: 1 };
+                    },
+                }),
+            }),
+        }),
+    };
+    jest.mocked(unlinkSync).mockImplementationOnce(() => {
+        throw new Error('locked copy');
+    });
+    await expect(
+        cleanupStoredCatchupFinal(
+            db as never,
+            1,
+            filePath,
+            journal.finalIdentity
+        )
+    ).resolves.toBe(false);
+    expect(journal.finalCleanupPath).toBeDefined();
+    expect(readFileSync(journal.finalCleanupPath!, 'utf8')).toBe(
+        'partial final copy'
+    );
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
+    await expect(
+        cleanupStoredCatchupFinal(db as never, 1, filePath)
+    ).resolves.toBe(true);
+    expect(() => lstatSync(journal.finalCleanupPath!)).toThrow();
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
+});
+
+it.each([false, true])(
+    'cleans an owned final only for an abandoned attempt (removeFinal=%s)',
+    (removeFinal) => {
+        writeFileSync(filePath, 'unfinished copy');
+        let journal: ArchiveFinalizationProof = {
+            ...proof,
+            phase: 'finalization',
+            size: 100,
+            finalIdentity: lstatSync(filePath),
+        };
+        const record = (path: string, kind = 'partial') => {
+            journal = {
+                ...journal,
+                [kind === 'final' ? 'finalCleanupPath' : 'partialCleanupPath']:
+                    path,
+            };
+        };
+        if (removeFinal) {
+            jest.mocked(unlinkSync).mockImplementationOnce(() => {
+                throw new Error('locked final');
+            });
+            expect(() =>
+                removeJournaledCatchupPartial(filePath, journal, record, true)
+            ).toThrow('locked final');
+            expect(readFileSync(journal.finalCleanupPath!, 'utf8')).toBe(
+                'unfinished copy'
+            );
+            expect(readFileSync(filePath + '.part', 'utf8')).toBe(
+                'owned bytes'
+            );
+        }
+        removeJournaledCatchupPartial(filePath, journal, record, removeFinal);
+        expect(() => lstatSync(filePath + '.part')).toThrow();
+        if (removeFinal) {
+            expect(() => lstatSync(filePath)).toThrow();
+            expect(() => lstatSync(journal.finalCleanupPath!)).toThrow();
+        } else expect(readFileSync(filePath, 'utf8')).toBe('unfinished copy');
+    }
+);

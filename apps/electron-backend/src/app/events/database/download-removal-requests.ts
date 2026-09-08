@@ -11,6 +11,7 @@ import {
     broadcastDownloadUpdate,
     isDownloadCommitting,
     hasRuntimeDownload,
+    prepareArchiveRemoval,
     removeDownloadFromRuntime,
 } from './download-runtime';
 
@@ -24,6 +25,11 @@ const removablePartialStatuses = new Set([
 
 export async function removeDownloadRequest(downloadId: number) {
     try {
+        if (!(await prepareArchiveRemoval(downloadId)))
+            return {
+                success: false,
+                error: 'Download is completing; try again shortly',
+            };
         console.log('[Downloads] Remove download:', downloadId);
         const db = await getDatabase();
         const rows = await db
@@ -42,7 +48,10 @@ export async function removeDownloadRequest(downloadId: number) {
                       downloadId
                   )
                 : undefined;
-        if (isDownloadCommitting(downloadId))
+        if (
+            isDownloadCommitting(downloadId) ||
+            (row?.contentType === 'catchup' && hasRuntimeDownload(downloadId))
+        )
             return {
                 success: false,
                 error: 'Download is completing; try again shortly',
@@ -53,15 +62,17 @@ export async function removeDownloadRequest(downloadId: number) {
                     removeJournaledCatchupPartial(
                         row.filePath,
                         proof,
-                        (path) => {
+                        (path, kind) => {
                             if (proof)
                                 recordArchiveCleanupPath(
                                     db,
                                     downloadId,
                                     proof,
-                                    path
+                                    path,
+                                    kind
                                 );
-                        }
+                        },
+                        row.status !== 'completed'
                     );
                 else removePartialDownloadFile(row.filePath);
             } catch (cleanupError) {
@@ -131,16 +142,18 @@ export async function clearCompletedDownloadsRequest(playlistId?: string) {
                         removeJournaledCatchupPartial(
                             row.filePath,
                             proofs.get(row.id),
-                            (path) => {
+                            (path, kind) => {
                                 const proof = proofs.get(row.id);
                                 if (proof)
                                     recordArchiveCleanupPath(
                                         db,
                                         row.id,
                                         proof,
-                                        path
+                                        path,
+                                        kind
                                     );
-                            }
+                            },
+                            row.status !== 'completed'
                         );
                     else removePartialDownloadFile(row.filePath);
                 } catch (error) {

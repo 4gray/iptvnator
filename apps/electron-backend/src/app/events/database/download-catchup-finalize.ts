@@ -29,7 +29,11 @@ export async function finalizeCatchupPartial(
     size: number,
     recordProof?: (identity: ArchiveFileIdentity) => Promise<void>,
     shouldInterrupt: () => boolean = () => false,
-    beginCommit: () => void = () => undefined
+    beginCommit: () => void = () => undefined,
+    cleanup?: {
+        partial: () => Promise<unknown>;
+        final: (identity: ArchiveFileIdentity) => Promise<unknown>;
+    }
 ): Promise<{ size: number; identity: ArchiveFileIdentity }> {
     const checkInterruption = () => {
         if (shouldInterrupt()) throw new Error('Archive promotion interrupted');
@@ -42,6 +46,7 @@ export async function finalizeCatchupPartial(
         constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0)
     );
     let created: ArchiveFileIdentity | undefined;
+    let sourceClosed = false;
     try {
         verify(await source.stat(), identity, size);
         // A hardlink can become complete immediately: persist its expected
@@ -112,25 +117,31 @@ export async function finalizeCatchupPartial(
                 await target.close();
             }
         }
+        await source.close();
+        sourceClosed = true;
         checkInterruption();
         verify(await lstat(reservation.path), created, size);
         checkInterruption();
         // Publication is verified. Fence new commands before awaited cleanup
         // and the completion write; accepted commands were handled above.
         beginCommit();
-        await cleanupCatchupFile(reservation.partialPath, identity).catch(
-            () => undefined
-        );
+        await (
+            cleanup
+                ? cleanup.partial()
+                : cleanupCatchupFile(reservation.partialPath, identity)
+        ).catch(() => undefined);
         return { size, identity: { dev: created.dev, ino: created.ino } };
     } catch (error) {
         if (created) {
-            await cleanupCatchupFile(reservation.path, created).catch(
-                () => undefined
-            );
+            await (
+                cleanup
+                    ? cleanup.final(created)
+                    : cleanupCatchupFile(reservation.path, created)
+            ).catch(() => undefined);
         }
         throw error;
     } finally {
-        await source.close();
+        if (!sourceClosed) await source.close();
     }
 }
 

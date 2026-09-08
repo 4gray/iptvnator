@@ -1,7 +1,8 @@
 import {
-    cleanupCatchupFile,
-    cleanupCatchupPartial,
-} from './download-catchup-cleanup';
+    cleanupStoredCatchupPartial,
+    cleanupStoredCatchupFinal,
+} from './download-catchup-removal';
+import type { DownloadsDatabase } from './download-task';
 import {
     readArchiveFinalizations,
     verifiedArchiveSize,
@@ -94,11 +95,16 @@ function getFinalizedFileSize(download: StaleDownload): number | null {
     }
 }
 
-async function removeFailedPartial(download: StaleDownload): Promise<boolean> {
+async function removeFailedPartial(
+    db: DownloadsDatabase,
+    download: StaleDownload
+): Promise<boolean> {
     if (download.contentType === 'catchup')
-        return cleanupCatchupPartial(
+        return cleanupStoredCatchupPartial(
+            db,
+            download.id,
             download.filePath,
-            download.proof?.partialIdentity
+            true
         );
     if (!download.filePath) {
         return true;
@@ -117,12 +123,12 @@ async function removeFailedPartial(download: StaleDownload): Promise<boolean> {
     }
 }
 
-async function removeCompletedPartial(download: StaleDownload): Promise<void> {
+async function removeCompletedPartial(
+    db: DownloadsDatabase,
+    download: StaleDownload
+): Promise<void> {
     if (download.contentType === 'catchup') {
-        await cleanupCatchupPartial(
-            download.filePath,
-            download.proof?.partialIdentity
-        );
+        await cleanupStoredCatchupPartial(db, download.id, download.filePath);
         return;
     }
     if (!download.filePath) {
@@ -197,10 +203,11 @@ export async function resetStaleDownloads(): Promise<void> {
                 !finalizedIds.has(download.id) &&
                 verifiedArchiveSize(download.filePath, download.proof) === null
             ) {
-                await cleanupCatchupFile(
-                    download.proof.filePath,
-                    download.proof.finalIdentity
-                ).catch(() => undefined);
+                await cleanupStoredCatchupFinal(
+                    db,
+                    download.id,
+                    download.proof.filePath
+                );
             }
         }
         // Queued rows are recoverable even without partial bytes: a resumed
@@ -234,7 +241,7 @@ export async function resetStaleDownloads(): Promise<void> {
                 // reserves another path instead of truncating the unrelated file.
                 partialRemoved:
                     hasReplacedArchivePartial(download) ||
-                    (await removeFailedPartial(download)),
+                    (await removeFailedPartial(db, download)),
             }))
         );
         const failedIdsWithRemovedPartials = cleanupResult
@@ -244,11 +251,15 @@ export async function resetStaleDownloads(): Promise<void> {
             .filter((download) => !download.partialRemoved)
             .map((download) => download.id);
 
-        await Promise.all(completedDownloads.map(removeCompletedPartial));
+        await Promise.all(
+            completedDownloads.map((download) =>
+                removeCompletedPartial(db, download)
+            )
+        );
 
         for (const download of finalizedDownloads) {
             // The interrupted commit may also have left the .part behind.
-            await removeCompletedPartial(download);
+            await removeCompletedPartial(db, download);
             await db
                 .update(schema.downloads)
                 .set({

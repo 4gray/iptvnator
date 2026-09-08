@@ -1,6 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import * as schema from '../../database/schema';
-import { cleanupCatchupPartial } from './download-catchup-cleanup';
+import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import { getPausedByteCount, removePartialFile } from './download-finalize';
 import type { DownloadsDatabase, DownloadTask } from './download-task';
 
@@ -10,10 +10,7 @@ export async function persistCancellation(
 ): Promise<void> {
     console.log(`[Downloads] Canceled: ${task.fileName}`);
     const removed = task.catchup
-        ? await cleanupCatchupPartial(
-              task.filePath,
-              task.catchupPartialIdentity
-          )
+        ? await cleanupStoredCatchupPartial(db, task.id, task.filePath, true)
         : removePartialFile(task.filePath);
     try {
         await db
