@@ -117,7 +117,11 @@ final before reserving a destination. A failed
 unlink or replacement restoration keeps that durable pointer and blocks journal
 deletion/replacement. Later cleanup retries no-clobber restoration of captured
 foreign entries; an occupied public path or unsupported hardlinks preserves both
-the capture and its journal for recovery. Remove/Clear, Retry/Resume and fresh
+the capture and its journal for recovery. Even after a foreign entry is restored,
+its private recovery copy is never automatically unlinked: another process could
+remove the public link first. The error names the recovery file; after the user
+recovers it and explicitly removes that private copy, cleanup may release the
+journal. Ordinary owned-file cleanup remains automatic. Remove/Clear, Retry/Resume and fresh
 reservations retry identity-verified cleanup, including after restart and on
 filesystems without hardlinks. Cleanup remains synchronous after the
 runtime guard, so a completion transition cannot interleave with unlink.

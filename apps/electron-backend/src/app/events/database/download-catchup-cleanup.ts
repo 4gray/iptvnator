@@ -25,7 +25,9 @@ export async function cleanupCatchupFile(
             // public entry. If restoration is unavailable, retain it privately.
             try {
                 await link(captured, path);
-                await unlink(captured);
+                throw new Error(
+                    `Archive cleanup preserved an unrelated recovery file: ${captured}`
+                );
             } catch (error) {
                 console.warn(
                     '[Downloads] Replaced file retained for recovery:',

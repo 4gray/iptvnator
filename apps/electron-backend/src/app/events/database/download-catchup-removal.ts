@@ -2,14 +2,11 @@ import {
     readArchiveStatsSync,
     type ArchiveFileStats,
 } from './download-catchup-stats';
-import { cleanupArchiveCapture } from './download-catchup-capture';
 import {
-    mkdtempSync,
-    renameSync,
-    linkSync,
-    unlinkSync,
-    rmdirSync,
-} from 'node:fs';
+    cleanupArchiveCapture,
+    restoreArchiveReplacement,
+} from './download-catchup-capture';
+import { mkdtempSync, renameSync, unlinkSync, rmdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
     readArchiveFinalizations,
@@ -63,16 +60,7 @@ function removeOwnedEntry(
         if (matches(readArchiveStatsSync(captured), identity)) {
             unlinkSync(captured);
         } else {
-            try {
-                linkSync(captured, path);
-                unlinkSync(captured);
-            } catch (error) {
-                console.warn(
-                    '[Downloads] Replaced file retained for recovery:',
-                    captured
-                );
-                throw error;
-            }
+            restoreArchiveReplacement(captured, path);
         }
     } finally {
         try {

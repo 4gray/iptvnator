@@ -73,10 +73,15 @@ it('restores a replacement captured at the cleanup boundary', () => {
         writeFileSync(from, 'unrelated bytes');
         actual.renameSync(from, to);
     });
-    removeJournaledCatchupPartial(filePath, proof, recordCapture);
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow('preserved an unrelated recovery file');
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('unrelated bytes');
+    expect(readFileSync(proof.partialCleanupPath!, 'utf8')).toBe(
+        'unrelated bytes'
+    );
 });
-it('retains a replacement capture until no-clobber restoration succeeds', () => {
+it('retains a replacement capture until explicit recovery-copy cleanup', () => {
     jest.mocked(renameSync).mockImplementationOnce((from, to) => {
         actual.renameSync(from, join(directory, 'original'));
         writeFileSync(from, 'foreign bytes');
@@ -113,16 +118,20 @@ it('retains a replacement capture until no-clobber restoration succeeds', () => 
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('newer public bytes');
     expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
     actual.unlinkSync(filePath + '.part');
-    jest.mocked(unlinkSync).mockImplementationOnce(() => {
-        throw new Error('restored capture still locked');
-    });
     expect(() =>
         removeJournaledCatchupPartial(filePath, proof, recordCapture)
-    ).toThrow('restored capture still locked');
+    ).toThrow('preserved an unrelated recovery file');
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('foreign bytes');
     expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
+    // The restored public entry may disappear immediately; its recovery copy
+    // must survive and remain journaled across another cleanup attempt.
+    actual.unlinkSync(filePath + '.part');
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow('preserved an unrelated recovery file');
+    expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
+    actual.unlinkSync(capture); // explicit recovery-copy cleanup by the user
     removeJournaledCatchupPartial(filePath, proof, recordCapture);
-    expect(readFileSync(filePath + '.part', 'utf8')).toBe('foreign bytes');
     expect(() => lstatSync(capture)).toThrow();
 });
 
@@ -358,5 +367,33 @@ it.each([false, true])(
             replaced ? 'foreign final' : ''
         );
         expect(renameSync).not.toHaveBeenCalled();
+    }
+);
+
+it.each([false, true])(
+    'preserves the last foreign link if the restored public entry is immediately removed (retry=%s)',
+    (retry) => {
+        if (retry) {
+            const capture = join(directory, 'foreign-capture');
+            writeFileSync(capture, 'foreign bytes');
+            proof.partialCleanupPath = capture;
+            actual.unlinkSync(filePath + '.part');
+        } else {
+            jest.mocked(renameSync).mockImplementationOnce((from, to) => {
+                actual.renameSync(from, join(directory, 'original'));
+                writeFileSync(from, 'foreign bytes');
+                actual.renameSync(from, to);
+            });
+        }
+        jest.mocked(linkSync).mockImplementationOnce((from, to) => {
+            actual.linkSync(from, to);
+            actual.unlinkSync(to);
+        });
+        expect(() =>
+            removeJournaledCatchupPartial(filePath, proof, recordCapture)
+        ).toThrow('preserved an unrelated recovery file');
+        expect(readFileSync(proof.partialCleanupPath!, 'utf8')).toBe(
+            'foreign bytes'
+        );
     }
 );

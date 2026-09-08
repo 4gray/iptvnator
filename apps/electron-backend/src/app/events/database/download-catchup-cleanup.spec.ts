@@ -61,7 +61,9 @@ it('restores a replacement that arrives before atomic capture', async () => {
         await writeFile(from, 'replacement');
         await actual.rename(from, to);
     });
-    await cleanupCatchupFile(path, identity);
+    await expect(cleanupCatchupFile(path, identity)).rejects.toThrow(
+        'preserved an unrelated recovery file'
+    );
     expect(await readFile(path, 'utf8')).toBe('replacement');
     expect(await readFile(join(directory, 'original'), 'utf8')).toBe('archive');
 });

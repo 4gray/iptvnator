@@ -39,20 +39,7 @@ function cleanupCapture(
     }
     if (file) {
         if (!(file.isFile() && sameArchiveFileIdentity(file, identity))) {
-            // Restore without clobbering. If a prior restore linked successfully
-            // but unlink failed, the matching public entry permits cleanup retry.
-            try {
-                linkSync(path, publicPath);
-            } catch (error) {
-                if (
-                    (error as NodeJS.ErrnoException).code !== 'EEXIST' ||
-                    !sameArchiveFileIdentity(
-                        readArchiveStatsSync(publicPath),
-                        file
-                    )
-                )
-                    throw error;
-            }
+            restoreArchiveReplacement(path, publicPath);
         }
         unlinkSync(path);
     }
@@ -61,4 +48,26 @@ function cleanupCapture(
     } catch {
         /* never recursively delete captures */
     }
+}
+
+/** Never unlink a foreign capture after publishing a raceable public link. */
+export function restoreArchiveReplacement(
+    captured: string,
+    publicPath: string
+): never {
+    const file = readArchiveStatsSync(captured);
+    try {
+        linkSync(captured, publicPath);
+    } catch (error) {
+        if (
+            (error as NodeJS.ErrnoException).code !== 'EEXIST' ||
+            !sameArchiveFileIdentity(readArchiveStatsSync(publicPath), file)
+        )
+            throw error;
+    }
+    // A second process can remove the public link at any time. Only an explicit
+    // user cleanup of this recovery copy may release its durable journal entry.
+    throw new Error(
+        `Archive cleanup preserved an unrelated recovery file: ${captured}`
+    );
 }

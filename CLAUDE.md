@@ -1868,6 +1868,8 @@ reused inodes after unlink; old proofs without creation time remain untrusted.
 Fresh reservations atomically commit their row path/name and captured ownership
 before the initial HTTP wait;
 no preexisting partial is truncated without matching expected ownership.
+Captured foreign files retain their recovery copy and journal even after public
+restoration, until the user explicitly removes the recovery copy.
 Private cleanup captures are journaled before relocation, keeping failed
 Remove/Clear/cancel cleanup retryable across restarts without hardlinks. Active
 failures, promotion and startup share that cleanup; Remove waits for active
