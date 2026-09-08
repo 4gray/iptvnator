@@ -4,7 +4,7 @@ import { cleanupCatchupPartial } from './download-catchup-cleanup';
 import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import {
     clearArchiveFinalization,
-    recordArchivePartial,
+    recordArchiveReservation,
 } from './download-catchup-journal';
 import {
     ArchivePartialReplacedError,
@@ -69,7 +69,13 @@ export async function reserveOwnedCatchupTarget(
     if (!identity)
         throw new Error('Archive reservation identity is unavailable');
     try {
-        await recordArchivePartial(db, task.id, reservation.path, identity);
+        await recordArchiveReservation(
+            db,
+            task.id,
+            reservation.path,
+            identity,
+            reservation.filename
+        );
     } catch (error) {
         // No media bytes have been written. Without a usable journal, remove
         // only the empty reservation whose identity came from our descriptor.

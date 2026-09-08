@@ -13,7 +13,7 @@ import { reserveTarget } from './download-runtime-reservation';
 import { reserveFreshCatchupTarget } from './download-catchup-reservation';
 import {
     clearArchiveFinalization,
-    recordArchivePartial,
+    recordArchiveReservation,
     readArchiveFinalizations,
 } from './download-catchup-journal';
 import type { DownloadsDatabase, DownloadTask } from './download-task';
@@ -23,7 +23,7 @@ jest.mock('./download-catchup-journal', () => ({
     clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
     readArchiveFinalizations: jest.fn(),
     recordArchiveCleanupPath: jest.fn(),
-    recordArchivePartial: jest.fn().mockResolvedValue(undefined),
+    recordArchiveReservation: jest.fn().mockResolvedValue(undefined),
 }));
 
 it.each([false, true])(
@@ -156,11 +156,12 @@ it('binds a fresh reservation before a replacement can arrive during the HTTP wa
     };
     try {
         const reservation = await reserveTarget({} as DownloadsDatabase, task);
-        expect(recordArchivePartial).toHaveBeenCalledWith(
+        expect(recordArchiveReservation).toHaveBeenCalledWith(
             expect.anything(),
             task.id,
             reservation.path,
-            task.catchupExpectedPartialIdentity
+            task.catchupExpectedPartialIdentity,
+            reservation.filename
         );
         await rename(reservation.partialPath, join(directory, 'original'));
         await writeFile(
@@ -200,13 +201,18 @@ it.each([false, true])(
             },
         };
         const failure = new Error('SQLite write failed');
-        jest.mocked(recordArchivePartial).mockImplementationOnce(async () => {
-            if (replaced) {
-                await rename(filePath + '.part', join(directory, 'original'));
-                await writeFile(filePath + '.part', 'foreign bytes');
+        jest.mocked(recordArchiveReservation).mockImplementationOnce(
+            async () => {
+                if (replaced) {
+                    await rename(
+                        filePath + '.part',
+                        join(directory, 'original')
+                    );
+                    await writeFile(filePath + '.part', 'foreign bytes');
+                }
+                throw failure;
             }
-            throw failure;
-        });
+        );
         try {
             await expect(
                 reserveTarget({} as DownloadsDatabase, task)

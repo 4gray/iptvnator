@@ -104,7 +104,9 @@ unknown or replaced entries are preserved. Ownership includes a positive file
 creation timestamp as well as device/inode, so inode reuse after unlink cannot
 bless a new entry; proofs lacking creation time remain untrusted. Fresh
 reservations capture this identity from their exclusive creation descriptor and
-journal it before the HTTP wait. Existing partials without matching expected
+commit it together with the downloads row path/name in one SQLite transaction
+before the HTTP wait. A committed reservation is therefore recoverable even if
+the process exits before transfer setup. Existing partials without matching expected
 ownership are never truncated, including before the first response. Before capture, a synchronous SQLite
 write records `partialCleanupPath` (or `finalCleanupPath` for failed promotion)
 in the existing ownership proof. Active cancellation/failure, promotion and

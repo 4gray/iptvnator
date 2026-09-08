@@ -1,5 +1,5 @@
 import { cleanupArchiveCapture } from './download-catchup-capture';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { lstatSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
 import * as schema from '../../database/schema';
@@ -46,6 +46,35 @@ export async function recordArchivePartial(
     });
 }
 
+/** The row path and its ownership proof must become recoverable together. */
+export async function recordArchiveReservation(
+    db: DownloadsDatabase,
+    downloadId: number,
+    filePath: string,
+    partialIdentity: ArchiveFileIdentity,
+    fileName: string
+): Promise<void> {
+    db.transaction((tx) => {
+        const result = tx
+            .update(schema.downloads)
+            .set({
+                filePath,
+                fileName,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+            })
+            .where(eq(schema.downloads.id, downloadId))
+            .run();
+        if (result.changes !== 1)
+            throw new Error('Archive reservation row is unavailable');
+        writeArchiveProof(tx, downloadId, {
+            version: 1,
+            phase: 'transfer',
+            filePath,
+            partialIdentity,
+        }).run();
+    });
+}
+
 export async function recordArchiveFinalization(
     db: DownloadsDatabase,
     downloadId: number,
@@ -54,11 +83,11 @@ export async function recordArchiveFinalization(
     await writeArchiveProof(db, downloadId, proof);
 }
 
-async function writeArchiveProof(
-    db: DownloadsDatabase,
+function writeArchiveProof(
+    db: Pick<DownloadsDatabase, 'insert'>,
     downloadId: number,
     proof: ArchiveDownloadProof
-): Promise<void> {
+) {
     const serialized = JSON.stringify({
         ...proof,
         partialIdentity: archiveFileIdentity(proof.partialIdentity),
@@ -68,7 +97,7 @@ async function writeArchiveProof(
               }
             : {}),
     });
-    await db
+    return db
         .insert(schema.downloadArchiveFinalizations)
         .values({ downloadId, proof: serialized })
         .onConflictDoUpdate({
