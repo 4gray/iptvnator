@@ -15,6 +15,7 @@ import { finalizeCatchupPartial } from './download-catchup-finalize';
 import {
     recordArchiveFinalization,
     recordArchivePartial,
+    recordArchiveCleanupPath,
     parseArchiveFinalization,
 } from './download-catchup-journal';
 import { resetStaleDownloads } from './download-recovery';
@@ -287,5 +288,38 @@ it.each([false, true])(
         expect(await readFile(filePath + '.part', 'utf8')).toBe(
             replaced ? 'unrelated bytes!' : 'verified archive'
         );
+    }
+);
+
+it.each([0, 1])(
+    'requires a durable row for the write-ahead capture pointer (changes=%s)',
+    async (changes) => {
+        const { partial } = await prepare();
+        const proof = {
+            version: 1 as const,
+            phase: 'transfer' as const,
+            filePath,
+            partialIdentity: partial,
+        };
+        const run = jest.fn(() => ({ changes }));
+        const set = jest.fn((_value: { proof: string }) => ({
+            where: () => ({ run }),
+        }));
+        const database = {
+            update: () => ({ set }),
+        } as unknown as DownloadsDatabase;
+        const capturePath = join(directory, '.iptvnator-cleanup-test/entry');
+        const record = () =>
+            recordArchiveCleanupPath(database, 1, proof, capturePath);
+        if (changes === 0) expect(record).toThrow('ownership');
+        else expect(record).not.toThrow();
+        const saved = JSON.parse(set.mock.calls[0][0].proof);
+        expect(saved).toEqual(
+            expect.objectContaining({
+                phase: 'transfer',
+                partialCleanupPath: capturePath,
+            })
+        );
+        expect(run).toHaveBeenCalledTimes(1);
     }
 );

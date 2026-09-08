@@ -32,6 +32,7 @@ jest.mock('./download-catchup-cleanup', () => {
 });
 jest.mock('./download-catchup-journal', () => ({
     recordArchiveFinalization: jest.fn().mockResolvedValue(undefined),
+    recordArchiveCleanupPath: jest.fn(),
     clearArchiveFinalization: jest.fn().mockResolvedValue(undefined),
     readArchiveFinalizations: jest.fn().mockResolvedValue(new Map()),
 }));
@@ -287,3 +288,72 @@ it('detaches a rejected replacement so Retry can reserve a fresh path', async ()
         await rm(directory, { recursive: true, force: true });
     }
 });
+
+it.each([false, true])(
+    'paused cancellation honors durable ownership (replaced=%s)',
+    async (replaced) => {
+        const directory = await mkdtemp(
+            join(tmpdir(), 'archive-cancel-owned-')
+        );
+        const filePath = join(directory, 'show.ts');
+        try {
+            await writeFile(filePath + '.part', 'owned archive');
+            const original = await lstat(filePath + '.part');
+            jest.mocked(readArchiveFinalizations).mockResolvedValueOnce(
+                new Map([
+                    [
+                        995,
+                        {
+                            version: 1,
+                            phase: 'transfer',
+                            filePath,
+                            partialIdentity: original,
+                        },
+                    ],
+                ])
+            );
+            if (replaced) {
+                await rename(filePath + '.part', join(directory, 'original'));
+                await writeFile(filePath + '.part', 'unrelated file');
+            }
+            const updates: Record<string, unknown>[] = [];
+            const db = {
+                select: () => ({
+                    from: () => ({
+                        where: () => ({
+                            limit: async () => [
+                                {
+                                    filePath,
+                                    status: 'paused',
+                                    contentType: 'catchup',
+                                },
+                            ],
+                        }),
+                    }),
+                }),
+                update: () => ({
+                    set: (value: Record<string, unknown>) => ({
+                        where: async () => {
+                            updates.push(value);
+                        },
+                    }),
+                }),
+            };
+            jest.mocked(getDatabase).mockResolvedValue(db as never);
+            await expect(cancelDownload(995)).resolves.toBe(true);
+            expect(updates).toContainEqual(
+                expect.objectContaining({ status: 'canceled', filePath: null })
+            );
+            if (replaced)
+                expect(await readFile(filePath + '.part', 'utf8')).toBe(
+                    'unrelated file'
+                );
+            else
+                await expect(lstat(filePath + '.part')).rejects.toMatchObject({
+                    code: 'ENOENT',
+                });
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    }
+);

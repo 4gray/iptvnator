@@ -55,17 +55,3 @@ export async function cleanupCatchupPartial(
         return (error as NodeJS.ErrnoException).code === 'ENOENT';
     }
 }
-
-/** Explicit cancellation of a queued/paused archive owns the selected entry. */
-export async function cleanupSelectedCatchupPartial(
-    filePath: string | null | undefined
-): Promise<boolean> {
-    if (!filePath) return true;
-    try {
-        const stats = await lstat(filePath + '.part');
-        if (!stats.isFile()) return false;
-        return cleanupCatchupPartial(filePath, stats);
-    } catch (error) {
-        return (error as NodeJS.ErrnoException).code === 'ENOENT';
-    }
-}

@@ -1,9 +1,10 @@
+import { cleanupArchiveCapture } from './download-catchup-capture';
 import { reserveFreshCatchupTarget } from './download-catchup-reservation';
 import {
     clearArchiveFinalization,
     readArchiveFinalizations,
 } from './download-catchup-journal';
-import { cleanupSelectedCatchupPartial } from './download-catchup-cleanup';
+import { cleanupStoredCatchupPartial } from './download-catchup-removal';
 import {
     persistCancellation,
     persistPause,
@@ -93,10 +94,14 @@ export async function cancelDownload(downloadId: number): Promise<boolean> {
     );
     if (queueIndex !== -1) {
         const [queuedTask] = downloadQueue.splice(queueIndex, 1);
-        const removed = queuedTask?.catchup
-            ? await cleanupSelectedCatchupPartial(queuedTask.filePath)
-            : removePartialFile(queuedTask?.filePath);
         const db = await getDatabase();
+        const removed = queuedTask?.catchup
+            ? await cleanupStoredCatchupPartial(
+                  db,
+                  downloadId,
+                  queuedTask.filePath
+              )
+            : removePartialFile(queuedTask?.filePath);
         await persistQueuedCancellation(
             db,
             downloadId,
@@ -123,7 +128,7 @@ export async function cancelDownload(downloadId: number): Promise<boolean> {
 
     const removed =
         item.contentType === 'catchup'
-            ? await cleanupSelectedCatchupPartial(item.filePath)
+            ? await cleanupStoredCatchupPartial(db, downloadId, item.filePath)
             : removePartialFile(item.filePath);
     await persistQueuedCancellation(
         db,
@@ -220,6 +225,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
                 const proof = (
                     await readArchiveFinalizations(db, [task.id])
                 ).get(task.id);
+                cleanupArchiveCapture(proof);
                 task.catchupExpectedPartialIdentity = proof?.partialIdentity;
                 // No durable ownership evidence: preserve the old entry and
                 // reserve a fresh destination instead of adopting it.

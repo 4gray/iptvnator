@@ -1,4 +1,7 @@
-import { readArchiveFinalizations } from './download-catchup-journal';
+import {
+    readArchiveFinalizations,
+    recordArchiveCleanupPath,
+} from './download-catchup-journal';
 import { removeJournaledCatchupPartial } from './download-catchup-removal';
 import { catchupForDownload } from './download-catchup';
 import { and, eq, sql } from 'drizzle-orm';
@@ -72,7 +75,9 @@ export async function redownloadMissingRequest(
             const proof = (await readArchiveFinalizations(db, [item.id])).get(
                 item.id
             );
-            removeJournaledCatchupPartial(item.filePath, proof);
+            removeJournaledCatchupPartial(item.filePath, proof, (path) => {
+                if (proof) recordArchiveCleanupPath(db, item.id, proof, path);
+            });
         } else removePartialDownloadFile(item.filePath);
     } catch (error) {
         console.error(

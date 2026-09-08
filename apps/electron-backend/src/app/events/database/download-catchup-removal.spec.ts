@@ -6,6 +6,7 @@ import {
     rmSync,
     writeFileSync,
     unlinkSync,
+    linkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -17,6 +18,7 @@ jest.mock('node:fs', () => {
         ...actual,
         renameSync: jest.fn(actual.renameSync),
         unlinkSync: jest.fn(actual.unlinkSync),
+        linkSync: jest.fn(actual.linkSync),
     };
 });
 const actual = jest.requireActual<typeof import('node:fs')>('node:fs');
@@ -33,20 +35,24 @@ beforeEach(() => {
     };
     jest.mocked(renameSync).mockReset().mockImplementation(actual.renameSync);
     jest.mocked(unlinkSync).mockReset().mockImplementation(actual.unlinkSync);
+    jest.mocked(linkSync).mockReset().mockImplementation(actual.linkSync);
 });
 afterEach(() => rmSync(directory, { recursive: true, force: true }));
+function recordCapture(path: string) {
+    proof = { ...proof, partialCleanupPath: path };
+}
 it('removes only the journaled partial', () => {
-    removeJournaledCatchupPartial(filePath, proof);
+    removeJournaledCatchupPartial(filePath, proof, recordCapture);
     expect(() => lstatSync(filePath + '.part')).toThrow();
 });
 it('preserves entries without proof', () => {
-    removeJournaledCatchupPartial(filePath, undefined);
+    removeJournaledCatchupPartial(filePath, undefined, recordCapture);
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
 });
 it('preserves a replaced regular partial in place', () => {
     renameSync(filePath + '.part', join(directory, 'original'));
     writeFileSync(filePath + '.part', 'unrelated bytes');
-    removeJournaledCatchupPartial(filePath, proof);
+    removeJournaledCatchupPartial(filePath, proof, recordCapture);
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('unrelated bytes');
 });
 it('restores a replacement captured at the cleanup boundary', () => {
@@ -55,15 +61,36 @@ it('restores a replacement captured at the cleanup boundary', () => {
         writeFileSync(from, 'unrelated bytes');
         actual.renameSync(from, to);
     });
-    removeJournaledCatchupPartial(filePath, proof);
+    removeJournaledCatchupPartial(filePath, proof, recordCapture);
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('unrelated bytes');
 });
-it('restores an owned partial and reports an I/O error for retry', () => {
+it('retries a durable capture after an I/O error without needing hardlinks', () => {
     jest.mocked(unlinkSync).mockImplementationOnce(() => {
         throw Object.assign(new Error('locked'), { code: 'EACCES' });
     });
-    expect(() => removeJournaledCatchupPartial(filePath, proof)).toThrow(
-        'locked'
-    );
+    jest.mocked(linkSync).mockImplementation(() => {
+        throw Object.assign(new Error('unsupported'), { code: 'ENOTSUP' });
+    });
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow('locked');
+    expect(() => lstatSync(filePath + '.part')).toThrow();
+    expect(proof.partialCleanupPath).toBeDefined();
+    expect(readFileSync(proof.partialCleanupPath!, 'utf8')).toBe('owned bytes');
+    removeJournaledCatchupPartial(filePath, proof, recordCapture);
+    expect(() => lstatSync(proof.partialCleanupPath!)).toThrow();
+    expect(linkSync).not.toHaveBeenCalled();
+});
+it('does not capture the entry when write-ahead persistence fails', () => {
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, (capture) => {
+            expect(readFileSync(filePath + '.part', 'utf8')).toBe(
+                'owned bytes'
+            );
+            expect(() => lstatSync(capture)).toThrow();
+            throw new Error('SQLITE_BUSY');
+        })
+    ).toThrow('SQLITE_BUSY');
+    expect(renameSync).not.toHaveBeenCalled();
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('owned bytes');
 });

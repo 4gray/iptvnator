@@ -1,3 +1,4 @@
+import { cleanupArchiveCapture } from './download-catchup-capture';
 import { eq, inArray } from 'drizzle-orm';
 import { lstatSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
@@ -11,6 +12,7 @@ export interface ArchiveFinalizationProof {
     filePath: string;
     size: number;
     partialIdentity: ArchiveFileIdentity;
+    partialCleanupPath?: string;
     finalIdentity: ArchiveFileIdentity;
 }
 
@@ -19,6 +21,7 @@ export interface ArchivePartialProof {
     phase: 'transfer';
     filePath: string;
     partialIdentity: ArchiveFileIdentity;
+    partialCleanupPath?: string;
 }
 export type ArchiveDownloadProof =
     ArchiveFinalizationProof | ArchivePartialProof;
@@ -74,11 +77,30 @@ async function writeArchiveProof(
         });
 }
 
+/** Commit the recovery pointer synchronously before a public entry is captured. */
+export function recordArchiveCleanupPath(
+    db: DownloadsDatabase,
+    downloadId: number,
+    proof: ArchiveDownloadProof,
+    path: string
+): void {
+    const result = db
+        .update(schema.downloadArchiveFinalizations)
+        .set({ proof: JSON.stringify({ ...proof, partialCleanupPath: path }) })
+        .where(eq(schema.downloadArchiveFinalizations.downloadId, downloadId))
+        .run();
+    if (result.changes !== 1)
+        throw new Error('Archive cleanup ownership is unavailable');
+}
+
 /** Fresh reservations must never inherit an earlier attempt's proof. */
 export async function clearArchiveFinalization(
     db: DownloadsDatabase,
     downloadId: number
 ): Promise<void> {
+    cleanupArchiveCapture(
+        (await readArchiveFinalizations(db, [downloadId])).get(downloadId)
+    );
     await db
         .delete(schema.downloadArchiveFinalizations)
         .where(eq(schema.downloadArchiveFinalizations.downloadId, downloadId));
@@ -103,7 +125,10 @@ export function parseArchiveFinalization(
             proof.version !== 1 ||
             typeof proof.filePath !== 'string' ||
             !isAbsolute(proof.filePath) ||
-            !identity(proof.partialIdentity)
+            !identity(proof.partialIdentity) ||
+            (proof.partialCleanupPath !== undefined &&
+                (typeof proof.partialCleanupPath !== 'string' ||
+                    !isAbsolute(proof.partialCleanupPath)))
         )
             return undefined;
         if (proof.phase === 'transfer') return proof;

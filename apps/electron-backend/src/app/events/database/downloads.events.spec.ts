@@ -8,6 +8,7 @@ import {
     mockHasRuntimeDownload,
     mockRemoveJournaledPartial,
     mockArchiveProofs,
+    mockRecordArchiveCleanupPath,
     mockRemovePartialDownloadFile,
     mockTerminalRows,
     setupDownloadsEventsHarness,
@@ -52,15 +53,25 @@ describe('downloads events: partial-file cleanup', () => {
             contentType: 'catchup',
         });
         const proof = { version: 1, phase: 'transfer' };
+        mockRemoveJournaledPartial.mockImplementation((_path, _proof, record) =>
+            record('/downloads/.iptvnator-cleanup-test/entry')
+        );
         mockArchiveProofs.mockResolvedValue(new Map([[42, proof]]));
         await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual(
             { success: true }
         );
         expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
             '/downloads/resume.mp4',
-            proof
+            proof,
+            expect.any(Function)
         );
         expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
+        expect(mockRecordArchiveCleanupPath).toHaveBeenCalledWith(
+            expect.anything(),
+            42,
+            proof,
+            '/downloads/.iptvnator-cleanup-test/entry'
+        );
         expect(deleteWhere).toHaveBeenCalled();
     });
 
@@ -69,13 +80,23 @@ describe('downloads events: partial-file cleanup', () => {
             { ...createDownloadRow('canceled'), contentType: 'catchup' },
         ]);
         const proof = { version: 1, phase: 'transfer' };
+        mockRemoveJournaledPartial.mockImplementation((_path, _proof, record) =>
+            record('/downloads/.iptvnator-cleanup-test/entry')
+        );
         mockArchiveProofs.mockResolvedValue(new Map([[1, proof]]));
         await expect(
             getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
         ).resolves.toEqual({ success: true });
         expect(mockRemoveJournaledPartial).toHaveBeenCalledWith(
             '/downloads/resume.mp4',
-            proof
+            proof,
+            expect.any(Function)
+        );
+        expect(mockRecordArchiveCleanupPath).toHaveBeenCalledWith(
+            expect.anything(),
+            1,
+            proof,
+            '/downloads/.iptvnator-cleanup-test/entry'
         );
         expect(mockRemovePartialDownloadFile).not.toHaveBeenCalled();
     });

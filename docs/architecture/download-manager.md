@@ -89,7 +89,11 @@ overwritten by completion. Remove rejects this committing row before partial
 cleanup or deletion, and Clear completed skips it, preserving the cascading
 journal until completion finishes. Remove, Clear completed and missing-file
 re-download use journal-backed private capture for archive partial cleanup;
-unknown or replaced entries are preserved. Cleanup remains synchronous after the
+unknown or replaced entries are preserved. Before capture, a synchronous SQLite
+write records `partialCleanupPath` in the existing ownership proof. A failed
+unlink keeps that durable pointer; Remove/Clear, Retry/Resume and fresh
+reservations retry identity-verified cleanup, including after restart and on
+filesystems without hardlinks. Cleanup remains synchronous after the
 runtime guard, so a completion transition cannot interleave with unlink.
 Missing archive re-downloads claim a fresh reservation instead of inheriting the
 completed file's identity.
@@ -100,8 +104,8 @@ numbered free destination. SQLite and filesystem creation cannot commit
 atomically, and portable rename cannot guarantee no-clobber publication on the
 filesystems that need this fallback. This bounded orphan is preferred to deleting
 or overwriting an unrelated file.
-An explicit cancellation of a queued/paused archive captures the selected regular
-partial using the same cleanup helper; symlink entries are preserved.
+Cancellation of queued/paused archives uses the same journal-backed cleanup as
+Remove; unproven or replaced entries, including symlinks, are preserved.
 A retained archive cannot use the VOD byte-count completion shortcut. Transfers
 have a 30-second idle timeout and a total deadline of twice programme duration
 plus ten minutes, capped at 24 hours. Transfers also stop at the smallest of a

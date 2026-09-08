@@ -1,7 +1,10 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
-import { readArchiveFinalizations } from './download-catchup-journal';
+import {
+    readArchiveFinalizations,
+    recordArchiveCleanupPath,
+} from './download-catchup-journal';
 import { removeJournaledCatchupPartial } from './download-catchup-removal';
 import { removePartialDownloadFile } from './download-file-path';
 import {
@@ -47,7 +50,19 @@ export async function removeDownloadRequest(downloadId: number) {
         if (row?.filePath && removablePartialStatuses.has(row.status)) {
             try {
                 if (row.contentType === 'catchup')
-                    removeJournaledCatchupPartial(row.filePath, proof);
+                    removeJournaledCatchupPartial(
+                        row.filePath,
+                        proof,
+                        (path) => {
+                            if (proof)
+                                recordArchiveCleanupPath(
+                                    db,
+                                    downloadId,
+                                    proof,
+                                    path
+                                );
+                        }
+                    );
                 else removePartialDownloadFile(row.filePath);
             } catch (cleanupError) {
                 // Keep the row (and its runtime entry) so the .part is never
@@ -115,7 +130,17 @@ export async function clearCompletedDownloadsRequest(playlistId?: string) {
                     if (row.contentType === 'catchup')
                         removeJournaledCatchupPartial(
                             row.filePath,
-                            proofs.get(row.id)
+                            proofs.get(row.id),
+                            (path) => {
+                                const proof = proofs.get(row.id);
+                                if (proof)
+                                    recordArchiveCleanupPath(
+                                        db,
+                                        row.id,
+                                        proof,
+                                        path
+                                    );
+                            }
                         );
                     else removePartialDownloadFile(row.filePath);
                 } catch (error) {

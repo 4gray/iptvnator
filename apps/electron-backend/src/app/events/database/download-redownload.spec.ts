@@ -68,7 +68,10 @@ async function setup(options: SetupOptions = {}) {
     });
     const enqueueDownload = jest.fn();
     const proof = { version: 1, phase: 'transfer' };
-    const removeJournaledCatchupPartial = jest.fn();
+    const removeJournaledCatchupPartial = jest.fn((_path, _proof, record) =>
+        record('/downloads/.iptvnator-cleanup-test/entry')
+    );
+    const recordArchiveCleanupPath = jest.fn();
 
     jest.doMock('node:fs', () => ({
         ...jest.requireActual<typeof import('node:fs')>('node:fs'),
@@ -81,6 +84,7 @@ async function setup(options: SetupOptions = {}) {
     jest.doMock('../url-safety', () => ({ assertRemoteUrlAllowed }));
     jest.doMock('./download-file-path', () => ({ removePartialDownloadFile }));
     jest.doMock('./download-catchup-journal', () => ({
+        recordArchiveCleanupPath,
         readArchiveFinalizations: jest
             .fn()
             .mockResolvedValue(new Map([[42, proof]])),
@@ -148,7 +152,8 @@ describe('redownload missing completed file', () => {
         });
         expect(h.removeJournaledCatchupPartial).toHaveBeenCalledWith(
             '/downloads/movie.mp4',
-            h.proof
+            h.proof,
+            expect.any(Function)
         );
         expect(h.removePartialDownloadFile).not.toHaveBeenCalled();
         expect(h.set).toHaveBeenCalledWith(

@@ -13,7 +13,6 @@ import { tmpdir } from 'node:os';
 import {
     cleanupCatchupFile,
     cleanupCatchupPartial,
-    cleanupSelectedCatchupPartial,
 } from './download-catchup-cleanup';
 
 jest.mock('node:fs/promises', () => {
@@ -95,11 +94,11 @@ it.each(['EEXIST', 'ENOTSUP'])(
     }
 );
 
-it('preserves an unopened partial after failure but removes it on explicit queued cancellation', async () => {
+it('preserves an unopened partial and removes it only with matching ownership', async () => {
     const { path } = await prepare();
     const final = path.slice(0, -'.part'.length);
     expect(await cleanupCatchupPartial(final, undefined)).toBe(false);
     expect(await readFile(path, 'utf8')).toBe('archive');
-    expect(await cleanupSelectedCatchupPartial(final)).toBe(true);
+    expect(await cleanupCatchupPartial(final, await lstat(path))).toBe(true);
     await expect(lstat(path)).rejects.toMatchObject({ code: 'ENOENT' });
 });

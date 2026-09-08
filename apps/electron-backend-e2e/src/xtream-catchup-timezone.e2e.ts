@@ -4,6 +4,7 @@ import {
 } from './downloads.e2e-support';
 import {
     mkdirSync,
+    linkSync,
     readFileSync,
     readdirSync,
     unlinkSync,
@@ -540,6 +541,63 @@ test('@downloads @epg @xtream @electron downloads a completed archive into the l
         expect(readFileSync(redownloaded.filePath)).toEqual(
             readFileSync('apps/xtream-mock-server/src/fixtures/live.mpegts')
         );
+        // Fail owned cleanup after private capture. Its recovery pointer must
+        // survive a process restart without relying on hardlink restoration.
+        linkSync(redownloaded.filePath, redownloaded.filePath + '.part');
+        await app.electronApp.evaluate(() => {
+            const fs = process.getBuiltinModule('fs');
+            const unlink = fs.unlinkSync;
+            fs.unlinkSync = (path) => {
+                if (String(path).includes('.iptvnator-cleanup-'))
+                    throw Object.assign(new Error('simulated locked capture'), {
+                        code: 'EACCES',
+                    });
+                return unlink(path);
+            };
+        });
+        expect(
+            await app.mainWindow.evaluate(
+                (id) => window.electron.downloadsRemove(id),
+                row.id
+            )
+        ).toEqual({
+            success: false,
+            error: 'Could not delete the partial file',
+        });
+        const capturedPath = await app.electronApp.evaluate(
+            (_electron, { dependency, file, id }) => {
+                const Database = process
+                    .getBuiltinModule('module')
+                    .createRequire(dependency)(dependency);
+                const db = new Database(file);
+                try {
+                    const record = db
+                        .prepare(
+                            'SELECT proof FROM download_archive_finalizations WHERE download_id=?'
+                        )
+                        .get(id) as { proof: string };
+                    return (
+                        JSON.parse(record.proof) as {
+                            partialCleanupPath: string;
+                        }
+                    ).partialCleanupPath;
+                } finally {
+                    db.close();
+                }
+            },
+            {
+                dependency: join(workspaceRoot, 'node_modules/better-sqlite3'),
+                file: join(dataDir, 'databases/iptvnator.db'),
+                id: row.id,
+            }
+        );
+        expect(capturedPath).toContain('.iptvnator-cleanup-');
+        expect(readFileSync(capturedPath)).toEqual(
+            readFileSync(redownloaded.filePath)
+        );
+        app = await restartElectronApp(app, dataDir, {
+            env: { TZ: VIEWER_TIMEZONE },
+        });
         writeFileSync(
             redownloaded.filePath + '.part',
             'unrelated terminal file'
