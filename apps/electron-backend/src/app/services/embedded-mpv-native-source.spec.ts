@@ -208,18 +208,15 @@ describe('Embedded MPV native source recording invariants', () => {
             expect(frameHelperSource).toContain(`"${property}"`);
         }
 
-        // The Linux backend polls over the JSON IPC socket instead of
-        // observing, and halves the cadence so the extra round trips stay off
-        // the 500ms tick.
-        expect(widCommonSource).toContain(
-            'queryLinuxMpvNumber(socketPath, "estimated-vf-fps")'
-        );
-        expect(widCommonSource).toContain(
-            'queryLinuxMpvString(socketPath, "audio-params/channels")'
-        );
-        expect(widCommonSource).toContain(
-            '(session->linuxStatsPollTick++ % 2) == 0'
-        );
+        // Observing is push-based and free, which is the only reason the
+        // native-view backends carry these fields at all: their legacy dock
+        // cannot render them. The Linux backend has no observe mechanism —
+        // it would have to poll each property over the JSON IPC socket on
+        // the same pass that publishes position, pause and EOF — so it must
+        // not collect them at all.
+        for (const property of observedProperties) {
+            expect(widCommonSource).not.toContain(`socketPath, "${property}"`);
+        }
     });
 
     it('serializes stream stats as an optional snapshot object', () => {
@@ -230,7 +227,9 @@ describe('Embedded MPV native source recording invariants', () => {
         for (const source of [nativeSource, widCommonSource]) {
             expect(source).toContain('void writeStreamStats(');
             expect(source).toContain('result.Set("stats", stats);');
-            expect(source).toContain('writeStreamStats(env, result, snapshot);');
+            expect(source).toContain(
+                'writeStreamStats(env, result, snapshot);'
+            );
         }
         expect(frameHelperSource).toContain('composeStatsJsonLocked');
         // Unconditional on the frame-copy path: its snapshots are merged, so
@@ -241,8 +240,9 @@ describe('Embedded MPV native source recording invariants', () => {
     });
 
     it('clears stream stats when a new file starts so rows never go stale', () => {
-        // One reset per backend, invoked wherever a new file begins — the
-        // Linux load path is the second call site in the wid backend.
+        // One reset per backend that collects stats, invoked wherever a new
+        // file begins. The wid backend has a single call site: its Linux half
+        // polls nothing, so there is nothing there to go stale.
         for (const source of [
             nativeSource,
             widCommonSource,
@@ -250,12 +250,10 @@ describe('Embedded MPV native source recording invariants', () => {
         ]) {
             expect(source).toContain('void clearStreamStats()');
         }
-        expect(nativeSource).toContain(
-            'session->snapshot.clearStreamStats();'
-        );
+        expect(nativeSource).toContain('session->snapshot.clearStreamStats();');
         expect(
             widCommonSource.match(/snapshot\.clearStreamStats\(\);/g)
-        ).toHaveLength(2);
+        ).toHaveLength(1);
         expect(frameHelperSource).toContain('s.clearStreamStats();');
     });
 

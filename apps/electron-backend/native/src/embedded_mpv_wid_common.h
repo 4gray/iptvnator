@@ -185,7 +185,6 @@ struct Session {
     std::string mpvIpcSocketPath;
     int64_t mpvTrackListCount = -1;
     /** Poll counter that halves the cadence of the stream-stats queries. */
-    int64_t linuxStatsPollTick = 0;
 #endif
 };
 
@@ -1016,15 +1015,10 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
 
     std::string socketPath;
     pid_t processId = -1;
-    bool pollStats = false;
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         socketPath = session->mpvIpcSocketPath;
         processId = session->mpvProcessId;
-        // Every property here is one socket round trip, and the diagnostics
-        // are read by a popover that updates once a second: polling them on
-        // every 500ms tick would double the IPC traffic for nothing.
-        pollStats = (session->linuxStatsPollTick++ % 2) == 0;
     }
     if (processId <= 0 || socketPath.empty()) {
         return;
@@ -1040,34 +1034,12 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
         queryLinuxMpvInteger(socketPath, "track-list/count");
     const auto selectedAudioTrackId = queryLinuxMpvInteger(socketPath, "aid");
 
-    std::optional<double> fps;
-    std::optional<double> videoBitrate;
-    std::optional<double> audioBitrate;
-    std::optional<double> cacheDuration;
-    std::optional<int64_t> droppedFrames;
-    std::optional<int64_t> decoderDroppedFrames;
-    std::optional<std::string> videoCodec;
-    std::optional<std::string> audioCodec;
-    std::optional<std::string> audioChannels;
-    std::optional<int64_t> audioSampleRate;
-    std::optional<std::string> container;
-    if (pollStats) {
-        fps = queryLinuxMpvNumber(socketPath, "estimated-vf-fps");
-        videoBitrate = queryLinuxMpvNumber(socketPath, "video-bitrate");
-        audioBitrate = queryLinuxMpvNumber(socketPath, "audio-bitrate");
-        cacheDuration =
-            queryLinuxMpvNumber(socketPath, "demuxer-cache-duration");
-        droppedFrames = queryLinuxMpvInteger(socketPath, "frame-drop-count");
-        decoderDroppedFrames =
-            queryLinuxMpvInteger(socketPath, "decoder-frame-drop-count");
-        videoCodec = queryLinuxMpvString(socketPath, "video-format");
-        audioCodec = queryLinuxMpvString(socketPath, "audio-codec-name");
-        audioChannels =
-            queryLinuxMpvString(socketPath, "audio-params/channels");
-        audioSampleRate =
-            queryLinuxMpvInteger(socketPath, "audio-params/samplerate");
-        container = queryLinuxMpvString(socketPath, "file-format");
-    }
+    // No stream-stats polling here: this backend drives the out-of-process
+    // native-view engine, whose legacy dock does not mount the shared
+    // controls that own the stream-info popover, so every property would be
+    // one socket round trip on the same pass that publishes position, pause
+    // and EOF for a value nothing can render. The in-process engines get the
+    // same fields for free from `mpv_observe_property` instead.
 
     int64_t cachedTrackCount = -1;
     {
@@ -1119,43 +1091,6 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
     }
     if (path && !path->empty()) {
         session->snapshot.streamUrl = *path;
-    }
-    if (pollStats) {
-        // Absent answers keep the previous value: mpv drops these properties
-        // between files, and a blank row mid-playback reads as a bug.
-        if (fps) {
-            session->snapshot.fps = *fps;
-        }
-        if (videoBitrate) {
-            session->snapshot.videoBitrate = *videoBitrate;
-        }
-        if (audioBitrate) {
-            session->snapshot.audioBitrate = *audioBitrate;
-        }
-        if (cacheDuration) {
-            session->snapshot.cacheDuration = *cacheDuration;
-        }
-        if (droppedFrames) {
-            session->snapshot.droppedFrames = *droppedFrames;
-        }
-        if (decoderDroppedFrames) {
-            session->snapshot.decoderDroppedFrames = *decoderDroppedFrames;
-        }
-        if (videoCodec && !videoCodec->empty()) {
-            session->snapshot.videoCodec = *videoCodec;
-        }
-        if (audioCodec && !audioCodec->empty()) {
-            session->snapshot.audioCodec = *audioCodec;
-        }
-        if (audioChannels && !audioChannels->empty()) {
-            session->snapshot.audioChannels = *audioChannels;
-        }
-        if (audioSampleRate) {
-            session->snapshot.audioSampleRate = *audioSampleRate;
-        }
-        if (container && !container->empty()) {
-            session->snapshot.container = *container;
-        }
     }
     if (trackCount && refreshedAudioTracks) {
         session->mpvTrackListCount = *trackCount;
@@ -1291,7 +1226,6 @@ void loadLinuxProcessPlayback(
         session->snapshot.selectedSubtitleTrackId = -1;
         session->snapshot.playbackSpeed = 1.0;
         session->snapshot.aspectOverride = "no";
-        session->snapshot.clearStreamStats();
         session->snapshot.recordingActive = false;
         session->snapshot.recordingTargetPath.clear();
         session->snapshot.recordingStartedAt.clear();

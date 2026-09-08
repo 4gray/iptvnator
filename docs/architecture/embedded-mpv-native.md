@@ -498,12 +498,14 @@ omitted, while a zero (dropped frames, for instance) is a real measurement.
 the frame-copy engine (`@if (isFrameCopyEngine() && isSupported())` in
 `embedded-mpv-player.component.html`); the native-view engine keeps its legacy
 controls dock, which has no info affordance. So today the popover is a
-frame-copy-only surface. The macOS native-view and Windows/Linux backends
-plumb the properties anyway, so the rows appear for free whenever those engines
-adopt the shared controls — but do not describe the feature as available there.
+frame-copy-only surface. The macOS and Windows native-view backends plumb the
+properties anyway — `mpv_observe_property` is push-based, so the rows appear
+for free whenever those engines adopt the shared controls — but do not describe
+the feature as available there. The Linux out-of-process backend deliberately
+does **not**, for the reason given under "Cost" below.
 
-All three backends observe these mpv properties at session init and map them
-into their session snapshot:
+The frame-copy helper and both in-process native-view backends observe these
+mpv properties at session init and map them into their session snapshot:
 
 | mpv property                                    | `stats` field            |
 | ----------------------------------------------- | ------------------------ |
@@ -528,15 +530,23 @@ every row except resolution until they observe those two properties too.
 `audio-codec`: the popover wants `h264` and `aac`, not
 `H.264/AVC (High Profile)`.
 
-Observation is free in event terms. macOS and Windows build the snapshot lazily
-when the renderer pulls it, and the frame-copy helper already throttles snapshot
-emission to 250 ms, so the extra properties never increase IPC traffic. The
-exception is Linux, whose process-isolated backend polls each property as its
-own JSON IPC round trip: those queries are gated to every second poll tick
-(`linuxStatsPollTick`) so the 500 ms tick keeps its previous cost.
+**Cost.** Observation is free in event terms: libmpv pushes property changes,
+macOS and Windows build the snapshot lazily when the renderer pulls it, and the
+frame-copy helper already throttles snapshot emission to 250 ms, so the extra
+properties never increase IPC traffic. Linux has no such mechanism — its
+process-isolated backend would have to `get_property` each field as its own
+JSON IPC round trip inside `refreshLinuxMpvSnapshot`, the same pass that
+publishes position, pause and EOF, where a slow answer delays real playback
+state. Eleven round trips per tick for a dock that cannot render them is not a
+trade worth making, so that backend collects no stats at all and its snapshot
+leaves every field at its default. This joins the features the Linux
+out-of-process path already does not export (subtitles, speed, aspect,
+recording). A source-text invariant in `embedded-mpv-native-source.spec.ts`
+asserts the properties are never passed to the `queryLinuxMpv*` helpers, so
+re-adding the polling fails CI.
 
-Each backend clears these fields when a new file starts (`MPV_EVENT_START_FILE`,
-or the load path on Linux), so a channel switch can never leave the previous
+Each backend that collects stats clears these fields when a new file starts
+(`MPV_EVENT_START_FILE`), so a channel switch can never leave the previous
 stream's codec or bitrate on screen. The frame-copy helper emits its `stats`
 object on **every** snapshot, empty object included: the adapter merges helper
 snapshots field by field, so an omitted key would survive the switch that the
