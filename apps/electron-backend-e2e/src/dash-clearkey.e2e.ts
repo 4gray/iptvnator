@@ -153,11 +153,22 @@ async function startDashFixtureServer(): Promise<DashFixtureServer> {
 }
 
 function buildDashPlaylist(origin: string): string {
+    // Regression for #1466: ordinary Base64 includes + and / in this key.
+    const license = JSON.stringify({
+        keys: [
+            {
+                kty: 'oct',
+                kid: Buffer.from(CLEARKEY_KID, 'hex').toString('base64'),
+                k: Buffer.from(CLEARKEY_KEY, 'hex').toString('base64'),
+            },
+        ],
+        type: 'temporary',
+    });
     return [
         '#EXTM3U',
         '#EXTINF:-1 tvg-id="ck-dash" group-title="DASH",ClearKey DASH',
         '#KODIPROP:inputstream.adaptive.license_type=clearkey',
-        `#KODIPROP:inputstream.adaptive.license_key=${CLEARKEY_KID}:${CLEARKEY_KEY}`,
+        `#KODIPROP:inputstream.adaptive.license_key=${license}`,
         `${origin}/clearkey.mpd`,
         '#EXTINF:-1 tvg-id="wv-dash" group-title="DASH",Widevine DASH',
         '#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha',

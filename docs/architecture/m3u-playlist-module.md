@@ -1313,7 +1313,12 @@ player in settings.
    `inputstream.adaptive.license_type`, `license_key`, and the combined
    `drm_legacy` property. ClearKey key formats: `kid:key` hex (single or
    comma-separated), the W3C ClearKey license JSON, and a plain `{kid: key}`
-   JSON map. Unsupported license types (Widevine, PlayReady, license-server
+   JSON map. Key components also accept Base64URL and ordinary Base64 (`+`/`/`),
+   with or without padding; decoded keys and KIDs must remain exactly 128 bits.
+   This includes JSON exports that use ordinary Base64 instead of the W3C
+   Base64URL alphabet. Refresh an already imported source to replace a cached
+   `drm.supported: false` result after a parser compatibility update.
+   Unsupported license types (Widevine, PlayReady, license-server
    URLs, malformed values) are preserved as `supported: false` — never a
    throw.
 3. The typed result lands on `Channel.drm` (`ChannelDrm` in

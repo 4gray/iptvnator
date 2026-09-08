@@ -1062,7 +1062,9 @@ app as a real argument, so it is not an option.
   player in settings). ClearKey keys come from `#KODIPROP:inputstream.adaptive.*`
   lines, post-processed into `Channel.drm` by `extractDrmFromRaw()` in
   `libs/shared/m3u-utils` (hooked in `createPlaylistObject()`, covering all
-  import paths). DASH channels always play inline: `isDashChannel()` bypasses
+  import paths; hex, Base64URL or ordinary Base64, strictly 128-bit key/KID;
+  refresh replaces cached unsupported parser results). DASH channels always
+  play inline: `isDashChannel()` bypasses
   the external-player setting (radio precedent) and routes Video.js/MPV/VLC/
   embedded-MPV users to the HTML5 player via `playerOverride` (ArtPlayer keeps
   ArtPlayer). Unsupported license types (Widevine/PlayReady — out of scope,

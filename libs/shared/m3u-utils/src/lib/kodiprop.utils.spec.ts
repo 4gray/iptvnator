@@ -90,6 +90,92 @@ describe('kodiprop.utils', () => {
             expect(drm?.clearKeys).toEqual({ [KID_HEX]: KEY_HEX });
         });
 
+        describe.each(['atob', 'Buffer'])('%s decoder', (decoder) => {
+            const atobDescriptor = Object.getOwnPropertyDescriptor(
+                globalThis,
+                'atob'
+            );
+
+            beforeEach(() => {
+                if (decoder === 'Buffer') {
+                    Object.defineProperty(globalThis, 'atob', {
+                        configurable: true,
+                        value: undefined,
+                    });
+                }
+            });
+
+            afterEach(() => {
+                if (atobDescriptor) {
+                    Object.defineProperty(globalThis, 'atob', atobDescriptor);
+                } else {
+                    Reflect.deleteProperty(globalThis, 'atob');
+                }
+            });
+
+            it.each([true, false])(
+                'accepts standard Base64 JSON keys (padding=%s)',
+                (padding) => {
+                    // Synthetic bytes exercise both + and /, as in #1466.
+                    const kidHex = 'fb'.repeat(16);
+                    const keyHex = 'ff'.repeat(16);
+                    const encode = (hex: string): string => {
+                        const value = Buffer.from(hex, 'hex').toString(
+                            'base64'
+                        );
+                        return padding ? value : value.replace(/=+$/, '');
+                    };
+                    const license = JSON.stringify({
+                        keys: [
+                            {
+                                kty: 'oct',
+                                kid: encode(kidHex),
+                                k: encode(keyHex),
+                            },
+                        ],
+                        type: 'temporary',
+                    });
+
+                    expect(
+                        extractDrmFromRaw(
+                            rawWith(
+                                '#KODIPROP:inputstream.adaptive.license_type=clearkey',
+                                `#KODIPROP:inputstream.adaptive.license_key=${license}`
+                            )
+                        )
+                    ).toEqual({
+                        licenseType: 'clearkey',
+                        supported: true,
+                        clearKeys: { [kidHex]: keyHex },
+                    });
+                }
+            );
+
+            it.each([
+                Buffer.alloc(15, 255).toString('base64'),
+                Buffer.alloc(17, 255).toString('base64'),
+                `${KEY_B64}!`,
+                `${KEY_B64.slice(0, 10)} ${KEY_B64.slice(10)}`,
+                `${KEY_B64}===`,
+                `${KEY_B64.slice(0, 10)}=${KEY_B64.slice(10)}`,
+                `${KID_HEX.slice(0, 16)} corrupted ${KID_HEX.slice(16)}`,
+            ])('rejects invalid key components: %s', (invalid) => {
+                for (const entry of [
+                    { kid: invalid, k: KEY_B64 },
+                    { kid: KID_B64, k: invalid },
+                ]) {
+                    expect(
+                        extractDrmFromRaw(
+                            rawWith(
+                                '#KODIPROP:inputstream.adaptive.license_type=clearkey',
+                                `#KODIPROP:inputstream.adaptive.license_key=${JSON.stringify({ keys: [entry] })}`
+                            )
+                        )
+                    ).toEqual({ licenseType: 'clearkey', supported: false });
+                }
+            });
+        });
+
         it('parses the drm_legacy combined property', () => {
             const drm = extractDrmFromRaw(
                 rawWith(
@@ -163,9 +249,7 @@ describe('kodiprop.utils', () => {
         it('ignores unrelated KODIPROP properties', () => {
             expect(
                 extractDrmFromRaw(
-                    rawWith(
-                        '#KODIPROP:inputstream.adaptive.manifest_type=mpd'
-                    )
+                    rawWith('#KODIPROP:inputstream.adaptive.manifest_type=mpd')
                 )
             ).toBeUndefined();
         });

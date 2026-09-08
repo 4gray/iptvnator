@@ -562,7 +562,9 @@ Key files:
 - DASH (`.mpd`) sources play through a lazily imported Shaka Player source
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived
-  `Channel.drm`, and the shared bridge exposes Shaka audio/text tracks via
+  `Channel.drm` (hex, Base64URL or ordinary Base64, strictly 128-bit key/KID;
+  refresh replaces cached unsupported parser results), and the shared bridge
+  exposes Shaka audio/text tracks via
   source kind `shaka`. The DOM-free Shaka `5.2.4` diagnostic boundary lives in
   `libs/playback/util`; it version-locks public severity/category/code evidence,
   ignores recoverable error events,

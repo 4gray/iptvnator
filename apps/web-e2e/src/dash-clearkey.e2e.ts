@@ -16,12 +16,27 @@ const FIXTURE_HOST = 'https://dash-fixture.local';
 
 const CLEARKEY_KID = '00112233445566778899aabbccddeeff';
 const CLEARKEY_KEY = 'ffeeddccbbaa99887766554433221100';
+// Regression for #1466: accept standard Base64 JSON without padding in PWA.
+const CLEARKEY_LICENSE = JSON.stringify({
+    keys: [
+        {
+            kty: 'oct',
+            kid: Buffer.from(CLEARKEY_KID, 'hex')
+                .toString('base64')
+                .replace(/=+$/, ''),
+            k: Buffer.from(CLEARKEY_KEY, 'hex')
+                .toString('base64')
+                .replace(/=+$/, ''),
+        },
+    ],
+    type: 'temporary',
+});
 
 const DASH_PLAYLIST = [
     '#EXTM3U',
     '#EXTINF:-1 tvg-id="ck-dash" group-title="DASH",ClearKey DASH',
     '#KODIPROP:inputstream.adaptive.license_type=clearkey',
-    `#KODIPROP:inputstream.adaptive.license_key=${CLEARKEY_KID}:${CLEARKEY_KEY}`,
+    `#KODIPROP:inputstream.adaptive.license_key=${CLEARKEY_LICENSE}`,
     `${FIXTURE_HOST}/clearkey.mpd`,
     '#EXTINF:-1 tvg-id="clear-dash" group-title="DASH",Clear DASH',
     `${FIXTURE_HOST}/clear.mpd`,
