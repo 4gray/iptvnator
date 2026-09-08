@@ -16,6 +16,8 @@ import {
 
 import {
     M3U_FIXTURE_TITLE,
+    MOCK_FIXTURE_CATEGORIES,
+    STALKER_MOCK_FIXTURE_CATEGORIES,
     STALKER_FIXTURE_MAC,
     STALKER_FIXTURE_PORTAL_URL,
     STALKER_FIXTURE_TITLE,
@@ -40,26 +42,6 @@ export {
     XTREAM_MOCK_ORIGIN,
 } from './capture-fixtures';
 
-/**
- * Synthetic categories that only the marketing fixture generator produces,
- * per catalog. They must be checked against their OWN endpoint: a series
- * category can never appear in `get_vod_categories`, and asserting it there
- * made the reuse path below reject every already-running mock.
- */
-const MOCK_FIXTURE_CATEGORIES: ReadonlyArray<{
-    action: 'get_vod_categories' | 'get_series_categories';
-    name: string;
-}> = [
-    { action: 'get_vod_categories', name: 'Action & Mystery' },
-    { action: 'get_series_categories', name: 'Urban Drama' },
-];
-/**
- * Live categories of the Stalker mock's marketing-demo scenario, from
- * `MARKETING_LIVE_CATEGORIES` in `@iptvnator/shared/marketing-fixtures`.
- * Spelled out here because `pnpm release:screenshots` runs tsx without the
- * base tsconfig, so workspace path aliases do not resolve in this file.
- */
-const STALKER_MOCK_FIXTURE_CATEGORIES = ['Newsroom', 'Culture & Docs'];
 
 
 /* ------------------------------------------------------------------ */

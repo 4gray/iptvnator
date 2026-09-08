@@ -73,3 +73,24 @@ export const AUTO_DETECT_FIXTURE_MESSAGE = [
     '',
     'Use these details in any Xtream Codes compatible player.',
 ].join('\n');
+
+/**
+ * Synthetic categories that only the marketing fixture generator produces,
+ * per catalog. They must be checked against their OWN endpoint: a series
+ * category can never appear in `get_vod_categories`, and asserting it there
+ * made the reuse path below reject every already-running mock.
+ */
+export const MOCK_FIXTURE_CATEGORIES: ReadonlyArray<{
+    action: 'get_vod_categories' | 'get_series_categories';
+    name: string;
+}> = [
+    { action: 'get_vod_categories', name: 'Action & Mystery' },
+    { action: 'get_series_categories', name: 'Urban Drama' },
+];
+/**
+ * Live categories of the Stalker mock's marketing-demo scenario, from
+ * `MARKETING_LIVE_CATEGORIES` in `@iptvnator/shared/marketing-fixtures`.
+ * Spelled out here because `pnpm release:screenshots` runs tsx without the
+ * base tsconfig, so workspace path aliases do not resolve in this file.
+ */
+export const STALKER_MOCK_FIXTURE_CATEGORIES = ['Newsroom', 'Culture & Docs'];
