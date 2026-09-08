@@ -65,11 +65,12 @@ function removeOwnedEntry(
             try {
                 linkSync(captured, path);
                 unlinkSync(captured);
-            } catch {
+            } catch (error) {
                 console.warn(
                     '[Downloads] Replaced file retained for recovery:',
                     captured
                 );
+                throw error;
             }
         }
     } finally {

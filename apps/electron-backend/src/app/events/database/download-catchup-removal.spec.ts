@@ -76,6 +76,56 @@ it('restores a replacement captured at the cleanup boundary', () => {
     removeJournaledCatchupPartial(filePath, proof, recordCapture);
     expect(readFileSync(filePath + '.part', 'utf8')).toBe('unrelated bytes');
 });
+it('retains a replacement capture until no-clobber restoration succeeds', () => {
+    jest.mocked(renameSync).mockImplementationOnce((from, to) => {
+        actual.renameSync(from, join(directory, 'original'));
+        writeFileSync(from, 'foreign bytes');
+        actual.renameSync(from, to);
+    });
+    jest.mocked(linkSync).mockImplementation(() => {
+        throw Object.assign(new Error('hardlinks unavailable'), {
+            code: 'ENOTSUP',
+        });
+    });
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow('hardlinks unavailable');
+    const capture = proof.partialCleanupPath!;
+    expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow('hardlinks unavailable');
+    expect(proof.partialCleanupPath).toBe(capture);
+    jest.mocked(linkSync).mockImplementationOnce(() => {
+        throw Object.assign(new Error('destination parent missing'), {
+            code: 'ENOENT',
+        });
+    });
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow('destination parent missing');
+    expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
+    jest.mocked(linkSync).mockImplementation(actual.linkSync);
+    writeFileSync(filePath + '.part', 'newer public bytes');
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow();
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('newer public bytes');
+    expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
+    actual.unlinkSync(filePath + '.part');
+    jest.mocked(unlinkSync).mockImplementationOnce(() => {
+        throw new Error('restored capture still locked');
+    });
+    expect(() =>
+        removeJournaledCatchupPartial(filePath, proof, recordCapture)
+    ).toThrow('restored capture still locked');
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('foreign bytes');
+    expect(readFileSync(capture, 'utf8')).toBe('foreign bytes');
+    removeJournaledCatchupPartial(filePath, proof, recordCapture);
+    expect(readFileSync(filePath + '.part', 'utf8')).toBe('foreign bytes');
+    expect(() => lstatSync(capture)).toThrow();
+});
+
 it('retries a durable capture after an I/O error without needing hardlinks', () => {
     jest.mocked(unlinkSync).mockImplementationOnce(() => {
         throw Object.assign(new Error('locked'), { code: 'EACCES' });

@@ -114,7 +114,10 @@ startup recovery use the same journal-backed cleanup as manual actions. Cancel,
 failure and removal of an unfinished attempt also clean its journaled final target;
 removing a completed row preserves its media. Retry cleans an incomplete owned
 final before reserving a destination. A failed
-unlink keeps that durable pointer; Remove/Clear, Retry/Resume and fresh
+unlink or replacement restoration keeps that durable pointer and blocks journal
+deletion/replacement. Later cleanup retries no-clobber restoration of captured
+foreign entries; an occupied public path or unsupported hardlinks preserves both
+the capture and its journal for recovery. Remove/Clear, Retry/Resume and fresh
 reservations retry identity-verified cleanup, including after restart and on
 filesystems without hardlinks. Cleanup remains synchronous after the
 runtime guard, so a completion transition cannot interleave with unlink.
