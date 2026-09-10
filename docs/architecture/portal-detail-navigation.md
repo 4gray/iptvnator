@@ -37,6 +37,10 @@ Back action still returns directly to the list. Browse Escape requires focus
 inside this shell; watch keeps the existing global close shortcut, including
 M3U playback started from its sidebar. Handled events, key repeats/modifiers,
 editable fields, inert/hidden shells, fullscreen, dialogs and menus are ignored.
+Escape bubbles through the shell before Material's body-level tooltip dispatcher,
+so focused detail actions return with one press even while their tooltip is open.
+The document listener remains the outside-shell watch fallback; `defaultPrevented`
+prevents duplicate actions and preserves descendant handlers' priority.
 After closing a player, lost focus moves to the sticky control (or the shell
 when there is no browse Back), without scrolling or stealing existing focus.
 

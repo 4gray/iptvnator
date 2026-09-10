@@ -52,6 +52,9 @@ import {
         role: 'region',
         '[attr.aria-label]': 'title() || backLabel()',
         '(keydown)': 'onScrollKey($event)',
+        // Handle descendant shortcuts before Material tooltips consume them
+        // on body, while preserving already-handled events and overlay guards.
+        '(keydown.escape)': 'onEscape($event)',
         '[class.shell-host--watch]': 'isWatch()',
         '(document:keydown.escape)': 'onEscape($event)',
     },

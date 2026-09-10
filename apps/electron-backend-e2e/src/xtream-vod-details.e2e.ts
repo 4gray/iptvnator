@@ -135,6 +135,46 @@ test.describe('Xtream VOD Details', () => {
 });
 
 for (const theme of ['light', 'dark']) {
+    test(`detail action tooltips preserve one-press Escape (${theme})`, async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        try {
+            const page = app.mainWindow;
+            await addXtreamPortal(page);
+            await waitForXtreamWorkspaceReady(page);
+            await page
+                .getByRole('link', { name: 'Movies', exact: true })
+                .click();
+            await page.evaluate(
+                (dark) => document.body.classList.toggle('dark-theme', dark),
+                theme === 'dark'
+            );
+            for (const action of [
+                'vod-favorite-toggle',
+                'vod-download-start',
+            ]) {
+                await page.locator('app-grid-list mat-card').first().click();
+                const shell = page.locator('app-portal-detail-shell');
+                await expect(
+                    shell.getByRole('heading', { level: 1 })
+                ).toBeVisible();
+                const button = shell.locator(`[data-testid="${action}"]`);
+                await button.focus();
+                await button.hover();
+                await expect(
+                    page.locator('.mat-mdc-tooltip-show')
+                ).toBeVisible();
+                await page.keyboard.press('Escape');
+                await expect(shell).toHaveCount(0);
+            }
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test(`supports keyboard and mouse scrolling in portal details (${theme})`, async ({
         dataDir,
         request,

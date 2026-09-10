@@ -206,6 +206,63 @@ describe('PortalDetailShellComponent', () => {
         expect(host.backRequests).toBe(1);
     });
 
+    it.each([false, true])(
+        'handles descendant Escape before body tooltip dispatch, once (watch=%s)',
+        (watch) => {
+            host.playbackActive.set(watch);
+            fixture.detectChanges();
+            const consumeTooltipKey = (event: KeyboardEvent) => {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            };
+            document.body.addEventListener('keydown', consumeTooltipKey);
+            try {
+                requiredQuery(
+                    watch ? '.fake-player' : '.play-btn'
+                ).dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'Escape',
+                        bubbles: true,
+                        cancelable: true,
+                    })
+                );
+                expect(host.closeRequests).toBe(watch ? 1 : 0);
+                expect(host.backRequests).toBe(watch ? 0 : 1);
+            } finally {
+                document.body.removeEventListener('keydown', consumeTooltipKey);
+            }
+        }
+    );
+
+    it('retains the priority of a descendant that already handled Escape', () => {
+        const play = requiredQuery('.play-btn');
+        play.addEventListener('keydown', (event) => event.preventDefault());
+        play.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(host.backRequests).toBe(0);
+    });
+
+    it('closes playback once when Escape comes from outside the shell', () => {
+        host.playbackActive.set(true);
+        fixture.detectChanges();
+        document.body.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        expect(host.closeRequests).toBe(1);
+        expect(host.backRequests).toBe(0);
+    });
+
     it('ignores Escape when the event was already handled', () => {
         host.playbackActive.set(true);
         fixture.detectChanges();
