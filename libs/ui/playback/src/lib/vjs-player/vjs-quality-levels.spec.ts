@@ -278,7 +278,7 @@ describe('VjsQualityLevels', () => {
             levelList.selectedIndex = 1;
 
             expect(helper.getActiveLevelStats()).toEqual({
-                videoBitrateBps: 4_000_000,
+                streamBitrateBps: 4_000_000,
                 width: 1280,
                 height: 720,
             });
@@ -298,7 +298,7 @@ describe('VjsQualityLevels', () => {
             levelList.selectedIndex = 0;
 
             expect(helper.getActiveLevelStats()).toEqual({
-                videoBitrateBps: null,
+                streamBitrateBps: null,
                 width: null,
                 height: null,
             });

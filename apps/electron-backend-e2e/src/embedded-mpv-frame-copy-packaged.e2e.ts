@@ -5,7 +5,7 @@ import {
     test,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
-import { writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import {
     assertNativeFallbackPrerequisites,
@@ -320,6 +320,83 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     { timeout: 10000 }
                 )
                 .toBe('paused');
+            // These values must originate in real libmpv property observations,
+            // survive helper JSON/preload mapping, and change with the source.
+            await expect
+                .poll(
+                    async () =>
+                        (
+                            await getLatestSession(
+                                launchedFrameCopyApp,
+                                created.id
+                            )
+                        )?.stats
+                )
+                .toMatchObject({
+                    videoCodec: expect.any(String),
+                    container: expect.any(String),
+                    droppedFrames: expect.any(Number),
+                });
+            const originalStats = (await getLatestSession(
+                launchedFrameCopyApp,
+                created.id
+            ))!.stats!;
+            const alternateMedia = await createLocalMediaServer({
+                body: readFileSync(
+                    join(
+                        __dirname,
+                        '../../web-e2e/src/fixtures/playback/episode.webm'
+                    )
+                ),
+                resourcePath: '/stream-stats-switch.webm',
+                contentType: 'video/webm',
+            });
+            media = {
+                url: mediaServer.url,
+                close: async () => {
+                    await Promise.all([
+                        mediaServer.close(),
+                        alternateMedia.close(),
+                    ]);
+                },
+            };
+            for (const [streamUrl, videoCodec, container] of [
+                [
+                    alternateMedia.url,
+                    'vp8',
+                    expect.stringContaining('matroska'),
+                ],
+                [
+                    mediaServer.url,
+                    originalStats.videoCodec,
+                    originalStats.container,
+                ],
+            ] as const) {
+                await launchedFrameCopyApp.mainWindow.evaluate(
+                    async ({ sessionId, streamUrl }) => {
+                        await window.electron.loadEmbeddedMpvPlayback(
+                            sessionId,
+                            {
+                                streamUrl,
+                                title: 'Stream stats source switch',
+                                isLive: false,
+                            }
+                        );
+                    },
+                    { sessionId: created.id, streamUrl }
+                );
+                await expect
+                    .poll(
+                        () =>
+                            getLatestSession(launchedFrameCopyApp, created.id),
+                        { timeout: 15000 }
+                    )
+                    .toMatchObject({
+                        streamUrl,
+                        stats: { videoCodec, container },
+                    });
+            }
+
             await launchedFrameCopyApp.mainWindow.evaluate(
                 async (sessionId) => {
                     window.electron.detachEmbeddedMpvFrameView?.();

@@ -599,6 +599,8 @@
             "STREAM_INFO": "Adatfolyam-infó",
             "STATS_RESOLUTION": "Felbontás",
             "STATS_FRAME_RATE": "Képkockasebesség",
+            "STATS_NOMINAL_FRAME_RATE": "Forrás képkockasebessége",
+            "STATS_STREAM_BITRATE": "Adatfolyam bitrátája",
             "STATS_VIDEO": "Videó",
             "STATS_AUDIO": "Hang",
             "STATS_AUDIO_CHANNELS": "Csatornák",

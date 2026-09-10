@@ -27,6 +27,8 @@ export function toPlayerStreamStats(
         width: finiteOrNull(session.videoWidth),
         height: finiteOrNull(session.videoHeight),
         fps: finiteOrNull(stats?.fps),
+        nominalFps: null,
+        streamBitrateBps: null,
         videoBitrateBps: finiteOrNull(stats?.videoBitrateBps),
         audioBitrateBps: finiteOrNull(stats?.audioBitrateBps),
         videoCodec: nonEmptyOrNull(stats?.videoCodec),

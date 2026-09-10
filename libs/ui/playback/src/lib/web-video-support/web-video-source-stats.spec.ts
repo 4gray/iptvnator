@@ -71,8 +71,9 @@ describe('WebVideoSourceStats', () => {
             stats.setSource({ kind: 'hls', hls: createHls() });
 
             expect(stats.read()).toEqual({
-                // The measured fragment bitrate wins over the declared one.
-                videoBitrateBps: 4_800_000,
+                // HLS declares aggregate bandwidth; fragments may omit alternate audio.
+                streamBitrateBps: 5_000_000,
+                videoBitrateBps: null,
                 // Audio details come from the selected audio rendition.
                 audioBitrateBps: 128_000,
                 videoCodec: 'avc1.640028',
@@ -102,7 +103,10 @@ describe('WebVideoSourceStats', () => {
                 }),
             });
 
-            expect(stats.read()?.videoBitrateBps).toBe(5_000_000);
+            expect(stats.read()).toMatchObject({
+                videoBitrateBps: null,
+                streamBitrateBps: 5_000_000,
+            });
         });
 
         it('keeps the video level codec when no audio rendition exists', () => {
@@ -161,6 +165,7 @@ describe('WebVideoSourceStats', () => {
 
             expect(stats.read()).toEqual({
                 videoBitrateBps: 2_800_000,
+                streamBitrateBps: 3_000_000,
                 audioBitrateBps: 128_000,
                 videoCodec: 'avc1.4d401f',
                 audioCodec: 'mp4a.40.2',
@@ -173,7 +178,7 @@ describe('WebVideoSourceStats', () => {
             });
         });
 
-        it('falls back to the measured stream bandwidth', () => {
+        it('keeps total bandwidth out of the video bitrate when its separate rate is unknown', () => {
             const player = {
                 getVariantTracks: () => [
                     createVariant({ videoBandwidth: null }),
@@ -186,7 +191,11 @@ describe('WebVideoSourceStats', () => {
                 session: createShakaSession(player),
             });
 
-            expect(stats.read()?.videoBitrateBps).toBe(2_900_000);
+            expect(stats.read()).toMatchObject({
+                videoBitrateBps: null,
+                streamBitrateBps: 3_000_000,
+                audioBitrateBps: 128_000,
+            });
         });
 
         it('works with a player build that exposes no getStats', () => {

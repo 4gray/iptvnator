@@ -33,6 +33,11 @@ export class ControlsStreamStats {
 
     start(): void {
         this.stop();
+        try {
+            this.source()?.reset?.();
+        } catch {
+            // Diagnostic sources must never break playback during teardown.
+        }
         this.sample();
         this.timer = setInterval(
             () => this.sample(),

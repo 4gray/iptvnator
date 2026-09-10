@@ -4,9 +4,8 @@ area: playback
 highlight: See what a stream really is while it plays
 ---
 
-The player overlay gained an info button in its top-right corner. It opens a
-popover with the live data of the stream: resolution and aspect ratio, frame
-rate, video and audio codec with bitrates, audio channels and sample rate,
-container, buffer, and dropped frames. It shows only what the player can
-report, in the built-in web players and in the experimental frame-copy embedded
-MPV player.
+The player overlay now shows stream information: resolution, playback and source
+frame rates, stream and codec bitrates, audio details, buffer and dropped frames.
+Available in built-in web players and experimental frame-copy Embedded MPV.
+Unknown values stay hidden; measured frame rates reflect dropped frames and
+stalls.

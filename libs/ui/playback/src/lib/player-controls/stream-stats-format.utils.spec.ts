@@ -58,9 +58,11 @@ describe('stream stats formatting', () => {
             expect(formatFrameRate(29.97)).toBe('29.97 fps');
         });
 
-        it('returns null for a missing or zero rate', () => {
+        it('preserves a measured zero and omits unknown or invalid rates', () => {
             expect(formatFrameRate(null)).toBeNull();
-            expect(formatFrameRate(0)).toBeNull();
+            expect(formatFrameRate(0)).toBe('0 fps');
+            expect(formatFrameRate(-1)).toBeNull();
+            expect(formatFrameRate(NaN)).toBeNull();
         });
     });
 
@@ -251,6 +253,29 @@ describe('stream stats formatting', () => {
                     labelKey: 'EMBEDDED_MPV.PLAYER.STATS_AUDIO',
                     value: '96 kbps',
                 },
+            ]);
+        });
+
+        it('labels nominal FPS and aggregate bitrate separately from measured FPS and video', () => {
+            const rows = buildStreamStatsRows({
+                ...emptyStreamStats({ fps: 0, videoCodec: 'h264' }),
+                nominalFps: 30,
+                streamBitrateBps: 3_000_000,
+            });
+            expect(rows).toEqual([
+                {
+                    labelKey: 'EMBEDDED_MPV.PLAYER.STATS_FRAME_RATE',
+                    value: '0 fps',
+                },
+                {
+                    labelKey: 'EMBEDDED_MPV.PLAYER.STATS_NOMINAL_FRAME_RATE',
+                    value: '30 fps',
+                },
+                {
+                    labelKey: 'EMBEDDED_MPV.PLAYER.STATS_STREAM_BITRATE',
+                    value: '3.0 Mbps',
+                },
+                { labelKey: 'EMBEDDED_MPV.PLAYER.STATS_VIDEO', value: 'h264' },
             ]);
         });
 

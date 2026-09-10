@@ -599,6 +599,8 @@
             "STREAM_INFO": "流信息",
             "STATS_RESOLUTION": "分辨率",
             "STATS_FRAME_RATE": "帧率",
+            "STATS_NOMINAL_FRAME_RATE": "源帧率",
+            "STATS_STREAM_BITRATE": "流总码率",
             "STATS_VIDEO": "视频",
             "STATS_AUDIO": "音频",
             "STATS_AUDIO_CHANNELS": "声道",

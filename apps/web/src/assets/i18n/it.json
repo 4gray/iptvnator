@@ -599,6 +599,8 @@
             "STREAM_INFO": "Info stream",
             "STATS_RESOLUTION": "Risoluzione",
             "STATS_FRAME_RATE": "Frequenza fotogrammi",
+            "STATS_NOMINAL_FRAME_RATE": "Frequenza fotogrammi sorgente",
+            "STATS_STREAM_BITRATE": "Bitrate del flusso",
             "STATS_VIDEO": "Video",
             "STATS_AUDIO": "Audio",
             "STATS_AUDIO_CHANNELS": "Canali",

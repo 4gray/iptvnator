@@ -101,8 +101,8 @@ export function formatAspectRatio(
  * rates in their own right, not measurement noise around 30 and 24.
  */
 export function formatFrameRate(fps: number | null): string | null {
-    const rate = positiveOrNull(fps);
-    if (rate === null) {
+    const rate = fps;
+    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate < 0) {
         return null;
     }
     const rounded = Math.round(rate);
@@ -195,11 +195,11 @@ export function formatDroppedFrames(
         return null;
     }
     const count = Math.max(0, Math.round(dropped));
-    const presented = positiveOrNull(total);
-    if (presented === null) {
+    const frameCount = positiveOrNull(total);
+    if (frameCount === null) {
         return `${count}`;
     }
-    const percent = (count / presented) * 100;
+    const percent = (count / frameCount) * 100;
     return `${count} (${percent < 0.01 && percent > 0 ? '<0.01' : percent.toFixed(2)}%)`;
 }
 
@@ -229,6 +229,14 @@ export function buildStreamStatsRows(
             resolution && aspect ? `${resolution} · ${aspect}` : resolution,
         ],
         ['EMBEDDED_MPV.PLAYER.STATS_FRAME_RATE', formatFrameRate(stats.fps)],
+        [
+            'EMBEDDED_MPV.PLAYER.STATS_NOMINAL_FRAME_RATE',
+            formatFrameRate(positiveOrNull(stats.nominalFps)),
+        ],
+        [
+            'EMBEDDED_MPV.PLAYER.STATS_STREAM_BITRATE',
+            formatBitrate(stats.streamBitrateBps),
+        ],
         [
             'EMBEDDED_MPV.PLAYER.STATS_VIDEO',
             joinCodecAndBitrate(stats.videoCodec, stats.videoBitrateBps),

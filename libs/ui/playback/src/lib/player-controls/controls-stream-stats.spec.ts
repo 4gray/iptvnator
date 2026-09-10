@@ -3,6 +3,7 @@ import {
     STREAM_STATS_SAMPLE_INTERVAL_MS,
 } from './controls-stream-stats';
 import { type PlayerStreamStatsSource } from './player-stream-stats.model';
+import { WebVideoStreamStatsSampler } from './web-video-stream-stats';
 import { emptyStreamStats } from './stream-stats.spec-helpers';
 
 describe('ControlsStreamStats', () => {
@@ -54,6 +55,46 @@ describe('ControlsStreamStats', () => {
         expect(sample).toHaveBeenCalledTimes(1);
         // A reopen must show fresh numbers, never the previous stream's.
         expect(stats.rows()).toEqual([]);
+    });
+
+    it('starts a fresh frame measurement when reopened after a long pause', () => {
+        const quality = { totalVideoFrames: 100, droppedVideoFrames: 0 };
+        const video = {
+            videoWidth: 640,
+            videoHeight: 360,
+            paused: false,
+            readyState: 4,
+            buffered: { length: 0 },
+            getVideoPlaybackQuality: () => quality,
+        } as unknown as HTMLVideoElement;
+        const sampler = new WebVideoStreamStatsSampler(
+            () => video,
+            () => null
+        );
+        const stats = new ControlsStreamStats(() => sampler);
+        stats.start();
+        quality.totalVideoFrames += 30;
+        jest.advanceTimersByTime(1000);
+        expect(stats.rows()).toContainEqual({
+            labelKey: 'EMBEDDED_MPV.PLAYER.STATS_FRAME_RATE',
+            value: '30 fps',
+        });
+        stats.stop();
+        jest.advanceTimersByTime(60000);
+        quality.totalVideoFrames += 30;
+        stats.start();
+        expect(
+            stats
+                .rows()
+                .some((row) => row.labelKey.endsWith('STATS_FRAME_RATE'))
+        ).toBe(false);
+        quality.totalVideoFrames += 30;
+        jest.advanceTimersByTime(1000);
+        expect(stats.rows()).toContainEqual({
+            labelKey: 'EMBEDDED_MPV.PLAYER.STATS_FRAME_RATE',
+            value: '30 fps',
+        });
+        stats.dispose();
     });
 
     it('restarting does not leave a second interval running', () => {

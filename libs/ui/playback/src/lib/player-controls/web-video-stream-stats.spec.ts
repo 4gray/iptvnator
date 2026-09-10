@@ -7,6 +7,8 @@ interface FakeVideoOptions {
     videoWidth?: number;
     videoHeight?: number;
     currentTime?: number;
+    paused?: boolean;
+    readyState?: number;
     buffered?: Array<[number, number]>;
     quality?: { totalVideoFrames: number; droppedVideoFrames: number } | null;
 }
@@ -17,6 +19,8 @@ function createVideo(options: FakeVideoOptions = {}): HTMLVideoElement {
         videoWidth: options.videoWidth ?? 0,
         videoHeight: options.videoHeight ?? 0,
         currentTime: options.currentTime ?? 0,
+        paused: options.paused ?? false,
+        readyState: options.readyState ?? 4,
         buffered: {
             length: ranges.length,
             start: (index: number) => ranges[index][0],
@@ -80,12 +84,12 @@ describe('WebVideoStreamStatsSampler', () => {
         // Nothing to compare the first sample against.
         expect(sampler.sample()?.fps).toBeNull();
 
-        jest.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
+        jest.advanceTimersByTime(1000);
         totalVideoFrames = 1050;
         expect(sampler.sample()?.fps).toBeCloseTo(50, 5);
     });
 
-    it('falls back to the declared rate until a delta exists', () => {
+    it('keeps the declared rate separate from measured playback', () => {
         const engine: WebVideoEngineStats = { nominalFps: 25 };
         const sampler = new WebVideoStreamStatsSampler(
             () =>
@@ -95,7 +99,7 @@ describe('WebVideoStreamStatsSampler', () => {
             () => engine
         );
 
-        expect(sampler.sample()?.fps).toBe(25);
+        expect(sampler.sample()).toMatchObject({ fps: null, nominalFps: 25 });
     });
 
     it('reports no rate rather than zero while playback is paused', () => {
@@ -105,12 +109,67 @@ describe('WebVideoStreamStatsSampler', () => {
             () =>
                 createVideo({
                     quality: { totalVideoFrames: 500, droppedVideoFrames: 0 },
+                    paused: true,
                 }),
             () => null
         );
 
         sampler.sample();
-        jest.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
+        jest.advanceTimersByTime(1000);
+        expect(sampler.sample()?.fps).toBeNull();
+    });
+
+    it('subtracts dropped frames from measured FPS but preserves total for drop percentage', () => {
+        jest.useFakeTimers();
+        const quality = { totalVideoFrames: 1000, droppedVideoFrames: 10 };
+        const sampler = new WebVideoStreamStatsSampler(
+            () => createVideo({ quality }),
+            () => ({ nominalFps: 30 })
+        );
+        sampler.sample();
+        jest.advanceTimersByTime(1000);
+        quality.totalVideoFrames += 30;
+        quality.droppedVideoFrames += 15;
+        expect(sampler.sample()).toMatchObject({
+            fps: 15,
+            nominalFps: 30,
+            totalFrames: 1030,
+            droppedFrames: 25,
+        });
+    });
+
+    it('reports zero measured FPS during a stall instead of substituting the nominal rate', () => {
+        jest.useFakeTimers();
+        const sampler = new WebVideoStreamStatsSampler(
+            () =>
+                createVideo({
+                    quality: { totalVideoFrames: 100, droppedVideoFrames: 0 },
+                }),
+            () => ({ nominalFps: 30 })
+        );
+        sampler.sample();
+        jest.advanceTimersByTime(1000);
+        expect(sampler.sample()).toMatchObject({ fps: 0, nominalFps: 30 });
+    });
+
+    it('does not measure before media data arrives or across paused samples', () => {
+        jest.useFakeTimers();
+        let options: FakeVideoOptions = { readyState: 0 };
+        const sampler = new WebVideoStreamStatsSampler(
+            () => createVideo(options),
+            () => null
+        );
+        sampler.sample();
+        jest.advanceTimersByTime(1000);
+        expect(sampler.sample()?.fps).toBeNull();
+        options = { quality: { totalVideoFrames: 100, droppedVideoFrames: 0 } };
+        expect(sampler.sample()?.fps).toBeNull();
+        options.paused = true;
+        jest.advanceTimersByTime(1000);
+        expect(sampler.sample()?.fps).toBeNull();
+        options.paused = false;
+        jest.advanceTimersByTime(1000);
+        options.quality!.totalVideoFrames += 30;
         expect(sampler.sample()?.fps).toBeNull();
     });
 
@@ -197,7 +256,7 @@ describe('WebVideoStreamStatsSampler', () => {
         sampler.sample();
         sampler.reset();
 
-        jest.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
+        jest.advanceTimersByTime(1000);
         totalVideoFrames = 1050;
         // Without the reset this would have reported 50 fps across the seam.
         expect(sampler.sample()?.fps).toBeNull();

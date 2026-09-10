@@ -12,8 +12,12 @@ export interface PlayerStreamStats {
     /** Displayed video size in pixels (mpv `dwidth`/`dheight`). */
     width: number | null;
     height: number | null;
-    /** Measured playback frame rate, not the container's nominal rate. */
+    /** Presented-frame rate on web engines; filter-output estimate on MPV. */
     fps: number | null;
+    /** Declared source rate; never substitutes for a measured playback stall. */
+    nominalFps: number | null;
+    /** Aggregate rendition bitrate, including audio, when declared. */
+    streamBitrateBps: number | null;
     /** Video bitrate in bits per second. */
     videoBitrateBps: number | null;
     /** Audio bitrate in bits per second. */
@@ -34,7 +38,7 @@ export interface PlayerStreamStats {
     bufferedAheadSeconds: number | null;
     /** Frames dropped since playback started. */
     droppedFrames: number | null;
-    /** Frames presented since playback started; pairs with `droppedFrames`. */
+    /** Total frames (displayed plus dropped); denominator for the drop rate. */
     totalFrames: number | null;
 }
 
@@ -54,6 +58,8 @@ export interface PlayerStreamStatsSource {
      * their own sampling bookkeeping (frame-rate deltas).
      */
     sample(): PlayerStreamStats | null;
+    /** Start a new measurement window when the popover opens. */
+    reset?(): void;
 }
 
 /** True when at least one field carries a usable value. */

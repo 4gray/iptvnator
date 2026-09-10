@@ -76,8 +76,6 @@ export interface ShakaPlayerLike {
      */
     selectTextTrack(track: ShakaTextTrackLike | null): void;
     isLive(): boolean;
-    /** Playback statistics; only the current stream bandwidth is consumed. */
-    getStats?(): { streamBandwidth?: number | null } | null;
 }
 
 export interface ShakaModuleLike {

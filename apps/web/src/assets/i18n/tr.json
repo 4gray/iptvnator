@@ -599,6 +599,8 @@
             "STREAM_INFO": "Yayın bilgisi",
             "STATS_RESOLUTION": "Çözünürlük",
             "STATS_FRAME_RATE": "Kare hızı",
+            "STATS_NOMINAL_FRAME_RATE": "Kaynak kare hızı",
+            "STATS_STREAM_BITRATE": "Akış bit hızı",
             "STATS_VIDEO": "Video",
             "STATS_AUDIO": "Ses",
             "STATS_AUDIO_CHANNELS": "Kanallar",

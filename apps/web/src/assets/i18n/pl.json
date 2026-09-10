@@ -599,6 +599,8 @@
             "STREAM_INFO": "Informacje o strumieniu",
             "STATS_RESOLUTION": "Rozdzielczość",
             "STATS_FRAME_RATE": "Liczba klatek",
+            "STATS_NOMINAL_FRAME_RATE": "Klatkaż źródła",
+            "STATS_STREAM_BITRATE": "Przepływność strumienia",
             "STATS_VIDEO": "Wideo",
             "STATS_AUDIO": "Dźwięk",
             "STATS_AUDIO_CHANNELS": "Kanały",

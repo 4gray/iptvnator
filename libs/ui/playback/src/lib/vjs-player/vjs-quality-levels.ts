@@ -131,7 +131,7 @@ export class VjsQualityLevels {
         }
 
         return {
-            videoBitrateBps: positiveOrNull(level.bitrate),
+            streamBitrateBps: positiveOrNull(level.bitrate),
             width: positiveOrNull(level.width),
             height: positiveOrNull(level.height),
         };

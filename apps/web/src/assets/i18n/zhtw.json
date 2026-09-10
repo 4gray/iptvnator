@@ -599,6 +599,8 @@
             "STREAM_INFO": "串流資訊",
             "STATS_RESOLUTION": "解析度",
             "STATS_FRAME_RATE": "影格率",
+            "STATS_NOMINAL_FRAME_RATE": "來源影格率",
+            "STATS_STREAM_BITRATE": "串流總位元率",
             "STATS_VIDEO": "視訊",
             "STATS_AUDIO": "音訊",
             "STATS_AUDIO_CHANNELS": "聲道",

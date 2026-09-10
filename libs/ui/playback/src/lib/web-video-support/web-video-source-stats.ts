@@ -51,10 +51,11 @@ function readHlsStats(hls: Hls): WebVideoEngineStats | null {
     const audioTrack = hls.audioTracks?.[hls.audioTrack];
 
     return {
-        // `realBitrate` is measured from delivered fragments; the manifest's
-        // declared bitrate is the fallback before any fragment lands.
-        videoBitrateBps:
-            positiveOrNull(level.realBitrate) ?? positiveOrNull(level.bitrate),
+        // BANDWIDTH describes the entire variant. Fragment realBitrate can
+        // include muxed audio or omit alternate audio, so it is not a reliable
+        // separate video bitrate or an aggregate rendition bitrate.
+        streamBitrateBps: positiveOrNull(level.bitrate),
+        videoBitrateBps: null,
         audioBitrateBps: positiveOrNull(audioTrack?.bitrate),
         videoCodec: level.videoCodec ?? null,
         audioCodec: audioTrack?.audioCodec ?? level.audioCodec ?? null,
@@ -74,18 +75,15 @@ function readShakaStats(
     }
 
     const variant = player.getVariantTracks().find((track) => track.active);
-    const streamBandwidth = positiveOrNull(
-        player.getStats?.()?.streamBandwidth
-    );
     if (!variant) {
-        return streamBandwidth ? { videoBitrateBps: streamBandwidth } : null;
+        return null;
     }
 
     return {
-        videoBitrateBps:
-            positiveOrNull(variant.videoBandwidth) ??
-            streamBandwidth ??
-            positiveOrNull(variant.bandwidth),
+        // getStats().streamBandwidth also includes playback rate; use the
+        // manifest's rendition rate and keep unknown component rates unknown.
+        streamBitrateBps: positiveOrNull(variant.bandwidth),
+        videoBitrateBps: positiveOrNull(variant.videoBandwidth),
         audioBitrateBps: positiveOrNull(variant.audioBandwidth),
         videoCodec: variant.videoCodec ?? null,
         audioCodec: variant.audioCodec ?? null,

@@ -291,7 +291,8 @@ It owns only transient presentation behavior:
 
 An `info` button in the **top-right corner** of the overlay opens a popover with
 live technical data about the stream: resolution with its derived aspect ratio,
-measured frame rate, video codec/bitrate, audio codec/bitrate, audio channel
+measured and declared frame rates, aggregate stream bitrate, video codec/bitrate,
+audio codec/bitrate, audio channel
 layout, audio sample rate, container, buffered-ahead seconds, and dropped
 frames. Rows whose value is unknown are omitted; a popover with no rows at all
 shows a short "no data yet" line.
@@ -305,6 +306,7 @@ Stats are **pulled, not pushed**:
 ```ts
 interface PlayerStreamStatsSource {
     sample(): PlayerStreamStats | null;
+    reset?(): void; // reset rolling measurements when opening the panel
 }
 ```
 
@@ -314,7 +316,9 @@ re-run every derived control signal on every tick even while nobody is looking.
 `ControlsStreamStats` owns a 1s sampling loop that runs **only while the popover
 is open** (an effect keyed on `menus.statsOpen()`, so every close path — toggle,
 Escape, capability loss, teardown — stops it), and it drops its snapshot on
-close so a reopen never shows the previous stream's numbers.
+close so a reopen never shows the previous stream's numbers. On open it also
+calls the source's optional `reset()` before sampling, so a closed interval
+(including time paused) cannot contaminate the next frame-rate measurement.
 
 Formatting lives in `stream-stats-format.utils.ts` as pure functions:
 `buildStreamStatsRows()` returns `{ labelKey, value }` pairs and the template
@@ -332,7 +336,16 @@ Per engine:
   optional `getEngineStats` hook — `WebVideoSourceStats` reads the active HLS
   level plus its audio rendition or the active Shaka variant, and
   `VjsQualityLevels.getActiveLevelStats()` reads the VHS `selectedIndex`
-  rendition. A native `<video src>` source contributes nothing extra.
+  rendition. Presented frames are `totalVideoFrames - droppedVideoFrames`; the
+  untouched total remains the denominator for the drop percentage. FPS uses a
+  monotonic wall clock, reports zero on a stall, and is unknown before the
+  second sample or while paused/loading. The manifest rate is a separate
+  `nominalFps` row and never fills in for measured FPS. Aggregate HLS/VHS and
+  Shaka rendition bandwidth goes into `streamBitrateBps`; video/audio rates
+  remain unknown unless separately reported. HLS fragment `realBitrate` is not
+  used because alternate audio may be absent from that measurement; Shaka's
+  playback-rate-scaled `getStats().streamBandwidth` is not a source bitrate.
+  A native `<video src>` source contributes nothing extra.
 - **Embedded MPV**: the numbers ride along on the session snapshot
   (`EmbeddedMpvSession.stats`), so `sample()` is a pure read of the current
   snapshot. This reaches the user under the **frame-copy engine only** — that

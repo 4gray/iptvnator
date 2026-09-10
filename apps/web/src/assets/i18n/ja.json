@@ -599,6 +599,8 @@
             "STREAM_INFO": "ストリーム情報",
             "STATS_RESOLUTION": "解像度",
             "STATS_FRAME_RATE": "フレームレート",
+            "STATS_NOMINAL_FRAME_RATE": "ソースのフレームレート",
+            "STATS_STREAM_BITRATE": "ストリームのビットレート",
             "STATS_VIDEO": "ビデオ",
             "STATS_AUDIO": "オーディオ",
             "STATS_AUDIO_CHANNELS": "チャンネル",

@@ -599,6 +599,8 @@
             "STREAM_INFO": "Stream-Info",
             "STATS_RESOLUTION": "Auflösung",
             "STATS_FRAME_RATE": "Bildrate",
+            "STATS_NOMINAL_FRAME_RATE": "Quellbildrate",
+            "STATS_STREAM_BITRATE": "Stream-Bitrate",
             "STATS_VIDEO": "Video",
             "STATS_AUDIO": "Audio",
             "STATS_AUDIO_CHANNELS": "Kanäle",

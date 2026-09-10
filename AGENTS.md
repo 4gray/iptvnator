@@ -375,6 +375,21 @@ Key files:
 
 ## Shared Player Controls
 
+- Stream info popover: an `info` button in the top-right corner of the shared
+  controls overlay shows live stream data — resolution + aspect ratio, measured
+  frame rate, video/audio codec and bitrate, audio channels and sample rate,
+  container, buffer, and dropped frames. Rendered only when the engine reports
+  something (`capabilities.streamStats`), sampled once a second and only while
+  the popover is open. Web engines read the `<video>` element plus the active
+  HLS/Shaka/VHS rendition; embedded MPV gets the numbers from observed mpv
+  properties on the session snapshot (frame-copy engine only — the native-view
+  dock does not mount the shared controls). See
+  `docs/architecture/player-controls-contract.md` ("Stream info popover") and
+  `docs/architecture/embedded-mpv-native.md` ("Stream Stats Properties").
+  Web FPS excludes dropped frames and uses a fresh measurement window on open;
+  nominal FPS and aggregate rendition bitrate have separate rows. Unknown
+  video bitrate is never filled with aggregate bandwidth.
+
 - The Embedded MPV native-view dock follows app theme tokens as a solid app
   surface, including Material icon-button disabled states. Over-video loading,
   stalled and feedback overlays keep a paired light-on-dark palette. Video

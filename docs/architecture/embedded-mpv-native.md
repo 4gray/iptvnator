@@ -557,6 +557,11 @@ pull and simply leave unknown keys out.
 reported nothing, which is what keeps the info button hidden on an engine that
 does not report these properties at all.
 
+The packaged Linux frame-copy smoke verifies real diagnostic snapshots and
+switches Y4M → WebM → Y4M in the same session, checking the reported codec and
+container on each source. This complements renderer mapping/unit coverage with
+the actual libmpv → helper JSON → main/preload path.
+
 ## Session End And Series Navigation
 
 `EmbeddedMpvSessionStatus` includes `ended` for successful EOF only. The native addon maps `MPV_EVENT_END_FILE` to:

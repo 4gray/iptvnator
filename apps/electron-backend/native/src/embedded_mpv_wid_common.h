@@ -184,7 +184,6 @@ struct Session {
     pid_t mpvProcessId = -1;
     std::string mpvIpcSocketPath;
     int64_t mpvTrackListCount = -1;
-    /** Poll counter that halves the cadence of the stream-stats queries. */
 #endif
 };
 

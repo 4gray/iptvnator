@@ -15,6 +15,8 @@ export function emptyStreamStats(
         width: null,
         height: null,
         fps: null,
+        nominalFps: null,
+        streamBitrateBps: null,
         videoBitrateBps: null,
         audioBitrateBps: null,
         videoCodec: null,

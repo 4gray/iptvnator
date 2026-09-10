@@ -599,6 +599,8 @@
             "STREAM_INFO": "معلومات ديال البث",
             "STATS_RESOLUTION": "الدقة",
             "STATS_FRAME_RATE": "معدل الإطارات",
+            "STATS_NOMINAL_FRAME_RATE": "معدل إطارات المصدر",
+            "STATS_STREAM_BITRATE": "معدل بت البث",
             "STATS_VIDEO": "الفيديو",
             "STATS_AUDIO": "الصوت",
             "STATS_AUDIO_CHANNELS": "القنوات",

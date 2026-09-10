@@ -11,6 +11,7 @@ import { positiveOrNull } from './positive-number.util';
  * rate, buffer and frame drops on its own.
  */
 export interface WebVideoEngineStats {
+    streamBitrateBps?: number | null;
     videoBitrateBps?: number | null;
     audioBitrateBps?: number | null;
     videoCodec?: string | null;
@@ -20,8 +21,7 @@ export interface WebVideoEngineStats {
     audioSampleRateHz?: number | null;
     container?: string | null;
     /**
-     * Manifest-declared frame rate. Shown until two frame-counter samples
-     * exist to measure the real one, so the row is not empty on open.
+     * Manifest-declared frame rate, displayed separately from measured FPS.
      */
     nominalFps?: number | null;
     /** Rendition size; used only before the element reports its own. */
@@ -70,12 +70,18 @@ export class WebVideoStreamStatsSampler implements PlayerStreamStatsSource {
 
         const engine = this.getEngineStats() ?? {};
         const quality = readPlaybackQuality(video);
-        const measuredFps = this.measureFrameRate(quality?.totalVideoFrames);
+        const measuredFps = this.measureFrameRate(
+            video.paused || video.ended || video.readyState < 2 || !quality
+                ? undefined
+                : quality.totalVideoFrames - quality.droppedVideoFrames
+        );
 
         return {
             width: positiveOrNull(video.videoWidth) ?? engine.width ?? null,
             height: positiveOrNull(video.videoHeight) ?? engine.height ?? null,
-            fps: measuredFps ?? engine.nominalFps ?? null,
+            fps: measuredFps,
+            nominalFps: positiveOrNull(engine.nominalFps),
+            streamBitrateBps: engine.streamBitrateBps ?? null,
             videoBitrateBps: engine.videoBitrateBps ?? null,
             audioBitrateBps: engine.audioBitrateBps ?? null,
             videoCodec: engine.videoCodec ?? null,
@@ -90,10 +96,9 @@ export class WebVideoStreamStatsSampler implements PlayerStreamStatsSource {
     }
 
     /**
-     * Frames per second between this sample and the previous one. Null on the
-     * first sample and while nothing advances (paused, stalled), which lets
-     * the caller fall back to the engine's declared rate instead of claiming
-     * a real "0 fps".
+     * Presented frames per wall-clock second. A stall is a measured zero;
+     * paused/loading playback has no measurement window. A decreasing counter
+     * starts a fresh baseline after a source reset.
      */
     private measureFrameRate(totalFrames: number | undefined): number | null {
         if (typeof totalFrames !== 'number' || !Number.isFinite(totalFrames)) {
@@ -101,7 +106,7 @@ export class WebVideoStreamStatsSampler implements PlayerStreamStatsSource {
             return null;
         }
 
-        const timestamp = Date.now();
+        const timestamp = performance.now();
         const previous = this.lastFrameSample;
         this.lastFrameSample = { frames: totalFrames, timestamp };
         if (!previous) {
@@ -110,7 +115,7 @@ export class WebVideoStreamStatsSampler implements PlayerStreamStatsSource {
 
         const elapsedSeconds = (timestamp - previous.timestamp) / 1000;
         const frameDelta = totalFrames - previous.frames;
-        if (elapsedSeconds < MIN_FPS_SAMPLE_SECONDS || frameDelta <= 0) {
+        if (elapsedSeconds < MIN_FPS_SAMPLE_SECONDS || frameDelta < 0) {
             return null;
         }
         return frameDelta / elapsedSeconds;

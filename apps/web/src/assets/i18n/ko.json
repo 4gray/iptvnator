@@ -599,6 +599,8 @@
             "STREAM_INFO": "스트림 정보",
             "STATS_RESOLUTION": "해상도",
             "STATS_FRAME_RATE": "프레임 속도",
+            "STATS_NOMINAL_FRAME_RATE": "소스 프레임 레이트",
+            "STATS_STREAM_BITRATE": "스트림 비트레이트",
             "STATS_VIDEO": "비디오",
             "STATS_AUDIO": "오디오",
             "STATS_AUDIO_CHANNELS": "채널",

@@ -599,6 +599,8 @@
             "STREAM_INFO": "Сведения о потоке",
             "STATS_RESOLUTION": "Разрешение",
             "STATS_FRAME_RATE": "Частота кадров",
+            "STATS_NOMINAL_FRAME_RATE": "Заявленная частота",
+            "STATS_STREAM_BITRATE": "Общий битрейт",
             "STATS_VIDEO": "Видео",
             "STATS_AUDIO": "Аудио",
             "STATS_AUDIO_CHANNELS": "Каналы",

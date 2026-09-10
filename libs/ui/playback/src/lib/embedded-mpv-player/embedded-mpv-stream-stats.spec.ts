@@ -49,6 +49,8 @@ describe('toPlayerStreamStats', () => {
             width: 1920,
             height: 1080,
             fps: 50.04,
+            nominalFps: null,
+            streamBitrateBps: null,
             videoBitrateBps: 6_200_000,
             audioBitrateBps: 192_000,
             videoCodec: 'h264',

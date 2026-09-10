@@ -1083,6 +1083,9 @@ app as a real argument, so it is not an option.
   dock does not mount the shared controls). See
   `docs/architecture/player-controls-contract.md` ("Stream info popover") and
   `docs/architecture/embedded-mpv-native.md` ("Stream Stats Properties").
+  Web FPS excludes dropped frames and uses a fresh measurement window on open;
+  nominal FPS and aggregate rendition bitrate have separate rows. Unknown
+  video bitrate is never filled with aggregate bandwidth.
 - External players: MPV, VLC (via IPC to Electron backend)
 - Display sleep during playback: `PlaybackKeepAwakeService`
   (`apps/web/src/app/services/playback-keep-awake.service.ts`) watches every
