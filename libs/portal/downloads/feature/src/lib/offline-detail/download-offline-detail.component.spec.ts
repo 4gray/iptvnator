@@ -1072,7 +1072,7 @@ describe('DownloadOfflineDetailComponent', () => {
 
             (
                 (fixture.nativeElement as HTMLElement).querySelector(
-                    '.hero__back-button'
+                    '.shell__back-button'
                 ) as HTMLButtonElement
             ).click();
             await fixture.whenStable();
@@ -1092,7 +1092,7 @@ describe('DownloadOfflineDetailComponent', () => {
 
         (
             (fixture.nativeElement as HTMLElement).querySelector(
-                '.hero__back-button'
+                '.shell__back-button'
             ) as HTMLButtonElement
         ).click();
         await fixture.whenStable();

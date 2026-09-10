@@ -1400,5 +1400,66 @@ for (const theme of ['light', 'dark']) {
                 .poll(() => shell.evaluate((el) => el.scrollTop))
                 .toBeGreaterThan(0);
         });
+
+        test(`@xtream sticky detail Back ${section} (${theme})`, async ({
+            page,
+        }, testInfo) => {
+            await page.setViewportSize({ width: 1200, height: 540 });
+            await addXtreamPortal(page);
+            await page
+                .getByRole('link', { name: section, exact: true })
+                .click();
+            await page.locator('app-grid-list mat-card').first().click();
+            const shell = page.locator('app-portal-detail-shell');
+            await expect(
+                shell.getByRole('heading', { level: 1 })
+            ).toBeVisible();
+            await shell.focus();
+            await page.evaluate(
+                (dark) => document.body.classList.toggle('dark-theme', dark),
+                theme === 'dark'
+            );
+            const back = shell.getByRole('button', {
+                name: 'Back',
+                exact: true,
+            });
+            await expect(back).toBeVisible();
+            const backOffset = () =>
+                back.evaluate((el) => {
+                    const owner = el.closest('app-portal-detail-shell');
+                    return owner
+                        ? el.getBoundingClientRect().top -
+                              owner.getBoundingClientRect().top
+                        : NaN;
+                });
+            await expect.poll(backOffset).toBeCloseTo(16, 0);
+            await page.keyboard.press('End');
+            await expect
+                .poll(() => shell.evaluate((el) => el.scrollTop))
+                .toBeGreaterThan(0);
+            await waitForScrollIdle(shell);
+            await expect.poll(backOffset).toBeCloseTo(16, 0);
+            await expect(back).toBeInViewport();
+            await shell.screenshot({
+                path: testInfo.outputPath(
+                    `sticky-back-${section}-${theme}.png`
+                ),
+            });
+            await back.click();
+            await expect(shell).toHaveCount(0);
+            await page.locator('app-grid-list mat-card').first().click();
+            await expect(
+                shell.getByRole('heading', { level: 1 })
+            ).toBeVisible();
+            await shell.focus();
+            await page.keyboard.press('End');
+            // Hover/focus must not make a tooltip consume the advertised Esc.
+            await page.clock.install();
+            await back.focus();
+            await back.hover();
+            await page.clock.runFor(500);
+            await page.keyboard.press('Escape');
+            await expect(shell).toHaveCount(0);
+        });
     }
 }

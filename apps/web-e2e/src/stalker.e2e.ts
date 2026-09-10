@@ -1218,6 +1218,15 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`
     );
+    // The menu owns the first Escape; inline Stalker detail owns the next.
+    const detailUrl = page.url();
+    await page.keyboard.press('Escape');
+    await expect(seriesToggle).toBeHidden();
+    await menuTrigger.focus();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('app-portal-detail-shell')).toHaveCount(0);
+    await expect(page).toHaveURL(detailUrl);
+    await expect(card).toBeVisible();
 });
 
 test('@stalker series — seasons load for a series item', async ({

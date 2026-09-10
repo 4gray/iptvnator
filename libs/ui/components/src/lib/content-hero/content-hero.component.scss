@@ -57,39 +57,6 @@
         --surface-bg
     ); // Solid background prevents any bleed-through
 
-    // Floating back button over backdrop
-    &__back-button {
-        position: absolute;
-        top: 16px;
-        left: 16px;
-        z-index: 10;
-        app-region: no-drag;
-        -webkit-app-region: no-drag;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(8px);
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        color: #fff;
-
-        &:hover {
-            background: rgba(0, 0, 0, 0.7);
-            transform: scale(1.05);
-        }
-
-        mat-icon {
-            font-size: 24px;
-            width: 24px;
-            height: 24px;
-        }
-    }
-
     // Backdrop image layer - fixed at top, never repeats
     &__backdrop {
         position: absolute;

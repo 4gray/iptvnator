@@ -1,3 +1,23 @@
+@if (backAvailable() || isWatch()) {
+    @let label =
+        isWatch()
+            ? ('PORTALS.CLOSE_PLAYER' | translate)
+            : backLabel() || ('BACK' | translate);
+    <div class="shell__navigation">
+        <button
+            #backButton
+            class="shell__back-button"
+            type="button"
+            [attr.aria-label]="label"
+            aria-keyshortcuts="Escape"
+            [title]="label + ' (Esc)'"
+            (click)="onBack()"
+        >
+            <mat-icon aria-hidden="true">arrow_back</mat-icon>
+        </button>
+    </div>
+}
+
 <!-- Hero (browse state) — collapses when playback is active -->
 <div class="shell__hero" [class.shell__hero--collapsed]="isWatch()">
     <div class="shell__hero-inner">
@@ -8,8 +28,6 @@
             [backdropUrl]="backdropUrl()"
             [isLoading]="isLoading()"
             [errorMessage]="errorMessage()"
-            [backLabel]="backLabel()"
-            (backClicked)="backClicked.emit()"
         >
             <ng-container hero-tags>
                 @if (tagsTemplate(); as tags) {
