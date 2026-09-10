@@ -71,7 +71,10 @@ export class WebVideoStreamStatsSampler implements PlayerStreamStatsSource {
         const engine = this.getEngineStats() ?? {};
         const quality = readPlaybackQuality(video);
         const measuredFps = this.measureFrameRate(
-            video.paused || video.ended || video.readyState < 2 || !quality
+            video.paused ||
+                video.ended ||
+                !quality ||
+                (video.readyState < 2 && quality.totalVideoFrames === 0)
                 ? undefined
                 : quality.totalVideoFrames - quality.droppedVideoFrames
         );
@@ -97,7 +100,7 @@ export class WebVideoStreamStatsSampler implements PlayerStreamStatsSource {
 
     /**
      * Presented frames per wall-clock second. A stall is a measured zero;
-     * paused/loading playback has no measurement window. A decreasing counter
+     * paused/initial loading playback has no measurement window. A decreasing counter
      * starts a fresh baseline after a source reset.
      */
     private measureFrameRate(totalFrames: number | undefined): number | null {

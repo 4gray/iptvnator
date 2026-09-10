@@ -360,12 +360,9 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     ]);
                 },
             };
+            // mpv uses its built-in demuxer name "mkv" for WebM.
             for (const [streamUrl, videoCodec, container] of [
-                [
-                    alternateMedia.url,
-                    'vp8',
-                    expect.stringContaining('matroska'),
-                ],
+                [alternateMedia.url, 'vp8', 'mkv'],
                 [
                     mediaServer.url,
                     originalStats.videoCodec,

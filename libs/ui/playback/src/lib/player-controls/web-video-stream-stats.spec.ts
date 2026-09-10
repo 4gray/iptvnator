@@ -152,6 +152,22 @@ describe('WebVideoStreamStatsSampler', () => {
         expect(sampler.sample()).toMatchObject({ fps: 0, nominalFps: 30 });
     });
 
+    it('keeps measuring a started stream when buffer starvation drops readiness to metadata', () => {
+        jest.useFakeTimers();
+        const options: FakeVideoOptions = {
+            readyState: 4,
+            quality: { totalVideoFrames: 100, droppedVideoFrames: 0 },
+        };
+        const sampler = new WebVideoStreamStatsSampler(
+            () => createVideo(options),
+            () => ({ nominalFps: 30 })
+        );
+        sampler.sample();
+        options.readyState = 1;
+        jest.advanceTimersByTime(1000);
+        expect(sampler.sample()).toMatchObject({ fps: 0, nominalFps: 30 });
+    });
+
     it('does not measure before media data arrives or across paused samples', () => {
         jest.useFakeTimers();
         let options: FakeVideoOptions = { readyState: 0 };

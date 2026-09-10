@@ -339,7 +339,9 @@ Per engine:
   rendition. Presented frames are `totalVideoFrames - droppedVideoFrames`; the
   untouched total remains the denominator for the drop percentage. FPS uses a
   monotonic wall clock, reports zero on a stall, and is unknown before the
-  second sample or while paused/loading. The manifest rate is a separate
+  second sample or while paused/initially loading. Once frames have arrived,
+  readiness falling to `HAVE_METADATA` during starvation retains the measurement
+  window so the stall still reports zero. The manifest rate is a separate
   `nominalFps` row and never fills in for measured FPS. Aggregate HLS/VHS and
   Shaka rendition bandwidth goes into `streamBitrateBps`; video/audio rates
   remain unknown unless separately reported. HLS fragment `realBitrate` is not
