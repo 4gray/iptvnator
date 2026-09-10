@@ -16,12 +16,8 @@ describe('Embedded MPV native source recording invariants', () => {
     const widCommonSource = readSource(
         '../../../native/src/embedded_mpv_wid_common.h'
     );
-    const win32Source = readSource(
-        '../../../native/src/embedded_mpv_win32.cc'
-    );
-    const linuxSource = readSource(
-        '../../../native/src/embedded_mpv_linux.cc'
-    );
+    const win32Source = readSource('../../../native/src/embedded_mpv_win32.cc');
+    const linuxSource = readSource('../../../native/src/embedded_mpv_linux.cc');
     const buildScriptSource = readSource('../../../build-embedded-mpv.js');
     const buildAndMakeWorkflowSource = readSource(
         '../../../../../.github/workflows/build-and-make.yaml'
@@ -255,6 +251,80 @@ describe('Embedded MPV native source recording invariants', () => {
             widCommonSource.match(/snapshot\.clearStreamStats\(\);/g)
         ).toHaveLength(1);
         expect(frameHelperSource).toContain('s.clearStreamStats();');
+    });
+
+    it('clears frame-copy dimensions and publishes the reset through merged snapshots', () => {
+        const reset = sourceFunctionBody(
+            frameHelperSource,
+            'void clearStreamStats()',
+            'reset'
+        );
+        expect(reset).toContain('videoWidth = 0;');
+        expect(reset).toContain('videoHeight = 0;');
+        const snapshot = sourceFunctionBody(
+            frameHelperSource,
+            'std::string composeSnapshotLocked()',
+            'snapshot'
+        );
+        expect(snapshot).toContain(
+            'writer.num("videoWidth", (double)s.videoWidth);'
+        );
+        expect(snapshot).toContain(
+            'writer.num("videoHeight", (double)s.videoHeight);'
+        );
+        expect(snapshot).not.toContain('if (s.videoWidth > 0');
+    });
+
+    it('restores unknown sentinels when observed diagnostics become unavailable', () => {
+        const fields = [
+            ['estimated-vf-fps', 'fps = 0'],
+            ['video-bitrate', 'videoBitrate = 0'],
+            ['audio-bitrate', 'audioBitrate = 0'],
+            ['video-format', 'videoCodec.clear()'],
+            ['audio-codec-name', 'audioCodec.clear()'],
+            ['audio-params/channels', 'audioChannels.clear()'],
+            ['audio-params/samplerate', 'audioSampleRate = 0'],
+            ['file-format', 'container.clear()'],
+            ['demuxer-cache-duration', 'cacheDuration = -1'],
+            ['frame-drop-count', 'droppedFrames = -1'],
+            ['decoder-frame-drop-count', 'decoderDroppedFrames = -1'],
+        ];
+        for (const source of [
+            nativeSource,
+            widCommonSource,
+            frameHelperSource,
+        ]) {
+            const reset = sourceFunctionBody(
+                source,
+                'bool clearUnavailableStreamProperty(',
+                'unavailable property'
+            );
+            for (const [property, assignment] of fields) {
+                expect(reset).toContain(
+                    `name == "${property}") { ${assignment}; }`
+                );
+            }
+            const event = source.indexOf('MPV_EVENT_PROPERTY_CHANGE');
+            const handler =
+                source === frameHelperSource
+                    ? sourceFunctionBody(
+                          source,
+                          'void handlePropertyChange(',
+                          'property handler'
+                      )
+                    : source.slice(
+                          event,
+                          source.indexOf('case MPV_EVENT_', event + 5)
+                      );
+            expect(handler).toContain('MPV_FORMAT_NONE');
+            expect(handler).toContain('clearUnavailableStreamProperty(');
+            const dataGuard = handler.indexOf('!property->data');
+            if (dataGuard >= 0) {
+                expect(handler.indexOf('MPV_FORMAT_NONE')).toBeLessThan(
+                    dataGuard
+                );
+            }
+        }
     });
 
     it('maps keep-open eof-reached property changes to an ended session status', () => {

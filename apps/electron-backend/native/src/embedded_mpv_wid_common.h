@@ -141,6 +141,23 @@ struct SessionSnapshot {
     int64_t droppedFrames = -1;        /* frame-drop-count; <0 = unknown */
     int64_t decoderDroppedFrames = -1;
 
+    // MPV_FORMAT_NONE revokes just this observation, not unrelated values.
+    bool clearUnavailableStreamProperty(const std::string& name) {
+        if (name == "estimated-vf-fps") { fps = 0; }
+        else if (name == "video-bitrate") { videoBitrate = 0; }
+        else if (name == "audio-bitrate") { audioBitrate = 0; }
+        else if (name == "video-format") { videoCodec.clear(); }
+        else if (name == "audio-codec-name") { audioCodec.clear(); }
+        else if (name == "audio-params/channels") { audioChannels.clear(); }
+        else if (name == "audio-params/samplerate") { audioSampleRate = 0; }
+        else if (name == "file-format") { container.clear(); }
+        else if (name == "demuxer-cache-duration") { cacheDuration = -1; }
+        else if (name == "frame-drop-count") { droppedFrames = -1; }
+        else if (name == "decoder-frame-drop-count") { decoderDroppedFrames = -1; }
+        else { return false; }
+        return true;
+    }
+
     /** Every new file starts from "nothing reported yet": the popover must
      *  never show the previous stream's codec or bitrate. Kept next to the
      *  fields so adding one cannot forget the reset. */
@@ -1516,10 +1533,17 @@ void runEventLoop(std::shared_ptr<Session> session)
             case MPV_EVENT_PROPERTY_CHANGE: {
                 const auto* property =
                     static_cast<mpv_event_property*>(event->data);
-                if (!property || !property->name || !property->data) {
+                if (!property || !property->name) {
                     break;
                 }
                 const std::string name(property->name);
+                if (property->format == MPV_FORMAT_NONE) {
+                    session->snapshot.clearUnavailableStreamProperty(name);
+                    break;
+                }
+                if (!property->data) {
+                    break;
+                }
                 if (name == "time-pos" && property->format == MPV_FORMAT_DOUBLE) {
                     session->snapshot.positionSeconds =
                         *static_cast<double*>(property->data);

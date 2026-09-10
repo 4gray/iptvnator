@@ -2,7 +2,10 @@ import assert = require('node:assert/strict');
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, it } from 'node:test';
-import { isMeaningfulNativePlaybackSnapshot } from './embedded-mpv-frame-copy-packaged-fixtures';
+import {
+    createWavFixture,
+    isMeaningfulNativePlaybackSnapshot,
+} from './embedded-mpv-frame-copy-packaged-fixtures';
 import './embedded-mpv-frame-copy-packaged-filesystem.tests';
 import { resolvePackagedElectronLaunchArgs } from './electron-test-fixtures';
 import packagedPlaywrightConfig from '../playwright.packaged.config';
@@ -22,6 +25,20 @@ describe('packaged Electron launch arguments', () => {
             resolvePackagedElectronLaunchArgs(() => 0),
             ['--ignore-gpu-blocklist', '--no-sandbox']
         );
+    });
+});
+
+describe('audio-only MPV fixture', () => {
+    it('declares the full mono PCM body and sample rate', () => {
+        const wav = createWavFixture();
+        assert.equal(wav.toString('ascii', 0, 4), 'RIFF');
+        assert.equal(wav.toString('ascii', 8, 16), 'WAVEfmt ');
+        assert.equal(wav.readUInt32LE(4), wav.length - 8);
+        assert.equal(wav.readUInt16LE(20), 1);
+        assert.equal(wav.readUInt16LE(22), 1);
+        assert.equal(wav.readUInt32LE(24), 8000);
+        assert.equal(wav.readUInt32LE(40), wav.length - 44);
+        assert.equal(wav.length - 44, 8000 * 2 * 30);
     });
 });
 

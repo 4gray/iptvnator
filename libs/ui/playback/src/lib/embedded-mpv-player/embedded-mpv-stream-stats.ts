@@ -24,8 +24,8 @@ export function toPlayerStreamStats(
     // stat then fails to compile here until mpv's source for it is decided,
     // instead of silently reporting null forever.
     const mapped: PlayerStreamStats = {
-        width: finiteOrNull(session.videoWidth),
-        height: finiteOrNull(session.videoHeight),
+        width: positiveOrNull(session.videoWidth),
+        height: positiveOrNull(session.videoHeight),
         fps: finiteOrNull(stats?.fps),
         nominalFps: null,
         streamBitrateBps: null,
@@ -52,4 +52,9 @@ function finiteOrNull(value: number | undefined): number | null {
 
 function nonEmptyOrNull(value: string | undefined): string | null {
     return value?.trim() ? value.trim() : null;
+}
+
+function positiveOrNull(value: number | undefined): number | null {
+    const finite = finiteOrNull(value);
+    return finite !== null && finite > 0 ? finite : null;
 }

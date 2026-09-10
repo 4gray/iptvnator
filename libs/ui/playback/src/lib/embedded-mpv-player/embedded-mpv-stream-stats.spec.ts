@@ -86,6 +86,18 @@ describe('toPlayerStreamStats', () => {
         expect(toPlayerStreamStats(null)).toBeNull();
     });
 
+    it('hides the info capability after dimensions reset to unknown', () => {
+        expect(
+            toPlayerStreamStats(
+                createSession({
+                    videoWidth: 0,
+                    videoHeight: 0,
+                    stats: {},
+                })
+            )
+        ).toBeNull();
+    });
+
     it('drops blank codec strings instead of rendering empty rows', () => {
         const stats = toPlayerStreamStats(
             createSession({

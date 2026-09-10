@@ -62,6 +62,26 @@ function createY4mFixture(): Buffer {
     return Buffer.concat(chunks);
 }
 
+/** Silent mono PCM lets the real MPV smoke revoke audio observations. */
+export function createWavFixture(): Buffer {
+    const sampleRate = 8000;
+    const dataBytes = sampleRate * 2 * 30;
+    const body = Buffer.alloc(44 + dataBytes);
+    body.write('RIFF', 0);
+    body.writeUInt32LE(36 + dataBytes, 4);
+    body.write('WAVEfmt ', 8);
+    body.writeUInt32LE(16, 16);
+    body.writeUInt16LE(1, 20); // PCM
+    body.writeUInt16LE(1, 22); // mono
+    body.writeUInt32LE(sampleRate, 24);
+    body.writeUInt32LE(sampleRate * 2, 28);
+    body.writeUInt16LE(2, 32);
+    body.writeUInt16LE(16, 34);
+    body.write('data', 36);
+    body.writeUInt32LE(dataBytes, 40);
+    return body;
+}
+
 async function listen(server: Server): Promise<void> {
     await new Promise<void>((resolvePromise, rejectPromise) => {
         const onError = (error: Error) => {

@@ -75,10 +75,31 @@ struct SnapshotState {
     int64_t droppedFrames = -1;     /* frame-drop-count; <0 = unknown */
     int64_t decoderDroppedFrames = -1;
 
+    // MPV_FORMAT_NONE revokes just this observation, not unrelated values.
+    bool clearUnavailableStreamProperty(const std::string& name) {
+        if (name == "estimated-vf-fps") { fps = 0; }
+        else if (name == "video-bitrate") { videoBitrate = 0; }
+        else if (name == "audio-bitrate") { audioBitrate = 0; }
+        else if (name == "video-format") { videoCodec.clear(); }
+        else if (name == "audio-codec-name") { audioCodec.clear(); }
+        else if (name == "audio-params/channels") { audioChannels.clear(); }
+        else if (name == "audio-params/samplerate") { audioSampleRate = 0; }
+        else if (name == "file-format") { container.clear(); }
+        else if (name == "demuxer-cache-duration") { cacheDuration = -1; }
+        else if (name == "frame-drop-count") { droppedFrames = -1; }
+        else if (name == "decoder-frame-drop-count") { decoderDroppedFrames = -1; }
+        else if (name == "dwidth") { videoWidth = 0; }
+        else if (name == "dheight") { videoHeight = 0; }
+        else { return false; }
+        return true;
+    }
+
     /* Every new file starts from "nothing reported yet": the popover must
      * never show the previous stream's codec or bitrate. Kept next to the
      * fields so adding one cannot forget the reset. */
     void clearStreamStats() {
+        videoWidth = 0;
+        videoHeight = 0;
         fps = 0;
         videoBitrate = 0;
         audioBitrate = 0;
@@ -216,10 +237,9 @@ std::string composeSnapshotLocked() {
     writer.str("event", "snapshot");
     writer.str("status", s.status);
     writer.num("positionSeconds", std::max(0.0, s.positionSeconds));
-    if (s.videoWidth > 0 && s.videoHeight > 0) {
-        writer.num("videoWidth", (double)s.videoWidth);
-        writer.num("videoHeight", (double)s.videoHeight);
-    }
+    // Snapshots merge in main; publish zero so an old size cannot survive.
+    writer.num("videoWidth", (double)s.videoWidth);
+    writer.num("videoHeight", (double)s.videoHeight);
     if (s.durationSeconds >= 0) {
         writer.num("durationSeconds", s.durationSeconds);
     } else {
@@ -376,6 +396,16 @@ bool parseTrackSelection(const char* value, int64_t& out) {
 void handlePropertyChange(const mpv_event_property& property) {
     const std::string name = property.name ? property.name : "";
     SnapshotState& s = g_state.snapshot;
+
+    if (property.format == MPV_FORMAT_NONE) {
+        if (s.clearUnavailableStreamProperty(name)) {
+            if (name == "dwidth" || name == "dheight") {
+                applyRenderSizeLocked();
+            }
+            markDirtyLocked();
+        }
+        return;
+    }
 
     if (name == "time-pos" && property.format == MPV_FORMAT_DOUBLE &&
         property.data) {

@@ -350,7 +350,9 @@ Per engine:
   A native `<video src>` source contributes nothing extra.
 - **Embedded MPV**: the numbers ride along on the session snapshot
   (`EmbeddedMpvSession.stats`), so `sample()` is a pure read of the current
-  snapshot. This reaches the user under the **frame-copy engine only** — that
+  snapshot. A new file clears the old dimensions, and unavailable MPV properties
+  clear their previous values; zero dimensions are unknown. This reaches the
+  user under the **frame-copy engine only** — that
   is the one engine that mounts `app-player-controls`; the native-view dock has
   no info affordance, though its backends plumb the properties for parity. See
   [embedded-mpv-native.md](./embedded-mpv-native.md#stream-stats-properties).

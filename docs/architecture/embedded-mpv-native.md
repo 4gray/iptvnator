@@ -547,7 +547,12 @@ re-adding the polling fails CI.
 
 Each backend that collects stats clears these fields when a new file starts
 (`MPV_EVENT_START_FILE`), so a channel switch can never leave the previous
-stream's codec or bitrate on screen. The frame-copy helper emits its `stats`
+stream's codec or bitrate on screen. Frame-copy also clears `dwidth`/`dheight`
+and publishes both dimensions as zero until the new file reports them; omission
+would retain the previous size in the merged snapshot. Zero dimensions map to
+unknown in the controls. An observed `MPV_FORMAT_NONE` restores only that
+property's unknown sentinel, including when an audio/video track disappears
+within the same file. The frame-copy helper emits its `stats`
 object on **every** snapshot, empty object included: the adapter merges helper
 snapshots field by field, so an omitted key would survive the switch that the
 clear was meant to perform. macOS and Windows build a fresh snapshot object per
@@ -559,7 +564,9 @@ does not report these properties at all.
 
 The packaged Linux frame-copy smoke verifies real diagnostic snapshots and
 switches Y4M → WebM → Y4M in the same session, checking the reported codec and
-container on each source. This complements renderer mapping/unit coverage with
+container on each source. It then loads audio-only PCM to verify dimensions
+are cleared, and disables the audio track to verify unavailable observations
+remove codec/channel/sample-rate rows without a new-file reset. This complements renderer mapping/unit coverage with
 the actual libmpv → helper JSON → main/preload path.
 
 ## Session End And Series Navigation

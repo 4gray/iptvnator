@@ -12,6 +12,7 @@ import {
     cleanupPackagedFrameCopySmoke,
     closeAndWaitForExit,
     createLocalMediaServer,
+    createWavFixture,
     getEmbeddedMpvSupport,
     getLatestSession,
     installEmbeddedMpvSessionCapture,
@@ -121,6 +122,10 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
             await installFrameCanvasAndSessionCapture(launchedFrameCopyApp);
             const created = await launchedFrameCopyApp.mainWindow.evaluate(
                 async () => {
+                    // Decode audio without requiring a sound device on CI.
+                    await window.electron.updateSettings({
+                        embeddedMpvExtraOptions: 'ao=null',
+                    });
                     return window.electron.createEmbeddedMpvSession(
                         { x: 0, y: 0, width: 320, height: 180 },
                         'Packaged frame-copy smoke',
@@ -360,6 +365,18 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     ]);
                 },
             };
+            const audioMedia = await createLocalMediaServer({
+                body: createWavFixture(),
+                resourcePath: '/stream-stats-audio.wav',
+                contentType: 'audio/wav',
+            });
+            const videoMedia = media;
+            media = {
+                url: videoMedia.url,
+                close: async () => {
+                    await Promise.all([videoMedia.close(), audioMedia.close()]);
+                },
+            };
             // mpv uses its built-in demuxer name "mkv" for WebM.
             for (const [streamUrl, videoCodec, container] of [
                 [alternateMedia.url, 'vp8', 'mkv'],
@@ -393,6 +410,56 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                         stats: { videoCodec, container },
                     });
             }
+
+            // Audio-only replacements must not retain the previous video size.
+            await launchedFrameCopyApp.mainWindow.evaluate(
+                async ({ sessionId, streamUrl }) => {
+                    await window.electron.loadEmbeddedMpvPlayback(sessionId, {
+                        streamUrl,
+                        title: 'Audio-only statistics',
+                        isLive: false,
+                    });
+                },
+                { sessionId: created.id, streamUrl: audioMedia.url }
+            );
+            await expect
+                .poll(
+                    () => getLatestSession(launchedFrameCopyApp, created.id),
+                    { timeout: 15000 }
+                )
+                .toMatchObject({
+                    streamUrl: audioMedia.url,
+                    videoWidth: 0,
+                    videoHeight: 0,
+                    stats: {
+                        audioCodec: 'pcm_s16le',
+                        audioChannels: expect.any(String),
+                        audioSampleRateHz: 8000,
+                    },
+                });
+            // Revoking the only audio track emits MPV_FORMAT_NONE without a
+            // START_FILE reset. Previously these values stayed cached forever.
+            await launchedFrameCopyApp.mainWindow.evaluate(
+                async (sessionId) => {
+                    await window.electron.setEmbeddedMpvAudioTrack(
+                        sessionId,
+                        -1
+                    );
+                },
+                created.id
+            );
+            await expect
+                .poll(async () => {
+                    const stats = (
+                        await getLatestSession(launchedFrameCopyApp, created.id)
+                    )?.stats;
+                    return {
+                        codec: stats?.audioCodec ?? null,
+                        channels: stats?.audioChannels ?? null,
+                        sampleRate: stats?.audioSampleRateHz ?? null,
+                    };
+                })
+                .toEqual({ codec: null, channels: null, sampleRate: null });
 
             await launchedFrameCopyApp.mainWindow.evaluate(
                 async (sessionId) => {
