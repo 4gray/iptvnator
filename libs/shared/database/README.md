@@ -66,7 +66,8 @@ The #1580 index-ordering fix is included in 0.24 through PR #1550.
 `src/lib/connection-upgrades.spec.ts` exercises `initDatabase()` with real
 SQLite under the Electron runtime, using fresh-install schema snapshots from
 tags 0.19–0.23 and a fresh current database. The `epg_channel_id` column is absent
-in 0.19, present from 0.20, and indexed from 0.23. Each case checks preserved user
+in 0.19, present from 0.20, and indexed from 0.23. Each case checks current Drizzle
+tables, columns/types, and named indexes/uniqueness, as well as preserved user
 rows, foreign keys, database integrity, index availability, and repeated startup;
 an existing EPG index must keep its definition and root page. Snapshots live in
 `src/lib/testing/fixtures/` and are independent of the current schema, so moving

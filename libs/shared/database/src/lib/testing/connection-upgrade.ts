@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import Database from 'better-sqlite3';
+import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { closeDatabase, getDatabasePath, initDatabase } from '../connection';
+import * as currentSchema from '../schema';
 
 const tables = [
     'playlists',
@@ -54,6 +56,38 @@ function epgIndex(sqlite: Database.Database) {
         .get();
 }
 
+function verifyCurrentSchema(sqlite: Database.Database) {
+    for (const table of Object.values(currentSchema)) {
+        const { name, columns, indexes } = getTableConfig(table);
+        const actualColumns = sqlite.pragma(`table_info(${name})`) as {
+            name: string;
+            type: string;
+        }[];
+        assert(actualColumns.length > 0, `Missing current table: ${name}`);
+        for (const column of columns) {
+            const actual = actualColumns.find(
+                (item) => item.name === column.name
+            );
+            assert(actual, `Missing current column: ${name}.${column.name}`);
+            assert.equal(
+                actual.type.toLowerCase(),
+                column.getSQLType().toLowerCase()
+            );
+        }
+        const actualIndexes = sqlite.pragma(`index_list(${name})`) as {
+            name: string;
+            unique: number;
+        }[];
+        for (const { config } of indexes) {
+            const actual = actualIndexes.find(
+                (item) => item.name === config.name
+            );
+            assert(actual, `Missing current index: ${config.name}`);
+            assert.equal(actual.unique, Number(config.unique), config.name);
+        }
+    }
+}
+
 async function main() {
     const fixture = process.argv[2];
     assert(
@@ -83,6 +117,7 @@ async function main() {
             await initDatabase();
             const sqlite = new Database(databasePath, { readonly: true });
             try {
+                verifyCurrentSchema(sqlite);
                 for (const { query, rows } of before) {
                     assert.deepEqual(sqlite.prepare(query).all(), rows, query);
                 }
