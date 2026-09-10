@@ -9,6 +9,15 @@
     </div>
 }
 
+@if (showTopScrim()) {
+    <div
+        class="player-controls__top-scrim"
+        [class.player-controls__top-scrim--visible]="controlsAreVisible()"
+        data-test-id="player-controls-top-scrim"
+        aria-hidden="true"
+    ></div>
+}
+
 @if (fullscreenMediaTitle(); as mediaTitle) {
     <div
         class="player-controls__title"
@@ -26,18 +35,79 @@
     </div>
 }
 
+@if (showControls() && capabilities().streamStats) {
+    <div
+        class="player-controls__corner"
+        [class.player-controls__corner--visible]="controlsAreVisible()"
+        (pointerenter)="chrome.onPointerEnter()"
+        (pointerleave)="chrome.onPointerLeave()"
+        (pointerdown)="chrome.onPointerDown()"
+        (click)="chrome.onClick($event)"
+        (keydown)="chrome.onKeyDown()"
+        (focusin)="chrome.onFocusIn($event)"
+        (focusout)="chrome.onFocusOut($event)"
+    >
+        <div class="player-controls__popover-anchor">
+            <button
+                mat-icon-button
+                type="button"
+                class="player-controls__button"
+                data-test-id="player-controls-stream-info-button"
+                (click)="toggleMenu('stats')"
+                [attr.aria-expanded]="menus.statsOpen()"
+                [attr.aria-label]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
+                [matTooltip]="'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate"
+                matTooltipPosition="below"
+            >
+                <mat-icon>info_outline</mat-icon>
+            </button>
+            @if (menus.statsOpen()) {
+                <div
+                    class="player-controls__panel player-controls__stats-popover"
+                    role="dialog"
+                    data-test-id="player-controls-stream-info-panel"
+                    [attr.aria-label]="
+                        'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate
+                    "
+                >
+                    <div class="player-controls__menu-title">
+                        {{ 'EMBEDDED_MPV.PLAYER.STREAM_INFO' | translate }}
+                    </div>
+                    @if (streamStats.hasRows()) {
+                        <dl class="player-controls__stats-list">
+                            @for (row of streamStats.rows(); track row.labelKey) {
+                                <div class="player-controls__stats-row">
+                                    <dt>{{ row.labelKey | translate }}</dt>
+                                    <dd>{{ row.value }}</dd>
+                                </div>
+                            }
+                        </dl>
+                    } @else {
+                        <div class="player-controls__stats-empty">
+                            {{
+                                'EMBEDDED_MPV.PLAYER.STATS_UNAVAILABLE'
+                                    | translate
+                            }}
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
 @if (showControls()) {
     <div
         #controlsBar
         class="player-controls__bar"
         [class.player-controls__bar--visible]="controlsAreVisible()"
-        (pointerenter)="onBarPointerEnter()"
-        (pointerleave)="onBarPointerLeave()"
-        (pointerdown)="onBarPointerDown()"
-        (click)="onBarClick($event)"
-        (keydown)="onBarKeyDown()"
-        (focusin)="onBarFocusIn($event)"
-        (focusout)="onBarFocusOut($event)"
+        (pointerenter)="chrome.onPointerEnter()"
+        (pointerleave)="chrome.onPointerLeave()"
+        (pointerdown)="chrome.onPointerDown()"
+        (click)="chrome.onClick($event)"
+        (keydown)="chrome.onKeyDown()"
+        (focusin)="chrome.onFocusIn($event)"
+        (focusout)="chrome.onFocusOut($event)"
     >
         <div class="player-controls__transport">
             <button

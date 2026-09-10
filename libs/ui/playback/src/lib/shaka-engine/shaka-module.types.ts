@@ -36,6 +36,16 @@ export interface ShakaVariantTrackLike {
      * so quality filtering pins to it rather than to `language`.
      */
     audioId?: number | null;
+    // Descriptive fields the stream-info popover reads. Optional because
+    // Shaka leaves them null for streams whose manifest does not declare them.
+    videoCodec?: string | null;
+    audioCodec?: string | null;
+    videoBandwidth?: number | null;
+    audioBandwidth?: number | null;
+    channelsCount?: number | null;
+    audioSamplingRate?: number | null;
+    frameRate?: number | null;
+    mimeType?: string | null;
 }
 
 export type { ShakaErrorLike } from '@iptvnator/playback/util';

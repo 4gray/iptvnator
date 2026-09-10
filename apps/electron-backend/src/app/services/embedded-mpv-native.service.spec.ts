@@ -83,6 +83,12 @@ interface MockSnapshot {
     streamUrl: string;
     audioTracks?: never[];
     selectedAudioTrackId?: number | null;
+    stats?: {
+        fps?: number;
+        videoBitrateBps?: number;
+        videoCodec?: string;
+        droppedFrames?: number;
+    };
     recording?: {
         active: boolean;
         targetPath?: string;
@@ -551,6 +557,38 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             // dispatches to the adapter that owns the session.
             service.disposeSession('s-fc-bounds');
         });
+    });
+
+    it('passes engine stream stats through to the renderer session', () => {
+        startSession('s1', snapshot('playing'));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', {
+                stats: {
+                    fps: 50,
+                    videoBitrateBps: 6_000_000,
+                    videoCodec: 'h264',
+                    droppedFrames: 0,
+                },
+            })
+        );
+
+        expect(service.setVolume('s1', 1)?.stats).toEqual({
+            fps: 50,
+            videoBitrateBps: 6_000_000,
+            videoCodec: 'h264',
+            droppedFrames: 0,
+        });
+    });
+
+    it('omits the stats key entirely when the engine reports none', () => {
+        // An empty object would make the renderer render an empty popover
+        // instead of hiding the info button.
+        startSession('s1', snapshot('playing'));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', { stats: {} })
+        );
+
+        expect(service.setVolume('s1', 1)).not.toHaveProperty('stats');
     });
 
     it('seekBy forwards the delta to the addon as a relative seek and refreshes the snapshot', () => {

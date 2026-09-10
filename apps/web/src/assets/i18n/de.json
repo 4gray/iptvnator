@@ -595,7 +595,20 @@
             "SUBTITLE_COLOR_DEFAULT": "Standard",
             "SUBTITLE_COLOR_WHITE": "Weiß",
             "SUBTITLE_COLOR_YELLOW": "Gelb",
-            "SUBTITLE_COLOR_CYAN": "Cyan"
+            "SUBTITLE_COLOR_CYAN": "Cyan",
+            "STREAM_INFO": "Stream-Info",
+            "STATS_RESOLUTION": "Auflösung",
+            "STATS_FRAME_RATE": "Bildrate",
+            "STATS_NOMINAL_FRAME_RATE": "Quellbildrate",
+            "STATS_STREAM_BITRATE": "Stream-Bitrate",
+            "STATS_VIDEO": "Video",
+            "STATS_AUDIO": "Audio",
+            "STATS_AUDIO_CHANNELS": "Kanäle",
+            "STATS_SAMPLE_RATE": "Abtastrate",
+            "STATS_CONTAINER": "Container",
+            "STATS_BUFFER": "Puffer",
+            "STATS_DROPPED_FRAMES": "Verworfene Bilder",
+            "STATS_UNAVAILABLE": "Noch keine Stream-Daten"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

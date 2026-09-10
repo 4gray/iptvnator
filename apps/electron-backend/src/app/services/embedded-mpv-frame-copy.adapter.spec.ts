@@ -88,6 +88,58 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(snapshot?.streamUrl).toBe('http://stream');
     });
 
+    it('carries the helper stats object into the cached snapshot', () => {
+        const sessionId = createSession();
+        child.emitStdout({
+            event: 'snapshot',
+            status: 'playing',
+            positionSeconds: 1,
+            durationSeconds: null,
+            volume: 1,
+            streamUrl: 'http://stream',
+            stats: {
+                fps: 25,
+                videoBitrateBps: 3_500_000,
+                videoCodec: 'h264',
+                container: 'mpegts',
+                bufferedAheadSeconds: 4.5,
+                droppedFrames: 1,
+            },
+        });
+
+        expect(adapter.getSessionSnapshot(sessionId)?.stats).toEqual({
+            fps: 25,
+            videoBitrateBps: 3_500_000,
+            videoCodec: 'h264',
+            container: 'mpegts',
+            bufferedAheadSeconds: 4.5,
+            droppedFrames: 1,
+        });
+    });
+
+    it('replaces stats wholesale so a new stream drops the previous numbers', () => {
+        const sessionId = createSession();
+        child.emitStdout({
+            event: 'snapshot',
+            status: 'playing',
+            positionSeconds: 1,
+            streamUrl: 'http://stream-one',
+            stats: { videoCodec: 'h264', fps: 25 },
+        });
+        // The helper emits `stats` on every snapshot, empty included: the
+        // adapter merges field by field, so an omitted key would keep the
+        // previous channel's codec on screen after a switch.
+        child.emitStdout({
+            event: 'snapshot',
+            status: 'loading',
+            positionSeconds: 0,
+            streamUrl: 'http://stream-two',
+            stats: {},
+        });
+
+        expect(adapter.getSessionSnapshot(sessionId)?.stats).toEqual({});
+    });
+
     it('publishes shm generations through onFrameSourceChanged', () => {
         const sessionId = createSession();
         child.emitStdout({

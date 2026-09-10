@@ -210,6 +210,7 @@ describe('EmbeddedMpvControlsAdapter', () => {
             pictureInPicture: false,
             fullscreen: true,
             seriesNavigation: true,
+            streamStats: false,
         });
 
         controller.support.set(
@@ -239,7 +240,23 @@ describe('EmbeddedMpvControlsAdapter', () => {
             pictureInPicture: false,
             fullscreen: true,
             seriesNavigation: true,
+            streamStats: false,
         });
+    });
+
+    it('advertises stream stats only once mpv reports some', () => {
+        configure();
+        expect(adapter.capabilities().streamStats).toBe(false);
+        expect(adapter.streamStats.sample()).toBeNull();
+
+        controller.session.set(
+            session({ videoWidth: 1920, videoHeight: 1080, stats: { fps: 25 } })
+        );
+
+        expect(adapter.capabilities().streamStats).toBe(true);
+        expect(adapter.streamStats.sample()).toEqual(
+            expect.objectContaining({ width: 1920, height: 1080, fps: 25 })
+        );
     });
 
     it('uses semantic live detection and disables seek and series navigation for live playback', () => {

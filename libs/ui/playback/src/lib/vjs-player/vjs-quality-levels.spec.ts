@@ -10,6 +10,8 @@ class FakeQualityLevelList {
         Set<EventListenerOrEventListenerObject>
     >();
     private levels: VideoJsQualityLevel[] = [];
+    /** VHS reports the rendition on screen here; -1 until it picks one. */
+    selectedIndex = -1;
 
     readonly addEventListener = jest.fn(
         (event: string, listener: EventListenerOrEventListenerObject): void => {
@@ -265,5 +267,41 @@ describe('VjsQualityLevels', () => {
         });
         throwing.bind();
         expect(throwing.getQualityLevels()).toEqual([]);
+    });
+
+    describe('getActiveLevelStats', () => {
+        it('describes the rendition VHS reports as selected', () => {
+            const { helper, levelList } = createHarness([
+                level({ height: 1080, width: 1920, bitrate: 8_000_000 }),
+                level({ height: 720, width: 1280, bitrate: 4_000_000 }),
+            ]);
+            levelList.selectedIndex = 1;
+
+            expect(helper.getActiveLevelStats()).toEqual({
+                streamBitrateBps: 4_000_000,
+                width: 1280,
+                height: 720,
+            });
+        });
+
+        it('reports nothing while VHS has selected no rendition', () => {
+            const { helper, levelList } = createHarness([
+                level({ height: 1080, bitrate: 8_000_000 }),
+            ]);
+            levelList.selectedIndex = -1;
+
+            expect(helper.getActiveLevelStats()).toBeNull();
+        });
+
+        it('nulls out the fields a rendition does not declare', () => {
+            const { helper, levelList } = createHarness([level({})]);
+            levelList.selectedIndex = 0;
+
+            expect(helper.getActiveLevelStats()).toEqual({
+                streamBitrateBps: null,
+                width: null,
+                height: null,
+            });
+        });
     });
 });

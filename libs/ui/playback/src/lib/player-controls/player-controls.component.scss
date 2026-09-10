@@ -72,6 +72,39 @@
     }
 }
 
+// Backdrop for every piece of top chrome — the fullscreen media title and the
+// corner buttons. Without it a white-on-video icon is invisible over bright
+// footage. Deliberately one element rather than a background per consumer: two
+// overlapping gradients would darken the overlap twice.
+//
+// The stops are the bottom bar's, mirrored, so the two edges of the player read
+// as one system.
+.player-controls__top-scrim {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 1;
+    // Mirrors the bar's 48px top padding + 64px min-height.
+    height: 112px;
+    opacity: 0;
+    // Purely decorative: clicks belong to the video surface underneath.
+    pointer-events: none;
+    background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.78) 0%,
+        rgba(0, 0, 0, 0.45) 45%,
+        transparent 100%
+    );
+    // Fades with the controls, but does not slide: a moving scrim edge is
+    // visible against video in a way a moving control is not.
+    transition: opacity 180ms ease-out;
+}
+
+.player-controls__top-scrim--visible {
+    opacity: 1;
+}
+
 .player-controls__title {
     position: absolute;
     top: 0;
@@ -81,22 +114,21 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    // Generous bottom padding lets the scrim fall below the text and fade out.
+    // Bottom padding keeps the text inside the top scrim's opaque half.
     padding: 20px 24px 40px;
     opacity: 0;
     // Purely informative: never intercept clicks meant for the video surface.
     pointer-events: none;
     transform: translateY(-8px);
-    // Mirror of the bottom bar's scrim so the title reads over bright video.
-    background: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0.7) 0%,
-        rgba(0, 0, 0, 0.35) 55%,
-        transparent 100%
-    );
     transition:
         opacity 180ms ease-out,
         transform 200ms ease-out;
+}
+
+// Only when the corner button is actually rendered: keep the fullscreen title
+// from running underneath it (a long title ellipsizes at the full width).
+.player-controls__title:has(~ .player-controls__corner) {
+    padding-right: 64px;
 }
 
 .player-controls__title--visible {
@@ -123,6 +155,29 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+
+// Top-right corner chrome (stream-info button). It fades with the bottom bar
+// but is its own layer: the title scrim above it is click-through, so the
+// button opts back into pointer events on its own.
+.player-controls__corner {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    transition:
+        opacity 180ms ease-out,
+        transform 200ms ease-out;
+}
+
+.player-controls__corner--visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
 }
 
 .player-controls__bar {
@@ -286,7 +341,9 @@
     color: rgba(255, 255, 255, 0.38);
 }
 
-:host .player-controls__bar :is(button[mat-icon-button]:hover) {
+:host
+    :is(.player-controls__bar, .player-controls__corner)
+    :is(button[mat-icon-button]:hover) {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.16);
 }
@@ -452,6 +509,58 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
+}
+
+// Anchored under the corner button (the only popover that opens downward);
+// the label/value grid keeps the numbers on a common right edge.
+.player-controls__stats-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 240px;
+    max-width: min(360px, calc(100cqw - 24px), 80vw);
+    max-height: min(calc(100cqh - 96px), 70vh);
+    padding: 10px 12px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    z-index: 3;
+}
+
+.player-controls__stats-list {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+}
+
+.player-controls__stats-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px;
+    align-items: baseline;
+}
+
+.player-controls__stats-row dt {
+    color: var(--pc-text-dim);
+    font-size: 0.74rem;
+    white-space: nowrap;
+}
+
+.player-controls__stats-row dd {
+    margin: 0;
+    overflow: hidden;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-controls__stats-empty {
+    padding: 2px;
+    color: var(--pc-text-dim);
+    font-size: 0.8rem;
 }
 
 .player-controls__track-list {
@@ -657,6 +766,12 @@
 // button clusters. Container-based on purpose: a small inline player inside a
 // wide desktop window needs the same treatment as a phone viewport.
 @container player-controls (max-width: 640px) {
+    // Matches the bar's reduced padding below: on a small inline player two
+    // full-height scrims would tint most of the picture.
+    .player-controls__top-scrim {
+        height: 88px;
+    }
+
     .player-controls__bar {
         grid-template-columns: auto minmax(0, 1fr);
         grid-template-areas:

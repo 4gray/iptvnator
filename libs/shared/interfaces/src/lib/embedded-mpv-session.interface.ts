@@ -91,6 +91,32 @@ export interface EmbeddedMpvRecordingState {
     error?: string;
 }
 
+/**
+ * Live stream diagnostics mpv reports for the player's info popover. Every
+ * field is optional: a property mpv has not answered yet (or an engine that
+ * does not observe it) simply omits its row rather than reporting a zero.
+ */
+export interface EmbeddedMpvStreamStats {
+    /** mpv `estimated-vf-fps` — the measured, not the container, rate. */
+    fps?: number;
+    /** mpv `video-bitrate` / `audio-bitrate`, in bits per second. */
+    videoBitrateBps?: number;
+    audioBitrateBps?: number;
+    /** mpv `video-format` / `audio-codec-name`, e.g. `h264` / `aac`. */
+    videoCodec?: string;
+    audioCodec?: string;
+    /** mpv `audio-params/channels`, e.g. `stereo` or `5.1`. */
+    audioChannels?: string;
+    /** mpv `audio-params/samplerate`, in Hz. */
+    audioSampleRateHz?: number;
+    /** mpv `file-format`, e.g. `mpegts` or `hls`. */
+    container?: string;
+    /** mpv `demuxer-cache-duration`: media buffered ahead, in seconds. */
+    bufferedAheadSeconds?: number;
+    /** mpv `frame-drop-count` plus `decoder-frame-drop-count`. */
+    droppedFrames?: number;
+}
+
 export interface EmbeddedMpvRecordingStartOptions {
     directory?: string;
     title?: string;
@@ -119,6 +145,8 @@ export interface EmbeddedMpvSession {
     /** Source video size (mpv dwidth/dheight); frame-copy engine only. */
     videoWidth?: number;
     videoHeight?: number;
+    /** Live diagnostics for the info popover; absent when mpv reports none. */
+    stats?: EmbeddedMpvStreamStats;
     recording?: EmbeddedMpvRecordingState;
     startedAt: string;
     updatedAt: string;

@@ -90,6 +90,25 @@ describe('PlayerControlsComponent fullscreen media title', () => {
         jest.useRealTimers();
     });
 
+    it('backs the fullscreen title with the shared top scrim', () => {
+        // The engine reports no stats here, so the title is the only reason
+        // for the scrim to exist — it must still get one.
+        fixture.componentRef.setInput('mediaTitle', {
+            primary: 'Breaking Code',
+            secondary: null,
+        });
+        fixture.detectChanges();
+        const scrim = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="player-controls-top-scrim"]'
+            );
+        expect(scrim()).toBeNull();
+
+        enterFullscreen();
+
+        expect(scrim()).not.toBeNull();
+    });
+
     it('stays hidden outside fullscreen even when a media title is set', () => {
         fixture.componentRef.setInput('mediaTitle', {
             primary: 'Some Movie',

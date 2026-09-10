@@ -595,7 +595,20 @@
             "SUBTITLE_COLOR_DEFAULT": "Па змаўчанні",
             "SUBTITLE_COLOR_WHITE": "Белы",
             "SUBTITLE_COLOR_YELLOW": "Жоўты",
-            "SUBTITLE_COLOR_CYAN": "Блакітны"
+            "SUBTITLE_COLOR_CYAN": "Блакітны",
+            "STREAM_INFO": "Звесткі пра струмень",
+            "STATS_RESOLUTION": "Раздзяляльнасць",
+            "STATS_FRAME_RATE": "Частата кадраў",
+            "STATS_NOMINAL_FRAME_RATE": "Заяўленая частата",
+            "STATS_STREAM_BITRATE": "Агульны бітрэйт",
+            "STATS_VIDEO": "Відэа",
+            "STATS_AUDIO": "Аўдыё",
+            "STATS_AUDIO_CHANNELS": "Каналы",
+            "STATS_SAMPLE_RATE": "Частата дыскрэтызацыі",
+            "STATS_CONTAINER": "Кантэйнер",
+            "STATS_BUFFER": "Буфер",
+            "STATS_DROPPED_FRAMES": "Страчаныя кадры",
+            "STATS_UNAVAILABLE": "Дадзеных пра струмень пакуль няма"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

@@ -1,6 +1,7 @@
 import type { PlayerTrack } from '../player-controls/player-controls.model';
 import type { WebVideoControlsAdapter } from '../player-controls/web-video-controls.adapter';
 import { pickExternalSubtitleFile } from './web-video-external-subtitles';
+import { WebVideoSourceStats } from './web-video-source-stats';
 import { WebVideoSubtitleStyle } from './web-video-subtitle-style';
 import {
     type WebVideoControlsSource,
@@ -19,6 +20,7 @@ export interface WebVideoSourceControlsBridgeConfig {
 export class WebVideoSourceControlsBridge {
     private readonly config: WebVideoSourceControlsBridgeConfig;
     private readonly tracks: WebVideoSourceTracks;
+    private readonly sourceStats = new WebVideoSourceStats();
     private readonly subtitleStyle = new WebVideoSubtitleStyle();
     private attached = false;
     private destroyed = false;
@@ -55,6 +57,7 @@ export class WebVideoSourceControlsBridge {
             getQualityLevels: () => this.tracks.getQualityLevels(),
             setQualityLevel: (id) => this.tracks.setQualityLevel(id),
             isAutoQualityEnabled: () => this.tracks.isAutoQualityEnabled(),
+            getEngineStats: () => this.sourceStats.read(),
         });
         this.attached = true;
     }
@@ -65,6 +68,7 @@ export class WebVideoSourceControlsBridge {
         }
 
         this.tracks.setSource(source);
+        this.sourceStats.setSource(source);
         this.config.adapter.refresh();
     }
 
@@ -83,6 +87,7 @@ export class WebVideoSourceControlsBridge {
         }
 
         this.tracks.clearSource();
+        this.sourceStats.setSource(null);
         this.config.adapter.refresh();
     }
 

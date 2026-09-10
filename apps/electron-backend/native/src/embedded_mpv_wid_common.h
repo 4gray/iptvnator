@@ -127,6 +127,54 @@ struct SessionSnapshot {
     int64_t selectedSubtitleTrackId = -1;
     double playbackSpeed = 1.0;
     std::string aspectOverride = "no";
+    /** Stream diagnostics for the player's info popover. Sentinels mean "not
+     *  reported yet", so an unknown value omits its row instead of showing 0. */
+    double fps = 0.0;                  /* estimated-vf-fps; <=0 = unknown */
+    double videoBitrate = 0.0;         /* bits/s; <=0 = unknown */
+    double audioBitrate = 0.0;
+    std::string videoCodec;            /* video-format, e.g. "h264" */
+    std::string audioCodec;            /* audio-codec-name, e.g. "aac" */
+    std::string audioChannels;         /* audio-params/channels, e.g. "5.1" */
+    int64_t audioSampleRate = 0;       /* audio-params/samplerate; 0 unknown */
+    std::string container;             /* file-format, e.g. "mpegts" */
+    double cacheDuration = -1.0;       /* demuxer-cache-duration; <0 unknown */
+    int64_t droppedFrames = -1;        /* frame-drop-count; <0 = unknown */
+    int64_t decoderDroppedFrames = -1;
+
+    // MPV_FORMAT_NONE revokes just this observation, not unrelated values.
+    bool clearUnavailableStreamProperty(const std::string& name) {
+        if (name == "estimated-vf-fps") { fps = 0; }
+        else if (name == "video-bitrate") { videoBitrate = 0; }
+        else if (name == "audio-bitrate") { audioBitrate = 0; }
+        else if (name == "video-format") { videoCodec.clear(); }
+        else if (name == "audio-codec-name") { audioCodec.clear(); }
+        else if (name == "audio-params/channels") { audioChannels.clear(); }
+        else if (name == "audio-params/samplerate") { audioSampleRate = 0; }
+        else if (name == "file-format") { container.clear(); }
+        else if (name == "demuxer-cache-duration") { cacheDuration = -1; }
+        else if (name == "frame-drop-count") { droppedFrames = -1; }
+        else if (name == "decoder-frame-drop-count") { decoderDroppedFrames = -1; }
+        else { return false; }
+        return true;
+    }
+
+    /** Every new file starts from "nothing reported yet": the popover must
+     *  never show the previous stream's codec or bitrate. Kept next to the
+     *  fields so adding one cannot forget the reset. */
+    void clearStreamStats()
+    {
+        fps = 0.0;
+        videoBitrate = 0.0;
+        audioBitrate = 0.0;
+        videoCodec.clear();
+        audioCodec.clear();
+        audioChannels.clear();
+        audioSampleRate = 0;
+        container.clear();
+        cacheDuration = -1.0;
+        droppedFrames = -1;
+        decoderDroppedFrames = -1;
+    }
     bool recordingActive = false;
     std::string recordingTargetPath;
     std::string recordingStartedAt;
@@ -1002,6 +1050,13 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
         queryLinuxMpvInteger(socketPath, "track-list/count");
     const auto selectedAudioTrackId = queryLinuxMpvInteger(socketPath, "aid");
 
+    // No stream-stats polling here: this backend drives the out-of-process
+    // native-view engine, whose legacy dock does not mount the shared
+    // controls that own the stream-info popover, so every property would be
+    // one socket round trip on the same pass that publishes position, pause
+    // and EOF for a value nothing can render. The in-process engines get the
+    // same fields for free from `mpv_observe_property` instead.
+
     int64_t cachedTrackCount = -1;
     {
         std::lock_guard<std::mutex> lock(session->mutex);
@@ -1442,6 +1497,7 @@ void runEventLoop(std::shared_ptr<Session> session)
             case MPV_EVENT_START_FILE:
                 session->snapshot.status = SessionStatus::Loading;
                 session->snapshot.error.clear();
+                session->snapshot.clearStreamStats();
                 break;
             case MPV_EVENT_FILE_LOADED:
                 session->snapshot.status =
@@ -1477,10 +1533,17 @@ void runEventLoop(std::shared_ptr<Session> session)
             case MPV_EVENT_PROPERTY_CHANGE: {
                 const auto* property =
                     static_cast<mpv_event_property*>(event->data);
-                if (!property || !property->name || !property->data) {
+                if (!property || !property->name) {
                     break;
                 }
                 const std::string name(property->name);
+                if (property->format == MPV_FORMAT_NONE) {
+                    session->snapshot.clearUnavailableStreamProperty(name);
+                    break;
+                }
+                if (!property->data) {
+                    break;
+                }
                 if (name == "time-pos" && property->format == MPV_FORMAT_DOUBLE) {
                     session->snapshot.positionSeconds =
                         *static_cast<double*>(property->data);
@@ -1546,6 +1609,51 @@ void runEventLoop(std::shared_ptr<Session> session)
                         *static_cast<char**>(property->data);
                     session->snapshot.aspectOverride =
                         value && value[0] ? value : "no";
+                } else if (name == "estimated-vf-fps" &&
+                           property->format == MPV_FORMAT_DOUBLE) {
+                    session->snapshot.fps =
+                        *static_cast<double*>(property->data);
+                } else if (name == "video-bitrate" &&
+                           property->format == MPV_FORMAT_DOUBLE) {
+                    session->snapshot.videoBitrate =
+                        *static_cast<double*>(property->data);
+                } else if (name == "audio-bitrate" &&
+                           property->format == MPV_FORMAT_DOUBLE) {
+                    session->snapshot.audioBitrate =
+                        *static_cast<double*>(property->data);
+                } else if (name == "demuxer-cache-duration" &&
+                           property->format == MPV_FORMAT_DOUBLE) {
+                    session->snapshot.cacheDuration =
+                        *static_cast<double*>(property->data);
+                } else if (name == "frame-drop-count" &&
+                           property->format == MPV_FORMAT_INT64) {
+                    session->snapshot.droppedFrames =
+                        *static_cast<int64_t*>(property->data);
+                } else if (name == "decoder-frame-drop-count" &&
+                           property->format == MPV_FORMAT_INT64) {
+                    session->snapshot.decoderDroppedFrames =
+                        *static_cast<int64_t*>(property->data);
+                } else if (name == "audio-params/samplerate" &&
+                           property->format == MPV_FORMAT_INT64) {
+                    session->snapshot.audioSampleRate =
+                        *static_cast<int64_t*>(property->data);
+                } else if ((name == "video-format" ||
+                            name == "audio-codec-name" ||
+                            name == "audio-params/channels" ||
+                            name == "file-format") &&
+                           property->format == MPV_FORMAT_STRING) {
+                    const char* value =
+                        *static_cast<char**>(property->data);
+                    const std::string text = value ? value : "";
+                    if (name == "video-format") {
+                        session->snapshot.videoCodec = text;
+                    } else if (name == "audio-codec-name") {
+                        session->snapshot.audioCodec = text;
+                    } else if (name == "audio-params/channels") {
+                        session->snapshot.audioChannels = text;
+                    } else if (name == "file-format") {
+                        session->snapshot.container = text;
+                    }
                 }
                 break;
             }
@@ -1786,6 +1894,30 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         MPV_FORMAT_STRING
     );
     mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);
+    /* Stream diagnostics behind the player's info popover. The renderer pulls
+     * snapshots on its own cadence, so observing these adds no IPC traffic. */
+    mpv_observe_property(
+        session->handle, 12, "estimated-vf-fps", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(
+        session->handle, 13, "video-bitrate", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(
+        session->handle, 14, "audio-bitrate", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(
+        session->handle, 15, "video-format", MPV_FORMAT_STRING);
+    mpv_observe_property(
+        session->handle, 16, "audio-codec-name", MPV_FORMAT_STRING);
+    mpv_observe_property(
+        session->handle, 17, "file-format", MPV_FORMAT_STRING);
+    mpv_observe_property(
+        session->handle, 18, "demuxer-cache-duration", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(
+        session->handle, 19, "frame-drop-count", MPV_FORMAT_INT64);
+    mpv_observe_property(
+        session->handle, 20, "decoder-frame-drop-count", MPV_FORMAT_INT64);
+    mpv_observe_property(
+        session->handle, 21, "audio-params/channels", MPV_FORMAT_STRING);
+    mpv_observe_property(
+        session->handle, 22, "audio-params/samplerate", MPV_FORMAT_INT64);
 
     session->running.store(true);
     session->eventThread = std::thread(runEventLoop, session);
@@ -2375,6 +2507,77 @@ void writeTracks(
     result.Set(key, output);
 }
 
+/** Serializes the optional `stats` object; omits it when nothing is known. */
+void writeStreamStats(
+    Napi::Env env,
+    Napi::Object result,
+    const SessionSnapshot& snapshot)
+{
+    auto stats = Napi::Object::New(env);
+    bool any = false;
+    if (snapshot.fps > 0.0) {
+        stats.Set("fps", Napi::Number::New(env, snapshot.fps));
+        any = true;
+    }
+    if (snapshot.videoBitrate > 0.0) {
+        stats.Set(
+            "videoBitrateBps",
+            Napi::Number::New(env, snapshot.videoBitrate));
+        any = true;
+    }
+    if (snapshot.audioBitrate > 0.0) {
+        stats.Set(
+            "audioBitrateBps",
+            Napi::Number::New(env, snapshot.audioBitrate));
+        any = true;
+    }
+    if (!snapshot.videoCodec.empty()) {
+        stats.Set("videoCodec", Napi::String::New(env, snapshot.videoCodec));
+        any = true;
+    }
+    if (!snapshot.audioCodec.empty()) {
+        stats.Set("audioCodec", Napi::String::New(env, snapshot.audioCodec));
+        any = true;
+    }
+    if (!snapshot.audioChannels.empty()) {
+        stats.Set(
+            "audioChannels",
+            Napi::String::New(env, snapshot.audioChannels));
+        any = true;
+    }
+    if (snapshot.audioSampleRate > 0) {
+        stats.Set(
+            "audioSampleRateHz",
+            Napi::Number::New(
+                env, static_cast<double>(snapshot.audioSampleRate)));
+        any = true;
+    }
+    if (!snapshot.container.empty()) {
+        stats.Set("container", Napi::String::New(env, snapshot.container));
+        any = true;
+    }
+    if (snapshot.cacheDuration >= 0.0) {
+        stats.Set(
+            "bufferedAheadSeconds",
+            Napi::Number::New(env, snapshot.cacheDuration));
+        any = true;
+    }
+    if (snapshot.droppedFrames >= 0 || snapshot.decoderDroppedFrames >= 0) {
+        /* mpv counts render-time and decoder drops separately; the popover
+         * shows the one number a viewer cares about. */
+        const int64_t dropped =
+            std::max<int64_t>(0, snapshot.droppedFrames) +
+            std::max<int64_t>(0, snapshot.decoderDroppedFrames);
+        stats.Set(
+            "droppedFrames",
+            Napi::Number::New(env, static_cast<double>(dropped)));
+        any = true;
+    }
+    if (any) {
+        result.Set("stats", stats);
+    }
+}
+
 Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2423,6 +2626,7 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
     writeTracks(env, result, "subtitleTracks", snapshot.subtitleTracks);
     result.Set("playbackSpeed", Napi::Number::New(env, snapshot.playbackSpeed));
     result.Set("aspectOverride", Napi::String::New(env, snapshot.aspectOverride));
+    writeStreamStats(env, result, snapshot);
     if (
         snapshot.recordingActive ||
         !snapshot.recordingTargetPath.empty() ||

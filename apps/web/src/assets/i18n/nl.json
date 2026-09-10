@@ -595,7 +595,20 @@
             "SUBTITLE_COLOR_DEFAULT": "Standaard",
             "SUBTITLE_COLOR_WHITE": "Wit",
             "SUBTITLE_COLOR_YELLOW": "Geel",
-            "SUBTITLE_COLOR_CYAN": "Cyaan"
+            "SUBTITLE_COLOR_CYAN": "Cyaan",
+            "STREAM_INFO": "Streaminfo",
+            "STATS_RESOLUTION": "Resolutie",
+            "STATS_FRAME_RATE": "Framerate",
+            "STATS_NOMINAL_FRAME_RATE": "Bronframesnelheid",
+            "STATS_STREAM_BITRATE": "Streambitrate",
+            "STATS_VIDEO": "Video",
+            "STATS_AUDIO": "Audio",
+            "STATS_AUDIO_CHANNELS": "Kanalen",
+            "STATS_SAMPLE_RATE": "Samplefrequentie",
+            "STATS_CONTAINER": "Container",
+            "STATS_BUFFER": "Buffer",
+            "STATS_DROPPED_FRAMES": "Verloren frames",
+            "STATS_UNAVAILABLE": "Nog geen streamgegevens"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

@@ -62,6 +62,26 @@ function createY4mFixture(): Buffer {
     return Buffer.concat(chunks);
 }
 
+/** Silent mono PCM lets the real MPV smoke revoke audio observations. */
+export function createWavFixture(): Buffer {
+    const sampleRate = 8000;
+    const dataBytes = sampleRate * 2 * 30;
+    const body = Buffer.alloc(44 + dataBytes);
+    body.write('RIFF', 0);
+    body.writeUInt32LE(36 + dataBytes, 4);
+    body.write('WAVEfmt ', 8);
+    body.writeUInt32LE(16, 16);
+    body.writeUInt16LE(1, 20); // PCM
+    body.writeUInt16LE(1, 22); // mono
+    body.writeUInt32LE(sampleRate, 24);
+    body.writeUInt32LE(sampleRate * 2, 28);
+    body.writeUInt16LE(2, 32);
+    body.writeUInt16LE(16, 34);
+    body.write('data', 36);
+    body.writeUInt32LE(dataBytes, 40);
+    return body;
+}
+
 async function listen(server: Server): Promise<void> {
     await new Promise<void>((resolvePromise, rejectPromise) => {
         const onError = (error: Error) => {
@@ -91,9 +111,15 @@ async function closeServer(server: Server): Promise<void> {
     });
 }
 
-export async function createLocalMediaServer(): Promise<LocalMediaServer> {
-    const body = createY4mFixture();
-    const resourcePath = '/embedded-mpv-frame-copy-smoke.y4m';
+export async function createLocalMediaServer(options?: {
+    body: Buffer;
+    resourcePath: string;
+    contentType: string;
+}): Promise<LocalMediaServer> {
+    const body = options?.body ?? createY4mFixture();
+    const resourcePath =
+        options?.resourcePath ?? '/embedded-mpv-frame-copy-smoke.y4m';
+    const contentType = options?.contentType ?? 'video/x-yuv4mpeg';
     const server = createServer((request, response) => {
         const pathname = (request.url ?? '').split('?')[0];
         if (pathname !== resourcePath) {
@@ -106,7 +132,7 @@ export async function createLocalMediaServer(): Promise<LocalMediaServer> {
             response.writeHead(200, {
                 'Accept-Ranges': 'bytes',
                 'Content-Length': body.length,
-                'Content-Type': 'video/x-yuv4mpeg',
+                'Content-Type': contentType,
             });
             response.end(request.method === 'HEAD' ? undefined : body);
             return;
@@ -133,7 +159,7 @@ export async function createLocalMediaServer(): Promise<LocalMediaServer> {
             'Accept-Ranges': 'bytes',
             'Content-Length': end - start + 1,
             'Content-Range': `bytes ${start}-${end}/${body.length}`,
-            'Content-Type': 'video/x-yuv4mpeg',
+            'Content-Type': contentType,
         });
         response.end(
             request.method === 'HEAD'

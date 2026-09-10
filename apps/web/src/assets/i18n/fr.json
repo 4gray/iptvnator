@@ -595,7 +595,20 @@
             "SUBTITLE_COLOR_DEFAULT": "Par défaut",
             "SUBTITLE_COLOR_WHITE": "Blanc",
             "SUBTITLE_COLOR_YELLOW": "Jaune",
-            "SUBTITLE_COLOR_CYAN": "Cyan"
+            "SUBTITLE_COLOR_CYAN": "Cyan",
+            "STREAM_INFO": "Infos du flux",
+            "STATS_RESOLUTION": "Résolution",
+            "STATS_FRAME_RATE": "Fréquence d'images",
+            "STATS_NOMINAL_FRAME_RATE": "Cadence de la source",
+            "STATS_STREAM_BITRATE": "Débit du flux",
+            "STATS_VIDEO": "Vidéo",
+            "STATS_AUDIO": "Audio",
+            "STATS_AUDIO_CHANNELS": "Canaux",
+            "STATS_SAMPLE_RATE": "Fréquence d'échantillonnage",
+            "STATS_CONTAINER": "Conteneur",
+            "STATS_BUFFER": "Tampon",
+            "STATS_DROPPED_FRAMES": "Images perdues",
+            "STATS_UNAVAILABLE": "Pas encore de données du flux"
         }
     },
     "PLAYBACK_DIAGNOSTICS": {

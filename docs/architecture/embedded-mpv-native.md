@@ -486,6 +486,89 @@ The renderer learns which features the loaded addon binary supports through the 
 
 Linux audio-track discovery works differently from macOS/Windows because the hand-rolled JSON IPC reply parser only understands scalar `data` values: the poll loop reads `track-list/count` every tick and walks the scalar `track-list/N/{type,id,title,lang,default,forced}` sub-properties only when the count changes. The selected track is reconciled from the scalar `aid` property on every tick (`aid` reads back non-numeric when audio is disabled, which maps to "no selection"). Track switching still goes through `set_property aid` over the same socket.
 
+## Stream Stats Properties
+
+The shared controls' stream-info popover (top-right `info` button, contract in
+[player-controls-contract.md](./player-controls-contract.md#stream-info-popover))
+renders whatever the engine reports as `EmbeddedMpvSession.stats`. Every field
+is optional: an absent key means "mpv has not answered yet" and the row is
+omitted, while a zero (dropped frames, for instance) is a real measurement.
+
+**Where the popover actually appears:** `app-player-controls` mounts only under
+the frame-copy engine (`@if (isFrameCopyEngine() && isSupported())` in
+`embedded-mpv-player.component.html`); the native-view engine keeps its legacy
+controls dock, which has no info affordance. So today the popover is a
+frame-copy-only surface. The macOS and Windows native-view backends plumb the
+properties anyway — `mpv_observe_property` is push-based, so the rows appear
+for free whenever those engines adopt the shared controls — but do not describe
+the feature as available there. The Linux out-of-process backend deliberately
+does **not**, for the reason given under "Cost" below.
+
+The frame-copy helper and both in-process native-view backends observe these
+mpv properties at session init and map them into their session snapshot:
+
+| mpv property                                    | `stats` field            |
+| ----------------------------------------------- | ------------------------ |
+| `estimated-vf-fps`                              | `fps`                    |
+| `video-bitrate`                                 | `videoBitrateBps`        |
+| `audio-bitrate`                                 | `audioBitrateBps`        |
+| `video-format`                                  | `videoCodec`             |
+| `audio-codec-name`                              | `audioCodec`             |
+| `audio-params/channels`                         | `audioChannels`          |
+| `audio-params/samplerate`                       | `audioSampleRateHz`      |
+| `file-format`                                   | `container`              |
+| `demuxer-cache-duration`                        | `bufferedAheadSeconds`   |
+| `frame-drop-count` + `decoder-frame-drop-count` | `droppedFrames` (summed) |
+
+The resolution row has a different source: it comes from `dwidth`/`dheight` on
+`EmbeddedMpvSession.videoWidth`/`videoHeight`, which **only the frame-copy
+helper observes** (it needs them to size its frames anyway). The native-view
+backends report no size, so a future shared-controls dock there would show
+every row except resolution until they observe those two properties too.
+
+`video-format` and `audio-codec-name` are used rather than `video-codec` /
+`audio-codec`: the popover wants `h264` and `aac`, not
+`H.264/AVC (High Profile)`.
+
+**Cost.** Observation is free in event terms: libmpv pushes property changes,
+macOS and Windows build the snapshot lazily when the renderer pulls it, and the
+frame-copy helper already throttles snapshot emission to 250 ms, so the extra
+properties never increase IPC traffic. Linux has no such mechanism — its
+process-isolated backend would have to `get_property` each field as its own
+JSON IPC round trip inside `refreshLinuxMpvSnapshot`, the same pass that
+publishes position, pause and EOF, where a slow answer delays real playback
+state. Eleven round trips per tick for a dock that cannot render them is not a
+trade worth making, so that backend collects no stats at all and its snapshot
+leaves every field at its default. This joins the features the Linux
+out-of-process path already does not export (subtitles, speed, aspect,
+recording). A source-text invariant in `embedded-mpv-native-source.spec.ts`
+asserts the properties are never passed to the `queryLinuxMpv*` helpers, so
+re-adding the polling fails CI.
+
+Each backend that collects stats clears these fields when a new file starts
+(`MPV_EVENT_START_FILE`), so a channel switch can never leave the previous
+stream's codec or bitrate on screen. Frame-copy also clears `dwidth`/`dheight`
+and publishes both dimensions as zero until the new file reports them; omission
+would retain the previous size in the merged snapshot. Zero dimensions map to
+unknown in the controls. An observed `MPV_FORMAT_NONE` restores only that
+property's unknown sentinel, including when an audio/video track disappears
+within the same file. The frame-copy helper emits its `stats`
+object on **every** snapshot, empty object included: the adapter merges helper
+snapshots field by field, so an omitted key would survive the switch that the
+clear was meant to perform. macOS and Windows build a fresh snapshot object per
+pull and simply leave unknown keys out.
+
+`EmbeddedMpvNativeService` then omits the `stats` key entirely when the engine
+reported nothing, which is what keeps the info button hidden on an engine that
+does not report these properties at all.
+
+The packaged Linux frame-copy smoke verifies real diagnostic snapshots and
+switches Y4M → WebM → Y4M in the same session, checking the reported codec and
+container on each source. It then loads audio-only PCM to verify dimensions
+are cleared, and disables the audio track to verify unavailable observations
+remove codec/channel/sample-rate rows without a new-file reset. This complements renderer mapping/unit coverage with
+the actual libmpv → helper JSON → main/preload path.
+
 ## Session End And Series Navigation
 
 `EmbeddedMpvSessionStatus` includes `ended` for successful EOF only. The native addon maps `MPV_EVENT_END_FILE` to:

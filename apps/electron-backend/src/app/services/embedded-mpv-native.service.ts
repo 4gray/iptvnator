@@ -19,6 +19,7 @@ import {
     EmbeddedMpvRecordingState,
     EmbeddedMpvSession,
     EmbeddedMpvSessionStatus,
+    EmbeddedMpvStreamStats,
     EmbeddedMpvSubtitleStyle,
     EmbeddedMpvSubtitleTrack,
     EmbeddedMpvEngine,
@@ -74,6 +75,7 @@ export interface NativeEmbeddedMpvSessionSnapshot {
     aspectOverride?: string;
     videoWidth?: number;
     videoHeight?: number;
+    stats?: EmbeddedMpvStreamStats;
     recording?: EmbeddedMpvRecordingState;
     error?: string;
     /**
@@ -1249,6 +1251,9 @@ export class EmbeddedMpvNativeService {
                       videoWidth: snapshot.videoWidth,
                       videoHeight: snapshot.videoHeight,
                   }
+                : {}),
+            ...(snapshot.stats && Object.keys(snapshot.stats).length > 0
+                ? { stats: snapshot.stats }
                 : {}),
             recording: snapshot.recording ?? { active: false },
             startedAt: session.startedAt,
