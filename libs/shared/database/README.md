@@ -62,8 +62,16 @@ When changing initialization:
   install, and repeated startup. If a release changes migration ordering, cover
   each distinct affected historical schema.
 
-For the upgrade failure reported in #1580, the 0.24 fix should cover databases
-from 0.19, 0.20, 0.21, 0.22, and 0.23: the `epg_channel_id` column is absent in
-0.19, present from 0.20, and indexed from 0.23. The index must be created only
-after the column migration; an existing index must remain valid. This documents
-the required regression coverage, not a claim that the fix is already applied.
+The #1580 index-ordering fix is included in 0.24 through PR #1550.
+`src/lib/connection-upgrades.spec.ts` exercises `initDatabase()` with real
+SQLite under the Electron runtime, using fresh-install schema snapshots from
+tags 0.19–0.23 and a fresh current database. The `epg_channel_id` column is absent
+in 0.19, present from 0.20, and indexed from 0.23. Each case checks preserved user
+rows, foreign keys, database integrity, index availability, and repeated startup;
+an existing EPG index must keep its definition and root page. Snapshots live in
+`src/lib/testing/fixtures/` and are independent of the current schema, so moving
+the index ahead of its column migration makes the 0.19 case fail again.
+
+Run this coverage with `pnpm nx test database --runInBand`. The Electron UI and
+worker upgrade flow is also covered by
+`pnpm nx run electron-backend-e2e:e2e-ci--src/legacy-playlist-migration.e2e.ts`.
