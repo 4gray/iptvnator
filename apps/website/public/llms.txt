@@ -35,6 +35,7 @@
 - Compare, desktop app vs self-hosted browser version: https://4gray.github.io/iptvnator/compare/desktop-vs-browser/
 - Compare, IPTVnator vs VLC (when a general media player is enough): https://4gray.github.io/iptvnator/compare/iptvnator-vs-vlc/
 - Compare, IPTVnator vs Kodi (media center with a PVR add-on vs dedicated player): https://4gray.github.io/iptvnator/compare/iptvnator-vs-kodi/
+- Compare, IPTV on a computer vs on a TV box (which room does what): https://4gray.github.io/iptvnator/compare/computer-vs-tv-box/
 - Release Notes (v0.18): https://4gray.github.io/iptvnator/blog/v0-18-release-notes/
 - Troubleshooting (macOS app damaged fix): https://4gray.github.io/iptvnator/blog/macos-arm-app-damaged-fix/
 - Source Code: https://github.com/4gray/iptvnator

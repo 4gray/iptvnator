@@ -15,7 +15,8 @@ export type ComparisonSlug =
   | 'playback-engines'
   | 'desktop-vs-browser'
   | 'iptvnator-vs-vlc'
-  | 'iptvnator-vs-kodi';
+  | 'iptvnator-vs-kodi'
+  | 'computer-vs-tv-box';
 
 export interface ComparisonEntry {
   slug: ComparisonSlug;
@@ -75,7 +76,16 @@ export const COMPARISONS: readonly ComparisonEntry[] = [
     question:
       'Kodi is a whole media center and reaches IPTV through a PVR add-on. When is that the right shape, and when do you want a player that only does IPTV?',
     href: '/iptvnator/compare/iptvnator-vs-kodi/',
-    icon: 'M4 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM8 20h8M10 16v4M14 16v4',
+    icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z',
+  },
+  {
+    slug: 'computer-vs-tv-box',
+    label: 'Computer vs TV box',
+    eyebrow: 'Compare · Where you watch',
+    question:
+      'A set-top box in the living room or a computer at a desk: where should IPTV actually run, and what does each make easy?',
+    href: '/iptvnator/compare/computer-vs-tv-box/',
+    icon: 'M9.348 14.651a3.75 3.75 0 010-5.303m5.304 0a3.75 3.75 0 010 5.303m-7.425 2.122a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12z',
   },
 ];
 

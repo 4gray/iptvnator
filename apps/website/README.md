@@ -167,7 +167,8 @@ screenshots that show real channel names.
 
 `/compare/` plus one page per decision the app asks users to make
 (`m3u-vs-xtream-vs-stalker`, `playback-engines`, `desktop-vs-browser`,
-`iptvnator-vs-vlc`, `iptvnator-vs-kodi`) live in `apps/website/src/pages/compare/`; the registry is
+`iptvnator-vs-vlc`, `iptvnator-vs-kodi`, `computer-vs-tv-box`) live in
+`apps/website/src/pages/compare/`; the registry is
 `src/lib/comparisons.ts`. Most of them compare IPTVnator's own options against
 each other, so every claim is checkable against this repository.
 

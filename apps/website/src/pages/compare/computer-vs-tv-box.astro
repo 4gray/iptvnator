@@ -1,0 +1,155 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import CompareHero from '../../components/compare/CompareHero.astro';
+import ComparisonTable from '../../components/compare/ComparisonTable.astro';
+import CompareSwitcher from '../../components/compare/CompareSwitcher.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildComparisonPageSchema } from '../../lib/comparison-schema';
+import { comparisonBySlug } from '../../lib/comparisons';
+import { absoluteUrl } from '../../lib/site';
+
+const comparison = comparisonBySlug('computer-vs-tv-box');
+const pageUrl = absoluteUrl('/compare/computer-vs-tv-box/');
+const title = 'IPTV on a Computer vs on a TV Box – Which Room Does What';
+const description =
+  'A set-top box is unbeatable in front of the TV, and hopeless the moment you have to type a server URL or work out why a guide shows the wrong programme. What each place is good at, and how IPTVnator fits the computer half.';
+
+const columns = ['TV box or smart TV', 'Computer'];
+
+const setupRows = [
+  { label: 'Typing a server URL, username and password', cells: ['On-screen keyboard, one letter per click', 'A real keyboard'] },
+  { label: 'Pasting a long playlist link', cells: ['Usually needs a phone or a companion app', 'Paste from the clipboard'] },
+  { label: 'Entering a MAC address for a portal', cells: ['Same on-screen keyboard', 'Paste it, or let the app read it out of the provider’s message'] },
+  { label: 'Trying several providers before you settle', cells: ['One at a time, re-typed each time', 'Add them all and switch'] },
+  { label: 'Fixing a guide that shows the wrong programme', cells: ['Rarely more than an on/off switch', 'Map the channel by hand, or shift the guide’s clock'] },
+  { label: 'Working out why one stream refuses to play', cells: ['A generic error', 'Diagnostics, and the same stream in another player'] },
+];
+
+const watchRows = [
+  { label: 'On the big screen', cells: [true, 'Through an HDMI cable or casting'] },
+  { label: 'From the couch, with a remote', cells: [true, 'A phone as the remote'] },
+  { label: 'Turn it on and it is already the TV', cells: [true, false] },
+  { label: 'Searching a catalog of thousands of titles', cells: ['Slow with a d-pad', true] },
+  { label: 'Several sources open side by side', cells: ['One at a time on most boxes', true] },
+  { label: 'Saving a film for a flight', cells: ['Limited by the box’s storage', 'Whatever your disk holds'] },
+];
+
+const practicalRows = [
+  { label: 'Hardware', cells: ['A box, a stick or the TV itself', 'A machine you already own'] },
+  { label: 'Decoding', cells: ['What the chip supports, in hardware', 'What the machine supports, plus MPV or VLC for the rest'] },
+  { label: 'Updates', cells: ['When the app store offers one', 'When you install one'] },
+  { label: 'Runs IPTVnator', cells: [false, true], note: 'IPTVnator is a desktop app for Windows, macOS and Linux, plus a browser version you host yourself. There is no TV build.' },
+];
+
+const guidance = [
+  {
+    title: 'Set it up on the computer, watch wherever you like',
+    description:
+      'The painful part of IPTV is the first twenty minutes: the login, the guide source, the channels that will not match. All of it is a keyboard job. Once the source works, the box in the living room usually only needs the same credentials.',
+  },
+  {
+    title: 'The couch problem has an answer',
+    description:
+      'A laptop on the TV is awkward only until you stop using its keyboard. IPTVnator serves a small web remote to any phone on the same Wi-Fi: channel up and down, a number pad, volume and what is on now, with nothing to install.',
+  },
+  {
+    title: 'Two rooms, one subscription',
+    description:
+      'Nothing about IPTV ties you to one device. The limit is your provider’s connection count, not the app: most accounts allow one or two streams at a time, so check before assuming both rooms can watch at once.',
+  },
+  {
+    title: 'When the box cannot decode it, the computer can',
+    description:
+      'Set-top hardware decodes a fixed set of formats. A computer can fall back to MPV or VLC, which decode almost anything, so a stream that stutters on the box is worth a second try at the desk before you blame the provider.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Is there an IPTVnator app for Android TV, Fire TV or an Apple TV?',
+    a: 'No. IPTVnator is a desktop application for Windows, macOS and Linux, plus a browser version you can host yourself. There is no build for a television or a set-top box, and its interface assumes a keyboard and a mouse rather than a d-pad.',
+  },
+  {
+    q: 'So how do I watch it on the television?',
+    a: 'Connect the computer to the TV with an HDMI cable, which is what most people do, and use the app full screen. A phone then works as the remote through the built-in web remote. Casting works too, though it depends on your operating system rather than on IPTVnator.',
+  },
+  {
+    q: 'Why bother with a computer if the box already works?',
+    a: 'For the things a remote makes slow: adding a provider, trying a second one, searching a large catalog, mapping a channel to the right guide entry, checking why a stream fails, or downloading a film before a trip. Many people do the setup at the desk and the watching on the box.',
+  },
+  {
+    q: 'Can I use my phone as a remote for the computer?',
+    a: 'Yes. Enable the remote in Settings, scan the QR code with a phone on the same Wi-Fi, and the page gives you channel up and down, a number pad, volume for the built-in player, and the current programme. It is a web page, so nothing is installed.',
+  },
+  {
+    q: 'Does IPTVnator run on a Raspberry Pi?',
+    a: 'Yes, on a Pi running a desktop Linux: arm64 and armv7l AppImage and .deb builds ship with every release. It is still the desktop app, with a desktop interface — a Pi behind the TV will want a keyboard, or the phone remote.',
+  },
+  {
+    q: 'Can I run the same subscription in both places?',
+    a: 'That is your provider’s decision, not the app’s. Accounts carry a maximum number of simultaneous connections, often one or two. The account dialog in IPTVnator shows the active and maximum connections for an Xtream account.',
+  },
+  {
+    q: 'Which one is better for the programme guide?',
+    a: 'Both can show one. A computer is better at fixing one: when a channel shows the wrong schedule or every programme is off by hours, the desktop app lets you map the channel by hand or shift the guide’s clock, which a set-top app rarely offers.',
+  },
+];
+
+const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq });
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTV on PC vs TV box', 'IPTV player for computer', 'watch IPTV on TV from laptop', 'IPTV set-top box vs PC', 'IPTV player Windows macOS Linux']}
+  jsonLd={jsonLd}
+>
+  <CompareHero
+    comparison={comparison}
+    titleLead="A box for the couch, a"
+    titleAccent="keyboard for the setup"
+    lede="These are not competing products, they are different rooms. A set-top box is unbeatable in front of the television and hopeless the moment you have to type a server URL. A computer is the opposite, and the gap between them is where most IPTV frustration lives."
+    verdict="Do the setup where there is a keyboard: adding a provider, attaching a guide, fixing the channels that do not match, downloading something for a trip. Watch wherever suits the room. IPTVnator is the computer half of that — there is no TV build — and its phone remote is what makes a laptop on the TV bearable."
+  />
+
+  <DownloadSection id="setup" eyebrow="Setting it up" title="Everything that needs" accent="a keyboard" lead="A d-pad and an on-screen keyboard are fine for choosing a channel and miserable for everything below.">
+    <ComparisonTable
+      columns={columns}
+      rows={setupRows}
+      rowHeader="Task"
+      caption="Rows describe the ordinary experience of each kind of device rather than any particular application; individual apps differ."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="watching" eyebrow="Watching" title="Where each one" accent="actually wins">
+    <ComparisonTable columns={columns} rows={watchRows} rowHeader="Situation" />
+  </DownloadSection>
+
+  <DownloadSection id="practical" eyebrow="In practice" title="Hardware, decoding" accent="and updates">
+    <ComparisonTable columns={columns} rows={practicalRows} rowHeader="Detail" />
+  </DownloadSection>
+
+  <DownloadSection id="guidance" eyebrow="Making it work" title="Use both, on" accent="purpose">
+    <FeatureList items={guidance} />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="rooms and devices">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['remote-control-guide', 'epg-wrong-program-fix', 'offline-downloads-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <CompareSwitcher current="computer-vs-tv-box" />
+</BaseLayout>

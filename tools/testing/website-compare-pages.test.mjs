@@ -16,6 +16,7 @@ const COMPARISONS = [
   'desktop-vs-browser',
   'iptvnator-vs-vlc',
   'iptvnator-vs-kodi',
+  'computer-vs-tv-box',
 ];
 /** Pages that name other software must say they are not affiliated with it, and date their claims. */
 const NAMES_THIRD_PARTY_SOFTWARE = new Set(['iptvnator-vs-vlc', 'iptvnator-vs-kodi']);
