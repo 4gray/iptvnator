@@ -98,6 +98,14 @@ preserves Linux window identity without a shared `linux.desktop.entry` object
 enable AppImageUpdate/zsync. Contract: `docs/architecture/release-pipeline.md`
 (AppImage external-manager metadata).
 
+## Upgrade And Migration Compatibility
+
+- Users may skip releases. The application must apply all required migrations in dependency order when upgrading directly from an older release; never assume that users installed or launched every intermediate version.
+- Preserve migration paths for existing persisted data. Do not make deleting a database/profile or reinstalling the application a normal upgrade requirement. Any unavoidable intermediate-version requirement must be an explicitly documented exception.
+- Create required tables first, add missing columns before dependent indexes/triggers/queries, and make startup migrations safe to run again. `CREATE TABLE IF NOT EXISTS` does not update an existing table's columns.
+- For persistence changes, test real SQLite initialization with representative historical schemas and data, including skipped releases, the previous release, a fresh database, and repeated startup. Assert preservation of user data as well as the resulting schema; SQL mocks alone cannot verify upgrade compatibility. Cover equivalent persisted-state transitions for non-SQLite stores.
+- See `libs/shared/database/README.md` for SQLite migration ownership and validation guidance.
+
 ## Regression Prevention And Test Updates
 
 - Before the final summary for any feature, behavior change, bug fix, data-flow change, Electron IPC/database change, or user-visible UI workflow change, complete a test impact pass. Identify the affected projects and decide whether unit, integration, E2E, build, lint, or manual/CDP verification is required.

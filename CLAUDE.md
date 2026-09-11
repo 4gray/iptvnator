@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> The process sections below (Plan Mode, Documentation After Changes, Regression Prevention, Agent Bootstrap, Electron CDP Debugging) are mirrored in `AGENTS.md`, which is the canonical copy for agent workflows. When updating one, keep the other in sync.
+> The process sections below (Plan Mode, Documentation After Changes, Upgrade And Migration Compatibility, Regression Prevention, Agent Bootstrap, Electron CDP Debugging) are mirrored in `AGENTS.md`, which is the canonical copy for agent workflows. When updating one, keep the other in sync.
 
 ## Plan Mode
 
@@ -52,6 +52,14 @@ preserves Linux window identity without a shared `linux.desktop.entry` object
 (builder's nested merge would leak AppImage fields into Snap). This does not
 enable AppImageUpdate/zsync. Contract: `docs/architecture/release-pipeline.md`
 (AppImage external-manager metadata).
+
+## Upgrade And Migration Compatibility
+
+- Users may skip releases. The application must apply all required migrations in dependency order when upgrading directly from an older release; never assume that users installed or launched every intermediate version.
+- Preserve migration paths for existing persisted data. Do not make deleting a database/profile or reinstalling the application a normal upgrade requirement. Any unavoidable intermediate-version requirement must be an explicitly documented exception.
+- Create required tables first, add missing columns before dependent indexes/triggers/queries, and make startup migrations safe to run again. `CREATE TABLE IF NOT EXISTS` does not update an existing table's columns.
+- For persistence changes, test real SQLite initialization with representative historical schemas and data, including skipped releases, the previous release, a fresh database, and repeated startup. Assert preservation of user data as well as the resulting schema; SQL mocks alone cannot verify upgrade compatibility. Cover equivalent persisted-state transitions for non-SQLite stores.
+- See `libs/shared/database/README.md` for SQLite migration ownership and validation guidance.
 
 ## Regression Prevention And Test Updates
 
@@ -1699,7 +1707,7 @@ The Electron backend depends on the web app being built first:
 
 ### Database Migrations
 
-No formal migration system yet. Schema changes are applied via raw SQL in the `createTables()` function in `libs/shared/database/src/lib/connection.ts` using `CREATE TABLE IF NOT EXISTS`. One-off data migrations run guarded by keys stored in the `appState` table.
+Database initialization is owned by `libs/shared/database/src/lib/connection.ts`. `createTables()` creates missing schema objects, and `runMigrations()` applies column/index migrations and dedicated schema/data upgrades. `CREATE TABLE IF NOT EXISTS` does not add columns to existing tables. One-off data migrations use completion keys stored in `app_state` (exported as `appState`). Follow the Upgrade And Migration Compatibility policy above and the validation guidance in `libs/shared/database/README.md`; a new release must not depend on users having launched intermediate releases.
 
 ### Common Patterns
 
