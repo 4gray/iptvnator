@@ -94,7 +94,7 @@
     "dependencies": {
         "@angular/animations": "21.2.19",
         "@angular/cdk": "21.2.14",
-        "@angular/common": "21.2.19",
+        "@angular/common": "21.2.20",
         "@angular/compiler": "21.2.19",
         "@angular/core": "21.2.19",
         "@angular/forms": "21.2.19",
@@ -145,7 +145,7 @@
         "@angular-eslint/template-parser": "21.3.1",
         "@angular/build": "21.2.19",
         "@angular/cli": "21.2.21",
-        "@angular/common": "21.2.19",
+        "@angular/common": "21.2.20",
         "@angular/compiler": "21.2.19",
         "@angular/compiler-cli": "21.2.19",
         "@angular/core": "21.2.19",
