@@ -8,6 +8,7 @@ import RelatedPosts from '../../components/download/RelatedPosts.astro';
 import CompareHero from '../../components/compare/CompareHero.astro';
 import ComparisonTable from '../../components/compare/ComparisonTable.astro';
 import CompareSwitcher from '../../components/compare/CompareSwitcher.astro';
+import ThirdPartyNote from '../../components/compare/ThirdPartyNote.astro';
 import type { FaqEntry } from '../../lib/download-schema';
 import { buildComparisonPageSchema } from '../../lib/comparison-schema';
 import { comparisonBySlug } from '../../lib/comparisons';
@@ -17,7 +18,7 @@ const comparison = comparisonBySlug('computer-vs-tv-box');
 const pageUrl = absoluteUrl('/compare/computer-vs-tv-box/');
 const title = 'IPTV on a Computer vs on a TV Box – Which Room Does What';
 const description =
-  'A set-top box is unbeatable in front of the TV, and hopeless the moment you have to type a server URL or work out why a guide shows the wrong programme. What each place is good at, and how IPTVnator fits the computer half.';
+  'A set-top box is unbeatable in front of the TV, and hopeless the moment you have to type a server URL or work out why a guide shows the wrong programme. What each place is good at, why an Android-only app has no PC version, and how IPTVnator fits the computer half.';
 
 const columns = ['TV box or smart TV', 'Computer'];
 
@@ -44,6 +45,29 @@ const practicalRows = [
   { label: 'Decoding', cells: ['What the chip supports, in hardware', 'What the machine supports, plus MPV or VLC for the rest'] },
   { label: 'Updates', cells: ['When the app store offers one', 'When you install one'] },
   { label: 'Runs IPTVnator', cells: [false, true], note: 'IPTVnator is a desktop app for Windows, macOS and Linux, plus a browser version you host yourself. There is no TV build.' },
+];
+
+const apps = [
+  {
+    title: 'They read the same sources you already have',
+    description:
+      'The Android TV players people name — TiviMate, Televizo, OTT Navigator and the rest — take M3U links, Xtream Codes logins and Stalker portals, the same three things IPTVnator takes. TiviMate’s own Google Play listing says it plainly: it is a media player and provides no content. That is why a subscription is never tied to one app.',
+  },
+  {
+    title: 'Android-only is common, but it is not a rule',
+    description:
+      'TiviMate is published for Android and Android TV and has no desktop build, which is why “TiviMate for PC” is such a common search. Others do ship desktop versions — IPTV Smarters publishes Windows and macOS builds alongside its mobile ones. Check the developer’s own page rather than a reseller’s before believing either answer.',
+  },
+  {
+    title: 'On a computer, the equivalent is a desktop player — not an emulator',
+    description:
+      'Running an Android TV app in an emulator gets you a phone interface in a window, with the remote-control navigation still in the way. If the app you like is Android-only, what you actually want on a computer is a player built for one. IPTVnator reads the same three source types, so the provider details you already have are all it needs.',
+  },
+  {
+    title: 'Be careful what you search for',
+    description:
+      'These names are heavily abused. The app stores carry near-identical copycat listings, and a large share of the search results for any of them are sites selling “subscriptions” under the app’s brand. The developers are player authors; they do not sell channels — exactly what IPTVnator says about itself.',
+  },
 ];
 
 const guidance = [
@@ -91,6 +115,18 @@ const faq: FaqEntry[] = [
     a: 'Yes, on a Pi running a desktop Linux: arm64 and armv7l AppImage and .deb builds ship with every release. It is still the desktop app, with a desktop interface — a Pi behind the TV will want a keyboard, or the phone remote.',
   },
   {
+    q: 'Is there a PC version of TiviMate?',
+    a: 'No. It is published for Android and Android TV, and there is no desktop build. Running it inside an Android emulator is not the same thing: you get a remote-driven interface in a window. On a computer the equivalent is a player built for a computer, and since TiviMate reads M3U links, Xtream Codes logins and Stalker portals, the same provider details work in IPTVnator without buying anything again.',
+  },
+  {
+    q: 'Do all the TV apps lack a desktop version?',
+    a: 'No, and it is worth checking rather than assuming. IPTV Smarters, for example, publishes Windows and macOS builds next to its mobile ones. Look at the developer’s own page; the search results for these names are full of resellers who will tell you whatever sells a subscription.',
+  },
+  {
+    q: 'If I switch app, do I have to buy my channels again?',
+    a: 'No. The subscription belongs to your provider, not to the player. Any app that speaks the same source type — an M3U link, an Xtream Codes login, a Stalker portal — can use the details you already have. The only real limit is how many streams your account allows at once.',
+  },
+  {
     q: 'Can I run the same subscription in both places?',
     a: 'That is your provider’s decision, not the app’s. Accounts carry a maximum number of simultaneous connections, often one or two. The account dialog in IPTVnator shows the active and maximum connections for an Xtream account.',
   },
@@ -122,7 +158,7 @@ const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq
       columns={columns}
       rows={setupRows}
       rowHeader="Task"
-      caption="Rows describe the ordinary experience of each kind of device rather than any particular application; individual apps differ."
+      caption="Rows describe the ordinary experience of each kind of device rather than any particular application; individual apps differ, and the section below names the ones people usually mean."
     />
   </DownloadSection>
 
@@ -132,6 +168,11 @@ const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq
 
   <DownloadSection id="practical" eyebrow="In practice" title="Hardware, decoding" accent="and updates">
     <ComparisonTable columns={columns} rows={practicalRows} rowHeader="Detail" />
+  </DownloadSection>
+
+  <DownloadSection id="apps" eyebrow="Names" title="The apps people" accent="actually mean" lead="“TV box” usually means one of a handful of Android TV players. Knowing what they have in common is more useful than ranking them.">
+    <FeatureList items={apps} />
+    <ThirdPartyNote names={['TiviMate', 'Televizo', 'OTT Navigator', 'IPTV Smarters']} checked="September 2026" />
   </DownloadSection>
 
   <DownloadSection id="guidance" eyebrow="Making it work" title="Use both, on" accent="purpose">
@@ -145,7 +186,7 @@ const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq
   </DownloadSection>
 
   <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
-    <RelatedPosts slugs={['remote-control-guide', 'epg-wrong-program-fix', 'offline-downloads-guide']} />
+    <RelatedPosts slugs={['remote-control-guide', 'beware-unofficial-iptvnator-websites', 'epg-wrong-program-fix']} />
     <div class="mt-10">
       <OfficialSourcesNote />
     </div>
