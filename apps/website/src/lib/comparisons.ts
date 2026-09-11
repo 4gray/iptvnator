@@ -14,7 +14,8 @@ export type ComparisonSlug =
   | 'm3u-vs-xtream-vs-stalker'
   | 'playback-engines'
   | 'desktop-vs-browser'
-  | 'iptvnator-vs-vlc';
+  | 'iptvnator-vs-vlc'
+  | 'iptvnator-vs-kodi';
 
 export interface ComparisonEntry {
   slug: ComparisonSlug;
@@ -66,6 +67,15 @@ export const COMPARISONS: readonly ComparisonEntry[] = [
       'VLC opens an M3U playlist too. When is that enough, and what does a player built around IPTV add on top?',
     href: '/iptvnator/compare/iptvnator-vs-vlc/',
     icon: 'M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5',
+  },
+  {
+    slug: 'iptvnator-vs-kodi',
+    label: 'IPTVnator vs Kodi',
+    eyebrow: 'Compare · Other players',
+    question:
+      'Kodi is a whole media center and reaches IPTV through a PVR add-on. When is that the right shape, and when do you want a player that only does IPTV?',
+    href: '/iptvnator/compare/iptvnator-vs-kodi/',
+    icon: 'M4 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM8 20h8M10 16v4M14 16v4',
   },
 ];
 

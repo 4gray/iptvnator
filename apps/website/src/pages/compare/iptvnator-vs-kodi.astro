@@ -1,0 +1,168 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import CompareHero from '../../components/compare/CompareHero.astro';
+import ComparisonTable from '../../components/compare/ComparisonTable.astro';
+import CompareSwitcher from '../../components/compare/CompareSwitcher.astro';
+import ThirdPartyNote from '../../components/compare/ThirdPartyNote.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildComparisonPageSchema } from '../../lib/comparison-schema';
+import { comparisonBySlug } from '../../lib/comparisons';
+import { absoluteUrl } from '../../lib/site';
+
+const comparison = comparisonBySlug('iptvnator-vs-kodi');
+const pageUrl = absoluteUrl('/compare/iptvnator-vs-kodi/');
+const title = 'IPTVnator vs Kodi – A Media Center or a Dedicated IPTV Player';
+const description =
+  'Kodi is a media center that reaches IPTV through a PVR add-on and does much more besides. IPTVnator only does IPTV, with provider accounts built in and no add-on layer. What each is shaped for, and which fits your setup.';
+
+const columns = ['Kodi', 'IPTVnator'];
+
+const setupRows = [
+  { label: 'M3U or M3U8 playlist', cells: ['Through a PVR add-on', true], note: 'Kodi ships with PVR IPTV Simple Client; it has to be enabled and configured before live TV appears.' },
+  { label: 'XMLTV programme guide', cells: ['Through the same add-on', true] },
+  { label: 'Xtream Codes account (server, username, password)', cells: ['Not part of Kodi itself', true] },
+  { label: 'Stalker or Ministra portal (MAC address)', cells: ['Not part of Kodi itself', true] },
+  { label: 'Several providers side by side', cells: ['One add-on instance per source', true] },
+  { label: 'Getting started', cells: ['Enable the add-on, point it at your URLs, reload', 'Paste the link or the login in the app'] },
+];
+
+const shapeRows = [
+  { label: 'Live TV with a guide', cells: [true, true] },
+  { label: 'Provider movie and series catalogs with posters', cells: ['Depends on the add-on', true] },
+  { label: 'Your own video and music library with scraped metadata', cells: [true, false] },
+  { label: 'Add-ons and skins', cells: [true, false] },
+  { label: 'Designed first for', cells: ['A TV across the room, with a remote', 'A computer, with a keyboard and mouse'] },
+  { label: 'Control it from a phone', cells: ['Official and third-party remote apps', 'Built-in web remote, nothing to install'] },
+  { label: 'Catch-up from the guide', cells: ['Depends on the add-on', true] },
+  { label: 'Offline downloads of provider movies and episodes', cells: ['Depends on the add-on', 'Desktop app'] },
+];
+
+const practicalRows = [
+  { label: 'Where it runs', cells: ['Windows, macOS, Linux, Android, tvOS, Raspberry Pi and more', 'Windows, macOS, Linux; browser version you host yourself'] },
+  { label: 'Price', cells: ['Free, open source', 'Free, open source'] },
+  { label: 'Account needed', cells: [false, false] },
+  { label: 'Supplies channels or playlists', cells: [false, false], note: 'Neither is a content source. Both play sources you bring yourself, and the Kodi project is explicit about that too.' },
+];
+
+const guidance = [
+  {
+    title: 'Already running Kodi on a TV or a Pi? Stay there',
+    description:
+      'If Kodi is your living-room setup and IPTV is one of several things it does, adding a second app solves nothing. IPTVnator has no TV build and no remote-friendly interface; it would be the wrong tool in that room.',
+  },
+  {
+    title: 'IPTV on a computer, and that is the whole job',
+    description:
+      'A dedicated player skips the layer in between. There is no add-on to enable, configure and keep working after an update — you paste the link or the login and the catalog is there.',
+  },
+  {
+    title: 'A provider login rather than a file',
+    description:
+      'Xtream Codes and Stalker are provider APIs, not playlists. IPTVnator speaks both natively, which is what turns a subscription into live TV, movies and series with posters instead of a flat channel list.',
+  },
+  {
+    title: 'They are not in each other’s way',
+    description:
+      'Kodi on the TV and IPTVnator on the laptop is a perfectly ordinary setup. The same provider works in both; nothing is locked to one app.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Does Kodi play IPTV out of the box?',
+    a: 'Almost. Kodi ships with the PVR IPTV Simple Client, but it is disabled until you enable it and point it at your M3U playlist and, if you have one, your XMLTV guide. After that Kodi shows live TV and a guide like any other PVR backend.',
+  },
+  {
+    q: 'Is IPTVnator a Kodi add-on?',
+    a: 'No. It is a standalone application for Windows, macOS and Linux, plus a browser version you can host yourself. It does not run inside Kodi and does not need it.',
+  },
+  {
+    q: 'Can Kodi use an Xtream Codes login or a Stalker portal?',
+    a: 'Not as part of Kodi itself: those are provider APIs rather than playlist files. Some providers hand out an M3U link generated from the same account, which the bundled add-on can use. Whether any third-party add-on covers the APIs properly is outside what this page can verify, so check before relying on it.',
+  },
+  {
+    q: 'Which is easier to set up just for IPTV?',
+    a: 'IPTVnator, because there is no add-on layer: you add a source and the app is already an IPTV player. Kodi asks you to enable and configure a PVR client first, which is the price of it being a general media center rather than an IPTV app.',
+  },
+  {
+    q: 'What does Kodi do that IPTVnator does not?',
+    a: 'Quite a lot. Your own local video and music library with scraped metadata, add-ons, skins, an interface built for a remote across the room, and builds for TV boxes, phones and a Raspberry Pi. IPTVnator does none of that and is not trying to.',
+  },
+  {
+    q: 'Can I run both?',
+    a: 'Yes, and many people do — Kodi in the living room, a dedicated player on the computer. The same subscription works in both; neither one locks the source.',
+  },
+  {
+    q: 'Does either of them provide channels?',
+    a: 'No. Both are players for sources you already have. Neither provides, hosts or sells playlists, channels or subscriptions.',
+  },
+  {
+    q: 'I only want the programme guide to work properly. Which one?',
+    a: 'Both read XMLTV. The difference is what happens when it goes wrong: IPTVnator lets you map a channel to a guide entry by hand and shift the guide’s clock when a provider labels times in the wrong timezone. If your guide already works in Kodi, that is not a reason to move.',
+  },
+];
+
+const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq });
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTVnator vs Kodi', 'Kodi IPTV alternative', 'IPTV player without Kodi', 'PVR IPTV Simple Client alternative', 'IPTV player for PC', 'open source IPTV player']}
+  jsonLd={jsonLd}
+>
+  <CompareHero
+    comparison={comparison}
+    titleLead="A media center, or"
+    titleAccent="just an IPTV player?"
+    lede="Kodi can do IPTV, and a great deal more. That breadth is exactly what makes the comparison worth having: one of these is a living-room platform that reaches IPTV through an add-on, the other does nothing but IPTV and is installed on a desk."
+    verdict="If Kodi is already your TV setup, stay with it — IPTVnator has no TV build and would be the wrong tool in that room. If IPTV is the whole job on a computer, or your provider gave you an Xtream Codes login or a Stalker portal rather than a playlist file, a dedicated player is less setup and speaks those APIs natively."
+  />
+
+  <DownloadSection id="setup" eyebrow="Getting the source in" title="Where IPTV" accent="comes from" lead="Kodi treats IPTV as one kind of PVR backend among many; IPTVnator treats it as the whole application.">
+    <ComparisonTable
+      columns={columns}
+      rows={setupRows}
+      rowHeader="Source"
+      caption="A provider that hands out an M3U link works in both. One that hands out a server URL with a login, or a MAC address, needs a client that speaks those APIs."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="shape" eyebrow="What each is for" title="Two different" accent="shapes" lead="Neither list is a scoreboard. They describe two programs built for different rooms.">
+    <ComparisonTable
+      columns={columns}
+      rows={shapeRows}
+      rowHeader="Capability"
+      caption="“Depends on the add-on” is the honest answer: Kodi’s IPTV features come from whichever PVR client you install, and this page does not vouch for third-party add-ons."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="practical" eyebrow="In practice" title="Platforms" accent="and price">
+    <ComparisonTable columns={columns} rows={practicalRows} rowHeader="Detail" />
+  </DownloadSection>
+
+  <DownloadSection id="guidance" eyebrow="Choosing" title="A rule of" accent="thumb">
+    <FeatureList items={guidance} />
+    <ThirdPartyNote names={['Kodi']} checked="September 2026" />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="Kodi and IPTV">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'xtream-codes-setup-guide', 'epg-wrong-program-fix']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <CompareSwitcher current="iptvnator-vs-kodi" />
+</BaseLayout>
