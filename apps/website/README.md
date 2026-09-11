@@ -166,10 +166,10 @@ screenshots that show real channel names.
 ## Comparison Pages
 
 `/compare/` plus one page per decision the app asks users to make
-(`m3u-vs-xtream-vs-stalker`, `playback-engines`, `desktop-vs-browser`) live in
-`apps/website/src/pages/compare/`. They compare IPTVnator's own options against
-each other, never other products, so every claim is checkable against this
-repository; the registry is `src/lib/comparisons.ts`.
+(`m3u-vs-xtream-vs-stalker`, `playback-engines`, `desktop-vs-browser`,
+`iptvnator-vs-vlc`) live in `apps/website/src/pages/compare/`; the registry is
+`src/lib/comparisons.ts`. Most of them compare IPTVnator's own options against
+each other, so every claim is checkable against this repository.
 
 Each page opens with a one-paragraph verdict (`CompareHero`), carries at least
 one `ComparisonTable` (cells are `true`, `false` or a qualifying string) and
@@ -178,6 +178,22 @@ emits `WebPage` / `FAQPage` / `BreadcrumbList` JSON-LD from
 these pages are guidance rather than a product listing, and
 `tools/testing/website-compare-pages.test.mjs` asserts that.
 
-Naming a competitor on these pages is a product decision, not a technical one.
-Phase 3 of `.plans/2026-09-03-marketing-landing-pages.md` covers that and is
-still open.
+### Pages that name other software
+
+Naming another project is a product decision the maintainer makes, not a
+technical one. Where it has been made, the page follows stricter rules, and
+`website-compare-pages.test.mjs` enforces the first two through its
+`NAMES_THIRD_PARTY_SOFTWARE` set:
+
+- a dated `ThirdPartyNote` (`src/components/compare/ThirdPartyNote.astro`)
+  stating that the other project is independent and endorses nothing,
+- claims carrying the month they were checked, because another project can add
+  a feature the day after the page is written,
+- only stable, publicly documented platform and feature facts — never a claim
+  that something is missing unless it was actually checked,
+- no third-party logos, brand styling, download links or affiliate links.
+
+Prefer describing what IPTVnator does and letting the difference speak. The
+comparison that works best is the one where the other project is a partner
+rather than a rival: `iptvnator-vs-vlc` ends on the external-player
+integration, because that is the honest answer.

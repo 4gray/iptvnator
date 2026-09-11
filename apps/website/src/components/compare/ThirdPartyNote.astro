@@ -1,0 +1,29 @@
+---
+/**
+ * Shown on every comparison page that names software other than IPTVnator.
+ * Two jobs: state that there is no affiliation, and date the claims, because
+ * another project can add a feature the day after this page is written.
+ */
+interface Props {
+  /** Names as their own projects spell them. */
+  names: string[];
+  /** Month and year the claims on the page were checked. */
+  checked: string;
+}
+
+const { names, checked } = Astro.props;
+const many = names.length > 1;
+const list = many ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+const copy = many
+  ? { verb: 'are independent projects', pronoun: 'them', possessive: 'Their names are', doing: 'they do' }
+  : { verb: 'is an independent project', pronoun: 'it', possessive: 'Its name is', doing: 'it does' };
+---
+
+<div class="not-prose mt-10 rounded-xl border border-surface-800 bg-surface-900/40 p-5">
+  <p class="m-0 text-sm leading-relaxed text-surface-400">
+    <span class="font-semibold text-surface-300">Not affiliated.</span>{' '}
+    {list} {copy.verb} with no connection to IPTVnator, and nothing here is endorsed by{' '}
+    {copy.pronoun}. {copy.possessive} used only to describe what {copy.doing}. Claims on this
+    page were checked in {checked}; software changes, so verify anything that decides your setup.
+  </p>
+</div>

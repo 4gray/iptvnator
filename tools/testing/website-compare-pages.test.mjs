@@ -10,7 +10,14 @@ import assert from 'node:assert/strict';
 
 const distRoot = new URL('../../dist/apps/website/', import.meta.url);
 const SITE = 'https://4gray.github.io/iptvnator';
-const COMPARISONS = ['m3u-vs-xtream-vs-stalker', 'playback-engines', 'desktop-vs-browser'];
+const COMPARISONS = [
+  'm3u-vs-xtream-vs-stalker',
+  'playback-engines',
+  'desktop-vs-browser',
+  'iptvnator-vs-vlc',
+];
+/** Pages that name other software must say they are not affiliated with it, and date their claims. */
+const NAMES_THIRD_PARTY_SOFTWARE = new Set(['iptvnator-vs-vlc']);
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');
 
@@ -40,6 +47,15 @@ for (const slug of COMPARISONS) {
       !schema.some((entry) => entry['@type'] === 'SoftwareApplication'),
       'A comparison page is guidance, not a product listing.'
     );
+
+    if (NAMES_THIRD_PARTY_SOFTWARE.has(slug)) {
+      assert.match(html, /Not affiliated\./, 'A page naming other software must carry the disclaimer.');
+      assert.match(
+        html,
+        /Claims on this page were checked in \w+ \d{4}/,
+        'A page naming other software must date its claims.'
+      );
+    }
   });
 
   test(`comparison page ${slug}: links to the hub and the other comparisons`, async () => {

@@ -1,0 +1,175 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import FaqAccordion from '../../components/blog/FaqAccordion.astro';
+import DownloadSection from '../../components/download/DownloadSection.astro';
+import FeatureList from '../../components/download/FeatureList.astro';
+import OfficialSourcesNote from '../../components/download/OfficialSourcesNote.astro';
+import RelatedPosts from '../../components/download/RelatedPosts.astro';
+import CompareHero from '../../components/compare/CompareHero.astro';
+import ComparisonTable from '../../components/compare/ComparisonTable.astro';
+import CompareSwitcher from '../../components/compare/CompareSwitcher.astro';
+import ThirdPartyNote from '../../components/compare/ThirdPartyNote.astro';
+import type { FaqEntry } from '../../lib/download-schema';
+import { buildComparisonPageSchema } from '../../lib/comparison-schema';
+import { comparisonBySlug } from '../../lib/comparisons';
+import { absoluteUrl } from '../../lib/site';
+
+const comparison = comparisonBySlug('iptvnator-vs-vlc');
+const pageUrl = absoluteUrl('/compare/iptvnator-vs-vlc/');
+const title = 'IPTVnator vs VLC – When a Media Player Is Enough for IPTV';
+const description =
+  'VLC opens an M3U playlist and plays almost anything inside it. IPTVnator adds what a playlist file cannot carry: a searchable catalog, the programme guide, provider accounts, favorites and catch-up — and it can hand the stream to VLC when a codec needs it.';
+
+const columns = ['VLC', 'IPTVnator'];
+
+const sourceRows = [
+  { label: 'Opens an M3U or M3U8 playlist', cells: [true, true] },
+  { label: 'Opens a single stream URL', cells: [true, true] },
+  { label: 'Xtream Codes account (server, username, password)', cells: [false, true], note: 'Brings live TV, movies and series as one catalog instead of a flat list.' },
+  { label: 'Stalker or Ministra portal (MAC address)', cells: [false, true] },
+  { label: 'XMLTV programme guide', cells: [false, true] },
+  { label: 'Several sources side by side', cells: ['One playlist at a time', true] },
+];
+
+const libraryRows = [
+  { label: 'Channel list with groups and search', cells: ['Flat playlist', true] },
+  { label: 'Movies and series with posters and descriptions', cells: [false, true] },
+  { label: 'Favorites across sources, recently watched', cells: ['General playlist and media library', true] },
+  { label: 'Programme now and next, timeline, full guide', cells: [false, true] },
+  { label: 'Catch-up from the guide', cells: [false, true], note: 'Where the provider offers an archive.' },
+  { label: 'Resume where you stopped', cells: ['Per file in its own history', 'Per stream, across sources'] },
+  { label: 'Offline downloads', cells: [false, 'Desktop app'] },
+  { label: 'Phone remote control', cells: [false, 'Desktop app'] },
+];
+
+const practicalRows = [
+  { label: 'Plays unusual codecs and containers', cells: [true, 'Built-in players cover the common ones; MPV, VLC or the bundled mpv engine handle the rest'] },
+  { label: 'Sends the provider’s User-Agent and Referer', cells: ['Set by hand per stream', 'Stored with the playlist and sent automatically'] },
+  { label: 'Where it runs', cells: ['Windows, macOS, Linux, Android, iOS', 'Windows, macOS, Linux; browser version you host yourself'] },
+  { label: 'Price', cells: ['Free, open source', 'Free, open source'] },
+  { label: 'Account needed', cells: [false, false] },
+  { label: 'Supplies channels or playlists', cells: [false, false], note: 'Neither is a content source. You bring a subscription you already have.' },
+];
+
+const together = [
+  {
+    title: 'IPTVnator can play the stream in VLC',
+    description:
+      'Choose VLC under Settings › Playback and IPTVnator launches your own copy for playback. The catalog, the guide, favorites and the phone remote stay in IPTVnator; only the video moves to a VLC window.',
+  },
+  {
+    title: 'The handover carries what VLC cannot guess',
+    description:
+      'IPTVnator passes the playlist’s User-Agent, Referer and any custom headers with the stream, so a provider that checks them still answers. It also passes your resume position and the title for the window.',
+  },
+  {
+    title: 'Progress comes back',
+    description:
+      'IPTVnator asks VLC where it is through VLC’s own remote-control interface, so a movie you stopped in VLC resumes from the same place in the library.',
+  },
+  {
+    title: 'A codec problem stops being a dead end',
+    description:
+      'A stream that stutters or refuses in a browser engine usually plays immediately in VLC. Switching one stream does not change anything else about your setup.',
+  },
+];
+
+const faq: FaqEntry[] = [
+  {
+    q: 'Can VLC play an IPTV M3U playlist?',
+    a: 'Yes. Open the .m3u file or paste its URL into Media › Open Network Stream and VLC lists the entries in its playlist, then plays them. That is genuinely enough for a handful of channels.',
+  },
+  {
+    q: 'So why use a dedicated IPTV player at all?',
+    a: 'Because a playlist file carries only names and stream addresses. It has no programme guide, no movie or series catalog, no account status and no catch-up. With a few hundred or a few thousand entries, a flat list also stops being something you can browse. IPTVnator is built around those things; VLC is built around playing a file.',
+  },
+  {
+    q: 'Does VLC support Xtream Codes logins or Stalker portals?',
+    a: 'No. Those are provider APIs, not stream files: something has to log in, ask for categories, and build a catalog out of the answers. VLC opens files and URLs. If your provider gave you a server address, a username and a password, IPTVnator can use them directly.',
+  },
+  {
+    q: 'Can VLC show the programme guide?',
+    a: 'Not for IPTV. XMLTV guide data is a separate file that has to be downloaded, parsed and matched to channels; VLC has no such feature. IPTVnator does this in the background and shows what is on now, a timeline and a full guide.',
+  },
+  {
+    q: 'Which one plays more formats?',
+    a: 'VLC, almost certainly — decoding is what it is for. IPTVnator does not compete there: it lets you send any stream to VLC or MPV on your machine, or to the mpv engine that ships with the desktop app, so the coverage becomes theirs.',
+  },
+  {
+    q: 'Do I have to choose one?',
+    a: 'No, and most people should not. Keeping VLC installed gives IPTVnator somewhere to send a stubborn stream. Neither installation affects the other.',
+  },
+  {
+    q: 'What about watching on a phone?',
+    a: 'VLC has mobile apps and IPTVnator does not. The browser version of IPTVnator, which you host yourself, opens on a phone browser, and the desktop app can be controlled from a phone with its web remote — but for playback on the phone itself, a mobile player is the right tool.',
+  },
+  {
+    q: 'Is either one a source of channels?',
+    a: 'No. Both are players. Neither provides, hosts or sells playlists, channels or subscriptions; you bring a source you already have the right to use.',
+  },
+];
+
+const jsonLd = buildComparisonPageSchema({ comparison, pageUrl, description, faq });
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  keywords={['IPTVnator vs VLC', 'VLC IPTV player', 'play M3U in VLC', 'IPTV player for PC', 'open source IPTV player', 'VLC alternative for IPTV']}
+  jsonLd={jsonLd}
+>
+  <CompareHero
+    comparison={comparison}
+    titleLead="VLC plays it."
+    titleAccent="Something has to organise it."
+    lede="Every guide to IPTV on a computer starts with the same advice: open the playlist in VLC. It works. The question is what happens after the twentieth channel, when you want to know what is on, or when your provider hands you a login instead of a file."
+    verdict="Use VLC when you have a handful of streams and want them to play. Use IPTVnator when the source is an account or a large playlist and you want a catalog, a programme guide, favorites and catch-up around it — and keep VLC installed either way, because IPTVnator can hand it a stream that will not decode."
+  />
+
+  <DownloadSection id="sources" eyebrow="The source" title="What each one can" accent="connect to" lead="This is the first fork in the road, and it is decided by your provider, not by preference.">
+    <ComparisonTable
+      columns={columns}
+      rows={sourceRows}
+      rowHeader="Source"
+      caption="A provider that gave you only an M3U link works with both. One that gave you a server URL with a username and password, or a MAC address, needs a client that speaks those APIs."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="library" eyebrow="Around the video" title="What a playlist file" accent="cannot carry" lead="Names and addresses are all an M3U holds. Everything below has to come from somewhere else.">
+    <ComparisonTable
+      columns={columns}
+      rows={libraryRows}
+      rowHeader="Capability"
+      caption="IPTVnator reads the guide from an XMLTV source or from the portal itself, and keeps favorites, history and resume positions in a local database on your machine."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="practical" eyebrow="In practice" title="Decoding, headers" accent="and platforms">
+    <ComparisonTable
+      columns={columns}
+      rows={practicalRows}
+      rowHeader="Detail"
+      caption="Both are free and open source, and neither asks you to create an account."
+    />
+  </DownloadSection>
+
+  <DownloadSection id="together" eyebrow="Not either/or" title="They work" accent="together" lead="The two are complementary by design: IPTVnator treats VLC as one of the players it can send a stream to.">
+    <FeatureList items={together} />
+    <ThirdPartyNote names={['VLC']} checked="September 2026" />
+  </DownloadSection>
+
+  <DownloadSection id="faq" eyebrow="FAQ" title="Questions about" accent="VLC and IPTV">
+    <div class="max-w-3xl">
+      <FaqAccordion items={faq} />
+    </div>
+  </DownloadSection>
+
+  <DownloadSection id="guides" eyebrow="Keep reading" title="Guides and" accent="background">
+    <RelatedPosts slugs={['m3u-playlist-epg-setup-guide', 'why-external-players-help', 'xtream-codes-setup-guide']} />
+    <div class="mt-10">
+      <OfficialSourcesNote />
+    </div>
+  </DownloadSection>
+
+  <CompareSwitcher current="iptvnator-vs-vlc" />
+</BaseLayout>

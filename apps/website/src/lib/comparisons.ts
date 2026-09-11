@@ -1,14 +1,20 @@
 /**
- * Registry of the comparison pages under `/compare/`. These pages compare
- * IPTVnator's own options against each other — connection types, playback
- * engines, editions — rather than naming other products, so every claim on
- * them can be checked against this repository.
+ * Registry of the comparison pages under `/compare/`.
+ *
+ * Most of them compare IPTVnator's own options against each other — connection
+ * types, playback engines, editions — so every claim can be checked against
+ * this repository. A page that names other software follows stricter rules:
+ * only platform and feature facts that are stable and publicly documented, a
+ * dated `ThirdPartyNote`, no logos or brand styling, no download links to the
+ * other project, and no claim that a feature is missing unless it was checked.
+ * Prefer describing what IPTVnator does and letting the difference speak.
  */
 
 export type ComparisonSlug =
   | 'm3u-vs-xtream-vs-stalker'
   | 'playback-engines'
-  | 'desktop-vs-browser';
+  | 'desktop-vs-browser'
+  | 'iptvnator-vs-vlc';
 
 export interface ComparisonEntry {
   slug: ComparisonSlug;
@@ -51,6 +57,15 @@ export const COMPARISONS: readonly ComparisonEntry[] = [
       'The desktop app and the self-hosted browser version share one codebase. Here is exactly what the browser cannot do.',
     href: '/iptvnator/compare/desktop-vs-browser/',
     icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  },
+  {
+    slug: 'iptvnator-vs-vlc',
+    label: 'IPTVnator vs VLC',
+    eyebrow: 'Compare · Other players',
+    question:
+      'VLC opens an M3U playlist too. When is that enough, and what does a player built around IPTV add on top?',
+    href: '/iptvnator/compare/iptvnator-vs-vlc/',
+    icon: 'M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5',
   },
 ];
 
