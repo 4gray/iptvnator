@@ -20,6 +20,7 @@ interface Job {
     origin: string;
     explicit: boolean;
     requestId: string;
+    deadlineAt?: number;
     controller: AbortController;
     users: Set<symbol>;
     running: boolean;
@@ -89,7 +90,11 @@ export class SourceHealthService {
     }
     check(
         p: PlaylistMeta,
-        options: { fresh?: boolean; signal?: AbortSignal } = {}
+        options: {
+            fresh?: boolean;
+            signal?: AbortSignal;
+            deadlineAt?: number;
+        } = {}
     ): Promise<SourceHealthSnapshot> {
         if (
             !this.runtime.supportsSourceHealth ||
@@ -109,12 +114,14 @@ export class SourceHealthService {
         if (!options.fresh && cached && Date.now() - cached.checkedAt < ttl)
             return Promise.resolve(cached);
         let job = this.jobs.get(key);
-        if (options.fresh && job?.running && !job.explicit)
+        if (options.fresh && job?.running && !job.explicit) {
+            const deadlineAt = options.deadlineAt ?? Date.now() + 15000;
             return job.promise.then(() =>
                 this.identities.get(p._id) === key
-                    ? this.check(p, options)
+                    ? this.check(p, { ...options, deadlineAt })
                     : { ...sourceHealthUnknown('cancelled'), checkedAt: 0 }
             );
+        }
         if (!job) {
             let resolve!: Job['resolve'];
             const promise = new Promise<SourceHealthSnapshot>((r) => {
@@ -128,6 +135,7 @@ export class SourceHealthService {
                 users: new Set(),
                 running: false,
                 requestId: crypto.randomUUID(),
+                deadlineAt: options.deadlineAt,
                 controller: new AbortController(),
                 promise,
                 resolve,
@@ -182,10 +190,15 @@ export class SourceHealthService {
         }
     }
     private async run(job: Job) {
-        const deadlineAt = Date.now() + (job.explicit ? 15000 : 5000);
+        const startedAt = Date.now();
+        const deadlineAt =
+            job.deadlineAt ?? startedAt + (job.explicit ? 15000 : 5000);
         let snapshot: SourceHealthSnapshot;
         try {
-            const result = await this.checkWithinDeadline(job, deadlineAt);
+            const result =
+                deadlineAt <= startedAt
+                    ? sourceHealthUnknown('timeout')
+                    : await this.checkWithinDeadline(job, deadlineAt);
             snapshot = { ...result, checkedAt: Date.now() };
         } catch (error) {
             snapshot = { ...sourceHealthError(error), checkedAt: Date.now() };
@@ -195,10 +208,7 @@ export class SourceHealthService {
         if (job.users.size && [...this.identities.values()].includes(job.key)) {
             const previous = this.snapshots().get(job.key);
             // An account dialog may have published newer evidence while this check ran.
-            if (
-                !previous?.checkedAt ||
-                previous.checkedAt <= deadlineAt - (job.explicit ? 15000 : 5000)
-            ) {
+            if (!previous?.checkedAt || previous.checkedAt <= startedAt) {
                 this.publish(job.key, snapshot);
             } else {
                 // Return the same newer evidence that the indicator displays.

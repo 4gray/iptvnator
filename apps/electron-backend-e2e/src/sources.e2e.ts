@@ -91,7 +91,7 @@ test.describe('Electron Sources View', () => {
             await dialog
                 .getByRole('button', { name: 'Add', exact: true })
                 .click();
-            await page.waitForURL(/xtreams.*vod/);
+            await waitForXtreamCatalog(page);
             await openSources(page);
             dialog = await openSourceEditor(page, title);
             await dialog.locator('[formControlName="password"]').fill('');
@@ -170,7 +170,7 @@ test.describe('Electron Sources View', () => {
             );
             expect(saved?.serverUrl).toBe(liveFormatMock);
             await refreshSource(page, title, { confirm: true });
-            await waitForSourceRowIdle(page, title);
+            await waitForXtreamCatalog(page);
             const refreshed = await waitForPortalDebugEvent(page, {
                 provider: 'xtream',
                 operation: 'get_live_streams',
@@ -671,14 +671,26 @@ https://streams.example.test/original-url.m3u8
 https://streams.example.test/refreshed-url.m3u8
 `
             );
+            // A previous refresh toast must not satisfy this operation's completion.
+            await expect(
+                app.mainWindow.locator('.mat-mdc-snack-bar-label')
+            ).toHaveCount(0);
             await refreshSource(app.mainWindow, 'refresh-url-source.m3u');
             await expectPlaylistUpdatedToast(app.mainWindow);
             await waitForSourceRowIdle(
                 app.mainWindow,
                 'refresh-url-source.m3u'
             );
-            await sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
-                .first()
+            const refreshedUrlRow = sourceRowByTitle(
+                app.mainWindow,
+                'refresh-url-source.m3u'
+            ).first();
+            await expect(
+                refreshedUrlRow.locator('.playlist-item')
+            ).not.toHaveClass(/is-busy/);
+            await expect(refreshedUrlRow.locator('.refresh-btn')).toBeEnabled();
+            await refreshedUrlRow
+                .getByText('refresh-url-source.m3u', { exact: true })
                 .click();
             await waitForM3uCatalog(app.mainWindow);
             await expect(

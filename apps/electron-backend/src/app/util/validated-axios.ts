@@ -3,6 +3,7 @@ import axios, {
     AxiosResponse,
     RawAxiosRequestHeaders,
 } from 'axios';
+import { Readable } from 'node:stream';
 import type { LookupAddress } from 'node:dns';
 import { Agent as HttpAgent } from 'node:http';
 import { Agent as HttpsAgent } from 'node:https';
@@ -214,6 +215,9 @@ export async function requestWithValidatedRedirects<T = unknown>(
         if (!REDIRECT_STATUSES.has(response.status)) {
             return response;
         }
+
+        // No consumer owns intermediate bodies, including redirects rejected below.
+        if (response.data instanceof Readable) response.data.destroy();
 
         const location = response.headers?.location;
         if (!location) {
