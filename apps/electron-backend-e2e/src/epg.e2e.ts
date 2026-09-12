@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { Page } from '@playwright/test';
 import {
     buildM3uContent,
@@ -69,7 +71,79 @@ function formatXmltvDate(date: Date): string {
     ].join('');
 }
 
+async function createGzipEpgServer(xml: string, doubleGzip: boolean) {
+    const file = gzipSync(xml);
+    const body = doubleGzip ? gzipSync(file) : file;
+    const server = createServer((_request, response) => {
+        response.writeHead(200, {
+            'Content-Type': 'application/gzip',
+            'Content-Encoding': 'gzip',
+        });
+        response.end(body);
+    });
+    await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(0, '127.0.0.1', resolve);
+    });
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+        throw new Error('Expected a TCP address for the XMLTV fixture server');
+    }
+    return {
+        url: `http://127.0.0.1:${address.port}/guide.xml.gz`,
+        close: () =>
+            new Promise<void>((resolve, reject) => {
+                server.close((error) => (error ? reject(error) : resolve()));
+            }),
+    };
+}
+
 test.describe('Electron EPG', () => {
+    for (const [name, doubleGzip] of [
+        ['double', true],
+        ['single', false],
+    ] as const) {
+        test(`@epg @electron imports ${name} gzip with a .gz URL and HTTP gzip`, async ({
+            dataDir,
+        }) => {
+            const server = await createGzipEpgServer(
+                createCurrentXmltvFixture(
+                    'gzip-news',
+                    'Gzip News',
+                    'Gzip Bulletin'
+                ),
+                doubleGzip
+            );
+            try {
+                const app = await launchElectronApp(dataDir);
+                try {
+                    const result = await app.mainWindow.evaluate(
+                        (url) => window.electron.forceFetchEpg(url),
+                        server.url
+                    );
+                    expect(result.success).toBe(true);
+                    expect(await getEpgChannelCount(app.mainWindow)).toBe(1);
+                    const metadata = await app.mainWindow.evaluate(() =>
+                        window.electron.getEpgChannelMetadata(['gzip-news'])
+                    );
+                    expect(metadata['gzip-news']).toMatchObject({
+                        displayName: 'Gzip News',
+                    });
+                    const programs = await app.mainWindow.evaluate(() =>
+                        window.electron.getChannelPrograms('gzip-news')
+                    );
+                    expect(programs.map((program) => program.title)).toEqual([
+                        'Gzip Bulletin',
+                    ]);
+                } finally {
+                    await closeElectronApp(app);
+                }
+            } finally {
+                await server.close();
+            }
+        });
+    }
+
     test('@epg @electron saves unrelated settings when EPG reconciliation is unavailable', async ({
         dataDir,
     }) => {
