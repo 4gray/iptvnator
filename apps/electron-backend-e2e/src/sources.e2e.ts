@@ -91,7 +91,7 @@ test.describe('Electron Sources View', () => {
             await dialog
                 .getByRole('button', { name: 'Add', exact: true })
                 .click();
-            await page.waitForURL(/xtreams.*vod/);
+            await waitForXtreamCatalog(page);
             await openSources(page);
             dialog = await openSourceEditor(page, title);
             await dialog.locator('[formControlName="password"]').fill('');
@@ -534,6 +534,17 @@ https://streams.example.test/url-omega.m3u8
             });
             await openSources(app.mainWindow);
 
+            await expect(
+                sourceRowByTitle(app.mainWindow, 'Delete Me Stalker').locator(
+                    'app-source-health-indicator [data-state]'
+                )
+            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+            await expect(
+                sourceRowByTitle(app.mainWindow, 'Delete Me Xtream').locator(
+                    'app-source-health-indicator [data-state]'
+                )
+            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+
             await deleteSource(app.mainWindow, deletableLocalSourceDisplayName);
             await expect(
                 sourceRowByTitle(
@@ -662,10 +673,14 @@ https://streams.example.test/original-url.m3u8
 https://streams.example.test/refreshed-url.m3u8
 `
             );
+            // A previous refresh toast must not satisfy this operation's completion.
+            await expect(
+                app.mainWindow.locator('.mat-mdc-snack-bar-label')
+            ).toHaveCount(0);
             await refreshSource(app.mainWindow, 'refresh-url-source.m3u');
             await expectPlaylistUpdatedToast(app.mainWindow);
-            // The previous local refresh toast can still be visible. Wait for
-            // this source's first refresh before checking idle and opening it.
+            // Wait for this source's first refresh to be reflected in its row
+            // before checking idle and opening it.
             await expect(
                 sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
                     .first()
@@ -675,8 +690,16 @@ https://streams.example.test/refreshed-url.m3u8
                 app.mainWindow,
                 'refresh-url-source.m3u'
             );
-            await sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
-                .first()
+            const refreshedUrlRow = sourceRowByTitle(
+                app.mainWindow,
+                'refresh-url-source.m3u'
+            ).first();
+            await expect(
+                refreshedUrlRow.locator('.playlist-item')
+            ).not.toHaveClass(/is-busy/);
+            await expect(refreshedUrlRow.locator('.refresh-btn')).toBeEnabled();
+            await refreshedUrlRow
+                .getByText('refresh-url-source.m3u', { exact: true })
                 .click();
             await waitForM3uCatalog(app.mainWindow);
             await expect(

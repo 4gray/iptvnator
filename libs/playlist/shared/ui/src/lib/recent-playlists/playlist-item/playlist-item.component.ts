@@ -1,3 +1,7 @@
+import { Injector } from '@angular/core';
+import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
+import { sourceHealthType } from '@iptvnator/shared/interfaces';
+import { SourceHealthIndicatorComponent } from '../../source-health/source-health-indicator.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
 import {
@@ -30,6 +34,7 @@ import { PlaylistMeta } from '@iptvnator/shared/interfaces';
     templateUrl: './playlist-item.component.html',
     styleUrls: ['./playlist-item.component.scss'],
     imports: [
+        SourceHealthIndicatorComponent,
         DatePipe,
         DragDropModule,
         MatIconButton,
@@ -60,7 +65,7 @@ export class PlaylistItemComponent implements OnInit {
 
     portalStatus: PortalStatus = 'unavailable';
     private readonly portalStatusService = inject(PortalStatusService);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+    readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -77,17 +82,24 @@ export class PlaylistItemComponent implements OnInit {
         );
     });
 
+    private readonly healthInjector = inject(Injector);
+    readonly sourceHealthType = sourceHealthType;
+    recheckSource(): void {
+        void this.healthInjector.get(SourceHealthService).recheck(this.item);
+    }
+
     async ngOnInit() {
-        await this.checkPortalStatus();
+        if (!this.runtime.supportsSourceHealth) await this.checkPortalStatus();
     }
 
     private async checkPortalStatus() {
         if (this.item.serverUrl && this.item.username && this.item.password) {
-            this.portalStatus = await this.portalStatusService.checkPortalStatus(
-                this.item.serverUrl,
-                this.item.username,
-                this.item.password
-            );
+            this.portalStatus =
+                await this.portalStatusService.checkPortalStatus(
+                    this.item.serverUrl,
+                    this.item.username,
+                    this.item.password
+                );
         }
     }
 

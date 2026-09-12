@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "Loading your sources and checking the programme guide. Large libraries may take a little longer.",
         "FAILED": "Your sources could not be loaded",
         "FAILED_DETAIL": "Retry to read your saved sources again. Your data has not been deleted."
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

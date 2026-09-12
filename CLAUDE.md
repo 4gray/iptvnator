@@ -569,9 +569,19 @@ layout (`isLikelyM3uMovie` in `libs/shared/m3u-utils`). Gated on TMDB
 enrichment being enabled AND `Settings.m3uVodDetails` (default on; checkbox in
 Settings → Metadata (TMDB)). Host: `m3u-vod-detail/` in
 `libs/playlist/m3u/feature-player` (shell + `PortalInlinePlayerComponent`,
-parent's `embeddedPlayback()` with `isLive: false`); external MPV/VLC users
+parent's unchanged `embeddedPlayback()` payload); external MPV/VLC users
 keep Browse. See "Movie Recognition (VOD Detail View)" in
 `docs/architecture/m3u-playlist-module.md`.
+
+M3U playback mode is independent of this metadata gate: `isLikelyM3uVod`
+recognizes video-file extensions and exact `/movie|movies|vod|series/` URL
+segments, including episodes. The M3U parent's `embeddedPlayback()` sets
+`isLive: false` for those entries or a catch-up URL, even with TMDB/details
+disabled; the detail host forwards that same payload. Ordinary HLS/TS and
+unknown URLs without VOD evidence, DASH and radio retain their existing
+behavior. Seeking requires a seekable source and duration. Xtream/Stalker,
+external MPV/VLC launch payloads and session identity are unchanged. Contract:
+`docs/architecture/m3u-playlist-module.md` (M3U Playback Mode).
 
 Channel List Component Structure (parent coordinator pattern):
 
@@ -1942,3 +1952,12 @@ Archive transfers validate TS framing, restart from byte zero after interruption
 and check expiry again at transfer start. Completed cards play locally and never
 route to VOD details. Contract and EOF/duration limits:
 `docs/architecture/download-manager.md` (Xtream archive downloads).
+
+## Desktop Source Health
+
+Electron switcher/source rows share bounded, cached Xtream/Stalker/M3U URL
+checks through `SourceHealthService` in portal shared data access. Confirmed
+account expiry/disablement is distinct from failed authorization or network
+checks. Stalker probes reuse session ownership without endpoint repair; M3U
+reads stop at 64 KiB. PWA retains existing Xtream behavior. Contract:
+`docs/architecture/m3u-playlist-module.md` (Desktop source health).

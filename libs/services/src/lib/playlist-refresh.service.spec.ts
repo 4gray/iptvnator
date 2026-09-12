@@ -1,3 +1,9 @@
+import {
+    createEnvironmentInjector,
+    EnvironmentInjector,
+    Injector,
+    runInInjectionContext,
+} from '@angular/core';
 import type {
     ElectronBridgeApi,
     PlaylistRefreshPayload,
@@ -38,7 +44,13 @@ describe('PlaylistRefreshService', () => {
         });
 
         await expect(
-            new PlaylistRefreshService().refreshPlaylist(payload)
+            runInInjectionContext(
+                createEnvironmentInjector(
+                    [],
+                    Injector.NULL as unknown as EnvironmentInjector
+                ),
+                () => new PlaylistRefreshService()
+            ).refreshPlaylist(payload)
         ).rejects.toMatchObject({
             message:
                 'Playlist refresh "playlist-refresh-cancelled" was cancelled',

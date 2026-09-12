@@ -1,3 +1,4 @@
+import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import {
     APP_UPDATE_CHECK,
@@ -713,7 +714,12 @@ const electronApi: ElectronBridgeApi = {
     updateSettings: (settings: Partial<Settings>) =>
         ipcRenderer.invoke('SETTINGS_UPDATE', settings),
     getAiSettings: () => ipcRenderer.invoke('GET_AI_SETTINGS'),
+    cancelSourceProbe: (id: string) =>
+        ipcRenderer.invoke('SOURCE_HEALTH_CANCEL', id),
+    probeM3uSource: (payload: unknown) =>
+        ipcRenderer.invoke('M3U_SOURCE_PROBE', payload),
     stalkerRequest: (payload: {
+        probe?: SourceProbeContext;
         url: string;
         macAddress: string;
         params: Record<string, string>;
@@ -725,6 +731,7 @@ const electronApi: ElectronBridgeApi = {
     resetHostConnectivityGuard: (url: string) =>
         ipcRenderer.invoke('CONNECTIVITY_GUARD_RESET', { url }),
     xtreamRequest: (payload: {
+        probe?: SourceProbeContext;
         connectionTest?: boolean;
         url: string;
         params: Record<string, string>;

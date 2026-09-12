@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { SourceHealthEvidenceService } from './source-health-evidence.service';
+import { Injectable, inject } from '@angular/core';
 import {
     isPlaylistRefreshCancelledResult,
     Playlist,
@@ -14,6 +15,9 @@ export interface PlaylistRefreshOptions {
     providedIn: 'root',
 })
 export class PlaylistRefreshService {
+    private readonly healthEvidence = inject(SourceHealthEvidenceService, {
+        optional: true,
+    });
     async refreshPlaylist(
         payload: PlaylistRefreshPayload,
         options?: PlaylistRefreshOptions
@@ -22,13 +26,15 @@ export class PlaylistRefreshService {
             throw new Error('Playlist refresh is only available in Electron');
         }
 
-        const unsubscribe = window.electron.onPlaylistRefreshEvent?.((event) => {
-            if (event.operationId !== payload.operationId) {
-                return;
-            }
+        const unsubscribe = window.electron.onPlaylistRefreshEvent?.(
+            (event) => {
+                if (event.operationId !== payload.operationId) {
+                    return;
+                }
 
-            options?.onEvent?.(event);
-        });
+                options?.onEvent?.(event);
+            }
+        );
 
         try {
             const result = await window.electron.refreshPlaylist(payload);
@@ -39,6 +45,14 @@ export class PlaylistRefreshService {
                 error.name = 'AbortError';
                 throw error;
             }
+            this.healthEvidence?.results.next({
+                playlist: result,
+                result: {
+                    state: 'active',
+                    reason: 'available',
+                    confirmedInactive: false,
+                },
+            });
             return result;
         } finally {
             unsubscribe?.();
@@ -51,7 +65,8 @@ export class PlaylistRefreshService {
         }
 
         try {
-            const result = await window.electron.cancelPlaylistRefresh(operationId);
+            const result =
+                await window.electron.cancelPlaylistRefresh(operationId);
             return result.success;
         } catch (error) {
             console.error('Failed to cancel playlist refresh:', error);

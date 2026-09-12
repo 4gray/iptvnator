@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test } from './fixtures';
 import { waitForScrollIdle } from './e2e-helpers';
 
@@ -8,10 +10,8 @@ import { waitForScrollIdle } from './e2e-helpers';
  * player + EPG zone, TMDB metadata patches it asynchronously, and the
  * watch ↔ browse transitions keep the persisted volume.
  *
- * Playback is asserted through the real component composition (detail shell →
- * inline player → web player view → engine) but never decodes: the workflow
- * claims are about layout, metadata and volume, so a decodable fixture would
- * only add flakiness.
+ * Playback cases decode a local clip; mode regressions seek through the
+ * real player controls without depending on a remote media source.
  */
 
 const FIXTURE_HOST = 'https://m3u-movie-fixture.local';
@@ -76,29 +76,26 @@ async function serveTmdb(page: Page): Promise<void> {
     });
 }
 
-async function serveStreams(page: Page): Promise<void> {
-    await page.route(`${FIXTURE_HOST}/**`, (route) =>
-        route.fulfill({
-            status: 200,
-            contentType: 'video/mp4',
-            body: Buffer.alloc(0),
-        })
-    );
-}
-
 async function saveSettings(page: Page): Promise<void> {
     const saveButton = page.getByRole('button', { name: 'Save changes' });
     await saveButton.click();
     await expect(saveButton).toBeHidden();
 }
 
-async function selectHtml5Player(page: Page): Promise<void> {
+async function selectPlayer(
+    page: Page,
+    player = 'HTML5 video player'
+): Promise<void> {
     await page.goto('/workspace/settings/playback');
-    await page.locator('[data-test-id="select-video-player"]').click();
-    await page
-        .getByRole('option', { name: 'HTML5 video player', exact: true })
-        .click();
-    await saveSettings(page);
+    const select = page.locator('[data-test-id="select-video-player"]');
+    await expect(select).toBeVisible();
+    const previous = await select.innerText();
+    await select.click();
+    await page.getByRole('option', { name: player, exact: true }).click();
+    await expect(select).toContainText(player);
+    if (!previous.includes(player)) {
+        await saveSettings(page);
+    }
 }
 
 async function enableTmdb(page: Page): Promise<void> {
@@ -139,12 +136,171 @@ const inlineVideo = (page: Page) =>
 const sidebarEntry = (page: Page, name: string) =>
     page.locator('[data-test-id="channel-item"]').filter({ hasText: name });
 
+async function serveSeekableClip(page: Page): Promise<void> {
+    const clip = readFileSync(
+        join(__dirname, 'fixtures/playback/episode.webm')
+    );
+    await page.route(`${FIXTURE_HOST}/**`, async (route) => {
+        if (new URL(route.request().url()).pathname === '/live.m3u8') {
+            // A failed live manifest triggers engine recovery. Keep it loading
+            // while checking the host's controls, independently of that policy.
+            await page.waitForEvent('close', { timeout: 0 });
+            return;
+        }
+        const range = /^bytes=(\d*)-(\d*)$/.exec(
+            route.request().headers()['range'] ?? ''
+        );
+        const last = clip.length - 1;
+        const start = range?.[1]
+            ? Number(range[1])
+            : range?.[2]
+              ? Math.max(0, clip.length - Number(range[2]))
+              : 0;
+        const end =
+            range?.[1] && range[2] ? Math.min(Number(range[2]), last) : last;
+        await route.fulfill({
+            status: range ? 206 : 200,
+            headers: {
+                'content-type': 'video/webm',
+                'accept-ranges': 'bytes',
+                'content-length': String(end - start + 1),
+                ...(range
+                    ? {
+                          'content-range': `bytes ${start}-${end}/${clip.length}`,
+                      }
+                    : {}),
+            },
+            body: clip.subarray(start, end + 1),
+        });
+    });
+}
+
+async function seekUsingControls(page: Page): Promise<void> {
+    const view = page.locator('app-web-player-view');
+    const video = view.locator('video');
+    await expect
+        .poll(() =>
+            video.evaluate(
+                (el: HTMLVideoElement) =>
+                    Number.isFinite(el.duration) &&
+                    el.duration > 5 &&
+                    !el.paused
+            )
+        )
+        .toBe(true);
+    // ArtPlayer has an interaction layer above <video>; hover the surface.
+    await view.hover();
+    const controls = view.locator('app-player-controls');
+    await controls.getByRole('button', { name: 'Pause', exact: true }).click();
+    const position = controls.getByRole('slider', {
+        name: 'Playback position',
+        exact: true,
+    });
+    await expect(position).toBeEnabled();
+    // Native keyboard interaction commits a real seek; never assign currentTime.
+    await position.focus();
+    await position.press('Home');
+    await position.press('ArrowRight');
+    await position.press('ArrowRight');
+    await expect
+        .poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime))
+        .toBeCloseTo(2, 0);
+    await controls.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect
+        .poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime))
+        .toBeGreaterThan(2.5);
+}
+
+type MetadataMode = 'disabled' | 'details-disabled' | 'enabled';
+
+async function configureMetadata(
+    page: Page,
+    mode: MetadataMode
+): Promise<void> {
+    if (mode === 'disabled') return;
+    await enableTmdb(page);
+    if (mode === 'details-disabled') {
+        await page
+            .locator('[data-test-id="tmdb-m3u-vod-details"] input')
+            .uncheck();
+        await saveSettings(page);
+    }
+}
+
+for (const [player, selector] of [
+    ['HTML5 video player', 'app-html-video-player'],
+    ['Video.js player', 'app-vjs-player'],
+    ['ArtPlayer', 'app-art-player'],
+]) {
+    for (const metadata of [
+        'disabled',
+        'details-disabled',
+        'enabled',
+    ] as const) {
+        test(`@web @m3u VOD seek without metadata coupling (${player}, ${metadata})`, async ({
+            page,
+        }) => {
+            test.setTimeout(90_000);
+            await serveSeekableClip(page);
+            await serveTmdb(page);
+            await configureMetadata(page, metadata);
+            await selectPlayer(page, player);
+            await importPlaylist(
+                page,
+                [
+                    MOVIE_PLAYLIST,
+                    '#EXTINF:-1 group-title="Series",Example Show S01E02',
+                    `${FIXTURE_HOST}/series/episode.mp4`,
+                ].join('\n'),
+                3
+            );
+
+            const view = page.locator('app-web-player-view');
+            await sidebarEntry(page, 'Live One').click();
+            await expect(view.locator(selector)).toHaveCount(1);
+            await expect(
+                view.getByRole('slider', {
+                    name: 'Playback position',
+                    exact: true,
+                })
+            ).toHaveCount(0);
+            await expect(
+                view.getByLabel('Live stream', { exact: true })
+            ).toBeVisible();
+
+            await sidebarEntry(page, 'Dune (2021) 1080p').click();
+            await expect(detail(page)).toHaveCount(
+                metadata === 'enabled' ? 1 : 0
+            );
+            await expect(view.locator(selector)).toHaveCount(1);
+            await seekUsingControls(page);
+
+            await sidebarEntry(page, 'Example Show S01E02').click();
+            await expect(detail(page)).toHaveCount(0);
+            await expect(view.locator(selector)).toHaveCount(1);
+            await seekUsingControls(page);
+
+            await sidebarEntry(page, 'Live One').click();
+            await expect(view.locator(selector)).toHaveCount(1);
+            await expect(
+                view.getByRole('slider', {
+                    name: 'Playback position',
+                    exact: true,
+                })
+            ).toHaveCount(0);
+            await expect(
+                view.getByLabel('Live stream', { exact: true })
+            ).toBeVisible();
+        });
+    }
+}
+
 test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     page,
 }) => {
     await serveTmdb(page);
-    await serveStreams(page);
-    await selectHtml5Player(page);
+    await serveSeekableClip(page);
+    await selectPlayer(page);
     await enableTmdb(page);
     await importPlaylist(page);
 
@@ -210,8 +366,8 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
     page,
 }) => {
     await serveTmdb(page);
-    await serveStreams(page);
-    await selectHtml5Player(page);
+    await serveSeekableClip(page);
+    await selectPlayer(page);
     await enableTmdb(page);
     await importPlaylist(page);
 
@@ -267,8 +423,8 @@ for (const theme of ['light', 'dark']) {
     test(`@web @m3u channel scrolling keeps focus after selection (${theme})`, async ({
         page,
     }) => {
-        await serveStreams(page);
-        await selectHtml5Player(page);
+        await serveSeekableClip(page);
+        await selectPlayer(page);
         const channels = Array.from(
             { length: 60 },
             (_, index) =>

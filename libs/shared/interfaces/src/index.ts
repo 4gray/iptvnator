@@ -98,3 +98,5 @@ export * from './lib/vod-details-item.interface';
 export * from './lib/catchup-download.interface';
 
 export * from './lib/xtream-connection-test';
+
+export * from './lib/source-health';

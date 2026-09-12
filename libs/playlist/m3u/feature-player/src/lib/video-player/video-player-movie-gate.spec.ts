@@ -310,6 +310,82 @@ describe('VideoPlayerComponent — M3U movie recognition gate', () => {
         expect(component.showMovieDetail()).toBe(true);
     });
 
+    describe('playback mode is independent of movie metadata', () => {
+        it.each([
+            [false, true],
+            [true, false],
+            [false, false],
+            [true, true],
+        ])(
+            'plays files as VOD with TMDB=%s and details=%s',
+            (tmdb, details) => {
+                tmdbEnabled.set(tmdb);
+                m3uVodDetails.set(details);
+                syncStoreState({
+                    ...movieChannel,
+                    url: 'http://host/dune.mp4',
+                });
+                fixture.detectChanges();
+
+                expect(component.embeddedPlayback()?.isLive).toBe(false);
+                expect(component.showMovieDetail()).toBe(tmdb && details);
+            }
+        );
+
+        it.each([true, false])('plays episodes as VOD with TMDB=%s', (tmdb) => {
+            tmdbEnabled.set(tmdb);
+            for (const url of [
+                'http://host/episode.mkv',
+                'http://host/series/123',
+            ]) {
+                syncStoreState({ ...movieChannel, name: 'Show S01E02', url });
+                fixture.detectChanges();
+
+                expect(component.embeddedPlayback()?.isLive).toBe(false);
+                expect(component.showMovieDetail()).toBe(false);
+            }
+        });
+
+        it('updates mode when switching live → movie → episode → live', () => {
+            tmdbEnabled.set(false);
+            for (const [channel, isLive] of [
+                [liveChannel, true],
+                [movieChannel, false],
+                [{ ...movieChannel, url: 'http://host/series/123' }, false],
+                [liveChannel, true],
+            ] as const) {
+                syncStoreState(channel);
+                fixture.detectChanges();
+                expect(component.embeddedPlayback()?.isLive).toBe(isLive);
+            }
+        });
+
+        it('keeps catch-up non-live and restores live on return', () => {
+            syncStoreState(liveChannel);
+            activePlaybackUrl.set('http://host/archive.m3u8');
+            fixture.detectChanges();
+            expect(component.embeddedPlayback()?.isLive).toBe(false);
+            expect(component.embeddedPlayback()?.streamUrl).toBe(
+                'http://host/archive.m3u8'
+            );
+
+            activePlaybackUrl.set(null);
+            fixture.detectChanges();
+            expect(component.embeddedPlayback()?.isLive).toBe(true);
+        });
+
+        it('does not rebuild the playback payload when metadata settings change', () => {
+            syncStoreState(movieChannel);
+            fixture.detectChanges();
+            const playback = component.embeddedPlayback();
+
+            tmdbEnabled.set(false);
+            m3uVodDetails.set(false);
+            fixture.detectChanges();
+            expect(component.embeddedPlayback()).toBe(playback);
+        });
+    });
+
     describe('volume handed to each new player', () => {
         afterEach(() => localStorage.removeItem('volume'));
 

@@ -76,7 +76,7 @@ const playback = (
         streamUrl: 'http://host/movie/user/pass/1.mkv',
         title: 'Dune (2021) 1080p',
         thumbnail: 'http://logo/dune.png',
-        isLive: true,
+        isLive: false,
         ...overrides,
     }) as ResolvedPortalPlayback;
 
@@ -171,9 +171,11 @@ describe('M3uVodDetailComponent', () => {
     });
 
     it('plays with VOD semantics and the parent payload', async () => {
-        await create({ channel: channel(), playback: playback() });
+        const parentPlayback = playback();
+        await create({ channel: channel(), playback: parentPlayback });
 
         const inline = fixture.componentInstance.inlinePlayback();
+        expect(inline).toBe(parentPlayback);
         expect(inline?.isLive).toBe(false);
         expect(inline?.streamUrl).toBe('http://host/movie/user/pass/1.mkv');
         expect(inline?.title).toBe('Dune (2021) 1080p');

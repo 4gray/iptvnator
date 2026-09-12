@@ -25,9 +25,7 @@
             (click)="onRefreshClick($event)"
             (mousedown)="$event.stopPropagation()"
             [matTooltip]="'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate"
-            [attr.aria-label]="
-                'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate
-            "
+            [attr.aria-label]="'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate"
         >
             <mat-icon
                 class="trigger-refresh-icon"
@@ -72,26 +70,26 @@
     </div>
 
     @if (showSearchField()) {
-    <div class="search-container" (click)="$event.stopPropagation()">
-        <mat-icon class="search-icon">search</mat-icon>
-        <input
-            #searchInput
-            type="text"
-            class="search-input"
-            [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
-            [ngModel]="searchQuery()"
-            (ngModelChange)="setSearchQuery($event)"
-        />
-        @if (searchQuery()) {
-            <button
-                mat-icon-button
-                class="clear-btn"
-                (click)="setSearchQuery('')"
-            >
-                <mat-icon>close</mat-icon>
-            </button>
-        }
-    </div>
+        <div class="search-container" (click)="$event.stopPropagation()">
+            <mat-icon class="search-icon">search</mat-icon>
+            <input
+                #searchInput
+                type="text"
+                class="search-input"
+                [placeholder]="'HOME.PLAYLISTS.SEARCH_PLAYLISTS' | translate"
+                [ngModel]="searchQuery()"
+                (ngModelChange)="setSearchQuery($event)"
+            />
+            @if (searchQuery()) {
+                <button
+                    mat-icon-button
+                    class="clear-btn"
+                    (click)="setSearchQuery('')"
+                >
+                    <mat-icon>close</mat-icon>
+                </button>
+            }
+        </div>
     }
 
     @if (showTypeFilters()) {
@@ -146,7 +144,12 @@
                     <mat-icon class="playlist-type-icon">
                         {{ getPlaylistIcon(playlist) }}
                     </mat-icon>
-                    @if (playlist.serverUrl) {
+                    @if (runtime.supportsSourceHealth) {
+                        <app-source-health-indicator
+                            [playlist]="playlist"
+                            [enabled]="isMenuOpen()"
+                        />
+                    } @else if (playlist.serverUrl) {
                         <span
                             class="status-dot"
                             [class]="getStatusClass(playlist._id)"
@@ -256,8 +259,17 @@
                 <span>{{ 'WORKSPACE.SHELL.ACCOUNT_INFO' | translate }}</span>
             </button>
         }
+        @if (runtime.supportsSourceHealth && sourceHealthType(playlist)) {
+            <button mat-menu-item (click)="recheckSource(playlist)">
+                <mat-icon>network_check</mat-icon
+                ><span>{{ 'SOURCE_HEALTH.RECHECK' | translate }}</span>
+            </button>
+        }
         @if (canRefreshPlaylist(playlist)) {
-            <button mat-menu-item (click)="refreshPlaylistFor(playlist, $event)">
+            <button
+                mat-menu-item
+                (click)="refreshPlaylistFor(playlist, $event)"
+            >
                 <mat-icon>sync</mat-icon>
                 <span>{{
                     'WORKSPACE.SHELL.REFRESH_PLAYLIST' | translate

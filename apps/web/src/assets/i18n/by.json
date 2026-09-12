@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "Загружаем крыніцы і правяраем тэлепраграму. Вялікая бібліятэка можа патрабаваць больш часу.",
         "FAILED": "Не ўдалося загрузіць крыніцы",
         "FAILED_DETAIL": "Паўтарыце чытанне захаваных крыніц. Вашы даныя не выдалены."
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

@@ -15,3 +15,5 @@ export * from './lib/stalker-series.adapters';
 export * from './lib/stalker-session.service';
 export * from './lib/stalker-vod.utils';
 export * from './lib/stalker.store';
+
+export * from './lib/stalker-source-health.service';

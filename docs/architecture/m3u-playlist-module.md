@@ -1411,6 +1411,31 @@ bypass Playwright interception) and
 `electron-backend-e2e:src/dash-clearkey.e2e.ts` (real ClearKey EME in
 Electron).
 
+## M3U Playback Mode
+
+`isLikelyM3uVod()` in `libs/shared/m3u-utils` determines playback mode
+independently of TMDB, `Settings.m3uVodDetails`, and the entry's name.
+Video-file extensions (`mp4`, `mkv`, `webm`, and the existing movie-container
+list) or exact `/movie/`, `/movies/`, `/vod/`, `/series/` pathname segments
+identify VOD. Extension parsing honors the existing query-declared formats.
+Episodes receive VOD controls even when movie metadata recognition excludes
+their names. A group label or episode name alone is not playback evidence.
+Radio and DASH retain their existing paths; ordinary HLS/TS and unknown URLs
+without a VOD path retain live mode. No network probing is performed.
+
+`VideoPlayerComponent.embeddedPlayback()` is the mode owner for both the
+ordinary M3U player and the movie detail host: a catch-up URL or positive VOD
+evidence sets `isLive: false`. HTML5, Video.js, ArtPlayer and Embedded MPV
+consume that existing flag without provider-specific changes. Actual seeking
+still requires a usable duration and a seekable source. External MPV/VLC
+launch payloads, session identity, headers, DRM and radio playback are unchanged.
+Xtream and Stalker continue to determine their own playback modes.
+
+Coverage includes the detection utility and M3U host specs, plus real seek
+controls in `apps/web-e2e/src/m3u-movie-details.e2e.ts` using the local WebM
+fixture with HTTP Range responses. The E2E matrix covers all three web players,
+TMDB off, movie details off, details on, episodes and live/VOD transitions.
+
 ## Movie Recognition (VOD Detail View)
 
 M3U playlists routinely mix live channels with movie FILES ("Movies"/"VOD"
@@ -1447,8 +1472,9 @@ Known accepted cost: "Star Wars: Episode 1" is skipped.
   sidebar next to the detail IS the navigation).
 - The parent passes its already-built `embeddedPlayback()`
   (`ResolvedPortalPlayback` with headers/EXTVLCOPT resolved) plus its shared
-  persisted `volume()`; the host only overrides `isLive: false` (seek
-  bar/VOD semantics). The payload's OBJECT IDENTITY is the player's
+  persisted `volume()`; the host forwards the same payload, whose `isLive`
+  is already determined independently of metadata by the M3U parent. The
+  payload's OBJECT IDENTITY is the player's
   source-application key (`createWebPlayerApplicationState` mints a new
   source revision for any new payload), so it must never depend on TMDB
   signals — folding the resolved title/poster in there restarted the movie
@@ -1477,7 +1503,8 @@ releaseTagYear(channel.name) })` — the resolver already normalizes titles
   external player on activation exactly as before, and
   `inlinePlayerAvailable=false` means the host never mounts an inline player.
 
-**Out of scope (v1)**: series episodes (detection skips them), playback
+**Out of scope (v1)**: series episode metadata (movie detection skips them;
+episode playback still receives VOD controls when its URL qualifies), playback
 position persistence for M3U movies, clickable cast chips (no
 `actor/:personId` route in the M3U tree), and downloads.
 
@@ -1654,3 +1681,38 @@ overrides and bulk guides. A delayed startup import is
 started only if its source still belongs to the reconciled configuration; its
 completion observer is installed after settings initialization. Provider EPG
 continues through its existing APIs. Playlist refresh is not EPG cache cleanup.
+
+## Desktop source health
+
+The source switcher and Sources rows share `SourceHealthService` in portal
+shared data access. Electron checks Xtream account info, Stalker account/profile
+facts through the existing session, and the first 64 KiB of M3U URL responses.
+An M3U success describes the playlist URL, not every channel. Local files and
+text imports have no network indicator. PWA retains its existing Xtream path.
+
+Checks are demand-driven, never a startup readiness barrier: four at a time,
+two per origin, shared between surfaces. Known results remain visible during
+refresh (60-second evidence TTL, 15-second uncertain-result TTL). Background
+requests have a five-second aggregate deadline; explicit checks have fifteen
+seconds, including a handoff from a running background check. M3U streams are
+destroyed on completion, limit, error or cancellation,
+including when a provider ignores Range. Every intermediate redirect stream is
+closed before the next hop is validated or requested. Header/TLS and validated redirect
+policies are the same as playlist downloads. No playlist contents are replaced.
+Indicator effects do not track coordinator cache reads, so publishing a result
+does not restart or cancel the request. Xtream health replies stay request-local
+in the Electron renderer adapter: failures reject with their serialized message,
+and successful checks do not broadcast catalog response events. When newer account evidence arrives
+during a probe, both the cache and the waiting caller retain that newer result.
+
+Account-disabled/expired evidence is separate from authorization errors,
+network failures and connectivity-guard pauses. Only explicit account evidence
+is eligible for automatic cleanup selection. Statuses are session-only;
+committed SQLite connection edits and deletions publish inventory events that
+invalidate pending evidence, including deferred explicit retries. Retry now explicitly
+resets the portal guard; ordinary checks do not. Credentials and response bodies
+are never included in indicator text.
+
+Explicit source-health checks retain their deadline while queued, including
+background jobs promoted by Retry. Expired queued checks resolve without opening
+a transport; cancellation and admission clear the queue timer.

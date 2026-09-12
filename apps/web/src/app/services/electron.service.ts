@@ -20,6 +20,7 @@ import {
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
+    SourceProbeContext,
 } from '@iptvnator/shared/interfaces';
 import {
     measureRendererPerformancePhase,
@@ -605,6 +606,7 @@ export class ElectronService extends DataService {
     } */
 
     private async forwardXtreamRequest(payload: {
+        probe?: SourceProbeContext;
         connectionTest?: boolean;
         url: string;
         params: Record<string, string>;
@@ -626,7 +628,7 @@ export class ElectronService extends DataService {
                 requestId: context.requestId,
             });
 
-            if (payload.connectionTest) return response;
+            if (payload.connectionTest || payload.probe) return response;
 
             const result = {
                 type: XTREAM_RESPONSE,
@@ -636,6 +638,7 @@ export class ElectronService extends DataService {
             window.postMessage(result);
             return result;
         } catch (error: unknown) {
+            if (payload.probe) throw error;
             const action = payload.params?.action;
             const isSilentAction =
                 payload.suppressErrorLog === true ||

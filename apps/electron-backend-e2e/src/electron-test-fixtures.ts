@@ -1594,6 +1594,12 @@ export async function openSourceEditor(
     const dialog = page.locator('mat-dialog-container').last();
 
     await expect(dialog).toBeVisible();
+    // Material applies its initial focus after the opening transition.
+    await dialog.evaluate(async (element) => {
+        await Promise.all(element.getAnimations({ subtree: true }).map((animation) =>
+            animation.finished.catch(() => undefined)
+        ));
+    });
     return dialog;
 }
 

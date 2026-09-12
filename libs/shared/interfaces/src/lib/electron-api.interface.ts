@@ -1,3 +1,4 @@
+import type { SourceProbeContext, SourceHealthResult } from './source-health';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type {
     CatchupDownloadMetadata,
@@ -291,6 +292,7 @@ export interface ElectronBridgeAiSettings {
 }
 
 export interface ElectronBridgeStalkerRequestPayload {
+    probe?: SourceProbeContext;
     url: string;
     macAddress: string;
     params: Record<string, string>;
@@ -307,6 +309,7 @@ export interface ElectronBridgeStalkerRequestPayload {
 }
 
 export interface ElectronBridgeXtreamRequestPayload {
+    probe?: SourceProbeContext;
     connectionTest?: boolean;
     url: string;
     params: Record<string, string>;
@@ -888,6 +891,13 @@ export interface ElectronBridgeApi {
         method?: 'GET' | 'HEAD'
     ) => Promise<ElectronBridgeXtreamProbeResult>;
     /** Generic stream reachability probe (VOD multi-source availability) */
+    cancelSourceProbe: (id: string) => Promise<void>;
+    probeM3uSource: (payload: {
+        url: string;
+        userAgent?: string;
+        trustedInsecureTlsHosts?: string[];
+        probe: SourceProbeContext;
+    }) => Promise<SourceHealthResult>;
     probeStreamUrl: (
         url: string,
         method?: 'GET' | 'HEAD',

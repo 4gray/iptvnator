@@ -1,3 +1,8 @@
+import { SourceHealthEvidenceService } from './source-health-evidence.service';
+import {
+    accountHealth,
+    sourceHealthUnknown,
+} from '@iptvnator/shared/interfaces';
 import { Injectable, inject } from '@angular/core';
 import {
     normalizeXtreamServerUrl,
@@ -53,6 +58,9 @@ const XTREAM_STATUS_ACTIONS = [
 })
 export class PortalStatusService {
     private readonly dataService = inject(DataService);
+    private readonly healthEvidence = inject(SourceHealthEvidenceService, {
+        optional: true,
+    });
 
     /**
      * Process-lifetime cache shared across all consumers (playlist switcher,
@@ -228,6 +236,24 @@ export class PortalStatusService {
             connection.username,
             connection.password
         );
+        const info = response?.user_info;
+        if (info) {
+            const result = accountHealth(
+                info.status,
+                resolveXtreamPortalExpiration(response) ?? undefined,
+                info.auth === true || info.auth === 1 || info.auth === '1'
+            );
+            this.healthEvidence?.results.next({
+                playlist: { _id: '', ...connection },
+                result:
+                    (info.auth === false ||
+                        info.auth === 0 ||
+                        info.auth === '0') &&
+                    !result.confirmedInactive
+                        ? { ...sourceHealthUnknown('auth'), state: 'inactive' }
+                        : result,
+            });
+        }
         // A passive check started before this evidence cannot overwrite it.
         this.inFlight.delete(key);
         this.cache.set(key, {
