@@ -31,6 +31,7 @@ import {
     isDashChannel,
     isDashStreamUrl,
     isLikelyM3uMovie,
+    isLikelyM3uVod,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
 } from '@iptvnator/shared/m3u-utils';
@@ -515,7 +516,7 @@ export class VideoPlayerComponent
                 activeChannel.tvg?.name ||
                 playbackTarget.url,
             thumbnail: activeChannel.tvg?.logo ?? null,
-            isLive: !this.activePlaybackUrl(),
+            isLive: !this.activePlaybackUrl() && !isLikelyM3uVod(activeChannel),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent: effective['user-agent'],
             referer: effective.referer,

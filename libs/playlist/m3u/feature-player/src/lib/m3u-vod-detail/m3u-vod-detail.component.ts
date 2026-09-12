@@ -164,15 +164,13 @@ export class M3uVodDetailComponent {
      * couple of seconds in, the moment enrichment resolves — metadata belongs
      * in the About/hero presentation, never in the source identity.
      *
-     * The parent built the payload for a LIVE channel; the recognized movie
-     * only flips to VOD semantics (seek bar, duration).
+     * The parent already determines VOD playback independently of metadata.
      */
     readonly inlinePlayback = computed<ResolvedPortalPlayback | null>(() => {
         if (!this.inlinePlayerAvailable() || this.playerDismissed()) {
             return null;
         }
-        const playback = this.playback();
-        return playback ? { ...playback, isLive: false } : null;
+        return this.playback();
     });
     readonly playbackActive = computed(() => this.inlinePlayback() !== null);
     readonly canPlayInline = computed(

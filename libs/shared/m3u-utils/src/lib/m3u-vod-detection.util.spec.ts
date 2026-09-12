@@ -1,9 +1,66 @@
-import { hasEpisodeMarker, isLikelyM3uMovie } from './m3u-vod-detection.util';
+import {
+    hasEpisodeMarker,
+    isLikelyM3uMovie,
+    isLikelyM3uVod,
+} from './m3u-vod-detection.util';
 
 const movie = (url: string, name = 'Some Movie', radio = '') => ({
     url,
     name,
     radio,
+});
+
+describe('isLikelyM3uVod', () => {
+    it.each([
+        'http://host/movie.mp4',
+        'http://host/episode.MKV?token=test',
+        'http://host/file.webm',
+        'http://host/play?ext=mp4',
+        'http://host/play?format=webm',
+        'http://host/movie/123',
+        'http://host/movies/123.m3u8',
+        'http://host/vod/123.ts',
+        'http://host/series/123',
+        'http://host/SERIES/123.m3u8',
+    ])('recognizes %s regardless of an episode marker', (url) => {
+        expect(isLikelyM3uVod(movie(url))).toBe(true);
+        expect(isLikelyM3uVod(movie(url, 'Show S01E02'))).toBe(true);
+        expect(isLikelyM3uVod(movie(url, 'Шоу 2 серия'))).toBe(true);
+    });
+
+    it.each([
+        'http://host/live.m3u8',
+        'http://host/live.ts',
+        'http://host/live.m4s',
+        'http://host/live',
+        'http://host/audio.mp3',
+        'http://host/movie/123.mpd',
+        'http://host/series/123.mpd',
+        'http://host/series/123?format=mpd',
+        'http://host/moviestar/live',
+        'http://host/series-news/live',
+        'http://series/live',
+        'http://host/live?redirect=/series/123',
+        'http://host/live#/movie/123',
+        'http://[',
+        '',
+    ])('preserves the existing mode for %s even with a series name', (url) => {
+        expect(isLikelyM3uVod(movie(url, 'Show S01E02'))).toBe(false);
+    });
+
+    it('excludes radio and missing channels', () => {
+        expect(
+            isLikelyM3uVod(movie('http://host/file.mp4', 'Radio', 'true'))
+        ).toBe(false);
+        expect(isLikelyM3uVod(null)).toBe(false);
+        expect(isLikelyM3uVod(undefined)).toBe(false);
+    });
+
+    it('keeps movie metadata detection narrower than VOD playback', () => {
+        const episode = movie('http://host/series/123.mp4');
+        expect(isLikelyM3uVod(episode)).toBe(true);
+        expect(isLikelyM3uMovie(episode)).toBe(false);
+    });
 });
 
 describe('isLikelyM3uMovie', () => {
