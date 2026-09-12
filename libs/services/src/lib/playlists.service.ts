@@ -1,3 +1,7 @@
+import {
+    DatabaseService,
+    type DbOperationOptions,
+} from './database-electron.service';
 import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -105,6 +109,7 @@ export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
 export class PlaylistsService {
     private readonly healthEvidence = inject(SourceHealthEvidenceService, { optional: true });
     private readonly dbService = inject(NgxIndexedDBService);
+    private readonly databaseService = inject(DatabaseService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -534,7 +539,10 @@ export class PlaylistsService {
         );
     }
 
-    deletePlaylist(playlistId: string): Observable<{ success: boolean }> {
+    deletePlaylist(
+        playlistId: string,
+        options?: DbOperationOptions
+    ): Observable<{ success: boolean; cleanupWarnings?: number }> {
         // Deletion goes through the SAME per-playlist queue as every write:
         // a queued mutation (e.g. the Stalker portal repair's conditional
         // transform) landing after an unserialized delete would upsert the
@@ -547,7 +555,17 @@ export class PlaylistsService {
                         await this.ensureElectronPlaylistMigrations();
                         const electron = this.electronApi;
                         if (electron) {
-                            await electron.dbDeletePlaylist(playlistId);
+                            if (options) {
+                                const deleted =
+                                    await this.databaseService.deletePlaylist(
+                                        playlistId,
+                                        options
+                                    );
+                                if (!deleted)
+                                    throw new Error(
+                                        'Playlist deletion did not complete'
+                                    );
+                            } else await electron.dbDeletePlaylist(playlistId);
                         }
                         return undefined;
                     }
@@ -561,13 +579,19 @@ export class PlaylistsService {
         return delete$.pipe(
             tap(() => this.healthEvidence?.connections.next({ id: playlistId })),
             switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
-            map(() => ({ success: true }))
+            map((cleanupWarnings) =>
+                cleanupWarnings
+                    ? { success: true, cleanupWarnings }
+                    : { success: true }
+            )
         );
     }
 
-    private async runPlaylistDeleteCleanups(playlistId: string): Promise<void> {
+    private async runPlaylistDeleteCleanups(
+        playlistId: string
+    ): Promise<number> {
         if (this.playlistDeleteCleanups.length === 0) {
-            return;
+            return 0;
         }
 
         const failures = (
@@ -589,6 +613,7 @@ export class PlaylistsService {
                 failure
             );
         }
+        return failures.length;
     }
 
     /**
@@ -650,6 +675,7 @@ export class PlaylistsService {
             const currentPlaylist = await firstValueFrom(
                 this.getPlaylistById(playlistId, operationId)
             );
+            if (!currentPlaylist) throw new Error('Playlist no longer exists');
             const mergedPlaylist = this.mergeRefreshedPlaylist(
                 currentPlaylist,
                 updatedPlaylist,
@@ -1004,6 +1030,7 @@ export class PlaylistsService {
                     const current = await firstValueFrom(
                         this.getPlaylistById(playlist._id)
                     );
+                    if (!current) return null;
                     // The merge takes autoRefresh from the current row first,
                     // so disabling auto-refresh while a refresh is in flight
                     // is not reverted by the completing batch write.
@@ -1017,7 +1044,7 @@ export class PlaylistsService {
                     return nextPlaylist;
                 })
             )
-        );
+        ).pipe(map((rows) => rows.filter((row): row is Playlist => row !== null)));
     }
 
     getFavoriteChannels(playlistId: string) {

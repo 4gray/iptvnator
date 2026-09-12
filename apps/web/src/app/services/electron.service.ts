@@ -4,7 +4,11 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DialogService } from '@iptvnator/ui/components';
-import { DataService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    SettingsStore,
+    SourceActivityService,
+} from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     AutoUpdatePlaylistsResult,
@@ -57,6 +61,7 @@ interface ErrorStatus {
 export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
     private messageListeners = new Map<string, EventListener>();
+    private readonly sourceActivity = inject(SourceActivityService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialogService = inject(DialogService);
     private readonly store = inject(Store);
@@ -237,17 +242,22 @@ export class ElectronService extends DataService {
 
         if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
-            const result = await window.electron.autoUpdatePlaylists(
-                data,
-                this.settingsStore.getTrustOptions()
-            );
-            this.store.dispatch(
-                PlaylistActions.updateManyPlaylists({
-                    playlists: result.playlists,
-                })
-            );
-            this.reportAutoUpdatePlaylistsResult(result);
-            return result as T;
+            const release = this.sourceActivity.begin(data.map((p) => p._id));
+            try {
+                const result = await window.electron.autoUpdatePlaylists(
+                    data,
+                    this.settingsStore.getTrustOptions()
+                );
+                this.store.dispatch(
+                    PlaylistActions.updateManyPlaylists({
+                        playlists: result.playlists,
+                    })
+                );
+                this.reportAutoUpdatePlaylistsResult(result);
+                return result as T;
+            } finally {
+                release();
+            }
         }
 
         this.logger.debug('Unknown IPC event type:', type);

@@ -1,4 +1,6 @@
+import { createServer } from 'node:http';
 import {
+    xtreamMockServer,
     addStalkerPortal,
     addXtreamPortal,
     closeElectronApp,
@@ -501,6 +503,185 @@ https://streams.example.test/url-omega.m3u8
             });
         } finally {
             await closeElectronApp(app);
+        }
+    });
+
+    test('skips a source whose startup auto-refresh is still fetching', async ({
+        dataDir,
+    }) => {
+        let requests = 0;
+        const server = createServer(() => {
+            requests++;
+        });
+        await new Promise<void>((resolve) =>
+            server.listen(0, '127.0.0.1', resolve)
+        );
+        const address = server.address();
+        if (!address || typeof address === 'string')
+            throw new Error('Missing server address');
+        const url = `http://127.0.0.1:${address.port}/slow.m3u`;
+        let app = await launchElectronApp(dataDir);
+        try {
+            await app.mainWindow.evaluate(async (url) => {
+                await window.electron.dbUpsertAppPlaylist({
+                    _id: 'startup-busy',
+                    title: 'Startup busy source',
+                    url,
+                    count: 0,
+                    importDate: '2026-01-01',
+                    lastUsage: '2026-01-01',
+                    autoRefresh: true,
+                });
+            }, url);
+            app = await restartElectronApp(app, dataDir);
+            await expect.poll(() => requests).toBeGreaterThan(0);
+            await openSources(app.mainWindow);
+            await app.mainWindow
+                .getByRole('button', {
+                    name: 'Clean up inactive sources…',
+                    exact: true,
+                })
+                .click();
+            const dialog = app.mainWindow.getByRole('dialog');
+            const row = dialog.locator('[data-source-id="startup-busy"]');
+            await expect(row).toHaveAttribute('data-status', 'skipped');
+            await expect(row.getByRole('checkbox')).toBeDisabled();
+            expect(
+                await app.mainWindow.evaluate(async () =>
+                    (await window.electron.dbGetAppPlaylists()).some(
+                        (p) => p._id === 'startup-busy'
+                    )
+                )
+            ).toBe(true);
+        } finally {
+            await closeElectronApp(app);
+            server.closeAllConnections();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
+    });
+
+    test('cleans selected inactive sources across filters and preserves unselected SQLite data after restart', async ({
+        dataDir,
+        request,
+    }) => {
+        await resetMockServers(request, ['xtream']);
+        const urlServer = await createMutableTextServer(
+            '<html>Temporarily unavailable</html>',
+            { resourcePath: '/uncertain.m3u' }
+        );
+        let app = await launchElectronApp(dataDir);
+        try {
+            await app.mainWindow.evaluate(
+                async ({ serverUrl, url }) => {
+                    const common = {
+                        count: 0,
+                        importDate: '2026-01-01',
+                        lastUsage: '2026-01-01',
+                        autoRefresh: false,
+                    };
+                    for (const id of ['expired-delete', 'expired-keep']) {
+                        await window.electron.dbUpsertAppPlaylist({
+                            ...common,
+                            _id: id,
+                            title: id,
+                            serverUrl,
+                            username: 'expired',
+                            password: 'expired',
+                        });
+                    }
+                    await window.electron.dbUpsertAppPlaylist({
+                        ...common,
+                        _id: 'local-keep',
+                        title: 'local-keep',
+                        favorites: ['preserved-channel'],
+                    });
+                    await window.electron.dbUpsertAppPlaylist({
+                        ...common,
+                        _id: 'uncertain-keep',
+                        title: 'uncertain-keep',
+                        url,
+                    });
+                },
+                { serverUrl: xtreamMockServer, url: urlServer.resourceUrl }
+            );
+            app = await restartElectronApp(app, dataDir);
+            await openSources(app.mainWindow);
+            await selectSourceTypeFilter(app.mainWindow, 'M3U');
+            await app.mainWindow
+                .getByRole('button', {
+                    name: 'Clean up inactive sources…',
+                    exact: true,
+                })
+                .click();
+            const dialog = app.mainWindow.getByRole('dialog');
+            await expect(
+                dialog.getByRole('checkbox', {
+                    name: 'expired-delete',
+                    exact: true,
+                })
+            ).toBeChecked({ timeout: 20000 });
+            await expect(
+                dialog.getByRole('checkbox', {
+                    name: 'expired-keep',
+                    exact: true,
+                })
+            ).toBeChecked();
+            await expect(
+                dialog.getByRole('checkbox', {
+                    name: 'uncertain-keep',
+                    exact: true,
+                })
+            ).not.toBeChecked();
+            await expect(
+                dialog.getByRole('checkbox', {
+                    name: 'local-keep',
+                    exact: true,
+                })
+            ).toHaveCount(0);
+            await app.mainWindow.screenshot({
+                path: '/tmp/iptvnator-source-cleanup-light.png',
+                animations: 'disabled',
+            });
+            await app.mainWindow.evaluate(() =>
+                document.body.classList.add('dark-theme')
+            );
+            await app.mainWindow.screenshot({
+                path: '/tmp/iptvnator-source-cleanup-dark.png',
+                animations: 'disabled',
+            });
+            await dialog
+                .getByRole('checkbox', { name: 'expired-keep', exact: true })
+                .uncheck();
+            await dialog
+                .getByRole('button', {
+                    name: 'Delete selected · 1',
+                    exact: true,
+                })
+                .click();
+            await expect(
+                dialog.locator('[data-source-id="expired-delete"]')
+            ).toHaveAttribute('data-status', 'deleted', { timeout: 20000 });
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
+            app = await restartElectronApp(app, dataDir);
+            const persisted = await app.mainWindow.evaluate(async () => {
+                const playlists = await window.electron.dbGetAppPlaylists();
+                return {
+                    ids: playlists.map((p) => p._id),
+                    favorites: playlists.find((p) => p._id === 'local-keep')
+                        ?.favorites,
+                };
+            });
+            expect(persisted.ids.sort()).toEqual([
+                'expired-keep',
+                'local-keep',
+                'uncertain-keep',
+            ]);
+            expect(persisted.favorites).toEqual(['preserved-channel']);
+        } finally {
+            await closeElectronApp(app);
+            await urlServer.close();
         }
     });
 
