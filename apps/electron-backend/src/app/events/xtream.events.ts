@@ -270,6 +270,13 @@ ipcMain.handle(
 
             // Format error response
             if (axios.isAxiosError(error)) {
+                if (payload.probe) {
+                    if (typeof error.response?.status === 'number')
+                        throw new Error(`HTTP Error ${error.response.status}`);
+                    throw new Error(error.code === 'ERR_CANCELED'
+                        ? 'Xtream request cancelled'
+                        : error.message || 'Xtream network request failed');
+                }
                 if (error.code === 'ERR_CANCELED') {
                     throw {
                         type: 'ERROR',

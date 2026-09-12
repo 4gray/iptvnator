@@ -162,6 +162,17 @@ describe('XtreamEvents session cancellation', () => {
         }
     );
 
+    it.each([500, 502, 503])('preserves rejected Axios HTTP %s in the health-probe error', async (status) => {
+        const error = { message: 'Request failed', response: { status } };
+        axiosMock.mockRejectedValueOnce(error);
+        axiosMock.isAxiosError.mockImplementation((value) => value === error);
+        await expect(registeredHandlers.get('XTREAM_REQUEST')?.(
+            { sender: { id: 7 } },
+            { url: 'https://example.com', params: {}, suppressErrorLog: true,
+              probe: { requestId: 'status', deadlineAt: Date.now() + 5000 } }
+        )).rejects.toThrow(`HTTP Error ${status}`);
+    });
+
     it.each([401, 403])('preserves HTTP %s in the serialized health-probe error', async (status) => {
         axiosMock.mockResolvedValueOnce({ status, statusText: 'refused', headers: {}, data: '' });
         await expect(registeredHandlers.get('XTREAM_REQUEST')?.(
