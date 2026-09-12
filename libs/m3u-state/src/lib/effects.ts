@@ -325,6 +325,17 @@ export class PlaylistEffects {
         }
     }
 
+    playlistRemovalCommitted$ = createEffect(
+        () =>
+            this.actions$.pipe(
+                ofType(PlaylistActions.playlistRemovalCommitted),
+                tap(({ playlistId }) =>
+                    this.playlistScopedEpgFetchKeys.delete(playlistId)
+                )
+            ),
+        { dispatch: false }
+    );
+
     removePlaylist$ = createEffect(
         () => {
             return this.actions$.pipe(

@@ -27,36 +27,33 @@ export class PlaylistDeleteActionService {
         playlist: PlaylistMeta,
         options: PlaylistDeleteActionOptions = {}
     ): Promise<boolean> {
-        const supportsElectronDelete = playlist.serverUrl
-            ? this.runtime.supportsXtreamSqliteDataSource
-            : this.runtime.supportsSqlite;
-
-        if (supportsElectronDelete) {
-            return this.deletePlaylistInElectron(playlist, options);
-        }
-
-        const result = await firstValueFrom(
-            this.playlistsService.deletePlaylist(playlist._id)
-        );
+        const result = await this.deletePlaylistWithResult(playlist, options);
         return result.success;
     }
 
-    private deletePlaylistInElectron(
+    async deletePlaylistWithResult(
         playlist: PlaylistMeta,
-        options: PlaylistDeleteActionOptions
-    ): Promise<boolean> {
-        const operationId = playlist.serverUrl
-            ? this.databaseService.createOperationId('playlist-delete')
-            : undefined;
-
-        return this.databaseService.deletePlaylist(
-            playlist._id,
-            operationId
+        options: PlaylistDeleteActionOptions = {}
+    ): Promise<{ success: boolean; cleanupWarnings?: number }> {
+        const workerOptions =
+            playlist.serverUrl && this.runtime.supportsXtreamSqliteDataSource
                 ? {
-                      operationId,
+                      operationId:
+                          this.databaseService.createOperationId(
+                              'playlist-delete'
+                          ),
                       onEvent: options.onEvent,
                   }
-                : undefined
+                : undefined;
+        // Persistence owns serialization, the single worker invocation, and
+        // post-delete cleanup. UI callers only commit the resulting state.
+        return firstValueFrom(
+            workerOptions
+                ? this.playlistsService.deletePlaylist(
+                      playlist._id,
+                      workerOptions
+                  )
+                : this.playlistsService.deletePlaylist(playlist._id)
         );
     }
 }

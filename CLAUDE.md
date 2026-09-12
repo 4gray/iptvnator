@@ -1948,3 +1948,11 @@ account expiry/disablement is distinct from failed authorization or network
 checks. Stalker probes reuse session ownership without endpoint repair; M3U
 reads stop at 64 KiB. PWA retains existing Xtream behavior. Contract:
 `docs/architecture/m3u-playlist-module.md` (Desktop source health).
+
+Desktop Sources also offers library-wide selective cleanup through dialog-scoped
+`SourceCleanupService`. Only confirmed expired/disabled accounts are preselected;
+playback/import/refresh/delete-busy sources are skipped. Deletion goes through
+one serialized `PlaylistsService` operation and awaited cleanup hooks;
+`PlaylistActions.playlistRemovalCommitted` updates state without another DB
+delete. Stop finishes the current source. Same contract: Desktop inactive-source
+cleanup in `docs/architecture/m3u-playlist-module.md`.

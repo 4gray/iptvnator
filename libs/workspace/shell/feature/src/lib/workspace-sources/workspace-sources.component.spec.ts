@@ -131,8 +131,9 @@ describe('WorkspaceSourcesComponent', () => {
 
         const header: HTMLElement =
             fixture.nativeElement.querySelector('.sources-header');
-        const meta: HTMLElement =
-            fixture.nativeElement.querySelector('.sources-header__meta');
+        const meta: HTMLElement = fixture.nativeElement.querySelector(
+            '.sources-header__meta'
+        );
         const title: HTMLElement =
             fixture.nativeElement.querySelector('.sources-title');
         const subtitle: HTMLElement =

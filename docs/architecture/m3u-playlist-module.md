@@ -1670,3 +1670,29 @@ is eligible for automatic cleanup selection. Statuses are session-only;
 connection edits and deletion invalidate pending evidence. Retry now explicitly
 resets the portal guard; ordinary checks do not. Credentials and response bodies
 are never included in indicator text.
+
+### Desktop inactive-source cleanup
+
+Sources > Clean up inactive sources scans every network source, independently
+of page filters. The dialog uses the shared health queue with fresh checks;
+only explicit account expiry/disablement is preselected. Uncertain network,
+HTTP, content and authorization failures require manual selection. Local files
+and text imports are excluded. Sources with active external playback, import,
+refresh or deletion are skipped; identity, presence, current health and busy
+state are checked again before each deletion. Evidence older than five minutes
+is refreshed and requires another confirmation.
+
+`SourceCleanupService` is dialog-scoped. User deselection survives rechecks;
+recovered sources leave the candidate list. Deletions run sequentially through
+`PlaylistDeleteActionService` and the serialized `PlaylistsService` write queue.
+The latter owns the single worker invocation and awaited cleanup hooks.
+`PlaylistActions.playlistRemovalCommitted` updates NgRx and clears scoped EPG
+request keys without a second storage deletion. Legacy request-style
+`removePlaylist` still owns its persistence effect.
+
+Stopping finishes the current source before stopping the queue; committed
+work is not rolled back. Results distinguish failed deletes from successful
+deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
+row after a cleanup failure. Downloaded files are not removed. The dialog's
+confirmation covers deletion of the source and associated favorites, history
+and playback positions; no deletion happens on merely opening the dialog.

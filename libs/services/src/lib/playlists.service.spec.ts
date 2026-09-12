@@ -96,6 +96,61 @@ describe('PlaylistsService', () => {
         expect(cleanup).toHaveBeenCalledWith('playlist-1');
     });
 
+    it('owns one worker deletion and waits for cleanup before completion', async () => {
+        const service = createService();
+        const deleteWorker = jest.fn().mockResolvedValue(true);
+        let finishCleanup!: () => void;
+        const cleanup = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    finishCleanup = resolve;
+                })
+        );
+        Object.defineProperties(service, {
+            isElectronStorageAvailable: { value: true },
+            electronApi: { value: { dbDeletePlaylist: jest.fn() } },
+        });
+        Object.assign(service, {
+            ensureElectronPlaylistMigrations: jest
+                .fn()
+                .mockResolvedValue(undefined),
+            databaseService: { deletePlaylist: deleteWorker },
+            playlistDeleteCleanups: [cleanup],
+        });
+        let completed = false;
+        const deletion = firstValueFrom(
+            service.deletePlaylist('a', { operationId: 'delete-a' })
+        ).then((result) => {
+            completed = true;
+            return result;
+        });
+        for (let i = 0; i < 20 && !finishCleanup; i++) await Promise.resolve();
+        expect(deleteWorker).toHaveBeenCalledTimes(1);
+        expect(completed).toBe(false);
+        finishCleanup();
+        await expect(deletion).resolves.toEqual({ success: true });
+        expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports cleanup warnings without resurrecting an already deleted row', async () => {
+        const service = createService();
+        Object.assign(service, {
+            playlistDeleteCleanups: [
+                () => Promise.reject(new Error('cleanup failed')),
+            ],
+        });
+        const warning = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        try {
+            await expect(
+                firstValueFrom(service.deletePlaylist('a'))
+            ).resolves.toEqual({ success: true, cleanupWarnings: 1 });
+        } finally {
+            warning.mockRestore();
+        }
+    });
+
     it('returns browser playlist summaries without embedded playlist payloads', async () => {
         const dbService = {
             getAll: jest.fn(() =>

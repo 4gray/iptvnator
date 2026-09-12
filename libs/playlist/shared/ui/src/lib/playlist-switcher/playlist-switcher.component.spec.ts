@@ -415,7 +415,7 @@ describe('PlaylistSwitcherComponent', () => {
             xtreamPlaylist
         );
         expect(store.dispatch).toHaveBeenCalledWith(
-            PlaylistActions.removePlaylist({
+            PlaylistActions.playlistRemovalCommitted({
                 playlistId: xtreamPlaylist._id,
             })
         );

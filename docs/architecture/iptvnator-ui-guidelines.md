@@ -681,3 +681,13 @@ available, orange expired, red disabled/access refused, and neutral means
 checking or unverified. Accessible tooltip text distinguishes refusal from a
 confirmed disabled account and includes the check time. M3U indicators describe
 the source URL only. Check again is a separate action, not a playlist refresh.
+
+### Inactive-source cleanup dialog
+
+Electron Sources offers a library-wide cleanup action even when page filters
+hide all rows. The confirmation dialog groups confirmed inactive accounts,
+uncertain candidates, skipped sources and deletion outcomes. It preserves
+checkbox choices on recheck, labels destructive consequences, and announces
+progress. During deletion Escape/backdrop closing is disabled; Stop after
+current source finishes the current operation. Healthy sources appear only in
+the summary. Source titles wrap; credential-bearing URLs are not displayed.

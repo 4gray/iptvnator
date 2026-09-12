@@ -1,3 +1,7 @@
+import {
+    DatabaseService,
+    type DbOperationOptions,
+} from './database-electron.service';
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -102,6 +106,7 @@ export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
 })
 export class PlaylistsService {
     private readonly dbService = inject(NgxIndexedDBService);
+    private readonly databaseService = inject(DatabaseService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -523,7 +528,10 @@ export class PlaylistsService {
         return this.getPlaylistById(id);
     }
 
-    deletePlaylist(playlistId: string): Observable<{ success: boolean }> {
+    deletePlaylist(
+        playlistId: string,
+        options?: DbOperationOptions
+    ): Observable<{ success: boolean; cleanupWarnings?: number }> {
         // Deletion goes through the SAME per-playlist queue as every write:
         // a queued mutation (e.g. the Stalker portal repair's conditional
         // transform) landing after an unserialized delete would upsert the
@@ -536,7 +544,17 @@ export class PlaylistsService {
                         await this.ensureElectronPlaylistMigrations();
                         const electron = this.electronApi;
                         if (electron) {
-                            await electron.dbDeletePlaylist(playlistId);
+                            if (options) {
+                                const deleted =
+                                    await this.databaseService.deletePlaylist(
+                                        playlistId,
+                                        options
+                                    );
+                                if (!deleted)
+                                    throw new Error(
+                                        'Playlist deletion did not complete'
+                                    );
+                            } else await electron.dbDeletePlaylist(playlistId);
                         }
                         return undefined;
                     }
@@ -549,13 +567,19 @@ export class PlaylistsService {
 
         return delete$.pipe(
             switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
-            map(() => ({ success: true }))
+            map((cleanupWarnings) =>
+                cleanupWarnings
+                    ? { success: true, cleanupWarnings }
+                    : { success: true }
+            )
         );
     }
 
-    private async runPlaylistDeleteCleanups(playlistId: string): Promise<void> {
+    private async runPlaylistDeleteCleanups(
+        playlistId: string
+    ): Promise<number> {
         if (this.playlistDeleteCleanups.length === 0) {
-            return;
+            return 0;
         }
 
         const failures = (
@@ -577,6 +601,7 @@ export class PlaylistsService {
                 failure
             );
         }
+        return failures.length;
     }
 
     /**

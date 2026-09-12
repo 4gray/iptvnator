@@ -78,7 +78,7 @@ describe('PlaylistDeleteActionService', () => {
         expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 
-    it('deletes SQLite-backed Xtream playlists through DatabaseService with progress options', async () => {
+    it('routes SQLite deletion through the serialized owner with progress options', async () => {
         runtime.supportsXtreamSqliteDataSource = true;
         const onEvent = jest.fn();
         const service = createService();
@@ -90,14 +90,14 @@ describe('PlaylistDeleteActionService', () => {
         expect(databaseService.createOperationId).toHaveBeenCalledWith(
             'playlist-delete'
         );
-        expect(databaseService.deletePlaylist).toHaveBeenCalledWith(
+        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(
             'playlist-1',
             {
                 operationId: 'playlist-delete-1',
                 onEvent,
             }
         );
-        expect(playlistsService.deletePlaylist).not.toHaveBeenCalled();
+        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 
     it('deletes SQLite-backed non-Xtream playlists without progress options', async () => {
@@ -112,10 +112,10 @@ describe('PlaylistDeleteActionService', () => {
         ).resolves.toBe(true);
 
         expect(databaseService.createOperationId).not.toHaveBeenCalled();
-        expect(databaseService.deletePlaylist).toHaveBeenCalledWith(
-            'playlist-1',
-            undefined
+        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(
+            'playlist-1'
         );
+        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 
     it('uses browser playlist storage when an Xtream playlist lacks Xtream SQLite support', async () => {
