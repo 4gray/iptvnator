@@ -62,6 +62,9 @@ export async function probeM3uSource(
                     ...sourceHealthUnknown(
                         [401, 403].includes(response.status) ? 'auth' : 'http'
                     ),
+                    state: [401, 403].includes(response.status)
+                        ? 'inactive'
+                        : 'unavailable',
                     httpStatus: response.status,
                 };
             let body = Buffer.alloc(0);

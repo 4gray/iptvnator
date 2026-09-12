@@ -23,6 +23,15 @@ describe('source health evidence', () => {
             false
         );
     });
+    it('recognizes the shared guard refusal without classifying the hostname as auth failure', () => {
+        expect(
+            sourceHealthError(
+                new Error(
+                    'Portal authorization.example:8080 is not responding; skipped after repeated connection failures'
+                )
+            ).reason
+        ).toBe('paused');
+    });
     it('does not treat unknown account statuses as disabled', () => {
         expect(accountHealth('2').confirmedInactive).toBe(false);
         expect(accountHealth(undefined, undefined, true).state).toBe('active');

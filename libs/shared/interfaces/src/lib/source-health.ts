@@ -1,3 +1,5 @@
+import { isHostConnectivityFastFailMessage } from './host-connectivity.util';
+import { isStalkerAuthFailureMessage } from './stalker-auth-failure.util';
 import type { PlaylistMeta } from './playlist-meta.type';
 
 export type SourceHealthState =
@@ -98,12 +100,15 @@ export function accountHealth(
 export function sourceHealthError(error: unknown): SourceHealthResult {
     const text = error instanceof Error ? error.message : String(error);
     if (/abort|cancel/i.test(text)) return sourceHealthUnknown('cancelled');
-    if (/guard|cooldown|paused|circuit/i.test(text))
+    if (
+        isHostConnectivityFastFailMessage(text) ||
+        /guard|cooldown|paused|circuit/i.test(text)
+    )
         return sourceHealthUnknown('paused');
     if (/timeout|timed out|deadline/i.test(text))
         return sourceHealthUnknown('timeout');
     if (
-        /authoriz|auth.failed|access.denied/i.test(text) ||
+        isStalkerAuthFailureMessage(text) ||
         (text.toLowerCase().includes('http error') &&
             (text.includes('401') || text.includes('403')))
     )
