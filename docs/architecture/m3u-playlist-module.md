@@ -1660,8 +1660,10 @@ Checks are demand-driven, never a startup readiness barrier: four at a time,
 two per origin, shared between surfaces. Known results remain visible during
 refresh (60-second evidence TTL, 15-second uncertain-result TTL). Background
 requests have a five-second aggregate deadline; explicit checks have fifteen
-seconds. M3U streams are destroyed on completion, limit, error or cancellation,
-including when a provider ignores Range. Header/TLS and validated redirect
+seconds, including a handoff from a running background check. M3U streams are
+destroyed on completion, limit, error or cancellation,
+including when a provider ignores Range. Every intermediate redirect stream is
+closed before the next hop is validated or requested. Header/TLS and validated redirect
 policies are the same as playlist downloads. No playlist contents are replaced.
 Indicator effects do not track coordinator cache reads, so publishing a result
 does not restart or cancel the request. Xtream health replies stay request-local

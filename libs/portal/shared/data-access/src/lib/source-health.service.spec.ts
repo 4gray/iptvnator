@@ -148,6 +148,24 @@ describe('SourceHealthService', () => {
             jest.useRealTimers();
         }
     });
+    it('includes the background handoff in the explicit fifteen-second budget', async () => {
+        jest.useFakeTimers();
+        try {
+            probe.mockImplementation(() => new Promise(() => undefined));
+            const source = playlist('a');
+            const start = Date.now();
+            const background = service.check(source);
+            const explicit = service.check(source, { fresh: true });
+            await jest.advanceTimersByTimeAsync(5000);
+            await background;
+            expect(probe.mock.calls[1][1].deadlineAt).toBe(start + 15000);
+            await jest.advanceTimersByTimeAsync(10000);
+            expect(await explicit).toMatchObject({ reason: 'timeout' });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('bounds a stalled probe and cancels its transport at the total deadline', async () => {
         jest.useFakeTimers();
         try {
