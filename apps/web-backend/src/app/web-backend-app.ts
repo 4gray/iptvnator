@@ -301,10 +301,12 @@ export function createWebBackendApp(
                 const wrapped =
                     error instanceof ProviderRequestError ? error : null;
                 res.json({
-                    connectionFailure: describeXtreamConnectionFailure(
-                        wrapped?.policyError ?? wrapped?.cause ?? error,
-                        wrapped?.initialResponded ?? true
-                    ),
+                    connectionFailure: wrapped?.policyError
+                        ? { kind: 'connection', canTryHttp: false }
+                        : describeXtreamConnectionFailure(
+                              wrapped?.cause ?? error,
+                              wrapped?.initialResponded ?? true
+                          ),
                 });
             } else {
                 res.json(normalizeProviderError(error));

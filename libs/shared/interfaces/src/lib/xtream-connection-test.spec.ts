@@ -61,6 +61,108 @@ describe('Xtream connection transport evidence', () => {
         ).toBe(false);
     });
 
+    it.each([
+        'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+        'INVALID_CA',
+        'HOSTNAME_MISMATCH',
+        'PATH_LENGTH_EXCEEDED',
+        'INVALID_PURPOSE',
+        'UNABLE_TO_GET_CRL',
+    ])(
+        'recognizes certificate verification failure %s without allowing HTTP',
+        (code) => {
+            expect(describeXtreamConnectionFailure({ code }, false)).toEqual({
+                kind: 'tls',
+                canTryHttp: false,
+            });
+        }
+    );
+
+    it.each([undefined, 'ECONNREFUSED'])(
+        'requires all address failures to be positive (aggregate code=%s)',
+        (code) => {
+            const refused = { code: 'ECONNREFUSED' };
+            const aggregate = (other: unknown) => ({
+                code,
+                errors: [refused, other],
+            });
+            expect(
+                describeXtreamConnectionFailure(aggregate(refused), false)
+                    .canTryHttp
+            ).toBe(true);
+            for (const other of [
+                { code: 'ETIMEDOUT' },
+                { code: 'ENOTFOUND' },
+                {},
+                null,
+            ]) {
+                expect(
+                    describeXtreamConnectionFailure(aggregate(other), false)
+                        .canTryHttp
+                ).toBe(false);
+            }
+            expect(
+                describeXtreamConnectionFailure(aggregate(refused), true)
+                    .canTryHttp
+            ).toBe(false);
+        }
+    );
+
+    it('traverses wrappers and shared aggregate causes without losing TLS or HTTP evidence', () => {
+        const errors = [{ code: 'ECONNREFUSED' }, { code: 'ECONNREFUSED' }];
+        const aggregate = { errors };
+        expect(
+            describeXtreamConnectionFailure({ errors, cause: aggregate }, false)
+                .canTryHttp
+        ).toBe(true);
+        expect(
+            describeXtreamConnectionFailure(
+                {
+                    code: 'ECONNREFUSED',
+                    cause: { code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' },
+                },
+                false
+            )
+        ).toEqual({ kind: 'tls', canTryHttp: false });
+        expect(
+            describeXtreamConnectionFailure(
+                { cause: { response: { status: 403 }, cause: aggregate } },
+                false
+            )
+        ).toEqual({ kind: 'http', status: 403, canTryHttp: false });
+    });
+
+    it('fails closed for empty aggregates, cycles and oversized cause trees', () => {
+        expect(
+            describeXtreamConnectionFailure(
+                { code: 'ECONNREFUSED', errors: [] },
+                false
+            ).canTryHttp
+        ).toBe(false);
+        const cycle: { code: string; cause?: unknown } = {
+            code: 'ECONNREFUSED',
+        };
+        cycle.cause = cycle;
+        expect(describeXtreamConnectionFailure(cycle, false).canTryHttp).toBe(
+            false
+        );
+        let deep: unknown = { code: 'ECONNREFUSED' };
+        for (let index = 0; index < 100; index++) deep = { cause: deep };
+        expect(describeXtreamConnectionFailure(deep, false).canTryHttp).toBe(
+            false
+        );
+        expect(
+            describeXtreamConnectionFailure(
+                {
+                    errors: Array.from({ length: 100 }, () => ({
+                        code: 'ECONNREFUSED',
+                    })),
+                },
+                false
+            ).canTryHttp
+        ).toBe(false);
+    });
+
     it('keeps HTTP status without provider text or credentials', () => {
         expect(
             describeXtreamConnectionFailure(

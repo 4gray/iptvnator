@@ -71,7 +71,10 @@ Only an initial `ECONNREFUSED` or TLS wrong-version failure permits one HTTP
 candidate on the same hostname/path. Default HTTPS port 443 becomes HTTP 80;
 nonstandard explicit ports are preserved, never scanned. DNS, timeout, reset,
 certificate, HTTP authorization, and redirected-destination failures cannot
-trigger a downgrade. A response from an earlier account-action variant also
+trigger a downgrade. Aggregate and nested cause errors require positive
+evidence from every address; mixed failures, cycles and truncated error trees
+fail closed. TLS verification diagnostics include incomplete certificate chains.
+A response from an earlier account-action variant also
 prevents downgrade. HTTP failures (including panels returning 500 for unsupported actions)
 still try the remaining account actions on the same candidate.
 
@@ -92,7 +95,8 @@ Both transports return an optional, credential-free `connectionFailure` envelope
 only for `connectionTest` requests. Electron returns it rather than throwing
 through IPC (which loses custom error fields); the PWA proxy strips the control
 parameter before contacting the provider and preserves validated redirect-chain
-evidence. Older backends without the envelope cannot authorize HTTP discovery.
+evidence. PWA URL/DNS-policy refusals are local connection failures, never
+reported as provider HTTP statuses or used to authorize HTTP. Older backends without the envelope cannot authorize HTTP discovery.
 Provider JSON remains nested in `payload` and cannot provide this evidence.
 
 The saved base drives catalog refresh, provider EPG, live/VOD/series/catch-up URL

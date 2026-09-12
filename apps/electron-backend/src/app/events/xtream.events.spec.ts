@@ -1,3 +1,4 @@
+/// <reference lib="es2021.promise" />
 import {
     CONNECTIVITY_GUARD_RESET,
     XTREAM_CANCEL_SESSION,
@@ -98,6 +99,40 @@ describe('XtreamEvents session cancellation', () => {
             });
             expect(JSON.stringify(result)).not.toContain('secret');
             expect(JSON.stringify(result)).not.toContain('private credentials');
+        }
+    );
+
+    it.each(['ECONNREFUSED', 'ETIMEDOUT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'])(
+        'classifies native aggregate failures before IPC (%s)',
+        async (code) => {
+            const failure = Object.assign(
+                new AggregateError([
+                    Object.assign(new Error('private address'), {
+                        code: 'ECONNREFUSED',
+                    }),
+                    Object.assign(new Error('other private address'), { code }),
+                ]),
+                { code: 'ECONNREFUSED' }
+            );
+            axiosMock.mockRejectedValueOnce(failure);
+            const result = await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                {
+                    url: 'https://example.com',
+                    params: {},
+                    connectionTest: true,
+                }
+            );
+            expect(result).toMatchObject({
+                connectionFailure: {
+                    kind:
+                        code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+                            ? 'tls'
+                            : 'connection',
+                    canTryHttp: code === 'ECONNREFUSED',
+                },
+            });
+            expect(JSON.stringify(result)).not.toContain('private address');
         }
     );
 
