@@ -151,6 +151,7 @@ ipcMain.handle(
 
             // Check if response is successful
             if (response.status >= 400) {
+                if (payload.probe) throw new Error(`HTTP Error ${response.status}`);
                 throw {
                     message: `HTTP Error: ${response.statusText}`,
                     status: response.status,

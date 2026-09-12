@@ -38,13 +38,24 @@ export class SourceHealthService {
     private readonly origins = new Map<string, number>();
     private active = 0;
     constructor() {
-        inject(SourceHealthEvidenceService).results.subscribe(
-            ({ playlist, result }) => {
-                const key = sourceHealthKey(playlist);
-                if (![...this.identities.values()].includes(key)) return;
-                this.publish(key, { ...result, checkedAt: Date.now() });
+        const evidence = inject(SourceHealthEvidenceService);
+        evidence.connections.subscribe(({ id, playlist }) => {
+            if (!id) {
+                [...this.identities.keys()].forEach((key) =>
+                    this.invalidate(key)
+                );
+            } else if (
+                !playlist ||
+                this.identities.get(id) !== sourceHealthKey(playlist)
+            ) {
+                this.invalidate(id);
             }
-        );
+        });
+        evidence.results.subscribe(({ playlist, result }) => {
+            const key = sourceHealthKey(playlist);
+            if (![...this.identities.values()].includes(key)) return;
+            this.publish(key, { ...result, checkedAt: Date.now() });
+        });
     }
     async recheck(
         p: PlaylistMeta,
@@ -99,7 +110,11 @@ export class SourceHealthService {
             return Promise.resolve(cached);
         let job = this.jobs.get(key);
         if (options.fresh && job?.running && !job.explicit)
-            return job.promise.then(() => this.check(p, options));
+            return job.promise.then(() =>
+                this.identities.get(p._id) === key
+                    ? this.check(p, options)
+                    : { ...sourceHealthUnknown('cancelled'), checkedAt: 0 }
+            );
         if (!job) {
             let resolve!: Job['resolve'];
             const promise = new Promise<SourceHealthSnapshot>((r) => {

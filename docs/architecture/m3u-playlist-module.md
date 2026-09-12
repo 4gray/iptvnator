@@ -1670,7 +1670,8 @@ during a probe, both the cache and the waiting caller retain that newer result.
 Account-disabled/expired evidence is separate from authorization errors,
 network failures and connectivity-guard pauses. Only explicit account evidence
 is eligible for automatic cleanup selection. Statuses are session-only;
-connection edits and deletion invalidate pending evidence. Retry now explicitly
+committed SQLite connection edits and deletions publish inventory events that
+invalidate pending evidence, including deferred explicit retries. Retry now explicitly
 resets the portal guard; ordinary checks do not. Credentials and response bodies
 are never included in indicator text.
 

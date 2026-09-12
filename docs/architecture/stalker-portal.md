@@ -1757,7 +1757,8 @@ Covered scenarios include:
 `executeStalkerRequest`, without the optional repair dependency. Full portals
 reuse `StalkerSessionService.ensureToken` and the existing profile API. Health
 checks never launch endpoint discovery or force renewal of a warm session.
-Cold authentication retains the shared session slot and receives a bounded
-transport context; closing a status surface does not cancel that shared slot.
+Cold authentication retains the shared session slot and its ordinary transport
+lifetime. The health consumer bounds only its own wait; its deadline and closing
+a status surface never cancel or shorten authentication shared with playback.
 Profile/account reads have request-owned cancellation. Outer profile challenge
 statuses are not subscription statuses. Missing account dates stay unknown.
