@@ -6,6 +6,7 @@ import {
 import {
     PlaylistMeta,
     SourceHealthSnapshot,
+    SourceHealthResult,
     sourceHealthType,
     sourceHealthKey,
     sourceHealthUnknown,
@@ -45,12 +46,17 @@ export class SourceHealthService {
             }
         );
     }
-    async recheck(p: PlaylistMeta): Promise<SourceHealthSnapshot> {
+    async recheck(
+        p: PlaylistMeta,
+        signal?: AbortSignal
+    ): Promise<SourceHealthSnapshot> {
+        if (signal?.aborted)
+            return { ...sourceHealthUnknown('cancelled'), checkedAt: 0 };
         if (sourceHealthType(p) !== 'm3u')
             await window.electron.resetHostConnectivityGuard(
                 p.portalUrl || p.serverUrl!
             );
-        return this.check(p, { fresh: true });
+        return this.check(p, { fresh: true, signal });
     }
     get(p: PlaylistMeta): SourceHealthSnapshot | undefined {
         return this.snapshots().get(sourceHealthKey(p));
@@ -164,14 +170,7 @@ export class SourceHealthService {
         const deadlineAt = Date.now() + (job.explicit ? 15000 : 5000);
         let snapshot: SourceHealthSnapshot;
         try {
-            const result = await this.probes.check(
-                job.playlist,
-                {
-                    requestId: job.requestId,
-                    deadlineAt,
-                },
-                job.controller.signal
-            );
+            const result = await this.checkWithinDeadline(job, deadlineAt);
             snapshot = { ...result, checkedAt: Date.now() };
         } catch (error) {
             snapshot = { ...sourceHealthError(error), checkedAt: Date.now() };
@@ -193,6 +192,42 @@ export class SourceHealthService {
         this.origins.set(job.origin, (this.origins.get(job.origin) ?? 1) - 1);
         job.resolve(snapshot);
         this.drain();
+    }
+    private async checkWithinDeadline(
+        job: Job,
+        deadlineAt: number
+    ): Promise<SourceHealthResult> {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let onAbort: (() => void) | undefined;
+        const stopped = new Promise<never>((_, reject) => {
+            onAbort = () => reject(new Error('cancelled'));
+            job.controller.signal.addEventListener('abort', onAbort, {
+                once: true,
+            });
+            timer = setTimeout(
+                () => {
+                    // Also cancel the transport; the race bounds waits before a socket exists.
+                    reject(new Error('deadline exceeded'));
+                    job.controller.abort();
+                    void window.electron.cancelSourceProbe(job.requestId);
+                },
+                Math.max(0, deadlineAt - Date.now())
+            );
+        });
+        try {
+            return await Promise.race([
+                this.probes.check(
+                    job.playlist,
+                    { requestId: job.requestId, deadlineAt },
+                    job.controller.signal
+                ),
+                stopped,
+            ]);
+        } finally {
+            clearTimeout(timer);
+            if (onAbort)
+                job.controller.signal.removeEventListener('abort', onAbort);
+        }
     }
     private publish(key: string, result: SourceHealthSnapshot) {
         const previous = this.snapshots().get(key);

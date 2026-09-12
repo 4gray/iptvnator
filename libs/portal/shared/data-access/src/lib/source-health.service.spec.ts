@@ -68,6 +68,8 @@ describe('SourceHealthService', () => {
         for (const id of ['a', 'b', 'c'])
             void service.check({ ...playlist(id, 'shared'), userAgent: id });
         expect(probe).toHaveBeenCalledTimes(2);
+        ['a', 'b', 'c'].forEach((id) => service.invalidate(id));
+        await Promise.resolve();
     });
     it('does not cancel another consumer when a menu closes', async () => {
         let resolve!: (r: SourceHealthResult) => void;
@@ -98,6 +100,24 @@ describe('SourceHealthService', () => {
         resolve(active);
         await check;
         expect(service.get(playlist('a'))).toBeUndefined();
+    });
+    it('bounds a stalled probe and cancels its transport at the total deadline', async () => {
+        jest.useFakeTimers();
+        try {
+            probe.mockImplementation(() => new Promise(() => undefined));
+            const check = service.check(playlist('slow'));
+            jest.advanceTimersByTime(5000);
+            expect(await check).toMatchObject({
+                reason: 'timeout',
+                confirmedInactive: false,
+            });
+            expect(probe.mock.calls[0][2].aborted).toBe(true);
+            expect(window.electron.cancelSourceProbe).toHaveBeenCalledWith(
+                probe.mock.calls[0][1].requestId
+            );
+        } finally {
+            jest.useRealTimers();
+        }
     });
     it('uses a longer deadline for explicit checks and bypasses cached results', async () => {
         await service.check(playlist('a'));
