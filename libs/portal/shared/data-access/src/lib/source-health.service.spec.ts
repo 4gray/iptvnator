@@ -71,6 +71,29 @@ describe('SourceHealthService', () => {
         ['a', 'b', 'c'].forEach((id) => service.invalidate(id));
         await Promise.resolve();
     });
+    it.each([false, true])(
+        'bounds queued explicit checks (promoted: %s)',
+        async (promote) => {
+            jest.useFakeTimers();
+            try {
+                probe.mockImplementation(() => new Promise(() => undefined));
+                const blockers = ['a', 'b', 'c', 'd'].map((id) =>
+                    service.check(playlist(id), { fresh: true })
+                );
+                const source = playlist('queued');
+                const background = promote ? service.check(source) : undefined;
+                const explicit = service.check(source, { fresh: true });
+                expect(probe).toHaveBeenCalledTimes(4);
+                await jest.advanceTimersByTimeAsync(15000);
+                expect(await explicit).toMatchObject({ reason: 'timeout' });
+                expect(probe).toHaveBeenCalledTimes(4);
+                await Promise.all([...blockers, background]);
+                expect(jest.getTimerCount()).toBe(0);
+            } finally {
+                jest.useRealTimers();
+            }
+        }
+    );
     it('does not cancel another consumer when a menu closes', async () => {
         let resolve!: (r: SourceHealthResult) => void;
         probe.mockImplementation(

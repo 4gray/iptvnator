@@ -1678,3 +1678,7 @@ committed SQLite connection edits and deletions publish inventory events that
 invalidate pending evidence, including deferred explicit retries. Retry now explicitly
 resets the portal guard; ordinary checks do not. Credentials and response bodies
 are never included in indicator text.
+
+Explicit source-health checks retain their deadline while queued, including
+background jobs promoted by Retry. Expired queued checks resolve without opening
+a transport; cancellation and admission clear the queue timer.

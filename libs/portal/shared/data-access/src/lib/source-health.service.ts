@@ -21,6 +21,7 @@ interface Job {
     explicit: boolean;
     requestId: string;
     deadlineAt?: number;
+    queueTimer?: ReturnType<typeof setTimeout>;
     controller: AbortController;
     users: Set<symbol>;
     running: boolean;
@@ -149,7 +150,11 @@ export class SourceHealthService {
                     checkedAt: 0,
                 });
         }
-        if (options.fresh && !job.running) job.explicit = true;
+        if (options.fresh && !job.running) {
+            job.explicit = true;
+            job.deadlineAt ??= options.deadlineAt ?? Date.now() + 15000;
+            this.boundQueueWait(job);
+        }
         const user = Symbol();
         job.users.add(user);
         const ownedJob = job;
@@ -163,8 +168,34 @@ export class SourceHealthService {
             options.signal?.removeEventListener('abort', cancel)
         );
     }
+    private boundQueueWait(job: Job): void {
+        if (job.queueTimer !== undefined) return;
+        const queuedAt = Date.now();
+        job.queueTimer = setTimeout(
+            () => {
+                if (job.running || this.jobs.get(job.key) !== job) return;
+                this.jobs.delete(job.key);
+                const previous = this.snapshots().get(job.key);
+                const snapshot =
+                    previous && previous.checkedAt > queuedAt
+                        ? previous
+                        : {
+                              ...sourceHealthUnknown('timeout'),
+                              checkedAt: Date.now(),
+                          };
+                if (
+                    job.users.size &&
+                    [...this.identities.values()].includes(job.key)
+                )
+                    this.publish(job.key, snapshot);
+                job.resolve(snapshot);
+            },
+            Math.max(0, job.deadlineAt! - queuedAt)
+        );
+    }
     private cancel(job: Job): void {
         if (this.jobs.get(job.key) !== job) return;
+        clearTimeout(job.queueTimer);
         job.controller.abort();
         this.jobs.delete(job.key);
         if (job.running) void window.electron.cancelSourceProbe(job.requestId);
@@ -180,6 +211,7 @@ export class SourceHealthService {
         for (const job of queue) {
             if (this.active >= 4) break;
             if ((this.origins.get(job.origin) ?? 0) >= 2) continue;
+            clearTimeout(job.queueTimer);
             job.running = true;
             this.active++;
             this.origins.set(
