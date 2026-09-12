@@ -1,3 +1,4 @@
+import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type {
     CatchupDownloadMetadata,
     DownloadRecoveryResult,
@@ -306,6 +307,7 @@ export interface ElectronBridgeStalkerRequestPayload {
 }
 
 export interface ElectronBridgeXtreamRequestPayload {
+    connectionTest?: boolean;
     url: string;
     params: Record<string, string>;
     requestId?: string;
@@ -314,6 +316,7 @@ export interface ElectronBridgeXtreamRequestPayload {
 }
 
 export interface ElectronBridgeXtreamResponse {
+    connectionFailure?: XtreamConnectionFailure;
     payload: unknown;
     action: string;
 }

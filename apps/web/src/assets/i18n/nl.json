@@ -181,7 +181,20 @@
             "PASSWORD": "Wachtwoord",
             "ADD": "Toevoegen",
             "TEST_CREDENTIALS": "Test de inloggegevens",
-            "URL_VALIDATION_ERROR": "Moet een geldige URL zijn met protocol (bijv. http://example.com of https://example.com:4324)"
+            "URL_VALIDATION_ERROR": "Moet een geldige URL zijn met protocol (bijv. http://example.com of https://example.com:4324)",
+            "CONNECTION_TEST": {
+                "TEST": "Verbinding testen",
+                "TESTING": "Verbinding testen…",
+                "HTTP_CONNECTED": "Verbonden via HTTP. HTTPS is niet beschikbaar. De verbinding is niet versleuteld.",
+                "ACTIVE": "Verbonden. Het portaal is actief.",
+                "INACTIVE": "Het account is inactief of de inloggegevens zijn onjuist.",
+                "EXPIRED": "Het abonnement is verlopen.",
+                "UNAVAILABLE": "Het portaal gaf geen geldige accountgegevens terug.",
+                "HTTP_ERROR": "De server gaf HTTP {{status}} terug.",
+                "TLS_ERROR": "Kan geen beveiligde verbinding maken. Controleer de HTTPS-configuratie en het certificaat van de server.",
+                "CONNECTION_ERROR": "Server niet bereikbaar. Controleer het adres en uw netwerkverbinding.",
+                "UNKNOWN_ERROR": "Kan de verbinding niet testen."
+            }
         },
         "STALKER_PORTAL": {
             "TITLE": "Titel",

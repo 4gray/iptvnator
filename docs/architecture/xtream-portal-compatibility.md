@@ -48,7 +48,7 @@ Rules:
 2. URL username/password credentials are rejected.
 3. Leading and trailing whitespace is ignored.
 4. Trailing slashes are removed.
-5. Full API or playlist URLs ending in `/player_api.php` or `/get.php` are
+5. Full API or playlist URLs ending in `/player_api.php`, `/panel_api.php`, or `/get.php` are
    reduced to the portal base URL.
 6. Provider subpaths are preserved. For example,
    `https://example.test/panel/player_api.php?...` becomes
@@ -57,6 +57,39 @@ Rules:
 The Xtream import form may extract `username` and `password` from full
 `get.php` or `player_api.php` URLs, but stored playlist metadata should keep
 the normalized `serverUrl` plus trimmed credentials.
+
+### Explicit protocol discovery
+
+Add and Edit source share `XtreamConnectionTestService` and form-owned
+`createXtreamConnectionTestState` (`@iptvnator/services`). Test connection
+first probes the entered base, including the existing account-action variants.
+Only an initial `ECONNREFUSED` or TLS wrong-version failure permits one HTTP
+candidate on the same hostname/path. Default HTTPS port 443 becomes HTTP 80;
+nonstandard explicit ports are preserved, never scanned. DNS, timeout, reset,
+certificate, HTTP authorization, and redirected-destination failures cannot
+trigger a downgrade. A response from an earlier account-action variant also
+prevents downgrade. HTTP 400/404/405 can still try another account action.
+
+An active account on HTTP replaces only the form's `serverUrl`, with localized
+copy explaining that HTTP is unencrypted. Add/Save persists through the existing
+metadata path; Test never writes storage. Edits, reset, destruction and newer
+tests invalidate pending results and prevent a stale fallback request. Add/Save
+is disabled while that form's test is running. Passive status checks, startup,
+refresh and playback never perform protocol discovery.
+
+Both transports return an optional, credential-free `connectionFailure` envelope
+only for `connectionTest` requests. Electron returns it rather than throwing
+through IPC (which loses custom error fields); the PWA proxy strips the control
+parameter before contacting the provider and preserves validated redirect-chain
+evidence. Older backends without the envelope cannot authorize HTTP discovery.
+Provider JSON remains nested in `payload` and cannot provide this evidence.
+
+The saved base drives catalog refresh, provider EPG, live/VOD/series/catch-up URL
+construction and fresh Favorites/Recent resolution. The routed Xtream session
+observes metadata connection changes and bootstraps the new connection. Separate
+XMLTV source URLs, provider-supplied absolute URLs and already-issued download
+or playback sessions retain their own URLs; they are not rewritten. No database
+schema change or migration is required.
 
 ## Account Status
 

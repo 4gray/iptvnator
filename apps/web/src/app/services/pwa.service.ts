@@ -372,6 +372,7 @@ export class PwaService extends DataService {
     }
 
     async forwardXtreamRequest(payload: {
+        connectionTest?: boolean;
         url: string;
         params: Record<string, string>;
         macAddress?: string;
@@ -402,6 +403,7 @@ export class PwaService extends DataService {
             const requestParams = {
                 targetId,
                 ...payload.params,
+                ...(payload.connectionTest ? { connectionTest: 'true' } : {}),
             };
             const requestPayload = {
                 method: 'GET',
@@ -433,6 +435,8 @@ export class PwaService extends DataService {
                     }
                 )
             )) as PwaXtreamResponse;
+
+            if (payload.connectionTest) return response;
 
             if (!response.payload) {
                 const action = payload.params.action;

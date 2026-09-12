@@ -181,7 +181,20 @@
             "PASSWORD": "كلمة المرور",
             "ADD": "زيد",
             "TEST_CREDENTIALS": "جرب بيانات الاعتماد",
-            "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com ولا https://example.com:4324)"
+            "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com ولا https://example.com:4324)",
+            "CONNECTION_TEST": {
+                "TEST": "جرّب الاتصال",
+                "TESTING": "كنجرّبو الاتصال…",
+                "HTTP_CONNECTED": "تّاصلنا بـ HTTP. HTTPS ما متوفرش. الاتصال ما مشفّرش.",
+                "ACTIVE": "تّاصلنا. البوابة خدامة.",
+                "INACTIVE": "الحساب ما مفعّلش أو معلومات الدخول غالطة.",
+                "EXPIRED": "الاشتراك سالا.",
+                "UNAVAILABLE": "البوابة ما رجّعاتش معلومات حساب صحيحة.",
+                "HTTP_ERROR": "السيرفر رجّع HTTP {{status}}.",
+                "TLS_ERROR": "ما قدرناش نديرو اتصال آمن. تأكد من إعدادات HTTPS وشهادة السيرفر.",
+                "CONNECTION_ERROR": "ما قدرناش نوصلو للسيرفر. تأكد من العنوان والاتصال بالشبكة.",
+                "UNKNOWN_ERROR": "ما قدرناش نجرّبو الاتصال."
+            }
         },
         "STALKER_PORTAL": {
             "TITLE": "العنوان",

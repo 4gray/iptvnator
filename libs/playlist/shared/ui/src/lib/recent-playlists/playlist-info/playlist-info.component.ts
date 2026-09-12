@@ -26,6 +26,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { firstValueFrom } from 'rxjs';
 import {
+    createXtreamConnectionTestState,
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
@@ -296,6 +297,7 @@ export class PlaylistInfoComponent {
 
     /** Form group with playlist details */
     playlistDetails!: UntypedFormGroup;
+    readonly connectionTest: ReturnType<typeof createXtreamConnectionTestState>;
 
     constructor() {
         this.dialogRef?.beforeClosed().subscribe(() => {
@@ -303,6 +305,9 @@ export class PlaylistInfoComponent {
         });
         this.playlist = this.playlistData;
         this.createForm();
+        this.connectionTest = createXtreamConnectionTestState(
+            this.playlistDetails
+        );
         if (this.playlist.portalUrl) {
             this.isHydratingStalkerPlaylist.set(true);
             this.stalkerPlaylistHydration =
@@ -375,7 +380,7 @@ export class PlaylistInfoComponent {
     }
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
-        if (this.isSaving()) {
+        if (this.isSaving() || this.connectionTest.testing()) {
             return;
         }
 
@@ -607,13 +612,8 @@ export class PlaylistInfoComponent {
             throw new Error('Failed to update playlist in database');
         }
 
-        // TODO: circular dependency
-        /* this.xtreamStore.updatePlaylist({
-            name: playlist.title,
-            username: playlist.username,
-            password: playlist.password,
-            serverUrl: playlist.serverUrl,
-        }); */
+        // The metadata action below updates PlaylistContextFacade; the routed
+        // Xtream session observes connection changes and bootstraps fresh state.
     }
 
     async refreshPlaylistEpgSource(url: string): Promise<void> {

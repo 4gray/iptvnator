@@ -181,7 +181,20 @@
             "PASSWORD": "Contraseña",
             "ADD": "Agregar",
             "TEST_CREDENTIALS": "Probar credenciales",
-            "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com o https://example.com:4324)."
+            "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com o https://example.com:4324).",
+            "CONNECTION_TEST": {
+                "TEST": "Probar conexión",
+                "TESTING": "Probando conexión…",
+                "HTTP_CONNECTED": "Conectado por HTTP. HTTPS no está disponible. La conexión no está cifrada.",
+                "ACTIVE": "Conectado. El portal está activo.",
+                "INACTIVE": "La cuenta está inactiva o las credenciales son incorrectas.",
+                "EXPIRED": "La suscripción ha caducado.",
+                "UNAVAILABLE": "El portal no devolvió información válida de la cuenta.",
+                "HTTP_ERROR": "El servidor devolvió HTTP {{status}}.",
+                "TLS_ERROR": "No se pudo establecer una conexión segura. Comprueba la configuración HTTPS y el certificado del servidor.",
+                "CONNECTION_ERROR": "No se pudo acceder al servidor. Comprueba la dirección y la conexión de red.",
+                "UNKNOWN_ERROR": "No se pudo probar la conexión."
+            }
         },
         "STALKER_PORTAL": {
             "TITLE": "Título",

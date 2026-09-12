@@ -134,16 +134,20 @@
                         (click)="xtreamImport()?.testConnection()"
                     >
                         {{
-                            xtreamImport()?.isTestingConnection
-                                ? 'Testing...'
-                                : 'Test Connection'
+                            (xtreamImport()?.isTestingConnection
+                                ? 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TESTING'
+                                : 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TEST'
+                            ) | translate
                         }}
                     </button>
                     <button
                         mat-flat-button
                         color="primary"
                         type="button"
-                        [disabled]="!xtreamImport()?.form?.valid"
+                        [disabled]="
+                            !xtreamImport()?.form?.valid ||
+                            xtreamImport()?.isTestingConnection
+                        "
                         (click)="xtreamImport()?.addPlaylist()"
                     >
                         {{ 'HOME.XTREAM_PLAYLIST.ADD' | translate }}

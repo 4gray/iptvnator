@@ -181,7 +181,20 @@
             "PASSWORD": "密码",
             "ADD": "添加",
             "TEST_CREDENTIALS": "测试凭据",
-            "URL_VALIDATION_ERROR": "应该是带有协议的有效 url（例如 http://example.com 或 https://example.com:4324）"
+            "URL_VALIDATION_ERROR": "应该是带有协议的有效 url（例如 http://example.com 或 https://example.com:4324）",
+            "CONNECTION_TEST": {
+                "TEST": "测试连接",
+                "TESTING": "正在测试连接…",
+                "HTTP_CONNECTED": "已通过 HTTP 连接。HTTPS 不可用。连接未加密。",
+                "ACTIVE": "已连接。门户处于活动状态。",
+                "INACTIVE": "账户未激活或登录信息不正确。",
+                "EXPIRED": "订阅已过期。",
+                "UNAVAILABLE": "门户未返回有效的账户信息。",
+                "HTTP_ERROR": "服务器返回 HTTP {{status}}。",
+                "TLS_ERROR": "无法建立安全连接。请检查服务器的 HTTPS 配置和证书。",
+                "CONNECTION_ERROR": "无法连接到服务器。请检查地址和网络连接。",
+                "UNKNOWN_ERROR": "无法测试连接。"
+            }
         },
         "STALKER_PORTAL": {
             "TITLE": "标题",

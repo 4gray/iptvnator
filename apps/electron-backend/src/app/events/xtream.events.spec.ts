@@ -67,6 +67,57 @@ describe('XtreamEvents session cancellation', () => {
         }
     });
 
+    it.each([false, true])(
+        'returns structured refused-port evidence (redirected=%s)',
+        async (redirected) => {
+            if (redirected)
+                axiosMock.mockResolvedValueOnce({
+                    status: 302,
+                    headers: {
+                        location: 'https://other.example/player_api.php',
+                    },
+                });
+            axiosMock.mockRejectedValueOnce(
+                Object.assign(new Error('private credentials'), {
+                    code: 'ECONNREFUSED',
+                })
+            );
+            const result = await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                {
+                    url: 'https://example.com',
+                    params: { username: 'user', password: 'secret' },
+                    connectionTest: true,
+                }
+            );
+            expect(result).toMatchObject({
+                connectionFailure: {
+                    kind: 'connection',
+                    canTryHttp: !redirected,
+                },
+            });
+            expect(JSON.stringify(result)).not.toContain('secret');
+            expect(JSON.stringify(result)).not.toContain('private credentials');
+        }
+    );
+
+    it('returns the provider HTTP error without enabling fallback', async () => {
+        axiosMock.mockResolvedValueOnce({
+            status: 403,
+            statusText: 'Forbidden',
+            headers: {},
+            data: '<html>blocked</html>',
+        });
+        expect(
+            await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                { url: 'https://example.com', params: {}, connectionTest: true }
+            )
+        ).toMatchObject({
+            connectionFailure: { kind: 'http', status: 403, canTryHttp: false },
+        });
+    });
+
     it('normalizes full Xtream API URLs before appending player_api.php', async () => {
         const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
         expect(requestHandler).toBeDefined();

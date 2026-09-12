@@ -236,3 +236,43 @@ describe('redirect routes and admission lifecycle', () => {
         }
     );
 });
+
+describe('Xtream explicit protocol-test evidence', () => {
+    it.each([false, true])(
+        'preserves initial-response evidence (redirected=%s)',
+        async (redirected) => {
+            const transport = new StubHttpClient();
+            if (redirected)
+                transport.queueRedirect('https://other.example/player_api.php');
+            transport.queueNetworkError(
+                Object.assign(new Error('private provider text'), {
+                    code: 'ECONNREFUSED',
+                })
+            );
+            await withServer(
+                createWebBackendApp({
+                    httpClient: transport,
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (backend) => {
+                    const id = await registerProviderTarget(
+                        backend,
+                        'https://provider.example'
+                    );
+                    const response = await fetch(
+                        `${backend}/xtream?targetId=${id}&connectionTest=true&username=user&password=secret`
+                    );
+                    expect(await response.json()).toEqual({
+                        connectionFailure: {
+                            kind: 'connection',
+                            canTryHttp: !redirected,
+                        },
+                    });
+                    expect(transport.requests[0].params).not.toHaveProperty(
+                        'connectionTest'
+                    );
+                }
+            );
+        }
+    );
+});

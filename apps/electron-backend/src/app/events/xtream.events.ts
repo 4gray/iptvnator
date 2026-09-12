@@ -3,7 +3,7 @@
  * between the frontend and the electron backend.
  */
 
-import axios, { AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import { ipcMain } from 'electron';
 import {
     PortalDebugEvent,
@@ -11,11 +11,15 @@ import {
     XTREAM_CLIENT_USER_AGENT,
     XTREAM_MAIN_PERFORMANCE_PHASE,
     normalizeXtreamServerUrl,
+    describeXtreamConnectionFailure,
 } from '@iptvnator/shared/interfaces';
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { formatPortalRequestError } from './portal-request-error.util';
-import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    requestWithValidatedRedirects,
+    ValidatedAxiosRequestConfig,
+} from '../util/validated-axios';
 import {
     HostConnectivityGuardError,
     HostRequestToken,
@@ -62,12 +66,14 @@ ipcMain.handle(
             requestId?: string;
             sessionId?: string;
             suppressErrorLog?: boolean;
+            connectionTest?: boolean;
         }
     ) => {
         const startedAt = Date.now();
         const performanceCapture = createXtreamMainPerformanceCaptureForRequest(
             payload.requestId
         );
+        let initialResponded = false;
         let activeRequestKey: string | null = null;
         let requestUrlForLog = payload.url;
         let guardToken: HostRequestToken | null = null;
@@ -93,7 +99,10 @@ ipcMain.handle(
             }
 
             // Configure axios request
-            const config: AxiosRequestConfig = {
+            const config: ValidatedAxiosRequestConfig = {
+                onResponse: () => {
+                    initialResponded = true;
+                },
                 method: 'GET',
                 url: apiUrl.toString(),
                 headers: {
@@ -207,6 +216,20 @@ ipcMain.handle(
                     error,
                 };
                 emitPortalDebugEvent(debugEvent);
+            }
+
+            if (payload.connectionTest) {
+                reportGuardedHostFailure(guardToken, error, {
+                    requestUrl: requestUrlForLog,
+                });
+                return {
+                    payload: null,
+                    action: payload.params?.action,
+                    connectionFailure: describeXtreamConnectionFailure(
+                        error,
+                        initialResponded
+                    ),
+                };
             }
 
             if (error instanceof HostConnectivityGuardError) {
