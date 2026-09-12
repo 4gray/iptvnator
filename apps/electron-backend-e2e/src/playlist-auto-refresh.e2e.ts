@@ -16,7 +16,10 @@ import {
     waitForM3uCatalog,
 } from './electron-test-fixtures';
 
-import { holdNextPlaylistWrite } from './playlist-refresh-write-gate';
+import {
+    holdNextPlaylistWrite,
+    launchElectronWithWriteGate,
+} from './playlist-refresh-write-gate';
 
 const autoRefreshSourceName = 'auto-refresh-source.m3u';
 
@@ -52,7 +55,7 @@ test.describe('Electron startup playlist auto-refresh', () => {
                 requiredUserAgent: userAgent,
             }
         );
-        const app = await launchElectronApp(dataDir);
+        const app = await launchElectronWithWriteGate(dataDir);
         try {
             expect((await fetch(urlServer.resourceUrl)).status).toBe(403);
             await importM3uPlaylistFromUrl(
