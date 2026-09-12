@@ -7,6 +7,14 @@ The website is an Astro static site deployed to GitHub Pages at `https://4gray.g
 Blog posts render Giscus comments from `apps/website/src/components/GiscusComments.astro`.
 Giscus stores comments in GitHub Discussions for `4gray/iptvnator` and maps each page to a discussion by `pathname`, including the GitHub Pages base path such as `/iptvnator/blog/why-external-players-help/`.
 
+The embed is **click-to-load**: the configuration sits as `data-*` attributes on a
+"Show comments" button and the `giscus.app` script is created only when a reader
+presses it, so opening a post requests nothing from giscus.app or github.com.
+Keep it that way — pasting the upstream `<script src="https://giscus.app/client.js">`
+snippet back into the component would contact both for every reader, and
+`tools/testing/website-giscus-comments.test.mjs` fails when that script tag
+appears in the delivered HTML.
+
 The embed is wired to the dedicated `Blog comments` discussion category:
 
 - Repository id: `MDEwOlJlcG9zaXRvcnkyMTMxOTQ3Mzg=`
@@ -26,6 +34,24 @@ gh api graphql \
 Then update `data-category-id` in `GiscusComments.astro`.
 
 Moderation happens in GitHub Discussions. Maintainers can hide, delete, lock, or move discussions and comments from the repository Discussions UI.
+
+## Fonts And Third-Party Requests
+
+A delivered page must make **no third-party request**. The build is checked
+against this: fonts come from the `@fontsource` packages imported in
+`src/layouts/BaseLayout.astro` and are emitted as `.woff2` beside the site (never
+from a font CDN), the author avatar is `public/author-4gray.jpg` rather than a
+`githubusercontent.com` URL, and comments are click-to-load as described above.
+
+The display family is the **variable** package, which declares itself as
+`Bricolage Grotesque Variable` — that exact name leads the `display` stack in
+`tailwind.config.mjs`, with the static `Bricolage Grotesque` kept behind it as a
+fallback. Adding a weight or style means adding its `@fontsource` import;
+nothing is fetched at runtime.
+
+Before adding any embed (analytics, a video, a widget, a webfont), check what it
+loads. Keeping the page free of outside requests is what keeps it fast and keeps
+the site from needing a consent banner.
 
 ## Download Pages
 

@@ -1,3 +1,28 @@
+---
+/**
+ * Comments live in GitHub Discussions and are embedded through giscus, which
+ * loads from `giscus.app` and `github.com`. Embedding it on page load would
+ * contact both for every reader of every post, so the embed is created only
+ * after an explicit click: until then the page requests nothing third-party.
+ *
+ * The configuration is carried as `data-*` attributes on the button and copied
+ * onto the real script, so it stays in one place and is visible in the HTML.
+ */
+const giscusConfig = {
+  'data-repo': '4gray/iptvnator',
+  'data-repo-id': 'MDEwOlJlcG9zaXRvcnkyMTMxOTQ3Mzg=',
+  'data-category': 'Blog comments',
+  'data-category-id': 'DIC_kwDODLUX8s4C9eBJ',
+  'data-mapping': 'pathname',
+  'data-strict': '1',
+  'data-reactions-enabled': '1',
+  'data-emit-metadata': '0',
+  'data-input-position': 'bottom',
+  'data-theme': 'transparent_dark',
+  'data-lang': 'en',
+};
+---
+
 <section class="mt-16 border-t border-surface-700/60 pt-10" aria-labelledby="blog-comments-heading">
   <div class="mb-6">
     <h2 id="blog-comments-heading" class="font-display text-2xl font-semibold tracking-tight text-surface-100">
@@ -5,23 +30,58 @@
     </h2>
   </div>
 
-  <div class="giscus min-h-40"></div>
-  <script
-    is:inline
-    src="https://giscus.app/client.js"
-    data-repo="4gray/iptvnator"
-    data-repo-id="MDEwOlJlcG9zaXRvcnkyMTMxOTQ3Mzg="
-    data-category="Blog comments"
-    data-category-id="DIC_kwDODLUX8s4C9eBJ"
-    data-mapping="pathname"
-    data-strict="1"
-    data-reactions-enabled="1"
-    data-emit-metadata="0"
-    data-input-position="bottom"
-    data-theme="transparent_dark"
-    data-lang="en"
-    crossorigin="anonymous"
-    loading="lazy"
-    async
-  ></script>
+  <div class="giscus min-h-40" data-giscus-target></div>
+
+  <div data-giscus-prompt class="rounded-xl border border-surface-800 bg-surface-900/40 p-5">
+    <button
+      type="button"
+      data-giscus-loader
+      data-script-src="https://giscus.app/client.js"
+      {...giscusConfig}
+      class="inline-flex items-center gap-2 rounded-lg border border-surface-700 bg-surface-900 px-4 py-2 font-mono text-xs uppercase tracking-[0.1em] text-accent-400 transition-colors hover:border-accent-500/60 hover:text-accent-300"
+    >
+      Show comments
+    </button>
+    <p class="mt-3 text-sm leading-relaxed text-surface-500">
+      Comments are hosted in GitHub Discussions. Loading them contacts giscus.app and github.com;
+      nothing is requested from them until you choose to.
+    </p>
+  </div>
+
+  <script is:inline>
+    (() => {
+      const button = document.querySelector('[data-giscus-loader]');
+      const prompt = document.querySelector('[data-giscus-prompt]');
+      const target = document.querySelector('[data-giscus-target]');
+
+      if (!button || !prompt || !target) return;
+
+      button.addEventListener(
+        'click',
+        () => {
+          const script = document.createElement('script');
+
+          script.src = button.dataset.scriptSrc;
+          script.async = true;
+          script.crossOrigin = 'anonymous';
+          script.setAttribute('loading', 'lazy');
+
+          // Every giscus option except the two that drive this loader.
+          for (const attribute of button.attributes) {
+            if (
+              attribute.name.startsWith('data-') &&
+              attribute.name !== 'data-script-src' &&
+              attribute.name !== 'data-giscus-loader'
+            ) {
+              script.setAttribute(attribute.name, attribute.value);
+            }
+          }
+
+          prompt.remove();
+          target.appendChild(script);
+        },
+        { once: true }
+      );
+    })();
+  </script>
 </section>

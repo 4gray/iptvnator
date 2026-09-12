@@ -2,6 +2,17 @@
 import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+// Fonts ship with the site instead of being fetched from a font CDN, so a
+// page load makes no third-party request and the faces are already cached
+// with the rest of the assets.
+import '@fontsource-variable/bricolage-grotesque/wght.css';
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/400-italic.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/600.css';
+import '@fontsource/dm-sans/700.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
 import '../styles/global.css';
 
 interface Props {

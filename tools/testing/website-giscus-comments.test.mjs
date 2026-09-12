@@ -5,7 +5,6 @@ import assert from 'node:assert/strict';
 const postHtmlPath = new URL('../../dist/apps/website/blog/why-external-players-help/index.html', import.meta.url);
 
 const expectedGiscusAttributes = {
-  src: 'https://giscus.app/client.js',
   'data-repo': '4gray/iptvnator',
   'data-repo-id': 'MDEwOlJlcG9zaXRvcnkyMTMxOTQ3Mzg=',
   'data-category': 'Blog comments',
@@ -19,18 +18,28 @@ const expectedGiscusAttributes = {
   'data-lang': 'en',
 };
 
-test('published blog posts include the Giscus comments embed configuration', async () => {
+test('published blog posts carry the Giscus configuration on a click-to-load button', async () => {
   const html = await readFile(postHtmlPath, 'utf8');
-  const scriptMatch = html.match(/<script\b[^>]*giscus\.app\/client\.js[^>]*>/);
+  const buttonMatch = html.match(/<button\b[^>]*data-giscus-loader[^>]*>/);
 
-  assert.ok(scriptMatch, 'Expected the blog post HTML to include the Giscus client script.');
+  assert.ok(buttonMatch, 'Expected the blog post HTML to include the Giscus loader button.');
 
-  const scriptTag = scriptMatch[0];
+  const buttonTag = buttonMatch[0];
   for (const [name, value] of Object.entries(expectedGiscusAttributes)) {
-    assert.match(scriptTag, new RegExp(`${name}="${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
+    assert.match(buttonTag, new RegExp(`${name}="${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
   }
+});
 
-  assert.match(scriptTag, /\bloading="lazy"/);
-  assert.match(scriptTag, /\bcrossorigin="anonymous"/);
-  assert.match(scriptTag, /\basync/);
+test('a blog post loads nothing from a third party before the reader asks for comments', async () => {
+  const html = await readFile(postHtmlPath, 'utf8');
+
+  assert.ok(
+    !/<script\b[^>]*\bsrc="https:\/\/giscus\.app/.test(html),
+    'The giscus client must not be a script tag in the delivered HTML — it is created on click.'
+  );
+  assert.match(
+    html,
+    /data-script-src="https:\/\/giscus\.app\/client\.js"/,
+    'The loader button must carry the giscus client URL for its click handler.'
+  );
 });

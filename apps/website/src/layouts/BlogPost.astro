@@ -36,7 +36,8 @@ const formattedUpdatedDate = updatedDate?.toLocaleDateString('en-US', {
   day: 'numeric',
 });
 
-const AUTHOR_AVATAR_URL = 'https://avatars.githubusercontent.com/u/1503032';
+/** Served from the site: an avatar fetched from GitHub would report every reader to them. */
+const AUTHOR_AVATAR_URL = '/iptvnator/author-4gray.jpg';
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString();
 const blogPostSchema = {
   '@context': 'https://schema.org',

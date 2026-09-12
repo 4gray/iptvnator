@@ -41,7 +41,13 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Bricolage Grotesque"', '"DM Sans"', 'system-ui', 'sans-serif'],
+        display: [
+          '"Bricolage Grotesque Variable"',
+          '"Bricolage Grotesque"',
+          '"DM Sans"',
+          'system-ui',
+          'sans-serif',
+        ],
         body: ['"DM Sans"', 'system-ui', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'monospace'],
       },
