@@ -53,7 +53,7 @@ The application is a cross-platform, open-source project built with Electron and
 **Discovery & metadata**
 
 - Global search across live TV, movies, and series _(desktop)_
-- TMDB enrichment (opt-in) — plots, cast & crew, trailers, ratings, artwork, a "Similar" rail, clickable actor pages, and a trending dashboard rail _(trending rail: desktop)_
+- TMDB enrichment (opt-in, requires your own TMDB API key) — plots, cast & crew, trailers, ratings, artwork, a "Similar" rail, clickable actor pages, and a trending dashboard rail _(trending rail: desktop)_
 - Dashboard with recently watched & continue-watching
 
 **Organization**

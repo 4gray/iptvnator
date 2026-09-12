@@ -24,7 +24,8 @@ Related:
   "Movie Recognition (VOD Detail View)" in
   `docs/architecture/m3u-playlist-module.md`.
 - Enrichment is **opt-in** via `Settings > Metadata (TMDB)` because it sends
-  movie/series titles to a third-party API. Default: disabled.
+  movie/series titles to a third-party API. Default: disabled. Users supply
+  their own TMDB API key; distributed builds ship without a shared key.
 - The detail view renders provider data **immediately**; enrichment runs
   asynchronously and patches the selected item once TMDB responds. A
   staleness guard drops responses that arrive after the user navigated away.
@@ -44,7 +45,7 @@ store imports):
 
 | File                         | Responsibility                                                                                                                               |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tmdb-config.ts`             | API/image base URLs, embedded default API key, cache TTLs, app-language → TMDB-language mapping                                              |
+| `tmdb-config.ts`             | API/image base URLs, empty default API key placeholder, cache TTLs, app-language → TMDB-language mapping                                              |
 | `tmdb.types.ts`              | TMDB v3 response shapes (search, details with credits)                                                                                       |
 | `tmdb-api.service.ts`        | Thin `fetch`-based client (TMDB supports CORS; works in Electron renderer and PWA). Accepts v3 keys (`api_key` param) and v4 tokens (Bearer) |
 | `tmdb-matcher.ts`            | Title normalization, year extraction, and the match-confidence gate (pure functions)                                                         |
@@ -505,8 +506,7 @@ The panel's full path — settings button, preload bridge, DB worker, real
 SQLite — is covered by `@settings @electron @persistence sizes and clears
 the TMDB metadata cache` in `apps/electron-backend-e2e/src/settings.e2e.ts`.
 It seeds a row through `dbSetTmdbMetadata` rather than through enrichment,
-which needs an API key that builds outside the release pipeline do not
-carry.
+so the test does not depend on a TMDB API key or external API access.
 
 The PWA uses a session-scoped in-memory map (acceptable for phase 1; TMDB
 supports CORS so the PWA calls the API directly).
@@ -515,7 +515,7 @@ supports CORS so the PWA calls the API directly).
 
 `Settings.tmdb?: { enabled: boolean; apiKey?: string }`
 (`libs/shared/interfaces/src/lib/tmdb.interface.ts`). The settings page has
-a "Metadata (TMDB)" section: enable toggle, optional API key override with a
+a "Metadata (TMDB)" section: enable toggle, user-provided API key with a
 "check key" button (validates against `/configuration`), the M3U
 movie-recognition toggle (root-level `Settings.m3uVodDetails`, shown only
 while TMDB is enabled and bound via `[formControl]` because it is not part of
@@ -525,19 +525,30 @@ lot. Sizing is a full table scan, so it runs only once that section is the
 active one, and a failed read or clear says so instead of showing an empty
 cache.
 
-The embedded default key lives in `DEFAULT_TMDB_API_KEY`
-(`libs/services/src/lib/tmdb/tmdb-config.ts`) and is an **empty placeholder
-in the repository by design**: the real key is stored in the `TMDB_API_KEY`
-GitHub Actions secret and injected at CI build time by
-`tools/tmdb/inject-tmdb-key.mjs` (step "Inject TMDB API key" in
-`build-and-make.yaml`, before the frontend build). Rationale: TMDB keys are
-free and extractable from any client binary regardless, but keeping the key
-out of the public repo prevents trivial scraping and fork propagation. Never
-commit a real key; never reuse keys found in other repositories.
+Distributed builds ship **without a shared TMDB API key**. To use
+metadata enrichment, users enable it and enter their own key under
+`Settings > Metadata (TMDB)`. Key registration is available through the
+[TMDB account settings](https://www.themoviedb.org/settings/api); see the
+[TMDB API FAQ](https://developer.themoviedb.org/docs/faq).
 
-With no key available (empty default and no user override in settings),
-enrichment stays inactive even when the toggle is on — fork PRs and local
-dev builds fall into this mode automatically.
+This is a project distribution policy, not a claim that TMDB's terms
+categorically prohibit embedding an application key. A key shipped in a
+client can be extracted and misused; revoking a shared key could interrupt
+metadata access for everyone using it. TMDB also applies
+[service rate limits](https://developer.themoviedb.org/docs/rate-limiting),
+so a personal key does not remove the need to respect throttling.
+
+`DEFAULT_TMDB_API_KEY` in `libs/services/src/lib/tmdb/tmdb-config.ts` is
+empty by default. The build tooling still supports optional injection:
+`tools/tmdb/inject-tmdb-key.mjs` reads `TMDB_API_KEY` during the "Inject
+TMDB API key" step in `.github/workflows/build-and-make.yaml`. With no
+non-empty secret, that step is a no-op. Its presence does not mean release
+builds include a key; leave the secret unset for the no-shared-key policy.
+Never commit a real key or reuse keys found in other repositories.
+
+At runtime, a non-empty user key takes precedence over an injected default.
+With neither available, enrichment stays inactive even when the toggle is
+on. This applies to release, local development, and fork builds alike.
 
 ## Failure Behavior
 
