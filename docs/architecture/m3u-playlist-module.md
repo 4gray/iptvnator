@@ -1687,6 +1687,10 @@ and text imports are excluded. Sources with active external playback, import,
 refresh or deletion are skipped; identity, presence, current health and busy
 state are checked again before each deletion. The shared header refresh action
 tracks its M3U source ID through completion, independently of source-row state.
+All shared delete actions reserve source IDs in `SourceActivityService` until
+persistence and cleanup settle, including header-switcher deletion. Closed
+external-player sessions and failures without a live process are not busy; the
+canonical `isLiveExternalPlayerSession` predicate governs that protection.
 Startup auto-refresh reserves source IDs in `SourceActivityService` until its
 fetch settles. Batch persistence also skips rows deleted while a refresh was
 running, and only surviving writes trigger scoped EPG fetches.

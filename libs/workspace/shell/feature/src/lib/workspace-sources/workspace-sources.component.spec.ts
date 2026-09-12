@@ -1,7 +1,8 @@
+import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { SourceActivityService } from '@iptvnator/services';
 import { MatDialog } from '@angular/material/dialog';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
@@ -36,6 +37,10 @@ describe('WorkspaceSourcesComponent', () => {
         await TestBed.configureTestingModule({
             imports: [WorkspaceSourcesComponent, NoopAnimationsModule],
             providers: [
+                {
+                    provide: PORTAL_EXTERNAL_PLAYBACK,
+                    useValue: { activeSession: signal(null) },
+                },
                 {
                     provide: MatDialog,
                     useValue: { getDialogById: jest.fn(), open: jest.fn() },
@@ -136,10 +141,38 @@ describe('WorkspaceSourcesComponent', () => {
         fixture = TestBed.createComponent(WorkspaceSourcesComponent);
     });
 
+    it.each([
+        ['launching', true, true],
+        ['opened', true, true],
+        ['playing', true, true],
+        ['closed', false, false],
+        ['error', false, false],
+        ['error', true, true],
+    ])(
+        'protects only a live external session (%s, closable=%s)',
+        (status, canClose, expected) => {
+            const playback = TestBed.inject(
+                PORTAL_EXTERNAL_PLAYBACK
+            ) as unknown as { activeSession: { set(value: unknown): void } };
+            playback.activeSession.set({
+                status,
+                canClose,
+                contentInfo: { playlistId: 'external' },
+            });
+            fixture.componentInstance.openCleanup();
+            const context = (TestBed.inject(MatDialog).open as jest.Mock).mock
+                .calls[0][1].data;
+            expect(context.protected('external')).toBe(expected);
+        }
+    );
+
     it('protects startup auto-refresh sources across the whole library', () => {
-        const release = TestBed.inject(SourceActivityService).begin(['startup']);
+        const release = TestBed.inject(SourceActivityService).begin([
+            'startup',
+        ]);
         fixture.componentInstance.openCleanup();
-        const context = (TestBed.inject(MatDialog).open as jest.Mock).mock.calls[0][1].data;
+        const context = (TestBed.inject(MatDialog).open as jest.Mock).mock
+            .calls[0][1].data;
         expect(context.protected('startup')).toBe(true);
         release();
         expect(context.protected('startup')).toBe(false);

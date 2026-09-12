@@ -1,10 +1,11 @@
+import { SourceActivityService } from './source-activity.service';
 import {
     EnvironmentInjector,
     Injector,
     createEnvironmentInjector,
     runInInjectionContext,
 } from '@angular/core';
-import { of, throwError } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
 import { PlaylistDeleteActionService } from './playlist-delete-action.service';
@@ -48,6 +49,10 @@ describe('PlaylistDeleteActionService', () => {
 
         injector = createEnvironmentInjector(
             [
+                {
+                    provide: SourceActivityService,
+                    useValue: new SourceActivityService(),
+                },
                 { provide: DatabaseService, useValue: databaseService },
                 { provide: PlaylistsService, useValue: playlistsService },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
@@ -66,6 +71,17 @@ describe('PlaylistDeleteActionService', () => {
             () => new PlaylistDeleteActionService()
         );
     }
+
+    it('keeps shared deletion activity reserved until persistence and cleanup finish', async () => {
+        const completion = new Subject<{ success: boolean }>();
+        playlistsService.deletePlaylist.mockReturnValue(completion);
+        const activity = injector.get(SourceActivityService);
+        const pending = createService().deletePlaylist(playlist);
+        expect(activity.isBusy(playlist._id)).toBe(true);
+        completion.next({ success: true });
+        await pending;
+        expect(activity.isBusy(playlist._id)).toBe(false);
+    });
 
     it('preserves the boolean failure contract for single-source callers', async () => {
         playlistsService.deletePlaylist.mockReturnValue(

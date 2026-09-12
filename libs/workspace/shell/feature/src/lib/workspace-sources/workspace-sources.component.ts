@@ -9,7 +9,10 @@ import {
     RuntimeCapabilitiesService,
     SourceActivityService,
 } from '@iptvnator/services';
-import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_EXTERNAL_PLAYBACK,
+    isLiveExternalPlayerSession,
+} from '@iptvnator/portal/shared/util';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     sourceHealthType,
@@ -83,8 +86,11 @@ export class WorkspaceSourcesComponent {
                 current: (id: string) =>
                     this.playlists().find((p) => p._id === id),
                 protected: (id: string) =>
-                    this.playback?.activeSession()?.contentInfo?.playlistId ===
-                        id ||
+                    (isLiveExternalPlayerSession(
+                        this.playback?.activeSession()
+                    ) &&
+                        this.playback?.activeSession()?.contentInfo
+                            ?.playlistId === id) ||
                     activity.isBusy(id) ||
                     refresh.isSourceBusy(id) ||
                     !!this.imports?.isSourceBusy(id) ||

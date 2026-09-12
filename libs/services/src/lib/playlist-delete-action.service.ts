@@ -1,3 +1,4 @@
+import { SourceActivityService } from './source-activity.service';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -19,6 +20,9 @@ export interface PlaylistDeleteActionOptions {
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistDeleteActionService {
+    private readonly activity = inject(SourceActivityService, {
+        optional: true,
+    });
     private readonly databaseService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -54,13 +58,18 @@ export class PlaylistDeleteActionService {
                 : undefined;
         // Persistence owns serialization, the single worker invocation, and
         // post-delete cleanup. UI callers only commit the resulting state.
-        return firstValueFrom(
-            workerOptions
-                ? this.playlistsService.deletePlaylist(
-                      playlist._id,
-                      workerOptions
-                  )
-                : this.playlistsService.deletePlaylist(playlist._id)
-        );
+        const release = this.activity?.begin([playlist._id]);
+        try {
+            return await firstValueFrom(
+                workerOptions
+                    ? this.playlistsService.deletePlaylist(
+                          playlist._id,
+                          workerOptions
+                      )
+                    : this.playlistsService.deletePlaylist(playlist._id)
+            );
+        } finally {
+            release?.();
+        }
     }
 }
