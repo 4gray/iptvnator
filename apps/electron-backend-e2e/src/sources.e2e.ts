@@ -170,6 +170,7 @@ test.describe('Electron Sources View', () => {
             );
             expect(saved?.serverUrl).toBe(liveFormatMock);
             await refreshSource(page, title, { confirm: true });
+            // Xtream refresh leaves Sources to re-import the catalog.
             await waitForXtreamCatalog(page);
             const refreshed = await waitForPortalDebugEvent(page, {
                 provider: 'xtream',
@@ -179,6 +180,7 @@ test.describe('Electron Sources View', () => {
                 url: expect.stringMatching(/^http:/),
             });
             await openSources(page);
+            await waitForSourceRowIdle(page, title);
             await sourceRowByTitle(page, title).first().click();
             await page
                 .getByRole('link', { name: 'Live TV', exact: true })
@@ -677,6 +679,13 @@ https://streams.example.test/refreshed-url.m3u8
             ).toHaveCount(0);
             await refreshSource(app.mainWindow, 'refresh-url-source.m3u');
             await expectPlaylistUpdatedToast(app.mainWindow);
+            // Wait for this source's first refresh to be reflected in its row
+            // before checking idle and opening it.
+            await expect(
+                sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
+                    .first()
+                    .locator('.meta')
+            ).toContainText('Updated:');
             await waitForSourceRowIdle(
                 app.mainWindow,
                 'refresh-url-source.m3u'
