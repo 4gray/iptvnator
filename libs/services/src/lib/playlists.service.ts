@@ -1,3 +1,4 @@
+import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -17,6 +18,7 @@ import {
     Observable,
     of,
     switchMap,
+    tap,
 } from 'rxjs';
 import {
     Channel,
@@ -101,6 +103,7 @@ export function resolvePlaylistParser(parserModule: PlaylistParserModule) {
     providedIn: 'root',
 })
 export class PlaylistsService {
+    private readonly healthEvidence = inject(SourceHealthEvidenceService, { optional: true });
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
@@ -394,6 +397,7 @@ export class PlaylistsService {
             } else {
                 await electron.dbUpsertAppPlaylist(playlist, operationId);
             }
+            this.healthEvidence?.connections.next({ id: playlist._id, playlist });
             return playlist;
         });
     }
@@ -406,6 +410,7 @@ export class PlaylistsService {
             }
 
             await electron.dbUpsertAppPlaylists(playlists);
+            playlists.forEach((playlist) => this.healthEvidence?.connections.next({ id: playlist._id, playlist }));
             return playlists;
         });
     }
@@ -548,6 +553,7 @@ export class PlaylistsService {
         );
 
         return delete$.pipe(
+            tap(() => this.healthEvidence?.connections.next({ id: playlistId })),
             switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
             map(() => ({ success: true }))
         );
@@ -1288,6 +1294,7 @@ export class PlaylistsService {
                     const electron = this.electronApi;
                     if (electron) {
                         await electron.dbDeleteAllPlaylists();
+                        this.healthEvidence?.connections.next({});
                     }
                     return undefined;
                 }

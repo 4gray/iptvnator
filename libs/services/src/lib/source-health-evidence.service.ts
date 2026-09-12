@@ -5,10 +5,15 @@ import {
     SourceHealthResult,
     SourceProbeContext,
 } from '@iptvnator/shared/interfaces';
-import { DataService } from './data.service';
+import type { DataService } from './data.service';
 
 @Injectable({ providedIn: 'root' })
 export class SourceHealthEvidenceService {
+    /** Committed desktop inventory changes; an absent ID resets the inventory. */
+    readonly connections = new Subject<{
+        id?: string;
+        playlist?: Partial<PlaylistMeta>;
+    }>();
     readonly results = new Subject<{
         playlist: Partial<PlaylistMeta>;
         result: SourceHealthResult;
@@ -23,7 +28,8 @@ export function withSourceProbe(
     if (!probe) return data;
     const facade = Object.create(data) as DataService;
     facade.sendIpcEvent = <T>(type: string, payload?: unknown) => {
-        if (signal?.aborted) return Promise.reject(new Error('Source probe cancelled'));
+        if (signal?.aborted)
+            return Promise.reject(new Error('Source probe cancelled'));
         if (Date.now() >= probe.deadlineAt)
             return Promise.reject(new Error('Source probe deadline exceeded'));
         return data.sendIpcEvent<T>(type, {

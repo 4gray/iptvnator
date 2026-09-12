@@ -35,12 +35,9 @@ export class StalkerSourceHealthService {
         let response: { js?: Record<string, unknown> };
         if (isFullStalkerPortalPlaylist(playlist)) {
             // Authentication is shared with playback. UI cancellation must not
-            // abort its slot; its own transport deadline still bounds cold auth.
+            // abort or shorten its slot. Only this health consumer stops waiting.
             const session = await waitForSession(
-                this.session.ensureToken(toStalkerSessionPlaylist(playlist), {
-                    ...probe,
-                    requestId: `${probe.requestId}:auth`,
-                }),
+                this.session.ensureToken(toStalkerSessionPlaylist(playlist)),
                 probe.deadlineAt
             );
             if (Date.now() >= probe.deadlineAt)

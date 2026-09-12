@@ -101,6 +101,25 @@ describe('SourceHealthService', () => {
         await check;
         expect(service.get(playlist('a'))).toBeUndefined();
     });
+    it.each(['edit', 'delete'])(
+        'retires deferred retries after a committed %s',
+        async (operation) => {
+            probe.mockImplementation(() => new Promise(() => undefined));
+            const source = playlist('a');
+            const pending = service.check(source);
+            const retry = service.check(source, { fresh: true });
+            TestBed.inject(SourceHealthEvidenceService).connections.next({
+                id: source._id,
+                ...(operation === 'edit'
+                    ? { playlist: { ...source, url: 'https://new.test/list' } }
+                    : {}),
+            });
+            await Promise.all([pending, retry]);
+            expect(probe).toHaveBeenCalledTimes(1);
+            expect(service.get(source)).toBeUndefined();
+            expect(window.electron.cancelSourceProbe).toHaveBeenCalled();
+        }
+    );
     it('returns newer account evidence to a caller waiting on an older probe', async () => {
         jest.useFakeTimers();
         try {

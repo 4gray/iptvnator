@@ -67,6 +67,35 @@ describe('PlaylistsService', () => {
         return service;
     }
 
+    it('announces a committed SQLite connection edit', async () => {
+        const playlist = { _id: 'source', url: 'https://old.test/list' } as Playlist;
+        testWindow.electron = {
+            dbGetAppState: jest.fn().mockResolvedValue('1'),
+            dbSetAppState: jest.fn(),
+            dbGetAppPlaylists: jest.fn().mockResolvedValue([]),
+            dbGetAppPlaylist: jest.fn().mockResolvedValue(playlist),
+            dbUpsertAppPlaylist: jest.fn().mockResolvedValue(undefined),
+        };
+        const service = createService();
+        const next = jest.fn();
+        Object.assign(service, { healthEvidence: { connections: { next } } });
+        await firstValueFrom(service.updatePlaylistMeta({ ...playlist, title: 'Source', count: 0, importDate: '', autoRefresh: false, serverUrl: 'https://new.test' }));
+        expect(next).toHaveBeenCalledWith({ id: 'source', playlist: expect.objectContaining({ serverUrl: 'https://new.test' }) });
+    });
+
+    it('announces committed deletion but does not retire health after a failed write', async () => {
+        const service = createService();
+        const next = jest.fn();
+        Object.assign(service, { healthEvidence: { connections: { next } } });
+        await firstValueFrom(service.deletePlaylist('retired'));
+        expect(next).toHaveBeenCalledWith({ id: 'retired' });
+        next.mockClear();
+        const failed = createService({ delete: jest.fn(() => { throw new Error('write failed'); }) });
+        Object.assign(failed, { healthEvidence: { connections: { next } } });
+        await expect(firstValueFrom(failed.deletePlaylist('kept'))).rejects.toThrow();
+        expect(next).not.toHaveBeenCalled();
+    });
+
     it('resolves the parser from a CommonJS default dynamic import shape', () => {
         const parse = jest.fn();
 

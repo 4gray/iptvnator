@@ -162,6 +162,15 @@ describe('XtreamEvents session cancellation', () => {
         }
     );
 
+    it.each([401, 403])('preserves HTTP %s in the serialized health-probe error', async (status) => {
+        axiosMock.mockResolvedValueOnce({ status, statusText: 'refused', headers: {}, data: '' });
+        await expect(registeredHandlers.get('XTREAM_REQUEST')?.(
+            { sender: { id: 7 } },
+            { url: 'https://example.com', params: {}, suppressErrorLog: true,
+              probe: { requestId: 'status', deadlineAt: Date.now() + 5000 } }
+        )).rejects.toThrow(`HTTP Error ${status}`);
+    });
+
     it('returns the provider HTTP error without enabling fallback', async () => {
         axiosMock.mockResolvedValueOnce({
             status: 403,

@@ -1,5 +1,3 @@
-import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
-import { withSourceProbe } from '@iptvnator/services';
 import { Injectable, Injector, inject } from '@angular/core';
 import {
     isFullStalkerPortalPlaylist,
@@ -310,8 +308,7 @@ export class StalkerSessionService {
      * Returns the token to use for requests, and the serial number to store.
      */
     async ensureToken(
-        playlist: Playlist,
-        probe?: SourceProbeContext
+        playlist: Playlist
     ): Promise<{ token: string | null; serialNumber?: string }> {
         const pendingRepair = this.portalRepairDiscoveries.waitIfPending(
             playlist._id
@@ -385,14 +382,7 @@ export class StalkerSessionService {
                 // session read yielded. Its fence will drain this published
                 // slot; abort before putting another get_profile on the wire.
                 this.portalRepairDiscoveries.assertAvailable(playlist._id);
-                const authenticate = probe
-                    ? (...args: Parameters<StalkerAuthApi['authenticate']>) =>
-                          new StalkerAuthApi(
-                              withSourceProbe(this.dataService, probe),
-                              this.logger
-                          ).authenticate(...args)
-                    : this.authenticate;
-                const result = await authenticate(
+                const result = await this.authenticate(
                     portalUrl,
                     macAddress,
                     identity,
