@@ -1037,7 +1037,7 @@ describe('PlaylistsService', () => {
         jest.spyOn(Date, 'now').mockReturnValue(1770000000000);
         // Auto-refresh snapshots always come from playlists that had
         // autoRefresh enabled; the batch write preserves that flag from the
-        // current row (or the snapshot when the row is missing) instead of
+        // current row instead of
         // force-enabling it.
         const playlists = [
             {
@@ -1059,6 +1059,7 @@ describe('PlaylistsService', () => {
         ] as Playlist[];
         const dbService = {
             getAll: jest.fn(() => of([])),
+            getByID: jest.fn((_store: string, id: string) => of(playlists.find((p) => p._id === id))),
             update: jest.fn((_storeName: string, playlist: Playlist) =>
                 of(playlist)
             ),
@@ -1089,6 +1090,20 @@ describe('PlaylistsService', () => {
                 autoRefresh: true,
             })
         );
+    });
+
+    it.each([false, true])('does not resurrect a deleted source when startup refresh finishes (SQLite=%s)', async (sqlite) => {
+        const upsert = jest.fn();
+        testWindow.electron = sqlite ? {
+            dbGetAppState: jest.fn().mockResolvedValue('1'), dbSetAppState: jest.fn(),
+            dbGetAppPlaylists: jest.fn().mockResolvedValue([]), dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+            dbUpsertAppPlaylist: upsert,
+        } : undefined;
+        const update = jest.fn(() => of(undefined));
+        const service = createService({ update });
+        expect(await firstValueFrom(service.updateManyPlaylists([{ _id: 'deleted', autoRefresh: true } as Playlist]))).toEqual([]);
+        expect(update).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
     });
 
     it('short-circuits updateManyPlaylists when no playlists are provided', async () => {

@@ -5,7 +5,10 @@ import {
     SourceCleanupDialogComponent,
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/ui';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -69,6 +72,7 @@ export class WorkspaceSourcesComponent {
     openCleanup(): void {
         const dialogs = this.injector.get(MatDialog);
         const refresh = this.injector.get(PlaylistRefreshActionService);
+        const activity = this.injector.get(SourceActivityService);
         if (dialogs.getDialogById('source-cleanup')) return;
         dialogs.open(SourceCleanupDialogComponent, {
             id: 'source-cleanup',
@@ -81,6 +85,7 @@ export class WorkspaceSourcesComponent {
                 protected: (id: string) =>
                     this.playback?.activeSession()?.contentInfo?.playlistId ===
                         id ||
+                    activity.isBusy(id) ||
                     refresh.isSourceBusy(id) ||
                     !!this.imports?.isSourceBusy(id) ||
                     !!this.sourceList()?.isDeletePending(id) ||

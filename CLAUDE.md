@@ -1956,3 +1956,7 @@ one serialized `PlaylistsService` operation and awaited cleanup hooks;
 `PlaylistActions.playlistRemovalCommitted` updates state without another DB
 delete. Stop finishes the current source. Same contract: Desktop inactive-source
 cleanup in `docs/architecture/m3u-playlist-module.md`.
+
+Startup source auto-refresh uses `SourceActivityService` to protect busy IDs
+from cleanup. Late batch refreshes skip deleted rows instead of recreating them.
+Contract: `docs/architecture/m3u-playlist-module.md` (Desktop inactive-source cleanup).

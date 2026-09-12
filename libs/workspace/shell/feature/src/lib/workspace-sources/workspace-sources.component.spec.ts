@@ -1,3 +1,4 @@
+import { SourceActivityService } from '@iptvnator/services';
 import { MatDialog } from '@angular/material/dialog';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { Component, input, output } from '@angular/core';
@@ -133,6 +134,15 @@ describe('WorkspaceSourcesComponent', () => {
             .compileComponents();
 
         fixture = TestBed.createComponent(WorkspaceSourcesComponent);
+    });
+
+    it('protects startup auto-refresh sources across the whole library', () => {
+        const release = TestBed.inject(SourceActivityService).begin(['startup']);
+        fixture.componentInstance.openCleanup();
+        const context = (TestBed.inject(MatDialog).open as jest.Mock).mock.calls[0][1].data;
+        expect(context.protected('startup')).toBe(true);
+        release();
+        expect(context.protected('startup')).toBe(false);
     });
 
     it('protects a source refreshing through the persistent header', () => {

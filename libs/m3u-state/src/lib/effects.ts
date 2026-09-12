@@ -482,8 +482,8 @@ export class PlaylistEffects {
                     this.playlistsService
                         .updateManyPlaylists(action.playlists)
                         .pipe(
-                            tap(() => {
-                                action.playlists.forEach((playlist) =>
+                            tap((persisted) => {
+                                persisted.forEach((playlist) =>
                                     this.fetchPlaylistScopedEpg(playlist)
                                 );
                             })

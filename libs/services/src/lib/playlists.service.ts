@@ -1023,6 +1023,7 @@ export class PlaylistsService {
                     const current = await firstValueFrom(
                         this.getPlaylistById(playlist._id)
                     );
+                    if (!current) return null;
                     // The merge takes autoRefresh from the current row first,
                     // so disabling auto-refresh while a refresh is in flight
                     // is not reverted by the completing batch write.
@@ -1036,7 +1037,7 @@ export class PlaylistsService {
                     return nextPlaylist;
                 })
             )
-        );
+        ).pipe(map((rows) => rows.filter((row): row is Playlist => row !== null)));
     }
 
     getFavoriteChannels(playlistId: string) {
