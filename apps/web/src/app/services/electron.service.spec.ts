@@ -108,6 +108,28 @@ describe('ElectronService', () => {
         jest.restoreAllMocks();
     });
 
+    it.each([401, 403])('preserves a health HTTP %s rejection without global error handling', async (status) => {
+        const error = new Error(`Error invoking remote method: Error: HTTP Error ${status}`);
+        electronBridge.xtreamRequest.mockRejectedValue(error);
+        const post = jest.spyOn(window, 'postMessage');
+        await expect(service.sendIpcEvent(XTREAM_REQUEST, {
+            url: 'https://provider.example', params: {},
+            probe: { requestId: 'health', deadlineAt: Date.now() + 5000 },
+        })).rejects.toBe(error);
+        expect(snackBar.open).not.toHaveBeenCalled();
+        expect(post).not.toHaveBeenCalled();
+    });
+    it('keeps health success request-local without broadcasting catalog responses', async () => {
+        const response = { payload: { user_info: { status: 'Active' } } };
+        electronBridge.xtreamRequest.mockResolvedValue(response);
+        const post = jest.spyOn(window, 'postMessage');
+        expect(await service.sendIpcEvent(XTREAM_REQUEST, {
+            url: 'https://provider.example', params: {},
+            probe: { requestId: 'health', deadlineAt: Date.now() + 5000 },
+        })).toEqual(response);
+        expect(post).not.toHaveBeenCalled();
+    });
+
     it('preserves connection-test errors across the renderer bridge', async () => {
         const response = {
             connectionFailure: { kind: 'tls', canTryHttp: false },
