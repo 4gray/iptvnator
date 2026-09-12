@@ -115,6 +115,58 @@ describe('explicit Xtream connection test', () => {
         ).toBe('active');
     });
 
+    it('does not substitute an expired entry while a replacement check is pending', async () => {
+        const now = jest.spyOn(Date, 'now').mockReturnValue(0);
+        try {
+            probe.mockResolvedValueOnce({
+                payload: { user_info: { auth: 0 } },
+            });
+            await portalStatus.checkPortalStatus(
+                'https://panel.test/base',
+                'user',
+                'pass'
+            );
+            now.mockReturnValue(31_000);
+            let finishOld!: (value: unknown) => void;
+            let finishNew!: (value: unknown) => void;
+            let newStarted!: () => void;
+            const started = new Promise<void>((resolve) => {
+                newStarted = resolve;
+            });
+            probe.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishOld = resolve;
+                    })
+            );
+            const oldCheck = portalStatus.checkPortalStatus(
+                'https://panel.test/base',
+                'user',
+                'pass'
+            );
+            probe.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        finishNew = resolve;
+                        newStarted();
+                    })
+            );
+            const replacement = portalStatus.checkPortalStatus(
+                'https://panel.test/base',
+                'user',
+                'pass',
+                { skipCache: true }
+            );
+            await started;
+            finishOld(active);
+            expect(await oldCheck).toBe('active');
+            finishNew(active);
+            expect(await replacement).toBe('active');
+        } finally {
+            now.mockRestore();
+        }
+    });
+
     it('prefers working HTTPS and makes no HTTP request', async () => {
         probe.mockResolvedValue(active);
         expect(await service.test(connection, () => true, true)).toMatchObject({

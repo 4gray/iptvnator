@@ -119,8 +119,9 @@ export class PortalStatusService {
             connection.password
         );
 
+        const cachedAtStart = this.cache.get(cacheKey);
         if (!options?.skipCache) {
-            const cached = this.cache.get(cacheKey);
+            const cached = cachedAtStart;
             if (
                 cached &&
                 Date.now() - cached.timestamp < PORTAL_STATUS_CACHE_TTL_MS
@@ -155,7 +156,13 @@ export class PortalStatusService {
                     });
                 } else {
                     // Existing callers also receive the newer explicit evidence.
-                    return this.cache.get(cacheKey)?.details ?? details;
+                    const newer = this.cache.get(cacheKey);
+                    return newer &&
+                        newer !== cachedAtStart &&
+                        Date.now() - newer.timestamp <
+                            PORTAL_STATUS_CACHE_TTL_MS
+                        ? newer.details
+                        : details;
                 }
                 return details;
             })
