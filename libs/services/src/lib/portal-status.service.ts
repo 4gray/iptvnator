@@ -148,19 +148,20 @@ export class PortalStatusService {
             connection.password
         )
             .then((details) => {
-                this.cache.set(cacheKey, {
-                    details,
-                    timestamp: Date.now(),
-                });
+                if (this.inFlight.get(cacheKey) === request) {
+                    this.cache.set(cacheKey, {
+                        details,
+                        timestamp: Date.now(),
+                    });
+                }
                 return details;
             })
             .finally(() => {
-                this.inFlight.delete(cacheKey);
+                if (this.inFlight.get(cacheKey) === request)
+                    this.inFlight.delete(cacheKey);
             });
 
-        if (!options?.skipCache) {
-            this.inFlight.set(cacheKey, request);
-        }
+        this.inFlight.set(cacheKey, request);
 
         return request;
     }
@@ -199,9 +200,39 @@ export class PortalStatusService {
         return cached.details.status;
     }
 
+    /** Publish explicit probe evidence without another network request. */
+    rememberXtreamResponse(
+        serverUrl: string,
+        username: string,
+        password: string,
+        response: XtreamPortalStatusResponseLike | undefined
+    ): void {
+        const connection = this.normalizeConnection(
+            serverUrl,
+            username,
+            password
+        );
+        if (!connection) return;
+        const key = this.buildCacheKey(
+            connection.serverUrl,
+            connection.username,
+            connection.password
+        );
+        // A passive check started before this evidence cannot overwrite it.
+        this.inFlight.delete(key);
+        this.cache.set(key, {
+            details: {
+                status: resolveXtreamPortalStatus(response),
+                expiresAtSeconds: resolveXtreamPortalExpiration(response),
+            },
+            timestamp: Date.now(),
+        });
+    }
+
     /** Clear the entire cache. Useful for log-out or debug flows. */
     clearStatusCache(): void {
         this.cache.clear();
+        this.inFlight.clear();
     }
 
     private buildCacheKey(

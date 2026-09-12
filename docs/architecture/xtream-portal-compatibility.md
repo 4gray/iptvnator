@@ -80,6 +80,10 @@ metadata path; Test never writes storage. Edits, reset, destruction and newer
 tests invalidate pending results and prevent a stale fallback request. Add/Save
 is disabled while that form's test is running. Passive status checks, startup,
 refresh and playback never perform protocol discovery.
+An authenticated account response also refreshes `PortalStatusService` status
+and expiration for that exact connection, without another network request.
+Older passive checks cannot overwrite this explicit evidence; stale form
+results do not publish it.
 
 Both transports return an optional, credential-free `connectionFailure` envelope
 only for `connectionTest` requests. Electron returns it rather than throwing

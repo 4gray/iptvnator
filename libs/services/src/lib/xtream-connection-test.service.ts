@@ -9,6 +9,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DataService } from './data.service';
 import { resetHostConnectivityGuard } from './host-connectivity-reset';
+import { PortalStatusService } from './portal-status.service';
 
 export interface XtreamTestConnection {
     serverUrl: string;
@@ -26,6 +27,7 @@ export interface XtreamConnectionTestResult {
 @Injectable({ providedIn: 'root' })
 export class XtreamConnectionTestService {
     private readonly data = inject(DataService);
+    private readonly portalStatus = inject(PortalStatusService);
 
     /** Explicit form action only. Passive status checks never discover protocols. */
     async test(
@@ -105,8 +107,16 @@ export class XtreamConnectionTestService {
                 }
                 responseObserved = true;
                 const status = resolveXtreamPortalStatus(response?.payload);
-                if (status !== 'unavailable')
+                if (status !== 'unavailable') {
+                    if (isCurrent())
+                        this.portalStatus.rememberXtreamResponse(
+                            connection.serverUrl,
+                            connection.username,
+                            connection.password,
+                            response?.payload
+                        );
                     return { ...result, status, failure: undefined };
+                }
             } catch {
                 // Old backends and unknown transport failures cannot authorize
                 // sending credentials over HTTP. No parsing of error strings.

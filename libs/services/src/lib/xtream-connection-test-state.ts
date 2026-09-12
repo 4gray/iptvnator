@@ -1,5 +1,4 @@
 import { computed, DestroyRef, inject, Injector, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AbstractControl } from '@angular/forms';
 import {
     XtreamConnectionTestResult,
@@ -14,12 +13,15 @@ export function createXtreamConnectionTestState(form: AbstractControl) {
     const testing = signal(false);
     const result = signal<XtreamConnectionTestResult | null>(null);
     let generation = 0;
-    form.valueChanges.pipe(takeUntilDestroyed(destroyRef)).subscribe(() => {
+    const changes = form.valueChanges.subscribe(() => {
         generation++;
         result.set(null);
         testing.set(false);
     });
-    destroyRef.onDestroy(() => generation++);
+    destroyRef.onDestroy(() => {
+        generation++;
+        changes.unsubscribe();
+    });
 
     const messageKey = computed(() => {
         if (testing()) return 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TESTING';

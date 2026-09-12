@@ -5,6 +5,7 @@ import {
     runInInjectionContext,
 } from '@angular/core';
 import { DataService } from './data.service';
+import { PortalStatusService } from './portal-status.service';
 import { XtreamConnectionTestService } from './xtream-connection-test.service';
 
 describe('explicit Xtream connection test', () => {
@@ -20,19 +21,98 @@ describe('explicit Xtream connection test', () => {
     let send: jest.Mock;
     let probe: jest.Mock;
     let service: XtreamConnectionTestService;
+    let portalStatus: PortalStatusService;
     beforeEach(() => {
         probe = jest.fn();
         send = jest.fn((type, payload) =>
             type === 'XTREAM_REQUEST' ? probe(payload) : Promise.resolve()
         );
         const injector = createEnvironmentInjector(
-            [{ provide: DataService, useValue: { sendIpcEvent: send } }],
+            [
+                PortalStatusService,
+                { provide: DataService, useValue: { sendIpcEvent: send } },
+            ],
             Injector.NULL as unknown as EnvironmentInjector
         );
+        portalStatus = injector.get(PortalStatusService);
         service = runInInjectionContext(
             injector,
             () => new XtreamConnectionTestService()
         );
+    });
+
+    it.each(['https://panel.test/base', 'http://panel.test/base'])(
+        'replaces stale status and expiration for the successful address %s',
+        async (serverUrl) => {
+            probe.mockResolvedValueOnce({
+                payload: { user_info: { auth: 0 } },
+            });
+            await portalStatus.checkPortalStatus(serverUrl, 'user', 'pass');
+            if (serverUrl.startsWith('http:'))
+                probe.mockResolvedValueOnce(refused);
+            const expires = Math.floor(Date.now() / 1000) + 3600;
+            probe.mockResolvedValueOnce({
+                payload: {
+                    user_info: {
+                        auth: 1,
+                        status: 'Active',
+                        exp_date: String(expires),
+                    },
+                },
+            });
+            await service.test(connection, () => true, true);
+            const calls = probe.mock.calls.length;
+            expect(
+                await portalStatus.checkPortalStatusDetails(
+                    serverUrl,
+                    ' user ',
+                    ' pass '
+                )
+            ).toEqual({ status: 'active', expiresAtSeconds: expires });
+            expect(probe).toHaveBeenCalledTimes(calls);
+        }
+    );
+
+    it('does not publish a response after the form has changed', async () => {
+        let current = true;
+        probe.mockImplementation(() => {
+            current = false;
+            return active;
+        });
+        await service.test(connection, () => current, true);
+        expect(
+            portalStatus.getCachedStatus(
+                'https://panel.test/base',
+                'user',
+                'pass'
+            )
+        ).toBeNull();
+    });
+
+    it('keeps explicit evidence when an older passive check completes later', async () => {
+        let finish!: (value: unknown) => void;
+        probe.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+        );
+        const oldCheck = portalStatus.checkPortalStatus(
+            'https://panel.test/base',
+            'user',
+            'pass'
+        );
+        probe.mockResolvedValueOnce(active);
+        await service.test(connection);
+        finish({ payload: { user_info: { auth: 0 } } });
+        await oldCheck;
+        expect(
+            portalStatus.getCachedStatus(
+                'https://panel.test/base',
+                'user',
+                'pass'
+            )
+        ).toBe('active');
     });
 
     it('prefers working HTTPS and makes no HTTP request', async () => {
