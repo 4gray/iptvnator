@@ -210,6 +210,14 @@ Button states use the matching group; "Total selected" counts the whole catalog.
 Save persists the complete draft, Close discards it, and refresh restores hidden
 categories by provider ID and type. See `docs/architecture/category-management.md`.
 
+## XMLTV Response Compression
+
+Electron decodes HTTP compression before the gzip file layer. For `.gz`/gzip
+metadata plus HTTP gzip, a streaming signature check unwraps one remaining
+file layer while preserving single-layer providers. Errors and cancellation
+close the decoding chain. Contract: `docs/architecture/m3u-playlist-module.md`
+("XMLTV response compression").
+
 ## XMLTV Source Removal
 
 Saving Settings → EPG reconciles cached XMLTV with committed global URLs and

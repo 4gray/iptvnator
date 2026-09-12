@@ -1056,6 +1056,24 @@ These URLs are playlist-scoped by default:
 
 ## EPG Integration
 
+### XMLTV response compression
+
+The Electron EPG worker decodes HTTP `Content-Encoding` layers in reverse
+order before parsing XMLTV. The existing URL (including redirects), MIME type
+and filename checks identify gzip files independently of HTTP compression.
+When both a gzip file hint and an HTTP gzip layer are present, a streaming
+stage checks the decoded body's first two bytes (`1F 8B`). A remaining gzip
+signature triggers exactly one additional file decompression; otherwise the
+body passes through unchanged. This supports both genuinely double-compressed
+feeds and providers that describe a single gzip layer with both metadata forms.
+Other decoding paths retain their existing behavior.
+
+The probe preserves bytes across chunk boundaries and keeps bounded buffering
+and stream backpressure. Invalid or truncated gzip fails the import; it is not
+retried as plain XML. Source errors and consumer cancellation terminate the
+whole decoding chain. The decoder does not recursively unpack file layers or
+change XML parsing, source reconciliation, or database persistence contracts.
+
 ### EpgService (`@iptvnator/epg/data-access`)
 
 ```typescript

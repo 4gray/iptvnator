@@ -1,14 +1,11 @@
-import { PassThrough, Readable, Transform, pipeline } from 'stream';
-import {
-    createBrotliDecompress,
-    createGunzip,
-    createInflate,
-} from 'zlib';
+import { Duplex, PassThrough, Readable, Transform, pipeline } from 'stream';
+import { createBrotliDecompress, createGunzip, createInflate } from 'zlib';
 import {
     EpgResponseContentEncoding,
     getEpgResponseContentEncodings,
     HeaderReader,
 } from './epg-response-utils';
+import { createOptionalEpgGunzip } from './epg-optional-gunzip';
 
 function createContentEncodingDecoder(
     contentEncoding: EpgResponseContentEncoding
@@ -29,10 +26,16 @@ export function createDecodedEpgStream(
     shouldGunzipPayload: boolean
 ): Readable {
     const contentEncodings = getEpgResponseContentEncodings(headers);
-    const transforms = contentEncodings.map(createContentEncodingDecoder);
+    const transforms: Duplex[] = contentEncodings.map(
+        createContentEncodingDecoder
+    );
 
-    if (shouldGunzipPayload && !contentEncodings.includes('gzip')) {
-        transforms.push(createGunzip());
+    if (shouldGunzipPayload) {
+        transforms.push(
+            contentEncodings.includes('gzip')
+                ? createOptionalEpgGunzip()
+                : createGunzip()
+        );
     }
 
     if (transforms.length === 0) {

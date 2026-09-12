@@ -1553,7 +1553,7 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
 **EPG (Electronic Program Guide)**:
 
 - XMLTV format support
-- Background parsing in worker thread
+- Background parsing in worker thread; HTTP/file gzip compatibility follows `docs/architecture/m3u-playlist-module.md` ("XMLTV response compression").
 - Stored in database for quick lookup
 - Global display-time offset (`Settings.epgOffsetMinutes`, Settings → EPG, ±720 min, Electron only): display-only, provider data is never rewritten. Two equivalent forms in `libs/shared/interfaces/src/lib/epg-display-offset.util.ts` — `epgDisplayTimeMs` (shift the programme; `ui/epg` rendering via the `offsetMinutes` input, channel rows, dashboard/recording labels; the programme dialog and the programme guide read the store themselves) and `epgProviderClockMs` (shift "now"; every "currently airing" decision: the `GET_CURRENT_PROGRAMS_BATCH` lookup takes an explicit `nowMs` and `EpgService` tags its cache with the offset, Xtream/Stalker/M3U current-programme selection and previews, the unified collection resolver, dashboard progress, recording overlap). A consumer applies exactly one form per comparison. Contract: `docs/architecture/m3u-playlist-module.md` ("EPG display offset")
 - Programme guide (Electron, M3U): `app-epg-guide` in `libs/ui/epg` fed by the host-provided `EPG_GUIDE_SOURCE`; the M3U host switches into guide mode (docked player strip, no sidebar/timeline, no remount) from the header action, the palette, the EPG panel's Guide button (timeline or list view) or `G`. Data: `EPG_GET_PROGRAMS_FOR_CHANNELS` / `EPG_GET_PROGRAM_COVERAGE` (keys resolved in main; manual mappings honoured). Contract: `docs/architecture/m3u-playlist-module.md` ("Programme guide").
@@ -1754,6 +1754,14 @@ Database initialization is owned by `libs/shared/database/src/lib/connection.ts`
 - The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->
+
+## XMLTV Response Compression
+
+Electron decodes HTTP compression before the gzip file layer. For `.gz`/gzip
+metadata plus HTTP gzip, a streaming signature check unwraps one remaining
+file layer while preserving single-layer providers. Errors and cancellation
+close the decoding chain. Contract: `docs/architecture/m3u-playlist-module.md`
+("XMLTV response compression").
 
 ## XMLTV Source Removal
 
