@@ -277,7 +277,34 @@ describe('FullscreenChannelPanelComponent', () => {
         expect(isOpen()).toBe(true);
         expect(query('host-list')).not.toBeNull();
         expect(query('fullscreen-channel-panel-scrim')).not.toBeNull();
-        expect(hotZone()).toBeNull();
+        expect(hotZone()).not.toBeNull();
+    });
+
+    it('retains the hover target above the scrim during a delayed opening paint', () => {
+        setFullscreen(stage);
+        const originalHotZone = hotZone();
+        openByHover();
+        const scrim = query('fullscreen-channel-panel-scrim');
+        if (!originalHotZone?.parentElement || !scrim) {
+            throw new Error('Fullscreen hover surfaces are missing');
+        }
+        expect(hotZone()).toBe(originalHotZone);
+        const children = Array.from(originalHotZone.parentElement.children);
+        expect(children.indexOf(originalHotZone)).toBeGreaterThan(
+            children.indexOf(scrim)
+        );
+        hotZone()?.dispatchEvent(pointerEvent('pointerover'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS + 1);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(true);
+
+        // Moving away still closes, even if the panel has not painted yet.
+        query('fullscreen-channel-panel-scrim')?.dispatchEvent(
+            pointerEvent('pointerover')
+        );
+        jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(false);
     });
 
     it('does not open for a mouse that merely sweeps across the edge', () => {

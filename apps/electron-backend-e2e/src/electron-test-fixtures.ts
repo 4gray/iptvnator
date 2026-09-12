@@ -85,6 +85,8 @@ type ElectronFixtures = {
 };
 
 export type LaunchElectronAppOptions = {
+    /** Test bootstrap that loads the real main entry after installing probes. */
+    entryPoint?: string;
     /** Electron/Chromium switches — they must precede the entry point. */
     args?: readonly string[];
     /**
@@ -199,9 +201,10 @@ export { expect };
  */
 function buildElectronLaunchArgs(
     extraArgs: readonly string[] = [],
-    appArgs: readonly string[] = []
+    appArgs: readonly string[] = [],
+    entryPoint = electronMainPath
 ): string[] {
-    const args = [...extraArgs, electronMainPath, ...appArgs];
+    const args = [...extraArgs, entryPoint, ...appArgs];
 
     if (process.platform === 'linux' && process.env['CI']) {
         args.unshift('--no-sandbox', '--disable-gpu');
@@ -221,7 +224,11 @@ export async function launchElectronApp(
     }
     assertPackagedRendererBuildIsElectronSafe();
 
-    const args = buildElectronLaunchArgs(options.args, options.appArgs);
+    const args = buildElectronLaunchArgs(
+        options.args,
+        options.appArgs,
+        options.entryPoint
+    );
 
     const electronApp = await electron.launch({
         args,

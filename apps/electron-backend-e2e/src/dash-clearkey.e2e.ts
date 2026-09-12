@@ -426,6 +426,13 @@ for (const player of ['mpv', 'vlc']) {
             const isFullscreen = () =>
                 page.evaluate(() => document.fullscreenElement !== null);
             await expect.poll(isFullscreen).toBe(true);
+            // Model a delayed first fullscreen paint: the hover-open handoff
+            // must survive longer than the panel's mouse-leave grace period.
+            await page.addStyleTag({
+                content: `
+                .fullscreen-channel-panel--open { transition-delay: 600ms, 0s; }
+            `,
+            });
             await page.getByTestId('fullscreen-channel-panel-hot-zone').hover();
             const panel = page.getByTestId('fullscreen-channel-panel');
             await expect(panel).toHaveAttribute('aria-hidden', 'false');

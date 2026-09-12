@@ -283,6 +283,13 @@ trace; raw profiles remain ignored.
 
 ## Playlist Refresh And Startup Auto-Update (Electron)
 
+Catalog reads through `PlaylistsService.getPlaylist()` join the per-playlist
+mutation queue. Refresh publishes its store action before persistence finishes;
+opening the route in that interval must read after the queued save rather than
+overwrite the refreshed channels with an older SQLite/IndexedDB snapshot.
+Mutation-internal reads use `getPlaylistById()` directly to avoid queue re-entry.
+Failed writes release the queue, and other playlist IDs remain independent.
+
 Two paths re-download an M3U playlist from its original source:
 
 - **Explicit refresh** — `PLAYLIST_REFRESH` runs in `playlist-refresh.worker.ts`, reports

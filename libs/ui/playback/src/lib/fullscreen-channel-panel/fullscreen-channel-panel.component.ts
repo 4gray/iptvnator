@@ -97,6 +97,8 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     readonly searchInput =
         viewChild<ElementRef<HTMLInputElement>>('searchInput');
     private readonly panelElement = viewChild<ElementRef<HTMLElement>>('panel');
+    private readonly hotZoneElement =
+        viewChild<ElementRef<HTMLElement>>('hotZone');
 
     readonly state = new FullscreenChannelPanelState();
     readonly searchTerm = signal('');
@@ -218,6 +220,7 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         }
         if (
             this.isInsidePanel(event.target) ||
+            this.hotZoneElement()?.nativeElement === event.target ||
             this.isInsideOverlay(event.target)
         ) {
             this.state.panelEnter();

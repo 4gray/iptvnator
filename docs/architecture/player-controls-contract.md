@@ -508,7 +508,10 @@ switching to a web engine clears the remembered MPV capability). Nothing is
 drawn over the video while the panel is closed — there is
 no handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
 left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
-is ignored. The zone stops above the controls bar (`bottom: max(25%, 140px)`)
+is ignored. The zone remains mounted above the scrim and below the panel while
+open, preserving the pointer target until the opening animation covers it.
+A delayed fullscreen paint therefore cannot turn a stationary edge hover into
+a synthetic mouse-leave that closes the panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`)
 so the leftmost transport button never loses a click or tap to it. The `C` key opens it too and focuses the search field (hover does
 not steal focus). Touch has neither hover nor a `C` key, so a tap on the hot
 zone opens the panel at once: the handler is bound to `pointerup`, not
@@ -523,7 +526,7 @@ shortcut must only slide the panel away; a closed panel leaves Escape alone,
 so the key still exits fullscreen then. A CDK overlay the list opens (sort menu, row context menu) renders in
 the fullscreen overlay container outside the `<aside>`, so it counts as part
 of the panel: while open, hover intent is tracked through a document-level
-`pointerover` (inside the aside or the overlay container cancels a pending
+`pointerover` (inside the aside, hot zone or the overlay container cancels a pending
 close, anywhere else schedules one), the aside's own `pointerleave` ignores a
 move into the overlay container, and Escape is left to an overlay with a
 backdrop. The header is a single row: the search field, whose placeholder

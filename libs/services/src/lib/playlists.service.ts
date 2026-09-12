@@ -520,7 +520,13 @@ export class PlaylistsService {
         if (id === 'global-favorites') {
             return this.getPlaylistWithGlobalFavorites();
         }
-        return this.getPlaylistById(id);
+        // Refresh publishes its store action before its asynchronous write
+        // finishes. A route opened in that interval must not replace the new
+        // channels with the previous persisted snapshot. Join the same queue;
+        // mutation-internal reads keep using getPlaylistById to avoid re-entry.
+        return this.serializePlaylistWrite(id, () =>
+            firstValueFrom(this.getPlaylistById(id))
+        );
     }
 
     deletePlaylist(playlistId: string): Observable<{ success: boolean }> {
