@@ -1664,7 +1664,9 @@ seconds. M3U streams are destroyed on completion, limit, error or cancellation,
 including when a provider ignores Range. Header/TLS and validated redirect
 policies are the same as playlist downloads. No playlist contents are replaced.
 Indicator effects do not track coordinator cache reads, so publishing a result
-does not restart or cancel the request. When newer account evidence arrives
+does not restart or cancel the request. Xtream health replies stay request-local
+in the Electron renderer adapter: failures reject with their serialized message,
+and successful checks do not broadcast catalog response events. When newer account evidence arrives
 during a probe, both the cache and the waiting caller retain that newer result.
 
 Account-disabled/expired evidence is separate from authorization errors,
