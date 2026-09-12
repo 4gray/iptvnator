@@ -605,6 +605,7 @@ export class ElectronService extends DataService {
     } */
 
     private async forwardXtreamRequest(payload: {
+        connectionTest?: boolean;
         url: string;
         params: Record<string, string>;
         requestId?: string;
@@ -624,6 +625,8 @@ export class ElectronService extends DataService {
                 ...payload,
                 requestId: context.requestId,
             });
+
+            if (payload.connectionTest) return response;
 
             const result = {
                 type: XTREAM_RESPONSE,

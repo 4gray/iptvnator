@@ -181,7 +181,22 @@
             "PASSWORD": "Password",
             "ADD": "Aggiungi",
             "TEST_CREDENTIALS": "Testa credenziali",
-            "URL_VALIDATION_ERROR": "Dovrebbe essere una URL valida con protocollo (es. http://esempio.it o https://esempio.it:4324)"
+            "URL_VALIDATION_ERROR": "Dovrebbe essere una URL valida con protocollo (es. http://esempio.it o https://esempio.it:4324)",
+            "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Inserisci nome utente e password per verificare la connessione.",
+                "TESTING": "Verifica della connessione…",
+                "HTTP_CONNECTED": "Connesso tramite HTTP. HTTPS non è disponibile. La connessione non è crittografata.",
+                "ACTIVE": "Connesso. Il portale è attivo.",
+                "INACTIVE": "L’account è inattivo o le credenziali sono errate.",
+                "EXPIRED": "L’abbonamento è scaduto.",
+                "UNAVAILABLE": "Il portale non ha restituito dati validi dell’account.",
+                "HTTP_ERROR": "Il server ha restituito HTTP {{status}}.",
+                "TLS_ERROR": "Impossibile stabilire una connessione sicura. Verifica la configurazione HTTPS e il certificato del server.",
+                "CONNECTION_ERROR": "Server non raggiungibile. Verifica l’indirizzo e la connessione di rete.",
+                "UNKNOWN_ERROR": "Impossibile verificare la connessione.",
+                "TEST_PROTOCOLS": "Verifica HTTPS e HTTP",
+                "HTTP_PERMISSION": "Se HTTPS non è disponibile, questo test può inviare nome utente e password tramite HTTP non crittografato."
+            }
         },
         "STALKER_PORTAL": {
             "TITLE": "Titolo",

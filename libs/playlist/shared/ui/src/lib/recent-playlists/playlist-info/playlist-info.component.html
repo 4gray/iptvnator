@@ -110,6 +110,36 @@
                     <input matInput formControlName="password" />
                 </mat-form-field>
             }
+            @if (playlist.serverUrl && !playlist.portalUrl) {
+                <p id="xtream-edit-http-test-notice">
+                    {{
+                        'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.HTTP_PERMISSION'
+                            | translate
+                    }}
+                </p>
+                <button
+                    mat-stroked-button
+                    type="button"
+                    [disabled]="
+                        connectionTest.testing() || playlistDetails.invalid
+                    "
+                    (click)="connectionTest.test(true)"
+                    aria-describedby="xtream-edit-http-test-notice"
+                >
+                    {{
+                        'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TEST_PROTOCOLS'
+                            | translate
+                    }}
+                </button>
+                @if (connectionTest.messageKey()) {
+                    <p role="status" aria-live="polite">
+                        {{
+                            connectionTest.messageKey()
+                                | translate: connectionTest.messageParams()
+                        }}
+                    </p>
+                }
+            }
             @if (playlist.url) {
                 <mat-form-field class="w-full">
                     <mat-label>{{
@@ -364,6 +394,7 @@
                 [disabled]="
                     !playlistDetails.valid ||
                     playlistDetails.pristine ||
+                    connectionTest.testing() ||
                     isSaving() ||
                     isHydratingStalkerPlaylist() ||
                     stalkerPlaylistHydrationFailed()

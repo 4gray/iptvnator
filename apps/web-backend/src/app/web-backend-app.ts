@@ -12,6 +12,7 @@ import {
     buildStalkerIdentityRequestContext,
     buildStalkerRequestUrl,
     normalizeXtreamServerUrl,
+    describeXtreamConnectionFailure,
 } from '@iptvnator/shared/interfaces';
 import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 import {
@@ -281,7 +282,7 @@ export function createWebBackendApp(
             requestUrl = appendPathSegment(url, 'player_api.php');
 
             const response = await httpClient.get(requestUrl, {
-                params: getProxyParams(req, ['targetId']),
+                params: getProxyParams(req, ['targetId', 'connectionTest']),
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
             });
             reportProviderRequestSuccess(hostGuard, guardToken);
@@ -296,7 +297,20 @@ export function createWebBackendApp(
                 requestUrl,
             });
             logProviderRequestFailure({ error, route: '/xtream', url });
-            res.json(normalizeProviderError(error));
+            if (getQueryString(req, 'connectionTest') === 'true') {
+                const wrapped =
+                    error instanceof ProviderRequestError ? error : null;
+                res.json({
+                    connectionFailure: wrapped?.policyError
+                        ? { kind: 'connection', canTryHttp: false }
+                        : describeXtreamConnectionFailure(
+                              wrapped?.cause ?? error,
+                              wrapped?.initialResponded ?? true
+                          ),
+                });
+            } else {
+                res.json(normalizeProviderError(error));
+            }
         } finally {
             releaseProviderRequest(hostGuard, guardToken);
         }

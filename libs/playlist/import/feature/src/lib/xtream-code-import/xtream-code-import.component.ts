@@ -9,12 +9,11 @@ import {
     Validators,
 } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PortalStatus, PortalStatusService } from '@iptvnator/services';
+import { createXtreamConnectionTestState } from '@iptvnator/services';
 import {
     createRandomId,
     extractXtreamCredentialsFromUrl,
@@ -42,7 +41,6 @@ function xtreamServerUrlValidator(
     imports: [
         FormsModule,
         MatFormFieldModule,
-        MatIcon,
         MatInputModule,
         ReactiveFormsModule,
         TranslatePipe,
@@ -59,29 +57,6 @@ function xtreamServerUrlValidator(
 
             form {
                 width: 100%;
-            }
-
-            .status-active {
-                color: #4caf50;
-            }
-
-            .status-inactive {
-                color: #f44336;
-            }
-
-            .status-expired {
-                color: #ff9800;
-            }
-
-            .status-unavailable {
-                color: #9e9e9e;
-            }
-
-            .connection-status {
-                margin: 10px 0;
-                display: flex;
-                align-items: center;
-                gap: 8px;
             }
         `,
     ],
@@ -104,47 +79,14 @@ export class XtreamCodeImportComponent {
     });
 
     readonly store = inject(Store);
-    readonly portalStatusService = inject(PortalStatusService);
+    readonly connectionTest = createXtreamConnectionTestState(this.form);
 
-    connectionStatus: PortalStatus | null = null;
-    isTestingConnection = false;
-
-    async testConnection(): Promise<void> {
-        if (!this.form.valid) return;
-
-        const connection = this.getNormalizedConnection();
-        if (!connection) {
-            this.connectionStatus = 'unavailable';
-            return;
-        }
-
-        this.isTestingConnection = true;
-        try {
-            // User-initiated connection test — bypass the shared cache so the
-            // result reflects the portal's current state, not whatever was
-            // cached up to 30 s ago by another component.
-            this.connectionStatus =
-                await this.portalStatusService.checkPortalStatus(
-                    connection.serverUrl,
-                    connection.username,
-                    connection.password,
-                    { skipCache: true }
-                );
-        } finally {
-            this.isTestingConnection = false;
-        }
+    get isTestingConnection(): boolean {
+        return this.connectionTest.testing();
     }
 
-    getStatusMessage(): string {
-        return this.portalStatusService.getStatusMessage(this.connectionStatus);
-    }
-
-    getStatusClass(): string {
-        return this.portalStatusService.getStatusClass(this.connectionStatus);
-    }
-
-    getStatusIcon(): string {
-        return this.portalStatusService.getStatusIcon(this.connectionStatus);
+    testConnection(allowHttpFallback = false): Promise<void> {
+        return this.connectionTest.test(allowHttpFallback);
     }
 
     clearForm(): void {
@@ -156,11 +98,10 @@ export class XtreamCodeImportComponent {
             serverUrl: '',
             importDate: new Date().toISOString(),
         });
-        this.connectionStatus = null;
     }
 
     addPlaylist() {
-        if (!this.form.valid) return;
+        if (!this.form.valid || this.isTestingConnection) return;
 
         const connection = this.getNormalizedConnection();
         if (!connection) {

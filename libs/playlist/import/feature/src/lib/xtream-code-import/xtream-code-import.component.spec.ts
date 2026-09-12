@@ -1,26 +1,33 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { PortalStatusService } from '@iptvnator/services';
+import { XtreamConnectionTestService } from '@iptvnator/services';
 import { XtreamCodeImportComponent } from './xtream-code-import.component';
 
 describe('XtreamCodeImportComponent', () => {
     let component: XtreamCodeImportComponent;
     let store: { dispatch: jest.Mock };
-    let portalStatusService: { checkPortalStatus: jest.Mock };
+    let connectionTestService: { test: jest.Mock };
 
     beforeEach(() => {
         store = {
             dispatch: jest.fn(),
         };
-        portalStatusService = {
-            checkPortalStatus: jest.fn().mockResolvedValue('active'),
+        connectionTestService = {
+            test: jest.fn().mockResolvedValue({
+                status: 'active',
+                serverUrl: 'http://example.com',
+                usedHttpFallback: true,
+            }),
         };
 
         TestBed.configureTestingModule({
             providers: [
                 { provide: Store, useValue: store },
-                { provide: PortalStatusService, useValue: portalStatusService },
+                {
+                    provide: XtreamConnectionTestService,
+                    useValue: connectionTestService,
+                },
             ],
         });
 
@@ -50,11 +57,11 @@ describe('XtreamCodeImportComponent', () => {
 
         expect(component.form.valid).toBe(false);
 
-        await component.testConnection();
+        await component.testConnection(true);
         component.addPlaylist();
 
         expect(component.isTestingConnection).toBe(false);
-        expect(portalStatusService.checkPortalStatus).not.toHaveBeenCalled();
+        expect(connectionTestService.test).not.toHaveBeenCalled();
         expect(store.dispatch).not.toHaveBeenCalled();
     });
 
@@ -88,5 +95,106 @@ describe('XtreamCodeImportComponent', () => {
                 }),
             })
         );
+    });
+    it('puts the tested HTTP address into the form and the added playlist', async () => {
+        component.form.patchValue({
+            title: 'Portal',
+            serverUrl: 'https://example.com',
+            username: 'user',
+            password: 'pass',
+        });
+        await component.testConnection(true);
+        expect(component.form.value.serverUrl).toBe('http://example.com');
+        expect(component.connectionTest.messageKey()).toContain(
+            'HTTP_CONNECTED'
+        );
+        component.addPlaylist();
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.addPlaylist({
+                playlist: expect.objectContaining({
+                    serverUrl: 'http://example.com',
+                }),
+            })
+        );
+    });
+
+    it.each(['serverUrl', 'username', 'password', 'title'])(
+        'discards a late result after editing %s',
+        async (field) => {
+            component.form.patchValue({
+                title: 'Portal',
+                serverUrl: 'https://example.com',
+                username: 'user',
+                password: 'pass',
+            });
+            let finish!: (result: unknown) => void;
+            connectionTestService.test.mockReturnValue(
+                new Promise((resolve) => {
+                    finish = resolve;
+                })
+            );
+            const pending = component.testConnection(true);
+            component.addPlaylist();
+            expect(store.dispatch).not.toHaveBeenCalled();
+            component.form.get(field)?.setValue('new-value');
+            finish({
+                status: 'active',
+                serverUrl: 'http://example.com',
+                usedHttpFallback: true,
+            });
+            await pending;
+            expect(component.connectionTest.result()).toBeNull();
+            expect(component.form.get(field)?.value).toBe('new-value');
+            expect(component.isTestingConnection).toBe(false);
+        }
+    );
+    it('discards a pending result when the form is cleared', async () => {
+        component.form.patchValue({
+            title: 'Portal',
+            serverUrl: 'https://example.com',
+            username: 'user',
+            password: 'pass',
+        });
+        let finish!: (result: unknown) => void;
+        connectionTestService.test.mockReturnValue(
+            new Promise((resolve) => {
+                finish = resolve;
+            })
+        );
+        const pending = component.testConnection(true);
+        component.clearForm();
+        finish({
+            status: 'active',
+            serverUrl: 'http://example.com',
+            usedHttpFallback: true,
+        });
+        await pending;
+        expect(component.form.value.serverUrl).toBe('');
+        expect(component.connectionTest.result()).toBeNull();
+    });
+
+    it('does not update a destroyed form', async () => {
+        component.form.patchValue({
+            title: 'Portal',
+            serverUrl: 'https://example.com',
+            username: 'user',
+            password: 'pass',
+        });
+        let finish!: (result: unknown) => void;
+        connectionTestService.test.mockReturnValue(
+            new Promise((resolve) => {
+                finish = resolve;
+            })
+        );
+        const pending = component.testConnection(true);
+        TestBed.resetTestingModule();
+        finish({
+            status: 'active',
+            serverUrl: 'http://example.com',
+            usedHttpFallback: true,
+        });
+        await pending;
+        expect(component.form.value.serverUrl).toBe('https://example.com');
+        expect(component.connectionTest.result()).toBeNull();
     });
 });

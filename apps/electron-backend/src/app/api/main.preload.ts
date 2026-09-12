@@ -725,6 +725,7 @@ const electronApi: ElectronBridgeApi = {
     resetHostConnectivityGuard: (url: string) =>
         ipcRenderer.invoke('CONNECTIVITY_GUARD_RESET', { url }),
     xtreamRequest: (payload: {
+        connectionTest?: boolean;
         url: string;
         params: Record<string, string>;
         requestId?: string;

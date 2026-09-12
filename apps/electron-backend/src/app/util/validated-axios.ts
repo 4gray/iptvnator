@@ -30,6 +30,7 @@ export type ValidatedAxiosRequestConfig = Omit<
     'httpAgent' | 'httpsAgent'
 > & {
     agentFactory?: ValidatedRequestAgentFactory;
+    onResponse?: () => void;
 };
 
 function copyHeadersWithoutSensitiveValues(
@@ -166,7 +167,7 @@ function getRedirectValidationPolicy(
  */
 export async function requestWithValidatedRedirects<T = unknown>(
     rawUrl: string,
-    config: ValidatedAxiosRequestConfig = {},
+    { onResponse, ...config }: ValidatedAxiosRequestConfig = {},
     policy: RemoteUrlPolicy = {},
     maxRedirects = 5
 ): Promise<AxiosResponse<T>> {
@@ -209,6 +210,7 @@ export async function requestWithValidatedRedirects<T = unknown>(
                 REDIRECT_STATUSES.has(status) || originalValidateStatus(status),
         });
 
+        onResponse?.();
         if (!REDIRECT_STATUSES.has(response.status)) {
             return response;
         }

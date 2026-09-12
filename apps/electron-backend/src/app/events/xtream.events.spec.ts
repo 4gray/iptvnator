@@ -1,3 +1,4 @@
+/// <reference lib="es2021.promise" />
 import {
     CONNECTIVITY_GUARD_RESET,
     XTREAM_CANCEL_SESSION,
@@ -65,6 +66,117 @@ describe('XtreamEvents session cancellation', () => {
         } else {
             process.env[PERF_CAPTURE_ENV] = originalPerformanceCaptureValue;
         }
+    });
+
+    it.each([false, true])(
+        'returns structured refused-port evidence (redirected=%s)',
+        async (redirected) => {
+            if (redirected)
+                axiosMock.mockResolvedValueOnce({
+                    status: 302,
+                    headers: {
+                        location: 'https://other.example/player_api.php',
+                    },
+                });
+            axiosMock.mockRejectedValueOnce(
+                Object.assign(new Error('private credentials'), {
+                    code: 'ECONNREFUSED',
+                })
+            );
+            const result = await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                {
+                    url: 'https://example.com',
+                    params: { username: 'user', password: 'secret' },
+                    connectionTest: true,
+                }
+            );
+            expect(result).toMatchObject({
+                connectionFailure: {
+                    kind: 'connection',
+                    canTryHttp: !redirected,
+                },
+            });
+            expect(JSON.stringify(result)).not.toContain('secret');
+            expect(JSON.stringify(result)).not.toContain('private credentials');
+        }
+    );
+
+    it.each(['ECONNREFUSED', 'ETIMEDOUT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'])(
+        'classifies native aggregate failures before IPC (%s)',
+        async (code) => {
+            const failure = Object.assign(
+                new AggregateError([
+                    Object.assign(new Error('private address'), {
+                        code: 'ECONNREFUSED',
+                    }),
+                    Object.assign(new Error('other private address'), { code }),
+                ]),
+                { code: 'ECONNREFUSED' }
+            );
+            axiosMock.mockRejectedValueOnce(failure);
+            const result = await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                {
+                    url: 'https://example.com',
+                    params: {},
+                    connectionTest: true,
+                }
+            );
+            expect(result).toMatchObject({
+                connectionFailure: {
+                    kind:
+                        code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'
+                            ? 'tls'
+                            : 'connection',
+                    canTryHttp: code === 'ECONNREFUSED',
+                },
+            });
+            expect(JSON.stringify(result)).not.toContain('private address');
+        }
+    );
+
+    it.each<[string | undefined, number]>([
+        [undefined, 1],
+        ['file:///private/secret', 1],
+        ['http://[', 1],
+        ['https://example.com/player_api.php', 6],
+    ])(
+        'keeps local redirect failure %s out of provider HTTP evidence',
+        async (location, requests) => {
+            axiosMock.mockResolvedValue({ status: 302, headers: { location } });
+            const result = await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                {
+                    url: 'https://example.com',
+                    params: {},
+                    connectionTest: true,
+                }
+            );
+            expect(result).toHaveProperty('connectionFailure', {
+                kind: 'connection',
+                canTryHttp: false,
+            });
+            expect(axiosMock).toHaveBeenCalledTimes(requests);
+            expect(JSON.stringify(result)).not.toContain('secret');
+        }
+    );
+
+    it('returns the provider HTTP error without enabling fallback', async () => {
+        axiosMock.mockResolvedValueOnce({
+            status: 403,
+            statusText: 'Forbidden',
+            headers: {},
+            data: '<html>blocked</html>',
+        });
+        expect(
+            await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                { url: 'https://example.com', params: {}, connectionTest: true }
+            )
+        ).toMatchObject({
+            connectionFailure: { kind: 'http', status: 403, canTryHttp: false },
+        });
     });
 
     it('normalizes full Xtream API URLs before appending player_api.php', async () => {

@@ -15,6 +15,7 @@ import {
     importM3uPlaylistFromUrl,
     launchElectronApp,
     openSources,
+    openAddPlaylistDialog,
     openSourceEditor,
     refreshSource,
     resetMockServers,
@@ -32,6 +33,13 @@ import {
     writeTemporaryM3uFile,
 } from './electron-test-fixtures';
 
+import {
+    configureLiveFormat,
+    expectLiveFormatPlaying,
+    liveChannels,
+    liveFormatMock,
+} from './xtream-live-format.fixture';
+
 const localSourceFileName = 'alpha-local-source.m3u';
 const localSourceDisplayName = 'alpha-local-source';
 const urlSourceFileName = 'omega-url-source.m3u';
@@ -42,6 +50,160 @@ const deletableLocalSourceDisplayName = 'deletable-local-source';
 const refreshLocalSourceDisplayName = 'refresh-local-source';
 
 test.describe('Electron Sources View', () => {
+    test('detects HTTP on Test connection and persists it for refresh, EPG and playback', async ({
+        dataDir,
+        request,
+    }) => {
+        test.setTimeout(150_000);
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir, {
+            args: ['--autoplay-policy=no-user-gesture-required'],
+        });
+        const title = 'HTTP protocol discovery';
+        const httpsUrl = liveFormatMock.replace('http:', 'https:');
+        try {
+            let page = app.mainWindow;
+            await configureLiveFormat(page, 'html5', 'ts');
+            await openAddPlaylistDialog(page);
+            let dialog = page.getByRole('dialog');
+            await dialog
+                .getByRole('radio', { name: /Xtream credentials/i })
+                .click();
+            await dialog.locator('#title').fill(title);
+            await dialog.locator('#serverUrl').fill(httpsUrl);
+            await dialog.locator('#username').fill('live-fallback');
+            await dialog.locator('#password').fill('live-fallback');
+            await dialog
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
+                .click();
+            await expect(dialog.getByRole('status')).toContainText(
+                'Connected using HTTP'
+            );
+            await expect(dialog.locator('#serverUrl')).toHaveValue(
+                liveFormatMock
+            );
+            await dialog.screenshot({
+                path: test.info().outputPath('http-connection-add.png'),
+            });
+            await dialog
+                .getByRole('button', { name: 'Add', exact: true })
+                .click();
+            await page.waitForURL(/xtreams.*vod/);
+            await openSources(page);
+            dialog = await openSourceEditor(page, title);
+            await dialog.locator('[formControlName="password"]').fill('');
+            await dialog
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
+                .click();
+            await expect(dialog.getByRole('status')).toContainText(
+                'Enter a username and password'
+            );
+            await dialog
+                .locator('[formControlName="password"]')
+                .fill('live-fallback');
+            // Closing a tested edit must not persist unrelated changes.
+            await updateSourceDialog(dialog, {
+                title: 'Discard this edit',
+                serverUrl: httpsUrl,
+            });
+            await dialog
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
+                .click();
+            await expect(dialog.getByRole('status')).toContainText(
+                'Connected using HTTP'
+            );
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
+            await dialog.waitFor({ state: 'detached' });
+            dialog = await openSourceEditor(page, title);
+            await expectSourceDialogValues(dialog, {
+                title,
+                serverUrl: liveFormatMock,
+            });
+            // Persist a broken HTTPS source, then repair it through Edit.
+            await updateSourceDialog(dialog, { serverUrl: httpsUrl });
+            await saveSourceDialog(page, dialog);
+            dialog = await openSourceEditor(page, title);
+            await expectSourceDialogValues(dialog, { serverUrl: httpsUrl });
+            await dialog
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
+                .click();
+            await expect(dialog.getByRole('status')).toContainText(
+                'Connected using HTTP'
+            );
+            await dialog.screenshot({
+                path: test.info().outputPath('http-connection-edit.png'),
+            });
+            await saveSourceDialog(page, dialog);
+            const restarted = await restartElectronApp(app, dataDir);
+            app.electronApp = restarted.electronApp;
+            app.mainWindow = restarted.mainWindow;
+            page = app.mainWindow;
+            await openSources(page);
+            dialog = await openSourceEditor(page, title);
+            await expectSourceDialogValues(dialog, {
+                serverUrl: liveFormatMock,
+            });
+            await dialog
+                .getByRole('button', { name: 'Close', exact: true })
+                .click();
+            await dialog.waitFor({ state: 'detached' });
+            const saved = await page.evaluate(
+                async (title) =>
+                    (await window.electron.dbGetAppPlaylistMetas()).find(
+                        (p) => p.title === title
+                    ),
+                title
+            );
+            expect(saved?.serverUrl).toBe(liveFormatMock);
+            await refreshSource(page, title, { confirm: true });
+            await waitForSourceRowIdle(page, title);
+            const refreshed = await waitForPortalDebugEvent(page, {
+                provider: 'xtream',
+                operation: 'get_live_streams',
+            });
+            expect(refreshed.request).toMatchObject({
+                url: expect.stringMatching(/^http:/),
+            });
+            await openSources(page);
+            await sourceRowByTitle(page, title).first().click();
+            await page
+                .getByRole('link', { name: 'Live TV', exact: true })
+                .click();
+            await page.locator('.context-panel .category-item').first().click();
+            const media = page.waitForResponse(
+                (r) =>
+                    r.url().startsWith(liveFormatMock + '/live/') &&
+                    r.url().endsWith('.ts')
+            );
+            await liveChannels(page).first().click();
+            expect((await media).status()).toBe(200);
+            await expectLiveFormatPlaying(page, 'html5');
+            const epg = await waitForPortalDebugEvent(page, {
+                provider: 'xtream',
+                operation: 'get_short_epg',
+            });
+            expect(epg.request).toMatchObject({
+                url: expect.stringMatching(/^http:/),
+            });
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('filters and sorts sources, including persisted custom order', async ({
         dataDir,
         request,
@@ -427,10 +589,7 @@ https://streams.example.test/original-url.m3u8
         const app = await launchElectronApp(dataDir);
 
         try {
-            await dropM3uPlaylistOntoWorkspace(
-                app.mainWindow,
-                localFilePath
-            );
+            await dropM3uPlaylistOntoWorkspace(app.mainWindow, localFilePath);
             await waitForM3uCatalog(app.mainWindow);
             await expect(
                 app.mainWindow.locator(
@@ -467,10 +626,7 @@ https://streams.example.test/original-url.m3u8
             });
             await openSources(app.mainWindow);
             await expect(
-                sourceRowByTitle(
-                    app.mainWindow,
-                    refreshLocalSourceDisplayName
-                )
+                sourceRowByTitle(app.mainWindow, refreshLocalSourceDisplayName)
                     .first()
                     .locator('.refresh-btn')
             ).toBeVisible();

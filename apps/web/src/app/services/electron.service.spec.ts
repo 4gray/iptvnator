@@ -13,6 +13,7 @@ import {
     AutoUpdatePlaylistsResult,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     PLAYLIST_PARSE_BY_URL,
+    XTREAM_REQUEST,
     Playlist,
     SECURITY_ERROR_PREFIX,
 } from '@iptvnator/shared/interfaces';
@@ -21,6 +22,7 @@ import { ElectronService } from './electron.service';
 describe('ElectronService', () => {
     const session = { id: 'session-1' };
     let electronBridge: {
+        xtreamRequest: jest.Mock;
         autoUpdatePlaylists: jest.Mock;
         fetchPlaylistByUrl: jest.Mock;
         onPlayerError: jest.Mock;
@@ -38,6 +40,7 @@ describe('ElectronService', () => {
         jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
         electronBridge = {
+            xtreamRequest: jest.fn(),
             autoUpdatePlaylists: jest.fn(),
             fetchPlaylistByUrl: jest.fn(),
             onPlayerError: jest.fn(),
@@ -103,6 +106,23 @@ describe('ElectronService', () => {
             value: undefined,
         });
         jest.restoreAllMocks();
+    });
+
+    it('preserves connection-test errors across the renderer bridge', async () => {
+        const response = {
+            connectionFailure: { kind: 'tls', canTryHttp: false },
+        };
+        electronBridge.xtreamRequest.mockResolvedValue(response);
+        const result = await service.sendIpcEvent(XTREAM_REQUEST, {
+            url: 'https://provider.example',
+            params: {},
+            connectionTest: true,
+        });
+        expect(result).toEqual(response);
+        expect(electronBridge.xtreamRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ connectionTest: true })
+        );
+        expect(snackBar.open).not.toHaveBeenCalled();
     });
 
     it('ignores URL imports without a payload instead of calling the Electron bridge', async () => {

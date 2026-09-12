@@ -236,3 +236,94 @@ describe('redirect routes and admission lifecycle', () => {
         }
     );
 });
+
+describe('Xtream explicit protocol-test evidence', () => {
+    it.each(['dns', 'private redirect', 'redirect cycle', 'provider HTTP'])(
+        'separates %s failures from provider response statuses',
+        async (mode) => {
+            const transport = new StubHttpClient();
+            let failDns = false;
+            await withServer(
+                createWebBackendApp({
+                    httpClient: transport,
+                    allowPrivateNetworkTargets: false,
+                    resolveHostname: async () => {
+                        if (failDns)
+                            throw Object.assign(new Error('private details'), {
+                                code: 'ENOTFOUND',
+                            });
+                        return ['93.184.216.34'];
+                    },
+                }),
+                async (backend) => {
+                    const id = await registerProviderTarget(
+                        backend,
+                        'https://provider.example'
+                    );
+                    if (mode === 'dns') failDns = true;
+                    else if (mode === 'private redirect')
+                        transport.queueRedirect('http://127.0.0.1/private');
+                    else if (mode === 'redirect cycle')
+                        transport.queueRedirect(
+                            'https://provider.example/player_api.php'
+                        );
+                    else transport.queueFailure(500);
+                    const response = await fetch(
+                        `${backend}/xtream?targetId=${id}&connectionTest=true`
+                    );
+                    expect(await response.json()).toEqual({
+                        connectionFailure:
+                            mode === 'provider HTTP'
+                                ? {
+                                      kind: 'http',
+                                      status: 500,
+                                      canTryHttp: false,
+                                  }
+                                : { kind: 'connection', canTryHttp: false },
+                    });
+                    expect(transport.requests).toHaveLength(
+                        mode === 'dns' ? 0 : 1
+                    );
+                }
+            );
+        }
+    );
+
+    it.each([false, true])(
+        'preserves initial-response evidence (redirected=%s)',
+        async (redirected) => {
+            const transport = new StubHttpClient();
+            if (redirected)
+                transport.queueRedirect('https://other.example/player_api.php');
+            transport.queueNetworkError(
+                Object.assign(new Error('private provider text'), {
+                    code: 'ECONNREFUSED',
+                })
+            );
+            await withServer(
+                createWebBackendApp({
+                    httpClient: transport,
+                    resolveHostname: resolvePublicHost,
+                }),
+                async (backend) => {
+                    const id = await registerProviderTarget(
+                        backend,
+                        'https://provider.example'
+                    );
+                    const response = await fetch(
+                        `${backend}/xtream?targetId=${id}&connectionTest=true&username=user&password=secret`
+                    );
+                    expect(await response.json()).toEqual({
+                        connectionFailure: {
+                            kind: 'connection',
+                            canTryHttp: !redirected,
+                        },
+                    });
+                    expect(transport.requests[0].params).not.toHaveProperty(
+                        'connectionTest'
+                    );
+                }
+            );
+        }
+    );
+});

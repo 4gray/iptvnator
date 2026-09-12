@@ -14,6 +14,7 @@ import {
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
+    XTREAM_REQUEST,
 } from '@iptvnator/shared/interfaces';
 import {
     getStalkerRequestErrorStatus,
@@ -66,6 +67,26 @@ describe('PwaService', () => {
     afterEach(() => {
         http.verify();
         jest.restoreAllMocks();
+    });
+
+    it('passes explicit connection-test evidence through without a playback response', async () => {
+        const failure = {
+            connectionFailure: { kind: 'connection', canTryHttp: true },
+        };
+        const pending = service.sendIpcEvent(XTREAM_REQUEST, {
+            url: 'https://provider.example',
+            params: { username: 'user', password: 'pass' },
+            connectionTest: true,
+        });
+        http.expectOne((req) => req.url.endsWith('/provider-targets')).flush({
+            targetId: 'test-target',
+        });
+        await new Promise((resolve) => setTimeout(resolve));
+        const request = http.expectOne((req) => req.url.endsWith('/xtream'));
+        expect(request.request.params.get('connectionTest')).toBe('true');
+        request.flush(failure);
+        expect(await pending).toEqual(failure);
+        expect(TestBed.inject(MatSnackBar).open).not.toHaveBeenCalled();
     });
 
     it('ignores URL imports without a payload or URL instead of calling the backend', () => {

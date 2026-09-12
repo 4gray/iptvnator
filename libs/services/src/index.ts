@@ -23,3 +23,6 @@ export * from './lib/stream-probe.service';
 export * from './lib/vod-source-pin.service';
 
 export * from './lib/epg-source-settings.service';
+
+export * from './lib/xtream-connection-test.service';
+export * from './lib/xtream-connection-test-state';

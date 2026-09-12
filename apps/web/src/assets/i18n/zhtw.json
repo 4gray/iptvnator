@@ -181,7 +181,22 @@
             "PASSWORD": "密碼",
             "ADD": "新增",
             "TEST_CREDENTIALS": "測試憑證",
-            "URL_VALIDATION_ERROR": "必須是有效的網址並包含協定（例如 http://example.com 或 https://example.com:4324）"
+            "URL_VALIDATION_ERROR": "必須是有效的網址並包含協定（例如 http://example.com 或 https://example.com:4324）",
+            "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "請輸入使用者名稱和密碼以測試連線。",
+                "TESTING": "正在測試連線…",
+                "HTTP_CONNECTED": "已透過 HTTP 連線。HTTPS 無法使用。連線未加密。",
+                "ACTIVE": "已連線。入口網站處於啟用狀態。",
+                "INACTIVE": "帳戶未啟用或登入資訊不正確。",
+                "EXPIRED": "訂閱已到期。",
+                "UNAVAILABLE": "入口網站未傳回有效的帳戶資訊。",
+                "HTTP_ERROR": "伺服器傳回 HTTP {{status}}。",
+                "TLS_ERROR": "無法建立安全連線。請檢查伺服器的 HTTPS 設定和憑證。",
+                "CONNECTION_ERROR": "無法連線至伺服器。請檢查位址和網路連線。",
+                "UNKNOWN_ERROR": "無法測試連線。",
+                "TEST_PROTOCOLS": "測試 HTTPS 和 HTTP",
+                "HTTP_PERMISSION": "如果 HTTPS 無法使用，此測試可能透過未加密的 HTTP 傳送您的使用者名稱和密碼。"
+            }
         },
         "STALKER_PORTAL": {
             "TITLE": "標題",

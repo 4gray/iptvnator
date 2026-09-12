@@ -181,7 +181,22 @@
             "PASSWORD": "Parola",
             "ADD": "Ekle",
             "TEST_CREDENTIALS": "Kimlik bilgilerini test et",
-            "URL_VALIDATION_ERROR": "Geçerli bir URL olmalıdır (örn. http://example.com veya https://example.com:4324)"
+            "URL_VALIDATION_ERROR": "Geçerli bir URL olmalıdır (örn. http://example.com veya https://example.com:4324)",
+            "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Bağlantıyı test etmek için kullanıcı adı ve parola girin.",
+                "TESTING": "Bağlantı test ediliyor…",
+                "HTTP_CONNECTED": "HTTP üzerinden bağlanıldı. HTTPS kullanılamıyor. Bağlantı şifrelenmemiştir.",
+                "ACTIVE": "Bağlanıldı. Portal etkin.",
+                "INACTIVE": "Hesap etkin değil veya giriş bilgileri yanlış.",
+                "EXPIRED": "Abonelik süresi dolmuş.",
+                "UNAVAILABLE": "Portal geçerli hesap bilgileri döndürmedi.",
+                "HTTP_ERROR": "Sunucu HTTP {{status}} döndürdü.",
+                "TLS_ERROR": "Güvenli bağlantı kurulamadı. Sunucunun HTTPS yapılandırmasını ve sertifikasını kontrol edin.",
+                "CONNECTION_ERROR": "Sunucuya ulaşılamadı. Adresi ve ağ bağlantınızı kontrol edin.",
+                "UNKNOWN_ERROR": "Bağlantı test edilemedi.",
+                "TEST_PROTOCOLS": "HTTPS ve HTTP test et",
+                "HTTP_PERMISSION": "HTTPS kullanılamıyorsa bu test kullanıcı adınızı ve parolanızı şifrelenmemiş HTTP üzerinden gönderebilir."
+            }
         },
         "STALKER_PORTAL": {
             "TITLE": "Başlık",
