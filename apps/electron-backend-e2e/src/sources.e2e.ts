@@ -664,6 +664,13 @@ https://streams.example.test/refreshed-url.m3u8
             );
             await refreshSource(app.mainWindow, 'refresh-url-source.m3u');
             await expectPlaylistUpdatedToast(app.mainWindow);
+            // The previous local refresh toast can still be visible. Wait for
+            // this source's first refresh before checking idle and opening it.
+            await expect(
+                sourceRowByTitle(app.mainWindow, 'refresh-url-source.m3u')
+                    .first()
+                    .locator('.meta')
+            ).toContainText('Updated:');
             await waitForSourceRowIdle(
                 app.mainWindow,
                 'refresh-url-source.m3u'
