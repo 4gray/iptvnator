@@ -1699,7 +1699,9 @@ external-player sessions and failures without a live process are not busy; the
 canonical `isLiveExternalPlayerSession` predicate governs that protection.
 Startup auto-refresh reserves source IDs in `SourceActivityService` until its
 fetch settles. Batch persistence also skips rows deleted while a refresh was
-running, and only surviving writes trigger scoped EPG fetches.
+running, and only surviving writes trigger scoped EPG fetches. Shared refresh
+actions refuse IDs reserved by deletion; singular refresh persistence also
+rejects missing rows inside the write queue, so late results cannot recreate them.
 Evidence older than five minutes
 is refreshed and requires another confirmation.
 

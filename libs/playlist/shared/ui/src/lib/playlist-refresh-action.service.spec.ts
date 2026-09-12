@@ -14,6 +14,7 @@ import {
     PlaylistRefreshService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -252,6 +253,20 @@ describe('PlaylistRefreshActionService', () => {
         localStorage.clear();
     });
 
+    it('rejects refresh while a shared deletion owns the source', () => {
+        const playlist = createPlaylistMeta({
+            serverUrl: undefined,
+            url: 'https://example.test/list.m3u',
+        });
+        const release = TestBed.inject(SourceActivityService).begin([
+            playlist._id,
+        ]);
+        expect(service.canRefresh(playlist)).toBe(false);
+        service.refresh(playlist);
+        expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+        release();
+        expect(service.canRefresh(playlist)).toBe(true);
+    });
     it('treats file-backed M3U playlists as refreshable when the refresh bridge is available', () => {
         runtime.supportsPlaylistRefresh = true;
 

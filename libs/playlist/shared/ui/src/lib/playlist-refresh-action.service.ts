@@ -11,6 +11,7 @@ import {
     PlaylistRefreshService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -37,6 +38,7 @@ export interface XtreamRefreshPreparationState {
 @Injectable({ providedIn: 'root' })
 export class PlaylistRefreshActionService {
     private readonly store = inject(Store);
+    private readonly activity = inject(SourceActivityService);
     private readonly translate = inject(TranslateService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialogService = inject(DialogService);
@@ -62,7 +64,7 @@ export class PlaylistRefreshActionService {
     readonly refreshPreparation = this.refreshPreparationState.asReadonly();
 
     canRefresh(playlist: PlaylistMeta | null): boolean {
-        if (!playlist) {
+        if (!playlist || this.activity.isBusy(playlist._id)) {
             return false;
         }
 
@@ -80,7 +82,7 @@ export class PlaylistRefreshActionService {
     }
 
     refresh(playlist: PlaylistMeta): void {
-        if (this.isRefreshing()) {
+        if (this.isRefreshing() || this.activity.isBusy(playlist._id)) {
             return;
         }
 

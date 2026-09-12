@@ -1763,6 +1763,19 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it.each([false, true])('does not recreate a removed source on singular refresh (SQLite: %s)', async (sqlite) => {
+        const upsert = jest.fn();
+        testWindow.electron = sqlite ? {
+            dbGetAllPlaylists: jest.fn().mockResolvedValue([]),
+            dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+            dbUpsertAppPlaylist: upsert,
+        } as unknown as typeof testWindow.electron : undefined;
+        const update = jest.fn(() => of(undefined));
+        const service = createService({ update });
+        await expect(firstValueFrom(service.updatePlaylist('deleted', { _id: 'deleted' } as Playlist))).rejects.toThrow('Playlist no longer exists');
+        expect(update).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
+    });
     it('keeps hiddenGroupTitles when refreshing a playlist payload', async () => {
         const existingPlaylist: Playlist = {
             _id: 'playlist-2',

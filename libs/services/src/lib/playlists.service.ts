@@ -669,6 +669,7 @@ export class PlaylistsService {
             const currentPlaylist = await firstValueFrom(
                 this.getPlaylistById(playlistId, operationId)
             );
+            if (!currentPlaylist) throw new Error('Playlist no longer exists');
             const mergedPlaylist = this.mergeRefreshedPlaylist(
                 currentPlaylist,
                 updatedPlaylist,
