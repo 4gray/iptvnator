@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     input,
+    untracked,
 } from '@angular/core';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
@@ -98,9 +99,11 @@ export class SourceHealthIndicatorComponent {
             const p = this.playlist();
             if (!this.enabled() || !this.supported()) return;
             const controller = new AbortController();
-            void this.injector
-                .get(SourceHealthService)
-                .check(p, { signal: controller.signal });
+            untracked(() => {
+                void this.injector
+                    .get(SourceHealthService)
+                    .check(p, { signal: controller.signal });
+            });
             onCleanup(() => controller.abort());
         });
     }
