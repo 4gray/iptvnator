@@ -136,6 +136,32 @@ describe('XtreamEvents session cancellation', () => {
         }
     );
 
+    it.each<[string | undefined, number]>([
+        [undefined, 1],
+        ['file:///private/secret', 1],
+        ['http://[', 1],
+        ['https://example.com/player_api.php', 6],
+    ])(
+        'keeps local redirect failure %s out of provider HTTP evidence',
+        async (location, requests) => {
+            axiosMock.mockResolvedValue({ status: 302, headers: { location } });
+            const result = await registeredHandlers.get('XTREAM_REQUEST')?.(
+                {},
+                {
+                    url: 'https://example.com',
+                    params: {},
+                    connectionTest: true,
+                }
+            );
+            expect(result).toHaveProperty('connectionFailure', {
+                kind: 'connection',
+                canTryHttp: false,
+            });
+            expect(axiosMock).toHaveBeenCalledTimes(requests);
+            expect(JSON.stringify(result)).not.toContain('secret');
+        }
+    );
+
     it('returns the provider HTTP error without enabling fallback', async () => {
         axiosMock.mockResolvedValueOnce({
             status: 403,

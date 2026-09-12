@@ -95,8 +95,9 @@ Both transports return an optional, credential-free `connectionFailure` envelope
 only for `connectionTest` requests. Electron returns it rather than throwing
 through IPC (which loses custom error fields); the PWA proxy strips the control
 parameter before contacting the provider and preserves validated redirect-chain
-evidence. PWA URL/DNS-policy refusals are local connection failures, never
-reported as provider HTTP statuses or used to authorize HTTP. Older backends without the envelope cannot authorize HTTP discovery.
+evidence. PWA URL/DNS-policy refusals and Electron URL/redirect-policy errors are local
+connection failures, never reported as provider HTTP statuses or used to
+authorize HTTP. Older backends without the envelope cannot authorize HTTP discovery.
 Provider JSON remains nested in `payload` and cannot provide this evidence.
 
 The saved base drives catalog refresh, provider EPG, live/VOD/series/catch-up URL

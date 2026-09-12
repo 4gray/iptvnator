@@ -16,6 +16,7 @@ import {
 import { redactSensitiveData } from '@iptvnator/shared/logging';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { formatPortalRequestError } from './portal-request-error.util';
+import { UnsafeUrlError } from './url-safety';
 import {
     requestWithValidatedRedirects,
     ValidatedAxiosRequestConfig,
@@ -225,10 +226,13 @@ ipcMain.handle(
                 return {
                     payload: null,
                     action: payload.params?.action,
-                    connectionFailure: describeXtreamConnectionFailure(
-                        error,
-                        initialResponded
-                    ),
+                    connectionFailure:
+                        error instanceof UnsafeUrlError
+                            ? { kind: 'connection', canTryHttp: false }
+                            : describeXtreamConnectionFailure(
+                                  error,
+                                  initialResponded
+                              ),
                 };
             }
 
