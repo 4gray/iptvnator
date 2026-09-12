@@ -1683,7 +1683,9 @@ only explicit account expiry/disablement is preselected. Uncertain network,
 HTTP, content and authorization failures require manual selection. Local files
 and text imports are excluded. Sources with active external playback, import,
 refresh or deletion are skipped; identity, presence, current health and busy
-state are checked again before each deletion. Evidence older than five minutes
+state are checked again before each deletion. The shared header refresh action
+tracks its M3U source ID through completion, independently of source-row state.
+Evidence older than five minutes
 is refreshed and requires another confirmation.
 
 `SourceCleanupService` is dialog-scoped. User deselection survives rechecks;

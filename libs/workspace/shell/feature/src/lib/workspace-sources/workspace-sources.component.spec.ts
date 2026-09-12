@@ -1,3 +1,5 @@
+import { MatDialog } from '@angular/material/dialog';
+import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -33,6 +35,14 @@ describe('WorkspaceSourcesComponent', () => {
         await TestBed.configureTestingModule({
             imports: [WorkspaceSourcesComponent, NoopAnimationsModule],
             providers: [
+                {
+                    provide: MatDialog,
+                    useValue: { getDialogById: jest.fn(), open: jest.fn() },
+                },
+                {
+                    provide: PlaylistRefreshActionService,
+                    useValue: { isSourceBusy: jest.fn((id) => id === 'busy') },
+                },
                 provideMockStore({
                     selectors: [
                         {
@@ -123,6 +133,14 @@ describe('WorkspaceSourcesComponent', () => {
             .compileComponents();
 
         fixture = TestBed.createComponent(WorkspaceSourcesComponent);
+    });
+
+    it('protects a source refreshing through the persistent header', () => {
+        fixture.componentInstance.openCleanup();
+        const open = TestBed.inject(MatDialog).open as jest.Mock;
+        const context = open.mock.calls[0][1].data;
+        expect(context.protected('busy')).toBe(true);
+        expect(context.protected('other')).toBe(false);
     });
 
     it('renders the shared panel header structure without paragraph subtitle margins', async () => {

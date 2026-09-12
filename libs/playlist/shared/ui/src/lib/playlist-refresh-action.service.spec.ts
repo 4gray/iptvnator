@@ -320,6 +320,29 @@ describe('PlaylistRefreshActionService', () => {
         expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
     });
 
+    it('tracks a header M3U refresh by source until the operation settles', async () => {
+        const playlist = createPlaylistMeta({
+            _id: 'busy',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://source.test/list',
+        });
+        let resolve!: (value: Playlist) => void;
+        playlistRefreshService.refreshPlaylist.mockReturnValue(
+            new Promise((r) => {
+                resolve = r;
+            })
+        );
+        service.refresh(playlist);
+        expect(service.isSourceBusy('busy')).toBe(true);
+        expect(service.isSourceBusy('other')).toBe(false);
+        resolve({ _id: 'busy', playlist: { items: [] } } as Playlist);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(service.isSourceBusy('busy')).toBe(false);
+    });
+
     it('passes trusted TLS hosts to URL-backed M3U refreshes', async () => {
         const playlist = createPlaylistMeta({
             _id: 'playlist-url',

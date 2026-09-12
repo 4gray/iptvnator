@@ -1,7 +1,10 @@
 import { WorkspaceShellXtreamImportService } from '../workspace-shell/services/workspace-shell-xtream-import.service';
 import { Injector, viewChild } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { SourceCleanupDialogComponent } from '@iptvnator/playlist/shared/ui';
+import {
+    SourceCleanupDialogComponent,
+    PlaylistRefreshActionService,
+} from '@iptvnator/playlist/shared/ui';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { PlaylistActions } from '@iptvnator/m3u-state';
@@ -65,6 +68,7 @@ export class WorkspaceSourcesComponent {
     );
     openCleanup(): void {
         const dialogs = this.injector.get(MatDialog);
+        const refresh = this.injector.get(PlaylistRefreshActionService);
         if (dialogs.getDialogById('source-cleanup')) return;
         dialogs.open(SourceCleanupDialogComponent, {
             id: 'source-cleanup',
@@ -77,6 +81,7 @@ export class WorkspaceSourcesComponent {
                 protected: (id: string) =>
                     this.playback?.activeSession()?.contentInfo?.playlistId ===
                         id ||
+                    refresh.isSourceBusy(id) ||
                     !!this.imports?.isSourceBusy(id) ||
                     !!this.sourceList()?.isDeletePending(id) ||
                     !!this.sourceList()?.isRefreshPending(id) ||

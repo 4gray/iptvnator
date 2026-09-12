@@ -51,6 +51,13 @@ export class PlaylistRefreshActionService {
     private readonly refreshPreparationState =
         signal<XtreamRefreshPreparationState | null>(null);
 
+    private readonly m3uRefreshId = signal<string | null>(null);
+    isSourceBusy(id: string): boolean {
+        return (
+            this.m3uRefreshId() === id ||
+            this.refreshPreparation()?.playlistId === id
+        );
+    }
     readonly isRefreshing = signal(false);
     readonly refreshPreparation = this.refreshPreparationState.asReadonly();
 
@@ -137,6 +144,7 @@ export class PlaylistRefreshActionService {
             this.playlistContext.routeProvider() === 'playlists' &&
             this.playlistContext.resolvedPlaylistId() === item._id;
 
+        this.m3uRefreshId.set(item._id);
         this.isRefreshing.set(true);
         if (isActiveM3uRoute) {
             this.store.dispatch(
@@ -202,6 +210,7 @@ export class PlaylistRefreshActionService {
                     ChannelActions.setChannelsLoading({ loading: false })
                 );
             }
+            this.m3uRefreshId.set(null);
             this.isRefreshing.set(false);
         }
     }
