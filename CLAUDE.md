@@ -811,7 +811,8 @@ categories by provider ID and type. See `docs/architecture/category-management.m
 
 #### Xtream Connection Test
 
-Add/Edit source Test connection can replace an unavailable HTTPS base with a
+Add/Edit source Test HTTPS and HTTP discloses plaintext credential use before
+the click and can replace an unavailable HTTPS base with a
 verified active HTTP base in the form. Only initial refused-port or TLS
 wrong-version evidence permits the same-host attempt; HTTP errors, certificate
 failures and redirect failures do not. Add/Save persists `serverUrl`, and the

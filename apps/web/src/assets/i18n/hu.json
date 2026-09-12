@@ -183,7 +183,6 @@
             "TEST_CREDENTIALS": "Hitelesítési adatok ellenőrzése",
             "URL_VALIDATION_ERROR": "Adjon meg protokollt is tartalmazó, érvényes URL-címet (például http://example.com vagy https://example.com:4324)",
             "CONNECTION_TEST": {
-                "TEST": "Kapcsolat tesztelése",
                 "TESTING": "Kapcsolat tesztelése…",
                 "HTTP_CONNECTED": "Csatlakoztatva HTTP-n keresztül. A HTTPS nem érhető el. A kapcsolat nem titkosított.",
                 "ACTIVE": "Csatlakoztatva. A portál aktív.",
@@ -193,7 +192,9 @@
                 "HTTP_ERROR": "A szerver HTTP {{status}} választ adott.",
                 "TLS_ERROR": "Nem hozható létre biztonságos kapcsolat. Ellenőrizze a szerver HTTPS-beállításait és tanúsítványát.",
                 "CONNECTION_ERROR": "A szerver nem érhető el. Ellenőrizze a címet és a hálózati kapcsolatot.",
-                "UNKNOWN_ERROR": "A kapcsolat nem tesztelhető."
+                "UNKNOWN_ERROR": "A kapcsolat nem tesztelhető.",
+                "TEST_PROTOCOLS": "HTTPS és HTTP tesztelése",
+                "HTTP_PERMISSION": "Ha a HTTPS nem érhető el, ez a teszt titkosítatlan HTTP-n küldheti el a felhasználónevet és a jelszót."
             }
         },
         "STALKER_PORTAL": {

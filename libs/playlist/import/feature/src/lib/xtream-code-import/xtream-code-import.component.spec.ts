@@ -57,7 +57,7 @@ describe('XtreamCodeImportComponent', () => {
 
         expect(component.form.valid).toBe(false);
 
-        await component.testConnection();
+        await component.testConnection(true);
         component.addPlaylist();
 
         expect(component.isTestingConnection).toBe(false);
@@ -103,7 +103,7 @@ describe('XtreamCodeImportComponent', () => {
             username: 'user',
             password: 'pass',
         });
-        await component.testConnection();
+        await component.testConnection(true);
         expect(component.form.value.serverUrl).toBe('http://example.com');
         expect(component.connectionTest.messageKey()).toContain(
             'HTTP_CONNECTED'
@@ -133,7 +133,7 @@ describe('XtreamCodeImportComponent', () => {
                     finish = resolve;
                 })
             );
-            const pending = component.testConnection();
+            const pending = component.testConnection(true);
             component.addPlaylist();
             expect(store.dispatch).not.toHaveBeenCalled();
             component.form.get(field)?.setValue('new-value');
@@ -161,7 +161,7 @@ describe('XtreamCodeImportComponent', () => {
                 finish = resolve;
             })
         );
-        const pending = component.testConnection();
+        const pending = component.testConnection(true);
         component.clearForm();
         finish({
             status: 'active',
@@ -186,7 +186,7 @@ describe('XtreamCodeImportComponent', () => {
                 finish = resolve;
             })
         );
-        const pending = component.testConnection();
+        const pending = component.testConnection(true);
         TestBed.resetTestingModule();
         finish({
             status: 'active',

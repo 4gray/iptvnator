@@ -74,7 +74,10 @@ test.describe('Electron Sources View', () => {
             await dialog.locator('#username').fill('live-fallback');
             await dialog.locator('#password').fill('live-fallback');
             await dialog
-                .getByRole('button', { name: 'Test connection', exact: true })
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
                 .click();
             await expect(dialog.getByRole('status')).toContainText(
                 'Connected using HTTP'
@@ -97,7 +100,10 @@ test.describe('Electron Sources View', () => {
                 serverUrl: httpsUrl,
             });
             await dialog
-                .getByRole('button', { name: 'Test connection', exact: true })
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
                 .click();
             await expect(dialog.getByRole('status')).toContainText(
                 'Connected using HTTP'
@@ -117,7 +123,10 @@ test.describe('Electron Sources View', () => {
             dialog = await openSourceEditor(page, title);
             await expectSourceDialogValues(dialog, { serverUrl: httpsUrl });
             await dialog
-                .getByRole('button', { name: 'Test connection', exact: true })
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
                 .click();
             await expect(dialog.getByRole('status')).toContainText(
                 'Connected using HTTP'

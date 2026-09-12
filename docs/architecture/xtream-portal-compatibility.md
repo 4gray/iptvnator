@@ -61,8 +61,12 @@ the normalized `serverUrl` plus trimmed credentials.
 ### Explicit protocol discovery
 
 Add and Edit source share `XtreamConnectionTestService` and form-owned
-`createXtreamConnectionTestState` (`@iptvnator/services`). Test connection
-first probes the entered base, including the existing account-action variants.
+`createXtreamConnectionTestState` (`@iptvnator/services`). The explicit
+**Test HTTPS and HTTP** button has a visible, accessible pre-request notice
+that credentials may be sent over unencrypted HTTP. Clicking that action supplies
+`allowHttpFallback`; the service defaults it to false, so an ordinary programmatic
+test cannot authorize plaintext credentials. No modal or persistent opt-in is
+needed. The test first probes the entered base, including the existing account-action variants.
 Only an initial `ECONNREFUSED` or TLS wrong-version failure permits one HTTP
 candidate on the same hostname/path. Default HTTPS port 443 becomes HTTP 80;
 nonstandard explicit ports are preserved, never scanned. DNS, timeout, reset,

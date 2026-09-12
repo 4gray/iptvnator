@@ -30,7 +30,8 @@ export class XtreamConnectionTestService {
     /** Explicit form action only. Passive status checks never discover protocols. */
     async test(
         connection: XtreamTestConnection,
-        isCurrent: () => boolean = () => true
+        isCurrent: () => boolean = () => true,
+        allowHttpFallback = false
     ): Promise<XtreamConnectionTestResult> {
         const normalized = {
             serverUrl: normalizeXtreamServerUrl(connection.serverUrl),
@@ -39,7 +40,12 @@ export class XtreamConnectionTestService {
         };
         const first = await this.probe(normalized, isCurrent);
         const alternative = xtreamHttpAlternative(normalized.serverUrl);
-        if (!alternative || !first.failure?.canTryHttp || !isCurrent()) {
+        if (
+            !allowHttpFallback ||
+            !alternative ||
+            !first.failure?.canTryHttp ||
+            !isCurrent()
+        ) {
             return first;
         }
         const second = await this.probe(

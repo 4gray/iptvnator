@@ -183,7 +183,6 @@
             "TEST_CREDENTIALS": "Testar credenciais",
             "URL_VALIDATION_ERROR": "Deve ser uma URL válida com protocolo (por exemplo, http://example.com ou https://example.com:4324)",
             "CONNECTION_TEST": {
-                "TEST": "Testar ligação",
                 "TESTING": "A testar ligação…",
                 "HTTP_CONNECTED": "Ligado por HTTP. HTTPS indisponível. A ligação não está encriptada.",
                 "ACTIVE": "Ligado. O portal está ativo.",
@@ -193,7 +192,9 @@
                 "HTTP_ERROR": "O servidor devolveu HTTP {{status}}.",
                 "TLS_ERROR": "Não foi possível estabelecer uma ligação segura. Verifique a configuração HTTPS e o certificado do servidor.",
                 "CONNECTION_ERROR": "Servidor inacessível. Verifique o endereço e a ligação à rede.",
-                "UNKNOWN_ERROR": "Não foi possível testar a ligação."
+                "UNKNOWN_ERROR": "Não foi possível testar a ligação.",
+                "TEST_PROTOCOLS": "Testar HTTPS e HTTP",
+                "HTTP_PERMISSION": "Se HTTPS não estiver disponível, este teste pode enviar o nome de utilizador e a palavra-passe por HTTP sem encriptação."
             }
         },
         "STALKER_PORTAL": {

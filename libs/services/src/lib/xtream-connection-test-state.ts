@@ -38,7 +38,7 @@ export function createXtreamConnectionTestState(form: AbstractControl) {
         result,
         messageKey,
         messageParams: computed(() => ({ status: result()?.failure?.status })),
-        async test(): Promise<void> {
+        async test(allowHttpFallback = false): Promise<void> {
             if (testing() || form.invalid) return;
             const connection = form.getRawValue() as XtreamTestConnection;
             if (!connection.username?.trim() || !connection.password?.trim())
@@ -51,7 +51,7 @@ export function createXtreamConnectionTestState(form: AbstractControl) {
             try {
                 const response = await injector
                     .get(XtreamConnectionTestService)
-                    .test(connection, isCurrent);
+                    .test(connection, isCurrent, allowHttpFallback);
                 if (!isCurrent()) return;
                 if (response.usedHttpFallback) {
                     form.get('serverUrl')?.setValue(response.serverUrl, {

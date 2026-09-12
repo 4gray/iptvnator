@@ -17,7 +17,8 @@ for (const canTryHttp of [true, false]) {
         );
         await page.route('**/localhost:3000/xtream**', async (route) => {
             const url = new URL(route.request().url());
-            const base = getRegisteredProviderUrl(url, targets)!;
+            const base = getRegisteredProviderUrl(url, targets);
+            if (!base) throw new Error('Missing synthetic provider target');
             requested.push(base);
             expect(url.searchParams.get('connectionTest')).toBe('true');
             await route.fulfill({
@@ -42,8 +43,12 @@ for (const canTryHttp of [true, false]) {
             .fill('https://panel.example/base/get.php?type=m3u');
         await dialog.locator('#username').fill('user');
         await dialog.locator('#password').fill('pass');
+        await expect(dialog.locator('#xtream-http-test-notice')).toBeVisible();
+        await expect(dialog.locator('#xtream-http-test-notice')).toContainText(
+            'username and password'
+        );
         await dialog
-            .getByRole('button', { name: 'Test connection', exact: true })
+            .getByRole('button', { name: 'Test HTTPS and HTTP', exact: true })
             .click();
         await expect(dialog.getByRole('status')).toContainText(
             canTryHttp

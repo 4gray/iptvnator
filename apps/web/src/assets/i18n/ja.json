@@ -183,7 +183,6 @@
             "TEST_CREDENTIALS": "認証情報をテスト",
             "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com または https://example.com:4324）",
             "CONNECTION_TEST": {
-                "TEST": "接続をテスト",
                 "TESTING": "接続をテスト中…",
                 "HTTP_CONNECTED": "HTTPで接続しました。HTTPSは利用できません。接続は暗号化されていません。",
                 "ACTIVE": "接続しました。ポータルは有効です。",
@@ -193,7 +192,9 @@
                 "HTTP_ERROR": "サーバーがHTTP {{status}}を返しました。",
                 "TLS_ERROR": "安全な接続を確立できませんでした。サーバーのHTTPS設定と証明書を確認してください。",
                 "CONNECTION_ERROR": "サーバーに接続できません。アドレスとネットワーク接続を確認してください。",
-                "UNKNOWN_ERROR": "接続をテストできませんでした。"
+                "UNKNOWN_ERROR": "接続をテストできませんでした。",
+                "TEST_PROTOCOLS": "HTTPSとHTTPをテスト",
+                "HTTP_PERMISSION": "HTTPSが利用できない場合、このテストではユーザー名とパスワードが暗号化されていないHTTPで送信されることがあります。"
             }
         },
         "STALKER_PORTAL": {

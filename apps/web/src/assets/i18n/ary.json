@@ -183,7 +183,6 @@
             "TEST_CREDENTIALS": "جرب بيانات الاعتماد",
             "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com ولا https://example.com:4324)",
             "CONNECTION_TEST": {
-                "TEST": "جرّب الاتصال",
                 "TESTING": "كنجرّبو الاتصال…",
                 "HTTP_CONNECTED": "تّاصلنا بـ HTTP. HTTPS ما متوفرش. الاتصال ما مشفّرش.",
                 "ACTIVE": "تّاصلنا. البوابة خدامة.",
@@ -193,7 +192,9 @@
                 "HTTP_ERROR": "السيرفر رجّع HTTP {{status}}.",
                 "TLS_ERROR": "ما قدرناش نديرو اتصال آمن. تأكد من إعدادات HTTPS وشهادة السيرفر.",
                 "CONNECTION_ERROR": "ما قدرناش نوصلو للسيرفر. تأكد من العنوان والاتصال بالشبكة.",
-                "UNKNOWN_ERROR": "ما قدرناش نجرّبو الاتصال."
+                "UNKNOWN_ERROR": "ما قدرناش نجرّبو الاتصال.",
+                "TEST_PROTOCOLS": "جرّب HTTPS وHTTP",
+                "HTTP_PERMISSION": "إلا كان HTTPS ما متوفرش، هاد الاختبار يقدر يصيفط اسم المستخدم وكلمة السر بـ HTTP بلا تشفير."
             }
         },
         "STALKER_PORTAL": {

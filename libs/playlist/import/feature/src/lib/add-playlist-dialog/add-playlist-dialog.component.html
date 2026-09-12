@@ -69,6 +69,14 @@
     </mat-dialog-content>
 
     <mat-dialog-actions class="apd-actions">
+        @if (playlistType() === 'xtream') {
+            <p class="w-full" id="xtream-http-test-notice">
+                {{
+                    'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.HTTP_PERMISSION'
+                        | translate
+                }}
+            </p>
+        }
         <div class="apd-actions__reset">
             <button
                 mat-button
@@ -131,12 +139,13 @@
                             !xtreamImport()?.form?.valid ||
                             xtreamImport()?.isTestingConnection
                         "
-                        (click)="xtreamImport()?.testConnection()"
+                        (click)="xtreamImport()?.testConnection(true)"
+                        aria-describedby="xtream-http-test-notice"
                     >
                         {{
                             (xtreamImport()?.isTestingConnection
                                 ? 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TESTING'
-                                : 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TEST'
+                                : 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TEST_PROTOCOLS'
                             ) | translate
                         }}
                     </button>

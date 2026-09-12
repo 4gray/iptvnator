@@ -183,7 +183,6 @@
             "TEST_CREDENTIALS": "测试凭据",
             "URL_VALIDATION_ERROR": "应该是带有协议的有效 url（例如 http://example.com 或 https://example.com:4324）",
             "CONNECTION_TEST": {
-                "TEST": "测试连接",
                 "TESTING": "正在测试连接…",
                 "HTTP_CONNECTED": "已通过 HTTP 连接。HTTPS 不可用。连接未加密。",
                 "ACTIVE": "已连接。门户处于活动状态。",
@@ -193,7 +192,9 @@
                 "HTTP_ERROR": "服务器返回 HTTP {{status}}。",
                 "TLS_ERROR": "无法建立安全连接。请检查服务器的 HTTPS 配置和证书。",
                 "CONNECTION_ERROR": "无法连接到服务器。请检查地址和网络连接。",
-                "UNKNOWN_ERROR": "无法测试连接。"
+                "UNKNOWN_ERROR": "无法测试连接。",
+                "TEST_PROTOCOLS": "测试 HTTPS 和 HTTP",
+                "HTTP_PERMISSION": "如果 HTTPS 不可用，此测试可能通过未加密的 HTTP 发送您的用户名和密码。"
             }
         },
         "STALKER_PORTAL": {

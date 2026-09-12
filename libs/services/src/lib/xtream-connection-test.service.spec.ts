@@ -37,7 +37,7 @@ describe('explicit Xtream connection test', () => {
 
     it('prefers working HTTPS and makes no HTTP request', async () => {
         probe.mockResolvedValue(active);
-        expect(await service.test(connection)).toMatchObject({
+        expect(await service.test(connection, () => true, true)).toMatchObject({
             status: 'active',
             usedHttpFallback: false,
             serverUrl: 'https://panel.test/base',
@@ -47,7 +47,7 @@ describe('explicit Xtream connection test', () => {
 
     it('resets each candidate and returns an authenticated HTTP base for saving', async () => {
         probe.mockResolvedValueOnce(refused).mockResolvedValueOnce(active);
-        expect(await service.test(connection)).toMatchObject({
+        expect(await service.test(connection, () => true, true)).toMatchObject({
             status: 'active',
             serverUrl: 'http://panel.test/base',
             usedHttpFallback: true,
@@ -77,7 +77,7 @@ describe('explicit Xtream connection test', () => {
         'does not downgrade a responsive or uncertified portal',
         async (response) => {
             probe.mockResolvedValue(response);
-            const result = await service.test(connection);
+            const result = await service.test(connection, () => true, true);
             expect(result.usedHttpFallback).toBe(false);
             expect(
                 probe.mock.calls.every(([p]) => p.url.startsWith('https:'))
@@ -89,7 +89,9 @@ describe('explicit Xtream connection test', () => {
         probe
             .mockResolvedValueOnce({ payload: [] })
             .mockResolvedValueOnce(active);
-        expect((await service.test(connection)).status).toBe('active');
+        expect((await service.test(connection, () => true, true)).status).toBe(
+            'active'
+        );
         expect(probe.mock.calls[1][0].params).not.toHaveProperty('action');
     });
 
@@ -97,7 +99,7 @@ describe('explicit Xtream connection test', () => {
         probe
             .mockResolvedValueOnce(refused)
             .mockResolvedValueOnce({ payload: { user_info: { auth: 0 } } });
-        expect(await service.test(connection)).toMatchObject({
+        expect(await service.test(connection, () => true, true)).toMatchObject({
             status: 'inactive',
             usedHttpFallback: false,
             serverUrl: 'https://panel.test/base',
@@ -110,20 +112,22 @@ describe('explicit Xtream connection test', () => {
             current = false;
             return refused;
         });
-        await service.test(connection, () => current);
+        await service.test(connection, () => current, true);
         expect(probe).toHaveBeenCalledTimes(1);
     });
 
     it('fails closed with an old backend or IPC exception', async () => {
         probe.mockRejectedValue(new Error('ECONNREFUSED'));
-        expect((await service.test(connection)).usedHttpFallback).toBe(false);
+        expect(
+            (await service.test(connection, () => true, true)).usedHttpFallback
+        ).toBe(false);
         expect(probe).toHaveBeenCalledTimes(1);
     });
     it('does not downgrade after an earlier account action received a response', async () => {
         probe
             .mockResolvedValueOnce({ payload: [] })
             .mockResolvedValueOnce(refused);
-        const result = await service.test(connection);
+        const result = await service.test(connection, () => true, true);
         expect(result.usedHttpFallback).toBe(false);
         expect(probe).toHaveBeenCalledTimes(2);
         expect(
@@ -141,7 +145,14 @@ describe('explicit Xtream connection test', () => {
                 },
             })
             .mockResolvedValueOnce(active);
-        expect((await service.test(connection)).status).toBe('active');
+        expect((await service.test(connection, () => true, true)).status).toBe(
+            'active'
+        );
         expect(probe.mock.calls[1][0].params).not.toHaveProperty('action');
+    });
+    it('does not send credentials over HTTP without explicit permission', async () => {
+        probe.mockResolvedValueOnce(refused).mockResolvedValueOnce(active);
+        expect((await service.test(connection)).usedHttpFallback).toBe(false);
+        expect(probe).toHaveBeenCalledTimes(1);
     });
 });

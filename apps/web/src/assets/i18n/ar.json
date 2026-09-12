@@ -183,7 +183,6 @@
             "TEST_CREDENTIALS": "اختبار بيانات الاعتماد",
             "URL_VALIDATION_ERROR": "يجب أن يكون الرابط صالحًا مع بروتوكول (مثال: http://example.com)",
             "CONNECTION_TEST": {
-                "TEST": "اختبار الاتصال",
                 "TESTING": "جارٍ اختبار الاتصال…",
                 "HTTP_CONNECTED": "تم الاتصال عبر HTTP. بروتوكول HTTPS غير متاح. الاتصال غير مشفر.",
                 "ACTIVE": "تم الاتصال. البوابة نشطة.",
@@ -193,7 +192,9 @@
                 "HTTP_ERROR": "أرجع الخادم HTTP {{status}}.",
                 "TLS_ERROR": "تعذر إنشاء اتصال آمن. تحقق من إعدادات HTTPS وشهادة الخادم.",
                 "CONNECTION_ERROR": "تعذر الوصول إلى الخادم. تحقق من العنوان واتصال الشبكة.",
-                "UNKNOWN_ERROR": "تعذر اختبار الاتصال."
+                "UNKNOWN_ERROR": "تعذر اختبار الاتصال.",
+                "TEST_PROTOCOLS": "اختبار HTTPS وHTTP",
+                "HTTP_PERMISSION": "إذا كان HTTPS غير متاح، فقد يرسل هذا الاختبار اسم المستخدم وكلمة المرور عبر HTTP غير المشفر."
             }
         },
         "STALKER_PORTAL": {

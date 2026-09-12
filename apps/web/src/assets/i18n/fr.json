@@ -183,7 +183,6 @@
             "TEST_CREDENTIALS": "Tester les identifiants",
             "URL_VALIDATION_ERROR": "Doit être une URL valide avec un protocole (par exemple http://example.com ou https://example.com:4324)",
             "CONNECTION_TEST": {
-                "TEST": "Tester la connexion",
                 "TESTING": "Test de la connexion…",
                 "HTTP_CONNECTED": "Connecté via HTTP. HTTPS est indisponible. La connexion n’est pas chiffrée.",
                 "ACTIVE": "Connecté. Le portail est actif.",
@@ -193,7 +192,9 @@
                 "HTTP_ERROR": "Le serveur a renvoyé HTTP {{status}}.",
                 "TLS_ERROR": "Impossible d’établir une connexion sécurisée. Vérifiez la configuration HTTPS et le certificat du serveur.",
                 "CONNECTION_ERROR": "Serveur inaccessible. Vérifiez son adresse et votre connexion réseau.",
-                "UNKNOWN_ERROR": "Impossible de tester la connexion."
+                "UNKNOWN_ERROR": "Impossible de tester la connexion.",
+                "TEST_PROTOCOLS": "Tester HTTPS et HTTP",
+                "HTTP_PERMISSION": "Si HTTPS est indisponible, ce test peut envoyer votre identifiant et votre mot de passe via HTTP non chiffré."
             }
         },
         "STALKER_PORTAL": {

@@ -85,8 +85,8 @@ export class XtreamCodeImportComponent {
         return this.connectionTest.testing();
     }
 
-    testConnection(): Promise<void> {
-        return this.connectionTest.test();
+    testConnection(allowHttpFallback = false): Promise<void> {
+        return this.connectionTest.test(allowHttpFallback);
     }
 
     clearForm(): void {
