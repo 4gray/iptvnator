@@ -170,7 +170,8 @@ test.describe('Electron Sources View', () => {
             );
             expect(saved?.serverUrl).toBe(liveFormatMock);
             await refreshSource(page, title, { confirm: true });
-            await waitForSourceRowIdle(page, title);
+            // Xtream refresh leaves Sources to re-import the catalog.
+            await waitForXtreamCatalog(page);
             const refreshed = await waitForPortalDebugEvent(page, {
                 provider: 'xtream',
                 operation: 'get_live_streams',
@@ -179,6 +180,7 @@ test.describe('Electron Sources View', () => {
                 url: expect.stringMatching(/^http:/),
             });
             await openSources(page);
+            await waitForSourceRowIdle(page, title);
             await sourceRowByTitle(page, title).first().click();
             await page
                 .getByRole('link', { name: 'Live TV', exact: true })
