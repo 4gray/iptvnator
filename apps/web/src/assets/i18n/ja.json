@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "ソースを読み込み、番組表を確認しています。大きなライブラリでは時間がかかる場合があります。",
         "FAILED": "ソースを読み込めませんでした",
         "FAILED_DETAIL": "保存したソースの読み込みを再試行してください。データは削除されていません。"
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

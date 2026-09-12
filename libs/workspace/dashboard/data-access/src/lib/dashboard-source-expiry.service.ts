@@ -1,3 +1,6 @@
+import { Injector } from '@angular/core';
+import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { Injectable, NgZone, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { normalizeStoredStalkerAccountInfo } from '@iptvnator/portal/stalker/data-access';
@@ -21,13 +24,15 @@ import type { SourceExpiryFacts } from './dashboard-source-expiry.util';
  */
 @Injectable({ providedIn: 'root' })
 export class DashboardSourceExpiryService {
+    private readonly injector = inject(Injector);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly ngZone = inject(NgZone);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly portalStatusService = inject(PortalStatusService);
 
-    private readonly factsState = signal<ReadonlyMap<string, SourceExpiryFacts>>(
-        new Map()
-    );
+    private readonly factsState = signal<
+        ReadonlyMap<string, SourceExpiryFacts>
+    >(new Map());
     /** Facts per playlist id; entries land as each source's lookup resolves. */
     readonly facts = this.factsState.asReadonly();
 
@@ -80,6 +85,23 @@ export class DashboardSourceExpiryService {
     private async loadFacts(
         playlist: PlaylistMeta
     ): Promise<SourceExpiryFacts | null> {
+        if (
+            this.runtime.supportsSourceHealth &&
+            (isXtreamAccountPlaylist(playlist) ||
+                isStalkerAccountPlaylist(playlist))
+        ) {
+            const result = await this.injector
+                .get(SourceHealthService)
+                .check(playlist);
+            if (result.expiresAtSeconds || result.state === 'expired')
+                return {
+                    expiresAtSeconds: result.expiresAtSeconds ?? null,
+                    reportedExpired: result.state === 'expired',
+                };
+            if (isStalkerAccountPlaylist(playlist))
+                return this.loadStalkerFacts(playlist);
+            return null;
+        }
         if (isXtreamAccountPlaylist(playlist)) {
             return this.loadXtreamFacts(playlist);
         }

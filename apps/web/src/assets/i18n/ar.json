@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "جارٍ تحميل المصادر والتحقق من دليل البرامج. قد تستغرق المكتبات الكبيرة وقتًا أطول.",
         "FAILED": "تعذر تحميل المصادر",
         "FAILED_DETAIL": "أعد محاولة قراءة المصادر المحفوظة. لم تُحذف بياناتك."
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

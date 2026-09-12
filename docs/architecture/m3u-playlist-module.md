@@ -1647,3 +1647,26 @@ overrides and bulk guides. A delayed startup import is
 started only if its source still belongs to the reconciled configuration; its
 completion observer is installed after settings initialization. Provider EPG
 continues through its existing APIs. Playlist refresh is not EPG cache cleanup.
+
+## Desktop source health
+
+The source switcher and Sources rows share `SourceHealthService` in portal
+shared data access. Electron checks Xtream account info, Stalker account/profile
+facts through the existing session, and the first 64 KiB of M3U URL responses.
+An M3U success describes the playlist URL, not every channel. Local files and
+text imports have no network indicator. PWA retains its existing Xtream path.
+
+Checks are demand-driven, never a startup readiness barrier: four at a time,
+two per origin, shared between surfaces. Known results remain visible during
+refresh (60-second evidence TTL, 15-second uncertain-result TTL). Background
+requests have a five-second aggregate deadline; explicit checks have fifteen
+seconds. M3U streams are destroyed on completion, limit, error or cancellation,
+including when a provider ignores Range. Header/TLS and validated redirect
+policies are the same as playlist downloads. No playlist contents are replaced.
+
+Account-disabled/expired evidence is separate from authorization errors,
+network failures and connectivity-guard pauses. Only explicit account evidence
+is eligible for automatic cleanup selection. Statuses are session-only;
+connection edits and deletion invalidate pending evidence. Retry now explicitly
+resets the portal guard; ordinary checks do not. Credentials and response bodies
+are never included in indicator text.

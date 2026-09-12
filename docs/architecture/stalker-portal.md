@@ -1750,3 +1750,14 @@ Covered scenarios include:
 - Inline and external episode handoffs carry resolved season/episode metadata
 - Dashboard activity classifies `is_series` VOD as series and resolves its
   saved episode position
+
+### Desktop source health checks
+
+`StalkerSourceHealthService` checks simple portals with `get_main_info` through
+`executeStalkerRequest`, without the optional repair dependency. Full portals
+reuse `StalkerSessionService.ensureToken` and the existing profile API. Health
+checks never launch endpoint discovery or force renewal of a warm session.
+Cold authentication retains the shared session slot and receives a bounded
+transport context; closing a status surface does not cancel that shared slot.
+Profile/account reads have request-owned cancellation. Outer profile challenge
+statuses are not subscription statuses. Missing account dates stay unknown.

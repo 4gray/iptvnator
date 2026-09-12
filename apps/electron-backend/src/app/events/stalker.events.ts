@@ -1,3 +1,5 @@
+import { sourceProbeControl } from './source-probe-control';
+import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 /**
  * This module handles all Stalker portal related IPC communications
  * between the frontend and the electron backend.
@@ -56,6 +58,7 @@ ipcMain.handle(
             token?: string;
             serialNumber?: string;
             requestId?: string;
+            probe?: SourceProbeContext;
             /**
              * Set by endpoint discovery only. Its probes walk several candidate
              * paths on one host and expect most of them to fail, so their
@@ -66,6 +69,10 @@ ipcMain.handle(
             skipConnectionGuard?: boolean;
         }
     ) => {
+        const probeControl = sourceProbeControl(
+            event.sender?.id ?? 0,
+            payload.probe
+        );
         const startedAt = Date.now();
         let debugRequest: Record<string, unknown> | undefined;
         let requestUrlForLog = payload.url;
@@ -105,6 +112,7 @@ ipcMain.handle(
             // Configure axios request
             const config: AxiosRequestConfig = {
                 method: 'GET',
+                signal: probeControl.signal,
                 url: fullUrl,
                 headers,
                 timeout: requestTimeout,
@@ -266,6 +274,7 @@ ipcMain.handle(
                 };
             }
         } finally {
+            probeControl.dispose();
             releaseGuardedHostRequest(guardToken);
         }
     }

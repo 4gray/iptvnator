@@ -1,3 +1,5 @@
+import { sourceProbeControl } from './source-probe-control';
+import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
 /**
  * This module handles all Xtream Codes API related IPC communications
  * between the frontend and the electron backend.
@@ -65,11 +67,16 @@ ipcMain.handle(
             url: string;
             params: Record<string, string>;
             requestId?: string;
+            probe?: SourceProbeContext;
             sessionId?: string;
             suppressErrorLog?: boolean;
             connectionTest?: boolean;
         }
     ) => {
+        const probeControl = sourceProbeControl(
+            event.sender?.id ?? 0,
+            payload.probe
+        );
         const startedAt = Date.now();
         const performanceCapture = createXtreamMainPerformanceCaptureForRequest(
             payload.requestId
@@ -112,7 +119,7 @@ ipcMain.handle(
                 },
                 timeout: 30000, // 30 seconds timeout for Xtream API
                 validateStatus: (status) => status < 500, // Don't throw on 4xx errors
-                signal: controller.signal,
+                signal: probeControl.signal ?? controller.signal,
             };
             if (performanceCapture) {
                 config.transformResponse =
@@ -293,6 +300,7 @@ ipcMain.handle(
                 };
             }
         } finally {
+            probeControl.dispose();
             releaseGuardedHostRequest(guardToken);
             if (activeRequestKey) {
                 activeXtreamRequests.delete(activeRequestKey);

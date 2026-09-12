@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "A carregar fontes e verificar o guia de programação. Bibliotecas grandes podem demorar mais.",
         "FAILED": "Não foi possível carregar as fontes",
         "FAILED_DETAIL": "Tente ler novamente as fontes guardadas. Os seus dados não foram eliminados."
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

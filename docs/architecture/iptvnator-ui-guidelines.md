@@ -673,3 +673,11 @@ A visual change is not done until:
 3. Selection and progress states match existing IPTVnator patterns.
 4. Scroll behavior is correct.
 5. The result was checked in the running app for layout-sensitive work.
+
+### Network source indicators (Electron)
+
+The switcher and source rows use `SourceHealthIndicatorComponent`: green means
+available, orange expired, red disabled/access refused, and neutral means
+checking or unverified. Accessible tooltip text distinguishes refusal from a
+confirmed disabled account and includes the check time. M3U indicators describe
+the source URL only. Check again is a separate action, not a playlist refresh.

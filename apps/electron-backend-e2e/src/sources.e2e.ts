@@ -532,6 +532,17 @@ https://streams.example.test/url-omega.m3u8
             });
             await openSources(app.mainWindow);
 
+            await expect(
+                sourceRowByTitle(app.mainWindow, 'Delete Me Stalker').locator(
+                    'app-source-health-indicator [data-state]'
+                )
+            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+            await expect(
+                sourceRowByTitle(app.mainWindow, 'Delete Me Xtream').locator(
+                    'app-source-health-indicator [data-state]'
+                )
+            ).toHaveAttribute('data-state', 'active', { timeout: 20000 });
+
             await deleteSource(app.mainWindow, deletableLocalSourceDisplayName);
             await expect(
                 sourceRowByTitle(
