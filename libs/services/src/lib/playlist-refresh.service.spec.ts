@@ -1,4 +1,9 @@
-import { TestBed } from '@angular/core/testing';
+import {
+    createEnvironmentInjector,
+    EnvironmentInjector,
+    Injector,
+    runInInjectionContext,
+} from '@angular/core';
 import type {
     ElectronBridgeApi,
     PlaylistRefreshPayload,
@@ -39,7 +44,11 @@ describe('PlaylistRefreshService', () => {
         });
 
         await expect(
-            TestBed.runInInjectionContext(
+            runInInjectionContext(
+                createEnvironmentInjector(
+                    [],
+                    Injector.NULL as unknown as EnvironmentInjector
+                ),
                 () => new PlaylistRefreshService()
             ).refreshPlaylist(payload)
         ).rejects.toMatchObject({

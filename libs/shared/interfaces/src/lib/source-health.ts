@@ -102,7 +102,11 @@ export function sourceHealthError(error: unknown): SourceHealthResult {
         return sourceHealthUnknown('paused');
     if (/timeout|timed out|deadline/i.test(text))
         return sourceHealthUnknown('timeout');
-    if (/authoriz|auth.failed|access.denied|HTTP Error.*40[13]/i.test(text))
+    if (
+        /authoriz|auth.failed|access.denied/i.test(text) ||
+        (text.toLowerCase().includes('http error') &&
+            (text.includes('401') || text.includes('403')))
+    )
         return { ...sourceHealthUnknown('auth'), state: 'inactive' };
     if (/HTTP Error/i.test(text)) return sourceHealthUnknown('http');
     return sourceHealthUnknown('network');
