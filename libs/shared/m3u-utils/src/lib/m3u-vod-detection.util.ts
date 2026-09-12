@@ -18,12 +18,12 @@ import { getPlaybackMediaExtensionFromUrl } from './playback-media-extension.uti
  */
 
 /**
- * File containers that only ever carry finished assets. Streaming
+ * File containers used as evidence of finished assets. Streaming
  * packagings are deliberately absent: `.ts`/`.m3u8`/`.m4s` are how LIVE
  * channels are delivered, and `.mpd` (DASH) has its own routing path.
  * Audio extensions are absent too — an audio file is not a movie.
  */
-const MOVIE_CONTAINER_EXTENSIONS = new Set([
+const VOD_CONTAINER_EXTENSIONS = new Set([
     'avi',
     'asf',
     'divx',
@@ -46,8 +46,8 @@ const MOVIE_CONTAINER_EXTENSIONS = new Set([
  * Xtream-derived M3U exports address VOD as `/movie/<user>/<pass>/<id>`,
  * often without a file extension. The segment is a strong VOD signal on its
  * own, whatever the container (some panels serve HLS VOD under it).
- * `/series/` is the same panels' EPISODE namespace — those are series
- * content, which v1 does not recognize.
+ * `/series/` identifies episode playback but remains excluded from movie
+ * metadata recognition.
  */
 const MOVIE_PATH_SEGMENTS = new Set(['movie', 'movies', 'vod']);
 const SERIES_PATH_SEGMENT = 'series';
@@ -58,7 +58,7 @@ const SERIES_PATH_SEGMENT = 'series';
  * stripper in title-normalization). A marked entry is a series episode, not
  * a movie — v1 skips those rather than mis-enriching them as films.
  * Known cost: "Star Wars: Episode 1" is skipped too; that only keeps the
- * current live-style view, which is the safe direction.
+ * current layout. Playback mode is determined separately from metadata.
  *
  * `(?:^|[^\p{L}])` guards instead of `\b`: JS word boundaries are
  * ASCII-only and never fire next to Cyrillic letters.
@@ -104,25 +104,33 @@ function pathSegmentsOf(url: string): string[] {
     }
 }
 
-export function isLikelyM3uMovie(
-    channel: Pick<Channel, 'url' | 'name' | 'radio'> | null | undefined
+/** Playback evidence only: independent of titles and TMDB preferences. */
+export function isLikelyM3uVod(
+    channel: Pick<Channel, 'url' | 'radio'> | null | undefined
 ): boolean {
     const url = channel?.url;
     if (!url || channel.radio === 'true' || isDashStreamUrl(url)) {
         return false;
     }
 
-    if (hasEpisodeMarker(channel.name)) {
-        return false;
-    }
-
-    const segments = pathSegmentsOf(url);
-    if (segments.includes(SERIES_PATH_SEGMENT)) {
-        return false;
-    }
-
     return (
-        MOVIE_CONTAINER_EXTENSIONS.has(getPlaybackMediaExtensionFromUrl(url)) ||
-        segments.some((segment) => MOVIE_PATH_SEGMENTS.has(segment))
+        VOD_CONTAINER_EXTENSIONS.has(getPlaybackMediaExtensionFromUrl(url)) ||
+        pathSegmentsOf(url).some(
+            (segment) =>
+                MOVIE_PATH_SEGMENTS.has(segment) ||
+                segment === SERIES_PATH_SEGMENT
+        )
+    );
+}
+
+/** Movie-only metadata gate; episodes still receive VOD playback controls. */
+export function isLikelyM3uMovie(
+    channel: Pick<Channel, 'url' | 'name' | 'radio'> | null | undefined
+): boolean {
+    return (
+        !!channel &&
+        isLikelyM3uVod(channel) &&
+        !hasEpisodeMarker(channel.name) &&
+        !pathSegmentsOf(channel.url).includes(SERIES_PATH_SEGMENT)
     );
 }

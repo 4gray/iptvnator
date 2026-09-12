@@ -1411,6 +1411,31 @@ bypass Playwright interception) and
 `electron-backend-e2e:src/dash-clearkey.e2e.ts` (real ClearKey EME in
 Electron).
 
+## M3U Playback Mode
+
+`isLikelyM3uVod()` in `libs/shared/m3u-utils` determines playback mode
+independently of TMDB, `Settings.m3uVodDetails`, and the entry's name.
+Video-file extensions (`mp4`, `mkv`, `webm`, and the existing movie-container
+list) or exact `/movie/`, `/movies/`, `/vod/`, `/series/` pathname segments
+identify VOD. Extension parsing honors the existing query-declared formats.
+Episodes receive VOD controls even when movie metadata recognition excludes
+their names. A group label or episode name alone is not playback evidence.
+Radio and DASH retain their existing paths; ordinary HLS/TS and unknown URLs
+without a VOD path retain live mode. No network probing is performed.
+
+`VideoPlayerComponent.embeddedPlayback()` is the mode owner for both the
+ordinary M3U player and the movie detail host: a catch-up URL or positive VOD
+evidence sets `isLive: false`. HTML5, Video.js, ArtPlayer and Embedded MPV
+consume that existing flag without provider-specific changes. Actual seeking
+still requires a usable duration and a seekable source. External MPV/VLC
+launch payloads, session identity, headers, DRM and radio playback are unchanged.
+Xtream and Stalker continue to determine their own playback modes.
+
+Coverage includes the detection utility and M3U host specs, plus real seek
+controls in `apps/web-e2e/src/m3u-movie-details.e2e.ts` using the local WebM
+fixture with HTTP Range responses. The E2E matrix covers all three web players,
+TMDB off, movie details off, details on, episodes and live/VOD transitions.
+
 ## Movie Recognition (VOD Detail View)
 
 M3U playlists routinely mix live channels with movie FILES ("Movies"/"VOD"
@@ -1447,8 +1472,9 @@ Known accepted cost: "Star Wars: Episode 1" is skipped.
   sidebar next to the detail IS the navigation).
 - The parent passes its already-built `embeddedPlayback()`
   (`ResolvedPortalPlayback` with headers/EXTVLCOPT resolved) plus its shared
-  persisted `volume()`; the host only overrides `isLive: false` (seek
-  bar/VOD semantics). The payload's OBJECT IDENTITY is the player's
+  persisted `volume()`; the host forwards the same payload, whose `isLive`
+  is already determined independently of metadata by the M3U parent. The
+  payload's OBJECT IDENTITY is the player's
   source-application key (`createWebPlayerApplicationState` mints a new
   source revision for any new payload), so it must never depend on TMDB
   signals — folding the resolved title/poster in there restarted the movie
@@ -1477,7 +1503,8 @@ releaseTagYear(channel.name) })` — the resolver already normalizes titles
   external player on activation exactly as before, and
   `inlinePlayerAvailable=false` means the host never mounts an inline player.
 
-**Out of scope (v1)**: series episodes (detection skips them), playback
+**Out of scope (v1)**: series episode metadata (movie detection skips them;
+episode playback still receives VOD controls when its URL qualifies), playback
 position persistence for M3U movies, clickable cast chips (no
 `actor/:personId` route in the M3U tree), and downloads.
 

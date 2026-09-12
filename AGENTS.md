@@ -404,6 +404,19 @@ Key files:
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
 - `libs/shared/interfaces/src/lib/channel.interface.ts` — `radio: string` field on Channel interface
 
+## M3U Playback Mode
+
+`isLikelyM3uVod` in `libs/shared/m3u-utils` recognizes video-file extensions
+and exact `/movie/`, `/movies/`, `/vod/`, `/series/` URL pathname segments,
+independently of TMDB and `Settings.m3uVodDetails`. The M3U host's
+`embeddedPlayback()` sets `isLive: false` for those entries or a catch-up URL;
+the movie detail host forwards the same payload. Movie metadata recognition
+still excludes episodes. Ordinary HLS/TS and unknown URLs without VOD evidence,
+DASH and radio retain their existing behavior. Actual seeking requires source
+support. Xtream/Stalker, external MPV/VLC payloads and session identity are
+unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
+(M3U Playback Mode).
+
 ## M3U URL User-Agent
 
 - `PlaylistsService.getPlaylist()` joins the per-playlist mutation queue so a
