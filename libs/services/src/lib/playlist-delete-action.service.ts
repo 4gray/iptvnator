@@ -27,8 +27,15 @@ export class PlaylistDeleteActionService {
         playlist: PlaylistMeta,
         options: PlaylistDeleteActionOptions = {}
     ): Promise<boolean> {
-        const result = await this.deletePlaylistWithResult(playlist, options);
-        return result.success;
+        try {
+            const result = await this.deletePlaylistWithResult(
+                playlist,
+                options
+            );
+            return result.success;
+        } catch {
+            return false;
+        }
     }
 
     async deletePlaylistWithResult(

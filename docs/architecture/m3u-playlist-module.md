@@ -1686,7 +1686,8 @@ state are checked again before each deletion. Evidence older than five minutes
 is refreshed and requires another confirmation.
 
 `SourceCleanupService` is dialog-scoped. User deselection survives rechecks;
-recovered sources leave the candidate list. Deletions run sequentially through
+recovered sources leave the candidate list. Newer uncertain evidence clears an
+automatic selection and requires an explicit checkbox choice before deletion. Deletions run sequentially through
 `PlaylistDeleteActionService` and the serialized `PlaylistsService` write queue.
 The latter owns the single worker invocation and awaited cleanup hooks.
 `PlaylistActions.playlistRemovalCommitted` updates NgRx and clears scoped EPG

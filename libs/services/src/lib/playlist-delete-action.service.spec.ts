@@ -4,7 +4,7 @@ import {
     createEnvironmentInjector,
     runInInjectionContext,
 } from '@angular/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
 import { PlaylistDeleteActionService } from './playlist-delete-action.service';
@@ -66,6 +66,15 @@ describe('PlaylistDeleteActionService', () => {
             () => new PlaylistDeleteActionService()
         );
     }
+
+    it('preserves the boolean failure contract for single-source callers', async () => {
+        playlistsService.deletePlaylist.mockReturnValue(
+            throwError(() => new Error('worker failed'))
+        );
+        await expect(createService().deletePlaylist(playlist)).resolves.toBe(
+            false
+        );
+    });
 
     it('deletes browser playlists through PlaylistsService', async () => {
         const service = createService();

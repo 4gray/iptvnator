@@ -163,6 +163,16 @@ export class SourceCleanupService {
                 this.processed.update((n) => n + 1);
                 continue;
             }
+            if (latest && !latest.confirmedInactive && !this.touched.has(id)) {
+                this.update(id, (e) => ({
+                    ...e,
+                    health: latest,
+                    status: 'ready',
+                    selected: false,
+                }));
+                this.processed.update((n) => n + 1);
+                continue;
+            }
             this.update(id, (e) => ({ ...e, status: 'deleting' }));
             this.health.invalidate(id);
             try {

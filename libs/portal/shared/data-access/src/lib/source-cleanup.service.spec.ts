@@ -76,6 +76,19 @@ describe('source cleanup', () => {
         service.select('b', true);
         expect(service.entries()[1].selected).toBe(true);
     });
+    it('clears automatic selection when newer evidence is uncertain', async () => {
+        await start(['a']);
+        health.get.mockReturnValue(result('unavailable'));
+        await service.removeSelected();
+        expect(remove).not.toHaveBeenCalled();
+        expect(service.entries()[0]).toMatchObject({
+            selected: false,
+            health: { confirmedInactive: false },
+        });
+        service.select('a', true);
+        await service.removeSelected();
+        expect(remove).toHaveBeenCalledTimes(1);
+    });
     it('removes all except the source unchecked by the user', async () => {
         await start();
         service.select('b', false);
