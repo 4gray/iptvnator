@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
+import { normalizeDateLocale } from '@iptvnator/pipes';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { startWith } from 'rxjs';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -85,7 +86,7 @@ export class SourceHealthIndicatorComponent {
         const label = this.translate.instant(`SOURCE_HEALTH.REASON.${reason}`);
         const time = snapshot?.checkedAt
             ? new Date(snapshot.checkedAt).toLocaleTimeString(
-                  this.translate.currentLang || 'en'
+                  normalizeDateLocale(this.translate.currentLang || 'en')
               )
             : '';
         const scope =
