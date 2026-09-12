@@ -124,23 +124,26 @@ describe('source cleanup', () => {
         await service.removeSelected();
         expect(remove).not.toHaveBeenCalled();
     });
-    it('finishes the current deletion when stopped and prevents double submission', async () => {
-        await start();
-        let finish!: (value: { success: boolean }) => void;
-        remove.mockImplementationOnce(
-            () =>
-                new Promise((r) => {
-                    finish = r;
-                })
-        );
-        const deleting = service.removeSelected();
-        await service.removeSelected();
-        service.stop();
-        finish({ success: true });
-        await deleting;
-        expect(remove).toHaveBeenCalledTimes(1);
-        expect(service.entries()[1].status).toBe('ready');
-    });
+    it.each(['stop', 'dispose'] as const)(
+        'finishes only the current deletion on %s and prevents double submission',
+        async (action) => {
+            await start();
+            let finish!: (value: { success: boolean }) => void;
+            remove.mockImplementationOnce(
+                () =>
+                    new Promise((r) => {
+                        finish = r;
+                    })
+            );
+            const deleting = service.removeSelected();
+            await service.removeSelected();
+            service[action]();
+            finish({ success: true });
+            await deleting;
+            expect(remove).toHaveBeenCalledTimes(1);
+            expect(service.entries()[1].status).toBe('ready');
+        }
+    );
     it('isolates failures and reports post-delete warnings as deleted', async () => {
         await start();
         remove

@@ -1708,7 +1708,8 @@ The latter owns the single worker invocation and awaited cleanup hooks.
 request keys without a second storage deletion. Legacy request-style
 `removePlaylist` still owns its persistence effect.
 
-Stopping finishes the current source before stopping the queue; committed
+Stopping or destroying the dialog (including history navigation) finishes the
+current source before stopping the queue; committed
 work is not rolled back. Results distinguish failed deletes from successful
 deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
 row after a cleanup failure. Downloaded files are not removed. The dialog's

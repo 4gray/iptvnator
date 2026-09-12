@@ -201,6 +201,7 @@ export class SourceCleanupService {
         this.stopRequested.set(true);
     }
     dispose(): void {
+        this.stop();
         this.controller.abort();
     }
     private update(
