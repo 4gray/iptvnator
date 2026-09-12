@@ -167,6 +167,113 @@ describe('explicit Xtream connection test', () => {
         }
     });
 
+    it.each(['transport', 'http', 'malformed', 'exception'])(
+        'replaces cached active evidence after a final %s failure',
+        async (kind) => {
+            probe.mockResolvedValueOnce(active);
+            await portalStatus.checkPortalStatus(
+                'https://panel.test/base',
+                'user',
+                'pass'
+            );
+            if (kind === 'exception')
+                probe.mockRejectedValue(new Error('offline'));
+            else
+                probe.mockResolvedValue(
+                    kind === 'transport'
+                        ? {
+                              connectionFailure: {
+                                  kind: 'tls',
+                                  canTryHttp: false,
+                              },
+                          }
+                        : kind === 'http'
+                          ? {
+                                connectionFailure: {
+                                    kind: 'http',
+                                    status: 500,
+                                    canTryHttp: false,
+                                },
+                            }
+                          : { payload: '<html>not an account</html>' }
+                );
+            expect(
+                (await service.test(connection, () => true, true)).status
+            ).toBe('unavailable');
+            const calls = probe.mock.calls.length;
+            expect(
+                await portalStatus.checkPortalStatusDetails(
+                    'https://panel.test/base',
+                    'user',
+                    'pass'
+                )
+            ).toEqual({ status: 'unavailable', expiresAtSeconds: null });
+            expect(probe).toHaveBeenCalledTimes(calls);
+        }
+    );
+
+    it('preserves action compatibility for legacy IPC exceptions without authorizing HTTP', async () => {
+        probe
+            .mockRejectedValueOnce(new Error('legacy action failed'))
+            .mockResolvedValueOnce(active);
+        expect((await service.test(connection, () => true, true)).status).toBe(
+            'active'
+        );
+        expect(probe.mock.calls[1][0].params).not.toHaveProperty('action');
+        probe.mockReset();
+        probe
+            .mockRejectedValueOnce(new Error('legacy action failed'))
+            .mockResolvedValueOnce(refused);
+        expect(
+            (await service.test(connection, () => true, true)).usedHttpFallback
+        ).toBe(false);
+        expect(probe.mock.calls.map(([p]) => p.url)).toEqual([
+            'https://panel.test/base',
+            'https://panel.test/base',
+        ]);
+    });
+
+    it('does not downgrade after HTTP 500 followed by a transport failure', async () => {
+        probe
+            .mockResolvedValueOnce({
+                connectionFailure: {
+                    kind: 'http',
+                    status: 500,
+                    canTryHttp: false,
+                },
+            })
+            .mockResolvedValueOnce(refused);
+        expect(
+            (await service.test(connection, () => true, true)).usedHttpFallback
+        ).toBe(false);
+        expect(probe.mock.calls.map(([p]) => p.url)).toEqual([
+            'https://panel.test/base',
+            'https://panel.test/base',
+        ]);
+    });
+
+    it('does not publish a failed test after the form has changed', async () => {
+        probe.mockResolvedValueOnce(active);
+        await portalStatus.checkPortalStatus(
+            'https://panel.test/base',
+            'user',
+            'pass'
+        );
+        let current = true;
+        probe.mockImplementation(() => {
+            current = false;
+            return refused;
+        });
+        await service.test(connection, () => current, true);
+        expect(
+            portalStatus.getCachedStatus(
+                'https://panel.test/base',
+                'user',
+                'pass'
+            )
+        ).toBe('active');
+    });
+
     it('prefers working HTTPS and makes no HTTP request', async () => {
         probe.mockResolvedValue(active);
         expect(await service.test(connection, () => true, true)).toMatchObject({
@@ -253,7 +360,7 @@ describe('explicit Xtream connection test', () => {
         expect(
             (await service.test(connection, () => true, true)).usedHttpFallback
         ).toBe(false);
-        expect(probe).toHaveBeenCalledTimes(1);
+        expect(probe).toHaveBeenCalledTimes(3);
     });
     it('does not downgrade after an earlier account action received a response', async () => {
         probe
@@ -267,21 +374,24 @@ describe('explicit Xtream connection test', () => {
         ).toBe(true);
     });
 
-    it('preserves account-action compatibility for a 404 response', async () => {
-        probe
-            .mockResolvedValueOnce({
-                connectionFailure: {
-                    kind: 'http',
-                    status: 404,
-                    canTryHttp: false,
-                },
-            })
-            .mockResolvedValueOnce(active);
-        expect((await service.test(connection, () => true, true)).status).toBe(
-            'active'
-        );
-        expect(probe.mock.calls[1][0].params).not.toHaveProperty('action');
-    });
+    it.each([400, 401, 403, 404, 405, 429, 500, 503])(
+        'preserves account-action compatibility for an HTTP %i response',
+        async (status) => {
+            probe
+                .mockResolvedValueOnce({
+                    connectionFailure: {
+                        kind: 'http',
+                        status,
+                        canTryHttp: false,
+                    },
+                })
+                .mockResolvedValueOnce(active);
+            expect(
+                (await service.test(connection, () => true, true)).status
+            ).toBe('active');
+            expect(probe.mock.calls[1][0].params).not.toHaveProperty('action');
+        }
+    );
     it('does not send credentials over HTTP without explicit permission', async () => {
         probe.mockResolvedValueOnce(refused).mockResolvedValueOnce(active);
         expect((await service.test(connection)).usedHttpFallback).toBe(false);

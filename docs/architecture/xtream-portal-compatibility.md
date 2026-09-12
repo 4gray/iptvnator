@@ -72,7 +72,8 @@ candidate on the same hostname/path. Default HTTPS port 443 becomes HTTP 80;
 nonstandard explicit ports are preserved, never scanned. DNS, timeout, reset,
 certificate, HTTP authorization, and redirected-destination failures cannot
 trigger a downgrade. A response from an earlier account-action variant also
-prevents downgrade. HTTP 400/404/405 can still try another account action.
+prevents downgrade. HTTP failures (including panels returning 500 for unsupported actions)
+still try the remaining account actions on the same candidate.
 
 An active account on HTTP replaces only the form's `serverUrl`, with localized
 copy explaining that HTTP is unencrypted. Add/Save persists through the existing
@@ -81,8 +82,9 @@ tests invalidate pending results and prevent a stale fallback request. Add/Save
 is disabled while that form's test is running. Empty or whitespace-only
 credentials produce a localized validation message without a network request. Passive status checks, startup,
 refresh and playback never perform protocol discovery.
-An authenticated account response also refreshes `PortalStatusService` status
-and expiration for that exact connection, without another network request.
+Every completed current test refreshes `PortalStatusService` for the exact
+connection: account responses publish status and expiration; terminal failures
+publish unavailable with no expiration, without another network request.
 Older passive checks cannot overwrite this explicit evidence; stale form
 results do not publish it.
 

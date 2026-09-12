@@ -71,58 +71,59 @@ export class XtreamConnectionTestService {
         };
         await resetHostConnectivityGuard(this.data, connection.serverUrl);
         let responseObserved = false;
-        for (const action of ['get_account_info', null, 'get_profile']) {
-            if (!isCurrent()) return result;
-            try {
-                const response = await this.data.sendIpcEvent<{
-                    payload?: XtreamPortalStatusResponseLike;
-                    connectionFailure?: XtreamConnectionFailure;
-                }>('XTREAM_REQUEST', {
-                    url: connection.serverUrl,
-                    params: {
-                        username: connection.username,
-                        password: connection.password,
-                        ...(action ? { action } : {}),
-                    },
-                    connectionTest: true,
-                    suppressErrorLog: true,
-                });
-                if (response?.connectionFailure) {
-                    result.failure = {
-                        ...response.connectionFailure,
-                        canTryHttp:
-                            !responseObserved &&
-                            response.connectionFailure.canTryHttp,
-                    };
-                    if (
-                        response.connectionFailure.kind === 'http' &&
-                        [400, 404, 405].includes(
-                            response.connectionFailure.status ?? 0
-                        )
-                    ) {
-                        responseObserved = true;
-                        continue;
+        let accountResponse: XtreamPortalStatusResponseLike | undefined;
+        try {
+            for (const action of ['get_account_info', null, 'get_profile']) {
+                if (!isCurrent()) return result;
+                try {
+                    const response = await this.data.sendIpcEvent<{
+                        payload?: XtreamPortalStatusResponseLike;
+                        connectionFailure?: XtreamConnectionFailure;
+                    }>('XTREAM_REQUEST', {
+                        url: connection.serverUrl,
+                        params: {
+                            username: connection.username,
+                            password: connection.password,
+                            ...(action ? { action } : {}),
+                        },
+                        connectionTest: true,
+                        suppressErrorLog: true,
+                    });
+                    if (response?.connectionFailure) {
+                        result.failure = {
+                            ...response.connectionFailure,
+                            canTryHttp:
+                                !responseObserved &&
+                                response.connectionFailure.canTryHttp,
+                        };
+                        if (response.connectionFailure.kind === 'http') {
+                            responseObserved = true;
+                            continue;
+                        }
+                        return result;
                     }
-                    return result;
+                    responseObserved = true;
+                    const status = resolveXtreamPortalStatus(response?.payload);
+                    if (status !== 'unavailable') {
+                        accountResponse = response?.payload;
+                        return { ...result, status, failure: undefined };
+                    }
+                } catch {
+                    // Legacy IPC exceptions may hide an unsupported account action.
+                    // Try only same-candidate variants; ambiguous evidence can never
+                    // authorize HTTP, including after a later classified failure.
+                    responseObserved = true;
                 }
-                responseObserved = true;
-                const status = resolveXtreamPortalStatus(response?.payload);
-                if (status !== 'unavailable') {
-                    if (isCurrent())
-                        this.portalStatus.rememberXtreamResponse(
-                            connection.serverUrl,
-                            connection.username,
-                            connection.password,
-                            response?.payload
-                        );
-                    return { ...result, status, failure: undefined };
-                }
-            } catch {
-                // Old backends and unknown transport failures cannot authorize
-                // sending credentials over HTTP. No parsing of error strings.
-                return result;
             }
+            return result;
+        } finally {
+            if (isCurrent())
+                this.portalStatus.rememberXtreamResponse(
+                    connection.serverUrl,
+                    connection.username,
+                    connection.password,
+                    accountResponse
+                );
         }
-        return result;
     }
 }
