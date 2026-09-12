@@ -185,6 +185,9 @@ export class SourceHealthService {
                 previous.checkedAt <= deadlineAt - (job.explicit ? 15000 : 5000)
             ) {
                 this.publish(job.key, snapshot);
+            } else {
+                // Return the same newer evidence that the indicator displays.
+                snapshot = previous;
             }
         }
         if (this.jobs.get(job.key) === job) this.jobs.delete(job.key);

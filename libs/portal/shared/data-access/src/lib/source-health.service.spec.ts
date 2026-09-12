@@ -101,6 +101,34 @@ describe('SourceHealthService', () => {
         await check;
         expect(service.get(playlist('a'))).toBeUndefined();
     });
+    it('returns newer account evidence to a caller waiting on an older probe', async () => {
+        jest.useFakeTimers();
+        try {
+            let resolve!: (result: SourceHealthResult) => void;
+            probe.mockImplementation(
+                () =>
+                    new Promise((r) => {
+                        resolve = r;
+                    })
+            );
+            const source = playlist('a');
+            const pending = service.check(source);
+            jest.advanceTimersByTime(10);
+            TestBed.inject(SourceHealthEvidenceService).results.next({
+                playlist: source,
+                result: active,
+            });
+            resolve({
+                state: 'expired',
+                reason: 'expired',
+                confirmedInactive: true,
+            });
+            expect(await pending).toMatchObject(active);
+            expect(service.get(source)).toMatchObject(active);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
     it('bounds a stalled probe and cancels its transport at the total deadline', async () => {
         jest.useFakeTimers();
         try {
