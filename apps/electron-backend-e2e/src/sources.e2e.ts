@@ -1,3 +1,4 @@
+import { createServer } from 'node:http';
 import {
     xtreamMockServer,
     addStalkerPortal,
@@ -502,6 +503,60 @@ https://streams.example.test/url-omega.m3u8
             });
         } finally {
             await closeElectronApp(app);
+        }
+    });
+
+    test('skips a source whose startup auto-refresh is still fetching', async ({
+        dataDir,
+    }) => {
+        let requests = 0;
+        const server = createServer(() => {
+            requests++;
+        });
+        await new Promise<void>((resolve) =>
+            server.listen(0, '127.0.0.1', resolve)
+        );
+        const address = server.address();
+        if (!address || typeof address === 'string')
+            throw new Error('Missing server address');
+        const url = `http://127.0.0.1:${address.port}/slow.m3u`;
+        let app = await launchElectronApp(dataDir);
+        try {
+            await app.mainWindow.evaluate(async (url) => {
+                await window.electron.dbUpsertAppPlaylist({
+                    _id: 'startup-busy',
+                    title: 'Startup busy source',
+                    url,
+                    count: 0,
+                    importDate: '2026-01-01',
+                    lastUsage: '2026-01-01',
+                    autoRefresh: true,
+                });
+            }, url);
+            app = await restartElectronApp(app, dataDir);
+            await expect.poll(() => requests).toBeGreaterThan(0);
+            await openSources(app.mainWindow);
+            await app.mainWindow
+                .getByRole('button', {
+                    name: 'Clean up inactive sources…',
+                    exact: true,
+                })
+                .click();
+            const dialog = app.mainWindow.getByRole('dialog');
+            const row = dialog.locator('[data-source-id="startup-busy"]');
+            await expect(row).toHaveAttribute('data-status', 'skipped');
+            await expect(row.getByRole('checkbox')).toBeDisabled();
+            expect(
+                await app.mainWindow.evaluate(async () =>
+                    (await window.electron.dbGetAppPlaylists()).some(
+                        (p) => p._id === 'startup-busy'
+                    )
+                )
+            ).toBe(true);
+        } finally {
+            await closeElectronApp(app);
+            server.closeAllConnections();
+            await new Promise<void>((resolve) => server.close(() => resolve()));
         }
     });
 
