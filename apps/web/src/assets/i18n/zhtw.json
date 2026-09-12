@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "正在載入來源並檢查節目指南。較大的媒體庫可能需要更長時間。",
         "FAILED": "無法載入來源",
         "FAILED_DETAIL": "請重試讀取已儲存的來源。您的資料未被刪除。"
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

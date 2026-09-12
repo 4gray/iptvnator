@@ -26,3 +26,5 @@ export * from './lib/epg-source-settings.service';
 
 export * from './lib/xtream-connection-test.service';
 export * from './lib/xtream-connection-test-state';
+
+export * from './lib/source-health-evidence.service';

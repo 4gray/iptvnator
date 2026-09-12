@@ -1,3 +1,4 @@
+import { SourceHealthEvidenceService } from './source-health-evidence.service';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -19,6 +20,9 @@ export interface PlaylistDeleteActionOptions {
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistDeleteActionService {
+    private readonly healthEvidence = inject(SourceHealthEvidenceService, {
+        optional: true,
+    });
     private readonly databaseService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -32,7 +36,13 @@ export class PlaylistDeleteActionService {
             : this.runtime.supportsSqlite;
 
         if (supportsElectronDelete) {
-            return this.deletePlaylistInElectron(playlist, options);
+            const deleted = await this.deletePlaylistInElectron(
+                playlist,
+                options
+            );
+            if (deleted)
+                this.healthEvidence?.connections.next({ id: playlist._id });
+            return deleted;
         }
 
         const result = await firstValueFrom(

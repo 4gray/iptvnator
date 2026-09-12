@@ -1,3 +1,5 @@
+import { registerM3uSourceProbe } from './app/events/m3u-source-probe';
+import { registerSourceProbeCancellation } from './app/events/source-probe-control';
 // Select persistence before eager imports (notably electron-conf) cache userData.
 import './app/services/electron-profile-bootstrap';
 import { app, BrowserWindow } from 'electron';
@@ -161,6 +163,8 @@ export default class Main {
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();
         registerStreamProbeHandlers();
+        registerM3uSourceProbe();
+        registerSourceProbeCancellation();
         registerConnectivityGuardHandlers();
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();

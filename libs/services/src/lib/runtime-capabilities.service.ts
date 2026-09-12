@@ -91,6 +91,13 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    get supportsSourceHealth(): boolean {
+        return (
+            this.hasElectronMethod('probeM3uSource') &&
+            this.hasElectronMethod('cancelSourceProbe')
+        );
+    }
+
     get supportsEpg(): boolean {
         return (
             this.supportsEpgImport &&

@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "Bronnen laden en de programmagids controleren. Grote bibliotheken kunnen wat meer tijd kosten.",
         "FAILED": "Je bronnen konden niet worden geladen",
         "FAILED_DETAIL": "Probeer je opgeslagen bronnen opnieuw te lezen. Je gegevens zijn niet verwijderd."
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

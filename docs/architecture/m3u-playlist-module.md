@@ -1681,3 +1681,38 @@ overrides and bulk guides. A delayed startup import is
 started only if its source still belongs to the reconciled configuration; its
 completion observer is installed after settings initialization. Provider EPG
 continues through its existing APIs. Playlist refresh is not EPG cache cleanup.
+
+## Desktop source health
+
+The source switcher and Sources rows share `SourceHealthService` in portal
+shared data access. Electron checks Xtream account info, Stalker account/profile
+facts through the existing session, and the first 64 KiB of M3U URL responses.
+An M3U success describes the playlist URL, not every channel. Local files and
+text imports have no network indicator. PWA retains its existing Xtream path.
+
+Checks are demand-driven, never a startup readiness barrier: four at a time,
+two per origin, shared between surfaces. Known results remain visible during
+refresh (60-second evidence TTL, 15-second uncertain-result TTL). Background
+requests have a five-second aggregate deadline; explicit checks have fifteen
+seconds, including a handoff from a running background check. M3U streams are
+destroyed on completion, limit, error or cancellation,
+including when a provider ignores Range. Every intermediate redirect stream is
+closed before the next hop is validated or requested. Header/TLS and validated redirect
+policies are the same as playlist downloads. No playlist contents are replaced.
+Indicator effects do not track coordinator cache reads, so publishing a result
+does not restart or cancel the request. Xtream health replies stay request-local
+in the Electron renderer adapter: failures reject with their serialized message,
+and successful checks do not broadcast catalog response events. When newer account evidence arrives
+during a probe, both the cache and the waiting caller retain that newer result.
+
+Account-disabled/expired evidence is separate from authorization errors,
+network failures and connectivity-guard pauses. Only explicit account evidence
+is eligible for automatic cleanup selection. Statuses are session-only;
+committed SQLite connection edits and deletions publish inventory events that
+invalidate pending evidence, including deferred explicit retries. Retry now explicitly
+resets the portal guard; ordinary checks do not. Credentials and response bodies
+are never included in indicator text.
+
+Explicit source-health checks retain their deadline while queued, including
+background jobs promoted by Retry. Expired queued checks resolve without opening
+a transport; cancellation and admission clear the queue timer.

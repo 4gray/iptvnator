@@ -1789,5 +1789,23 @@
         "PREPARING_DETAIL": "Caricamento delle sorgenti e verifica della guida TV. Le librerie grandi possono richiedere più tempo.",
         "FAILED": "Impossibile caricare le sorgenti",
         "FAILED_DETAIL": "Riprova a leggere le sorgenti salvate. I tuoi dati non sono stati eliminati."
+    },
+    "SOURCE_HEALTH": {
+        "RECHECK": "Check again",
+        "M3U_SCOPE": "Playlist URL, not individual channels",
+        "REASON": {
+            "available": "Available",
+            "disabled": "Account disabled",
+            "expired": "Subscription expired",
+            "auth": "Access denied; account status unconfirmed",
+            "http": "Server returned an error",
+            "timeout": "Check timed out",
+            "network": "Could not connect",
+            "paused": "Connection checks paused",
+            "invalid": "Unexpected response",
+            "unknown": "Not verified",
+            "cancelled": "Check cancelled",
+            "checking": "Checking…"
+        }
     }
 }

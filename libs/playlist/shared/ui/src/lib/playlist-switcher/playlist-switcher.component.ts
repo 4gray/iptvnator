@@ -1,3 +1,8 @@
+import { Injector } from '@angular/core';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
+import { sourceHealthType } from '@iptvnator/shared/interfaces';
+import { SourceHealthIndicatorComponent } from '../source-health/source-health-indicator.component';
 import { DatePipe, DOCUMENT } from '@angular/common';
 import {
     ChangeDetectionStrategy,
@@ -57,6 +62,7 @@ const DEFAULT_PLAYLIST_TYPE_FILTERS: Record<PlaylistFilterType, boolean> = {
     styleUrls: ['./playlist-switcher.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        SourceHealthIndicatorComponent,
         DatePipe,
         FormsModule,
         MatDivider,
@@ -86,6 +92,13 @@ export class PlaylistSwitcherComponent {
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
     );
+
+    readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly healthInjector = inject(Injector);
+    readonly sourceHealthType = sourceHealthType;
+    recheckSource(playlist: PlaylistMeta): void {
+        void this.healthInjector.get(SourceHealthService).recheck(playlist);
+    }
 
     readonly currentTitle = input.required<string>();
     readonly subtitle = input<string>('');
@@ -210,7 +223,8 @@ export class PlaylistSwitcherComponent {
         if (this.showSearchField()) {
             this.focusSearchField();
         }
-        void this.checkPortalStatuses(this.playlists());
+        if (!this.runtime.supportsSourceHealth)
+            void this.checkPortalStatuses(this.playlists());
     }
 
     onMenuClosed(): void {

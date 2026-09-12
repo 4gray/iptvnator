@@ -1,3 +1,4 @@
+import { PassThrough } from 'node:stream';
 import axios from 'axios';
 import type { LookupAddress, LookupOptions } from 'node:dns';
 import { Agent as HttpAgent } from 'node:http';
@@ -36,6 +37,45 @@ describe('requestWithValidatedRedirects', () => {
 
     beforeEach(() => {
         axiosMock.mockReset();
+    });
+
+    it('closes intermediate response streams before requesting the next hop', async () => {
+        const intermediate = new PassThrough();
+        const final = new PassThrough();
+        axiosMock.mockResolvedValueOnce({
+            status: 302,
+            headers: { location: '/final' },
+            data: intermediate,
+        });
+        axiosMock.mockImplementationOnce(async () => {
+            expect(intermediate.destroyed).toBe(true);
+            return { status: 200, headers: {}, data: final };
+        });
+        const response = await requestWithValidatedRedirects(
+            'https://example.com/start',
+            { responseType: 'stream' },
+            { resolveHostname: publicResolver }
+        );
+        expect(response.data).toBe(final);
+        expect(final.destroyed).toBe(false);
+        final.destroy();
+    });
+
+    it('closes a redirect stream even when its location is missing', async () => {
+        const body = new PassThrough();
+        axiosMock.mockResolvedValueOnce({
+            status: 302,
+            headers: {},
+            data: body,
+        });
+        await expect(
+            requestWithValidatedRedirects(
+                'https://example.com/start',
+                { responseType: 'stream' },
+                { resolveHostname: publicResolver }
+            )
+        ).rejects.toThrow('location');
+        expect(body.destroyed).toBe(true);
     });
 
     it('rejects a redirect target that violates the URL policy', async () => {

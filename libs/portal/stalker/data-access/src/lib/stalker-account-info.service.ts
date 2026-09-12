@@ -1,3 +1,5 @@
+import { SourceHealthEvidenceService } from '@iptvnator/services';
+import { accountHealth } from '@iptvnator/shared/interfaces';
 import { inject, Injectable } from '@angular/core';
 import { DataService } from '@iptvnator/services';
 import {
@@ -69,7 +71,31 @@ export class StalkerAccountInfoService {
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly portalRepair = inject(StalkerPortalRepairService);
 
+    private readonly healthEvidence = inject(SourceHealthEvidenceService, {
+        optional: true,
+    });
+
     async fetchAccountInfo(
+        playlist: PlaylistMeta
+    ): Promise<StalkerAccountSnapshot | null> {
+        const snapshot = await this.loadAccountInfo(playlist);
+        if (snapshot)
+            this.healthEvidence?.results.next({
+                playlist,
+                result: accountHealth(
+                    snapshot.status === 0
+                        ? 'disabled'
+                        : snapshot.status === 1
+                          ? 'active'
+                          : undefined,
+                    snapshot.expireDate,
+                    true
+                ),
+            });
+        return snapshot;
+    }
+
+    private async loadAccountInfo(
         playlist: PlaylistMeta
     ): Promise<StalkerAccountSnapshot | null> {
         if (!playlist.portalUrl || !playlist.macAddress) {

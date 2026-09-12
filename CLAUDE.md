@@ -1952,3 +1952,12 @@ Archive transfers validate TS framing, restart from byte zero after interruption
 and check expiry again at transfer start. Completed cards play locally and never
 route to VOD details. Contract and EOF/duration limits:
 `docs/architecture/download-manager.md` (Xtream archive downloads).
+
+## Desktop Source Health
+
+Electron switcher/source rows share bounded, cached Xtream/Stalker/M3U URL
+checks through `SourceHealthService` in portal shared data access. Confirmed
+account expiry/disablement is distinct from failed authorization or network
+checks. Stalker probes reuse session ownership without endpoint repair; M3U
+reads stop at 64 KiB. PWA retains existing Xtream behavior. Contract:
+`docs/architecture/m3u-playlist-module.md` (Desktop source health).
