@@ -1716,3 +1716,42 @@ are never included in indicator text.
 Explicit source-health checks retain their deadline while queued, including
 background jobs promoted by Retry. Expired queued checks resolve without opening
 a transport; cancellation and admission clear the queue timer.
+
+### Desktop inactive-source cleanup
+
+Sources > Clean up inactive sources scans every network source, independently
+of page filters. The dialog uses the shared health queue with fresh checks;
+only explicit account expiry/disablement is preselected. Uncertain network,
+HTTP, content and authorization failures require manual selection. Local files
+and text imports are excluded. Sources with active external playback, import,
+refresh or deletion are skipped; identity, presence, current health and busy
+state are checked again before each deletion. The shared header refresh action
+tracks its M3U source ID through completion, independently of source-row state.
+All shared delete actions reserve source IDs in `SourceActivityService` until
+persistence and cleanup settle, including header-switcher deletion. Closed
+external-player sessions and failures without a live process are not busy; the
+canonical `isLiveExternalPlayerSession` predicate governs that protection.
+Startup auto-refresh reserves source IDs in `SourceActivityService` until its
+fetch settles. Batch persistence also skips rows deleted while a refresh was
+running, and only surviving writes trigger scoped EPG fetches. Shared refresh
+actions refuse IDs reserved by deletion; singular refresh persistence also
+rejects missing rows inside the write queue, so late results cannot recreate them.
+Evidence older than five minutes
+is refreshed and requires another confirmation.
+
+`SourceCleanupService` is dialog-scoped. User deselection survives rechecks;
+recovered sources leave the candidate list. Newer uncertain evidence clears an
+automatic selection and requires an explicit checkbox choice before deletion. Deletions run sequentially through
+`PlaylistDeleteActionService` and the serialized `PlaylistsService` write queue.
+The latter owns the single worker invocation and awaited cleanup hooks.
+`PlaylistActions.playlistRemovalCommitted` updates NgRx and clears scoped EPG
+request keys without a second storage deletion. Legacy request-style
+`removePlaylist` still owns its persistence effect.
+
+Stopping or destroying the dialog (including history navigation) finishes the
+current source before stopping the queue; committed
+work is not rolled back. Results distinguish failed deletes from successful
+deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
+row after a cleanup failure. Downloaded files are not removed. The dialog's
+confirmation covers deletion of the source and associated favorites, history
+and playback positions; no deletion happens on merely opening the dialog.

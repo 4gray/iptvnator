@@ -28,22 +28,26 @@ export const playlistReducers = [
             }),
         };
     }),
-    on(PlaylistActions.removePlaylist, (state, action): PlaylistState => {
-        const playlists = playlistsAdapter.removeOne(
-            action.playlistId,
-            state.playlists
-        );
-        return {
-            ...state,
-            playlists: {
-                ...playlists,
-                selectedId:
-                    state.playlists.selectedId === action.playlistId
-                        ? ''
-                        : playlists.selectedId,
-            },
-        };
-    }),
+    on(
+        PlaylistActions.removePlaylist,
+        PlaylistActions.playlistRemovalCommitted,
+        (state, action): PlaylistState => {
+            const playlists = playlistsAdapter.removeOne(
+                action.playlistId,
+                state.playlists
+            );
+            return {
+                ...state,
+                playlists: {
+                    ...playlists,
+                    selectedId:
+                        state.playlists.selectedId === action.playlistId
+                            ? ''
+                            : playlists.selectedId,
+                },
+            };
+        }
+    ),
     on(PlaylistActions.updatePlaylist, (state, action): PlaylistState => {
         const isActivePlaylist =
             state.playlists.selectedId === action.playlistId;

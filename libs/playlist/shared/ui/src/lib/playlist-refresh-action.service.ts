@@ -11,6 +11,7 @@ import {
     PlaylistRefreshService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -37,6 +38,7 @@ export interface XtreamRefreshPreparationState {
 @Injectable({ providedIn: 'root' })
 export class PlaylistRefreshActionService {
     private readonly store = inject(Store);
+    private readonly activity = inject(SourceActivityService);
     private readonly translate = inject(TranslateService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialogService = inject(DialogService);
@@ -51,11 +53,18 @@ export class PlaylistRefreshActionService {
     private readonly refreshPreparationState =
         signal<XtreamRefreshPreparationState | null>(null);
 
+    private readonly m3uRefreshId = signal<string | null>(null);
+    isSourceBusy(id: string): boolean {
+        return (
+            this.m3uRefreshId() === id ||
+            this.refreshPreparation()?.playlistId === id
+        );
+    }
     readonly isRefreshing = signal(false);
     readonly refreshPreparation = this.refreshPreparationState.asReadonly();
 
     canRefresh(playlist: PlaylistMeta | null): boolean {
-        if (!playlist) {
+        if (!playlist || this.activity.isBusy(playlist._id)) {
             return false;
         }
 
@@ -73,7 +82,7 @@ export class PlaylistRefreshActionService {
     }
 
     refresh(playlist: PlaylistMeta): void {
-        if (this.isRefreshing()) {
+        if (this.isRefreshing() || this.activity.isBusy(playlist._id)) {
             return;
         }
 
@@ -137,6 +146,7 @@ export class PlaylistRefreshActionService {
             this.playlistContext.routeProvider() === 'playlists' &&
             this.playlistContext.resolvedPlaylistId() === item._id;
 
+        this.m3uRefreshId.set(item._id);
         this.isRefreshing.set(true);
         if (isActiveM3uRoute) {
             this.store.dispatch(
@@ -202,6 +212,7 @@ export class PlaylistRefreshActionService {
                     ChannelActions.setChannelsLoading({ loading: false })
                 );
             }
+            this.m3uRefreshId.set(null);
             this.isRefreshing.set(false);
         }
     }

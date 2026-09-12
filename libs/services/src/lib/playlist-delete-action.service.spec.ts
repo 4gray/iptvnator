@@ -1,10 +1,11 @@
+import { SourceActivityService } from './source-activity.service';
 import {
     EnvironmentInjector,
     Injector,
     createEnvironmentInjector,
     runInInjectionContext,
 } from '@angular/core';
-import { of } from 'rxjs';
+import { of, throwError, Subject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
 import { PlaylistDeleteActionService } from './playlist-delete-action.service';
@@ -48,6 +49,10 @@ describe('PlaylistDeleteActionService', () => {
 
         injector = createEnvironmentInjector(
             [
+                {
+                    provide: SourceActivityService,
+                    useValue: new SourceActivityService(),
+                },
                 { provide: DatabaseService, useValue: databaseService },
                 { provide: PlaylistsService, useValue: playlistsService },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
@@ -67,6 +72,26 @@ describe('PlaylistDeleteActionService', () => {
         );
     }
 
+    it('keeps shared deletion activity reserved until persistence and cleanup finish', async () => {
+        const completion = new Subject<{ success: boolean }>();
+        playlistsService.deletePlaylist.mockReturnValue(completion);
+        const activity = injector.get(SourceActivityService);
+        const pending = createService().deletePlaylist(playlist);
+        expect(activity.isBusy(playlist._id)).toBe(true);
+        completion.next({ success: true });
+        await pending;
+        expect(activity.isBusy(playlist._id)).toBe(false);
+    });
+
+    it('preserves the boolean failure contract for single-source callers', async () => {
+        playlistsService.deletePlaylist.mockReturnValue(
+            throwError(() => new Error('worker failed'))
+        );
+        await expect(createService().deletePlaylist(playlist)).resolves.toBe(
+            false
+        );
+    });
+
     it('deletes browser playlists through PlaylistsService', async () => {
         const service = createService();
 
@@ -78,7 +103,7 @@ describe('PlaylistDeleteActionService', () => {
         expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 
-    it('deletes SQLite-backed Xtream playlists through DatabaseService with progress options', async () => {
+    it('routes SQLite deletion through the serialized owner with progress options', async () => {
         runtime.supportsXtreamSqliteDataSource = true;
         const onEvent = jest.fn();
         const service = createService();
@@ -90,14 +115,14 @@ describe('PlaylistDeleteActionService', () => {
         expect(databaseService.createOperationId).toHaveBeenCalledWith(
             'playlist-delete'
         );
-        expect(databaseService.deletePlaylist).toHaveBeenCalledWith(
+        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(
             'playlist-1',
             {
                 operationId: 'playlist-delete-1',
                 onEvent,
             }
         );
-        expect(playlistsService.deletePlaylist).not.toHaveBeenCalled();
+        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 
     it('deletes SQLite-backed non-Xtream playlists without progress options', async () => {
@@ -112,10 +137,10 @@ describe('PlaylistDeleteActionService', () => {
         ).resolves.toBe(true);
 
         expect(databaseService.createOperationId).not.toHaveBeenCalled();
-        expect(databaseService.deletePlaylist).toHaveBeenCalledWith(
-            'playlist-1',
-            undefined
+        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(
+            'playlist-1'
         );
+        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 
     it('uses browser playlist storage when an Xtream playlist lacks Xtream SQLite support', async () => {
