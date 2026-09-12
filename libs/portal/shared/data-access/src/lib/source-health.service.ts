@@ -171,13 +171,14 @@ export class SourceHealthService {
     private boundQueueWait(job: Job): void {
         if (job.queueTimer !== undefined) return;
         const queuedAt = Date.now();
+        const initial = this.snapshots().get(job.key);
         job.queueTimer = setTimeout(
             () => {
                 if (job.running || this.jobs.get(job.key) !== job) return;
                 this.jobs.delete(job.key);
                 const previous = this.snapshots().get(job.key);
                 const snapshot =
-                    previous && previous.checkedAt > queuedAt
+                    previous && previous !== initial
                         ? previous
                         : {
                               ...sourceHealthUnknown('timeout'),
@@ -223,6 +224,7 @@ export class SourceHealthService {
     }
     private async run(job: Job) {
         const startedAt = Date.now();
+        const initial = this.snapshots().get(job.key);
         const deadlineAt =
             job.deadlineAt ?? startedAt + (job.explicit ? 15000 : 5000);
         let snapshot: SourceHealthSnapshot;
@@ -240,7 +242,7 @@ export class SourceHealthService {
         if (job.users.size && [...this.identities.values()].includes(job.key)) {
             const previous = this.snapshots().get(job.key);
             // An account dialog may have published newer evidence while this check ran.
-            if (!previous?.checkedAt || previous.checkedAt <= startedAt) {
+            if (!previous || previous === initial) {
                 this.publish(job.key, snapshot);
             } else {
                 // Return the same newer evidence that the indicator displays.
