@@ -214,6 +214,26 @@ for (const theme of ['light', 'dark']) {
                 await expect
                     .poll(() => shell.evaluate((el) => el.scrollTop))
                     .toBeGreaterThan(0);
+                // PageDown animates on macOS. Sending Home after the first
+                // changed frame races that animation rather than testing a
+                // second discrete keyboard action (same fence as web E2E).
+                await shell.evaluate(
+                    (element) =>
+                        new Promise<void>((resolve) => {
+                            let last = element.scrollTop;
+                            let stableFrames = 0;
+                            const frame = () => {
+                                stableFrames =
+                                    element.scrollTop === last
+                                        ? stableFrames + 1
+                                        : 0;
+                                last = element.scrollTop;
+                                if (stableFrames === 3) resolve();
+                                else requestAnimationFrame(frame);
+                            };
+                            requestAnimationFrame(frame);
+                        })
+                );
                 await page.keyboard.press('Home');
                 await expect
                     .poll(() => shell.evaluate((el) => el.scrollTop))
