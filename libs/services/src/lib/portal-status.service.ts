@@ -153,6 +153,9 @@ export class PortalStatusService {
                         details,
                         timestamp: Date.now(),
                     });
+                } else {
+                    // Existing callers also receive the newer explicit evidence.
+                    return this.cache.get(cacheKey)?.details ?? details;
                 }
                 return details;
             })

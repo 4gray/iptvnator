@@ -105,7 +105,7 @@ describe('explicit Xtream connection test', () => {
         probe.mockResolvedValueOnce(active);
         await service.test(connection);
         finish({ payload: { user_info: { auth: 0 } } });
-        await oldCheck;
+        expect(await oldCheck).toBe('active');
         expect(
             portalStatus.getCachedStatus(
                 'https://panel.test/base',
