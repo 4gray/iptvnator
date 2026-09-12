@@ -78,7 +78,8 @@ An active account on HTTP replaces only the form's `serverUrl`, with localized
 copy explaining that HTTP is unencrypted. Add/Save persists through the existing
 metadata path; Test never writes storage. Edits, reset, destruction and newer
 tests invalidate pending results and prevent a stale fallback request. Add/Save
-is disabled while that form's test is running. Passive status checks, startup,
+is disabled while that form's test is running. Empty or whitespace-only
+credentials produce a localized validation message without a network request. Passive status checks, startup,
 refresh and playback never perform protocol discovery.
 An authenticated account response also refreshes `PortalStatusService` status
 and expiration for that exact connection, without another network request.

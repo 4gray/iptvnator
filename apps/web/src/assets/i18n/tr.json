@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "Kimlik bilgilerini test et",
             "URL_VALIDATION_ERROR": "Geçerli bir URL olmalıdır (örn. http://example.com veya https://example.com:4324)",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Bağlantıyı test etmek için kullanıcı adı ve parola girin.",
                 "TESTING": "Bağlantı test ediliyor…",
                 "HTTP_CONNECTED": "HTTP üzerinden bağlanıldı. HTTPS kullanılamıyor. Bağlantı şifrelenmemiştir.",
                 "ACTIVE": "Bağlanıldı. Portal etkin.",

@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "Tester les identifiants",
             "URL_VALIDATION_ERROR": "Doit être une URL valide avec un protocole (par exemple http://example.com ou https://example.com:4324)",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Saisissez un nom d’utilisateur et un mot de passe pour tester la connexion.",
                 "TESTING": "Test de la connexion…",
                 "HTTP_CONNECTED": "Connecté via HTTP. HTTPS est indisponible. La connexion n’est pas chiffrée.",
                 "ACTIVE": "Connecté. Le portail est actif.",

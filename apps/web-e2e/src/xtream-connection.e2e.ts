@@ -41,6 +41,15 @@ for (const canTryHttp of [true, false]) {
         await dialog
             .locator('#serverUrl')
             .fill('https://panel.example/base/get.php?type=m3u');
+        await dialog.locator('#username').fill('   ');
+        await dialog.locator('#password').fill('pass');
+        await dialog
+            .getByRole('button', { name: 'Test HTTPS and HTTP', exact: true })
+            .click();
+        await expect(dialog.getByRole('status')).toContainText(
+            'Enter a username and password'
+        );
+        expect(requested).toEqual([]);
         await dialog.locator('#username').fill('user');
         await dialog.locator('#password').fill('pass');
         await expect(dialog.locator('#xtream-http-test-notice')).toBeVisible();

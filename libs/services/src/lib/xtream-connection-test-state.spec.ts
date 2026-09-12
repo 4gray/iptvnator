@@ -9,6 +9,53 @@ import { createXtreamConnectionTestState } from './xtream-connection-test-state'
 import { XtreamConnectionTestService } from './xtream-connection-test.service';
 
 describe('Xtream form connection test lifecycle', () => {
+    it.each([
+        ['', 'pass'],
+        ['user', ''],
+        ['   ', 'pass'],
+        ['user', '  '],
+    ])(
+        'explains empty credentials without requesting the portal: %j / %j',
+        async (username, password) => {
+            const test = jest
+                .fn()
+                .mockResolvedValue({
+                    status: 'active',
+                    serverUrl: 'https://panel.test',
+                    usedHttpFallback: false,
+                });
+            const injector = createEnvironmentInjector(
+                [{ provide: XtreamConnectionTestService, useValue: { test } }],
+                Injector.NULL as unknown as EnvironmentInjector
+            );
+            const form = new FormGroup({
+                serverUrl: new FormControl('https://panel.test'),
+                username: new FormControl(username),
+                password: new FormControl(password),
+            });
+            const state = runInInjectionContext(injector, () =>
+                createXtreamConnectionTestState(form)
+            );
+            try {
+                await state.test(true);
+                expect(state.messageKey()).toBe(
+                    'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.CREDENTIALS_REQUIRED'
+                );
+                expect(state.testing()).toBe(false);
+                expect(test).not.toHaveBeenCalled();
+                form.patchValue({ username: 'user', password: 'pass' });
+                expect(state.messageKey()).toBe('');
+                await state.test(true);
+                expect(state.messageKey()).toBe(
+                    'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.ACTIVE'
+                );
+                expect(test).toHaveBeenCalledTimes(1);
+            } finally {
+                injector.destroy();
+            }
+        }
+    );
+
     it('releases the form subscription and ignores in-flight results on destroy', async () => {
         let complete!: (result: unknown) => void;
         const test = jest.fn(

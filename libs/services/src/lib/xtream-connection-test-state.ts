@@ -12,10 +12,12 @@ export function createXtreamConnectionTestState(form: AbstractControl) {
     const destroyRef = inject(DestroyRef);
     const testing = signal(false);
     const result = signal<XtreamConnectionTestResult | null>(null);
+    const credentialsMissing = signal(false);
     let generation = 0;
     const changes = form.valueChanges.subscribe(() => {
         generation++;
         result.set(null);
+        credentialsMissing.set(false);
         testing.set(false);
     });
     destroyRef.onDestroy(() => {
@@ -25,6 +27,8 @@ export function createXtreamConnectionTestState(form: AbstractControl) {
 
     const messageKey = computed(() => {
         if (testing()) return 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.TESTING';
+        if (credentialsMissing())
+            return 'HOME.XTREAM_PLAYLIST.CONNECTION_TEST.CREDENTIALS_REQUIRED';
         const value = result();
         if (!value) return '';
         const key = value.usedHttpFallback
@@ -41,10 +45,15 @@ export function createXtreamConnectionTestState(form: AbstractControl) {
         messageKey,
         messageParams: computed(() => ({ status: result()?.failure?.status })),
         async test(allowHttpFallback = false): Promise<void> {
-            if (testing() || form.invalid) return;
+            if (testing()) return;
             const connection = form.getRawValue() as XtreamTestConnection;
-            if (!connection.username?.trim() || !connection.password?.trim())
+            if (!connection.username?.trim() || !connection.password?.trim()) {
+                result.set(null);
+                credentialsMissing.set(true);
                 return;
+            }
+            if (form.invalid) return;
+            credentialsMissing.set(false);
             const owned = ++generation;
             const isCurrent = () =>
                 owned === generation && !destroyRef.destroyed;

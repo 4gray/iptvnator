@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "اختبار بيانات الاعتماد",
             "URL_VALIDATION_ERROR": "يجب أن يكون الرابط صالحًا مع بروتوكول (مثال: http://example.com)",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "أدخل اسم المستخدم وكلمة المرور لاختبار الاتصال.",
                 "TESTING": "جارٍ اختبار الاتصال…",
                 "HTTP_CONNECTED": "تم الاتصال عبر HTTP. بروتوكول HTTPS غير متاح. الاتصال غير مشفر.",
                 "ACTIVE": "تم الاتصال. البوابة نشطة.",

@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "测试凭据",
             "URL_VALIDATION_ERROR": "应该是带有协议的有效 url（例如 http://example.com 或 https://example.com:4324）",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "请输入用户名和密码以测试连接。",
                 "TESTING": "正在测试连接…",
                 "HTTP_CONNECTED": "已通过 HTTP 连接。HTTPS 不可用。连接未加密。",
                 "ACTIVE": "已连接。门户处于活动状态。",

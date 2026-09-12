@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "Проверить",
             "URL_VALIDATION_ERROR": "Должен быть действительный URL-адрес с протоколом (например, http://example.com или https://example.com:4324).",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Введите имя пользователя и пароль для проверки подключения.",
                 "TESTING": "Проверка подключения…",
                 "HTTP_CONNECTED": "Подключено через HTTP. HTTPS недоступен. Соединение не зашифровано.",
                 "ACTIVE": "Подключено. Портал активен.",

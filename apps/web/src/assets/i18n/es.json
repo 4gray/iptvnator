@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "Probar credenciales",
             "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com o https://example.com:4324).",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Introduce un nombre de usuario y una contraseña para probar la conexión.",
                 "TESTING": "Probando conexión…",
                 "HTTP_CONNECTED": "Conectado por HTTP. HTTPS no está disponible. La conexión no está cifrada.",
                 "ACTIVE": "Conectado. El portal está activo.",

@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "جرب بيانات الاعتماد",
             "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com ولا https://example.com:4324)",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "دخل اسم المستخدم وكلمة السر باش تجرّب الاتصال.",
                 "TESTING": "كنجرّبو الاتصال…",
                 "HTTP_CONNECTED": "تّاصلنا بـ HTTP. HTTPS ما متوفرش. الاتصال ما مشفّرش.",
                 "ACTIVE": "تّاصلنا. البوابة خدامة.",

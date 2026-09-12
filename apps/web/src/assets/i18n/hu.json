@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "Hitelesítési adatok ellenőrzése",
             "URL_VALIDATION_ERROR": "Adjon meg protokollt is tartalmazó, érvényes URL-címet (például http://example.com vagy https://example.com:4324)",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "A kapcsolat teszteléséhez adjon meg egy felhasználónevet és jelszót.",
                 "TESTING": "Kapcsolat tesztelése…",
                 "HTTP_CONNECTED": "Csatlakoztatva HTTP-n keresztül. A HTTPS nem érhető el. A kapcsolat nem titkosított.",
                 "ACTIVE": "Csatlakoztatva. A portál aktív.",

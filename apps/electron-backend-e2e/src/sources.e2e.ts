@@ -94,6 +94,19 @@ test.describe('Electron Sources View', () => {
             await page.waitForURL(/xtreams.*vod/);
             await openSources(page);
             dialog = await openSourceEditor(page, title);
+            await dialog.locator('[formControlName="password"]').fill('');
+            await dialog
+                .getByRole('button', {
+                    name: 'Test HTTPS and HTTP',
+                    exact: true,
+                })
+                .click();
+            await expect(dialog.getByRole('status')).toContainText(
+                'Enter a username and password'
+            );
+            await dialog
+                .locator('[formControlName="password"]')
+                .fill('live-fallback');
             // Closing a tested edit must not persist unrelated changes.
             await updateSourceDialog(dialog, {
                 title: 'Discard this edit',

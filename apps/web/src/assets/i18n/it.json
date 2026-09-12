@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "Testa credenziali",
             "URL_VALIDATION_ERROR": "Dovrebbe essere una URL valida con protocollo (es. http://esempio.it o https://esempio.it:4324)",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Inserisci nome utente e password per verificare la connessione.",
                 "TESTING": "Verifica della connessione…",
                 "HTTP_CONNECTED": "Connesso tramite HTTP. HTTPS non è disponibile. La connessione non è crittografata.",
                 "ACTIVE": "Connesso. Il portale è attivo.",

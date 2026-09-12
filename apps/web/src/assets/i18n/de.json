@@ -183,6 +183,7 @@
             "TEST_CREDENTIALS": "Verbindung testen",
             "URL_VALIDATION_ERROR": "Sollte eine gültige URL mit Protokoll sein (z. B. http://example.com oder https://example.com:4324)",
             "CONNECTION_TEST": {
+                "CREDENTIALS_REQUIRED": "Gib einen Benutzernamen und ein Passwort ein, um die Verbindung zu testen.",
                 "TESTING": "Verbindung wird geprüft…",
                 "HTTP_CONNECTED": "Über HTTP verbunden. HTTPS ist nicht verfügbar. Die Verbindung ist unverschlüsselt.",
                 "ACTIVE": "Verbunden. Das Portal ist aktiv.",
