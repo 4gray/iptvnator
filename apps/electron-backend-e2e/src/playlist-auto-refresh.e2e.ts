@@ -16,6 +16,8 @@ import {
     waitForM3uCatalog,
 } from './electron-test-fixtures';
 
+import { holdNextPlaylistWrite } from './playlist-refresh-write-gate';
+
 const autoRefreshSourceName = 'auto-refresh-source.m3u';
 
 function buildAutoRefreshM3u(channelName: string): string {
@@ -81,8 +83,17 @@ test.describe('Electron startup playlist auto-refresh', () => {
             // A refresh result must keep the in-memory default as well as SQLite metadata.
             await openSources(app.mainWindow);
             urlServer.setBody(buildAutoRefreshM3u('Second UA Channel'));
+            const writeGate = await holdNextPlaylistWrite(app);
             await refreshSource(app.mainWindow, autoRefreshSourceName);
-            await openAutoRefreshPlaylistCatalog(app.mainWindow);
+            await writeGate.waitUntilHeld();
+            // Open the catalog while its refreshed payload is still being saved.
+            // Waiting for idle here would hide a real route/persistence race.
+            await sourceRowByTitle(app.mainWindow, autoRefreshSourceName)
+                .first()
+                .click();
+            await app.mainWindow.waitForURL(/\/workspace\/playlists\/.+\/all$/);
+            await writeGate.release();
+            await waitForM3uCatalog(app.mainWindow);
             await expect(
                 app.mainWindow
                     .getByTestId('channel-item')

@@ -1,4 +1,4 @@
-import { EMPTY, firstValueFrom, of } from 'rxjs';
+import { EMPTY, firstValueFrom, from, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
@@ -1798,6 +1798,117 @@ describe('PlaylistsService', () => {
             };
             return { store, electron };
         }
+
+        it.each([false, true])(
+            'reads the catalog after a queued refresh settles (write fails: %s)',
+            async (fails) => {
+                const original = createBasePlaylist('catalog-refresh');
+                const { store, electron } =
+                    createStatefulElectronStore(original);
+                testWindow.electron = electron;
+                let release!: () => void;
+                let started!: () => void;
+                const gate = new Promise<void>((resolve) => {
+                    release = resolve;
+                });
+                const writing = new Promise<void>((resolve) => {
+                    started = resolve;
+                });
+                electron.dbUpsertAppPlaylist.mockImplementationOnce(
+                    async (playlist) => {
+                        started();
+                        await gate;
+                        if (fails) throw new Error('Write failed');
+                        store.current = playlist;
+                    }
+                );
+                const service = createService();
+                const updated = { ...original, title: 'Refreshed catalog' };
+                const write = firstValueFrom(
+                    service.updatePlaylist(original._id, updated)
+                );
+                const outcome = write.catch((error: Error) => error);
+                await writing;
+                // A database read captures the snapshot at request time,
+                // even if its IPC response arrives after the write completes.
+                jest.spyOn(service, 'getPlaylistById').mockImplementation(() =>
+                    of(store.current)
+                );
+                const read = firstValueFrom(service.getPlaylist(original._id));
+                release();
+                await outcome;
+                expect((await read).title).toBe(
+                    fails ? original.title : updated.title
+                );
+            }
+        );
+
+        it('orders a browser catalog read after a queued IndexedDB refresh', async () => {
+            const original = createBasePlaylist('browser-catalog');
+            const state = { current: original };
+            testWindow.electron = undefined;
+            let release!: () => void;
+            let started!: () => void;
+            const gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const writing = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+            const service = createService({
+                getByID: jest.fn(() => of(state.current)),
+                update: jest.fn((_store: string, playlist: Playlist) => {
+                    started();
+                    return from(
+                        gate.then(() => {
+                            state.current = playlist;
+                            return playlist;
+                        })
+                    );
+                }),
+            });
+            const updated = { ...original, title: 'Refreshed browser catalog' };
+            const write = firstValueFrom(
+                service.updatePlaylist(original._id, updated)
+            );
+            await writing;
+            const read = firstValueFrom(service.getPlaylist(original._id));
+            release();
+            await write;
+            expect((await read).title).toBe(updated.title);
+        });
+
+        it('does not block a different catalog behind a pending write', async () => {
+            const original = createBasePlaylist('catalog-busy');
+            const { electron } = createStatefulElectronStore(original);
+            testWindow.electron = electron;
+            let release!: () => void;
+            let started!: () => void;
+            const gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const writing = new Promise<void>((resolve) => {
+                started = resolve;
+            });
+            electron.dbUpsertAppPlaylist.mockImplementationOnce(async () => {
+                started();
+                await gate;
+            });
+            const service = createService();
+            const write = firstValueFrom(
+                service.updatePlaylist(original._id, original)
+            );
+            await writing;
+            try {
+                await firstValueFrom(service.getPlaylist('catalog-other'));
+                expect(electron.dbGetAppPlaylist).toHaveBeenCalledWith(
+                    'catalog-other'
+                );
+            } finally {
+                release();
+                await write;
+            }
+        });
 
         it('keeps both changes when a favorite add overlaps a recently-viewed add (SQLite)', async () => {
             const { store, electron } = createStatefulElectronStore(

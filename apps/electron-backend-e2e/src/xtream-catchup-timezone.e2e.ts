@@ -129,6 +129,12 @@ async function pastProgramWindows(
     credentials: { username: string; password: string }
 ): Promise<PastProgramWindow> {
     const fixture = await fetchXtreamEpgFixture(request, credentials);
+    return pastProgramWindow(fixture);
+}
+
+function pastProgramWindow(
+    fixture: Awaited<ReturnType<typeof fetchXtreamEpgFixture>>
+): PastProgramWindow {
     const past = fixture.fullEpg.find(
         (listing) => listing.title === PAST_PROGRAM
     );
@@ -314,7 +320,9 @@ test('@epg @xtream @electron copies the archive URL without starting archive pla
         expect(start).toBeTruthy();
         await expectServerClock(
             start!,
-            [await pastProgramWindows(request, credentials)],
+            // The mock caches this schedule until reset. Use the fixture that
+            // supplied the UI, without a second HTTP oracle after clipboard success.
+            [pastProgramWindow(fixture)],
             0
         );
         // Main-process archive probes do not appear as renderer playback requests.

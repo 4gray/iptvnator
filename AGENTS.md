@@ -406,6 +406,9 @@ Key files:
 
 ## M3U URL User-Agent
 
+- `PlaylistsService.getPlaylist()` joins the per-playlist mutation queue so a
+  route opened during refresh reads after its pending save. Mutation-internal
+  reads keep using `getPlaylistById()` directly to avoid queue re-entry.
 - The URL import form accepts an optional User-Agent and stores it as
   `Playlist.userAgent`. Electron sends it on initial download, manual refresh,
   and startup auto-update. The self-hosted PWA sends it through the registered
@@ -553,7 +556,9 @@ Key files:
   first unknown probe and confirmed native/unsupported results withhold it.
   A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
   `panelTitle`) and the panel slides that list over the video: left-edge hover
-  dwell, a touch tap on that edge, or `C`. Nothing is drawn while it is closed
+  dwell, a touch tap on that edge, or `C`. The hot zone stays mounted above the
+  scrim and below the panel during opening, so a delayed paint cannot turn
+  stationary hover into a synthetic leave. Nothing is drawn while it is closed
   (no handle), the hot zone stops above the controls bar, and scrim/Escape/
   mouse-leave close it — while a CDK overlay opened from the list counts as
   the panel, so hover keeps it open and Escape closes the overlay first. The
