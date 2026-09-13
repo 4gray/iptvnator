@@ -14,6 +14,7 @@ import {
     EpgProgressService,
 } from '@iptvnator/epg/data-access';
 import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
+import { formatEpgImportDisplayUrl } from './epg-import-display-url';
 
 interface EpgTrustConfirmDialogData {
     confirmLabel: string;
@@ -106,11 +107,16 @@ export class EpgProgressPanelComponent {
     }
 
     getDisplayUrl(url: string): string {
+        return formatEpgImportDisplayUrl(url);
+    }
+
+    formatCount(value: number): string {
+        const locale =
+            this.translate.currentLang || this.translate.defaultLang || 'en';
         try {
-            const urlObject = new URL(url);
-            return urlObject.hostname + urlObject.pathname.split('/').pop();
+            return new Intl.NumberFormat(locale).format(value);
         } catch {
-            return url.length > 40 ? `${url.substring(0, 40)}...` : url;
+            return String(value);
         }
     }
 
