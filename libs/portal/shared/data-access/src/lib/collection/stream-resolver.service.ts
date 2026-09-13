@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { extractDrmFromRaw } from '@iptvnator/shared/m3u-utils';
 import {
     DataService,
     PlaylistsService,
@@ -357,6 +358,7 @@ export class StreamResolverService {
             streamUrl: channel.url ?? '',
             title: channel.name,
             thumbnail: channel.tvg?.logo ?? null,
+            drm: channel.drm ?? extractDrmFromRaw(channel.raw),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent,
             referer,
