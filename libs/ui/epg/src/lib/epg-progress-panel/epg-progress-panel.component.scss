@@ -20,6 +20,34 @@
     --epg-queued: #a78bfa;
 }
 
+// Material icon buttons keep a 48px absolutely positioned touch target and
+// a 48px state layer regardless of the width/height they are given. Inside
+// the scrollable list that 48px box pokes past the row padding and turns
+// into a horizontal scrollbar. Compact buttons shrink the state layer to the
+// visible size and keep a touch target that is still larger than the button
+// but fits inside the row padding (6px on each side, the tightest row has
+// 8px), so touch and motor-impaired users keep a forgiving hit area.
+@mixin compact-icon-button($size, $icon-size) {
+    --mdc-icon-button-state-layer-size: #{$size};
+    --mdc-icon-button-icon-size: #{$icon-size};
+    width: $size;
+    height: $size;
+    padding: 0;
+    line-height: $size;
+    flex-shrink: 0;
+
+    ::ng-deep .mat-mdc-button-touch-target {
+        width: $size + 12px;
+        height: $size + 12px;
+    }
+
+    mat-icon {
+        font-size: $icon-size;
+        width: $icon-size;
+        height: $icon-size;
+    }
+}
+
 .epg-progress-panel {
     position: fixed;
     bottom: 20px;
@@ -90,18 +118,9 @@
 
     .minimize-btn,
     .dismiss-all-btn {
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        line-height: 28px;
+        @include compact-icon-button(28px, 18px);
         border-radius: 8px;
         color: var(--epg-text-tertiary);
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
     }
 }
 
@@ -117,7 +136,9 @@
 
 .imports-list {
     max-height: 320px;
-    overflow-y: auto;
+    // Never scroll sideways: every row truncates or wraps instead.
+    overflow: hidden auto;
+    overscroll-behavior: contain;
     padding: 4px 0;
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
@@ -152,6 +173,7 @@
 
         .item-url {
             flex: 1;
+            min-width: 0;
             font-size: 0.78rem;
             font-weight: 500;
             white-space: nowrap;
@@ -162,22 +184,13 @@
 
         .dismiss-btn,
         .retry-btn {
-            width: 24px;
-            height: 24px;
-            padding: 0;
-            line-height: 24px;
+            @include compact-icon-button(24px, 16px);
             border-radius: 6px;
             opacity: 0;
             transition:
                 opacity 0.15s ease,
                 color 0.15s ease;
             color: var(--epg-text-tertiary);
-
-            mat-icon {
-                font-size: 16px;
-                width: 16px;
-                height: 16px;
-            }
         }
 
         // Retry is a deliberate action — keep it discoverable, not hover-only,
@@ -207,7 +220,8 @@
         }
     }
 
-    &:hover .dismiss-btn {
+    &:hover .dismiss-btn,
+    .dismiss-btn:focus-visible {
         opacity: 1;
     }
 
@@ -260,8 +274,11 @@
     }
 
     .error-text {
+        min-width: 0;
         font-size: 0.72rem;
+        line-height: 1.35;
         color: var(--epg-error);
+        overflow-wrap: anywhere;
     }
 }
 
@@ -322,6 +339,7 @@
 
     .queue-url {
         flex: 1;
+        min-width: 0;
         font-size: 0.72rem;
         white-space: nowrap;
         overflow: hidden;
@@ -329,17 +347,9 @@
     }
 
     .dismiss-btn {
-        width: 22px;
-        height: 22px;
-        padding: 0;
-        line-height: 22px;
+        @include compact-icon-button(22px, 14px);
+        border-radius: 6px;
         color: var(--epg-text-tertiary);
-
-        mat-icon {
-            font-size: 14px;
-            width: 14px;
-            height: 14px;
-        }
     }
 }
 

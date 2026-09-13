@@ -334,6 +334,25 @@ test.describe('Electron EPG', () => {
                     .first()
             ).toBeVisible();
 
+            // The row must fit the 300px panel: Material icon buttons carry a
+            // 48px touch target that used to poke past the row padding and
+            // turn into a horizontal scrollbar.
+            const importsList = app.mainWindow.locator(
+                '.epg-progress-panel .imports-list'
+            );
+            await expect
+                .poll(() =>
+                    importsList.evaluate(
+                        (element) => element.scrollWidth - element.clientWidth
+                    )
+                )
+                .toBe(0);
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel .item-url')
+            ).toHaveText(
+                `${new URL(epgServer.resourceUrl).hostname}/guide.xml`
+            );
+
             await saveSettings(app.mainWindow);
 
             await app.mainWindow

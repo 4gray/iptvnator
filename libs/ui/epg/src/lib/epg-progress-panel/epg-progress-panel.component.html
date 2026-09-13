@@ -10,9 +10,16 @@
                     {{ 'EPG.IMPORT_PROGRESS' | translate }}
                 } @else {
                     <span class="minimized-summary">
-                        {{ loadingCount() }} loading
+                        {{
+                            'EPG.IMPORT_SUMMARY_LOADING'
+                                | translate: { count: loadingCount() }
+                        }}
                         @if (queuedCount() > 0) {
-                            , {{ queuedCount() }} queued
+                            ,
+                            {{
+                                'EPG.IMPORT_SUMMARY_QUEUED'
+                                    | translate: { count: queuedCount() }
+                            }}
                         }
                     </span>
                 }
@@ -22,7 +29,18 @@
                     mat-icon-button
                     class="minimize-btn"
                     (click)="toggleMinimize()"
-                    [attr.aria-label]="minimized() ? 'Expand' : 'Minimize'"
+                    [attr.aria-label]="
+                        (minimized()
+                            ? 'EPG.IMPORT_PANEL_EXPAND'
+                            : 'EPG.IMPORT_PANEL_MINIMIZE'
+                        ) | translate
+                    "
+                    [matTooltip]="
+                        (minimized()
+                            ? 'EPG.IMPORT_PANEL_EXPAND'
+                            : 'EPG.IMPORT_PANEL_MINIMIZE'
+                        ) | translate
+                    "
                 >
                     <mat-icon>
                         {{ minimized() ? 'unfold_more' : 'unfold_less' }}
@@ -99,7 +117,7 @@
                                     }}"
                                 >
                                     <mat-icon>tv</mat-icon>
-                                    {{ item.stats.totalChannels }}
+                                    {{ formatCount(item.stats.totalChannels) }}
                                 </span>
                                 <span
                                     class="stat-badge"
@@ -108,7 +126,7 @@
                                     }}"
                                 >
                                     <mat-icon>event</mat-icon>
-                                    {{ item.stats.totalPrograms }}
+                                    {{ formatCount(item.stats.totalPrograms) }}
                                 </span>
                             } @else if (item.error) {
                                 <span class="error-text">{{ item.error }}</span>
