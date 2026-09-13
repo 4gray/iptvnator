@@ -21,6 +21,8 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
+    isDashChannel,
+    isDashStreamUrl,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
 } from '@iptvnator/shared/m3u-utils';
@@ -86,6 +88,7 @@ import {
     RecordingStartMetadata,
     RecordingStoppedEvent,
     toRecordingProgramSnapshot,
+    VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 
@@ -313,9 +316,24 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly isRadioSelection = computed(
         () => this.activeRadioChannel() !== null
     );
-    readonly shouldUseInlinePlayer = computed(() => {
-        return this.isRadioSelection() || this.isEmbeddedPlayer();
-    });
+    // Match the M3U player: DASH needs Shaka even with Video.js or MPV/VLC selected.
+    readonly isM3uDashSelection = computed(
+        () =>
+            this.isM3uSelection() &&
+            (isDashStreamUrl(this.currentStreamUrl()) ||
+                isDashChannel(this.currentM3uChannel()))
+    );
+    readonly inlinePlayer = computed(() =>
+        this.isM3uDashSelection() && this.player() !== VideoPlayer.ArtPlayer
+            ? VideoPlayer.Html5Player
+            : this.player()
+    );
+    readonly shouldUseInlinePlayer = computed(
+        () =>
+            this.isRadioSelection() ||
+            this.isM3uDashSelection() ||
+            this.isEmbeddedPlayer()
+    );
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
@@ -981,6 +999,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     ): boolean {
         if (
             this.isRadioDetail(detail) ||
+            this.isM3uDashSelection() ||
             this.portalPlayer.isEmbeddedPlayer()
         ) {
             return false;

@@ -1352,9 +1352,18 @@ player in settings.
    channel, and reaches the engine. Persistence is free for newly imported or
    refreshed playlists (playlist JSON blob / IndexedDB object). Playlists
    imported **before** the DRM feature carry no `drm` field yet, but the raw
-   `#KODIPROP` block survived in the stored items — the M3U player page falls
+   `#KODIPROP` block survived in the stored items — the M3U player page and
+   collection `StreamResolverService.buildM3uPlayback()` fall
    back to `extractDrmFromRaw(channel.raw)` at playback time, so encrypted
-   channels of pre-upgrade playlists work without a re-import.
+   channels of pre-upgrade playlists work without a re-import. Favorites and
+   Recently Viewed (playlist and global scopes) pass the same DRM metadata
+   through `ResolvedPortalPlayback.drm`; an explicit stored DRM result,
+   including `supported: false`, takes precedence over the raw fallback.
+
+`UnifiedLiveTabComponent` applies the same M3U DASH routing to favorites and
+recent selections: ArtPlayer keeps its Shaka engine; all other preferences
+use HTML5/Shaka inline. This also applies to a resolved DASH catch-up URL and
+does not change the saved player preference. Clear DASH needs this routing too.
 
 **Engine selection and routing:**
 

@@ -63,7 +63,7 @@
                         [streamUrl]="currentStreamUrl()"
                         [title]="activeDetail()?.playback?.title ?? ''"
                         [playback]="inlinePlayback()"
-                        [playerOverride]="player()"
+                        [playerOverride]="inlinePlayer()"
                         [recordingMetadata]="recordingMetadata()"
                         (externalFallbackRequested)="
                             handleExternalFallbackRequest($event)

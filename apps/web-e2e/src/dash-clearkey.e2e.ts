@@ -43,7 +43,7 @@ const DASH_PLAYLIST = [
     '#EXTINF:-1 tvg-id="wv-dash" group-title="DASH",Widevine DASH',
     '#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha',
     '#KODIPROP:inputstream.adaptive.license_key=https://license.example.com/wv',
-    `${FIXTURE_HOST}/clearkey.mpd`,
+    `${FIXTURE_HOST}/clearkey.mpd?widevine=1`,
 ].join('\n');
 
 // The inline player starts playback programmatically; without this flag the
@@ -152,6 +152,47 @@ test('@web @m3u @dash ClearKey and clear DASH channels play inline', async ({
 
     await page.getByText('2. Clear DASH').click();
     await expectVideoPlaying(page);
+});
+
+test('@web @m3u @dash ClearKey reopens from recent and favorites collections', async ({
+    page,
+}) => {
+    await serveDashFixtures(page);
+    await importDashPlaylist(page);
+    await page.getByText('1. ClearKey DASH').click();
+    await expectVideoPlaying(page);
+    const playlistUrl = page.url().replace(/\/all$/, '');
+    const channel = page.locator('.channel-list-item').filter({
+        hasText: '1. ClearKey DASH',
+    });
+    await channel.locator('.favorite-button').click();
+    await expect(channel.locator('.favorite-button mat-icon')).toHaveText(
+        'star'
+    );
+
+    for (const route of [
+        `${playlistUrl}/recent`,
+        `${playlistUrl}/favorites`,
+        '/workspace/global-recent',
+        '/workspace/global-favorites',
+    ]) {
+        // Full navigation also proves persisted channels survive a cold load.
+        await page.goto(route);
+        if (route.startsWith('/workspace/global-')) {
+            await page
+                .locator('.scope-toggle')
+                .getByText('All playlists', { exact: true })
+                .click();
+        }
+        const collection = page.locator('app-unified-live-tab');
+        await collection
+            .locator('.channel-name')
+            .filter({
+                hasText: 'ClearKey DASH',
+            })
+            .click();
+        await expectVideoPlaying(page);
+    }
 });
 
 test('@web @m3u @dash unsupported DRM shows the encryption diagnostic', async ({

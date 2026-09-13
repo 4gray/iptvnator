@@ -627,6 +627,12 @@ unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
   it collapse onto one target. Only the timeline scrub commits an absolute
   `seek`. Contract: `docs/architecture/embedded-mpv-native.md` ("Resume And
   Track Handling").
+- M3U Favorites and Recently Viewed resolve `Channel.drm` into
+  `ResolvedPortalPlayback.drm` through `StreamResolverService`, with the same
+  legacy raw KODIPROP fallback as the main M3U player. Both playlist and global
+  collection scopes retain ClearKey playback and unsupported-DRM diagnostics.
+  Collections also route M3U DASH inline through HTML5/Shaka (or ArtPlayer),
+  regardless of the configured player, without changing the saved preference.
 - DASH (`.mpd`) sources play through a lazily imported Shaka Player source
   engine (`libs/ui/playback/src/lib/shaka-engine/`) inside the HTML5 and
   ArtPlayer components; ClearKey keys come from KODIPROP-derived

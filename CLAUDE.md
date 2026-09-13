@@ -1098,6 +1098,12 @@ app as a real argument, so it is not an option.
   those statuses, keeps closable errors visible until Stop confirms teardown and
   terminal errors visible until dismissal, and intentionally has no retry because
   it does not own the original launch headers or credentials.
+- M3U Favorites and Recently Viewed resolve `Channel.drm` into
+  `ResolvedPortalPlayback.drm` through `StreamResolverService`, with the same
+  legacy raw KODIPROP fallback as the main M3U player. Both playlist and global
+  collection scopes retain ClearKey playback and unsupported-DRM diagnostics.
+  Collections also route M3U DASH inline through HTML5/Shaka (or ArtPlayer),
+  regardless of the configured player, without changing the saved preference.
 - DASH + ClearKey (M3U module): `.mpd` channels play through a lazily loaded
   Shaka Player source engine inside the HTML5 and ArtPlayer components (no new
   player in settings). ClearKey keys come from `#KODIPROP:inputstream.adaptive.*`

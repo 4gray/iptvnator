@@ -16,11 +16,16 @@ import {
     openAddPlaylistDialog,
     openSourceEditor,
     openSettings,
+    openPlaylistRecent,
+    openPlaylistFavorites,
+    openGlobalRecent,
+    openGlobalFavorites,
     openSettingsSection,
     openSources,
     saveSourceDialog,
     saveSettings,
     sourceRowByTitle,
+    switchUnifiedCollectionScope,
     test,
     updateSourceDialog,
     waitForM3uCatalog,
@@ -173,7 +178,7 @@ function buildDashPlaylist(origin: string): string {
         '#EXTINF:-1 tvg-id="wv-dash" group-title="DASH",Widevine DASH',
         '#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha',
         '#KODIPROP:inputstream.adaptive.license_key=https://license.example.com/wv',
-        `${origin}/clearkey.mpd`,
+        `${origin}/clearkey.mpd?widevine=1`,
         '#EXTINF:-1 tvg-id="unsupported-mkv" group-title="DASH",Unsupported MKV',
         `${origin}/unsupported.mkv`,
     ].join('\n');
@@ -507,6 +512,74 @@ for (const player of ['mpv', 'vlc']) {
             });
             await expect(firstChannel).toHaveClass(/\bactive\b/);
             expect(await isFullscreen()).toBe(true);
+        } finally {
+            await closeElectronApp(app);
+            await fixtureServer.close();
+        }
+    });
+}
+
+for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
+    test(`@electron @dash ClearKey reopens from recent and favorites collections with ${configuredPlayer}`, async ({
+        dataDir,
+    }) => {
+        const fixtureServer = await startDashFixtureServer();
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            // Video.js is the default; selecting it again leaves no dirty form to save.
+            if (configuredPlayer !== 'videojs') {
+                await openSettings(page);
+                await openSettingsSection(page, 'playback');
+                await page.getByTestId('select-video-player').click();
+                await page.getByTestId(configuredPlayer).click();
+                await saveSettings(page);
+                await goToDashboard(page);
+            }
+            await importDashPlaylistFromText(
+                app,
+                buildDashPlaylist(fixtureServer.origin)
+            );
+            const channel = channelItemByTitle(page, 'ClearKey DASH').first();
+            await channel.click();
+            await channel.locator('.favorite-button').click();
+            await expect(
+                channel.locator('.favorite-button mat-icon')
+            ).toHaveText('star');
+
+            for (const openCollection of [
+                openPlaylistRecent,
+                openPlaylistFavorites,
+                openGlobalRecent,
+                openGlobalFavorites,
+            ]) {
+                await openCollection(page);
+                if (
+                    openCollection === openGlobalRecent ||
+                    openCollection === openGlobalFavorites
+                ) {
+                    await switchUnifiedCollectionScope(page, 'All playlists');
+                }
+                const collection = page.locator('app-unified-live-tab');
+                await channelItemByTitle(page, 'ClearKey DASH').first().click();
+                const video = collection
+                    .locator('app-web-player-view video')
+                    .first();
+                await expect(video).toBeVisible();
+                await expect
+                    .poll(
+                        () =>
+                            video.evaluate(
+                                (element: HTMLVideoElement) =>
+                                    element.currentTime
+                            ),
+                        { timeout: 20_000 }
+                    )
+                    .toBeGreaterThan(0.5);
+                await expect(
+                    page.getByTestId('playback-diagnostic-banner')
+                ).toBeHidden();
+            }
         } finally {
             await closeElectronApp(app);
             await fixtureServer.close();
