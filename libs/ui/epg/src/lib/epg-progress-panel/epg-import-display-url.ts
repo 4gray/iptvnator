@@ -21,9 +21,10 @@ export function formatEpgImportDisplayUrl(url: string): string {
         if (!file) {
             return parsed.hostname;
         }
+        const name = safeDecode(file);
         return segments.length > 1
-            ? `${parsed.hostname}/…/${file}`
-            : `${parsed.hostname}/${file}`;
+            ? `${parsed.hostname}/…/${name}`
+            : `${parsed.hostname}/${name}`;
     }
 
     const localPath = parsed?.protocol === 'file:' ? parsed.pathname : url;

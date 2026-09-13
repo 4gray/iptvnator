@@ -15,6 +15,15 @@ describe('formatEpgImportDisplayUrl', () => {
         ).toBe('iptvx.one/…/epg_lite.xml.gz');
     });
 
+    it('decodes a percent-encoded remote file name', () => {
+        expect(
+            formatEpgImportDisplayUrl('https://example.org/guide%20v2.xml')
+        ).toBe('example.org/guide v2.xml');
+        expect(
+            formatEpgImportDisplayUrl('https://example.org/epg/guide%ZZ.xml')
+        ).toBe('example.org/…/guide%ZZ.xml');
+    });
+
     it('falls back to the host when the path has no file name', () => {
         expect(formatEpgImportDisplayUrl('https://example.org/')).toBe(
             'example.org'

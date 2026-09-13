@@ -23,8 +23,10 @@
 // Material icon buttons keep a 48px absolutely positioned touch target and
 // a 48px state layer regardless of the width/height they are given. Inside
 // the scrollable list that 48px box pokes past the row padding and turns
-// into a horizontal scrollbar, so compact buttons shrink both to their
-// visible size.
+// into a horizontal scrollbar. Compact buttons shrink the state layer to the
+// visible size and keep a touch target that is still larger than the button
+// but fits inside the row padding (6px on each side, the tightest row has
+// 8px), so touch and motor-impaired users keep a forgiving hit area.
 @mixin compact-icon-button($size, $icon-size) {
     --mdc-icon-button-state-layer-size: #{$size};
     --mdc-icon-button-icon-size: #{$icon-size};
@@ -35,7 +37,8 @@
     flex-shrink: 0;
 
     ::ng-deep .mat-mdc-button-touch-target {
-        display: none;
+        width: $size + 12px;
+        height: $size + 12px;
     }
 
     mat-icon {

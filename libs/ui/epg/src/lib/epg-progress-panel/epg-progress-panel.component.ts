@@ -14,6 +14,7 @@ import {
     EpgProgressService,
 } from '@iptvnator/epg/data-access';
 import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
+import { normalizeDateLocale } from '@iptvnator/pipes';
 import { formatEpgImportDisplayUrl } from './epg-import-display-url';
 
 interface EpgTrustConfirmDialogData {
@@ -111,8 +112,11 @@ export class EpgProgressPanelComponent {
     }
 
     formatCount(value: number): string {
-        const locale =
-            this.translate.currentLang || this.translate.defaultLang || 'en';
+        // App language codes are not all BCP 47 tags (`zhtw`, `ary`, `by`);
+        // the date pipes already map those aliases for Intl.
+        const locale = normalizeDateLocale(
+            this.translate.currentLang || this.translate.defaultLang
+        );
         try {
             return new Intl.NumberFormat(locale).format(value);
         } catch {
