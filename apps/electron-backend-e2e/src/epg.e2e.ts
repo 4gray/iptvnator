@@ -381,6 +381,14 @@ test.describe('Electron EPG', () => {
                     '.epg-progress-panel .import-item.status-complete'
                 )
             ).toHaveCount(2);
+
+            // Leave with a pristine form: a dirty settings form arms the
+            // main-process close guard, and the app would then wait for a
+            // confirmation dialog instead of closing.
+            await app.mainWindow.getByTestId('discard-settings').click();
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toHaveCount(0);
         } finally {
             await closeElectronApp(app);
         }
