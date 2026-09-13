@@ -11,6 +11,12 @@
             <div class="selection-info">
                 {{ 'XTREAM.CATEGORY_MANAGEMENT.SELECTED' | translate }}:
                 <strong>{{ selectedCount() }}</strong> / {{ totalCount() }}
+                @if (showLocks()) {
+                    <span class="selection-info__locks">
+                        · {{ 'PARENTAL_LOCK.LOCKED_COUNT' | translate }}:
+                        <strong>{{ lockedCount() }}</strong>
+                    </span>
+                }
             </div>
             <div class="bulk-actions">
                 <button
@@ -85,6 +91,35 @@
                     <span class="item-count"
                         >({{ getItemCount(category) }})</span
                     >
+                    @if (showLocks()) {
+                        <button
+                            type="button"
+                            mat-icon-button
+                            class="lock-toggle"
+                            [class.lock-toggle--locked]="category.lockedDraft"
+                            [attr.aria-pressed]="category.lockedDraft"
+                            [attr.data-test-id]="
+                                'category-lock-' + category.xtream_id
+                            "
+                            [matTooltip]="
+                                (category.lockedDraft
+                                    ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                    : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                                ) | translate
+                            "
+                            [attr.aria-label]="
+                                (category.lockedDraft
+                                    ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                    : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                                ) | translate
+                            "
+                            (click)="toggleLock(category, $event)"
+                        >
+                            <mat-icon>{{
+                                category.lockedDraft ? 'lock' : 'lock_open'
+                            }}</mat-icon>
+                        </button>
+                    }
                 </div>
             } @empty {
                 <div class="empty-message">

@@ -15,6 +15,7 @@ export * from './lib/portal-detail-shell/detail-template.directives';
 export * from './lib/portal-detail-shell/portal-detail-shell.component';
 export * from './lib/view-in-portal-action/view-in-portal-action.component';
 export * from './lib/view-in-portal-action/view-in-portal-handoff.token';
+export * from './lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component';
 export * from './lib/progress-capsule/progress-capsule.component';
 export * from './lib/resizable/resizable.directive';
 export * from './lib/season-container/season-container.component';

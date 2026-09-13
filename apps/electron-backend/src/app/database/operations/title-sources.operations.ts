@@ -5,6 +5,7 @@ import {
     type VodSourceCandidateRow,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import { unlockedCategorySql } from '../parental-lock-state';
 import {
     caseInsensitiveGlobBody,
     caseInsensitiveGlobPattern,
@@ -258,6 +259,7 @@ function scanCandidateQuery(
         WHERE c.type = 'movie'
         AND cat.hidden = 0
         AND p.type = 'xtream'
+        ${unlockedCategorySql()}
         AND ${wordMatches}
         ${excludePlaylist}
         ORDER BY LENGTH(c.title), c.title
@@ -292,6 +294,7 @@ function ftsCandidateQuery(matchQuery: string, excludePlaylist: SQL) {
         AND c.type = 'movie'
         AND cat.hidden = 0
         AND p.type = 'xtream'
+        ${unlockedCategorySql()}
         ${excludePlaylist}
         GROUP BY cat.playlist_id, c.xtream_id
         ORDER BY rank, c.title

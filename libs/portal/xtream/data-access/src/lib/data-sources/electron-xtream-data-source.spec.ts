@@ -84,7 +84,9 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
                 playlistId,
                 remoteCategories,
                 'movies',
-                undefined
+                undefined,
+                // Parental lock: no locks stored for the playlist.
+                []
             );
             expect(result).toEqual([dbCategory]);
             expect(onPhaseChange.mock.calls).toEqual([
@@ -174,7 +176,8 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
                 playlistId,
                 expect.any(Array),
                 'live',
-                [5]
+                [5],
+                []
             );
         });
 
@@ -207,7 +210,11 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
                 .mockResolvedValueOnce([]);
 
             await expect(
-                harness.dataSource.getCategories(playlistId, credentials, 'live')
+                harness.dataSource.getCategories(
+                    playlistId,
+                    credentials,
+                    'live'
+                )
             ).rejects.toThrow('portal unreachable');
 
             await harness.dataSource.getCategories(

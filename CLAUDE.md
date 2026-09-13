@@ -625,7 +625,7 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
   `/workspace/xtreams/:id/downloads/:downloadId` and
   `/workspace/stalker/:id/downloads/:downloadId`. Focused download details hide
   the workspace context panel.
-- Settings: `/workspace/settings/:section` — one page per section (`general`, `playback`, `epg`, `dashboard`, `remote-control`, `tmdb`, `backup`, `reset`, `about`); `/workspace/settings` redirects to `general`, unknown or capability-gated sections redirect there too, and `/settings` redirects into the workspace. The `general` section's "Window on startup" select (`Settings.startupWindowMode`: `normal` / `maximized` / `fullscreen`, Electron only, gated on `RuntimeCapabilitiesService.supportsStartupWindowMode`) is mirrored into the main-process config by the `SETTINGS_UPDATE` handler and read synchronously at the next window creation — the renderer's IndexedDB is unreachable then, so it is the same pattern as `embeddedMpvFrameCopy`; `iptvnator --fullscreen` forces one fullscreen launch without persisting it, and F11 (`WINDOW:TOGGLE_FULLSCREEN`, bound in `WorkspaceKeyboardShortcutsService`, skipped while the player owns `document.fullscreenElement`) is the exit path on Windows/Linux, where the title bar is hidden (contract: `docs/architecture/workspace-shell.md`, "Startup window mode"). The shared form lives on the parent `SettingsComponent`, so edits survive section switches; a floating unsaved-changes bar (Save/Discard) replaces the old always-visible footer Save button. Leaving the settings AREA with a dirty form triggers `settingsUnsavedChangesGuard` (canDeactivate) and a save/discard/stay dialog — section switches deliberately bypass it, and a failed save cancels the navigation. Non-router exits are covered too: `SettingsUnloadGuardService` (provided by `SettingsComponent`) arms a `beforeunload` handler while the form is dirty (native leave prompt in the PWA) and arms an Electron main-process close guard (`window-close-guard.service.ts`) for the whole settings mount — mount-long on purpose, since arming on the first edit would race the close it protects against. The guard intercepts window close/app quit before `beforeunload` fires and completes the original intent only after the renderer confirms through the same dialog (a pristine form auto-confirms); Electron reloads are cancelled and re-triggered the same way, a failed save always keeps the window open, and installing an app update suspends the whole guard so the updater's quit passes unchallenged — every install entry point (settings About section and the global update notification panel) must go through the root `AppUpdateInstallService`, which owns that suspend/restore choreography
+- Settings: `/workspace/settings/:section` — one page per section (`general`, `playback`, `epg`, `dashboard`, `remote-control`, `tmdb`, `parental`, `backup`, `reset`, `about`); `/workspace/settings` redirects to `general`, unknown or capability-gated sections redirect there too, and `/settings` redirects into the workspace. The `general` section's "Window on startup" select (`Settings.startupWindowMode`: `normal` / `maximized` / `fullscreen`, Electron only, gated on `RuntimeCapabilitiesService.supportsStartupWindowMode`) is mirrored into the main-process config by the `SETTINGS_UPDATE` handler and read synchronously at the next window creation — the renderer's IndexedDB is unreachable then, so it is the same pattern as `embeddedMpvFrameCopy`; `iptvnator --fullscreen` forces one fullscreen launch without persisting it, and F11 (`WINDOW:TOGGLE_FULLSCREEN`, bound in `WorkspaceKeyboardShortcutsService`, skipped while the player owns `document.fullscreenElement`) is the exit path on Windows/Linux, where the title bar is hidden (contract: `docs/architecture/workspace-shell.md`, "Startup window mode"). The shared form lives on the parent `SettingsComponent`, so edits survive section switches; a floating unsaved-changes bar (Save/Discard) replaces the old always-visible footer Save button. Leaving the settings AREA with a dirty form triggers `settingsUnsavedChangesGuard` (canDeactivate) and a save/discard/stay dialog — section switches deliberately bypass it, and a failed save cancels the navigation. Non-router exits are covered too: `SettingsUnloadGuardService` (provided by `SettingsComponent`) arms a `beforeunload` handler while the form is dirty (native leave prompt in the PWA) and arms an Electron main-process close guard (`window-close-guard.service.ts`) for the whole settings mount — mount-long on purpose, since arming on the first edit would race the close it protects against. The guard intercepts window close/app quit before `beforeunload` fires and completes the original intent only after the renderer confirms through the same dialog (a pristine form auto-confirms); Electron reloads are cancelled and re-triggered the same way, a failed save always keeps the window open, and installing an app update suspends the whole guard so the updater's quit passes unchallenged — every install entry point (settings About section and the global update notification panel) must go through the root `AppUpdateInstallService`, which owns that suspend/restore choreography
 
 **Service Architecture** (Factory Pattern):
 
@@ -768,7 +768,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - **Location**: `~/.iptvnator/databases/iptvnator.db` (avoids spaces in path)
 - **Schema** (`libs/shared/database/src/lib/schema.ts` — canonical; `apps/electron-backend/src/app/database/schema.ts` is a backwards-compat re-export shim):
     - `playlists` - Playlist metadata (M3U, Xtream, Stalker)
-    - `categories` - Content categories (live, movies, series)
+    - `categories` - Content categories (live, movies, series); `hidden` (category management) and `locked` (parental lock index, derived from the renderer's lock store)
     - `content` - Streams/VOD/series items. Besides the catalog fields it carries what a detail view learned and handed back: `backdrop_url`, plus the TMDB identity (`tmdb_id`, `release_year`, `original_title`) that lets an activity row repeat the detail view's lookup instead of rebuilding a weaker one from the display title
     - `favorites` - User favorites
     - `recentlyViewed` - Watch history
@@ -808,6 +808,29 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - EPG parsing: `epg-parser.worker.ts`; main-process worker lifecycle is coordinated from `apps/electron-backend/src/app/events/epg-worker.service.ts`
 - Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`). Catalog deletes and inserts commit in row-budgeted transactions of ~5,000 rows (`database/operations/catalog-deletion.ts`: per-category row counts → category groups → set-based `DELETE`s scoped to the captured category ids, never playlist-wide, since the worker interleaves requests between commits and a newer import's categories must survive an older refresh; never 100-row autocommit batches, which flush FTS5 segments and re-append index pages to the WAL on every commit, and never one giant transaction, which would starve the main-process and EPG-worker connections past their 5 s `busy_timeout`). Progress events are throttled to one per 100 ms per operation with summed `increment`s (`operation-progress-throttle.ts`); phase starts, totals reached and terminal events are never held back
 - Playlist refresh: `playlist-refresh.worker.ts`; explicit cancellation is main-process-owned and terminates the one-shot worker before acknowledging `PLAYLIST_CANCEL_REFRESH` (see `docs/architecture/m3u-playlist-module.md`)
+
+### Parental Lock
+
+Issue #285. Settings → Parental lock sets a PIN (PBKDF2 hash in `app_state`
+/ localStorage, never in `Settings`) and enables the feature
+(`Settings.parentalLockEnabled`, mirrored to electron-conf
+`PARENTAL_LOCK_ENABLED`). Locks are per category — Xtream category ids,
+Stalker genre ids, M3U group titles — kept in one renderer lock store
+(`ParentalLockService`, `libs/services/src/lib/parental-lock/`), with
+`categories.locked` as the SQLite index re-stamped by
+`DB_SET_CATEGORY_LOCKS`. While `active` (enabled and no PIN entered this
+session) the DB worker appends `locked = 0` to every content read
+(`database/parental-lock-state.ts`, seeded via `workerData` and flipped by the
+`parental-lock` port message that `PARENTAL_LOCK_SET_STATE` forwards; a
+renderer reload or crash falls back to the mirrored setting), the PWA data
+source, the Stalker store and the M3U channel list filter in memory, and
+`ParentalLockEnforcementService` reloads the stores and steps off a withheld
+selection. Re-lock: restart, `Lock now`, or `parentalLockRelockMinutes` of
+idle (playback counts as activity). Lock toggles live in the Xtream/M3U
+management dialogs and the new Stalker lock dialog, all behind the PIN.
+Phase 2 (favorites/recent/positions, dashboard, global collections, guide,
+downloads, remote control) is listed in the contract:
+`docs/architecture/parental-lock.md`.
 
 ### Xtream Category Management
 
@@ -1854,30 +1877,31 @@ preventing destination failures from penalizing the initial endpoint. Contracts:
 Portal live layouts (Xtream `live`, Stalker `itv`/`radio`) fold their panels
 from the outside in, in three nested levels owned by `LiveSidebarState`
 (`@iptvnator/portal/shared/util`): `expanded` (categories rail + channels rail
-+ player), `categories-hidden` (channels rail + player) and `collapsed`
-(player only). `LiveLayoutSidebarStateService` is the single source of truth, per
-surface (`m3u` / `portal` / `collection`; the levels apply to `portal`); the
-shell context sidebar folds the categories rail on
-`areCategoriesHiddenFor('portal')` (at level 2 only while the portal store has
-a selected category — the live root has no channels header to host the way
-back — and always at level 3), the channels rail folds on
-`isCollapsedFor('portal')`. While the rail is folded the
-channels header turns its title into a category dropdown that opens the same
-`WorkspaceContextPanelComponent` as a CDK popover through the
-`LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
-`WorkspaceLiveCategoriesPopoverService` (focus-trapped `role="dialog"`,
-closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
-the live layouts reach it through `createLivePanelsController()` (level
-flags, dropdown bridge and focus handoff in one shared object; the token is
-optional). `Cmd/Ctrl+B`, the header toggle and the
-floating restore handle return to the level the user collapsed from (the
-target is session-only; every level is restored as stored per surface).
-Folded rails carry `inert`, and
-`handoffFocusOnLiveSidebarChange()` / `focusIfFocusLost()` move focus to the
-replacement affordance only when the activated button was removed or inerted.
-M3U and the unified live tab have no categories rail and treat level 2 like
-level 1. Contract: `docs/architecture/iptvnator-ui-guidelines.md`
-("Collapsible Live Sidebar").
+
+- player), `categories-hidden` (channels rail + player) and `collapsed`
+  (player only). `LiveLayoutSidebarStateService` is the single source of truth, per
+  surface (`m3u` / `portal` / `collection`; the levels apply to `portal`); the
+  shell context sidebar folds the categories rail on
+  `areCategoriesHiddenFor('portal')` (at level 2 only while the portal store has
+  a selected category — the live root has no channels header to host the way
+  back — and always at level 3), the channels rail folds on
+  `isCollapsedFor('portal')`. While the rail is folded the
+  channels header turns its title into a category dropdown that opens the same
+  `WorkspaceContextPanelComponent` as a CDK popover through the
+  `LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
+  `WorkspaceLiveCategoriesPopoverService` (focus-trapped `role="dialog"`,
+  closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
+  the live layouts reach it through `createLivePanelsController()` (level
+  flags, dropdown bridge and focus handoff in one shared object; the token is
+  optional). `Cmd/Ctrl+B`, the header toggle and the
+  floating restore handle return to the level the user collapsed from (the
+  target is session-only; every level is restored as stored per surface).
+  Folded rails carry `inert`, and
+  `handoffFocusOnLiveSidebarChange()` / `focusIfFocusLost()` move focus to the
+  replacement affordance only when the activated button was removed or inerted.
+  M3U and the unified live tab have no categories rail and treat level 2 like
+  level 1. Contract: `docs/architecture/iptvnator-ui-guidelines.md`
+  ("Collapsible Live Sidebar").
 
 ## Live Channel Return
 

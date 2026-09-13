@@ -530,7 +530,32 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Reconectar automáticamente los streams interrumpidos",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Cuando un stream en reproducción se interrumpe, el reproductor integrado lo vuelve a cargar con intervalos cada vez más largos, hasta 6 intentos, antes de desistir. Un stream que nunca llegó a iniciarse sigue necesitando un Reintentar manual.",
         "VOD_AUTO_FAILOVER": "Cambiar de fuente automáticamente al fallar la reproducción",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Cuando una película no se puede reproducir y la misma película está en otra lista, cambia a ella automáticamente y conserva la posición de reproducción. Desactivado de forma predeterminada; el cambio siempre se avisa, porque otra fuente puede tener un doblaje distinto."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Cuando una película no se puede reproducir y la misma película está en otra lista, cambia a ella automáticamente y conserva la posición de reproducción. Desactivado de forma predeterminada; el cambio siempre se avisa, porque otra fuente puede tener un doblaje distinto.",
+        "NAV_PARENTAL": "Parental lock",
+        "PARENTAL_LOCK": {
+            "TITLE": "Parental lock",
+            "DESCRIPTION": "Hide chosen categories behind a PIN. Locked categories, their channels and titles are removed from the whole app until the PIN is entered.",
+            "ENABLE": "Enable parental lock",
+            "ENABLE_DESCRIPTION": "Turning it on asks for a new PIN. Turning it off asks for the current PIN; your locks are kept for later.",
+            "STATUS": "Current state",
+            "STATUS_LOCKED": "Locked — locked categories are hidden.",
+            "STATUS_UNLOCKED": "Unlocked — locked categories are visible until the app locks again.",
+            "LOCK_NOW": "Lock now",
+            "UNLOCK": "Unlock",
+            "RELOCK": "Lock again after",
+            "RELOCK_DESCRIPTION": "Minutes without interaction before the app locks itself again. Playback counts as interaction. Restarting the app always locks.",
+            "RELOCK_NEVER": "Only when restarting the app",
+            "RELOCK_MINUTES": "{{minutes}} minutes of inactivity",
+            "CHANGE_PIN": "Change PIN",
+            "CHANGE_PIN_DESCRIPTION": "Asks for the current PIN first.",
+            "HOW_TO_LOCK": "Choosing what to lock",
+            "HOW_TO_LOCK_DESCRIPTION": "Open a source, then use the lock icons in the category list's manage dialog (Xtream, M3U groups) or the lock button above Stalker categories.",
+            "DISCLAIMER": "This is a child lock, not a security feature: the app's data files are readable by anyone with access to this computer.",
+            "ENABLED_TOAST": "Parental lock enabled",
+            "DISABLED_TOAST": "Parental lock disabled",
+            "PIN_CHANGED_TOAST": "PIN changed",
+            "LOCKED_TOAST": "Locked"
+        }
     },
     "THEMES": {
         "DARK_THEME": "Oscuro",
@@ -1646,7 +1671,11 @@
                 "SWITCH_PLAYER_LABEL": "Cambiar reproductor a {{name}}",
                 "SWITCH_PLAYER_DESCRIPTION": "Establecer {{name}} como reproductor de vídeo activo",
                 "SWITCH_PLAYER_FEEDBACK": "Reproductor establecido a {{name}}",
-                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Mostrar los datos de la cuenta del portal Stalker"
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Mostrar los datos de la cuenta del portal Stalker",
+                "PARENTAL_LOCK_NOW_LABEL": "Lock now",
+                "PARENTAL_LOCK_NOW_DESCRIPTION": "Hide the parental-locked categories again",
+                "PARENTAL_UNLOCK_LABEL": "Enter parental PIN",
+                "PARENTAL_UNLOCK_DESCRIPTION": "Show the parental-locked categories"
             },
             "XTREAM_REFRESH_TITLE": "Actualizando lista de reproducción",
             "XTREAM_REFRESH_COLLECTING_DATA": "Conservando los datos de tu biblioteca...",
@@ -1834,5 +1863,35 @@
             "failed": "Deletion failed — select to retry"
         },
         "DELETE_PROGRESS": "Processed {{done}} of {{total}} selected sources"
+    },
+    "PARENTAL_LOCK": {
+        "PIN_DIALOG": {
+            "UNLOCK_TITLE": "Enter parental PIN",
+            "UNLOCK_DESCRIPTION": "Locked categories stay hidden until the PIN is entered.",
+            "SET_TITLE": "Set parental PIN",
+            "SET_DESCRIPTION": "Choose a PIN that will be required to show locked categories.",
+            "PIN_LABEL": "PIN",
+            "CONFIRM_LABEL": "Repeat PIN",
+            "PIN_HINT": "{{min}} to {{max}} digits",
+            "WRONG_PIN": "Wrong PIN. Try again.",
+            "MISMATCH": "The two PINs do not match.",
+            "COOLDOWN": "Too many attempts. Wait 30 seconds and try again.",
+            "NO_RECOVERY": "There is no way to recover a forgotten PIN — only resetting the app data removes it.",
+            "SAVE": "Save PIN",
+            "UNLOCK": "Unlock"
+        },
+        "LOCKED_COUNT": "Locked",
+        "LOCK_CATEGORY": "Lock category",
+        "UNLOCK_CATEGORY": "Unlock category",
+        "MANAGE_LOCKS": "Lock categories",
+        "MANAGE_LOCKS_DESCRIPTION": "Locked categories and their channels disappear from the whole app until the parental PIN is entered.",
+        "LOCK_CENSORED": "Lock adult (18+)",
+        "UNLOCK_ALL": "Unlock all",
+        "CENSORED_HINT": "The portal flags this category as adult content",
+        "SAVE_FAILED": "Saving the category locks failed",
+        "LOCKED_CATEGORIES_ROW": "{{count}} locked",
+        "UNLOCK_TO_SHOW": "Enter PIN to show",
+        "HEADER_LOCK": "Lock now (parental lock)",
+        "HEADER_UNLOCK": "Enter parental PIN"
     }
 }

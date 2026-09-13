@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import {
     DatabaseService,
+    ParentalLockService,
     PlaybackPositionService,
     XtreamPendingRestoreService,
     XtreamImportStatus,
@@ -46,6 +47,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         XtreamPendingRestoreService
     );
     private readonly apiService = inject(XtreamApiService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly categoryRequests = new Map<
         string,
         Promise<XtreamCategoryFromDb[]>
@@ -213,7 +215,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 playlistId,
                 remoteData,
                 dbType,
-                hiddenCategoryXtreamIds
+                hiddenCategoryXtreamIds,
+                // Locks live in the renderer's store; the fresh rows get the
+                // SQLite mirror stamped on insert so a refresh keeps them.
+                this.parentalLock.lockedXtreamIds(playlistId, dbType)
             );
         }
 

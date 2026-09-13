@@ -170,6 +170,7 @@ const CREATE_TABLE_STATEMENTS = [
       type TEXT NOT NULL CHECK (type IN ('live', 'movies', 'series')),
       xtream_id INTEGER NOT NULL,
       hidden INTEGER DEFAULT 0,
+      locked INTEGER DEFAULT 0,
       UNIQUE(playlist_id, type, xtream_id),
       FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
   )`,
@@ -377,6 +378,8 @@ const CREATE_TABLE_STATEMENTS = [
 const COLUMN_MIGRATION_STATEMENTS = [
     // v1.0.0 -> v1.1.0: Add hidden column to categories for category management
     `ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0`,
+    // Parental lock: per-category lock index (issue #285)
+    `ALTER TABLE categories ADD COLUMN locked INTEGER DEFAULT 0`,
     // v1.1.0 -> v1.2.0: Add playlist metadata/payload columns for M3U + unified playlist persistence
     `ALTER TABLE playlists ADD COLUMN portal_url TEXT`,
     `ALTER TABLE playlists ADD COLUMN count INTEGER`,

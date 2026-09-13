@@ -6,6 +6,7 @@ import { DatabaseService } from './database-electron.service';
 import { VodSourcePinService } from './vod-source-pin.service';
 import { PlaybackPositionService } from './playback-position.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
+import { ParentalLockService } from './parental-lock/parental-lock.service';
 import {
     isM3uRecentlyViewedItem,
     normalizeXtreamPendingRestoreState,
@@ -25,6 +26,11 @@ import {
     XtreamBackupSourcePin,
     XtreamPendingRestoreState,
     createRandomId,
+    normalizeParentalLockStalkerCategories,
+    normalizeParentalLockXtreamCategories,
+    ParentalLockPlaylistLocks,
+    StalkerBackupLockedCategory,
+    XtreamBackupHiddenCategory,
 } from '@iptvnator/shared/interfaces';
 
 export interface PlaylistBackupExportPayload {
@@ -65,6 +71,7 @@ export class PlaylistBackupService {
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
+    private readonly parentalLock = inject(ParentalLockService);
     private backupImportTail?: Promise<void>;
 
     async exportBackup(): Promise<PlaylistBackupExportPayload> {
@@ -96,9 +103,9 @@ export class PlaylistBackupService {
     }
 
     importBackup(json: string): Promise<PlaylistBackupImportSummary> {
-        const importResult = (
-            this.backupImportTail ?? Promise.resolve()
-        ).then(() => this.executeImportBackup(json));
+        const importResult = (this.backupImportTail ?? Promise.resolve()).then(
+            () => this.executeImportBackup(json)
+        );
         this.backupImportTail = importResult.then(
             () => undefined,
             () => undefined
@@ -162,6 +169,8 @@ export class PlaylistBackupService {
                 await firstValueFrom(
                     this.playlistsService.addPlaylist(nextPlaylist)
                 );
+
+                await this.restoreParentalLocks(targetId, entry);
 
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
@@ -243,6 +252,7 @@ export class PlaylistBackupService {
                         ? playlist.hiddenGroupTitles
                         : []
                 ),
+                ...this.optionalLockedGroupTitles(playlist._id),
             },
         };
     }
@@ -269,6 +279,7 @@ export class PlaylistBackupService {
                     favorites: [],
                     recentlyViewed: [],
                     playbackPositions: [],
+                    ...this.optionalLockedXtreamCategories(playlist._id),
                     // NOT `[]`. Pins are Electron-only, so out here we cannot
                     // read them — which is not the same as knowing there are
                     // none. Restore treats the collection as authoritative and
@@ -321,6 +332,7 @@ export class PlaylistBackupService {
                     ...this.mapHiddenCategories(movieCategories, 'movies'),
                     ...this.mapHiddenCategories(seriesCategories, 'series'),
                 ],
+                ...this.optionalLockedXtreamCategories(playlist._id),
                 favorites: favorites.map((item) => ({
                     xtreamId: item.xtream_id,
                     contentType: item.type as XtreamContentType,
@@ -416,6 +428,7 @@ export class PlaylistBackupService {
                     : {}),
             },
             userState: {
+                ...this.optionalLockedStalkerCategories(playlist._id),
                 favorites: this.extractStalkerItems(playlist.favorites),
                 recentlyViewed: this.extractStalkerItems(
                     playlist.recentlyViewed
@@ -526,6 +539,15 @@ export class PlaylistBackupService {
                 ) {
                     throw new PlaylistBackupError(
                         `Xtream backup "${entry.title}" has incomplete user state.`
+                    );
+                }
+
+                if (
+                    entry.userState.lockedCategories !== undefined &&
+                    !Array.isArray(entry.userState.lockedCategories)
+                ) {
+                    throw new PlaylistBackupError(
+                        `Xtream backup "${entry.title}" has invalid parental locks.`
                     );
                 }
 
@@ -706,11 +728,12 @@ export class PlaylistBackupService {
         playlistId: string,
         existing: Playlist | null
     ): Promise<Playlist> {
-        const parsedPlaylist = await this.playlistsService.handlePlaylistParsing(
-            'TEXT',
-            entry.source.rawM3u,
-            entry.title
-        );
+        const parsedPlaylist =
+            await this.playlistsService.handlePlaylistParsing(
+                'TEXT',
+                entry.source.rawM3u,
+                entry.title
+            );
         const now = new Date().toISOString();
 
         return {
@@ -829,7 +852,6 @@ export class PlaylistBackupService {
         });
     }
 
-
     private async restoreXtreamEntry(
         playlistId: string,
         entry: XtreamPlaylistBackupEntry
@@ -859,13 +881,12 @@ export class PlaylistBackupService {
             return;
         }
 
-        const restoreResult =
-            await this.pendingRestoreService.applyAndConsume(
-                playlistId,
-                restoreSnapshot,
-                (pendingState) =>
-                    this.applyXtreamRestoreState(playlistId, pendingState)
-            );
+        const restoreResult = await this.pendingRestoreService.applyAndConsume(
+            playlistId,
+            restoreSnapshot,
+            (pendingState) =>
+                this.applyXtreamRestoreState(playlistId, pendingState)
+        );
         if (restoreResult !== 'consumed') {
             throw new PlaylistBackupError(
                 `Clearing pending restore state for "${playlistId}" failed.`
@@ -1008,6 +1029,83 @@ export class PlaylistBackupService {
                     true
                 );
             }
+        }
+    }
+
+    // Parental locks are written only when the playlist has some: an archive
+    // without the field says nothing about locks (older builds wrote none),
+    // so an unlocked playlist stays byte-identical to a pre-lock export.
+    private optionalLockedXtreamCategories(playlistId: string): {
+        lockedCategories?: XtreamBackupHiddenCategory[];
+    } {
+        const locked = this.parentalLock
+            .locksFor(playlistId)
+            .xtream.map((entry) => ({
+                categoryType: entry.categoryType,
+                xtreamId: entry.xtreamId,
+            }));
+        return locked.length > 0 ? { lockedCategories: locked } : {};
+    }
+
+    private optionalLockedStalkerCategories(playlistId: string): {
+        lockedCategories?: StalkerBackupLockedCategory[];
+    } {
+        const locked = this.parentalLock
+            .locksFor(playlistId)
+            .stalker.map((entry) => ({ ...entry }));
+        return locked.length > 0 ? { lockedCategories: locked } : {};
+    }
+
+    private optionalLockedGroupTitles(playlistId: string): {
+        lockedGroupTitles?: string[];
+    } {
+        const locked = this.uniqueStrings(
+            this.parentalLock.locksFor(playlistId).m3u
+        );
+        return locked.length > 0 ? { lockedGroupTitles: locked } : {};
+    }
+
+    /**
+     * Parental locks travel next to the hidden state of each entry. Absent
+     * fields mean the archive predates the lock (or was written by a build
+     * that could not read it) and leave the playlist's locks alone.
+     */
+    private async restoreParentalLocks(
+        playlistId: string,
+        entry: PlaylistBackupEntry
+    ): Promise<void> {
+        const current = this.parentalLock.locksFor(playlistId);
+        let next: ParentalLockPlaylistLocks | null = null;
+
+        if (entry.portalType === 'm3u') {
+            const titles = entry.userState.lockedGroupTitles;
+            if (Array.isArray(titles)) {
+                next = { ...current, m3u: this.uniqueStrings(titles) };
+            }
+        } else if (entry.portalType === 'xtream') {
+            const categories = entry.userState.lockedCategories;
+            if (Array.isArray(categories)) {
+                next = {
+                    ...current,
+                    xtream: normalizeParentalLockXtreamCategories(categories),
+                };
+            }
+        } else if (Array.isArray(entry.userState.lockedCategories)) {
+            next = {
+                ...current,
+                stalker: normalizeParentalLockStalkerCategories(
+                    entry.userState.lockedCategories
+                ),
+            };
+        }
+
+        if (
+            next &&
+            !(await this.parentalLock.replacePlaylistLocks(playlistId, next))
+        ) {
+            throw new PlaylistBackupError(
+                `Restoring the parental locks for "${playlistId}" failed.`
+            );
         }
     }
 

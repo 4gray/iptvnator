@@ -2,6 +2,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
 import { XTREAM_DATABASE_PERFORMANCE_PHASE } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
+import { unlockedCategoryCondition } from '../parental-lock-state';
 import type { DatabaseOperationPerformancePhaseCapture } from './performance-phase-capture';
 
 type XtreamCategoryInput = {
@@ -23,6 +24,7 @@ const categoryWireShape = {
     type: schema.categories.type,
     xtream_id: schema.categories.xtreamId,
     hidden: schema.categories.hidden,
+    locked: schema.categories.locked,
 };
 
 function normalizeXtreamCategoryId(
@@ -37,9 +39,11 @@ function normalizeXtreamCategories(
     playlistId: string,
     categories: XtreamCategoryInput[],
     type: 'live' | 'movies' | 'series',
-    hiddenCategoryXtreamIds?: number[]
+    hiddenCategoryXtreamIds?: number[],
+    lockedCategoryXtreamIds?: number[]
 ): XtreamCategoryValue[] {
     const hiddenSet = new Set(hiddenCategoryXtreamIds || []);
+    const lockedSet = new Set(lockedCategoryXtreamIds || []);
 
     return categories.flatMap((category) => {
         const xtreamId = normalizeXtreamCategoryId(category.category_id);
@@ -55,6 +59,7 @@ function normalizeXtreamCategories(
                 type,
                 xtreamId,
                 hidden: hiddenSet.has(xtreamId),
+                locked: lockedSet.has(xtreamId),
             },
         ];
     });
@@ -111,7 +116,8 @@ export async function getCategories(
             and(
                 eq(schema.categories.playlistId, playlistId),
                 eq(schema.categories.type, type),
-                eq(schema.categories.hidden, false)
+                eq(schema.categories.hidden, false),
+                unlockedCategoryCondition()
             )
         )
         .orderBy(schema.categories.id);
@@ -131,6 +137,7 @@ export async function saveCategories(
     categories: XtreamCategoryInput[],
     type: 'live' | 'movies' | 'series',
     hiddenCategoryXtreamIds?: number[],
+    lockedCategoryXtreamIds?: number[],
     capturePhase?: DatabaseOperationPerformancePhaseCapture
 ): Promise<{ success: boolean }> {
     if (!categories || categories.length === 0) {
@@ -159,7 +166,8 @@ export async function saveCategories(
                       playlistId,
                       categories,
                       type,
-                      hiddenCategoryXtreamIds
+                      hiddenCategoryXtreamIds,
+                      lockedCategoryXtreamIds
                   ),
               (result) => ({ itemCount: result.length })
           )
@@ -167,7 +175,8 @@ export async function saveCategories(
               playlistId,
               categories,
               type,
-              hiddenCategoryXtreamIds
+              hiddenCategoryXtreamIds,
+              lockedCategoryXtreamIds
           );
 
     if (values.length === 0) {
@@ -217,6 +226,38 @@ export async function updateCategoryVisibility(
         .update(schema.categories)
         .set({ hidden })
         .where(inArray(schema.categories.id, categoryIds));
+
+    return { success: true };
+}
+
+/**
+ * Re-stamps the parental lock index for one playlist and category type from
+ * the renderer's lock store: listed provider ids become locked, every other
+ * row of that playlist/type is unlocked. Idempotent by construction, so the
+ * renderer can replay the store after a refresh or a backup restore.
+ */
+export async function setCategoryLocks(
+    db: AppDatabase,
+    playlistId: string,
+    type: 'live' | 'movies' | 'series',
+    lockedXtreamIds: number[]
+): Promise<{ success: boolean }> {
+    const scope = and(
+        eq(schema.categories.playlistId, playlistId),
+        eq(schema.categories.type, type)
+    );
+    const lockedIds = [
+        ...new Set(lockedXtreamIds.filter((id) => Number.isInteger(id))),
+    ];
+
+    await db.update(schema.categories).set({ locked: false }).where(scope);
+
+    if (lockedIds.length > 0) {
+        await db
+            .update(schema.categories)
+            .set({ locked: true })
+            .where(and(scope, inArray(schema.categories.xtreamId, lockedIds)));
+    }
 
     return { success: true };
 }

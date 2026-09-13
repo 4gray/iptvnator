@@ -482,6 +482,8 @@ export interface ElectronBridgeCategoryRow {
     type: 'movies' | 'live' | 'series';
     xtream_id: number;
     hidden: boolean;
+    /** Parental lock index, stamped from the renderer's lock store. */
+    locked: boolean;
 }
 
 export interface ElectronBridgeXtreamContent {
@@ -745,6 +747,14 @@ export interface ElectronBridgeApi {
      * leave the display pinned awake.
      */
     setPlaybackKeepAwake: (active: boolean) => Promise<void>;
+    /**
+     * Parental lock enforcement for the SQLite worker: `true` withholds
+     * every row in a locked category from content reads, `false` returns
+     * them. Reset to the mirrored `parentalLockEnabled` setting when the
+     * renderer reloads or dies, so a crashed page can never leave the
+     * library unlocked.
+     */
+    setParentalLockState: (active: boolean) => Promise<void>;
     fetchPlaylistByUrl: (
         url: string,
         title?: string,
@@ -986,7 +996,8 @@ export interface ElectronBridgeApi {
         playlistId: string,
         categories: XtreamCategory[],
         type: string,
-        hiddenCategoryXtreamIds?: number[]
+        hiddenCategoryXtreamIds?: number[],
+        lockedCategoryXtreamIds?: number[]
     ) => Promise<ElectronBridgeResult>;
     dbGetAllCategories: (
         playlistId: string,
@@ -995,6 +1006,17 @@ export interface ElectronBridgeApi {
     dbUpdateCategoryVisibility: (
         categoryIds: number[],
         hidden: boolean
+    ) => Promise<ElectronBridgeResult>;
+    /**
+     * Re-stamps `categories.locked` for one playlist and type from the given
+     * provider category ids: rows in the list become locked, every other row
+     * of that playlist/type unlocked. Idempotent, so the renderer can replay
+     * its lock store after a refresh or a backup restore.
+     */
+    dbSetCategoryLocks: (
+        playlistId: string,
+        type: string,
+        lockedXtreamIds: number[]
     ) => Promise<ElectronBridgeResult>;
     dbHasContent: (playlistId: string, type: string) => Promise<boolean>;
     dbGetContent: (

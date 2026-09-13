@@ -195,6 +195,12 @@ export function buildSettingsSectionNavItems({
             visible: true,
         },
         {
+            id: 'parental',
+            label: 'SETTINGS.NAV_PARENTAL',
+            icon: 'family_restroom',
+            visible: true,
+        },
+        {
             id: 'backup',
             label: 'SETTINGS.NAV_BACKUP',
             icon: 'backup',

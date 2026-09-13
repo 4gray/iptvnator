@@ -426,9 +426,7 @@ describe('GroupsViewComponent', () => {
         const rail = fixture.nativeElement.querySelector(
             'aside.groups-nav-panel'
         ) as HTMLElement;
-        expect(rail.classList.contains('groups-nav-panel--compact')).toBe(
-            true
-        );
+        expect(rail.classList.contains('groups-nav-panel--compact')).toBe(true);
         expect(rail.style.width).toBe('148px');
         expect(localStorage.getItem('m3u-groups-nav-width')).toBe('320');
 
@@ -504,7 +502,7 @@ describe('GroupsViewComponent', () => {
         const hiddenGroupTitlesChanged = jest.fn();
         component.hiddenGroupTitlesChanged.subscribe(hiddenGroupTitlesChanged);
         dialog.open.mockReturnValue({
-            afterClosed: () => of(['News', 'Sports']),
+            afterClosed: () => of({ hiddenGroupTitles: ['News', 'Sports'] }),
         });
 
         component.openGroupManagement();

@@ -143,6 +143,16 @@ export class GroupsViewComponent {
     /** Set of favorite channel URLs */
     readonly favoriteIds = input<Set<string>>(new Set());
     readonly hiddenGroupTitles = input<string[]>([]);
+    /**
+     * Parental lock. `lockedGroupTitles` is `null` while the lock feature is
+     * off (no toggles in the dialog); `managementGroups` lists EVERY group
+     * of the playlist, locked ones included, because `groupedChannels`
+     * arrives with the withheld groups already removed.
+     */
+    readonly lockedGroupTitles = input<string[] | null>(null);
+    readonly managementGroups = input<GroupManagementDialogGroup[] | null>(
+        null
+    );
 
     /** Current outer sidebar width */
     readonly sidebarWidth = input<number | null>(null);
@@ -163,6 +173,7 @@ export class GroupsViewComponent {
     /** Emits when the groups rail resize ends */
     readonly sidebarWidthRequestEnded = output<number>();
     readonly hiddenGroupTitlesChanged = output<string[]>();
+    readonly lockedGroupTitlesChanged = output<string[]>();
 
     /** Emits when the user clicks the inline collapse toggle in the groups header */
     readonly sidebarToggleRequested = output<void>();
@@ -475,27 +486,34 @@ export class GroupsViewComponent {
     }
 
     openGroupManagement(): void {
-        const groups = this.allGroups().map<GroupManagementDialogGroup>(
-            ({ key, count }) => ({
-                key,
-                count,
-            })
-        );
+        const groups =
+            this.managementGroups() ??
+            this.allGroups().map<GroupManagementDialogGroup>(
+                ({ key, count }) => ({
+                    key,
+                    count,
+                })
+            );
+        const lockedGroupTitles = this.lockedGroupTitles();
         const dialogRef = this.dialog.open(GroupManagementDialogComponent, {
             data: {
                 groups,
                 hiddenGroupTitles: this.hiddenGroupTitles(),
+                ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
             width: '500px',
             maxHeight: '90vh',
         });
 
-        dialogRef.afterClosed().subscribe((hiddenGroupTitles) => {
-            if (hiddenGroupTitles === undefined) {
+        dialogRef.afterClosed().subscribe((result) => {
+            if (result === undefined) {
                 return;
             }
 
-            this.hiddenGroupTitlesChanged.emit(hiddenGroupTitles);
+            this.hiddenGroupTitlesChanged.emit(result.hiddenGroupTitles);
+            if (result.lockedGroupTitles) {
+                this.lockedGroupTitlesChanged.emit(result.lockedGroupTitles);
+            }
         });
     }
 

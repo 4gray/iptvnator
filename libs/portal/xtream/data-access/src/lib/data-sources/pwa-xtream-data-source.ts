@@ -16,7 +16,7 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
-import { PlaylistsService } from '@iptvnator/services';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { firstValueFrom } from 'rxjs';
 import {
     DbCategoryType,
@@ -81,6 +81,7 @@ type StoredXtreamPlaylistData = Omit<XtreamPlaylistData, 'password'> & {
 export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly apiService = inject(XtreamApiService);
     private readonly injector = inject(Injector);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly logger = createLogger('PwaXtreamDataSource');
     private readonly contentTypes = ['live', 'movie', 'series'] as const;
 
@@ -331,7 +332,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Check in-memory cache first
         const cachedCategories = this.categoryCache.get(cacheKey);
         if (cachedCategories) {
-            return cachedCategories;
+            return this.withoutLockedCategories(
+                playlistId,
+                type,
+                cachedCategories
+            );
         }
 
         // Fetch from API
@@ -344,7 +349,58 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Cache in memory
         this.categoryCache.set(cacheKey, categories);
 
-        return categories;
+        return this.withoutLockedCategories(playlistId, type, categories);
+    }
+
+    /**
+     * Parental lock (PWA): there is no SQLite worker to filter reads, so the
+     * withheld categories are dropped here, at the same boundary the
+     * Electron source reads them through.
+     */
+    private withheldCategoryIds(
+        playlistId: string,
+        type: CategoryType | StreamType
+    ): Set<string> {
+        if (!this.parentalLock.active()) {
+            return new Set();
+        }
+        const dbType =
+            type === 'vod' || type === 'movie'
+                ? 'movies'
+                : type === 'series'
+                  ? 'series'
+                  : 'live';
+        return new Set(
+            this.parentalLock
+                .lockedXtreamIds(playlistId, dbType)
+                .map((id) => String(id))
+        );
+    }
+
+    private withoutLockedCategories(
+        playlistId: string,
+        type: CategoryType,
+        categories: XtreamCategory[]
+    ): XtreamCategory[] {
+        const withheld = this.withheldCategoryIds(playlistId, type);
+        return withheld.size === 0
+            ? categories
+            : categories.filter(
+                  (category) => !withheld.has(String(category.category_id))
+              );
+    }
+
+    private withoutLockedContent<T extends { category_id?: string | number }>(
+        playlistId: string,
+        type: StreamType,
+        items: T[]
+    ): T[] {
+        const withheld = this.withheldCategoryIds(playlistId, type);
+        return withheld.size === 0
+            ? items
+            : items.filter(
+                  (item) => !withheld.has(String(item.category_id ?? ''))
+              );
     }
 
     async getAllCategories(
@@ -416,8 +472,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Check in-memory cache first
         const cachedContent = this.contentCache.get(cacheKey);
         if (cachedContent) {
-            return cachedContent as
-                XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[];
+            return this.withoutLockedContent(
+                playlistId,
+                type,
+                cachedContent
+            ) as XtreamLiveStream[] | XtreamVodStream[] | XtreamSerieItem[];
         }
 
         // Fetch from API
@@ -444,7 +503,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Cache in memory
         this.contentCache.set(cacheKey, content);
 
-        return content;
+        return this.withoutLockedContent(playlistId, type, content);
     }
 
     async getCachedContent(

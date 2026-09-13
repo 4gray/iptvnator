@@ -29,6 +29,14 @@ export const STARTUP_WINDOW_MODE = 'STARTUP_WINDOW_MODE';
 export const PORTAL_CONNECTIVITY_GUARD = 'PORTAL_CONNECTIVITY_GUARD';
 
 /**
+ * Parental lock feature switch, mirrored from the renderer's settings by the
+ * SETTINGS_UPDATE handler. Read when the database worker starts and when a
+ * renderer reloads or dies, so the SQLite reads are locked before any page
+ * has announced its lock state. Absent means off.
+ */
+export const PARENTAL_LOCK_ENABLED = 'PARENTAL_LOCK_ENABLED';
+
+/**
  * Extra libmpv options for embedded sessions, one "key=value" per line, as
  * typed in Settings > Playback. Mirrored here by the SETTINGS_UPDATE handler
  * because sessions are created in the main process, where the renderer's
@@ -56,6 +64,7 @@ export type StoreType = {
     [EMBEDDED_MPV_AUTO_RECONNECT]: boolean;
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
     [PORTAL_CONNECTIVITY_GUARD]: boolean;
+    [PARENTAL_LOCK_ENABLED]: boolean;
 };
 
 // Export singleton store instance

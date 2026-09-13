@@ -11,6 +11,7 @@ import {
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
+    PARENTAL_LOCK_ENABLED,
     STARTUP_WINDOW_MODE,
     PORTAL_CONNECTIVITY_GUARD,
     store,
@@ -19,6 +20,7 @@ import {
 } from '../services/store.service';
 import { httpServer } from '../server/http-server';
 import { setHostConnectivityGuardEnabled } from '../util/host-connectivity-guard';
+import { applyParentalLockState } from './parental-lock.events';
 
 export default class SettingsEvents {
     static bootstrapSettingsEvents(): Electron.IpcMain {
@@ -39,6 +41,16 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         const enabled = arg.portalConnectivityGuard !== false;
         store.set(PORTAL_CONNECTIVITY_GUARD, enabled);
         setHostConnectivityGuardEnabled(enabled);
+    }
+
+    // Mirrored so the database worker and a reloaded renderer start locked
+    // whenever the feature is on. Turning the feature off also releases the
+    // worker filter immediately; turning it on locks it — the renderer
+    // announces an explicit unlock through PARENTAL_LOCK_SET_STATE.
+    if (arg.parentalLockEnabled !== undefined) {
+        const enabled = arg.parentalLockEnabled === true;
+        store.set(PARENTAL_LOCK_ENABLED, enabled);
+        void applyParentalLockState(enabled).catch(() => undefined);
     }
 
     if (arg.mpvPlayerArguments !== undefined) {

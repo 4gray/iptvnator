@@ -13,7 +13,7 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
@@ -45,6 +45,7 @@ import {
     Subscription,
 } from 'rxjs';
 import {
+    ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -63,6 +64,7 @@ import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
 import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
 import { GroupsViewComponent } from './groups-view/groups-view.component';
+import type { GroupManagementDialogGroup } from './groups-view/group-management-dialog/group-management-dialog.component';
 import {
     RecentViewComponent,
     RecentViewItem,
@@ -115,6 +117,7 @@ const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
 export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly router = inject(Router);
@@ -315,9 +318,60 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         return playlist.hiddenGroupTitles ?? [];
     });
 
-    /** Displayed channels - filters out unfavorited channels in global favorites view */
+    /** The M3U playlist the parental lock keys its group locks by. */
+    private readonly lockPlaylistId = computed(() => {
+        const playlist = this.activePlaylist();
+        if (!playlist || playlist.serverUrl || playlist.macAddress) {
+            return null;
+        }
+        return playlist._id;
+    });
+    /** Locked group titles for the management dialog; `null` while the lock is off. */
+    readonly lockedGroupTitles = computed<string[] | null>(() => {
+        this.parentalLock.version();
+        const playlistId = this.lockPlaylistId();
+        if (!playlistId || !this.parentalLock.enabled()) {
+            return null;
+        }
+        return this.parentalLock.lockedGroupTitles(playlistId);
+    });
+    /** Group titles currently withheld: locked AND the lock is active. */
+    private readonly withheldGroupTitles = computed(() => {
+        this.parentalLock.version();
+        const playlistId = this.lockPlaylistId();
+        if (!playlistId || !this.parentalLock.active()) {
+            return new Set<string>();
+        }
+        return new Set(this.parentalLock.lockedGroupTitles(playlistId));
+    });
+    /**
+     * Every channel of the playlist minus the withheld groups. All views,
+     * the fullscreen panel and numeric zapping derive from this list, so a
+     * locked group cannot resurface through any of them.
+     */
+    private readonly visibleChannelList = computed(() => {
+        const withheld = this.withheldGroupTitles();
+        const channels = this.channelListSignal();
+        if (withheld.size === 0) {
+            return channels;
+        }
+        return channels.filter(
+            (channel) => !withheld.has(channel.group?.title ?? '')
+        );
+    });
+    private readonly visibleChannelList$ = toObservable(
+        this.visibleChannelList
+    );
+    /** Every group with its size, locked ones included, for the management dialog. */
+    readonly managementGroups = computed<GroupManagementDialogGroup[]>(() =>
+        Object.entries(groupChannelsByTitle(this.channelListSignal())).map(
+            ([key, channels]) => ({ key, count: channels.length })
+        )
+    );
+
+    /** Displayed channels - the playlist minus the parental lock's withheld groups */
     readonly displayedChannels = computed(() => {
-        return this.channelListSignal();
+        return this.visibleChannelList();
     });
 
     /** Object with channels sorted by groups */
@@ -326,7 +380,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     );
 
     readonly recentChannelItems = computed<RecentViewItem[]>(() => {
-        const channels = this.channelListSignal();
+        const channels = this.visibleChannelList();
         const recentItems = this.recentItems();
         const channelsByUrl = new Map(
             channels.map((channel) => [channel.url, channel] as const)
@@ -381,7 +435,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /** List with favorites */
     favorites$ = combineLatest([
         this.store.select(selectFavorites),
-        this.channelList$,
+        this.visibleChannelList$,
     ]).pipe(
         map(([favoriteChannelIds, channelList]) => {
             const channelsByUrl = mapChannelsByFirstUrl(channelList);
@@ -528,6 +582,14 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         this.store.dispatch(
             FavoritesActions.updateFavorites({ channel: event.channel })
         );
+    }
+
+    onLockedGroupTitlesChanged(lockedGroupTitles: string[]): void {
+        const playlistId = this.lockPlaylistId();
+        if (!playlistId) {
+            return;
+        }
+        void this.parentalLock.setM3uLocks(playlistId, lockedGroupTitles);
     }
 
     onHiddenGroupTitlesChanged(hiddenGroupTitles: string[]): void {

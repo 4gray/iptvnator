@@ -43,6 +43,8 @@ import {
     SETTINGS_STARTUP_WINDOW_MODE_OPTIONS,
     SETTINGS_THEME_OPTIONS,
 } from './settings-options';
+import { SettingsParentalLockFacade } from './settings-parental-lock.facade';
+import { SettingsParentalLockSectionComponent } from './settings-parental-lock-section.component';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
@@ -88,6 +90,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsDashboardSectionComponent,
         SettingsEpgSectionComponent,
         SettingsGeneralSectionComponent,
+        SettingsParentalLockSectionComponent,
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsResetSectionComponent,
@@ -99,6 +102,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsEmbeddedMpvFacade,
         SettingsEpgFacade,
         SettingsFormFacade,
+        SettingsParentalLockFacade,
         SettingsPlaylistResetFacade,
         SettingsRemoteControlFacade,
         SettingsSnackbarService,
@@ -113,6 +117,7 @@ export class SettingsComponent
     readonly embeddedMpv = inject(SettingsEmbeddedMpvFacade);
     readonly epg = inject(SettingsEpgFacade);
     readonly form = inject(SettingsFormFacade);
+    readonly parentalLock = inject(SettingsParentalLockFacade);
     readonly playlistReset = inject(SettingsPlaylistResetFacade);
     readonly remoteControl = inject(SettingsRemoteControlFacade);
 

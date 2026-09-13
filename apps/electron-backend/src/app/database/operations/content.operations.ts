@@ -16,6 +16,10 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
+    unlockedCategoryCondition,
+    unlockedCategorySql,
+} from '../parental-lock-state';
+import {
     countContentRowsByCategory,
     sumCategoryRowCounts,
 } from './catalog-deletion';
@@ -311,6 +315,7 @@ async function selectXtreamGlobalSearchCandidatesWithTitleIndex(
         )})
         AND ${sql.join(titleConditions, sql` AND `)}
         ${excludeHidden ? sql`AND cat.hidden = 0` : sql``}
+        ${unlockedCategorySql()}
         ORDER BY c.title
         LIMIT ${candidateLimit}
     `)) as XtreamGlobalSearchCandidate[];
@@ -359,6 +364,7 @@ async function selectXtreamGlobalSearchCandidatesWithFts(
                 : sql``
         }
         ${excludeHidden ? sql`AND cat.hidden = 0` : sql``}
+        ${unlockedCategorySql()}
         ORDER BY rank, c.title
         LIMIT ${candidateLimit}
     `)) as XtreamGlobalSearchCandidate[];
@@ -381,6 +387,10 @@ async function selectXtreamGlobalSearchCandidatesWithContentScan(
 
     if (excludeHidden) {
         conditions.push(eq(schema.categories.hidden, false));
+    }
+    const unlockedCondition = unlockedCategoryCondition();
+    if (unlockedCondition) {
+        conditions.push(unlockedCondition);
     }
 
     return db
@@ -694,7 +704,8 @@ export async function getContent(
         .where(
             and(
                 eq(schema.categories.playlistId, playlistId),
-                eq(schema.content.type, type)
+                eq(schema.content.type, type),
+                unlockedCategoryCondition()
             )
         );
 
@@ -775,6 +786,7 @@ function getGlobalRecentlyAddedByType(
     const whereConditions = [
         eq(schema.content.type, type),
         eq(schema.categories.hidden, false),
+        unlockedCategoryCondition(),
         sql`${schema.content.added} <> ''`,
         sql`${schema.content.added} <= ${getXtreamRecentlyAddedMaxEpochSeconds()}`,
     ];
@@ -1073,6 +1085,10 @@ export async function searchContent(
 
     if (excludeHidden) {
         conditions.push(eq(schema.categories.hidden, false));
+    }
+    const unlockedCondition = unlockedCategoryCondition();
+    if (unlockedCondition) {
+        conditions.push(unlockedCondition);
     }
 
     const query = db

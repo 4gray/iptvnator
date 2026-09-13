@@ -16,6 +16,7 @@ import {
     normalizeEmbeddedMpvExtraOptions,
     normalizeExternalPlayerArguments,
     normalizeEpgOffsetMinutes,
+    normalizeParentalLockRelockMinutes,
     normalizeStartupWindowMode,
     Settings,
     StartupBehavior,
@@ -217,6 +218,12 @@ export function createSettingsFromFormValue(
             enabled: value.tmdb?.enabled ?? DEFAULT_TMDB_SETTINGS.enabled,
             apiKey: value.tmdb?.apiKey?.trim() ?? '',
         },
+        // Not on the form: the parental lock section applies its changes
+        // immediately (they gate on the PIN), so Save must not undo them.
+        parentalLockEnabled: currentSettings.parentalLockEnabled === true,
+        parentalLockRelockMinutes: normalizeParentalLockRelockMinutes(
+            currentSettings.parentalLockRelockMinutes
+        ),
     };
 }
 

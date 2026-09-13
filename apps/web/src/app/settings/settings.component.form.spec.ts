@@ -356,6 +356,10 @@ describe('SettingsComponent form', () => {
                     ...component.settingsForm.value,
                     trustedPrivateNetworkEpgUrls: [],
                     trustedInsecureTlsHosts: [],
+                    // Parental lock settings are not on the form; Save
+                    // carries the current values through unchanged.
+                    parentalLockEnabled: false,
+                    parentalLockRelockMinutes: 15,
                 },
                 { retryEpgCleanup: false }
             );
@@ -363,6 +367,8 @@ describe('SettingsComponent form', () => {
                 ...component.settingsForm.value,
                 trustedPrivateNetworkEpgUrls: [],
                 trustedInsecureTlsHosts: [],
+                parentalLockEnabled: false,
+                parentalLockRelockMinutes: 15,
             });
         });
 

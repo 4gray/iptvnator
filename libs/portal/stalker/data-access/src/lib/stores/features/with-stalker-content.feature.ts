@@ -9,7 +9,12 @@ import {
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService, resetHostConnectivityGuard } from '@iptvnator/services';
+import {
+    DataService,
+    ParentalLockService,
+    resetHostConnectivityGuard,
+} from '@iptvnator/services';
+import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     StalkerCategoryItem,
     StalkerContentItem,
@@ -31,7 +36,24 @@ import {
     filterItvChannelsByGenre,
     toStalkerContentItem,
     toStalkerItvChannel,
+    withoutWithheldStalkerItems,
 } from '../utils';
+
+/**
+ * Genre ids of the given section that the parental lock currently withholds
+ * for this portal; empty while unlocked or off.
+ */
+function withheldStalkerCategoryIds(
+    parentalLock: ParentalLockService,
+    playlist: PlaylistMeta | undefined,
+    contentType: StalkerContentType
+): Set<string> {
+    const playlistId = playlist?._id;
+    if (!playlistId || !parentalLock.active()) {
+        return new Set();
+    }
+    return new Set(parentalLock.lockedStalkerIds(playlistId, contentType));
+}
 
 /**
  * Content/categories/channels feature state.
@@ -225,7 +247,8 @@ export function withStalkerContent() {
                 stalkerSession = inject(StalkerSessionService),
                 portalRepair = inject(StalkerPortalRepairService),
                 translateService = inject(TranslateService),
-                itvCache = inject(StalkerItvCacheService)
+                itvCache = inject(StalkerItvCacheService),
+                parentalLock = inject(ParentalLockService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerContentResourceStoreContract;
@@ -387,6 +410,10 @@ export function withStalkerContent() {
                                 (category) =>
                                     String(category.category_id) !== '*'
                             ).length,
+                            // Lock/unlock re-fires the loader: rows of a
+                            // locked genre are dropped at patch time, so the
+                            // list must be rebuilt when they become visible.
+                            parentalLockVersion: parentalLock.version(),
                         }),
                         loader: async ({
                             params,
@@ -432,15 +459,25 @@ export function withStalkerContent() {
                             }
 
                             const categoryParam = params.category || '*';
+                            const withheldCategoryIds =
+                                withheldStalkerCategoryIds(
+                                    parentalLock,
+                                    playlist,
+                                    params.contentType
+                                );
 
                             if (params.contentType === 'itv') {
                                 const cachedChannels =
                                     itvCache.getChannels(playlist);
                                 const channels =
                                     cachedChannels !== null
-                                        ? filterItvChannelsByGenre(
-                                              cachedChannels,
-                                              categoryParam
+                                        ? withoutWithheldStalkerItems(
+                                              filterItvChannelsByGenre(
+                                                  cachedChannels,
+                                                  categoryParam
+                                              ),
+                                              params.contentType,
+                                              withheldCategoryIds
                                           )
                                         : null;
                                 // Serve from the cache only when it actually
@@ -495,6 +532,8 @@ export function withStalkerContent() {
                                     params.pageIndex ===
                                         storeContext.page() + 1 &&
                                     paramsPlaylistKey === currentPlaylistKey &&
+                                    params.parentalLockVersion ===
+                                        parentalLock.version() &&
                                     // A legacy paged response must not overwrite
                                     // the full cached list that a re-fired
                                     // loader served in the meantime. Scoped
@@ -582,11 +621,15 @@ export function withStalkerContent() {
                                     return [];
                                 }
 
-                                const newItems = response.js.data.map((item) =>
-                                    toStalkerContentItem(
-                                        item,
-                                        playlist.portalUrl ?? ''
-                                    )
+                                const newItems = withoutWithheldStalkerItems(
+                                    response.js.data.map((item) =>
+                                        toStalkerContentItem(
+                                            item,
+                                            playlist.portalUrl ?? ''
+                                        )
+                                    ),
+                                    params.contentType,
+                                    withheldCategoryIds
                                 );
 
                                 if (
@@ -708,16 +751,40 @@ export function withStalkerContent() {
             const storeContext = store as typeof store &
                 StalkerContentResourceStoreContract;
             const itvCache = inject(StalkerItvCacheService);
+            const parentalLock = inject(ParentalLockService);
 
             /**
              * The whole portal's ITV channel list (all categories) when
-             * cached. `versionFor` establishes the reactive dependency so this
+             * cached, minus the genres the parental lock withholds.
+             * `versionFor` establishes the reactive dependency so this
              * recomputes when the list becomes ready or is refreshed.
              */
             const itvFullChannelList = computed(() => {
                 const playlist = storeContext.currentPlaylist();
                 itvCache.versionFor(playlist);
-                return itvCache.getChannels(playlist) ?? [];
+                parentalLock.version();
+                return withoutWithheldStalkerItems(
+                    itvCache.getChannels(playlist) ?? [],
+                    'itv',
+                    withheldStalkerCategoryIds(parentalLock, playlist, 'itv')
+                );
+            });
+            /** The selected section's genres with the withheld ones removed. */
+            const visibleCategoryResource = computed(() => {
+                parentalLock.version();
+                const contentType = storeContext.selectedContentType();
+                const withheld = withheldStalkerCategoryIds(
+                    parentalLock,
+                    storeContext.currentPlaylist(),
+                    contentType
+                );
+                const categories = getCategoriesByType(store, contentType);
+                return withheld.size === 0
+                    ? categories
+                    : categories.filter(
+                          (category) =>
+                              !withheld.has(String(category.category_id))
+                      );
             });
 
             /**
@@ -855,7 +922,9 @@ export function withStalkerContent() {
                     storeContext.getContentResource.isLoading()
                 ),
                 isPaginatedContentFailed: computed(() => store.contentError()),
-                getCategoryResource: computed(() =>
+                getCategoryResource: visibleCategoryResource,
+                /** Every genre of the section, locked ones included (lock dialog). */
+                getAllCategoriesForSelectedType: computed(() =>
                     getCategoriesByType(
                         store,
                         storeContext.selectedContentType()

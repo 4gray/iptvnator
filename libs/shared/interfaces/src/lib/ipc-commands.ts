@@ -124,6 +124,12 @@ export const REMOTE_CONTROL_CHANGE_CHANNEL = 'REMOTE_CONTROL_CHANGE_CHANNEL';
 // the main process to hold a powerSaveBlocker so the screen stays awake
 export const PLAYBACK_SET_KEEP_AWAKE = 'PLAYBACK:SET_KEEP_AWAKE';
 
+// Parental lock: the renderer tells the main process whether locked
+// categories must currently be withheld (feature on and no PIN entered), so
+// the SQLite worker can filter every content read. Reset to the mirrored
+// `parentalLockEnabled` setting when the renderer reloads or dies.
+export const PARENTAL_LOCK_SET_STATE = 'PARENTAL_LOCK:SET_STATE';
+
 // Window controls (custom title bar on Windows/Linux)
 export const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';
 export const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';

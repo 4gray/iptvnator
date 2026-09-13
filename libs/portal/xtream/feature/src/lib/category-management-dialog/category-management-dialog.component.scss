@@ -168,3 +168,27 @@ mat-dialog-actions {
         }
     }
 }
+
+.selection-info__locks {
+    margin-left: 4px;
+}
+
+.lock-toggle {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    padding: 0;
+    line-height: 28px;
+    color: var(--mat-sys-on-surface-variant);
+    flex-shrink: 0;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+    }
+
+    &--locked {
+        color: var(--mat-sys-primary);
+    }
+}

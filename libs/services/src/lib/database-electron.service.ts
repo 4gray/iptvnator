@@ -24,6 +24,8 @@ export interface XCategoryFromDb {
     type: 'movies' | 'live' | 'series';
     xtream_id: number;
     hidden: boolean;
+    /** Parental lock index; see ParentalLockService. */
+    locked: boolean;
 }
 
 export interface XtreamContent {
@@ -429,14 +431,41 @@ export class DatabaseService {
         playlistId: string,
         categories: XtreamCategory[],
         type: 'live' | 'movies' | 'series',
-        hiddenCategoryXtreamIds?: number[]
+        hiddenCategoryXtreamIds?: number[],
+        lockedCategoryXtreamIds?: number[]
     ): Promise<void> {
         await window.electron.dbSaveCategories(
             playlistId,
             categories,
             type,
-            hiddenCategoryXtreamIds
+            hiddenCategoryXtreamIds,
+            lockedCategoryXtreamIds
         );
+    }
+
+    /**
+     * Re-stamps the parental lock index of one playlist/type from provider
+     * category ids. False when the bridge is missing or the write failed.
+     */
+    async setCategoryLocks(
+        playlistId: string,
+        type: 'live' | 'movies' | 'series',
+        lockedXtreamIds: number[]
+    ): Promise<boolean> {
+        if (typeof window.electron?.dbSetCategoryLocks !== 'function') {
+            return false;
+        }
+        try {
+            await window.electron.dbSetCategoryLocks(
+                playlistId,
+                type,
+                lockedXtreamIds
+            );
+            return true;
+        } catch (error) {
+            console.error('Error updating category locks:', error);
+            return false;
+        }
     }
 
     /**

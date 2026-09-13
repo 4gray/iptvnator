@@ -1496,6 +1496,52 @@ export function withContent() {
                 },
 
                 /**
+                 * Re-reads the already imported streams from the data source
+                 * cache without touching the import bookkeeping. Used when
+                 * the parental lock flips: the SQLite worker (Electron) and
+                 * the PWA data source filter locked categories at read time,
+                 * so the in-memory catalog must be rebuilt from them.
+                 */
+                async reloadCachedContent(): Promise<void> {
+                    const ctx = getCredentialsFromStore();
+                    if (!ctx || !store.isContentInitialized()) {
+                        return;
+                    }
+                    const loadStates = store.contentLoadStateByType();
+                    try {
+                        if (loadStates.live === 'ready') {
+                            const live = (await dataSource.getContent(
+                                ctx.playlistId,
+                                ctx.credentials,
+                                'live'
+                            )) as XtreamLiveStream[];
+                            patchState(store, { liveStreams: live });
+                        }
+                        if (loadStates.vod === 'ready') {
+                            const vod = (await dataSource.getContent(
+                                ctx.playlistId,
+                                ctx.credentials,
+                                'movie'
+                            )) as XtreamVodStream[];
+                            patchState(store, {
+                                vodStreams: vod,
+                                vodStreamsPlaylistId: ctx.playlistId,
+                            });
+                        }
+                        if (loadStates.series === 'ready') {
+                            const series = (await dataSource.getContent(
+                                ctx.playlistId,
+                                ctx.credentials,
+                                'series'
+                            )) as XtreamSerieItem[];
+                            patchState(store, { serialStreams: series });
+                        }
+                    } catch (error) {
+                        logger.error('Error reloading cached content', error);
+                    }
+                },
+
+                /**
                  * Update import progress
                  */
                 setImportProgress(count: number, total?: number): void {

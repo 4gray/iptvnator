@@ -78,6 +78,21 @@
                         <mat-icon>tune</mat-icon>
                     </button>
                 }
+                @if (canLockStalkerCategories()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="context-header__action"
+                        data-test-id="context-lock-categories"
+                        (click)="openLockStalkerCategories()"
+                        [matTooltip]="'PARENTAL_LOCK.MANAGE_LOCKS' | translate"
+                        [attr.aria-label]="
+                            'PARENTAL_LOCK.MANAGE_LOCKS' | translate
+                        "
+                    >
+                        <mat-icon>lock</mat-icon>
+                    </button>
+                }
                 @if (canHideCategories()) {
                     <button
                         #hideCategoriesButton
@@ -87,9 +102,7 @@
                         data-test-id="context-hide-categories"
                         (click)="hideCategories()"
                         [matTooltip]="'LAYOUT.HIDE_CATEGORIES' | translate"
-                        [attr.aria-label]="
-                            'LAYOUT.HIDE_CATEGORIES' | translate
-                        "
+                        [attr.aria-label]="'LAYOUT.HIDE_CATEGORIES' | translate"
                     >
                         <mat-icon>chevron_left</mat-icon>
                     </button>
@@ -191,5 +204,26 @@
                 (categoryClicked)="onStalkerCategoryClicked($any($event))"
             />
         }
+    }
+
+    @if (withheldCategoryCount() > 0) {
+        <button
+            type="button"
+            class="context-locked-row"
+            data-test-id="context-locked-categories"
+            (click)="requestParentalUnlock()"
+            [attr.aria-label]="'PARENTAL_LOCK.UNLOCK_TO_SHOW' | translate"
+        >
+            <mat-icon>lock</mat-icon>
+            <span class="context-locked-row__label">
+                {{
+                    'PARENTAL_LOCK.LOCKED_CATEGORIES_ROW'
+                        | translate: { count: withheldCategoryCount() }
+                }}
+            </span>
+            <span class="context-locked-row__hint">
+                {{ 'PARENTAL_LOCK.UNLOCK_TO_SHOW' | translate }}
+            </span>
+        </button>
     }
 </div>

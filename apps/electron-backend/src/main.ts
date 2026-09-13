@@ -26,6 +26,7 @@ import { shutdownVlcSession } from './app/events/vlc-session.service';
 import PlaylistEvents from './app/events/playlist.events';
 import PlaylistOpenEvents from './app/events/playlist-open.events';
 import RemoteControlEvents from './app/events/remote-control.events';
+import ParentalLockEvents from './app/events/parental-lock.events';
 import SettingsEvents from './app/events/settings.events';
 import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
@@ -160,6 +161,7 @@ export default class Main {
         SharedEvents.bootstrapSharedEvents();
         PlayerEvents.bootstrapPlayerEvents();
         SettingsEvents.bootstrapSettingsEvents();
+        ParentalLockEvents.bootstrapParentalLockEvents();
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();
         registerStreamProbeHandlers();

@@ -14,6 +14,7 @@ import {
     MatDialogRef,
 } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 
 export interface GroupManagementDialogGroup {
@@ -24,10 +25,19 @@ export interface GroupManagementDialogGroup {
 export interface GroupManagementDialogData {
     readonly groups: GroupManagementDialogGroup[];
     readonly hiddenGroupTitles: string[];
+    /** Parental lock: present only while the lock feature is enabled. */
+    readonly lockedGroupTitles?: string[];
+}
+
+export interface GroupManagementDialogResult {
+    readonly hiddenGroupTitles: string[];
+    /** Absent when the dialog offered no lock toggles. */
+    readonly lockedGroupTitles?: string[];
 }
 
 interface GroupWithSelection extends GroupManagementDialogGroup {
     readonly selected: boolean;
+    readonly locked: boolean;
 }
 
 @Component({
@@ -37,6 +47,7 @@ interface GroupWithSelection extends GroupManagementDialogGroup {
         MatButtonModule,
         MatCheckboxModule,
         MatIconModule,
+        MatTooltipModule,
         TitleCasePipe,
         TranslatePipe,
     ],
@@ -46,16 +57,24 @@ interface GroupWithSelection extends GroupManagementDialogGroup {
 })
 export class GroupManagementDialogComponent {
     private readonly dialogRef = inject(
-        MatDialogRef<GroupManagementDialogComponent, string[] | undefined>
+        MatDialogRef<
+            GroupManagementDialogComponent,
+            GroupManagementDialogResult | undefined
+        >
     );
     readonly data = inject<GroupManagementDialogData>(MAT_DIALOG_DATA);
 
+    readonly showLocks = this.data.lockedGroupTitles !== undefined;
     readonly searchTerm = signal('');
     readonly groups = signal<GroupWithSelection[]>(
         this.data.groups.map((group) => ({
             ...group,
             selected: !this.data.hiddenGroupTitles.includes(group.key),
+            locked: (this.data.lockedGroupTitles ?? []).includes(group.key),
         }))
+    );
+    readonly lockedCount = computed(
+        () => this.groups().filter((group) => group.locked).length
     );
 
     readonly filteredGroups = computed(() => {
@@ -94,6 +113,17 @@ export class GroupManagementDialogComponent {
         );
     }
 
+    toggleLock(group: GroupWithSelection, event?: Event): void {
+        event?.stopPropagation();
+        this.groups.update((groups) =>
+            groups.map((current) =>
+                current.key === group.key
+                    ? { ...current, locked: !current.locked }
+                    : current
+            )
+        );
+    }
+
     selectAll(): void {
         this.groups.update((groups) =>
             groups.map((group) => ({ ...group, selected: true }))
@@ -111,7 +141,16 @@ export class GroupManagementDialogComponent {
             .filter((group) => !group.selected)
             .map((group) => group.key);
 
-        this.dialogRef.close(hiddenGroupTitles);
+        this.dialogRef.close({
+            hiddenGroupTitles,
+            ...(this.showLocks
+                ? {
+                      lockedGroupTitles: this.groups()
+                          .filter((group) => group.locked)
+                          .map((group) => group.key),
+                  }
+                : {}),
+        });
     }
 
     cancel(): void {

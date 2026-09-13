@@ -16,8 +16,13 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { DatabaseService, XCategoryFromDb } from '@iptvnator/services';
+import {
+    DatabaseService,
+    ParentalLockService,
+    XCategoryFromDb,
+} from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 
 export interface CategoryManagementDialogData {
@@ -28,6 +33,8 @@ export interface CategoryManagementDialogData {
 
 interface CategoryWithSelection extends XCategoryFromDb {
     selected: boolean;
+    /** Parental lock draft; only rendered while the lock is enabled. */
+    lockedDraft: boolean;
 }
 
 @Component({
@@ -38,6 +45,7 @@ interface CategoryWithSelection extends XCategoryFromDb {
         MatCheckboxModule,
         MatIconModule,
         MatProgressSpinnerModule,
+        MatTooltipModule,
         TranslatePipe,
     ],
     templateUrl: './category-management-dialog.component.html',
@@ -46,11 +54,19 @@ interface CategoryWithSelection extends XCategoryFromDb {
 })
 export class CategoryManagementDialogComponent implements OnInit {
     private readonly dbService = inject(DatabaseService);
+    private readonly parentalLock = inject(ParentalLockService);
+    private readonly snackBar = inject(MatSnackBar);
     private readonly dialogRef = inject(
         MatDialogRef<CategoryManagementDialogComponent>
     );
     readonly data = inject<CategoryManagementDialogData>(MAT_DIALOG_DATA);
     private readonly logger = createLogger('CategoryManagementDialog');
+
+    /** Lock toggles exist only while the parental lock feature is on. */
+    readonly showLocks = this.parentalLock.enabled;
+    readonly lockedCount = computed(
+        () => this.categories().filter((c) => c.lockedDraft).length
+    );
 
     readonly isLoading = signal(true);
     readonly isSaving = signal(false);
@@ -89,10 +105,16 @@ export class CategoryManagementDialogComponent implements OnInit {
         try {
             const type = this.getDbType();
             const allCategories = await this.waitForCategories(type);
+            // The renderer's lock store is authoritative; the row's `locked`
+            // column is only its SQLite mirror.
+            const lockedIds = new Set(
+                this.parentalLock.lockedXtreamIds(this.data.playlistId, type)
+            );
             this.categories.set(
                 allCategories.map((c) => ({
                     ...c,
                     selected: !c.hidden,
+                    lockedDraft: lockedIds.has(c.xtream_id),
                 }))
             );
         } catch (error) {
@@ -154,6 +176,15 @@ export class CategoryManagementDialogComponent implements OnInit {
         );
     }
 
+    toggleLock(category: CategoryWithSelection, event?: Event): void {
+        event?.stopPropagation();
+        this.categories.update((cats) =>
+            cats.map((c) =>
+                c.id === category.id ? { ...c, lockedDraft: !c.lockedDraft } : c
+            )
+        );
+    }
+
     selectAll(): void {
         this.setFilteredSelection(true);
     }
@@ -187,14 +218,25 @@ export class CategoryManagementDialogComponent implements OnInit {
                 await this.dbService.updateCategoryVisibility(toShow, false);
             }
 
+            if (this.showLocks()) {
+                const saved = await this.parentalLock.setXtreamLocks(
+                    this.data.playlistId,
+                    this.getDbType(),
+                    categories
+                        .filter((c) => c.lockedDraft)
+                        .map((c) => c.xtream_id)
+                );
+                if (!saved) {
+                    throw new Error('Saving category locks failed');
+                }
+            }
+
             this.dialogRef.close(true);
         } catch (error) {
             this.logger.error('Error saving category visibility', error);
-            inject(MatSnackBar).open(
-                'Failed to save category visibility',
-                'Close',
-                { duration: 3000 }
-            );
+            this.snackBar.open('Failed to save category visibility', 'Close', {
+                duration: 3000,
+            });
         } finally {
             this.isSaving.set(false);
         }

@@ -25,6 +25,7 @@ import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
 import {
     DataService,
+    ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
     EpgSourceSettingsService,
@@ -38,6 +39,7 @@ import {
     createDevLogger,
 } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
+import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service';
 import { PlaylistOpenRequestService } from './services/playlist-open-request.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
@@ -76,6 +78,10 @@ export class AppComponent implements OnInit {
     private settingsStore = inject(SettingsStore);
     private readonly epgSources = inject(EpgSourceSettingsService);
     private playbackKeepAwake = inject(PlaybackKeepAwakeService);
+    private readonly parentalLock = inject(ParentalLockService);
+    private readonly parentalLockEnforcement = inject(
+        ParentalLockEnforcementService
+    );
     private playlistOpenRequests = inject(PlaylistOpenRequestService);
     private runtime = inject(RuntimeCapabilitiesService);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
@@ -100,6 +106,11 @@ export class AppComponent implements OnInit {
         // Keep the display awake while a built-in player is playing video
         // (Electron powerSaveBlocker / PWA Screen Wake Lock, issue #1095).
         this.playbackKeepAwake.start();
+
+        // Parental lock: load the PIN hash and lock store, then keep the
+        // in-memory catalogs in step with lock/unlock (issue #285).
+        void this.parentalLock.initialize();
+        this.parentalLockEnforcement.start();
 
         effect(() => {
             const size = this.settingsStore.coverSize?.() ?? 'medium';

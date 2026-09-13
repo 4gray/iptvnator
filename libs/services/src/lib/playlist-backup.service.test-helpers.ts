@@ -56,18 +56,13 @@ export function createPlaylistBackupService(
                     ? 'consumed'
                     : 'superseded';
             }
-            if (
-                pendingSnapshot.revision !== expectedSnapshot.revision
-            ) {
+            if (pendingSnapshot.revision !== expectedSnapshot.revision) {
                 return 'superseded';
             }
 
             await apply(pendingSnapshot.state);
             if (
-                !pendingRestoreService.clear(
-                    playlistId,
-                    pendingSnapshot.state
-                )
+                !pendingRestoreService.clear(playlistId, pendingSnapshot.state)
             ) {
                 return 'consume-failed';
             }
@@ -125,6 +120,10 @@ export function createPlaylistBackupService(
             clearForPlaylist: jest.fn().mockResolvedValue(true),
         },
         pendingRestoreService,
+        parentalLock: {
+            locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
+            replacePlaylistLocks: jest.fn().mockResolvedValue(true),
+        },
         ...overrides,
     });
 

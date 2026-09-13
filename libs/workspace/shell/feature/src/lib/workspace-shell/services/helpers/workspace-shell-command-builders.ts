@@ -20,6 +20,8 @@ export interface CommandBuilderActions {
     openGlobalRecent: () => void;
     openDownloadsShortcut: () => void;
     openAddPlaylistDialog: (kind?: 'url' | 'xtream' | 'stalker') => void;
+    lockParentalLock: () => void;
+    unlockParentalLock: () => void;
 }
 
 export interface CommandBuilderContext {
@@ -31,6 +33,7 @@ export interface CommandBuilderContext {
     canRefreshPlaylist: boolean;
     supportsDownloads: boolean;
     showDashboard: boolean;
+    parentalLockState: 'off' | 'locked' | 'unlocked';
     translate: TranslateFn;
     router: Router;
     actions: CommandBuilderActions;
@@ -148,10 +151,35 @@ export function getGlobalCommandDefinitions(
         hasSearchablePlaylists,
         supportsDownloads,
         showDashboard,
+        parentalLockState,
         actions,
     } = ctx;
 
     return [
+        {
+            id: 'parental-lock-now',
+            group: 'global',
+            icon: 'lock',
+            labelKey: 'WORKSPACE.SHELL.COMMANDS.PARENTAL_LOCK_NOW_LABEL',
+            descriptionKey:
+                'WORKSPACE.SHELL.COMMANDS.PARENTAL_LOCK_NOW_DESCRIPTION',
+            priority: 5,
+            visible: parentalLockState === 'unlocked',
+            keywords: ['parental', 'pin', 'lock'],
+            run: () => actions.lockParentalLock(),
+        },
+        {
+            id: 'parental-unlock',
+            group: 'global',
+            icon: 'lock_open',
+            labelKey: 'WORKSPACE.SHELL.COMMANDS.PARENTAL_UNLOCK_LABEL',
+            descriptionKey:
+                'WORKSPACE.SHELL.COMMANDS.PARENTAL_UNLOCK_DESCRIPTION',
+            priority: 5,
+            visible: parentalLockState === 'locked',
+            keywords: ['parental', 'pin', 'unlock'],
+            run: () => actions.unlockParentalLock(),
+        },
         {
             id: 'global-search',
             group: 'global',
@@ -215,8 +243,7 @@ export function getGlobalCommandDefinitions(
             group: 'global',
             icon: 'library_books',
             labelKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_LABEL',
-            descriptionKey:
-                'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_DESCRIPTION',
+            descriptionKey: 'WORKSPACE.SHELL.COMMANDS.OPEN_SOURCES_DESCRIPTION',
             priority: 60,
             visible: route.kind !== 'sources',
             run: () => {
@@ -241,8 +268,7 @@ export function getGlobalCommandDefinitions(
             group: 'global',
             icon: 'add_circle_outline',
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_LABEL',
-            descriptionKey:
-                'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_DESCRIPTION',
+            descriptionKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_DESCRIPTION',
             priority: 80,
             run: () => actions.openAddPlaylistDialog(),
         },

@@ -74,6 +74,7 @@ describe('category operation performance phases', () => {
                 ],
                 'live',
                 [102],
+                undefined,
                 recording.capture
             )
         ).resolves.toEqual({ success: true });
