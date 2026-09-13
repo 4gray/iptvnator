@@ -125,6 +125,61 @@ describe('PlaylistsService', () => {
         expect(cleanup).toHaveBeenCalledWith('playlist-1');
     });
 
+    it('owns one worker deletion and waits for cleanup before completion', async () => {
+        const service = createService();
+        const deleteWorker = jest.fn().mockResolvedValue(true);
+        let finishCleanup!: () => void;
+        const cleanup = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    finishCleanup = resolve;
+                })
+        );
+        Object.defineProperties(service, {
+            isElectronStorageAvailable: { value: true },
+            electronApi: { value: { dbDeletePlaylist: jest.fn() } },
+        });
+        Object.assign(service, {
+            ensureElectronPlaylistMigrations: jest
+                .fn()
+                .mockResolvedValue(undefined),
+            databaseService: { deletePlaylist: deleteWorker },
+            playlistDeleteCleanups: [cleanup],
+        });
+        let completed = false;
+        const deletion = firstValueFrom(
+            service.deletePlaylist('a', { operationId: 'delete-a' })
+        ).then((result) => {
+            completed = true;
+            return result;
+        });
+        for (let i = 0; i < 20 && !finishCleanup; i++) await Promise.resolve();
+        expect(deleteWorker).toHaveBeenCalledTimes(1);
+        expect(completed).toBe(false);
+        finishCleanup();
+        await expect(deletion).resolves.toEqual({ success: true });
+        expect(cleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports cleanup warnings without resurrecting an already deleted row', async () => {
+        const service = createService();
+        Object.assign(service, {
+            playlistDeleteCleanups: [
+                () => Promise.reject(new Error('cleanup failed')),
+            ],
+        });
+        const warning = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        try {
+            await expect(
+                firstValueFrom(service.deletePlaylist('a'))
+            ).resolves.toEqual({ success: true, cleanupWarnings: 1 });
+        } finally {
+            warning.mockRestore();
+        }
+    });
+
     it('returns browser playlist summaries without embedded playlist payloads', async () => {
         const dbService = {
             getAll: jest.fn(() =>
@@ -982,7 +1037,7 @@ describe('PlaylistsService', () => {
         jest.spyOn(Date, 'now').mockReturnValue(1770000000000);
         // Auto-refresh snapshots always come from playlists that had
         // autoRefresh enabled; the batch write preserves that flag from the
-        // current row (or the snapshot when the row is missing) instead of
+        // current row instead of
         // force-enabling it.
         const playlists = [
             {
@@ -1004,6 +1059,7 @@ describe('PlaylistsService', () => {
         ] as Playlist[];
         const dbService = {
             getAll: jest.fn(() => of([])),
+            getByID: jest.fn((_store: string, id: string) => of(playlists.find((p) => p._id === id))),
             update: jest.fn((_storeName: string, playlist: Playlist) =>
                 of(playlist)
             ),
@@ -1034,6 +1090,20 @@ describe('PlaylistsService', () => {
                 autoRefresh: true,
             })
         );
+    });
+
+    it.each([false, true])('does not resurrect a deleted source when startup refresh finishes (SQLite=%s)', async (sqlite) => {
+        const upsert = jest.fn();
+        testWindow.electron = sqlite ? {
+            dbGetAppState: jest.fn().mockResolvedValue('1'), dbSetAppState: jest.fn(),
+            dbGetAppPlaylists: jest.fn().mockResolvedValue([]), dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+            dbUpsertAppPlaylist: upsert,
+        } : undefined;
+        const update = jest.fn(() => of(undefined));
+        const service = createService({ update });
+        expect(await firstValueFrom(service.updateManyPlaylists([{ _id: 'deleted', autoRefresh: true } as Playlist]))).toEqual([]);
+        expect(update).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
     });
 
     it('short-circuits updateManyPlaylists when no playlists are provided', async () => {
@@ -1693,6 +1763,19 @@ describe('PlaylistsService', () => {
         );
     });
 
+    it.each([false, true])('does not recreate a removed source on singular refresh (SQLite: %s)', async (sqlite) => {
+        const upsert = jest.fn();
+        testWindow.electron = sqlite ? {
+            dbGetAllPlaylists: jest.fn().mockResolvedValue([]),
+            dbGetAppPlaylist: jest.fn().mockResolvedValue(null),
+            dbUpsertAppPlaylist: upsert,
+        } as unknown as typeof testWindow.electron : undefined;
+        const update = jest.fn(() => of(undefined));
+        const service = createService({ update });
+        await expect(firstValueFrom(service.updatePlaylist('deleted', { _id: 'deleted' } as Playlist))).rejects.toThrow('Playlist no longer exists');
+        expect(update).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
+    });
     it('keeps hiddenGroupTitles when refreshing a playlist payload', async () => {
         const existingPlaylist: Playlist = {
             _id: 'playlist-2',

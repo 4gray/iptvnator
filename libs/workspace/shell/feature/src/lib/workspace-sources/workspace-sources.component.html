@@ -2,12 +2,24 @@
     class="sources-page"
     [class.sources-page--empty]="visibleSourcesCount() === 0"
 >
-    @if (visibleSourcesCount() > 0) {
+    @if (visibleSourcesCount() > 0 || canCleanSources()) {
         <header class="sources-header">
             <div class="sources-header__meta">
                 <h2 class="sources-title">{{ title() }}</h2>
                 <span class="sources-subtitle">{{ subtitle() }}</span>
             </div>
+            @if (canCleanSources()) {
+                <button
+                    mat-stroked-button
+                    type="button"
+                    class="cleanup-trigger"
+                    [attr.aria-label]="'SOURCE_CLEANUP.TITLE' | translate"
+                    (click)="openCleanup()"
+                >
+                    <mat-icon>cleaning_services</mat-icon>
+                    <span>{{ 'SOURCE_CLEANUP.TITLE' | translate }}</span>
+                </button>
+            }
             <button
                 type="button"
                 mat-stroked-button

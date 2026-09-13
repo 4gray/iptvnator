@@ -307,7 +307,7 @@ describe('RecentPlaylistsComponent busy state', () => {
         expect(component.isDeletePending(item._id)).toBe(false);
         expect(component.getBusyProgress(item._id)).toBeNull();
         expect(store.dispatch).toHaveBeenCalledWith(
-            PlaylistActions.removePlaylist({ playlistId: item._id })
+            PlaylistActions.playlistRemovalCommitted({ playlistId: item._id })
         );
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS',
@@ -356,7 +356,7 @@ describe('RecentPlaylistsComponent busy state', () => {
         });
         expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
         expect(store.dispatch).toHaveBeenCalledWith(
-            PlaylistActions.removePlaylist({ playlistId: item._id })
+            PlaylistActions.playlistRemovalCommitted({ playlistId: item._id })
         );
         expect(snackBar.open).toHaveBeenCalledWith(
             'HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS',

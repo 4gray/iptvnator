@@ -1,4 +1,8 @@
-import { Component, input, output } from '@angular/core';
+import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
+import { SourceActivityService } from '@iptvnator/services';
+import { MatDialog } from '@angular/material/dialog';
+import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
+import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
@@ -33,6 +37,18 @@ describe('WorkspaceSourcesComponent', () => {
         await TestBed.configureTestingModule({
             imports: [WorkspaceSourcesComponent, NoopAnimationsModule],
             providers: [
+                {
+                    provide: PORTAL_EXTERNAL_PLAYBACK,
+                    useValue: { activeSession: signal(null) },
+                },
+                {
+                    provide: MatDialog,
+                    useValue: { getDialogById: jest.fn(), open: jest.fn() },
+                },
+                {
+                    provide: PlaylistRefreshActionService,
+                    useValue: { isSourceBusy: jest.fn((id) => id === 'busy') },
+                },
                 provideMockStore({
                     selectors: [
                         {
@@ -125,14 +141,60 @@ describe('WorkspaceSourcesComponent', () => {
         fixture = TestBed.createComponent(WorkspaceSourcesComponent);
     });
 
+    it.each([
+        ['launching', true, true],
+        ['opened', true, true],
+        ['playing', true, true],
+        ['closed', false, false],
+        ['error', false, false],
+        ['error', true, true],
+    ])(
+        'protects only a live external session (%s, closable=%s)',
+        (status, canClose, expected) => {
+            const playback = TestBed.inject(
+                PORTAL_EXTERNAL_PLAYBACK
+            ) as unknown as { activeSession: { set(value: unknown): void } };
+            playback.activeSession.set({
+                status,
+                canClose,
+                contentInfo: { playlistId: 'external' },
+            });
+            fixture.componentInstance.openCleanup();
+            const context = (TestBed.inject(MatDialog).open as jest.Mock).mock
+                .calls[0][1].data;
+            expect(context.protected('external')).toBe(expected);
+        }
+    );
+
+    it('protects startup auto-refresh sources across the whole library', () => {
+        const release = TestBed.inject(SourceActivityService).begin([
+            'startup',
+        ]);
+        fixture.componentInstance.openCleanup();
+        const context = (TestBed.inject(MatDialog).open as jest.Mock).mock
+            .calls[0][1].data;
+        expect(context.protected('startup')).toBe(true);
+        release();
+        expect(context.protected('startup')).toBe(false);
+    });
+
+    it('protects a source refreshing through the persistent header', () => {
+        fixture.componentInstance.openCleanup();
+        const open = TestBed.inject(MatDialog).open as jest.Mock;
+        const context = open.mock.calls[0][1].data;
+        expect(context.protected('busy')).toBe(true);
+        expect(context.protected('other')).toBe(false);
+    });
+
     it('renders the shared panel header structure without paragraph subtitle margins', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
         const header: HTMLElement =
             fixture.nativeElement.querySelector('.sources-header');
-        const meta: HTMLElement =
-            fixture.nativeElement.querySelector('.sources-header__meta');
+        const meta: HTMLElement = fixture.nativeElement.querySelector(
+            '.sources-header__meta'
+        );
         const title: HTMLElement =
             fixture.nativeElement.querySelector('.sources-title');
         const subtitle: HTMLElement =

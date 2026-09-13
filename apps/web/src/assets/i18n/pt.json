@@ -1807,5 +1807,32 @@
             "cancelled": "Check cancelled",
             "checking": "Checking…"
         }
+    },
+    "SOURCE_CLEANUP": {
+        "TITLE": "Clean up inactive sources…",
+        "SCOPE": "All network sources in your library, regardless of page filters.",
+        "CONSEQUENCES": "Delete only sources you select. Their saved favourites, history and playback progress will also be removed. Downloaded files are kept.",
+        "SUMMARY": "Checked {{checked}}/{{total}} · Available {{available}} · Deleted {{deleted}} · Skipped {{skipped}} · Failed {{failed}}",
+        "SELECT_ALL": "Select all candidates",
+        "SELECT_NONE": "Deselect all",
+        "UNTITLED": "Untitled source",
+        "DELETE": "Delete selected · {{count}}",
+        "CLOSE": "Close",
+        "STOP": "Stop after current source",
+        "CLEANUP_WARNING": "Source deleted; some follow-up cleanup failed",
+        "GROUP": {
+            "confirmed": "Confirmed inactive accounts",
+            "uncertain": "Review before deleting",
+            "skipped": "Skipped sources",
+            "results": "Deletion results"
+        },
+        "STATUS": {
+            "checking": "Checking…",
+            "skipped": "Playing, busy, changed or no longer present",
+            "deleting": "Deleting…",
+            "deleted": "Deleted",
+            "failed": "Deletion failed — select to retry"
+        },
+        "DELETE_PROGRESS": "Processed {{done}} of {{total}} selected sources"
     }
 }

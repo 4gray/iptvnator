@@ -28,3 +28,5 @@ export * from './lib/xtream-connection-test.service';
 export * from './lib/xtream-connection-test-state';
 
 export * from './lib/source-health-evidence.service';
+
+export * from './lib/source-activity.service';

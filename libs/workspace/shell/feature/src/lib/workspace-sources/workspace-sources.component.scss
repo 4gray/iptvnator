@@ -96,3 +96,13 @@
         padding: 12px 16px 16px;
     }
 }
+
+.cleanup-trigger {
+    flex-shrink: 0;
+    app-region: no-drag;
+}
+@media (max-width: 1100px) {
+    .cleanup-trigger span {
+        display: none;
+    }
+}

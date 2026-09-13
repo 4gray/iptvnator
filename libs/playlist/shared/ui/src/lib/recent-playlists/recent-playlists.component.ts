@@ -279,7 +279,7 @@ export class RecentPlaylistsComponent {
                         RENDERER_PERFORMANCE_PHASE.XTREAM_DELETE_ROW,
                         () =>
                             this.store.dispatch(
-                                PlaylistActions.removePlaylist({
+                                PlaylistActions.playlistRemovalCommitted({
                                     playlistId: item._id,
                                 })
                             ),
@@ -287,7 +287,7 @@ export class RecentPlaylistsComponent {
                     );
                 } else {
                     this.store.dispatch(
-                        PlaylistActions.removePlaylist({
+                        PlaylistActions.playlistRemovalCommitted({
                             playlistId: item._id,
                         })
                     );

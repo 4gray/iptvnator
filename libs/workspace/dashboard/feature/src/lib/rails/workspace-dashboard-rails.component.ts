@@ -869,7 +869,9 @@ export class WorkspaceDashboardRailsComponent {
         }
 
         this.store.dispatch(
-            PlaylistActions.removePlaylist({ playlistId: playlist._id })
+            PlaylistActions.playlistRemovalCommitted({
+                playlistId: playlist._id,
+            })
         );
         this.snackBar.open(
             this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'),

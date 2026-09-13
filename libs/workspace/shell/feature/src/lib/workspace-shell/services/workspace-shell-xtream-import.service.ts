@@ -34,6 +34,14 @@ export class WorkspaceShellXtreamImportService {
         { initialValue: null }
     );
 
+    isSourceBusy(playlistId: string): boolean {
+        return (
+            this.refreshPreparation()?.playlistId === playlistId ||
+            (this.xtreamStore.isImporting() &&
+                this.xtreamStore.playlistId() === playlistId)
+        );
+    }
+
     private get isElectron(): boolean {
         return this.runtime.isElectron;
     }

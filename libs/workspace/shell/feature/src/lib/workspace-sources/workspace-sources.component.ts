@@ -1,3 +1,23 @@
+import { WorkspaceShellXtreamImportService } from '../workspace-shell/services/workspace-shell-xtream-import.service';
+import { Injector, viewChild } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import {
+    SourceCleanupDialogComponent,
+    PlaylistRefreshActionService,
+} from '@iptvnator/playlist/shared/ui';
+import {
+    RuntimeCapabilitiesService,
+    SourceActivityService,
+} from '@iptvnator/services';
+import {
+    PORTAL_EXTERNAL_PLAYBACK,
+    isLiveExternalPlayerSession,
+} from '@iptvnator/portal/shared/util';
+import { PlaylistActions } from '@iptvnator/m3u-state';
+import {
+    sourceHealthType,
+    PlaylistUpdateState,
+} from '@iptvnator/shared/interfaces';
 import { Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -7,7 +27,10 @@ import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { RecentPlaylistsComponent } from '@iptvnator/playlist/shared/ui';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { selectActiveTypeFilters, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
+import {
+    selectActiveTypeFilters,
+    selectAllPlaylistsMeta,
+} from '@iptvnator/m3u-state';
 import { map, startWith } from 'rxjs';
 import { SortBy, SortOrder, SortService } from '@iptvnator/services';
 import {
@@ -35,6 +58,55 @@ interface SortOption {
     styleUrl: './workspace-sources.component.scss',
 })
 export class WorkspaceSourcesComponent {
+    private readonly injector = inject(Injector);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly playback = inject(PORTAL_EXTERNAL_PLAYBACK, {
+        optional: true,
+    });
+    private readonly imports = inject(WorkspaceShellXtreamImportService, {
+        optional: true,
+    });
+    private readonly sourceList = viewChild(RecentPlaylistsComponent);
+    readonly canCleanSources = computed(
+        () =>
+            this.runtime.supportsSourceHealth &&
+            this.playlists().some((p) => sourceHealthType(p))
+    );
+    openCleanup(): void {
+        const dialogs = this.injector.get(MatDialog);
+        const refresh = this.injector.get(PlaylistRefreshActionService);
+        const activity = this.injector.get(SourceActivityService);
+        if (dialogs.getDialogById('source-cleanup')) return;
+        dialogs.open(SourceCleanupDialogComponent, {
+            id: 'source-cleanup',
+            width: '680px',
+            maxWidth: '95vw',
+            data: {
+                playlists: this.playlists(),
+                current: (id: string) =>
+                    this.playlists().find((p) => p._id === id),
+                protected: (id: string) =>
+                    (isLiveExternalPlayerSession(
+                        this.playback?.activeSession()
+                    ) &&
+                        this.playback?.activeSession()?.contentInfo
+                            ?.playlistId === id) ||
+                    activity.isBusy(id) ||
+                    refresh.isSourceBusy(id) ||
+                    !!this.imports?.isSourceBusy(id) ||
+                    !!this.sourceList()?.isDeletePending(id) ||
+                    !!this.sourceList()?.isRefreshPending(id) ||
+                    this.playlists().find((p) => p._id === id)?.updateState ===
+                        PlaylistUpdateState.IN_PROGRESS,
+                removed: (id: string) =>
+                    this.store.dispatch(
+                        PlaylistActions.playlistRemovalCommitted({
+                            playlistId: id,
+                        })
+                    ),
+            },
+        });
+    }
     private readonly route = inject(ActivatedRoute);
     private readonly store = inject(Store);
     private readonly workspaceActions = inject(WORKSPACE_SHELL_ACTIONS);

@@ -325,6 +325,17 @@ export class PlaylistEffects {
         }
     }
 
+    playlistRemovalCommitted$ = createEffect(
+        () =>
+            this.actions$.pipe(
+                ofType(PlaylistActions.playlistRemovalCommitted),
+                tap(({ playlistId }) =>
+                    this.playlistScopedEpgFetchKeys.delete(playlistId)
+                )
+            ),
+        { dispatch: false }
+    );
+
     removePlaylist$ = createEffect(
         () => {
             return this.actions$.pipe(
@@ -471,8 +482,8 @@ export class PlaylistEffects {
                     this.playlistsService
                         .updateManyPlaylists(action.playlists)
                         .pipe(
-                            tap(() => {
-                                action.playlists.forEach((playlist) =>
+                            tap((persisted) => {
+                                persisted.forEach((playlist) =>
                                     this.fetchPlaylistScopedEpg(playlist)
                                 );
                             })

@@ -1,3 +1,4 @@
+import { SourceActivityService } from '@iptvnator/services';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
@@ -106,6 +107,18 @@ describe('ElectronService', () => {
             value: undefined,
         });
         jest.restoreAllMocks();
+    });
+
+    it('protects all startup-refresh sources until the request settles, including failure', async () => {
+        let reject!: (error: Error) => void;
+        electronBridge.autoUpdatePlaylists.mockReturnValue(new Promise((_, r) => { reject = r; }));
+        const pending = service.sendIpcEvent(AUTO_UPDATE_PLAYLISTS, [{ _id: 'startup' }]);
+        const activity = TestBed.inject(SourceActivityService);
+        expect(activity.isBusy('startup')).toBe(true);
+        expect(activity.isBusy('other')).toBe(false);
+        reject(new Error('refresh failed'));
+        await expect(pending).rejects.toThrow('refresh failed');
+        expect(activity.isBusy('startup')).toBe(false);
     });
 
     it.each([401, 403])('preserves a health HTTP %s rejection without global error handling', async (status) => {

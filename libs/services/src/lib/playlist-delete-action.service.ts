@@ -1,4 +1,4 @@
-import { SourceHealthEvidenceService } from './source-health-evidence.service';
+import { SourceActivityService } from './source-activity.service';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -20,7 +20,7 @@ export interface PlaylistDeleteActionOptions {
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistDeleteActionService {
-    private readonly healthEvidence = inject(SourceHealthEvidenceService, {
+    private readonly activity = inject(SourceActivityService, {
         optional: true,
     });
     private readonly databaseService = inject(DatabaseService);
@@ -31,42 +31,45 @@ export class PlaylistDeleteActionService {
         playlist: PlaylistMeta,
         options: PlaylistDeleteActionOptions = {}
     ): Promise<boolean> {
-        const supportsElectronDelete = playlist.serverUrl
-            ? this.runtime.supportsXtreamSqliteDataSource
-            : this.runtime.supportsSqlite;
-
-        if (supportsElectronDelete) {
-            const deleted = await this.deletePlaylistInElectron(
+        try {
+            const result = await this.deletePlaylistWithResult(
                 playlist,
                 options
             );
-            if (deleted)
-                this.healthEvidence?.connections.next({ id: playlist._id });
-            return deleted;
+            return result.success;
+        } catch {
+            return false;
         }
-
-        const result = await firstValueFrom(
-            this.playlistsService.deletePlaylist(playlist._id)
-        );
-        return result.success;
     }
 
-    private deletePlaylistInElectron(
+    async deletePlaylistWithResult(
         playlist: PlaylistMeta,
-        options: PlaylistDeleteActionOptions
-    ): Promise<boolean> {
-        const operationId = playlist.serverUrl
-            ? this.databaseService.createOperationId('playlist-delete')
-            : undefined;
-
-        return this.databaseService.deletePlaylist(
-            playlist._id,
-            operationId
+        options: PlaylistDeleteActionOptions = {}
+    ): Promise<{ success: boolean; cleanupWarnings?: number }> {
+        const workerOptions =
+            playlist.serverUrl && this.runtime.supportsXtreamSqliteDataSource
                 ? {
-                      operationId,
+                      operationId:
+                          this.databaseService.createOperationId(
+                              'playlist-delete'
+                          ),
                       onEvent: options.onEvent,
                   }
-                : undefined
-        );
+                : undefined;
+        // Persistence owns serialization, the single worker invocation, and
+        // post-delete cleanup. UI callers only commit the resulting state.
+        const release = this.activity?.begin([playlist._id]);
+        try {
+            return await firstValueFrom(
+                workerOptions
+                    ? this.playlistsService.deletePlaylist(
+                          playlist._id,
+                          workerOptions
+                      )
+                    : this.playlistsService.deletePlaylist(playlist._id)
+            );
+        } finally {
+            release?.();
+        }
     }
 }

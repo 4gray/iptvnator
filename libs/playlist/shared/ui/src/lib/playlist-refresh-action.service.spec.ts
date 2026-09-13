@@ -14,6 +14,7 @@ import {
     PlaylistRefreshService,
     RuntimeCapabilitiesService,
     SettingsStore,
+    SourceActivityService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -252,6 +253,20 @@ describe('PlaylistRefreshActionService', () => {
         localStorage.clear();
     });
 
+    it('rejects refresh while a shared deletion owns the source', () => {
+        const playlist = createPlaylistMeta({
+            serverUrl: undefined,
+            url: 'https://example.test/list.m3u',
+        });
+        const release = TestBed.inject(SourceActivityService).begin([
+            playlist._id,
+        ]);
+        expect(service.canRefresh(playlist)).toBe(false);
+        service.refresh(playlist);
+        expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+        release();
+        expect(service.canRefresh(playlist)).toBe(true);
+    });
     it('treats file-backed M3U playlists as refreshable when the refresh bridge is available', () => {
         runtime.supportsPlaylistRefresh = true;
 
@@ -318,6 +333,29 @@ describe('PlaylistRefreshActionService', () => {
             userAgent: 'IPTVnator-Test/1.0',
         });
         expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('tracks a header M3U refresh by source until the operation settles', async () => {
+        const playlist = createPlaylistMeta({
+            _id: 'busy',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://source.test/list',
+        });
+        let resolve!: (value: Playlist) => void;
+        playlistRefreshService.refreshPlaylist.mockReturnValue(
+            new Promise((r) => {
+                resolve = r;
+            })
+        );
+        service.refresh(playlist);
+        expect(service.isSourceBusy('busy')).toBe(true);
+        expect(service.isSourceBusy('other')).toBe(false);
+        resolve({ _id: 'busy', playlist: { items: [] } } as Playlist);
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(service.isSourceBusy('busy')).toBe(false);
     });
 
     it('passes trusted TLS hosts to URL-backed M3U refreshes', async () => {
