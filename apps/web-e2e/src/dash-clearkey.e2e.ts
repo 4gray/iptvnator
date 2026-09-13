@@ -43,7 +43,7 @@ const DASH_PLAYLIST = [
     '#EXTINF:-1 tvg-id="wv-dash" group-title="DASH",Widevine DASH',
     '#KODIPROP:inputstream.adaptive.license_type=com.widevine.alpha',
     '#KODIPROP:inputstream.adaptive.license_key=https://license.example.com/wv',
-    `${FIXTURE_HOST}/clearkey.mpd`,
+    `${FIXTURE_HOST}/clearkey.mpd?widevine=1`,
 ].join('\n');
 
 // The inline player starts playback programmatically; without this flag the
@@ -178,6 +178,12 @@ test('@web @m3u @dash ClearKey reopens from recent and favorites collections', a
     ]) {
         // Full navigation also proves persisted channels survive a cold load.
         await page.goto(route);
+        if (route.startsWith('/workspace/global-')) {
+            await page
+                .locator('.scope-toggle')
+                .getByText('All playlists', { exact: true })
+                .click();
+        }
         const collection = page.locator('app-unified-live-tab');
         await collection
             .locator('.channel-name')

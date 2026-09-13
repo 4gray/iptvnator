@@ -1360,6 +1360,11 @@ player in settings.
    through `ResolvedPortalPlayback.drm`; an explicit stored DRM result,
    including `supported: false`, takes precedence over the raw fallback.
 
+`UnifiedLiveTabComponent` applies the same M3U DASH routing to favorites and
+recent selections: ArtPlayer keeps its Shaka engine; all other preferences
+use HTML5/Shaka inline. This also applies to a resolved DASH catch-up URL and
+does not change the saved player preference. Clear DASH needs this routing too.
+
 **Engine selection and routing:**
 
 - `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the

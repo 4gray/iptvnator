@@ -49,11 +49,13 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         openResolvedPlayback: jest.Mock;
         openExternalPlayback: jest.Mock;
     };
+    let player = signal(VideoPlayer.VideoJs);
     const originalElectron = window.electron;
 
     beforeEach(async () => {
         window.electron = { platform: 'darwin' } as typeof window.electron;
         localStorage.removeItem('live-epg-panel-state');
+        player = signal(VideoPlayer.VideoJs);
 
         streamResolver = {
             resolveLiveDetail: jest.fn(),
@@ -86,7 +88,7 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
                     provide: SettingsStore,
                     useValue: {
                         openStreamOnDoubleClick: signal(false),
-                        player: signal(VideoPlayer.VideoJs),
+                        player,
                         stripCountryPrefix: signal(false),
                         resolvedEpgViewMode: signal('timeline'),
                         resolvedEpgOffsetMinutes: signal(0),
@@ -127,6 +129,49 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         fixture?.destroy();
         window.electron = originalElectron;
     });
+
+    it.each(Object.values(VideoPlayer))(
+        'renders M3U DASH with Shaka and retains the %s preference',
+        async (configuredPlayer) => {
+            player.set(configuredPlayer);
+            portalPlayer.isEmbeddedPlayer.mockReturnValue(
+                configuredPlayer !== VideoPlayer.MPV &&
+                    configuredPlayer !== VideoPlayer.VLC
+            );
+            const item = {
+                ...buildM3uLiveItem(),
+                streamUrl: 'https://example.com/live.mpd',
+            };
+            const drm = {
+                licenseType: 'clearkey',
+                supported: true,
+                clearKeys: { kid: 'key' },
+            };
+            streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+                epgMode: 'm3u',
+                playback: { streamUrl: item.streamUrl, title: item.name, drm },
+                epgPrograms: [],
+            });
+            recentData.recordLivePlayback.mockResolvedValue(item);
+            fixture.componentRef.setInput('items', [item]);
+            fixture.componentRef.setInput('mode', 'recent');
+            fixture.detectChanges();
+            await component.onChannelSelected(component.channelsForList()[0]);
+            fixture.detectChanges();
+
+            const webPlayer = fixture.debugElement.query(
+                By.directive(StubWebPlayerViewComponent)
+            ).componentInstance as StubWebPlayerViewComponent;
+            expect(webPlayer.playerOverride()).toBe(
+                configuredPlayer === VideoPlayer.ArtPlayer
+                    ? VideoPlayer.ArtPlayer
+                    : VideoPlayer.Html5Player
+            );
+            expect(webPlayer.playback()?.drm).toEqual(drm);
+            expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+            expect(player()).toBe(configuredPlayer);
+        }
+    );
 
     it('keeps the current detail (and its fullscreen player) mounted while the next selection resolves', async () => {
         const first = buildM3uLiveItem();
