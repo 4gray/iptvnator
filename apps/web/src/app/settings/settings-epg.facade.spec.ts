@@ -174,4 +174,50 @@ describe('SettingsEpgFacade', () => {
 
         expect(epgService.fetchEpg).not.toHaveBeenCalled();
     });
+
+    describe('browse', () => {
+        it('writes the picked file into the row and dirties the form', async () => {
+            formFacade.setEpgUrls([
+                'https://epg.example.org/guide.xml',
+                'https://epg.example.org/old.xml',
+            ]);
+            (epgBridge.pickEpgFile as jest.Mock).mockResolvedValue(
+                '/home/user/epg/guide.xml.gz'
+            );
+
+            await facade.browse(1);
+
+            expect(formFacade.epgUrl.at(1).value).toBe(
+                '/home/user/epg/guide.xml.gz'
+            );
+            expect(formFacade.epgUrl.at(0).value).toBe(
+                'https://epg.example.org/guide.xml'
+            );
+            expect(formFacade.epgUrl.at(1).dirty).toBe(true);
+            expect(formFacade.form.dirty).toBe(true);
+        });
+
+        it('leaves the row untouched when the picker is cancelled', async () => {
+            formFacade.setEpgUrls(['https://epg.example.org/guide.xml']);
+            (epgBridge.pickEpgFile as jest.Mock).mockResolvedValue(null);
+
+            await facade.browse(0);
+
+            expect(formFacade.epgUrl.at(0).value).toBe(
+                'https://epg.example.org/guide.xml'
+            );
+            expect(formFacade.form.dirty).toBe(false);
+        });
+
+        it('never opens the picker without the capability or for a missing row', async () => {
+            formFacade.setEpgUrls(['https://epg.example.org/guide.xml']);
+            await facade.browse(5);
+            expect(epgBridge.pickEpgFile).not.toHaveBeenCalled();
+
+            (epgBridge as { supportsFilePicker: boolean }).supportsFilePicker =
+                false;
+            await facade.browse(0);
+            expect(epgBridge.pickEpgFile).not.toHaveBeenCalled();
+        });
+    });
 });

@@ -12,7 +12,10 @@ export interface PlaylistScopedEpgFetchOptions {
 }
 
 export function resolvePlaylistScopedEpgFetchPlan(
-    playlist: Pick<PlaylistMeta, 'epgUrls' | 'macAddress' | 'serverUrl'>,
+    playlist: Pick<
+        PlaylistMeta,
+        'epgUrls' | 'macAddress' | 'manualEpgUrls' | 'serverUrl'
+    >,
     globalEpgUrls: readonly string[],
     previousKey = '',
     options: PlaylistScopedEpgFetchOptions = {}
@@ -28,7 +31,11 @@ export function resolvePlaylistScopedEpgFetchPlan(
         return { key: previousKey, shouldFetch: false, urls: [] };
     }
 
-    const urls = filterPlaylistEpgUrlsForFetch(playlist.epgUrls, globalEpgUrls);
+    const urls = filterPlaylistEpgUrlsForFetch(
+        playlist.epgUrls,
+        globalEpgUrls,
+        playlist.manualEpgUrls
+    );
     const key = urls.join('\n');
     const previousUrls = new Set(
         previousKey

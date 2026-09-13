@@ -25,6 +25,29 @@ export class SettingsEpgFacade {
 
     readonly isClearing = signal(false);
 
+    get supportsFilePicker(): boolean {
+        return this.epgBridge.supportsFilePicker;
+    }
+
+    /**
+     * Native picker for a local XMLTV file. The chosen absolute path becomes
+     * the value of row `index`; a cancelled dialog leaves the row untouched.
+     */
+    async browse(index: number): Promise<void> {
+        const control = this.formFacade.epgUrl.at(index);
+        if (!control || !this.epgBridge.supportsFilePicker) {
+            return;
+        }
+        const filePath = await this.epgBridge.pickEpgFile();
+        if (!filePath) {
+            return;
+        }
+        control.setValue(filePath);
+        control.markAsDirty();
+        control.markAsTouched();
+        this.formFacade.form.markAsDirty();
+    }
+
     /**
      * Force-fetch EPG for a single URL, bypassing the 12-hour freshness check.
      * The plain fetchEpg would short-circuit on fresh data and click the

@@ -216,7 +216,9 @@ export function createEpgBridgeStub(): Partial<EpgRuntimeBridgeService> {
         clearEpgData: jest.fn().mockResolvedValue({ success: true }),
         clearEpgDataForSource: jest.fn().mockResolvedValue({ success: true }),
         forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
+        pickEpgFile: jest.fn().mockResolvedValue(null),
         supportsDataManagement: true,
+        supportsFilePicker: true,
         supportsImport: true,
     };
 }

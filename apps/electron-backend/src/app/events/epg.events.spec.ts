@@ -39,6 +39,11 @@ jest.mock('../workers/worker-runtime-paths', () => ({
         resolveWorkerRuntimeBootstrap(...args),
 }));
 
+jest.mock('../services/store.service', () => ({
+    TRUSTED_LOCAL_EPG_SOURCES: 'TRUSTED_LOCAL_EPG_SOURCES',
+    store: { get: jest.fn(), set: jest.fn() },
+}));
+
 jest.mock('../database/connection', () => ({
     getDatabase: (...args: unknown[]) => getDatabase(...args),
 }));

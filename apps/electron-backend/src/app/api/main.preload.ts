@@ -680,6 +680,7 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_GET_PROGRAM_COVERAGE', window),
     forceFetchEpg: (url: string, options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
+    openEpgFileDialog: () => ipcRenderer.invoke('EPG_OPEN_FILE_DIALOG'),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
     reconcileEpgSources: (urls: string[]) =>
         ipcRenderer.invoke('EPG_RECONCILE_SOURCES', { urls }),

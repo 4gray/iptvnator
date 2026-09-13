@@ -40,6 +40,7 @@ import {
     Playlist,
     PlaylistMeta,
     PlaylistMetaUpdate,
+    validateEpgSourceReferenceControl,
 } from '@iptvnator/shared/interfaces';
 import {
     normalizeEpgUrls,
@@ -59,8 +60,6 @@ type DesktopFileSaveBridge = Pick<
     typeof window.electron,
     'saveFileDialog' | 'writeFile'
 >;
-
-const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
 
 @Component({
     selector: 'app-playlist-info',
@@ -727,6 +726,25 @@ export class PlaylistInfoComponent {
         );
     }
 
+    get canBrowseEpgFiles(): boolean {
+        return this.epgBridge.supportsFilePicker;
+    }
+
+    /** Native picker for a local XMLTV file; fills EPG input `index`. */
+    async browsePlaylistEpgSourceInput(index: number): Promise<void> {
+        const control = this.playlistEpgSourceInputs.at(index);
+        if (!control || !this.epgBridge.supportsFilePicker) {
+            return;
+        }
+        const filePath = await this.epgBridge.pickEpgFile();
+        if (!filePath) {
+            return;
+        }
+        control.setValue(filePath);
+        control.markAsDirty();
+        control.markAsTouched();
+    }
+
     removePlaylistEpgSourceInput(index: number): void {
         if (this.playlistEpgSourceInputs.length <= 1) {
             this.playlistEpgSourceInputs.at(0).reset('');
@@ -861,7 +879,7 @@ export class PlaylistInfoComponent {
     private createPlaylistEpgSourceControl(value = ''): FormControl<string> {
         return new FormControl(value, {
             nonNullable: true,
-            validators: [Validators.pattern(EPG_URL_PATTERN)],
+            validators: [validateEpgSourceReferenceControl],
         });
     }
 

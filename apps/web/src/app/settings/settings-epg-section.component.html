@@ -70,6 +70,19 @@
     </div>
 
     <div class="setting-item setting-item--full-control">
+        <div class="setting-item__meta" data-test-id="epg-source-formats">
+            <h4>{{ 'SETTINGS.EPG_SOURCE_LIST_TITLE' | translate }}</h4>
+            <p>{{ 'SETTINGS.EPG_SOURCE_FORMATS_HINT' | translate }}</p>
+            <p class="epg-sources__formats-examples">
+                <span>{{
+                    'SETTINGS.EPG_SOURCE_FORMATS_EXAMPLES' | translate
+                }}</span>
+                <code>https://example.org/guide.xml.gz</code>
+                <code>/home/you/epg/guide.xml</code>
+                <code>C:\epg\guide.xml.gz</code>
+                <code>file:///…/guide.xml</code>
+            </p>
+        </div>
         <div class="setting-item__control">
             <ng-container formArrayName="epgUrl">
                 @if (epgUrl().length === 0) {
@@ -102,7 +115,8 @@
                                     }}</mat-label>
                                     <input
                                         matInput
-                                        type="url"
+                                        type="text"
+                                        spellcheck="false"
                                         [formControlName]="i"
                                         #epgField
                                     />
@@ -115,12 +129,31 @@
                                         [url]="epgField.value"
                                     />
                                 }
+                                @if (canBrowseFiles()) {
+                                    <button
+                                        mat-icon-button
+                                        [matTooltip]="
+                                            'SETTINGS.BROWSE_EPG_FILE'
+                                                | translate
+                                        "
+                                        [attr.aria-label]="
+                                            'SETTINGS.BROWSE_EPG_FILE'
+                                                | translate
+                                        "
+                                        type="button"
+                                        data-test-id="epg-source-browse"
+                                        (click)="browseEpgSource.emit(i)"
+                                    >
+                                        <mat-icon>folder_open</mat-icon>
+                                    </button>
+                                }
                                 <button
                                     mat-icon-button
                                     [matTooltip]="
                                         'SETTINGS.REFRESH_EPG' | translate
                                     "
                                     type="button"
+                                    data-test-id="epg-source-refresh"
                                     [disabled]="epgField.value === ''"
                                     (click)="refreshEpg.emit(epgUrl().value[i])"
                                 >
@@ -132,6 +165,7 @@
                                         'SETTINGS.REMOVE_EPG_SOURCE' | translate
                                     "
                                     type="button"
+                                    data-test-id="epg-source-remove"
                                     (click)="removeEpgSource.emit(i)"
                                 >
                                     <mat-icon>remove</mat-icon>

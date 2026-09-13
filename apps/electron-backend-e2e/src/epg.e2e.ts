@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
@@ -233,10 +234,7 @@ test.describe('Electron EPG', () => {
                     removedUrls: [],
                 }));
             });
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             await expect(
                 app.mainWindow.getByTestId('settings-unsaved-bar')
@@ -296,6 +294,106 @@ test.describe('Electron EPG', () => {
         }
     });
 
+    test('@epg @electron imports a local gzipped XMLTV file given as an absolute path', async ({
+        dataDir,
+    }) => {
+        const localGuide = join(dataDir, 'local guide.xml.gz');
+        writeFileSync(localGuide, gzipSync(epgFixtureXml));
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await expect(
+                app.mainWindow.getByTestId('epg-source-formats')
+            ).toContainText('file://');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            const field = app.mainWindow
+                .locator('.epg-source-row input')
+                .first();
+            await field.fill('guide.xml');
+            // Material reveals errors once the control is touched.
+            await field.blur();
+            await expect(
+                app.mainWindow.locator('.epg-source-row mat-error')
+            ).toBeVisible();
+            await field.fill(localGuide);
+            await expect(
+                app.mainWindow.locator('.epg-source-row mat-error')
+            ).toHaveCount(0);
+
+            // Native dialogs cannot be driven from Playwright: stub them in
+            // the main process. A hand-typed path is confirmed once through
+            // the message box; a refused path is reported, never read.
+            await app.electronApp.evaluate(({ dialog }) => {
+                dialog.showMessageBox = (async () => ({
+                    response: 1,
+                    checkboxChecked: false,
+                })) as typeof dialog.showMessageBox;
+            });
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-error'
+                )
+            ).toContainText('was not allowed');
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+
+            await app.electronApp.evaluate(({ dialog }) => {
+                dialog.showMessageBox = (async () => ({
+                    response: 0,
+                    checkboxChecked: false,
+                })) as typeof dialog.showMessageBox;
+            });
+            await app.mainWindow
+                .locator('.epg-progress-panel .retry-btn')
+                .click();
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBeGreaterThan(0);
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1);
+
+            // A file chosen in the native picker is trusted without a prompt.
+            const browsedGuide = join(dataDir, 'browsed guide.xml.gz');
+            writeFileSync(browsedGuide, gzipSync(epgFixtureXml));
+            await app.electronApp.evaluate(({ dialog }, filePath) => {
+                dialog.showOpenDialog = (async () => ({
+                    canceled: false,
+                    filePaths: [filePath],
+                })) as typeof dialog.showOpenDialog;
+                dialog.showMessageBox = (async () => {
+                    throw new Error('picked files must not prompt');
+                }) as typeof dialog.showMessageBox;
+            }, browsedGuide);
+            await app.mainWindow.getByTestId('epg-source-browse').click();
+            await expect(field).toHaveValue(browsedGuide);
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(2);
+
+            // Leave with a pristine form: a dirty settings form arms the
+            // main-process close guard, and the app would then wait for a
+            // confirmation dialog instead of closing.
+            await app.mainWindow.getByTestId('discard-settings').click();
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@epg @electron adds an EPG source, fetches guide data, removes its stored EPG data on save', async ({
         dataDir,
     }) => {
@@ -316,10 +414,7 @@ test.describe('Electron EPG', () => {
                 .first()
                 .fill(epgServer.resourceUrl);
 
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .first()
-                .click();
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
             await expect(
                 app.mainWindow.locator('.epg-progress-panel')
             ).toBeVisible();
@@ -355,10 +450,7 @@ test.describe('Electron EPG', () => {
 
             await saveSettings(app.mainWindow);
 
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await expect(app.mainWindow.locator('.epg-source-row')).toHaveCount(
                 0
             );
@@ -436,10 +528,7 @@ test.describe('Electron EPG', () => {
                     '.epg-progress-panel .import-item.status-error'
                 )
             ).toHaveCount(1);
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             await expect(
                 app.mainWindow.locator('.epg-progress-panel .import-item')
@@ -502,8 +591,7 @@ test.describe('Electron EPG', () => {
             await app.mainWindow
                 .locator('.epg-source-row')
                 .first()
-                .locator('button')
-                .nth(1)
+                .getByTestId('epg-source-remove')
                 .click();
             // A staged removal must not delete data before Save.
             expect(await programs()).toContain('Removed Bulletin');
@@ -523,10 +611,7 @@ test.describe('Electron EPG', () => {
             await expect.poll(programs).toEqual(['Retained Bulletin']);
             await openSettings(app.mainWindow);
             await openSettingsSection(app.mainWindow, 'epg');
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             await expect.poll(programs).toEqual([]);
             await expect.poll(() => getEpgChannelCount(app.mainWindow)).toBe(0);
@@ -592,8 +677,7 @@ test.describe('Electron EPG', () => {
             await app.mainWindow
                 .locator('.epg-source-row')
                 .nth(1)
-                .locator('button')
-                .nth(1)
+                .getByTestId('epg-source-remove')
                 .click();
             await saveSettings(app.mainWindow);
             const firstMetadata = {
@@ -701,10 +785,7 @@ test.describe('Electron EPG', () => {
                 .locator('.epg-source-row input')
                 .fill(epgServer.resourceUrl);
             await saveSettings(app.mainWindow);
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             // The same URL still belongs to the saved M3U playlist.
             const retained = await app.mainWindow.evaluate(async () =>
@@ -771,10 +852,7 @@ test.describe('Electron EPG', () => {
                 .locator('.epg-source-row input')
                 .first()
                 .fill(epgServer.resourceUrl);
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .first()
-                .click();
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
 
             await expect
                 .poll(() => getEpgChannelCount(app.mainWindow), {

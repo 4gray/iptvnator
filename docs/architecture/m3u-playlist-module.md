@@ -1081,6 +1081,63 @@ retried as plain XML. Source errors and consumer cancellation terminate the
 whole decoding chain. The decoder does not recursively unpack file layers or
 change XML parsing, source reconciliation, or database persistence contracts.
 
+### Local XMLTV files
+
+An EPG source is not necessarily a URL. Settings → EPG and the playlist
+dialog accept, next to `http(s)` links, a file on the user's computer in any
+of these shapes (Electron only — the PWA has no EPG import at all):
+
+- a `file:` URL (`file:///home/you/epg/guide.xml.gz`, `file:///C:/epg/guide.xml`)
+- an absolute POSIX path (`/home/you/epg/guide.xml`)
+- a Windows drive or UNC path (`C:\epg\guide.xml.gz`, `\\nas\share\guide.xml`)
+
+Both surfaces also offer a folder button that opens the native file picker
+(`EPG_OPEN_FILE_DIALOG` → `ElectronBridgeApi.openEpgFileDialog`, gated on
+`RuntimeCapabilitiesService.supportsEpgFilePicker`) and writes the chosen
+absolute path into the row. Relative paths are refused: the main process
+has no meaningful working directory to resolve them against. The value is stored exactly as typed
+(trimmed) and is the source key everywhere — freshness, reconciliation, the
+progress panel and `epg_channel_sources` all treat it like a URL string.
+
+The shape rules live in one place, `classifyEpgSourceReference()` in
+`libs/shared/interfaces/src/lib/epg-source-reference.util.ts`, and both
+forms validate through its structural `validateEpgSourceReferenceControl`.
+In the worker, `openEpgSourceStream()` (`epg-source-stream.ts`) is the single
+entry that yields decoded XMLTV bytes: remote sources still go through
+`requestWithValidatedRedirects` with the private-network/TLS trust policy,
+while local sources are read with `fs.createReadStream` behind the same
+signature-sniffing optional gunzip stage the HTTP path uses, so `.xml`,
+`.xml.gz` and an extension-less gzip file all parse. A missing file, a
+directory, or a truncated gzip fail the import with a plain message; nothing
+is retried as XML.
+
+**Provenance rule.** Only values the user chose or typed by hand may be
+local, and the decision is enforced in the main process, not in the form.
+The local branch bypasses `validateRemoteUrl` (which only knows http/https),
+so two layers guard it:
+
+- Header-declared M3U sources (`x-tvg-url`/`url-tvg`/`tvg-url`) are filtered
+  to remote links — `extractM3uEpgUrls` no longer matches `file:`, and
+  `resolvePlaylistEpgSourceState` / `filterPlaylistEpgUrlsForFetch` drop a
+  legacy non-remote entry that older versions stored from a header unless it
+  also appears in `manualEpgUrls`. A downloaded playlist cannot point the
+  importer at a file on disk; a user whose own local M3U references a local
+  XMLTV adds that file in the playlist dialog instead.
+- `FETCH_EPG`/`EPG_FORCE_FETCH` carry renderer-supplied strings, so
+  `EpgWorkerService.startFetch` asks the main-process
+  `EpgLocalSourceAuthorizer` (`epg-local-source-authorizer.ts`) before a
+  local path reaches the worker. A path the native picker returned is trusted
+  at once; a hand-typed path is confirmed once in a native message box the
+  renderer cannot fake, and a refusal fails that fetch — the progress panel
+  shows it with Retry ("Retry to be asked again") and the IPC result does
+  not report success. Allowed paths persist under
+  `TRUSTED_LOCAL_EPG_SOURCES` in the main-process config (`store.service.ts`)
+  so startup refreshes need no prompt. The worker's local branch opens only
+  when main set `allowLocalFile` on the fetch options — the flag is never
+  taken from the renderer — and the service defaults to a deny-all authorizer
+  until `epg.events.ts` installs the persisted one, so a missing wiring fails
+  closed. This mirrors `save-file-dialog` → `write-file` for playlist exports.
+
 ### EpgService (`@iptvnator/epg/data-access`)
 
 ```typescript

@@ -47,6 +47,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsRemoteControl).toBe(false);
         expect(service.supportsXtreamSectionNavigation).toBe(true);
         expect(service.supportsEpgImport).toBe(false);
+        expect(service.supportsEpgFilePicker).toBe(false);
         expect(service.supportsEpgProgress).toBe(false);
         expect(service.supportsEpgProgramLookup).toBe(false);
         expect(service.supportsEpgCurrentProgramBatch).toBe(false);
@@ -143,6 +144,7 @@ describe('RuntimeCapabilitiesService', () => {
             checkEpgFreshness: jest.fn(),
             onEpgProgress: jest.fn(),
             forceFetchEpg: jest.fn(),
+            openEpgFileDialog: jest.fn(),
             clearEpgData: jest.fn(),
             clearEpgDataForSource: jest.fn(),
             getEpgProgramsForChannels: jest.fn(),
@@ -174,6 +176,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsRemoteControl).toBe(true);
         expect(service.supportsXtreamSectionNavigation).toBe(true);
         expect(service.supportsEpgImport).toBe(true);
+        expect(service.supportsEpgFilePicker).toBe(true);
         expect(service.supportsEpgProgress).toBe(true);
         expect(service.supportsEpgProgramLookup).toBe(true);
         expect(service.supportsEpgCurrentProgramBatch).toBe(true);
