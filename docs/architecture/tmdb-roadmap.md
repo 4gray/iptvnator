@@ -118,7 +118,7 @@ Canonical titles in grids, rating/year badges on cards, genre/decade browse, fam
 
 **Blockers, all hard:**
 
-- **The shared release key.** `.github/workflows/build-and-make.yaml:402-406` injects one `TMDB_API_KEY` into every installed copy. Bulk backfill on that key is exactly the traffic shape TMDB throttles ("upper limits to help mitigate needlessly high bulk scraping"). Must be **hard-gated to a user-supplied personal key**, not merely "explicit consent".
+- **User-supplied key and throttling.** Distributed builds ship without a shared key; the workflow retains optional injection support (see [Settings and API Key](./tmdb-metadata-enrichment.md#settings-and-api-key)). Bulk backfill must require a user-supplied key even in a build with an injected default. A personal key does not exempt bulk traffic from [TMDB rate limits](https://developer.themoviedb.org/docs/rate-limiting); explicit consent alone is insufficient.
 - **No 429/backoff machinery exists** (Theme A5 is a prerequisite).
 - **Per-item IPC.** 40k warm writes = 40k+ worker round-trips. Batched cache ops are a prerequisite, not an optimization.
 - **6-month retention** must ship _with_ it, not after — bulk warming is precisely a mechanism for maximizing held TMDB data.
