@@ -167,7 +167,10 @@ export class EpgWorkerService {
                     undefined,
                     EPG_LOCAL_SOURCE_REFUSED_MESSAGE
                 );
-                return;
+                // A refusal is a failed fetch, not a completed one: the
+                // renderer's fetch result and EPG availability must not
+                // claim the file was read.
+                throw new Error(EPG_LOCAL_SOURCE_REFUSED_MESSAGE);
             }
             workerOptions = { ...trustOptions, allowLocalFile: true };
         }

@@ -166,6 +166,83 @@ describe('EpgWorkerService worker lifecycle', () => {
             expect(service.hasFetchedUrl(url)).toBe(true);
         });
 
+        it('refuses a local file the authorizer denies without spawning a worker', async () => {
+            const localPath = '/home/user/epg/guide.xml.gz';
+            const progressSpy = jest.spyOn(service, 'sendProgressToRenderer');
+            service.localSourceAuthorizer = {
+                authorize: jest.fn(),
+                ensureAllowed: jest.fn().mockResolvedValue(false),
+            };
+
+            await expect(
+                service.fetchEpgFromUrl(localPath, {
+                    allowLocalFile: true,
+                } as any)
+            ).rejects.toThrow('was not allowed');
+
+            expect(
+                service.localSourceAuthorizer.ensureAllowed
+            ).toHaveBeenCalledWith(localPath);
+            expect(mockWorkerInstances).toHaveLength(0);
+            expect(progressSpy).toHaveBeenCalledWith(
+                localPath,
+                'error',
+                undefined,
+                expect.stringContaining('was not allowed')
+            );
+            expect(service.hasFetchedUrl(localPath)).toBe(false);
+        });
+
+        it('unlocks the worker local branch only for an allowed file', async () => {
+            const localPath = '/home/user/epg/guide.xml.gz';
+            service.localSourceAuthorizer = {
+                authorize: jest.fn(),
+                ensureAllowed: jest.fn().mockResolvedValue(true),
+            };
+
+            const fetchPromise = service.fetchEpgFromUrl(localPath, {
+                trustedInsecureTlsHosts: ['example.com'],
+            });
+            await Promise.resolve();
+            const worker = mockWorkerInstances[0];
+            worker.emit('message', { type: 'READY' });
+
+            expect(worker.postMessage).toHaveBeenCalledWith({
+                type: 'FETCH_EPG',
+                url: localPath,
+                options: {
+                    trustedInsecureTlsHosts: ['example.com'],
+                    allowLocalFile: true,
+                },
+            });
+
+            worker.emit('message', {
+                type: 'EPG_COMPLETE',
+                stats: { totalChannels: 1, totalPrograms: 1 },
+            });
+            await expect(fetchPromise).resolves.toBeUndefined();
+        });
+
+        it('never forwards a renderer-supplied allowLocalFile flag for remote sources', async () => {
+            const fetchPromise = service.fetchEpgFromUrl(url, {
+                allowLocalFile: true,
+            } as any);
+            await Promise.resolve();
+            const worker = mockWorkerInstances[0];
+            worker.emit('message', { type: 'READY' });
+
+            expect(worker.postMessage).toHaveBeenCalledWith({
+                type: 'FETCH_EPG',
+                url,
+                options: {},
+            });
+            worker.emit('message', {
+                type: 'EPG_COMPLETE',
+                stats: { totalChannels: 1, totalPrograms: 1 },
+            });
+            await expect(fetchPromise).resolves.toBeUndefined();
+        });
+
         it('rejects when the worker emits an error event', async () => {
             const fetchPromise = service.fetchEpgFromUrl(url);
             const worker = mockWorkerInstances[0];

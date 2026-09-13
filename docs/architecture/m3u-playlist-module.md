@@ -1128,8 +1128,9 @@ so two layers guard it:
   `EpgLocalSourceAuthorizer` (`epg-local-source-authorizer.ts`) before a
   local path reaches the worker. A path the native picker returned is trusted
   at once; a hand-typed path is confirmed once in a native message box the
-  renderer cannot fake, and a refusal is reported in the progress panel
-  ("Retry to be asked again"). Allowed paths persist under
+  renderer cannot fake, and a refusal fails that fetch — the progress panel
+  shows it with Retry ("Retry to be asked again") and the IPC result does
+  not report success. Allowed paths persist under
   `TRUSTED_LOCAL_EPG_SOURCES` in the main-process config (`store.service.ts`)
   so startup refreshes need no prompt. The worker's local branch opens only
   when main set `allowLocalFile` on the fetch options — the flag is never
