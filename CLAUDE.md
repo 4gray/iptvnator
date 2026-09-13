@@ -1583,7 +1583,7 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
 
 **EPG (Electronic Program Guide)**:
 
-- XMLTV format support
+- XMLTV format support, from `http(s)` links or local files (Electron only): a `file:` URL, an absolute POSIX path, or a Windows drive/UNC path, plain `.xml` or gzip (detected by signature). Shape rules: `classifyEpgSourceReference` in `libs/shared/interfaces`; the worker opens both kinds through `openEpgSourceStream` (`workers/epg-source-stream.ts`). Only hand-typed sources (Settings → EPG, playlist dialog) may be local — `extractM3uEpgUrls` harvests only remote links from M3U headers, since the local branch bypasses `validateRemoteUrl`. Contract: `docs/architecture/m3u-playlist-module.md` ("Local XMLTV files")
 - Background parsing in worker thread; HTTP/file gzip compatibility follows `docs/architecture/m3u-playlist-module.md` ("XMLTV response compression").
 - Stored in database for quick lookup
 - Global display-time offset (`Settings.epgOffsetMinutes`, Settings → EPG, ±720 min, Electron only): display-only, provider data is never rewritten. Two equivalent forms in `libs/shared/interfaces/src/lib/epg-display-offset.util.ts` — `epgDisplayTimeMs` (shift the programme; `ui/epg` rendering via the `offsetMinutes` input, channel rows, dashboard/recording labels; the programme dialog and the programme guide read the store themselves) and `epgProviderClockMs` (shift "now"; every "currently airing" decision: the `GET_CURRENT_PROGRAMS_BATCH` lookup takes an explicit `nowMs` and `EpgService` tags its cache with the offset, Xtream/Stalker/M3U current-programme selection and previews, the unified collection resolver, dashboard progress, recording overlap). A consumer applies exactly one form per comparison. Contract: `docs/architecture/m3u-playlist-module.md` ("EPG display offset")
@@ -1854,30 +1854,31 @@ preventing destination failures from penalizing the initial endpoint. Contracts:
 Portal live layouts (Xtream `live`, Stalker `itv`/`radio`) fold their panels
 from the outside in, in three nested levels owned by `LiveSidebarState`
 (`@iptvnator/portal/shared/util`): `expanded` (categories rail + channels rail
-+ player), `categories-hidden` (channels rail + player) and `collapsed`
-(player only). `LiveLayoutSidebarStateService` is the single source of truth, per
-surface (`m3u` / `portal` / `collection`; the levels apply to `portal`); the
-shell context sidebar folds the categories rail on
-`areCategoriesHiddenFor('portal')` (at level 2 only while the portal store has
-a selected category — the live root has no channels header to host the way
-back — and always at level 3), the channels rail folds on
-`isCollapsedFor('portal')`. While the rail is folded the
-channels header turns its title into a category dropdown that opens the same
-`WorkspaceContextPanelComponent` as a CDK popover through the
-`LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
-`WorkspaceLiveCategoriesPopoverService` (focus-trapped `role="dialog"`,
-closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
-the live layouts reach it through `createLivePanelsController()` (level
-flags, dropdown bridge and focus handoff in one shared object; the token is
-optional). `Cmd/Ctrl+B`, the header toggle and the
-floating restore handle return to the level the user collapsed from (the
-target is session-only; every level is restored as stored per surface).
-Folded rails carry `inert`, and
-`handoffFocusOnLiveSidebarChange()` / `focusIfFocusLost()` move focus to the
-replacement affordance only when the activated button was removed or inerted.
-M3U and the unified live tab have no categories rail and treat level 2 like
-level 1. Contract: `docs/architecture/iptvnator-ui-guidelines.md`
-("Collapsible Live Sidebar").
+
+- player), `categories-hidden` (channels rail + player) and `collapsed`
+  (player only). `LiveLayoutSidebarStateService` is the single source of truth, per
+  surface (`m3u` / `portal` / `collection`; the levels apply to `portal`); the
+  shell context sidebar folds the categories rail on
+  `areCategoriesHiddenFor('portal')` (at level 2 only while the portal store has
+  a selected category — the live root has no channels header to host the way
+  back — and always at level 3), the channels rail folds on
+  `isCollapsedFor('portal')`. While the rail is folded the
+  channels header turns its title into a category dropdown that opens the same
+  `WorkspaceContextPanelComponent` as a CDK popover through the
+  `LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
+  `WorkspaceLiveCategoriesPopoverService` (focus-trapped `role="dialog"`,
+  closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
+  the live layouts reach it through `createLivePanelsController()` (level
+  flags, dropdown bridge and focus handoff in one shared object; the token is
+  optional). `Cmd/Ctrl+B`, the header toggle and the
+  floating restore handle return to the level the user collapsed from (the
+  target is session-only; every level is restored as stored per surface).
+  Folded rails carry `inert`, and
+  `handoffFocusOnLiveSidebarChange()` / `focusIfFocusLost()` move focus to the
+  replacement affordance only when the activated button was removed or inerted.
+  M3U and the unified live tab have no categories rail and treat level 2 like
+  level 1. Contract: `docs/architecture/iptvnator-ui-guidelines.md`
+  ("Collapsible Live Sidebar").
 
 ## Live Channel Return
 

@@ -23,10 +23,9 @@ import {
     StreamFormat,
     Theme,
     validateEmbeddedMpvExtraOptions,
+    validateEpgSourceReferenceControl,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-
-export const EPG_URL_PATTERN = /^(http|https|file):\/\/[^ "]+$/;
 
 /**
  * Rejects malformed lines and the option keys the embed depends on, so a
@@ -44,8 +43,13 @@ export function embeddedMpvExtraOptionsValidator(
     return validateEmbeddedMpvExtraOptions(control.value);
 }
 
+/**
+ * An EPG source is a remote XMLTV link or a local file (absolute path or
+ * `file:` URL); the accepted shapes live in `@iptvnator/shared/interfaces`
+ * so the playlist dialog validates identically.
+ */
 export function createEpgUrlControl(value = ''): FormControl<string | null> {
-    return new FormControl(value, [Validators.pattern(EPG_URL_PATTERN)]);
+    return new FormControl(value, [validateEpgSourceReferenceControl]);
 }
 
 export function createSettingsForm(

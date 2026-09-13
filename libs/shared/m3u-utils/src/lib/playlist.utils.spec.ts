@@ -130,6 +130,21 @@ describe('playlist utils', () => {
             ]);
         });
 
+        it('ignores local file references declared by the playlist header', () => {
+            expect(
+                extractM3uEpgUrls({
+                    header: {
+                        attrs: {
+                            'x-tvg-url':
+                                'file:///etc/passwd, https://example.com/guide.xml',
+                            'url-tvg': '/home/user/epg/guide.xml.gz',
+                        },
+                        raw: '#EXTM3U x-tvg-url="file:///etc/passwd, https://example.com/guide.xml" url-tvg="/home/user/epg/guide.xml.gz"',
+                    },
+                })
+            ).toEqual(['https://example.com/guide.xml']);
+        });
+
         it('falls back to the raw header for tvg-url variants the parser does not expose as attrs', () => {
             expect(
                 extractM3uEpgUrls({

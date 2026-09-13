@@ -67,7 +67,11 @@ export const getFilenameFromUrl = (value: string): string => {
 };
 
 const M3U_EPG_HEADER_ATTRS = ['x-tvg-url', 'url-tvg', 'tvg-url'] as const;
-const M3U_EPG_URL_PATTERN = /\b(?:https?|file):\/\/[^\s,"']+/gi;
+// Header-declared sources are provider-controlled input. Only remote links
+// are harvested: a `file:` URL here would let a downloaded playlist point the
+// EPG importer at a file on the user's disk. Local XMLTV files are supported,
+// but only when the user types the path in Settings or the playlist dialog.
+const M3U_EPG_URL_PATTERN = /\bhttps?:\/\/[^\s,"']+/gi;
 export const M3U_AUTO_IMPORT_EPG_URL_LIMIT = 5;
 export const M3U_RECOMMENDED_EPG_URL_LIMIT = 12;
 

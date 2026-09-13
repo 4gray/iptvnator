@@ -1,6 +1,7 @@
 import { FormBuilder } from '@angular/forms';
 import { Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
+    createEpgUrlControl,
     createSettingsForm,
     createSettingsFromFormValue,
 } from './settings-form.utils';
@@ -201,4 +202,25 @@ describe('settings form utils — embedded MPV session options', () => {
 
         expect(settings.embeddedMpvAutoReconnect).toBe(true);
     });
+});
+
+describe('settings form utils — EPG source control', () => {
+    it.each([
+        'https://epg.example.org/guide.xml.gz',
+        '/home/user/epg/guide.xml',
+        'C:\\epg\\guide.xml.gz',
+        'file:///home/user/epg/guide.xml',
+        '',
+    ])('accepts %j', (value) => {
+        expect(createEpgUrlControl(value).valid).toBe(true);
+    });
+
+    it.each(['guide.xml', 'ftp://epg.example.org/guide.xml', 'epg'])(
+        'rejects %j',
+        (value) => {
+            const control = createEpgUrlControl(value);
+            expect(control.valid).toBe(false);
+            expect(control.errors).toEqual({ epgSourceReference: true });
+        }
+    );
 });

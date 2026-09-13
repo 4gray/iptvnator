@@ -1081,6 +1081,41 @@ retried as plain XML. Source errors and consumer cancellation terminate the
 whole decoding chain. The decoder does not recursively unpack file layers or
 change XML parsing, source reconciliation, or database persistence contracts.
 
+### Local XMLTV files
+
+An EPG source is not necessarily a URL. Settings → EPG and the playlist
+dialog accept, next to `http(s)` links, a file on the user's computer in any
+of these shapes (Electron only — the PWA has no EPG import at all):
+
+- a `file:` URL (`file:///home/you/epg/guide.xml.gz`, `file:///C:/epg/guide.xml`)
+- an absolute POSIX path (`/home/you/epg/guide.xml`)
+- a Windows drive or UNC path (`C:\epg\guide.xml.gz`, `\\nas\share\guide.xml`)
+
+Relative paths are refused: the main process has no meaningful working
+directory to resolve them against. The value is stored exactly as typed
+(trimmed) and is the source key everywhere — freshness, reconciliation, the
+progress panel and `epg_channel_sources` all treat it like a URL string.
+
+The shape rules live in one place, `classifyEpgSourceReference()` in
+`libs/shared/interfaces/src/lib/epg-source-reference.util.ts`, and both
+forms validate through its structural `validateEpgSourceReferenceControl`.
+In the worker, `openEpgSourceStream()` (`epg-source-stream.ts`) is the single
+entry that yields decoded XMLTV bytes: remote sources still go through
+`requestWithValidatedRedirects` with the private-network/TLS trust policy,
+while local sources are read with `fs.createReadStream` behind the same
+signature-sniffing optional gunzip stage the HTTP path uses, so `.xml`,
+`.xml.gz` and an extension-less gzip file all parse. A missing file, a
+directory, or a truncated gzip fail the import with a plain message; nothing
+is retried as XML.
+
+**Provenance rule.** Only values the user typed by hand may be local. The
+local branch bypasses `validateRemoteUrl` (which only knows http/https), so
+header-declared M3U sources (`x-tvg-url`/`url-tvg`/`tvg-url`) are filtered to
+remote links before they are stored — `extractM3uEpgUrls` no longer matches
+`file:` — and a downloaded playlist cannot point the importer at a file on
+disk. A user whose own local M3U references a local XMLTV adds that file in
+the playlist dialog instead.
+
 ### EpgService (`@iptvnator/epg/data-access`)
 
 ```typescript

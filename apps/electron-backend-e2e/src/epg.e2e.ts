@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
@@ -293,6 +294,58 @@ test.describe('Electron EPG', () => {
             process.stderr?.off('data', capture);
             await closeElectronApp(app);
             await server.close();
+        }
+    });
+
+    test('@epg @electron imports a local gzipped XMLTV file given as an absolute path', async ({
+        dataDir,
+    }) => {
+        const localGuide = join(dataDir, 'local guide.xml.gz');
+        writeFileSync(localGuide, gzipSync(epgFixtureXml));
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await expect(
+                app.mainWindow.getByTestId('epg-source-formats')
+            ).toContainText('file://');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            const field = app.mainWindow
+                .locator('.epg-source-row input')
+                .first();
+            await field.fill('guide.xml');
+            // Material reveals errors once the control is touched.
+            await field.blur();
+            await expect(
+                app.mainWindow.locator('.epg-source-row mat-error')
+            ).toBeVisible();
+            await field.fill(localGuide);
+            await expect(
+                app.mainWindow.locator('.epg-source-row mat-error')
+            ).toHaveCount(0);
+
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .first()
+                .click();
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel')
+            ).toBeVisible();
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBeGreaterThan(0);
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toBeVisible();
+        } finally {
+            await closeElectronApp(app);
         }
     });
 

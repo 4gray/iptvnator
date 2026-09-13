@@ -5,30 +5,20 @@ import {
     ElectronBridgeSecurityErrorCode,
     ElectronBridgeTrustOptions,
 } from '@iptvnator/shared/interfaces';
-import { Readable } from 'stream';
 import { parentPort, workerData } from 'worker_threads';
 import {
     EpgDatabase,
     EpgDatabaseClearOperation,
     EpgDatabaseSourceClearOperation,
 } from './epg-database';
-import { createDecodedEpgStream } from './epg-stream-decoder';
+import { openEpgSourceStream } from './epg-source-stream';
 import { StreamingEpgParser } from './epg-streaming-parser';
-import {
-    getEpgResponseContentEncoding,
-    shouldGunzipEpgResponse,
-} from './epg-response-utils';
-import {
-    isPrivateNetworkUrlAccessAllowed,
-    UnsafeUrlError,
-} from '../events/url-safety';
-import { createPlaylistAgentFactory } from '../util/secure-https';
+import { UnsafeUrlError } from '../events/url-safety';
 import {
     getHostnameFromErrorUrl,
     getHostnameFromUrl,
     isInvalidTlsCertificateError,
 } from '../util/security-errors';
-import { requestWithValidatedRedirects } from '../util/validated-axios';
 import {
     getNativeModuleSearchPaths,
     getWorkerDataNativeModuleSearchPaths,
@@ -115,54 +105,7 @@ async function fetchAndParseEpgStreaming(
     let hasClearedSource = false;
 
     try {
-        // EPG URLs can originate from an untrusted M3U `url-tvg` attribute.
-        // Validate every redirect and require an explicit operator opt-in for
-        // private/LAN sources.
-        const response = await requestWithValidatedRedirects<Readable>(
-            url.trim(),
-            {
-                agentFactory: createPlaylistAgentFactory({
-                    trustedInsecureTlsHosts: options.trustedInsecureTlsHosts,
-                }),
-                decompress: false,
-                method: 'GET',
-                responseType: 'stream',
-            },
-            {
-                allowPrivateNetworks:
-                    isPrivateNetworkUrlAccessAllowed() ||
-                    isTrustedPrivateNetworkEpgSource(url, options),
-            }
-        );
-        const responseUrl = response.config.url;
-        const isGzipped = shouldGunzipEpgResponse(url, {
-            headers: response.headers,
-            url: responseUrl,
-        });
-        const contentEncoding = getEpgResponseContentEncoding(response.headers);
-
-        if (responseUrl && responseUrl !== url) {
-            epgLogger.log(loggerLabel, 'Resolved EPG redirect');
-        }
-
-        epgLogger.log(
-            loggerLabel,
-            `EPG response detected as gzipped: ${isGzipped}`
-        );
-        if (contentEncoding) {
-            epgLogger.log(
-                loggerLabel,
-                `EPG response content-encoding: ${contentEncoding}`
-            );
-        }
-
-        if (response.status < 200 || response.status >= 300) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        if (!response.data) {
-            throw new Error('Response body is null');
-        }
+        const decodedStream = await openEpgSourceStream(url, options);
 
         const parser = new StreamingEpgParser(
             (channels) => {
@@ -188,11 +131,7 @@ async function fetchAndParseEpgStreaming(
         );
 
         return new Promise((resolve, reject) => {
-            const dataStream = createDecodedEpgStream(
-                response.data,
-                response.headers,
-                isGzipped
-            );
+            const dataStream = decodedStream;
 
             dataStream.on('data', (chunk: Buffer) => {
                 try {
@@ -258,18 +197,6 @@ async function fetchAndParseEpgStreaming(
         epgDb.close();
         throw toEpgFetchError(error, url);
     }
-}
-
-function isTrustedPrivateNetworkEpgSource(
-    url: string,
-    options: ElectronBridgeTrustOptions
-): boolean {
-    const normalizedUrl = url.trim();
-    return (
-        options.trustedPrivateNetworkEpgUrls?.some(
-            (trustedUrl) => trustedUrl.trim() === normalizedUrl
-        ) ?? false
-    );
 }
 
 function toEpgFetchError(

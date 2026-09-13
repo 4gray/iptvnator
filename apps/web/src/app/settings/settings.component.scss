@@ -303,6 +303,22 @@
     gap: 8px;
 }
 
+.epg-sources__formats-examples {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+
+    code {
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: var(--app-hover-overlay);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+}
+
 .epg-sources-empty {
     width: 100%;
     display: flex;

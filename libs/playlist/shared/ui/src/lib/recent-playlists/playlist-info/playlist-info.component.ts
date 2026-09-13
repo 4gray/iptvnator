@@ -40,6 +40,7 @@ import {
     Playlist,
     PlaylistMeta,
     PlaylistMetaUpdate,
+    validateEpgSourceReferenceControl,
 } from '@iptvnator/shared/interfaces';
 import {
     normalizeEpgUrls,
@@ -59,8 +60,6 @@ type DesktopFileSaveBridge = Pick<
     typeof window.electron,
     'saveFileDialog' | 'writeFile'
 >;
-
-const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
 
 @Component({
     selector: 'app-playlist-info',
@@ -861,7 +860,7 @@ export class PlaylistInfoComponent {
     private createPlaylistEpgSourceControl(value = ''): FormControl<string> {
         return new FormControl(value, {
             nonNullable: true,
-            validators: [Validators.pattern(EPG_URL_PATTERN)],
+            validators: [validateEpgSourceReferenceControl],
         });
     }
 
