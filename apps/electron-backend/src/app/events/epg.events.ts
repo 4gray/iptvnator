@@ -1,5 +1,10 @@
 import { reconcileEpgSources } from './epg-source-settings.service';
 import { dialog, ipcMain } from 'electron';
+import { store, TRUSTED_LOCAL_EPG_SOURCES } from '../services/store.service';
+import {
+    PersistedEpgLocalSourceAuthorizer,
+    promptForLocalEpgSource,
+} from './epg-local-source-authorizer';
 import {
     ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgGuideWindow,
@@ -131,8 +136,22 @@ export default class EpgEvents {
             }
         );
 
+        epgWorkerService.localSourceAuthorizer =
+            new PersistedEpgLocalSourceAuthorizer(
+                {
+                    load: () => store.get(TRUSTED_LOCAL_EPG_SOURCES) ?? [],
+                    save: (filePaths) =>
+                        store.set(TRUSTED_LOCAL_EPG_SOURCES, filePaths),
+                },
+                promptForLocalEpgSource
+            );
+
         ipcMain.handle('EPG_OPEN_FILE_DIALOG', async () => {
-            return this.pickEpgSourceFile();
+            const filePath = await this.pickEpgSourceFile();
+            if (filePath) {
+                epgWorkerService.localSourceAuthorizer.authorize(filePath);
+            }
+            return filePath;
         });
 
         ipcMain.handle('EPG_CLEAR_ALL', async () => {

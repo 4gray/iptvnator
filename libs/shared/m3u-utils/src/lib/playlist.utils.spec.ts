@@ -334,6 +334,50 @@ describe('playlist utils', () => {
         });
     });
 
+    it('drops legacy header-declared local references but keeps manual local files', () => {
+        expect(
+            resolvePlaylistEpgSourceState({
+                detectedEpgUrls: [
+                    'file:///etc/passwd',
+                    'https://playlist.example.com/auto.xml',
+                ],
+                enabledEpgUrls: [
+                    'file:///etc/passwd',
+                    'https://playlist.example.com/auto.xml',
+                ],
+                manualEpgUrls: ['/home/user/epg/guide.xml.gz'],
+            })
+        ).toEqual({
+            detectedEpgUrls: ['https://playlist.example.com/auto.xml'],
+            epgUrls: [
+                'https://playlist.example.com/auto.xml',
+                '/home/user/epg/guide.xml.gz',
+            ],
+            manualEpgUrls: ['/home/user/epg/guide.xml.gz'],
+            disabledEpgUrls: [],
+        });
+    });
+
+    it('never fetches a stored local reference the user did not add by hand', () => {
+        expect(
+            filterPlaylistEpgUrlsForFetch(
+                [
+                    'file:///etc/passwd',
+                    '/home/user/epg/guide.xml.gz',
+                    'https://playlist.example.com/auto.xml',
+                ],
+                [],
+                ['/home/user/epg/guide.xml.gz']
+            )
+        ).toEqual([
+            '/home/user/epg/guide.xml.gz',
+            'https://playlist.example.com/auto.xml',
+        ]);
+        expect(
+            filterPlaylistEpgUrlsForFetch(['/home/user/epg/guide.xml.gz'], [])
+        ).toEqual([]);
+    });
+
     it('filters playlist EPG fetch URLs that are already configured globally', () => {
         expect(
             filterPlaylistEpgUrlsForFetch(

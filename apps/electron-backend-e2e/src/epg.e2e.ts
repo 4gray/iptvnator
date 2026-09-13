@@ -324,23 +324,32 @@ test.describe('Electron EPG', () => {
                 app.mainWindow.locator('.epg-source-row mat-error')
             ).toHaveCount(0);
 
-            // The native picker cannot be driven from Playwright: stub it in
-            // the main process and check the chosen path lands in the row.
-            const browsedGuide = join(dataDir, 'browsed guide.xml.gz');
-            writeFileSync(browsedGuide, gzipSync(epgFixtureXml));
-            await app.electronApp.evaluate(({ dialog }, filePath) => {
-                dialog.showOpenDialog = async () => ({
-                    canceled: false,
-                    filePaths: [filePath],
-                });
-            }, browsedGuide);
-            await app.mainWindow.getByTestId('epg-source-browse').click();
-            await expect(field).toHaveValue(browsedGuide);
-
+            // Native dialogs cannot be driven from Playwright: stub them in
+            // the main process. A hand-typed path is confirmed once through
+            // the message box; a refused path is reported, never read.
+            await app.electronApp.evaluate(({ dialog }) => {
+                dialog.showMessageBox = (async () => ({
+                    response: 1,
+                    checkboxChecked: false,
+                })) as typeof dialog.showMessageBox;
+            });
             await app.mainWindow.getByTestId('epg-source-refresh').click();
             await expect(
-                app.mainWindow.locator('.epg-progress-panel')
-            ).toBeVisible();
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-error'
+                )
+            ).toContainText('was not allowed');
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+
+            await app.electronApp.evaluate(({ dialog }) => {
+                dialog.showMessageBox = (async () => ({
+                    response: 0,
+                    checkboxChecked: false,
+                })) as typeof dialog.showMessageBox;
+            });
+            await app.mainWindow
+                .locator('.epg-progress-panel .retry-btn')
+                .click();
             await expect
                 .poll(() => getEpgChannelCount(app.mainWindow), {
                     timeout: 30000,
@@ -350,7 +359,28 @@ test.describe('Electron EPG', () => {
                 app.mainWindow.locator(
                     '.epg-progress-panel .import-item.status-complete'
                 )
-            ).toBeVisible();
+            ).toHaveCount(1);
+
+            // A file chosen in the native picker is trusted without a prompt.
+            const browsedGuide = join(dataDir, 'browsed guide.xml.gz');
+            writeFileSync(browsedGuide, gzipSync(epgFixtureXml));
+            await app.electronApp.evaluate(({ dialog }, filePath) => {
+                dialog.showOpenDialog = (async () => ({
+                    canceled: false,
+                    filePaths: [filePath],
+                })) as typeof dialog.showOpenDialog;
+                dialog.showMessageBox = (async () => {
+                    throw new Error('picked files must not prompt');
+                }) as typeof dialog.showMessageBox;
+            }, browsedGuide);
+            await app.mainWindow.getByTestId('epg-source-browse').click();
+            await expect(field).toHaveValue(browsedGuide);
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(2);
         } finally {
             await closeElectronApp(app);
         }

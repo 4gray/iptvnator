@@ -1,6 +1,7 @@
 import {
     Channel,
     createRandomId,
+    isRemoteEpgSourceUrl,
     ParsedPlaylist,
     ParsedPlaylistItem,
     Playlist,
@@ -109,14 +110,25 @@ export function normalizeEpgUrls(
 export function resolvePlaylistEpgSourceState(
     input: PlaylistEpgSourceStateInput
 ): PlaylistEpgSourceState {
-    const detectedEpgUrls = normalizeEpgUrls(input.detectedEpgUrls);
     const manualEpgUrls = normalizeEpgUrls(input.manualEpgUrls);
+    const manualSet = new Set(manualEpgUrls);
+    // Versions before local-file support stored whatever the M3U header
+    // declared, `file://` included. Header-declared entries are provider
+    // input, so a stored non-remote one is dropped unless the user also added
+    // it by hand — only hand-added sources may point at a local file.
+    const detectedEpgUrls = normalizeEpgUrls(input.detectedEpgUrls).filter(
+        isRemoteEpgSourceUrl
+    );
     const disabledEpgUrls = normalizeEpgUrls(input.disabledEpgUrls);
     const disabledSet = new Set(disabledEpgUrls);
     const epgUrls = normalizeEpgUrls([
         ...normalizeEpgUrls(input.enabledEpgUrls),
         ...manualEpgUrls,
-    ]).filter((url) => !disabledSet.has(url));
+    ]).filter(
+        (url) =>
+            !disabledSet.has(url) &&
+            (isRemoteEpgSourceUrl(url) || manualSet.has(url))
+    );
 
     return {
         detectedEpgUrls,
@@ -126,13 +138,22 @@ export function resolvePlaylistEpgSourceState(
     };
 }
 
+/**
+ * Playlist-scoped URLs worth fetching: not already configured globally, and
+ * never a stored non-remote entry unless it is in `manualEpgUrls` (see
+ * `resolvePlaylistEpgSourceState` for why legacy header values are dropped).
+ */
 export function filterPlaylistEpgUrlsForFetch(
     playlistEpgUrls: readonly string[] | undefined,
-    globalEpgUrls: readonly string[] | undefined
+    globalEpgUrls: readonly string[] | undefined,
+    manualEpgUrls: readonly string[] | undefined = []
 ): string[] {
     const globalUrlSet = new Set(normalizeEpgUrls(globalEpgUrls));
+    const manualSet = new Set(normalizeEpgUrls(manualEpgUrls));
     return normalizeEpgUrls(playlistEpgUrls).filter(
-        (url) => !globalUrlSet.has(url)
+        (url) =>
+            !globalUrlSet.has(url) &&
+            (isRemoteEpgSourceUrl(url) || manualSet.has(url))
     );
 }
 

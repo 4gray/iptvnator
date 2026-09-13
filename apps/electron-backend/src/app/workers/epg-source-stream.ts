@@ -1,14 +1,10 @@
 import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
-import { isAbsolute } from 'path';
 import { PassThrough, Readable, pipeline } from 'stream';
-import { fileURLToPath } from 'url';
-import {
-    classifyEpgSourceReference,
-    ElectronBridgeTrustOptions,
-} from '@iptvnator/shared/interfaces';
+import { ElectronBridgeTrustOptions } from '@iptvnator/shared/interfaces';
 import { isPrivateNetworkUrlAccessAllowed } from '../events/url-safety';
 import { epgLogger } from '../util/epg-logger';
+import { resolveLocalEpgSourcePath } from '../util/epg-local-source-path';
 import { createPlaylistAgentFactory } from '../util/secure-https';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import { createOptionalEpgGunzip } from './epg-optional-gunzip';
@@ -20,43 +16,47 @@ import { createDecodedEpgStream } from './epg-stream-decoder';
 
 const loggerLabel = '[EPG Worker]';
 
+/** Trust options plus the main-process verdict on a local file. */
+export type EpgWorkerFetchOptions = ElectronBridgeTrustOptions & {
+    /**
+     * Set by `EpgWorkerService.startFetch` only after the main-process
+     * authorizer allowed the path (native picker or native confirmation).
+     * Never taken from the renderer.
+     */
+    allowLocalFile?: boolean;
+};
+
 /**
  * Opens the decoded XMLTV byte stream for an EPG source.
  *
  * Remote sources go through the validated-redirect HTTP client with the
  * private-network and TLS trust policy. Local sources — a `file:` URL or an
- * absolute path the user typed in Settings or the playlist dialog — are read
- * from disk; gzip is detected from the file's own signature, so `guide.xml`,
- * `guide.xml.gz` and a gzip file without the extension all work.
+ * absolute path — are read from disk; gzip is detected from the file's own
+ * signature, so `guide.xml`, `guide.xml.gz` and a gzip file without the
+ * extension all work.
  *
- * The local branch deliberately bypasses `validateRemoteUrl`, which only
- * knows http(s). It is safe because header-declared M3U sources are filtered
- * to remote links before they are ever stored (`extractM3uEpgUrls`), so a
- * downloaded playlist cannot reach this branch.
+ * The local branch bypasses `validateRemoteUrl`, which only knows http(s).
+ * Two things make that safe: header-declared M3U sources are filtered to
+ * remote links before they are stored (`extractM3uEpgUrls`), and the main
+ * process opens the branch only for a path its authorizer allowed
+ * (`allowLocalFile`), so neither a downloaded playlist nor a compromised
+ * renderer can name an arbitrary file.
  */
 export async function openEpgSourceStream(
     url: string,
-    options: ElectronBridgeTrustOptions = {}
+    options: EpgWorkerFetchOptions = {}
 ): Promise<Readable> {
-    if (classifyEpgSourceReference(url) === 'local') {
-        return openLocalEpgSource(url.trim());
+    const localPath = resolveLocalEpgSourcePath(url);
+    if (localPath) {
+        if (options.allowLocalFile !== true) {
+            throw new Error('Local EPG file was not authorized');
+        }
+        return openLocalEpgSource(localPath);
     }
     return openRemoteEpgSource(url, options);
 }
 
-export function resolveLocalEpgSourcePath(reference: string): string {
-    const trimmed = reference.trim();
-    if (/^file:/i.test(trimmed)) {
-        return fileURLToPath(trimmed);
-    }
-    if (!isAbsolute(trimmed)) {
-        throw new Error('EPG file path must be absolute');
-    }
-    return trimmed;
-}
-
-async function openLocalEpgSource(reference: string): Promise<Readable> {
-    const filePath = resolveLocalEpgSourcePath(reference);
+async function openLocalEpgSource(filePath: string): Promise<Readable> {
     let info: Awaited<ReturnType<typeof stat>>;
     try {
         info = await stat(filePath);

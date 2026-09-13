@@ -21,10 +21,9 @@ jest.mock('../util/epg-logger', () => ({
     epgLogger: { log: jest.fn(), error: jest.fn(), warn: jest.fn() },
 }));
 
-import {
-    openEpgSourceStream,
-    resolveLocalEpgSourcePath,
-} from './epg-source-stream';
+import { openEpgSourceStream } from './epg-source-stream';
+
+const LOCAL = { allowLocalFile: true };
 
 const xmltv =
     '<?xml version="1.0" encoding="utf-8"?><tv><channel id="c1">' +
@@ -54,9 +53,9 @@ describe('openEpgSourceStream', () => {
         const file = join(dir, 'guide.xml');
         writeFileSync(file, xmltv);
 
-        await expect(readAll(await openEpgSourceStream(file))).resolves.toBe(
-            xmltv
-        );
+        await expect(
+            readAll(await openEpgSourceStream(file, LOCAL))
+        ).resolves.toBe(xmltv);
         expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
     });
 
@@ -64,18 +63,18 @@ describe('openEpgSourceStream', () => {
         const file = join(dir, 'guide.xml.gz');
         writeFileSync(file, gzipSync(xmltv));
 
-        await expect(readAll(await openEpgSourceStream(file))).resolves.toBe(
-            xmltv
-        );
+        await expect(
+            readAll(await openEpgSourceStream(file, LOCAL))
+        ).resolves.toBe(xmltv);
     });
 
     it('detects gzip by signature when the extension is missing', async () => {
         const file = join(dir, 'guide');
         writeFileSync(file, gzipSync(xmltv));
 
-        await expect(readAll(await openEpgSourceStream(file))).resolves.toBe(
-            xmltv
-        );
+        await expect(
+            readAll(await openEpgSourceStream(file, LOCAL))
+        ).resolves.toBe(xmltv);
     });
 
     it('accepts a file: URL with percent-encoded characters', async () => {
@@ -83,7 +82,7 @@ describe('openEpgSourceStream', () => {
         writeFileSync(file, xmltv);
 
         await expect(
-            readAll(await openEpgSourceStream(pathToFileURL(file).href))
+            readAll(await openEpgSourceStream(pathToFileURL(file).href, LOCAL))
         ).resolves.toBe(xmltv);
     });
 
@@ -92,14 +91,14 @@ describe('openEpgSourceStream', () => {
         writeFileSync(file, xmltv);
 
         await expect(
-            readAll(await openEpgSourceStream(`  ${file}  `))
+            readAll(await openEpgSourceStream(`  ${file}  `, LOCAL))
         ).resolves.toBe(xmltv);
     });
 
     it('reports a missing file with its path instead of an ENOENT code', async () => {
         const file = join(dir, 'missing.xml');
 
-        await expect(openEpgSourceStream(file)).rejects.toThrow(
+        await expect(openEpgSourceStream(file, LOCAL)).rejects.toThrow(
             `EPG file not found: ${file}`
         );
     });
@@ -108,7 +107,7 @@ describe('openEpgSourceStream', () => {
         const folder = join(dir, 'epg');
         mkdirSync(folder);
 
-        await expect(openEpgSourceStream(folder)).rejects.toThrow(
+        await expect(openEpgSourceStream(folder, LOCAL)).rejects.toThrow(
             `EPG source is not a file: ${folder}`
         );
     });
@@ -118,7 +117,7 @@ describe('openEpgSourceStream', () => {
         writeFileSync(file, gzipSync(xmltv).subarray(0, 20));
 
         await expect(
-            readAll(await openEpgSourceStream(file))
+            readAll(await openEpgSourceStream(file, LOCAL))
         ).rejects.toThrow();
     });
 
@@ -143,22 +142,23 @@ describe('openEpgSourceStream', () => {
         );
     });
 
+    it('refuses a local file the main process did not authorize', async () => {
+        const file = join(dir, 'guide.xml');
+        writeFileSync(file, xmltv);
+
+        await expect(openEpgSourceStream(file)).rejects.toThrow(
+            'Local EPG file was not authorized'
+        );
+        await expect(
+            openEpgSourceStream(file, {
+                allowLocalFile: 'yes' as unknown as boolean,
+            })
+        ).rejects.toThrow('Local EPG file was not authorized');
+        expect(requestWithValidatedRedirects).not.toHaveBeenCalled();
+    });
+
     it('never reads a relative path from disk', async () => {
         await expect(openEpgSourceStream('guide.xml')).rejects.toThrow();
         expect(requestWithValidatedRedirects).toHaveBeenCalledTimes(1);
-    });
-});
-
-describe('resolveLocalEpgSourcePath', () => {
-    it('converts file URLs and keeps absolute paths', () => {
-        const file = join(tmpdir(), 'guide v2.xml.gz');
-        expect(resolveLocalEpgSourcePath(pathToFileURL(file).href)).toBe(file);
-        expect(resolveLocalEpgSourcePath(` ${file} `)).toBe(file);
-    });
-
-    it('rejects relative paths', () => {
-        expect(() => resolveLocalEpgSourcePath('epg/guide.xml')).toThrow(
-            'EPG file path must be absolute'
-        );
     });
 });

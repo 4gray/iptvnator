@@ -29,6 +29,14 @@ export const STARTUP_WINDOW_MODE = 'STARTUP_WINDOW_MODE';
 export const PORTAL_CONNECTIVITY_GUARD = 'PORTAL_CONNECTIVITY_GUARD';
 
 /**
+ * Local XMLTV files the EPG importer may read: every path the native picker
+ * returned plus every hand-typed path the user allowed in the main-process
+ * confirmation (`epg-local-source-authorizer.ts`). Owned by main, never by
+ * the renderer, because the renderer is what this list defends against.
+ */
+export const TRUSTED_LOCAL_EPG_SOURCES = 'TRUSTED_LOCAL_EPG_SOURCES';
+
+/**
  * Extra libmpv options for embedded sessions, one "key=value" per line, as
  * typed in Settings > Playback. Mirrored here by the SETTINGS_UPDATE handler
  * because sessions are created in the main process, where the renderer's
@@ -56,6 +64,7 @@ export type StoreType = {
     [EMBEDDED_MPV_AUTO_RECONNECT]: boolean;
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
     [PORTAL_CONNECTIVITY_GUARD]: boolean;
+    [TRUSTED_LOCAL_EPG_SOURCES]: string[];
 };
 
 // Export singleton store instance
