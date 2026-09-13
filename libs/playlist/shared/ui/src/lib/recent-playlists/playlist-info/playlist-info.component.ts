@@ -726,6 +726,25 @@ export class PlaylistInfoComponent {
         );
     }
 
+    get canBrowseEpgFiles(): boolean {
+        return this.epgBridge.supportsFilePicker;
+    }
+
+    /** Native picker for a local XMLTV file; fills EPG input `index`. */
+    async browsePlaylistEpgSourceInput(index: number): Promise<void> {
+        const control = this.playlistEpgSourceInputs.at(index);
+        if (!control || !this.epgBridge.supportsFilePicker) {
+            return;
+        }
+        const filePath = await this.epgBridge.pickEpgFile();
+        if (!filePath) {
+            return;
+        }
+        control.setValue(filePath);
+        control.markAsDirty();
+        control.markAsTouched();
+    }
+
     removePlaylistEpgSourceInput(index: number): void {
         if (this.playlistEpgSourceInputs.length <= 1) {
             this.playlistEpgSourceInputs.at(0).reset('');

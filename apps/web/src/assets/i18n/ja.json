@@ -319,6 +319,7 @@
         "REFRESH_EPG": "EPGを更新",
         "REFRESH_ALL_EPG": "すべて更新",
         "REMOVE_EPG_SOURCE": "EPGソースを削除",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "最新",
         "EPG_STATUS_STALE": "更新が必要",
         "EPG_STATUS_ERROR": "失敗",

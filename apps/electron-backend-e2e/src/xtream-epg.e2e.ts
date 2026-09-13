@@ -96,7 +96,7 @@ test('@epg @xtream @electron removes uploaded guide data and restores provider E
             .toContain('Temporary XMLTV Bulletin');
         await openSettings(app.mainWindow);
         await openSettingsSection(app.mainWindow, 'epg');
-        await app.mainWindow.locator('.epg-source-row button').nth(1).click();
+        await app.mainWindow.getByTestId('epg-source-remove').click();
         await saveSettings(app.mainWindow);
         await openWorkspaceSection(app.mainWindow, 'Live TV');
         await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
@@ -190,7 +190,7 @@ test('@epg @stalker @electron invalidates a loaded manual XMLTV mapping after so
             .toContain('Retired Stalker Bulletin');
         await openSettings(app.mainWindow);
         await openSettingsSection(app.mainWindow, 'epg');
-        await app.mainWindow.locator('.epg-source-row button').nth(1).click();
+        await app.mainWindow.getByTestId('epg-source-remove').click();
         await saveSettings(app.mainWindow);
         await openWorkspaceSection(app.mainWindow, 'Live TV');
         await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);

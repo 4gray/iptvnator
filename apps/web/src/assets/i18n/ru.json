@@ -319,6 +319,7 @@
         "REFRESH_EPG": "Обновить программу каналов (EPG)",
         "REFRESH_ALL_EPG": "Обновить все",
         "REMOVE_EPG_SOURCE": "Удалить источник EPG",
+        "BROWSE_EPG_FILE": "Выбрать локальный XMLTV-файл…",
         "EPG_STATUS_FRESH": "Актуально",
         "EPG_STATUS_STALE": "Требует обновления",
         "EPG_STATUS_ERROR": "Ошибка",

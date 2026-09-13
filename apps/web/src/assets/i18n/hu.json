@@ -319,6 +319,7 @@
         "REFRESH_EPG": "EPG frissítése",
         "REFRESH_ALL_EPG": "Összes frissítése",
         "REMOVE_EPG_SOURCE": "EPG-forrás eltávolítása",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "Naprakész",
         "EPG_STATUS_STALE": "Frissítendő",
         "EPG_STATUS_ERROR": "Sikertelen",

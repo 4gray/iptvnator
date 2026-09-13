@@ -319,6 +319,7 @@
         "REFRESH_EPG": "EPG vernieuwen",
         "REFRESH_ALL_EPG": "Alles vernieuwen",
         "REMOVE_EPG_SOURCE": "EPG-bron verwijderen",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "Up-to-date",
         "EPG_STATUS_STALE": "Verouderd",
         "EPG_STATUS_ERROR": "Mislukt",

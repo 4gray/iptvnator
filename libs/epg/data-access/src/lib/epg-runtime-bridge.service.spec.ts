@@ -10,6 +10,7 @@ describe('EpgRuntimeBridgeService', () => {
     beforeEach(() => {
         runtimeCapabilities = {
             supportsEpgImport: false,
+            supportsEpgFilePicker: false,
             supportsEpgProgress: false,
             supportsEpgProgramLookup: false,
             supportsEpgCurrentProgramBatch: false,
@@ -37,6 +38,24 @@ describe('EpgRuntimeBridgeService', () => {
         window.electron = originalElectron;
         TestBed.resetTestingModule();
         jest.restoreAllMocks();
+    });
+
+    it('opens the native XMLTV picker only when the capability is available', async () => {
+        const openEpgFileDialog = jest
+            .fn()
+            .mockResolvedValue('/home/user/epg/guide.xml.gz');
+        window.electron = {
+            ...window.electron,
+            openEpgFileDialog,
+        } as unknown as typeof window.electron;
+
+        await expect(service.pickEpgFile()).resolves.toBeNull();
+        expect(openEpgFileDialog).not.toHaveBeenCalled();
+
+        runtimeCapabilities.supportsEpgFilePicker = true;
+        await expect(service.pickEpgFile()).resolves.toBe(
+            '/home/user/epg/guide.xml.gz'
+        );
     });
 
     it('does not call Electron EPG methods when the matching capability is unavailable', async () => {

@@ -1091,8 +1091,11 @@ of these shapes (Electron only — the PWA has no EPG import at all):
 - an absolute POSIX path (`/home/you/epg/guide.xml`)
 - a Windows drive or UNC path (`C:\epg\guide.xml.gz`, `\\nas\share\guide.xml`)
 
-Relative paths are refused: the main process has no meaningful working
-directory to resolve them against. The value is stored exactly as typed
+Both surfaces also offer a folder button that opens the native file picker
+(`EPG_OPEN_FILE_DIALOG` → `ElectronBridgeApi.openEpgFileDialog`, gated on
+`RuntimeCapabilitiesService.supportsEpgFilePicker`) and writes the chosen
+absolute path into the row. Relative paths are refused: the main process
+has no meaningful working directory to resolve them against. The value is stored exactly as typed
 (trimmed) and is the source key everywhere — freshness, reconciliation, the
 progress panel and `epg_channel_sources` all treat it like a URL string.
 

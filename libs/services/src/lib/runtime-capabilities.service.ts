@@ -113,6 +113,11 @@ export class RuntimeCapabilitiesService {
         return this.hasElectronMethod('fetchEpg');
     }
 
+    /** Native file picker for local XMLTV sources (Settings → EPG, playlist dialog). */
+    get supportsEpgFilePicker(): boolean {
+        return this.hasElectronMethod('openEpgFileDialog');
+    }
+
     get supportsEpgProgress(): boolean {
         return this.hasElectronMethod('onEpgProgress');
     }

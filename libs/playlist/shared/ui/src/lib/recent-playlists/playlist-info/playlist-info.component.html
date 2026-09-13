@@ -313,6 +313,26 @@
                                         }}</mat-error>
                                     }
                                 </mat-form-field>
+                                @if (canBrowseEpgFiles) {
+                                    <button
+                                        mat-icon-button
+                                        type="button"
+                                        data-test-id="playlist-epg-source-browse"
+                                        [matTooltip]="
+                                            'SETTINGS.BROWSE_EPG_FILE'
+                                                | translate
+                                        "
+                                        [attr.aria-label]="
+                                            'SETTINGS.BROWSE_EPG_FILE'
+                                                | translate
+                                        "
+                                        (click)="
+                                            browsePlaylistEpgSourceInput($index)
+                                        "
+                                    >
+                                        <mat-icon>folder_open</mat-icon>
+                                    </button>
+                                }
                                 <button
                                     mat-icon-button
                                     type="button"

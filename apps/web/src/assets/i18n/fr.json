@@ -319,6 +319,7 @@
         "REFRESH_EPG": "Mise à jour de l'EPG",
         "REFRESH_ALL_EPG": "Tout actualiser",
         "REMOVE_EPG_SOURCE": "Supprimer la source EPG",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "À jour",
         "EPG_STATUS_STALE": "À actualiser",
         "EPG_STATUS_ERROR": "Échec",

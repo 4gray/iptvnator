@@ -319,6 +319,7 @@
         "REFRESH_EPG": "重新整理 EPG",
         "REFRESH_ALL_EPG": "全部重新整理",
         "REMOVE_EPG_SOURCE": "移除 EPG 來源",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "已更新",
         "EPG_STATUS_STALE": "需要重新整理",
         "EPG_STATUS_ERROR": "失敗",

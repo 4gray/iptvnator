@@ -319,6 +319,7 @@
         "REFRESH_EPG": "EPG'yi yenile",
         "REFRESH_ALL_EPG": "Tümünü yenile",
         "REMOVE_EPG_SOURCE": "EPG kaynağını kaldır",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "Güncel",
         "EPG_STATUS_STALE": "Yenilenmeli",
         "EPG_STATUS_ERROR": "Başarısız",

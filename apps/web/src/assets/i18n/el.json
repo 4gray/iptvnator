@@ -319,6 +319,7 @@
         "REFRESH_EPG": "Ανανέωση EPG",
         "REFRESH_ALL_EPG": "Ανανέωση όλων",
         "REMOVE_EPG_SOURCE": "Αφαίρεση πηγής EPG",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "Ενημερωμένο",
         "EPG_STATUS_STALE": "Χρειάζεται ανανέωση",
         "EPG_STATUS_ERROR": "Αποτυχία",

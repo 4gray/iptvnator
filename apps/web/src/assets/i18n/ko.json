@@ -319,6 +319,7 @@
         "REFRESH_EPG": "EPG 새로 고침",
         "REFRESH_ALL_EPG": "모두 새로 고침",
         "REMOVE_EPG_SOURCE": "EPG 소스 제거",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "최신",
         "EPG_STATUS_STALE": "새로 고침 필요",
         "EPG_STATUS_ERROR": "실패",

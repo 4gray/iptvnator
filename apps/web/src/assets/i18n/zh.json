@@ -319,6 +319,7 @@
         "REFRESH_EPG": "刷新电子节目单EPG",
         "REFRESH_ALL_EPG": "全部刷新",
         "REMOVE_EPG_SOURCE": "移除 EPG 源",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "已更新",
         "EPG_STATUS_STALE": "需要刷新",
         "EPG_STATUS_ERROR": "失败",

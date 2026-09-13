@@ -1,5 +1,5 @@
 import { reconcileEpgSources } from './epg-source-settings.service';
-import { ipcMain } from 'electron';
+import { dialog, ipcMain } from 'electron';
 import {
     ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgGuideWindow,
@@ -131,6 +131,10 @@ export default class EpgEvents {
             }
         );
 
+        ipcMain.handle('EPG_OPEN_FILE_DIALOG', async () => {
+            return this.pickEpgSourceFile();
+        });
+
         ipcMain.handle('EPG_CLEAR_ALL', async () => {
             await this.clearEpgData();
             return { success: true };
@@ -205,6 +209,22 @@ export default class EpgEvents {
         );
 
         return ipcMain;
+    }
+
+    /**
+     * Native picker for a local XMLTV file. Resolves the absolute path the
+     * user chose, or null on cancel; the renderer stores it as the source
+     * value and the worker reads it through `openEpgSourceStream`.
+     */
+    private static async pickEpgSourceFile(): Promise<string | null> {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [
+                { name: 'XMLTV', extensions: ['xml', 'gz', 'xmltv'] },
+                { name: 'All Files', extensions: ['*'] },
+            ],
+        });
+        return canceled || filePaths.length === 0 ? null : filePaths[0];
     }
 
     private static async checkEpgFreshness(

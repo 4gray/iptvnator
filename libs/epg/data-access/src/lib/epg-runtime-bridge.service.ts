@@ -37,6 +37,7 @@ type EpgElectronBridge = Pick<
     | 'clearEpgDataForSource'
     | 'fetchEpg'
     | 'forceFetchEpg'
+    | 'openEpgFileDialog'
     | 'getChannelPrograms'
     | 'getCurrentProgramsBatch'
     | 'getEpgChannelMetadata'
@@ -61,6 +62,10 @@ export class EpgRuntimeBridgeService {
 
     get supportsProgress(): boolean {
         return this.runtime.supportsEpgProgress;
+    }
+
+    get supportsFilePicker(): boolean {
+        return this.runtime.supportsEpgFilePicker;
     }
 
     get supportsProgramLookup(): boolean {
@@ -117,6 +122,15 @@ export class EpgRuntimeBridgeService {
         return (
             this.bridge?.forceFetchEpg?.(url, options) ?? Promise.resolve(null)
         );
+    }
+
+    /** Native picker for a local XMLTV file; null when unsupported or cancelled. */
+    pickEpgFile(): Promise<string | null> {
+        if (!this.supportsFilePicker) {
+            return Promise.resolve(null);
+        }
+
+        return this.bridge?.openEpgFileDialog?.() ?? Promise.resolve(null);
     }
 
     clearEpgData(): Promise<EpgClearResult | null> {

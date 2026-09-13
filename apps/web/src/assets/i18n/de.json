@@ -319,6 +319,7 @@
         "REFRESH_EPG": "TV-Programm aktualisieren",
         "REFRESH_ALL_EPG": "Alle aktualisieren",
         "REMOVE_EPG_SOURCE": "EPG-Quelle entfernen",
+        "BROWSE_EPG_FILE": "Lokale XMLTV-Datei auswählen…",
         "EPG_STATUS_FRESH": "Aktuell",
         "EPG_STATUS_STALE": "Aktualisierung nötig",
         "EPG_STATUS_ERROR": "Fehlgeschlagen",

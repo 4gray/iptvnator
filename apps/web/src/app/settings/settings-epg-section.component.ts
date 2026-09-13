@@ -34,9 +34,11 @@ export class SettingsEpgSectionComponent {
     readonly form = input.required<FormGroup>();
     readonly epgUrl = input.required<FormArray>();
     readonly isClearingEpgData = input(false);
+    readonly canBrowseFiles = input(false);
     readonly epgViewModeOptions = input.required<EpgViewModeOption[]>();
 
     readonly refreshEpg = output<string>();
+    readonly browseEpgSource = output<number>();
     readonly removeEpgSource = output<number>();
     readonly addEpgSource = output<void>();
     readonly refreshAllEpg = output<void>();

@@ -319,6 +319,7 @@
         "REFRESH_EPG": "تحديث EPG",
         "REFRESH_ALL_EPG": "تحديث الكل",
         "REMOVE_EPG_SOURCE": "إزالة مصدر EPG",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "محدث",
         "EPG_STATUS_STALE": "يحتاج تحديث",
         "EPG_STATUS_ERROR": "فشل",

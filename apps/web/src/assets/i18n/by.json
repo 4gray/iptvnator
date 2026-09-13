@@ -319,6 +319,7 @@
         "REFRESH_EPG": "Абнавіць праграму каналаў (EPG)",
         "REFRESH_ALL_EPG": "Абнавіць усё",
         "REMOVE_EPG_SOURCE": "Выдаліць крыніцу EPG",
+        "BROWSE_EPG_FILE": "Choose a local XMLTV file…",
         "EPG_STATUS_FRESH": "Актуальна",
         "EPG_STATUS_STALE": "Патрабуе абнаўлення",
         "EPG_STATUS_ERROR": "Памылка",

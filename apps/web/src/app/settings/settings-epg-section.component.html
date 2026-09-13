@@ -129,12 +129,31 @@
                                         [url]="epgField.value"
                                     />
                                 }
+                                @if (canBrowseFiles()) {
+                                    <button
+                                        mat-icon-button
+                                        [matTooltip]="
+                                            'SETTINGS.BROWSE_EPG_FILE'
+                                                | translate
+                                        "
+                                        [attr.aria-label]="
+                                            'SETTINGS.BROWSE_EPG_FILE'
+                                                | translate
+                                        "
+                                        type="button"
+                                        data-test-id="epg-source-browse"
+                                        (click)="browseEpgSource.emit(i)"
+                                    >
+                                        <mat-icon>folder_open</mat-icon>
+                                    </button>
+                                }
                                 <button
                                     mat-icon-button
                                     [matTooltip]="
                                         'SETTINGS.REFRESH_EPG' | translate
                                     "
                                     type="button"
+                                    data-test-id="epg-source-refresh"
                                     [disabled]="epgField.value === ''"
                                     (click)="refreshEpg.emit(epgUrl().value[i])"
                                 >
@@ -146,6 +165,7 @@
                                         'SETTINGS.REMOVE_EPG_SOURCE' | translate
                                     "
                                     type="button"
+                                    data-test-id="epg-source-remove"
                                     (click)="removeEpgSource.emit(i)"
                                 >
                                     <mat-icon>remove</mat-icon>
