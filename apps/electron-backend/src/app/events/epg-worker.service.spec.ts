@@ -38,6 +38,7 @@ jest.mock('../workers/worker-runtime-paths', () => ({
         mockResolveWorkerRuntimeBootstrap(...args),
 }));
 
+import { retireEpgSource } from './epg-source-generation';
 import { EpgWorkerService } from './epg-worker.service';
 
 describe('EpgWorkerService worker lifecycle', () => {
@@ -191,6 +192,39 @@ describe('EpgWorkerService worker lifecycle', () => {
                 expect.stringContaining('was not allowed')
             );
             expect(service.hasFetchedUrl(localPath)).toBe(false);
+        });
+
+        it('cancels a local source retired while its authorization prompt is open', async () => {
+            const localPath = '/home/user/epg/retired.xml.gz';
+            const progressSpy = jest.spyOn(service, 'sendProgressToRenderer');
+            let answer: (allowed: boolean) => void = () => undefined;
+            service.localSourceAuthorizer = {
+                authorize: jest.fn(),
+                ensureAllowed: jest.fn(
+                    () =>
+                        new Promise<boolean>((resolve) => {
+                            answer = resolve;
+                        })
+                ),
+            };
+
+            const fetchPromise = service.fetchEpgFromUrl(localPath);
+            await Promise.resolve();
+            retireEpgSource(localPath);
+            answer(true);
+
+            await expect(fetchPromise).resolves.toBeUndefined();
+            expect(mockWorkerInstances).toHaveLength(0);
+            expect(progressSpy).toHaveBeenCalledWith(
+                localPath,
+                'cancelled',
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                0
+            );
         });
 
         it('unlocks the worker local branch only for an allowed file', async () => {

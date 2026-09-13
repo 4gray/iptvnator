@@ -124,9 +124,11 @@ export class EpgWorkerService {
             return;
         }
 
-        const fetchPromise = this.startFetch(url, options).finally(() => {
-            this.inFlightFetches.delete(url);
-        });
+        const fetchPromise = this.startFetch(url, options, generation).finally(
+            () => {
+                this.inFlightFetches.delete(url);
+            }
+        );
         this.inFlightFetches.set(url, fetchPromise);
         return fetchPromise;
     }
@@ -141,7 +143,8 @@ export class EpgWorkerService {
 
     private async startFetch(
         url: string,
-        options: ElectronBridgeTrustOptions
+        options: ElectronBridgeTrustOptions,
+        generation: number
     ): Promise<void> {
         // The renderer's options must not be able to unlock the worker's
         // local branch: the flag is set here, only for an allowed path.
@@ -156,6 +159,22 @@ export class EpgWorkerService {
         if (localPath) {
             const allowed =
                 await this.localSourceAuthorizer.ensureAllowed(localPath);
+            // The prompt can stay open for a while; a source retired
+            // meanwhile (settings save, reconciliation) must end as
+            // cancelled rather than start an import the clear then awaits.
+            if (generation !== epgSourceGeneration(url)) {
+                this.sendProgressToRenderer(
+                    url,
+                    'cancelled',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    generation
+                );
+                return;
+            }
             if (!allowed) {
                 epgLogger.log(
                     this.loggerLabel,
