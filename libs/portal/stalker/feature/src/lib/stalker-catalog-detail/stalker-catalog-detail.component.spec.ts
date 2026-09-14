@@ -74,6 +74,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const catalogPlaylist = signal({ id: 'stalker-1' });
     const snackBar = { open: jest.fn() };
     const refreshPositions = jest.fn().mockResolvedValue(undefined);
+    const getPlaybackPosition = jest.fn().mockResolvedValue(null);
     const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const routerMock = { navigateByUrl: jest.fn() };
     const locationMock = { back: jest.fn() };
@@ -96,6 +97,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         catalogPlaylist.set({ id: 'stalker-1' });
         snackBar.open.mockReset();
         refreshPositions.mockClear();
+        getPlaybackPosition.mockReset().mockResolvedValue(null);
         savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         routerMock.navigateByUrl.mockReset();
         locationMock.back.mockReset();
@@ -117,7 +119,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
-                        getPlaybackPosition: jest.fn().mockResolvedValue(null),
+                        getPlaybackPosition,
                         savePlaybackPosition: jest.fn(),
                         savePlaybackPositionOrThrow,
                         clearPlaybackPositionOrThrow: jest
@@ -216,6 +218,33 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
             undefined,
             expect.anything()
         );
+    });
+
+    it('keeps a watched mark when the initial position read lands afterwards', async () => {
+        let resolveRead!: (value: null) => void;
+        getPlaybackPosition.mockReturnValueOnce(
+            new Promise<null>((resolve) => {
+                resolveRead = resolve;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(child.isWatched()).toBe(true);
+
+        // The read that started before the write answers "no row" now.
+        resolveRead(null);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(child.isWatched()).toBe(true);
+        expect(child.playbackPosition()).toBeGreaterThan(0);
     });
 
     it('keeps provider-only presentation disabled for a regular VOD open', async () => {

@@ -45,6 +45,7 @@ describe('VodDetailsWatchedService', () => {
     const currentPlaylist = signal<{ id: string } | null>({ id: PLAYLIST });
     const routeVodId = signal(VOD_ID);
     const loadAllPositions = jest.fn().mockResolvedValue(undefined);
+    const discardPendingPositionLoads = jest.fn();
     const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const clearPlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const snackBarOpen = jest.fn();
@@ -59,6 +60,7 @@ describe('VodDetailsWatchedService', () => {
         currentPlaylist.set({ id: PLAYLIST });
         routeVodId.set(VOD_ID);
         loadAllPositions.mockClear();
+        discardPendingPositionLoads.mockClear();
         savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         clearPlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         snackBarOpen.mockClear();
@@ -74,6 +76,7 @@ describe('VodDetailsWatchedService', () => {
                         inlinePlayback,
                         matchedExternalPlayback,
                         isExternalLaunchPending,
+                        discardPendingPositionLoads,
                     },
                 },
                 {
@@ -113,6 +116,8 @@ describe('VodDetailsWatchedService', () => {
             })
         );
         expect(service.isWatched()).toBe(true);
+        // An in-flight stored read must not land over the written row.
+        expect(discardPendingPositionLoads).toHaveBeenCalledTimes(1);
         expect(routePlaybackPosition()?.positionSeconds).toBe(5400);
         expect(vodPlaybackPosition()?.positionSeconds).toBe(5400);
         expect(loadAllPositions).toHaveBeenCalledWith(PLAYLIST);

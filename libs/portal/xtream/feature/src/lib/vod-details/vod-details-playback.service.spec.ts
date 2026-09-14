@@ -492,6 +492,24 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             expect(service.routePlaybackPosition()?.positionSeconds).toBe(300);
         });
 
+        it('drops a pending result once a row was written since the read started', async () => {
+            const oldLoad = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(oldLoad.promise);
+            const pending = service.loadPosition(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+
+            // The manual watched toggle writes and applies a row meanwhile.
+            service.discardPendingPositionLoads();
+            const watched = positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 5400);
+            service.routePlaybackPosition.set(watched);
+            service.vodPlaybackPosition.set(watched);
+
+            oldLoad.resolve(null);
+            await pending;
+
+            expect(service.routePlaybackPosition()).toEqual(watched);
+            expect(service.vodPlaybackPosition()).toEqual(watched);
+        });
+
         it('does not publish a pending result after destruction', async () => {
             const oldLoad = deferred<PlaybackPositionData | null>();
             getPlaybackPosition.mockReturnValueOnce(oldLoad.promise);

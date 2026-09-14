@@ -35,6 +35,9 @@ export class VodDetailsWatchedService {
         playbackPositions: this.playbackPositions,
         position: this.playback.routePlaybackPosition,
         applyPosition: (position) => {
+            // A read still in flight started from the pre-write row; letting
+            // it land would revert the toggle it never saw.
+            this.playback.discardPendingPositionLoads();
             this.playback.routePlaybackPosition.set(position);
             this.playback.vodPlaybackPosition.set(position);
         },

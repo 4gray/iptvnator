@@ -73,6 +73,11 @@ export class StalkerVodPlaybackController {
         }
     }
 
+    /** Retires a stored-position read still in flight (a row was written since). */
+    discardPendingPositionLoad(): void {
+        this.loadSelectedVodPositionRequestId++;
+    }
+
     async loadSelectedVodPosition(
         playlistId: string,
         vodId: number

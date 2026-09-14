@@ -108,6 +108,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         null
     );
     private unsubscribePositionUpdates: (() => void) | null = null;
+    private positionLoadGeneration = 0;
 
     readonly isSeriesDetail = computed(() => {
         const item = this.selectedItem();
@@ -138,7 +139,12 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     readonly watchedToggle = createVodWatchedToggle({
         playbackPositions: this.playbackPositions,
         position: this.selectedVodPosition,
-        applyPosition: (position) => this.selectedVodPosition.set(position),
+        applyPosition: (position) => {
+            // A read still in flight started from the pre-write row; letting
+            // it land would revert the toggle it never saw.
+            this.positionLoadGeneration++;
+            this.selectedVodPosition.set(position);
+        },
         notify: (feedback) =>
             this.snackBar.open(
                 this.translateService.instant(
@@ -353,6 +359,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         playlistId: string,
         vodId: number
     ): Promise<void> {
+        const generation = ++this.positionLoadGeneration;
         if (Number.isNaN(vodId)) {
             this.selectedVodPosition.set(null);
             return;
@@ -363,6 +370,15 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             vodId,
             'vod'
         );
+        // Only the newest read for the item still on screen may land: an
+        // older one would revert a watched toggle or a later selection.
+        if (
+            generation !== this.positionLoadGeneration ||
+            this.catalog.playlist()?.id !== playlistId ||
+            Number(this.selectedItem()?.id) !== vodId
+        ) {
+            return;
+        }
         this.selectedVodPosition.set(position ?? null);
     }
 

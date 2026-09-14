@@ -598,6 +598,48 @@ describe('StalkerCollectionDetailComponent', () => {
         );
     });
 
+    it('keeps a watched mark when the initial collection position read lands afterwards', async () => {
+        let resolveRead!: (value: null) => void;
+        playbackPositions.getPlaybackPosition.mockReturnValueOnce(
+            new Promise<null>((resolve) => {
+                resolveRead = resolve;
+            })
+        );
+        const sourceItem = {
+            id: '1701',
+            title: 'Collection Movie',
+            category_id: 'vod',
+            cmd: '/media/file_1701.mpg',
+            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
+        };
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+        await settleDetail(fixture);
+        await settleDetail(fixture);
+
+        const detail = fixture.debugElement.query(
+            By.directive(StubStalkerInlineDetailComponent)
+        ).componentInstance as StubStalkerInlineDetailComponent;
+        detail.watchedToggled.emit({
+            item: createStalkerVodItem(sourceItem, playlist._id),
+            watched: true,
+        });
+        await settleDetail(fixture);
+        expect(detail.isWatched()).toBe(true);
+
+        resolveRead(null);
+        await settleDetail(fixture);
+
+        expect(detail.isWatched()).toBe(true);
+        expect(detail.playbackPosition()).toBeGreaterThan(0);
+    });
+
     it('does not load VOD playback position when the playlist id is missing', async () => {
         const playlistsService = TestBed.inject(PlaylistsService) as {
             getPlaylistById: jest.Mock;

@@ -306,7 +306,9 @@ export class VodDetailsPlaybackService {
     }
 
     stopExternalPlayback(): Promise<void> {
-        return this.externalPlayback.closeSession(this.matchedExternalPlayback());
+        return this.externalPlayback.closeSession(
+            this.matchedExternalPlayback()
+        );
     }
 
     formatPosition(): string {
@@ -355,6 +357,15 @@ export class VodDetailsPlaybackService {
             () => this.externalLaunchOwner.ownsRoute(routeIdentity),
             launch
         );
+    }
+
+    /**
+     * Retires every stored-position read still in flight. A row written
+     * since (the manual watched toggle) must not be overwritten by the older
+     * answer that read started from.
+     */
+    discardPendingPositionLoads(): void {
+        this.positionLoadGeneration++;
     }
 
     async loadPosition(playlistId: string, vodId: number): Promise<void> {
@@ -483,11 +494,7 @@ export class VodDetailsPlaybackService {
         this.closeInlinePlayer();
         this.claimExternalLaunch(playback, generation);
         const launch = this.portalPlayer.openResolvedPlayback(playback, true);
-        return await this.settleExternalLaunch(
-            generation,
-            isCurrent,
-            launch
-        );
+        return await this.settleExternalLaunch(generation, isCurrent, launch);
     }
 
     private claimExternalLaunch(
@@ -514,8 +521,7 @@ export class VodDetailsPlaybackService {
                     error
                 ),
             clearPending: () => this.clearExternalLaunchPending(generation),
-            clearOwnership: () =>
-                this.clearExternalLaunchOwnership(generation),
+            clearOwnership: () => this.clearExternalLaunchOwnership(generation),
         });
     }
 

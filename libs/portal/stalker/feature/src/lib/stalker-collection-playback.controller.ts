@@ -66,7 +66,12 @@ export class StalkerCollectionPlaybackController {
     readonly watchedToggle = createVodWatchedToggle({
         playbackPositions: this.config.playbackPositions,
         position: this.selectedVodPosition,
-        applyPosition: (position) => this.selectedVodPosition.set(position),
+        applyPosition: (position) => {
+            // A read still in flight started from the pre-write row; letting
+            // it land would revert the toggle it never saw.
+            this.vodPlayback.discardPendingPositionLoad();
+            this.selectedVodPosition.set(position);
+        },
         notify: (feedback) =>
             this.config.snackBar.open(
                 this.config.translateService.instant(
