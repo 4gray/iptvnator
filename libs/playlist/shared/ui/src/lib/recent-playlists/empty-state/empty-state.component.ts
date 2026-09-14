@@ -1,14 +1,16 @@
-import { Component, input, output } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import type { PlaylistType } from '../../add-playlist-menu/playlist-type';
 
 export type EmptyStateType =
-    | 'welcome-dashboard'
-    | 'welcome-sources'
-    | 'no-results'
-    | 'no-data';
+    'welcome-dashboard' | 'welcome-sources' | 'no-results' | 'no-data';
 
 interface FeatureCard {
     icon: string;
@@ -100,6 +102,7 @@ const SOURCE_CARDS: readonly SourceCard[] = [
         './empty-state.responsive.scss',
         './empty-state.themes.scss',
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MatButtonModule, MatIcon, TranslatePipe],
 })
 export class EmptyStateComponent {

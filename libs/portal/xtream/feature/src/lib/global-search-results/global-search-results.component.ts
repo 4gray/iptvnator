@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { SearchResultsComponent } from '../search-results/search-results.component';
 
@@ -6,6 +6,7 @@ import { SearchResultsComponent } from '../search-results/search-results.compone
     selector: 'app-global-search-results',
     imports: [SearchResultsComponent],
     providers: [XtreamStore],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '<app-search-results/>',
 })
 export class GlobalSearchResultsComponent {}

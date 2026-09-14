@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, ChangeDetectionStrategy } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -12,6 +12,7 @@ import { WorkspaceShellRailComponent } from './workspace-shell-rail.component';
 @Component({
     selector: 'app-workspace-shell-rail-links',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceShellRailLinksComponent {
@@ -87,9 +88,7 @@ describe('WorkspaceShellRailComponent', () => {
             fixture.nativeElement.querySelector('.rail-shortcut.is-active')
         ).not.toBeNull();
         expect(
-            fixture.nativeElement
-                .querySelector('.brand')
-                ?.getAttribute('href')
+            fixture.nativeElement.querySelector('.brand')?.getAttribute('href')
         ).toContain('/workspace/sources');
         expect(
             fixture.nativeElement

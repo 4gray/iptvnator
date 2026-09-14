@@ -8,6 +8,7 @@ import {
     OnInit,
     signal,
     untracked,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
@@ -85,6 +86,7 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
         SerialDetailsSeasonWatchService,
         SerialDetailsSimilarService,
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         DetailActionsTemplateDirective,
         DetailMetaTemplateDirective,

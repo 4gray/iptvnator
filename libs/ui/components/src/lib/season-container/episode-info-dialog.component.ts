@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -25,9 +25,7 @@ export function buildEpisodeInfoDialogData(
     fallbackSeasonKey: string | undefined
 ): EpisodeInfoDialogData {
     const info =
-        !episode.info || Array.isArray(episode.info)
-            ? undefined
-            : episode.info;
+        !episode.info || Array.isArray(episode.info) ? undefined : episode.info;
     const seasonNumber = Number(episode.season || fallbackSeasonKey || 1);
     const episodeNumber = Number(episode.episode_num || 1);
     return {
@@ -107,6 +105,8 @@ export const EPISODE_INFO_PLAY = 'play' as const;
             </button>
         </div>
     `,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             :host {

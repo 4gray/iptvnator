@@ -6,7 +6,8 @@
         "module": "commonjs",
         "moduleResolution": "node10",
         "types": ["jest", "node"],
-        "strict": true
+        "strict": true,
+        "ignoreDeprecations": "6.0"
     },
     "include": [
         "jest.config.ts",

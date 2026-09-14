@@ -1,0 +1,46 @@
+diff --git a/dist/node/chunks/node.js b/dist/node/chunks/node.js
+--- a/dist/node/chunks/node.js
++++ b/dist/node/chunks/node.js
+@@ -28026,6 +28026,7 @@
+ 	if (workerOpts.type && (workerOpts.type === "module" || workerOpts.type === "classic")) return workerOpts.type;
+ 	return "classic";
+ }
++const workerImportMetaUrlFilterRE = /\bnew\s+(?:Worker|SharedWorker)\b/;
+ const workerImportMetaUrlRE = /\bnew\s+(?:Worker|SharedWorker)\s*\(\s*(new\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*(?:,\s*)?\))/dg;
+ function workerImportMetaUrlPlugin(config) {
+ 	let workerResolver;
+@@ -28043,7 +28044,7 @@
+ 			return environment.config.consumer === "client";
+ 		},
+ 		transform: {
+-			filter: { code: workerImportMetaUrlRE },
++			filter: { code: workerImportMetaUrlFilterRE },
+ 			async handler(code, id) {
+ 				const isBundled = this.environment.config.isBundled;
+ 				let s;
+@@ -28455,6 +28456,7 @@
+ * import.meta.glob('./dir/**.png', { eager: true, import: 'default' })[`./dir/${name}.png`]
+ * ```
+ */
++const assetImportMetaUrlFilterRE = /\bnew\s+URL\b/;
+ const assetImportMetaUrlRE = /\bnew\s+URL\s*\(\s*('[^']+'|"[^"]+"|`[^`]+`)\s*,\s*import\.meta\.url\s*(?:,\s*)?\)/dg;
+ function assetImportMetaUrlPlugin(config) {
+ 	const { publicDir } = config;
+@@ -28475,7 +28477,7 @@
+ 		transform: {
+ 			filter: {
+ 				id: { exclude: [exactRegex(preloadHelperId), exactRegex(CLIENT_ENTRY)] },
+-				code: assetImportMetaUrlRE
++				code: assetImportMetaUrlFilterRE
+ 			},
+ 			async handler(code, id) {
+ 				let s;
+@@ -31269,7 +31271,7 @@
+ 			}
+ 		},
+ 		transform: {
+-			filter: { code: assetImportMetaUrlRE },
++			filter: { code: assetImportMetaUrlFilterRE },
+ 			handler(code, id) {
+ 				let s;
+ 				const re = new RegExp(assetImportMetaUrlRE);

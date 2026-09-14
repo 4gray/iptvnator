@@ -1,4 +1,9 @@
-import { Component, computed, inject } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PortalCollectionContextService } from '@iptvnator/portal/shared/util';
 import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
@@ -49,15 +54,19 @@ import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/u
             />
         </div>
     `,
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-context-panel.component.scss',
 })
 export class WorkspaceCollectionContextPanelComponent {
     readonly ctx = inject(PortalCollectionContextService);
     // Root-provided; optional keeps standalone unit tests light. Closes the phone
     // drawer after a selection, which never navigates on this panel.
-    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
-        optional: true,
-    });
+    private readonly contextDrawer = inject(
+        WorkspaceShellContextDrawerService,
+        {
+            optional: true,
+        }
+    );
 
     readonly selectedCategory = computed(() => {
         const categories = this.ctx.categories();

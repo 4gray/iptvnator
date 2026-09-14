@@ -97,10 +97,12 @@ pnpm nx show projects
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
 - Keep `nx` and every official `@nx/*` package on the same exact version; run
   `pnpm run deps:nx:validate` after dependency updates.
-- Vite `7.3.6`, resolved through Angular's build tooling, is patched with
-  bounded transform prefilters and the upstream precise matchers in
-  `patches/vite@7.3.6.patch`. Keep the patch until supported Angular tooling
-  resolves a Vite version containing the fix, and run `pnpm run deps:vite:test`
+- Use the Node version in `.nvmrc` for development and CI. Angular 22 requires
+  Node `^22.22.3 || ^24.15.0` and TypeScript `>=6.0 <6.1` in this workspace.
+- Vite `8.1.5`, resolved through Angular's build tooling, retains upstream
+  precise matchers and adds bounded raw-code prefilters through
+  `patches/vite@8.1.5.patch`. Keep the patch until upstream also preserves
+  comment-bearing asset/worker expressions; run `pnpm run deps:vite:test`
   after related dependency updates.
 - `app-builder-lib` `26.15.7` (electron-builder's macOS signing) is patched in
   `patches/app-builder-lib@26.15.7.patch` with the upstream backport
@@ -108,11 +110,16 @@ pnpm nx show projects
   must receive the temporary keychain's own password, not the `.p12` import
   password. macOS runner images since `macos-26-arm64` 20260831 verify that
   password, and `Build on macos arm64` failed with `SecKeychainUnlock: The user
-name or passphrase you entered is not correct`. Keep the patch until
+  name or passphrase you entered is not correct`. Keep the patch until
   electron-builder resolves an `app-builder-lib` containing the fix (26.16.1+),
   and run `pnpm run deps:electron-builder:test` after related dependency
   updates — the test fails when the patched version no longer matches the
   installed one.
+- `nx-electron@22.0.0` uses a local Nx 23 export-path patch and an explicit
+  `webpack-node-externals` package extension. Scoped peer allowances for it
+  and `ngx-indexed-db@22.0.0` live in `pnpm-workspace.yaml`; they are project
+  compatibility bridges, not upstream support declarations. See
+  `docs/architecture/nx-workspace-boundaries.md` before removing them.
 - A directory holding files consumed by other projects must be an Nx project.
   Nx builds its graph from TypeScript imports only, so a relative SCSS `@use`
   across project roots creates no edge and the imported file lands in no task

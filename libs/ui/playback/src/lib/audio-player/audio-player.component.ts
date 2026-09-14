@@ -11,6 +11,7 @@ import {
     signal,
     untracked,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { extractDominantColor } from './extract-color';
 import { FormsModule } from '@angular/forms';
@@ -159,6 +160,7 @@ import { ChannelActions } from '@iptvnator/m3u-state';
         </div>
     `,
     styleUrls: ['./audio-player.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         FormsModule,
         MatButtonModule,
@@ -280,10 +282,7 @@ export class AudioPlayerComponent {
         this.playState.set('paused');
     }
 
-    setVolume(
-        value: number,
-        options: { emitChange?: boolean } = {}
-    ) {
+    setVolume(value: number, options: { emitChange?: boolean } = {}) {
         const clamped = Math.round(Math.max(0, Math.min(1, value)) * 100) / 100;
         this.volume.set(clamped);
         const audio = this.audioRef()?.nativeElement;

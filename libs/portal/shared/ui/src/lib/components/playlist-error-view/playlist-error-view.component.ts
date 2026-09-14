@@ -1,4 +1,9 @@
-import { Component, inject, input } from '@angular/core';
+import {
+    Component,
+    inject,
+    input,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,6 +19,7 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
     selector: 'app-playlist-error-view',
     templateUrl: './playlist-error-view.component.html',
     styleUrls: ['./playlist-error-view.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MatButtonModule, MatIconModule, RouterLink, TranslateModule],
 })
 export class PlaylistErrorViewComponent {

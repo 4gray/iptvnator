@@ -272,11 +272,18 @@ needed.
 
 Requirements:
 
-- Node.js 22.13–22.x or 24 and newer with pnpm (via Corepack)
+- Node.js 22.22.3 or newer within 22.x, or 24.15.0 or newer within 24.x
+- pnpm 10.33.0 (via Corepack)
+
+The repository's `.nvmrc` pins the Node.js version used by CI. With nvm,
+run `nvm install` and `nvm use` from the repository root to use the same version
+for local development.
 
 1. Clone this repository and install project dependencies:
 
     ```
+    $ nvm install
+    $ nvm use
     $ corepack enable
     $ pnpm install
     ```

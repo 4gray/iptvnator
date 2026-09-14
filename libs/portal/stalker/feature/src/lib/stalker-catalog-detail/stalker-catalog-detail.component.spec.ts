@@ -1,5 +1,11 @@
 import { Location } from '@angular/common';
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -33,7 +39,11 @@ function deferred<T>() {
     return { promise, reject, resolve };
 }
 
-@Component({ selector: 'app-vod-details', template: '' })
+@Component({
+    selector: 'app-vod-details',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubVodDetailsComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly item = input.required<unknown>();
@@ -53,7 +63,11 @@ class StubVodDetailsComponent {
     readonly inlineExternalFallbackRequested = output<unknown>();
 }
 
-@Component({ selector: 'app-stalker-series-view', template: '' })
+@Component({
+    selector: 'app-stalker-series-view',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubStalkerSeriesViewComponent {
     readonly vodWithSeries = input<unknown>(null);
     readonly providerOnly = input(false);

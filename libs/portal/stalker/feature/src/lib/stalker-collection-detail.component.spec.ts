@@ -1,4 +1,10 @@
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -22,7 +28,7 @@ import {
     VodDetailsItem,
     createStalkerVodItem,
 } from '@iptvnator/shared/interfaces';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -30,6 +36,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 @Component({
     selector: 'app-content-hero',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class StubContentHeroComponent {
@@ -39,6 +46,7 @@ class StubContentHeroComponent {
 @Component({
     selector: 'app-stalker-inline-detail',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class StubStalkerInlineDetailComponent {
@@ -200,9 +208,9 @@ describe('StalkerCollectionDetailComponent', () => {
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
                     },
                 },
                 {

@@ -116,7 +116,11 @@
             "@iptvnator/shared/marketing-fixtures": [
                 "./libs/shared/marketing-fixtures/src/index.ts"
             ]
-        }
+        },
+        "strict": false,
+        "noUncheckedSideEffectImports": false,
+        "types": ["*"],
+        "ignoreDeprecations": "6.0"
     },
     "exclude": ["node_modules", "tmp"],
     "files": ["global.d.ts"]

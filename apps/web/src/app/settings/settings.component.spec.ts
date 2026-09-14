@@ -78,6 +78,10 @@ describe('SettingsComponent', () => {
         const lifecycleFixture = TestBed.createComponent(SettingsComponent);
         const lifecycleComponent = lifecycleFixture.componentInstance;
         stubSettingsSideEffects(lifecycleComponent);
+        const loadSettings = jest.spyOn(
+            lifecycleComponent.form,
+            'loadSettings'
+        );
         const appUpdateInit = jest.spyOn(lifecycleComponent.appUpdate, 'init');
         const appUpdateDispose = jest.spyOn(
             lifecycleComponent.appUpdate,
@@ -89,6 +93,9 @@ describe('SettingsComponent', () => {
         );
 
         lifecycleFixture.detectChanges();
+        expect(loadSettings).toHaveBeenCalledTimes(1);
+        // Let ngOnInit resume after its native promise, which Zone cannot track.
+        await loadSettings.mock.results[0].value;
         await lifecycleFixture.whenStable();
 
         expect(appUpdateInit).toHaveBeenCalledTimes(1);
@@ -197,7 +204,10 @@ describe('SettingsComponent', () => {
 
         it('save-and-leave persists before allowing the navigation', async () => {
             component.settingsForm.markAsDirty();
-            jest.spyOn(component.epg, 'fetchConfiguredEpg').mockImplementation();
+            jest.spyOn(
+                component.epg,
+                'fetchConfiguredEpg'
+            ).mockImplementation();
             answerDialogWith('save');
 
             await expect(

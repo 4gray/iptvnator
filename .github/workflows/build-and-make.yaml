@@ -61,7 +61,7 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v7
               with:
-                  node-version: '22'
+                  node-version-file: '.nvmrc'
 
             - name: Resolve Linux runtime toolchain cache key
               id: linux-runtime-cache-key
@@ -379,7 +379,7 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v7
               with:
-                  node-version: '22'
+                  node-version-file: '.nvmrc'
                   cache: 'pnpm'
 
             - name: Install Linux system dependencies

@@ -105,7 +105,9 @@
                     @if (activeChannel.radio === 'true') {
                         <app-audio-player
                             [url]="activeChannel.url"
-                            [icon]="activeChannel?.tvg?.logo!"
+                            [icon]="
+                                $safeNavigationMigration(activeChannel?.tvg?.logo)!
+                            "
                             [channelName]="displayChannelName()"
                             [volume]="volume()"
                             (volumeChange)="onInlineVolumeChange($event)"

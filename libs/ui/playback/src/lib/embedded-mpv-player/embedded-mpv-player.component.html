@@ -253,7 +253,11 @@
                         <span>{{ formatTime(timelineValue()) }}</span>
                         @if (canSeek()) {
                             <span>{{
-                                formatTime(session()?.durationSeconds)
+                                formatTime(
+                                    $safeNavigationMigration(
+                                        session()?.durationSeconds
+                                    )
+                                )
                             }}</span>
                         } @else if (isLivePlayback()) {
                             <span

@@ -8,6 +8,7 @@ import {
     output,
     signal,
     untracked,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { Location } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
@@ -169,6 +170,7 @@ interface StalkerSeriesPlaybackRequestContext {
         SeasonContainerComponent,
         MatIcon,
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     providers: [StalkerSeriesTmdbSeasonsService],
 })
 export class StalkerSeriesViewComponent implements OnDestroy {

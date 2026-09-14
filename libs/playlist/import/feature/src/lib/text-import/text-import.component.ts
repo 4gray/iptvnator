@@ -1,4 +1,9 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import {
+    Component,
+    EventEmitter,
+    Output,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import {
     FormControl,
     FormGroup,
@@ -12,6 +17,7 @@ import { TranslatePipe } from '@ngx-translate/core';
     selector: 'app-text-import',
     templateUrl: './text-import.component.html',
     styleUrls: ['./text-import.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [MatInputModule, ReactiveFormsModule, TranslatePipe],
 })
 export class TextImportComponent {

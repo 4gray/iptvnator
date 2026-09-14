@@ -12,6 +12,7 @@ import {
     inject,
     input,
     output,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
@@ -33,6 +34,7 @@ import { PlaylistMeta } from '@iptvnator/shared/interfaces';
     selector: 'app-playlist-item',
     templateUrl: './playlist-item.component.html',
     styleUrls: ['./playlist-item.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         SourceHealthIndicatorComponent,
         DatePipe,

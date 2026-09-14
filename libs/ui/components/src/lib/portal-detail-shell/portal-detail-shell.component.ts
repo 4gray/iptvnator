@@ -11,6 +11,7 @@ import {
     input,
     output,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
@@ -47,6 +48,8 @@ import {
     ],
     templateUrl: './portal-detail-shell.component.html',
     styleUrls: ['./portal-detail-shell.component.scss'],
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     host: {
         tabindex: '0',
         role: 'region',

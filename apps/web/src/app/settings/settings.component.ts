@@ -7,6 +7,7 @@ import {
     OnDestroy,
     OnInit,
     ViewEncapsulation,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -93,6 +94,8 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsResetSectionComponent,
         SettingsTmdbSectionComponent,
     ],
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     providers: [
         SettingsAppUpdateFacade,
         SettingsBackupFacade,

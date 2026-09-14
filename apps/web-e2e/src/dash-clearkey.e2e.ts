@@ -66,6 +66,18 @@ test.skip(
     'DASH ClearKey coverage targets Chromium'
 );
 
+test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+        const play = HTMLMediaElement.prototype.play;
+        HTMLMediaElement.prototype.play = function () {
+            // Keep real decoding while avoiding the host's audio-output clock.
+            // Muting must happen before play, including replacement players.
+            this.muted = true;
+            return play.call(this);
+        };
+    });
+});
+
 async function serveDashFixtures(page: Page): Promise<void> {
     await page.route(`${FIXTURE_HOST}/**`, async (route) => {
         const url = new URL(route.request().url());
@@ -150,7 +162,19 @@ test('@web @m3u @dash ClearKey and clear DASH channels play inline', async ({
     await page.getByText('1. ClearKey DASH').click();
     await expectVideoPlaying(page);
 
+    const clearKeyVideo = await page
+        .locator('app-web-player-view video')
+        .first()
+        .elementHandle();
+    if (!clearKeyVideo) {
+        throw new Error('Missing playing ClearKey video');
+    }
     await page.getByText('2. Clear DASH').click();
+    // The new source mounts asynchronously; never accept the old video's time.
+    await page.waitForFunction(
+        (previous) => !previous.isConnected,
+        clearKeyVideo
+    );
     await expectVideoPlaying(page);
 });
 

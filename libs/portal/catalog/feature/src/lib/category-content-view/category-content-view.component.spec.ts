@@ -1,4 +1,10 @@
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -21,6 +27,7 @@ import { CategoryContentViewComponent } from './category-content-view.component'
 @Component({
     selector: 'app-grid-list',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class MockGridListComponent {
@@ -37,6 +44,7 @@ class MockGridListComponent {
 @Component({
     selector: 'app-playlist-error-view',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class MockPlaylistErrorViewComponent {
@@ -48,6 +56,7 @@ class MockPlaylistErrorViewComponent {
 
 @Component({
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class MockDetailComponent {

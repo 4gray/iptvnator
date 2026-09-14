@@ -525,6 +525,17 @@ test('Flatpak launcher validation locks descriptor-based ELF inspection', () => 
     );
 });
 
+test('nx-electron executors load against the installed Nx exports', () => {
+    const { executors } = require('nx-electron/executors.json');
+
+    for (const [name, { implementation }] of Object.entries(executors)) {
+        const executor = require(
+            `nx-electron/${implementation.replace(/^\.\//, '')}`
+        );
+        assert.equal(typeof executor.default, 'function', `${name} must load`);
+    }
+});
+
 test('nx-electron packaging does not copy duplicate root package metadata', () => {
     const nxElectronExecutorPath =
         require.resolve('nx-electron/src/executors/package/executor.js');

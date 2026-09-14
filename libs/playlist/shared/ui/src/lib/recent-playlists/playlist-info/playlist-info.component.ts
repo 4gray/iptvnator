@@ -1,6 +1,12 @@
 import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import {
+    Component,
+    DestroyRef,
+    inject,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import {
     FormControl,
     ReactiveFormsModule,
@@ -159,6 +165,7 @@ type DesktopFileSaveBridge = Pick<
         `,
     ],
     providers: [DatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         ClipboardModule,
         MatButton,

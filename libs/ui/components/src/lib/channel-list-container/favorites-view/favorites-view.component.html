@@ -25,7 +25,10 @@
                 [showEpg]="shouldShowEpg()"
                 [isRadio]="channel?.radio === 'true'"
                 [epgProgram]="
-                    epgMetadataMap().get(getChannelEpgKey(channel))?.epgProgram
+                    $safeNavigationMigration(
+                        epgMetadataMap().get(getChannelEpgKey(channel))
+                            ?.epgProgram
+                    )
                 "
                 [progressPercentage]="
                     epgMetadataMap().get(getChannelEpgKey(channel))

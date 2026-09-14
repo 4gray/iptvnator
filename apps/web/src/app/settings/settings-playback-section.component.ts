@@ -1,5 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, output, ViewEncapsulation } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    ViewEncapsulation,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -30,6 +36,8 @@ import { SettingsPlayerOption } from './settings.models';
     ],
     templateUrl: './settings-playback-section.component.html',
     encapsulation: ViewEncapsulation.None,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [':host { display: contents; }'],
 })
 export class SettingsPlaybackSectionComponent {

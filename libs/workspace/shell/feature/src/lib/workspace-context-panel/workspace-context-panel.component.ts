@@ -9,6 +9,7 @@ import {
     signal,
     viewChild,
     ElementRef,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
@@ -65,6 +66,7 @@ interface WorkspaceCategoryLike {
         WorkspaceContextErrorViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-context-panel.component.scss',
 })
 export class WorkspaceContextPanelComponent {

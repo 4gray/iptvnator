@@ -998,10 +998,12 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         // of only growing the client-side render window.
         itvFullListActive.set(true);
         itvSelectedCategoryFromCache.set(false);
-        hasMoreChannels.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
 
+        // Enable pagination after the initial viewport-fill timer has settled
+        // so this assertion observes the explicit loadMore call below.
+        hasMoreChannels.set(true);
         page.set(0);
         stalkerStore.setPage.mockClear();
         component.loadMore();
