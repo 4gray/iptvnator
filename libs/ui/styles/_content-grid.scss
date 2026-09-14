@@ -154,10 +154,16 @@
     }
 }
 
+// Draw the ring on the element that owns `overflow: hidden` (or on one of
+// its ancestors): an outline on a clipped descendant is cut on every edge.
+@mixin focus-ring-declarations {
+    outline: 2px solid var(--app-selection-color, #2f7bff);
+    outline-offset: 3px;
+}
+
 @mixin card-focus-ring {
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #2f7bff);
-        outline-offset: 3px;
+        @include focus-ring-declarations;
     }
 }
 

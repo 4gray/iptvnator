@@ -285,8 +285,10 @@ row under VOD and series covers so the grid shows more rows per screen.
   surface is the inner `.content-card__activation` element, and the Remove
   control (labelled by `removeTooltip`) is a SIBLING positioned over the
   poster corner — an interactive control nested inside a `role="button"`
-  is an invalid accessibility structure. Poster `alt` is the title, not a
-  literal.
+  is an invalid accessibility structure. Its ring is drawn on the OUTER
+  `.content-card` via `:has(> .content-card__activation:focus-visible)`,
+  because the card's `overflow: hidden` would clip an outline on the inner
+  surface on every edge. Poster `alt` is the title, not a literal.
 
 ## EPG Views
 
