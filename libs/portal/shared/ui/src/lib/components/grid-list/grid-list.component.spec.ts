@@ -423,6 +423,31 @@ describe('GridListComponent posters-only wall', () => {
         expect(overlay()).toBeNull();
     });
 
+    it('keeps the title row while an in-section search filters the grid', () => {
+        fixture.componentRef.setInput('items', [
+            { title: 'Blade Runner', poster_url: 'blade-runner.jpg' },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+        fixture.componentRef.setInput('searchTerm', 'blade');
+
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.classList).not.toContain(
+            'grid-list--posters-only'
+        );
+        expect(
+            fixture.debugElement.query(By.css('.title')).nativeElement
+                .textContent
+        ).toContain('Blade Runner');
+        expect(overlay()).toBeNull();
+
+        fixture.componentRef.setInput('searchTerm', '   ');
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('.title'))).toBeNull();
+        expect(overlay()).not.toBeNull();
+    });
+
     it('restores the title row as soon as the setting is switched back on', () => {
         fixture.componentRef.setInput('items', [
             { title: 'Blade Runner', poster_url: 'blade-runner.jpg' },

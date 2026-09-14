@@ -311,13 +311,16 @@ export class GridListComponent {
     /**
      * Posters-only wall (`Settings.showCoverTitles === false`) applies to
      * VOD/series covers only: channel logos are too often missing or
-     * generic to identify a channel without its name.
+     * generic to identify a channel without its name. A grid filtered by
+     * an in-section search keeps its titles too — those results are
+     * identified by the name the user just typed.
      */
     protected readonly postersOnly = computed(
         () =>
             this.coverTitles.postersOnly() &&
             !this.isLiveGrid() &&
-            this.variant() !== 'logo'
+            this.variant() !== 'logo' &&
+            !this.hasActiveSearch()
     );
     protected readonly catchupDays = getXtreamCatchupDays;
     /** Catch-up badge is live-grid only; VOD/series rows never carry it. */
