@@ -66,12 +66,20 @@ export function createStalkerVodWatchedToggle(
         ...toggle,
         toggleItem(item) {
             const owner = config.owner();
-            if (item.type !== 'stalker' || !owner) {
+            // The owner follows the host's input at once while the previous
+            // item stays rendered until its detail is prepared; a click in
+            // that window must not pair the new playlist with the old id.
+            if (
+                item.type !== 'stalker' ||
+                !owner ||
+                item.playlistId !== owner.playlistId ||
+                Number(item.data.id) !== owner.vodId
+            ) {
                 return Promise.resolve(false);
             }
             return toggle.toggle({
                 playlistId: owner.playlistId,
-                contentXtreamId: Number(item.data.id),
+                contentXtreamId: owner.vodId,
                 // Hosts are reused across movies: a late completion must
                 // neither patch the next movie's row nor announce there.
                 stillCurrent: () => {

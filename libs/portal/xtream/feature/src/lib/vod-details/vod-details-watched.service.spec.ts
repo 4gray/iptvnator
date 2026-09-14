@@ -173,6 +173,27 @@ describe('VodDetailsWatchedService', () => {
         expect(loadAllPositions).toHaveBeenCalledWith(PLAYLIST);
     });
 
+    it('does not reload the old playlist over the one the user moved to', async () => {
+        let release!: () => void;
+        savePlaybackPositionOrThrow.mockReturnValue(
+            new Promise<void>((resolve) => {
+                release = resolve;
+            })
+        );
+
+        const pending = service.toggleWatched(vodItem());
+        currentPlaylist.set({ id: 'playlist-2' });
+        release();
+        await expect(pending).resolves.toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        // The store's position map belongs to playlist-2 now; reloading
+        // playlist-1 into it would mislabel colliding ids.
+        expect(loadAllPositions).not.toHaveBeenCalled();
+        expect(routePlaybackPosition()).toBeNull();
+        expect(snackBarOpen).not.toHaveBeenCalled();
+    });
+
     it('stays disabled while this movie is playing', () => {
         expect(service.canToggle()).toBe(true);
         inlinePlayback.set({ streamUrl: 'x' });

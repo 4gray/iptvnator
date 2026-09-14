@@ -58,9 +58,13 @@ export class VodDetailsWatchedService {
                 { duration: 5000 }
             ),
         // Catalog cards read the store's position map, which only the
-        // once-per-playlist load and external-player pushes fill.
+        // once-per-playlist load and external-player pushes fill. That map is
+        // global and latest-load-wins, so a write that lands after the user
+        // moved to another playlist must not reload the old one over it.
         onPersisted: (playlistId) =>
-            this.xtreamStore.loadAllPositions(playlistId),
+            this.xtreamStore.currentPlaylist()?.id === playlistId
+                ? this.xtreamStore.loadAllPositions(playlistId)
+                : undefined,
         logger: this.logger,
     });
 
