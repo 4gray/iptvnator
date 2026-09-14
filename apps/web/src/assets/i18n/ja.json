@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "シリーズを未視聴にしました",
         "SERIES_WATCH_UPDATE_FAILED": "シリーズの更新に失敗しました",
         "SERIES_WATCH_MENU": "シリーズの視聴操作",
+        "MOVIE_MARKED_WATCHED": "視聴済みにしました",
+        "MOVIE_MARKED_UNWATCHED": "未視聴にしました",
+        "MOVIE_WATCH_UPDATE_FAILED": "視聴状態の更新に失敗しました",
         "EPISODES_WATCHED": "{{count}} / {{total}}エピソード視聴済み",
         "DETAIL_FALLBACK": {
             "STATUS": "ポータルのメタデータは利用できません",

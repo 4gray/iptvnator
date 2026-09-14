@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "本影集已標記為未觀看",
         "SERIES_WATCH_UPDATE_FAILED": "本影集更新失敗",
         "SERIES_WATCH_MENU": "影集觀看操作",
+        "MOVIE_MARKED_WATCHED": "已標記為已觀看",
+        "MOVIE_MARKED_UNWATCHED": "已標記為未觀看",
+        "MOVIE_WATCH_UPDATE_FAILED": "觀看狀態更新失敗",
         "EPISODES_WATCHED": "已觀看 {{total}} 集中的 {{count}} 集",
         "DETAIL_FALLBACK": {
             "STATUS": "無法取得入口網站中繼資料",

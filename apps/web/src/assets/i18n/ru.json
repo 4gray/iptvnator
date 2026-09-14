@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "Сериал отмечен как непросмотренный",
         "SERIES_WATCH_UPDATE_FAILED": "Не удалось обновить сериал",
         "SERIES_WATCH_MENU": "Действия просмотра сериала",
+        "MOVIE_MARKED_WATCHED": "Отмечено как просмотренное",
+        "MOVIE_MARKED_UNWATCHED": "Отмечено как непросмотренное",
+        "MOVIE_WATCH_UPDATE_FAILED": "Не удалось обновить статус просмотра",
         "EPISODES_WATCHED": "Просмотрено {{count}} из {{total}} эпизодов",
         "DETAIL_FALLBACK": {
             "STATUS": "Метаданные портала недоступны",

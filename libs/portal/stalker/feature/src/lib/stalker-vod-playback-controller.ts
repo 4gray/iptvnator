@@ -1,10 +1,11 @@
-import type { WritableSignal } from '@angular/core';
+import { type WritableSignal, computed, signal } from '@angular/core';
 import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
-import type {
-    Logger,
-    PortalPlaybackPositions,
-    PortalPlayer,
+import {
+    type Logger,
+    type PortalPlaybackPositions,
+    type PortalPlayer,
+    createPendingPlaybackStart,
 } from '@iptvnator/portal/shared/util';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
@@ -25,6 +26,17 @@ interface StalkerVodPlaybackControllerConfig {
 }
 
 export class StalkerVodPlaybackController {
+    /**
+     * The start still waiting on the portal between the click and playback,
+     * keyed by its owner: a stale resolution for the previous item must not
+     * hold the next item's watched toggle hostage.
+     */
+    private readonly pendingStart = createPendingPlaybackStart<
+        string | undefined
+    >();
+    readonly playbackStartPending = computed(() =>
+        this.pendingStart.isPendingFor(this.config.playbackOwnerKey?.())
+    );
     private lastInlineSaveTime = 0;
     private loadSelectedVodPositionRequestId = 0;
     private playbackRequestId = 0;
@@ -37,6 +49,7 @@ export class StalkerVodPlaybackController {
         const requestId = ++this.playbackRequestId;
         const usesEmbeddedPlayer = this.config.portalPlayer.isEmbeddedPlayer();
         const playbackOwnerKey = this.config.playbackOwnerKey?.();
+        const startId = this.pendingStart.begin(playbackOwnerKey);
         try {
             const playback = await resolvePlayback();
             if (!this.isPlaybackRequestCurrent(requestId, playbackOwnerKey)) {
@@ -70,14 +83,29 @@ export class StalkerVodPlaybackController {
             this.config.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
             });
+        } finally {
+            this.pendingStart.settle(startId);
         }
     }
+
+    /** Retires a stored-position read still in flight (a row was written since). */
+    discardPendingPositionLoad(): void {
+        this.loadSelectedVodPositionRequestId++;
+    }
+
+    /**
+     * Whether `selectedVodPosition` is the stored row rather than the
+     * placeholder shown while the read is in flight. Fails closed: a read
+     * that never lands keeps the watched toggle off rather than guessing.
+     */
+    readonly positionLoaded = signal(false);
 
     async loadSelectedVodPosition(
         playlistId: string,
         vodId: number
     ): Promise<void> {
         const requestId = ++this.loadSelectedVodPositionRequestId;
+        this.positionLoaded.set(false);
 
         if (!playlistId || !Number.isFinite(vodId)) {
             this.config.selectedVodPosition.set(null);
@@ -95,6 +123,7 @@ export class StalkerVodPlaybackController {
         }
 
         this.config.selectedVodPosition.set(position ?? null);
+        this.positionLoaded.set(true);
     }
 
     handleInlineTimeUpdate(event: {

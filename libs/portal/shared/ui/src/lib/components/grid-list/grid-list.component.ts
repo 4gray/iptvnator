@@ -15,6 +15,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import {
+    PortalWatchState,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
 } from '@iptvnator/portal/shared/util';
@@ -42,8 +43,7 @@ interface GridListItem {
     rating?: string | number;
     rating_imdb?: string | number;
     progress?: number;
-    isWatched?: boolean;
-    hasSeriesProgress?: boolean;
+    watchState?: PortalWatchState;
     tv_archive?: number | string | null;
     tv_archive_duration?: number | string | null;
     [key: string]: unknown;
@@ -173,7 +173,8 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                     data-test-id="grid-catchup-badge"
                                     [matTooltip]="
                                         catchupLabelKey(i)
-                                            | translate: { days: catchupDays(i) }
+                                            | translate
+                                                : { days: catchupDays(i) }
                                     "
                                 >
                                     <mat-icon>history</mat-icon>
@@ -181,16 +182,22 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                          status as text for AT users -->
                                     <span class="visually-hidden">{{
                                         catchupLabelKey(i)
-                                            | translate: { days: catchupDays(i) }
+                                            | translate
+                                                : { days: catchupDays(i) }
                                     }}</span>
                                 </div>
                             }
-                            @if (i.isWatched) {
+                            @if (i.watchState === 'watched') {
                                 <app-watched-badge
                                     [isWatched]="true"
                                     icon="check_circle"
                                 />
-                            } @else if (i.hasSeriesProgress) {
+                            } @else if (
+                                i.watchState === 'in-progress' && !i.progress
+                            ) {
+                                <!-- Started with no percent to draw (a series):
+                                     the eye says "touched", the capsule above
+                                     already says it for a movie. -->
                                 <app-watched-badge
                                     [isWatched]="true"
                                     icon="remove_red_eye"

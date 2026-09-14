@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "تم وضع علامة على المسلسل كغير مشاهد",
         "SERIES_WATCH_UPDATE_FAILED": "فشل تحديث المسلسل",
         "SERIES_WATCH_MENU": "إجراءات مشاهدة المسلسل",
+        "MOVIE_MARKED_WATCHED": "تم وضع علامة كمشاهد",
+        "MOVIE_MARKED_UNWATCHED": "تم وضع علامة كغير مشاهد",
+        "MOVIE_WATCH_UPDATE_FAILED": "فشل تحديث حالة المشاهدة",
         "EPISODES_WATCHED": "تمت مشاهدة {{count}} من {{total}} حلقة",
         "DETAIL_FALLBACK": {
             "STATUS": "البيانات الوصفية للبوابة غير متاحة",

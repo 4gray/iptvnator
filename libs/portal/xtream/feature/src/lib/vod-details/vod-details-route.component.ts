@@ -73,6 +73,7 @@ import {
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsMultiSourceUiService } from './vod-details-multi-source-ui.service';
 import { VodDetailsDownloadsService } from './vod-details-downloads.service';
+import { VodDetailsWatchedService } from './vod-details-watched.service';
 import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
@@ -111,6 +112,7 @@ function resolveVodIdentity(item: XtreamVodDetails): number | null {
         VodDetailsMultiSourceUiService,
         VodDetailsSimilarService,
         VodDetailsDownloadsService,
+        VodDetailsWatchedService,
     ],
     imports: [
         DetailActionsTemplateDirective,
@@ -145,6 +147,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly msUi = inject(VodDetailsMultiSourceUiService);
     private readonly similar = inject(VodDetailsSimilarService);
     private readonly downloads = inject(VodDetailsDownloadsService);
+    private readonly watched = inject(VodDetailsWatchedService);
     private readonly logger = createLogger('VodDetailsRoute');
     /** `playlistId:vodId` of the last initialized detail view */
     private readonly lastInitKey = signal<string | null>(null);
@@ -166,6 +169,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isElectron = this.downloadsService.isAvailable;
 
     readonly isFavorite = this.xtreamStore.isFavorite;
+    readonly isWatched = this.watched.isWatched;
+    readonly canToggleWatched = this.watched.canToggle;
     readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
     readonly playbackSessionKey = computed(() => {
         const sourceId = this.xtreamStore.currentPlaylist()?.id;
@@ -319,7 +324,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isExternalStopAction = this.playback.isExternalStopAction;
     readonly externalPrimaryButtonState =
         this.playback.externalPrimaryButtonState;
-    readonly vodPlaybackProgress = this.playback.vodPlaybackProgress;
 
     readonly hasPlaybackPosition = this.msUi.hasPlaybackPosition;
 
@@ -448,6 +452,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.msUi.reset();
             this.initializeVodDetails(playlistId, vodId);
         });
+
+        this.watched.bind(this.selectedVodId);
 
         registerContentMetadataBackfill({
             store: this.xtreamStore,
@@ -656,6 +662,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             () => this.favoritePulse.set(false),
             220
         );
+    }
+
+    toggleWatched(vodItem: XtreamVodDetails | null): Promise<boolean> {
+        return this.watched.toggleWatched(vodItem);
     }
 
     getBackdropUrl(info: XtreamVodInfo): string | undefined {

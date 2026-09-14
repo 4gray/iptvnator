@@ -42,6 +42,10 @@ export class StalkerInlineDetailComponent {
     readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
     readonly externalPlayback = input<ExternalPlayerSession | null>(null);
     readonly providerOnly = input(false);
+    readonly isWatched = input(false);
+    readonly watchedToggleBusy = input(false);
+    readonly watchedToggleReady = input(true);
+    readonly playbackStartPending = input(false);
 
     readonly backClicked = output<void>();
     readonly playClicked = output<VodDetailsItem>();
@@ -52,6 +56,10 @@ export class StalkerInlineDetailComponent {
     readonly favoriteToggled = output<{
         item: VodDetailsItem;
         isFavorite: boolean;
+    }>();
+    readonly watchedToggled = output<{
+        item: VodDetailsItem;
+        watched: boolean;
     }>();
     readonly inlineTimeUpdated = output<{
         currentTime: number;
@@ -76,6 +84,10 @@ export class StalkerInlineDetailComponent {
 
     onFavoriteToggled(event: { item: VodDetailsItem; isFavorite: boolean }) {
         this.favoriteToggled.emit(event);
+    }
+
+    onWatchedToggled(event: { item: VodDetailsItem; watched: boolean }) {
+        this.watchedToggled.emit(event);
     }
 
     onInlineTimeUpdated(event: { currentTime: number; duration: number }) {

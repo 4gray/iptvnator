@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "Sorozat megjelölve nem megtekintettként",
         "SERIES_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni a sorozatot",
         "SERIES_WATCH_MENU": "A sorozat megtekintési műveletei",
+        "MOVIE_MARKED_WATCHED": "Megjelölve megtekintettként",
+        "MOVIE_MARKED_UNWATCHED": "Megjelölve nem megtekintettként",
+        "MOVIE_WATCH_UPDATE_FAILED": "Nem sikerült frissíteni a megtekintési állapotot",
         "EPISODES_WATCHED": "Megtekintett epizódok: {{count}} / {{total}}",
         "DETAIL_FALLBACK": {
             "STATUS": "A portál metaadatai nem állnak rendelkezésre",

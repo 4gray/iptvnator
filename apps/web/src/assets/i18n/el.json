@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "Η σειρά σημειώθηκε ως μη προβληθείσα",
         "SERIES_WATCH_UPDATE_FAILED": "Η ενημέρωση της σειράς απέτυχε",
         "SERIES_WATCH_MENU": "Ενέργειες παρακολούθησης σειράς",
+        "MOVIE_MARKED_WATCHED": "Σημειώθηκε ως προβληθέν",
+        "MOVIE_MARKED_UNWATCHED": "Σημειώθηκε ως μη προβληθέν",
+        "MOVIE_WATCH_UPDATE_FAILED": "Η ενημέρωση της κατάστασης προβολής απέτυχε",
         "EPISODES_WATCHED": "{{count}} από {{total}} επεισόδια προβλήθηκαν",
         "DETAIL_FALLBACK": {
             "STATUS": "Τα μεταδεδομένα της πύλης δεν είναι διαθέσιμα",

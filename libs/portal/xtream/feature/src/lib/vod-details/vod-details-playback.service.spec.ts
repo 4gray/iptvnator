@@ -441,6 +441,46 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         });
     });
 
+    it('reports a start as pending until the previous player is closed', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        activeSession.set(launched);
+        const closing = deferred<void>();
+        closeSession.mockReturnValueOnce(closing.promise);
+
+        const pending = service.startResolvedPlayback({
+            streamUrl: 'https://example.com/second.mkv',
+            title: 'Second movie',
+            contentInfo: launched.contentInfo,
+        });
+        expect(service.playbackStartPending()).toBe(true);
+
+        closing.resolve();
+        await pending;
+
+        expect(service.playbackStartPending()).toBe(false);
+    });
+
+    it('does not carry a pending start over to the next routed movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        activeSession.set(launched);
+        const closing = deferred<void>();
+        closeSession.mockReturnValueOnce(closing.promise);
+
+        const pending = service.startResolvedPlayback({
+            streamUrl: 'https://example.com/second.mkv',
+            title: 'Second movie',
+            contentInfo: launched.contentInfo,
+        });
+        expect(service.playbackStartPending()).toBe(true);
+
+        routeVodId.set(ROUTE_VOD_ID + 1);
+        expect(service.playbackStartPending()).toBe(false);
+
+        closing.resolve();
+        await pending;
+        expect(service.playbackStartPending()).toBe(false);
+    });
+
     describe('stored position loads', () => {
         it('drops a result after the route changes without starting another load', async () => {
             const oldLoad = deferred<PlaybackPositionData | null>();
@@ -490,6 +530,49 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
 
             expect(service.vodPlaybackPosition()?.positionSeconds).toBe(300);
             expect(service.routePlaybackPosition()?.positionSeconds).toBe(300);
+        });
+
+        it('reports the row as loaded only once the read for the current route lands', async () => {
+            const load = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(load.promise);
+            expect(service.positionLoaded()).toBe(false);
+
+            const pending = service.loadPosition(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+            expect(service.positionLoaded()).toBe(false);
+            load.resolve(null);
+            await pending;
+            expect(service.positionLoaded()).toBe(true);
+
+            // A stale answer for a route that moved on never flips it back on.
+            const stale = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(stale.promise);
+            const stalePending = service.loadPosition(
+                ROUTE_PLAYLIST,
+                ROUTE_VOD_ID
+            );
+            expect(service.positionLoaded()).toBe(false);
+            routeVodId.set(ROUTE_VOD_ID + 1);
+            stale.resolve(null);
+            await stalePending;
+            expect(service.positionLoaded()).toBe(false);
+        });
+
+        it('drops a pending result once a row was written since the read started', async () => {
+            const oldLoad = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(oldLoad.promise);
+            const pending = service.loadPosition(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+
+            // The manual watched toggle writes and applies a row meanwhile.
+            service.discardPendingPositionLoads();
+            const watched = positionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID, 5400);
+            service.routePlaybackPosition.set(watched);
+            service.vodPlaybackPosition.set(watched);
+
+            oldLoad.resolve(null);
+            await pending;
+
+            expect(service.routePlaybackPosition()).toEqual(watched);
+            expect(service.vodPlaybackPosition()).toEqual(watched);
         });
 
         it('does not publish a pending result after destruction', async () => {

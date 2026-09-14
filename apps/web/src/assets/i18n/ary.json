@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "السلسلة تعلمات كما متشافاش",
         "SERIES_WATCH_UPDATE_FAILED": "فشل تحديث السلسلة",
         "SERIES_WATCH_MENU": "إجراءات مشاهدة السلسلة",
+        "MOVIE_MARKED_WATCHED": "تعلم كمتشاف",
+        "MOVIE_MARKED_UNWATCHED": "تعلم كما متشافش",
+        "MOVIE_WATCH_UPDATE_FAILED": "فشل تحديث حالة المشاهدة",
         "EPISODES_WATCHED": "{{count}} من {{total}} ديال الحلقات متشافين",
         "DETAIL_FALLBACK": {
             "STATUS": "البيانات الوصفية ديال البوابة ما متوفراش",

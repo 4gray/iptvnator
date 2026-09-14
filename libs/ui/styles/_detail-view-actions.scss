@@ -74,6 +74,24 @@
             background: rgba(255, 91, 110, 0.24);
         }
     }
+
+    // The watched toggle shares the ghost surface but reads green when
+    // active, like the catalog's watched badge.
+    &.watched-btn.favorite-btn--active {
+        background: rgba(74, 222, 128, 0.16);
+        border-color: rgba(74, 222, 128, 0.4);
+        color: #4ade80;
+
+        &:hover {
+            background: rgba(74, 222, 128, 0.24);
+        }
+    }
+
+    &.watched-btn:disabled {
+        opacity: 0.55;
+        cursor: default;
+        pointer-events: none;
+    }
 }
 
 @mixin download-button-state {
@@ -172,6 +190,21 @@
 
     &--favorite.is-pulsing mat-icon {
         animation: icon-action-pulse 180ms ease;
+    }
+
+    // Watched: the same green as the catalog badge, filled glyph.
+    &--watched.is-active {
+        color: #4ade80;
+
+        &:hover {
+            color: #6ee7a0;
+        }
+    }
+
+    &--watched:disabled {
+        opacity: 0.55;
+        cursor: default;
+        pointer-events: none;
     }
 
     // Downloaded: green check; the click now opens the file's location.

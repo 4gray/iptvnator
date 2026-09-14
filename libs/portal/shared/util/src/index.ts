@@ -39,3 +39,6 @@ export * from './lib/external-playback-button-state';
 export * from './lib/inline-playback-position-writer';
 export * from './lib/downloads/download-metadata-snapshot';
 export * from './lib/downloads/episode-download-identity';
+export * from './lib/portal-watch-state';
+export * from './lib/vod-watched-toggle';
+export * from './lib/pending-playback-start';

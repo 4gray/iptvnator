@@ -1079,6 +1079,9 @@
         "SERIES_MARKED_UNWATCHED": "Serie gemarkeerd als niet bekeken",
         "SERIES_WATCH_UPDATE_FAILED": "Bijwerken van de serie is mislukt",
         "SERIES_WATCH_MENU": "Kijkacties voor serie",
+        "MOVIE_MARKED_WATCHED": "Gemarkeerd als bekeken",
+        "MOVIE_MARKED_UNWATCHED": "Gemarkeerd als niet bekeken",
+        "MOVIE_WATCH_UPDATE_FAILED": "Bijwerken van de kijkstatus is mislukt",
         "EPISODES_WATCHED": "{{count}} van {{total}} afleveringen bekeken",
         "DETAIL_FALLBACK": {
             "STATUS": "Portaalmetadata niet beschikbaar",

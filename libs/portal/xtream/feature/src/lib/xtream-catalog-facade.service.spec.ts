@@ -1,8 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-    PortalCatalogSortMode,
-} from '@iptvnator/portal/shared/util';
+import { PortalCatalogSortMode } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
     XtreamStore,
@@ -79,7 +77,6 @@ describe('XtreamCatalogFacadeService', () => {
         }),
         hasSeriesProgress: jest.fn().mockReturnValue(false),
         getProgressPercent: jest.fn().mockReturnValue(40),
-        isWatched: jest.fn().mockReturnValue(false),
     };
 
     beforeEach(() => {
@@ -110,7 +107,6 @@ describe('XtreamCatalogFacadeService', () => {
         xtreamStore.setMinRating.mockClear();
         xtreamStore.hasSeriesProgress.mockClear();
         xtreamStore.getProgressPercent.mockClear();
-        xtreamStore.isWatched.mockClear();
 
         TestBed.configureTestingModule({
             providers: [
@@ -267,5 +263,37 @@ describe('XtreamCatalogFacadeService', () => {
         service.setMinRating(9);
 
         expect(xtreamStore.setMinRating).not.toHaveBeenCalled();
+    });
+
+    it('maps movie progress and series episode rows onto one watch state', () => {
+        xtreamStore.getProgressPercent.mockReturnValue(40);
+        expect(service.getItemProgress({ xtream_id: 1 })).toEqual({
+            progress: 40,
+            watchState: 'in-progress',
+        });
+
+        xtreamStore.getProgressPercent.mockReturnValue(95);
+        expect(service.getItemProgress({ xtream_id: 1 })).toEqual({
+            progress: 95,
+            watchState: 'watched',
+        });
+
+        xtreamStore.getProgressPercent.mockReturnValue(0);
+        expect(service.getItemProgress({ xtream_id: 1 })).toEqual({
+            progress: 0,
+            watchState: 'unwatched',
+        });
+
+        // A series card only knows that some episode was started; the
+        // catalog list cannot tell whether every episode is done.
+        contentType.set('series');
+        xtreamStore.hasSeriesProgress.mockReturnValue(true);
+        expect(service.getItemProgress({ series_id: 7 })).toEqual({
+            watchState: 'in-progress',
+        });
+        xtreamStore.hasSeriesProgress.mockReturnValue(false);
+        expect(service.getItemProgress({ series_id: 7 })).toEqual({
+            watchState: 'unwatched',
+        });
     });
 });

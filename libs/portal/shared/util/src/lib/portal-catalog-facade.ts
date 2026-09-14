@@ -1,5 +1,6 @@
 import { InjectionToken, Signal } from '@angular/core';
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import type { PortalWatchState } from './portal-watch-state';
 
 export type PortalCatalogProvider = 'xtream' | 'stalker';
 
@@ -21,10 +22,14 @@ export interface PortalCatalogPlaylistMeta {
     origin?: string;
 }
 
+/**
+ * What a catalog card shows about playback: a percent for the movie
+ * progress capsule, and one shared watch state for the corner badge
+ * (`resolvePortalWatchState` / `resolvePortalSeriesWatchState`).
+ */
 export interface PortalCatalogItemProgress {
     progress?: number;
-    isWatched?: boolean;
-    hasSeriesProgress?: boolean;
+    watchState?: PortalWatchState;
 }
 
 export interface PortalCatalogFacade<
@@ -115,7 +120,10 @@ export interface StalkerPortalCatalogFacade<
         macAddress: string,
         cmd: string,
         series?: number,
-        linkFlags?: { use_http_tmp_link?: unknown; use_load_balancing?: unknown }
+        linkFlags?: {
+            use_http_tmp_link?: unknown;
+            use_load_balancing?: unknown;
+        }
     ): Promise<string>;
     resolveVodPlayback(
         cmd?: string,

@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     computed,
     effect,
     forwardRef,
@@ -36,7 +37,10 @@ import {
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
-import { PlaylistsService } from '@iptvnator/services';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    PlaylistsService,
+} from '@iptvnator/services';
 import { Playlist, VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
@@ -68,10 +72,15 @@ import {
                 [playbackPosition]="selectedVodPlaybackPosition()"
                 [inlinePlayback]="inlinePlayback()"
                 [externalPlayback]="externalPlayback.activeSession()"
+                [isWatched]="playback.watchedToggle.isWatched()"
+                [watchedToggleBusy]="playback.watchedToggle.busy()"
+                [watchedToggleReady]="playback.positionLoaded()"
+                [playbackStartPending]="playback.playbackStartPending()"
                 (backClicked)="closeRequested.emit()"
                 (playClicked)="onVodPlay($event)"
                 (resumeClicked)="onVodResume($event)"
                 (favoriteToggled)="onVodFavoriteToggled($event)"
+                (watchedToggled)="playback.toggleSelectedVodWatched($event)"
                 (inlineTimeUpdated)="handleInlineTimeUpdate($event)"
                 (inlinePlaybackClosed)="closeInlinePlayer()"
                 (streamUrlCopied)="showCopyNotification()"
@@ -127,7 +136,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         vodDetailsItem: () => this.vodDetailsItem(),
     });
 
-    private readonly playback = new StalkerCollectionPlaybackController({
+    readonly playback = new StalkerCollectionPlaybackController({
         item: () => this.item(),
         stalkerStore: this.stalkerStore,
         playbackPositions: this.playbackPositions,
@@ -169,6 +178,13 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     private currentPlaybackOwnerKey = '';
 
     constructor() {
+        const unsubscribePositionUpdates = inject(
+            PlaybackPositionRuntimeBridgeService
+        ).onPlaybackPositionUpdate((data) =>
+            this.playback.applyRuntimePosition(data)
+        );
+        inject(DestroyRef).onDestroy(() => unsubscribePositionUpdates?.());
+
         effect(() => {
             this.portalFavorites.value();
             this.favorites.sync();
