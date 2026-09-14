@@ -96,6 +96,24 @@
                     isFavorite() ? 'favorite' : 'favorite_border'
                 }}</mat-icon>
             </button>
+            @let watchedLabel =
+                (isWatched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
+                    | translate;
+            <button
+                type="button"
+                class="icon-action-btn icon-action-btn--watched"
+                [class.is-active]="isWatched()"
+                [disabled]="!canToggleWatched()"
+                (click)="toggleWatched(playableItem)"
+                [matTooltip]="watchedLabel"
+                [attr.aria-label]="watchedLabel"
+                [attr.aria-pressed]="isWatched()"
+                data-testid="vod-watched-toggle"
+            >
+                <mat-icon>{{
+                    isWatched() ? 'check_circle' : 'check_circle_outline'
+                }}</mat-icon>
+            </button>
             @if (isElectron() && !providerOnly()) {
                 @if (isDownloaded()) {
                     <button

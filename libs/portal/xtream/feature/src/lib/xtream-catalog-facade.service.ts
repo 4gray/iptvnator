@@ -5,14 +5,14 @@ import {
     PortalCatalogPlaylistMeta,
     PortalCatalogSortMode,
     PORTAL_CATALOG_FACADE,
+    resolvePortalSeriesWatchState,
+    watchStateFromProgressPercent,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 const SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 
-const isValidSortMode = (
-    mode: string | null
-): mode is PortalCatalogSortMode =>
+const isValidSortMode = (mode: string | null): mode is PortalCatalogSortMode =>
     mode === 'date-desc' ||
     mode === 'date-asc' ||
     mode === 'name-asc' ||
@@ -172,13 +172,16 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
 
         if (isSeries) {
             return {
-                hasSeriesProgress: this.xtreamStore.hasSeriesProgress(itemId),
+                watchState: resolvePortalSeriesWatchState(
+                    this.xtreamStore.hasSeriesProgress(itemId)
+                ),
             };
         }
 
+        const progress = this.xtreamStore.getProgressPercent(itemId, 'vod');
         return {
-            progress: this.xtreamStore.getProgressPercent(itemId, 'vod'),
-            isWatched: this.xtreamStore.isWatched(itemId, 'vod'),
+            progress,
+            watchState: watchStateFromProgressPercent(progress),
         };
     }
 }

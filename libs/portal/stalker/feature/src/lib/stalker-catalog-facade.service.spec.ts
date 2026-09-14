@@ -148,7 +148,7 @@ describe('StalkerCatalogFacadeService', () => {
 
             expect(
                 service.getItemProgress({ id: '42', is_series: isSeries })
-            ).toEqual({ hasSeriesProgress: false });
+            ).toEqual({ watchState: 'unwatched' });
         }
     );
 
@@ -168,7 +168,7 @@ describe('StalkerCatalogFacadeService', () => {
             );
             expect(service.getItemProgress(item)).toEqual({
                 progress: 0,
-                isWatched: false,
+                watchState: 'unwatched',
             });
         }
     );
@@ -200,6 +200,25 @@ describe('StalkerCatalogFacadeService', () => {
         );
     });
 
+    it('reports a fully played movie as watched on its catalog card', async () => {
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+        await Promise.resolve();
+
+        playbackUpdateHandler?.({
+            playlistId: playlist._id,
+            contentXtreamId: 17359,
+            contentType: 'vod',
+            positionSeconds: 5400,
+            durationSeconds: 5400,
+        });
+        await Promise.resolve();
+
+        expect(service.getItemProgress({ id: '17359' })).toEqual({
+            progress: 100,
+            watchState: 'watched',
+        });
+    });
+
     it('ignores external playback updates for other playlists', async () => {
         TestBed.inject(StalkerCatalogFacadeService);
         await Promise.resolve();
@@ -218,9 +237,9 @@ describe('StalkerCatalogFacadeService', () => {
 
     it('splits loading into the initial skeleton and the append tail by portal page', () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
-        const loading = stalkerStoreMock['isPaginatedContentLoading'] as ReturnType<
-            typeof signal<boolean>
-        >;
+        const loading = stalkerStoreMock[
+            'isPaginatedContentLoading'
+        ] as ReturnType<typeof signal<boolean>>;
         const page = stalkerStoreMock['page'] as ReturnType<
             typeof signal<number>
         >;
@@ -237,9 +256,9 @@ describe('StalkerCatalogFacadeService', () => {
 
     it('guards loadMore behind loading, append errors, and hasMore', () => {
         const service = TestBed.inject(StalkerCatalogFacadeService);
-        const loading = stalkerStoreMock['isPaginatedContentLoading'] as ReturnType<
-            typeof signal<boolean>
-        >;
+        const loading = stalkerStoreMock[
+            'isPaginatedContentLoading'
+        ] as ReturnType<typeof signal<boolean>>;
         const hasMore = stalkerStoreMock['hasMoreContent'] as ReturnType<
             typeof signal<boolean>
         >;
@@ -294,9 +313,9 @@ describe('StalkerCatalogFacadeService', () => {
         // The route provider (and this facade) survives a same-config portal
         // switch — the identity must include the playlist.
         const service = TestBed.inject(StalkerCatalogFacadeService);
-        const currentPlaylist = stalkerStoreMock['currentPlaylist'] as ReturnType<
-            typeof signal<{ _id: string } | undefined>
-        >;
+        const currentPlaylist = stalkerStoreMock[
+            'currentPlaylist'
+        ] as ReturnType<typeof signal<{ _id: string } | undefined>>;
 
         service.saveScrollPosition(420);
 

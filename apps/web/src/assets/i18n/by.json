@@ -1077,6 +1077,9 @@
         "SERIES_MARKED_UNWATCHED": "Серыял адзначаны як непрагледжаны",
         "SERIES_WATCH_UPDATE_FAILED": "Не ўдалося абнавіць серыял",
         "SERIES_WATCH_MENU": "Дзеянні прагляду серыяла",
+        "MOVIE_MARKED_WATCHED": "Адзначана як прагледжанае",
+        "MOVIE_MARKED_UNWATCHED": "Адзначана як непрагледжанае",
+        "MOVIE_WATCH_UPDATE_FAILED": "Не ўдалося абнавіць стан прагляду",
         "EPISODES_WATCHED": "{{count}} з {{total}} эпізодаў прагледжана",
         "DETAIL_FALLBACK": {
             "STATUS": "Метаданыя партала недаступныя",

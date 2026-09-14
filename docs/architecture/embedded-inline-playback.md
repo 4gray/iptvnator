@@ -266,6 +266,50 @@ episode" chip appears when the playing episode is outside the opened
 season. Season descriptions come from `get_series_info` seasons (Xtream)
 or `TmdbEnrichmentService.getSeason` (Stalker).
 
+### Manual watched toggle for movies
+
+Movies carry the same manual "watched" affordance as episodes, in the
+detail action row of both portals: Xtream renders an icon square after
+Favorite (`vod-details-watched.service.ts`), Stalker a labelled button
+inside the shared `app-vod-details` component, wired by the routed
+catalog detail and by the collection inline detail (Favorites / Recent).
+Both hosts delegate to `createVodWatchedToggle()` in
+`@iptvnator/portal/shared/util`:
+
+- **Marking** writes a full-progress `vod` position row — the same shape
+  playback leaves behind, so catalog badges, the dashboard and the
+  Play/Resume rule need no new state. The duration is the stored row's
+  (real), else the provider's `duration_secs` (Xtream), else 1 s: Stalker
+  VOD details state no runtime, and "position === duration" is what
+  "watched" means, whatever the number.
+- **Unmarking** deletes the row, which also forgets the resume point —
+  the trade the episode toggle already makes.
+- Both writes use the rejecting `savePlaybackPositionOrThrow` /
+  `clearPlaybackPositionOrThrow` boundary: the row on screen changes only
+  after a confirmed write, and a refused write reports instead of showing
+  the movie as (un)watched.
+- The toggle is **disabled while the movie plays** (inline player mounted,
+  external session live or launching for this content): the player
+  persists its position every ~15 s and would overwrite a just-written
+  row, silently flipping the movie back.
+- It acts on the **route copy's row only**. Positions are keyed by
+  (playlist, stream), so a pinned multi-source alternative keeps its own
+  state, exactly as playback would leave it.
+- A completion that lands **after navigation** (`stillCurrent`) still
+  refreshes the playlist's catalog positions (the write did land), but
+  neither patches the new page's row nor shows its snackbar.
+- A watched copy shows **Play**, never "Resume 1:32:00" from its final
+  seconds — `app-vod-details` folds `isWatched` into `hasPlaybackPosition`,
+  which Xtream's route already did through its 90% rule.
+
+Catalog cards derive their corner badge from one shared `PortalWatchState`
+(`unwatched` / `in-progress` / `watched`, `portal-watch-state.ts`): both
+facades map a movie's position through `watchStateFromProgressPercent` /
+`resolvePortalWatchState` (90% threshold, shared with the Resume rule),
+and a series through `resolvePortalSeriesWatchState`, which reports at
+most `in-progress` — the list payload never carries the episode total, so
+"every episode watched" is not decidable there.
+
 The season header carries a season-level watched toggle next to
 "Download season" (`season-watch-toggle.util.ts` builds the request:
 marking touches only unwatched episodes so real durations survive;

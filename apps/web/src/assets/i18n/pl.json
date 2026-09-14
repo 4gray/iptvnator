@@ -1077,6 +1077,9 @@
         "SERIES_MARKED_UNWATCHED": "Oznaczono serial jako nieobejrzany",
         "SERIES_WATCH_UPDATE_FAILED": "Nie udało się zaktualizować serialu",
         "SERIES_WATCH_MENU": "Akcje oglądania serialu",
+        "MOVIE_MARKED_WATCHED": "Oznaczono jako obejrzane",
+        "MOVIE_MARKED_UNWATCHED": "Oznaczono jako nieobejrzane",
+        "MOVIE_WATCH_UPDATE_FAILED": "Nie udało się zaktualizować stanu obejrzenia",
         "EPISODES_WATCHED": "Obejrzano {{count}} z {{total}} odcinków",
         "DETAIL_FALLBACK": {
             "STATUS": "Metadane portalu niedostępne",

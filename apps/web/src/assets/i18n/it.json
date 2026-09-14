@@ -1077,6 +1077,9 @@
         "SERIES_MARKED_UNWATCHED": "Serie segnata come non vista",
         "SERIES_WATCH_UPDATE_FAILED": "Aggiornamento della serie non riuscito",
         "SERIES_WATCH_MENU": "Azioni di visione della serie",
+        "MOVIE_MARKED_WATCHED": "Segnato come visto",
+        "MOVIE_MARKED_UNWATCHED": "Segnato come non visto",
+        "MOVIE_WATCH_UPDATE_FAILED": "Aggiornamento dello stato di visione non riuscito",
         "EPISODES_WATCHED": "{{count}} di {{total}} episodi visti",
         "DETAIL_FALLBACK": {
             "STATUS": "Metadati del portale non disponibili",

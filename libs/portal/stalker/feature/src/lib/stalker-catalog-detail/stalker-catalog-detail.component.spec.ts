@@ -42,9 +42,12 @@ class StubVodDetailsComponent {
     readonly playbackPosition = input<number | null>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly externalPlayback = input<unknown>(null);
+    readonly isWatched = input(false);
+    readonly watchedToggleBusy = input(false);
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
+    readonly watchedToggled = output<{ item: unknown; watched: boolean }>();
     readonly downloadRequested = output<unknown>();
     readonly backClicked = output<void>();
     readonly inlineTimeUpdated = output<unknown>();
@@ -70,6 +73,8 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const contentType = signal<'vod' | 'series'>('vod');
     const catalogPlaylist = signal({ id: 'stalker-1' });
     const snackBar = { open: jest.fn() };
+    const refreshPositions = jest.fn().mockResolvedValue(undefined);
+    const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const routerMock = { navigateByUrl: jest.fn() };
     const locationMock = { back: jest.fn() };
     const originalHistoryState = window.history.state;
@@ -90,6 +95,8 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         catalogPlaylist.set({ id: 'stalker-1' });
         snackBar.open.mockReset();
+        refreshPositions.mockClear();
+        savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         routerMock.navigateByUrl.mockReset();
         locationMock.back.mockReset();
 
@@ -104,6 +111,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                         playlist: catalogPlaylist,
                         clearSelectedItem: jest.fn(),
                         resolveVodPlayback,
+                        refreshPositions,
                     },
                 },
                 {
@@ -111,6 +119,10 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                     useValue: {
                         getPlaybackPosition: jest.fn().mockResolvedValue(null),
                         savePlaybackPosition: jest.fn(),
+                        savePlaybackPositionOrThrow,
+                        clearPlaybackPositionOrThrow: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
                     },
                 },
                 {
@@ -179,6 +191,30 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                 sourceId: 'stalker-1',
                 contentId: '42',
             })
+        );
+    });
+
+    it('marks the open movie watched from the child toggle and refreshes catalog badges', async () => {
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        expect(child.isWatched()).toBe(false);
+
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledWith(
+            'stalker-1',
+            expect.objectContaining({ contentXtreamId: 42, contentType: 'vod' })
+        );
+        expect(refreshPositions).toHaveBeenCalledWith('stalker-1');
+        expect(child.isWatched()).toBe(true);
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'XTREAM.MOVIE_MARKED_WATCHED',
+            undefined,
+            expect.anything()
         );
     });
 

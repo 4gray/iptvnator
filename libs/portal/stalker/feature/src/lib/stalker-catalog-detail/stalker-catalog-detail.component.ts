@@ -12,13 +12,15 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import {
-    consumeStalkerReturnMarker,
-    resolveStalkerBackNavigation,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
-    createLogger,
+    VOD_WATCHED_FEEDBACK_KEYS,
+    consumeStalkerReturnMarker,
     createInlinePlaybackPositionWriter,
+    createLogger,
+    createVodWatchedToggle,
+    resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
     createPortalFavoritesResource,
@@ -132,6 +134,24 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         () => this.selectedVodPosition()?.positionSeconds ?? null
     );
 
+    /** Manual watched toggle; the child gates it on live playback itself. */
+    readonly watchedToggle = createVodWatchedToggle({
+        playbackPositions: this.playbackPositions,
+        position: this.selectedVodPosition,
+        applyPosition: (position) => this.selectedVodPosition.set(position),
+        notify: (feedback) =>
+            this.snackBar.open(
+                this.translateService.instant(
+                    VOD_WATCHED_FEEDBACK_KEYS[feedback]
+                ),
+                undefined,
+                { duration: 5000 }
+            ),
+        onPersisted: (playlistId) =>
+            void this.catalog.refreshPositions(playlistId),
+        logger: this.logger,
+    });
+
     readonly portalFavorites = createPortalFavoritesResource(
         this.playlistService,
         () => this.catalog.playlist()?.id,
@@ -223,6 +243,21 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             onComplete: () => {
                 this.favoritesRefresh.refresh();
             },
+        });
+    }
+
+    onVodWatchedToggled(event: { item: VodDetailsItem }): void {
+        if (event.item.type !== 'stalker') {
+            return;
+        }
+        const playlistId = this.catalog.playlist()?.id ?? '';
+        const vodId = Number(event.item.data.id);
+        void this.watchedToggle.toggle({
+            playlistId,
+            contentXtreamId: vodId,
+            stillCurrent: () =>
+                this.catalog.playlist()?.id === playlistId &&
+                Number(this.selectedItem()?.id) === vodId,
         });
     }
 

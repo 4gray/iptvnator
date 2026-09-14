@@ -1,11 +1,13 @@
 import { computed, signal } from '@angular/core';
 import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
-import type {
-    Logger,
-    PortalPlaybackPositions,
-    PortalPlayer,
-    UnifiedCollectionItem,
+import {
+    type Logger,
+    type PortalPlaybackPositions,
+    type PortalPlayer,
+    type UnifiedCollectionItem,
+    VOD_WATCHED_FEEDBACK_KEYS,
+    createVodWatchedToggle,
 } from '@iptvnator/portal/shared/util';
 import {
     normalizeStalkerEntityId,
@@ -59,6 +61,22 @@ export class StalkerCollectionPlaybackController {
     );
 
     private readonly vodPlayback: StalkerVodPlaybackController;
+
+    /** Manual watched toggle; the child gates it on live playback itself. */
+    readonly watchedToggle = createVodWatchedToggle({
+        playbackPositions: this.config.playbackPositions,
+        position: this.selectedVodPosition,
+        applyPosition: (position) => this.selectedVodPosition.set(position),
+        notify: (feedback) =>
+            this.config.snackBar.open(
+                this.config.translateService.instant(
+                    VOD_WATCHED_FEEDBACK_KEYS[feedback]
+                ),
+                undefined,
+                { duration: 5000 }
+            ),
+        logger: this.config.logger,
+    });
 
     constructor(
         private readonly config: StalkerCollectionPlaybackControllerConfig
@@ -128,6 +146,20 @@ export class StalkerCollectionPlaybackController {
 
     clearSelectedVodPosition(): void {
         this.selectedVodPosition.set(null);
+    }
+
+    toggleSelectedVodWatched(event: { item: VodDetailsItem }): void {
+        const owner = this.playbackOwner();
+        if (!owner || event.item.type !== 'stalker') {
+            return;
+        }
+        const vodId = Number(event.item.data.id);
+        void this.watchedToggle.toggle({
+            playlistId: owner.sourceId,
+            contentXtreamId: vodId,
+            stillCurrent: () =>
+                this.playbackOwner()?.sessionKey === owner.sessionKey,
+        });
     }
 
     private async startVodPlayback(

@@ -68,10 +68,13 @@ import {
                 [playbackPosition]="selectedVodPlaybackPosition()"
                 [inlinePlayback]="inlinePlayback()"
                 [externalPlayback]="externalPlayback.activeSession()"
+                [isWatched]="playback.watchedToggle.isWatched()"
+                [watchedToggleBusy]="playback.watchedToggle.busy()"
                 (backClicked)="closeRequested.emit()"
                 (playClicked)="onVodPlay($event)"
                 (resumeClicked)="onVodResume($event)"
                 (favoriteToggled)="onVodFavoriteToggled($event)"
+                (watchedToggled)="playback.toggleSelectedVodWatched($event)"
                 (inlineTimeUpdated)="handleInlineTimeUpdate($event)"
                 (inlinePlaybackClosed)="closeInlinePlayer()"
                 (streamUrlCopied)="showCopyNotification()"
@@ -127,7 +130,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         vodDetailsItem: () => this.vodDetailsItem(),
     });
 
-    private readonly playback = new StalkerCollectionPlaybackController({
+    readonly playback = new StalkerCollectionPlaybackController({
         item: () => this.item(),
         stalkerStore: this.stalkerStore,
         playbackPositions: this.playbackPositions,

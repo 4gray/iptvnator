@@ -51,10 +51,16 @@ class StubStalkerInlineDetailComponent {
     readonly playbackPosition = input<number | null>(null);
     readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
     readonly externalPlayback = input<unknown>(null);
+    readonly isWatched = input(false);
+    readonly watchedToggleBusy = input(false);
     readonly backClicked = output<void>();
     readonly playClicked = output<VodDetailsItem>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
+    readonly watchedToggled = output<{
+        item: VodDetailsItem;
+        watched: boolean;
+    }>();
     readonly inlineTimeUpdated = output<unknown>();
     readonly inlinePlaybackClosed = output<void>();
     readonly streamUrlCopied = output<void>();
@@ -91,6 +97,8 @@ describe('StalkerCollectionDetailComponent', () => {
     };
     let playbackPositions: {
         savePlaybackPosition: jest.Mock;
+        savePlaybackPositionOrThrow: jest.Mock;
+        clearPlaybackPositionOrThrow: jest.Mock;
         getPlaybackPosition: jest.Mock;
         getSeriesPlaybackPositions: jest.Mock;
         getAllPlaybackPositions: jest.Mock;
@@ -145,6 +153,8 @@ describe('StalkerCollectionDetailComponent', () => {
         };
         playbackPositions = {
             savePlaybackPosition: jest.fn(),
+            savePlaybackPositionOrThrow: jest.fn(async () => undefined),
+            clearPlaybackPositionOrThrow: jest.fn(async () => undefined),
             getPlaybackPosition: jest.fn(async () => null),
             getSeriesPlaybackPositions: jest.fn(),
             getAllPlaybackPositions: jest.fn(),
@@ -539,6 +549,53 @@ describe('StalkerCollectionDetailComponent', () => {
             streamUrl: 'https://streams.test/a.mp4',
         });
         expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('marks a collection movie watched under its owning playlist', async () => {
+        const sourceItem = {
+            id: '1701',
+            title: 'Collection Movie',
+            category_id: 'vod',
+            cmd: '/media/file_1701.mpg',
+            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
+        };
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+        await settleDetail(fixture);
+        await settleDetail(fixture);
+
+        const detail = fixture.debugElement.query(
+            By.directive(StubStalkerInlineDetailComponent)
+        ).componentInstance as StubStalkerInlineDetailComponent;
+        expect(detail.isWatched()).toBe(false);
+
+        detail.watchedToggled.emit({
+            item: createStalkerVodItem(sourceItem, playlist._id),
+            watched: true,
+        });
+        await settleDetail(fixture);
+
+        expect(
+            playbackPositions.savePlaybackPositionOrThrow
+        ).toHaveBeenCalledWith(
+            'stalker-1',
+            expect.objectContaining({
+                contentXtreamId: 1701,
+                contentType: 'vod',
+            })
+        );
+        expect(detail.isWatched()).toBe(true);
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'XTREAM.MOVIE_MARKED_WATCHED',
+            undefined,
+            expect.anything()
+        );
     });
 
     it('does not load VOD playback position when the playlist id is missing', async () => {

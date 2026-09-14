@@ -1077,6 +1077,9 @@
         "SERIES_MARKED_UNWATCHED": "Serie als nicht angesehen markiert",
         "SERIES_WATCH_UPDATE_FAILED": "Aktualisierung der Serie fehlgeschlagen",
         "SERIES_WATCH_MENU": "Aktionen zum Markieren der Serie",
+        "MOVIE_MARKED_WATCHED": "Als angesehen markiert",
+        "MOVIE_MARKED_UNWATCHED": "Als nicht angesehen markiert",
+        "MOVIE_WATCH_UPDATE_FAILED": "Aktualisierung des Status „angesehen“ fehlgeschlagen",
         "EPISODES_WATCHED": "{{count}} von {{total}} Folgen angesehen",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal-Metadaten fehlen",

@@ -1077,6 +1077,9 @@
         "SERIES_MARKED_UNWATCHED": "Series marked as unwatched",
         "SERIES_WATCH_UPDATE_FAILED": "Updating the series failed",
         "SERIES_WATCH_MENU": "Series watch actions",
+        "MOVIE_MARKED_WATCHED": "Marked as watched",
+        "MOVIE_MARKED_UNWATCHED": "Marked as unwatched",
+        "MOVIE_WATCH_UPDATE_FAILED": "Updating the watched state failed",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal metadata unavailable",

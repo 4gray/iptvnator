@@ -148,10 +148,12 @@ describe('VodDetailsComponent offline playback', () => {
         playbackPosition = null,
         externalPlayback = null,
         providerOnly = false,
+        isWatched = false,
     }: {
         playbackPosition?: number | null;
         externalPlayback?: ExternalPlayerSession | null;
         providerOnly?: boolean;
+        isWatched?: boolean;
     } = {}) => {
         fixture = TestBed.createComponent(VodDetailsComponent);
         fixture.componentRef.setInput('item', STALKER_VOD);
@@ -162,6 +164,7 @@ describe('VodDetailsComponent offline playback', () => {
         fixture.componentRef.setInput('playbackPosition', playbackPosition);
         fixture.componentRef.setInput('externalPlayback', externalPlayback);
         fixture.componentRef.setInput('providerOnly', providerOnly);
+        fixture.componentRef.setInput('isWatched', isWatched);
         playClicked = jest.fn();
         resumeClicked = jest.fn();
         fixture.componentInstance.playClicked.subscribe(playClicked);
@@ -312,6 +315,8 @@ describe('VodDetailsComponent offline playback', () => {
                 PLAY: 'Play',
                 RESUME: 'Resume',
                 RESTART: 'Restart',
+                MARK_WATCHED: 'Mark as Watched',
+                MARK_UNWATCHED: 'Mark as Unwatched',
             },
             PORTALS: {
                 ADD_TO_FAVORITES: 'Add to favorites',
@@ -493,5 +498,90 @@ describe('VodDetailsComponent offline playback', () => {
         await fixture.whenStable();
         expect(playClicked).toHaveBeenCalledWith(STALKER_VOD);
         expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    describe('manual watched toggle', () => {
+        const watchedButton = (): HTMLButtonElement =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="vod-watched-toggle"]'
+            ) as HTMLButtonElement;
+
+        it('offers Mark as Watched and emits the desired state', async () => {
+            await render({ playbackPosition: 600 });
+            const watchedToggled = jest.fn();
+            fixture.componentInstance.watchedToggled.subscribe(watchedToggled);
+
+            expect(buttonText(watchedButton())).toContain('Mark as Watched');
+            expect(watchedButton().getAttribute('aria-pressed')).toBe('false');
+            expect(buttonText(primaryButton())).toContain('Resume');
+
+            watchedButton().click();
+
+            expect(watchedToggled).toHaveBeenCalledWith({
+                item: STALKER_VOD,
+                watched: true,
+            });
+        });
+
+        it('shows Play instead of Resume once the movie is watched', async () => {
+            await render({ playbackPosition: 5400, isWatched: true });
+            const watchedToggled = jest.fn();
+            fixture.componentInstance.watchedToggled.subscribe(watchedToggled);
+
+            expect(buttonText(primaryButton())).toContain('Play');
+            expect(buttonText(primaryButton())).not.toContain('Resume');
+            expect(findButtonWithText('Restart')).toBeUndefined();
+            expect(buttonText(watchedButton())).toContain('Mark as Unwatched');
+            expect(watchedButton().getAttribute('aria-pressed')).toBe('true');
+            expect(watchedButton().classList).toContain('favorite-btn--active');
+
+            watchedButton().click();
+
+            expect(watchedToggled).toHaveBeenCalledWith({
+                item: STALKER_VOD,
+                watched: false,
+            });
+        });
+
+        it.each([
+            [
+                'the inline player is mounted',
+                () =>
+                    fixture.componentRef.setInput('inlinePlayback', {
+                        streamUrl: 'https://portal.example/movie.mp4',
+                        title: 'Catalog Movie',
+                    }),
+            ],
+            [
+                'an external session owns the movie',
+                () =>
+                    fixture.componentRef.setInput(
+                        'externalPlayback',
+                        MATCHING_MPV_SESSION
+                    ),
+            ],
+            [
+                'an external launch is pending',
+                () =>
+                    fixture.componentRef.setInput(
+                        'externalPlayback',
+                        MATCHING_LAUNCHING_MPV_SESSION
+                    ),
+            ],
+            [
+                'a watched write is in flight',
+                () => fixture.componentRef.setInput('watchedToggleBusy', true),
+            ],
+        ])('disables the toggle while %s', async (_label, arrange) => {
+            await render();
+            const watchedToggled = jest.fn();
+            fixture.componentInstance.watchedToggled.subscribe(watchedToggled);
+            arrange();
+            fixture.detectChanges();
+
+            expect(watchedButton().disabled).toBe(true);
+            fixture.componentInstance.toggleWatched();
+            expect(watchedToggled).not.toHaveBeenCalled();
+        });
     });
 });

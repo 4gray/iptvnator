@@ -1077,6 +1077,9 @@
         "SERIES_MARKED_UNWATCHED": "Dizi izlenmedi olarak işaretlendi",
         "SERIES_WATCH_UPDATE_FAILED": "Dizi güncellemesi başarısız oldu",
         "SERIES_WATCH_MENU": "Dizi izleme işlemleri",
+        "MOVIE_MARKED_WATCHED": "İzlendi olarak işaretlendi",
+        "MOVIE_MARKED_UNWATCHED": "İzlenmedi olarak işaretlendi",
+        "MOVIE_WATCH_UPDATE_FAILED": "İzlenme durumu güncellemesi başarısız oldu",
         "EPISODES_WATCHED": "{{total}} bölümden {{count}} tanesi izlendi",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal üst verisi mevcut değil",
