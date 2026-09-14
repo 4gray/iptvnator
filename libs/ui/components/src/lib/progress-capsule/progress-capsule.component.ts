@@ -1,4 +1,9 @@
-import { Component, computed, input } from '@angular/core';
+import {
+    Component,
+    computed,
+    input,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 
 @Component({
     selector: 'app-progress-capsule',
@@ -14,6 +19,8 @@ import { Component, computed, input } from '@angular/core';
             ></div>
         </div>
     `,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             .progress-capsule {

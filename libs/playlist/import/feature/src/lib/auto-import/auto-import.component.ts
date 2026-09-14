@@ -1,4 +1,11 @@
-import { Component, computed, input, OnInit, output } from '@angular/core';
+import {
+    Component,
+    computed,
+    input,
+    OnInit,
+    output,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -139,6 +146,7 @@ function maskUrlQueryPasswords(url: string): string {
     selector: 'app-auto-import',
     templateUrl: './auto-import.component.html',
     styleUrl: './auto-import.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         MatButtonModule,
         MatFormFieldModule,
@@ -228,10 +236,7 @@ export class AutoImportComponent implements OnInit {
                 );
                 break;
             case 'xtream':
-                push(
-                    'HOME.XTREAM_PLAYLIST.SERVER_URL',
-                    candidate.serverUrl
-                );
+                push('HOME.XTREAM_PLAYLIST.SERVER_URL', candidate.serverUrl);
                 push('HOME.XTREAM_PLAYLIST.USERNAME', candidate.username);
                 push(
                     'HOME.XTREAM_PLAYLIST.PASSWORD',
@@ -239,14 +244,8 @@ export class AutoImportComponent implements OnInit {
                 );
                 break;
             case 'stalker':
-                push(
-                    'HOME.STALKER_PORTAL.SERVER_URL',
-                    candidate.portalUrl
-                );
-                push(
-                    'HOME.STALKER_PORTAL.MAC_ADDRESS',
-                    candidate.macAddress
-                );
+                push('HOME.STALKER_PORTAL.SERVER_URL', candidate.portalUrl);
+                push('HOME.STALKER_PORTAL.MAC_ADDRESS', candidate.macAddress);
                 push(
                     'HOME.STALKER_PORTAL.SERIAL_NUMBER',
                     candidate.serialNumber

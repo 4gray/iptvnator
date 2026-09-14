@@ -144,7 +144,11 @@
             @if (isStatusLoading) {
                 Syncing status...
             } @else if (status?.updatedAt) {
-                Updated {{ status?.updatedAt | date: 'HH:mm:ss' }}
+                Updated
+                {{
+                    $safeNavigationMigration(status?.updatedAt)
+                        | date: 'HH:mm:ss'
+                }}
             } @else {
                 Waiting for status...
             }

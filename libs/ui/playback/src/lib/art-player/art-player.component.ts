@@ -10,6 +10,7 @@ import {
     signal,
     SimpleChanges,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
@@ -46,6 +47,7 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
     ],
     providers: [WebVideoControlsAdapter],
     templateUrl: './art-player.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrls: ['./art-player.component.scss'],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {

@@ -472,7 +472,11 @@ describe('SettingsComponent form', () => {
             const webFixture = TestBed.createComponent(SettingsComponent);
             const webComponent = webFixture.componentInstance;
             stubSettingsSideEffects(webComponent);
+            const loadSettings = jest.spyOn(webComponent.form, 'loadSettings');
             webFixture.detectChanges();
+            expect(loadSettings).toHaveBeenCalledTimes(1);
+            // Await hydration before editing; Zone cannot track native awaits.
+            await loadSettings.mock.results[0].value;
             await webFixture.whenStable();
 
             webComponent.settingsForm.patchValue({ theme: Theme.DarkTheme });

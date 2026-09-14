@@ -1,4 +1,10 @@
-import { Component, input, output, ViewEncapsulation } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    ViewEncapsulation,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { FormArray, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -28,6 +34,8 @@ import { EpgViewModeOption } from './settings.models';
     ],
     templateUrl: './settings-epg-section.component.html',
     encapsulation: ViewEncapsulation.None,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [':host { display: contents; }'],
 })
 export class SettingsEpgSectionComponent {

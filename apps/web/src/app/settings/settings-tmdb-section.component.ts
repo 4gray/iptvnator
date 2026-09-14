@@ -4,6 +4,7 @@ import {
     input,
     signal,
     ViewEncapsulation,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -32,6 +33,8 @@ type TmdbKeyTestState = 'idle' | 'testing' | 'success' | 'error';
     ],
     templateUrl: './settings-tmdb-section.component.html',
     encapsulation: ViewEncapsulation.None,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             app-settings-tmdb-section {

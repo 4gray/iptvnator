@@ -14,7 +14,7 @@ const vitePackagePath = angularBuildRequire.resolve('vite/package.json');
 const vitePackage = JSON.parse(await readFile(vitePackagePath, 'utf8'));
 const viteConfigPath = join(
     dirname(vitePackagePath),
-    'dist/node/chunks/config.js'
+    'dist/node/chunks/node.js'
 );
 const viteConfig = await readFile(viteConfigPath, 'utf8');
 
@@ -26,8 +26,8 @@ function extractRegExp(name) {
     return runInNewContext(declaration[1]);
 }
 
-test('pins the Vite version carrying the local transform-filter backport', () => {
-    assert.equal(vitePackage.version, '7.3.6');
+test('pins the Vite version carrying the local transform-filter patch', () => {
+    assert.equal(vitePackage.version, '8.1.5');
 });
 
 test('uses bounded Vite prefilters with precise handler matchers', () => {
@@ -40,6 +40,15 @@ test('uses bounded Vite prefilters with precise handler matchers', () => {
     assert.ok(
         /filter: \{ code: workerImportMetaUrlFilterRE \}/.test(viteConfig),
         'worker import-meta transform must use the bounded prefilter'
+    );
+    assert.ok(
+        /filter: \{ code: assetImportMetaUrlFilterRE \}/.test(viteConfig),
+        'bundled asset URL rewriting must also use the bounded prefilter'
+    );
+    assert.doesNotMatch(
+        viteConfig,
+        /code:\s*(?:asset|worker)ImportMetaUrlRE\b/,
+        'precise handler matchers must not filter raw code containing comments'
     );
     assert.ok(
         /const re = new RegExp\(assetImportMetaUrlRE\)/.test(viteConfig),

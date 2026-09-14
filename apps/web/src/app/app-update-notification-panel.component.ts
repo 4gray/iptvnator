@@ -5,6 +5,7 @@ import {
     OnInit,
     signal,
     inject,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -101,6 +102,8 @@ import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-rele
             </section>
         }
     `,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             .app-update-notification {

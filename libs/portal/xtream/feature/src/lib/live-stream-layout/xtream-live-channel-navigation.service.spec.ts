@@ -1,4 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
     ActivatedRoute,
@@ -19,6 +25,7 @@ const other = { xtream_id: 3, category_id: '20', title: 'Other' };
 
 @Component({
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     providers: [XtreamLiveChannelNavigationService],
 })
 class NavigationHostComponent {

@@ -4,6 +4,7 @@ import {
     input,
     output,
     ViewEncapsulation,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -18,6 +19,8 @@ import {
     imports: [MatButtonModule, MatIconModule, TranslateModule],
     templateUrl: './settings-about-section.component.html',
     encapsulation: ViewEncapsulation.None,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         ':host { display: contents; }',
         '.version-block .build-commit { opacity: 0.65; font-size: 0.85em; }',
@@ -28,7 +31,9 @@ export class SettingsAboutSectionComponent {
     readonly version = input<string | undefined>();
     readonly buildCommit = input<string | undefined>();
     readonly updateMessage = input<string | undefined>();
-    readonly appUpdateStatus = input<ElectronBridgeAppUpdateStatus | null>(null);
+    readonly appUpdateStatus = input<ElectronBridgeAppUpdateStatus | null>(
+        null
+    );
 
     readonly buildCommitShort = computed(() => {
         const commit = this.buildCommit()?.trim();
@@ -74,7 +79,7 @@ export class SettingsAboutSectionComponent {
 
         return Boolean(
             status?.currentVersion &&
-                status.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking
+            status.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking
         );
     });
 

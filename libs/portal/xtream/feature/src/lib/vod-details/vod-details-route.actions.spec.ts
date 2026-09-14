@@ -1,5 +1,11 @@
 import { Location } from '@angular/common';
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -32,6 +38,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 @Component({
     selector: 'app-portal-inline-player',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '<div data-testid="inline-vod-player"></div>',
 })
 class StubPortalInlinePlayerComponent {

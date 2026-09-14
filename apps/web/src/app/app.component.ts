@@ -5,6 +5,7 @@ import {
     inject,
     OnInit,
     signal,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterOutlet } from '@angular/router';
@@ -48,6 +49,8 @@ const debugAppComponent = createDevLogger('AppComponent');
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         AppStartupStatusComponent,
         AppUpdateNotificationPanelComponent,

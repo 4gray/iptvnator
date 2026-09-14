@@ -7,6 +7,7 @@ import {
     inject,
     signal,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import {
     MAT_DIALOG_DATA,
@@ -38,6 +39,7 @@ interface WorkspaceCommandGroupSection {
     selector: 'app-workspace-command-palette',
     imports: [MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-command-palette.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-command-palette.component.scss',
 })
 export class WorkspaceCommandPaletteComponent implements AfterViewInit {

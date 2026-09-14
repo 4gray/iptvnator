@@ -13,6 +13,7 @@ import {
     signal,
     untracked,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import {
     type PlaybackDiagnostic,
@@ -38,7 +39,6 @@ import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/p
 import {
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
-    WEB_PLAYER_SHARED_CONTROLS_ENABLED,
 } from '../player-controls';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
@@ -65,12 +65,7 @@ import {
     toInlinePlaybackPlayer,
     toVideoPlayer,
 } from './web-player-recovery-policy';
-
-function resolveWebPlayerSharedControls(): boolean {
-    const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
-    const fallback = WEB_PLAYER_SHARED_CONTROLS_ENABLED;
-    return typeof storedValue === 'boolean' ? storedValue : fallback;
-}
+import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
 
 @Component({
     selector: 'app-web-player-view',
@@ -91,6 +86,7 @@ function resolveWebPlayerSharedControls(): boolean {
             useFactory: resolveWebPlayerSharedControls,
         },
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent implements OnDestroy {

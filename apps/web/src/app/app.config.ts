@@ -2,6 +2,7 @@ import {
     HttpClient,
     provideHttpClient,
     withInterceptorsFromDi,
+    withXhr,
 } from '@angular/common/http';
 import {
     FullscreenOverlayContainer,
@@ -114,7 +115,7 @@ export const appConfig: ApplicationConfig = {
         // fullscreen channel panel's sort/context menus and the controls'
         // tooltips render while the player is fullscreen.
         { provide: OverlayContainer, useClass: FullscreenOverlayContainer },
-        provideHttpClient(withInterceptorsFromDi()),
+        provideHttpClient(withXhr(), withInterceptorsFromDi()),
         provideStore({
             router: routerReducer,
             playlistState: playlistReducer,

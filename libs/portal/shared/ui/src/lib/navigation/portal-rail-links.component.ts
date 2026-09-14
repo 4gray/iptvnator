@@ -1,4 +1,9 @@
-import { Component, inject, input } from '@angular/core';
+import {
+    Component,
+    inject,
+    input,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -8,12 +13,16 @@ import {
     RouterLink,
     RouterLinkActive,
 } from '@angular/router';
-import { PortalRailLink, PortalRailSection } from '@iptvnator/portal/shared/util';
+import {
+    PortalRailLink,
+    PortalRailSection,
+} from '@iptvnator/portal/shared/util';
 
 @Component({
     selector: 'app-portal-rail-links',
     imports: [MatIcon, MatListModule, MatTooltip, RouterLink, RouterLinkActive],
     templateUrl: './portal-rail-links.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './portal-rail-links.component.scss',
 })
 export class PortalRailLinksComponent {
@@ -27,7 +36,9 @@ export class PortalRailLinksComponent {
     readonly variant = input<'list' | 'rail'>('list');
 
     resolveIcon(link: PortalRailLink): string {
-        const normalizedPath = link.path.map((segment) => String(segment)).join('/');
+        const normalizedPath = link.path
+            .map((segment) => String(segment))
+            .join('/');
         if (normalizedPath.includes('/workspace/sources')) {
             return 'playlist_play';
         }

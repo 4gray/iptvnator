@@ -9,7 +9,10 @@
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
-        "resolveJsonModule": true
+        "resolveJsonModule": true,
+        "noUncheckedSideEffectImports": false,
+        "types": ["*"],
+        "ignoreDeprecations": "6.0"
     },
     "include": ["src/**/*.ts"],
     "exclude": ["node_modules", "dist"]

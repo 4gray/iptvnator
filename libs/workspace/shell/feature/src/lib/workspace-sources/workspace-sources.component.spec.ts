@@ -2,7 +2,13 @@ import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { SourceActivityService } from '@iptvnator/services';
 import { MatDialog } from '@angular/material/dialog';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,7 +17,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import {
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
@@ -23,6 +29,7 @@ import { WorkspaceSourcesComponent } from './workspace-sources.component';
 @Component({
     selector: 'app-recent-playlists',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockRecentPlaylistsComponent {
@@ -116,9 +123,9 @@ describe('WorkspaceSourcesComponent', () => {
                         },
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
