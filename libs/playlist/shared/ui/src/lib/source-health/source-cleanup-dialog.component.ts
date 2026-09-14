@@ -1,4 +1,11 @@
-import { Component, DestroyRef, computed, effect, inject } from '@angular/core';
+import {
+    Component,
+    DestroyRef,
+    computed,
+    effect,
+    inject,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import {
     MAT_DIALOG_DATA,
@@ -107,7 +114,9 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                                 @if (entry.status === 'ready') {
                                     <span>{{
                                         'SOURCE_HEALTH.REASON.' +
-                                            entry.health?.reason | translate
+                                            $safeNavigationMigration(
+                                                entry.health?.reason
+                                            ) | translate
                                     }}</span>
                                 } @else {
                                     <span>{{
@@ -117,8 +126,9 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                                 }
                                 @if (entry.health?.checkedAt) {
                                     <time>{{
-                                        entry.health?.checkedAt
-                                            | date: 'shortTime'
+                                        $safeNavigationMigration(
+                                            entry.health?.checkedAt
+                                        ) | date: 'shortTime'
                                     }}</time>
                                 }
                                 @if (entry.warning) {
@@ -170,6 +180,7 @@ export interface SourceCleanupDialogData extends SourceCleanupContext {
                 </button>
             }
         </mat-dialog-actions>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             :host {

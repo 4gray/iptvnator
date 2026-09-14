@@ -7,6 +7,7 @@ import {
     output,
     signal,
     untracked,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -59,6 +60,7 @@ import { M3uVodMetadataService } from './m3u-vod-metadata.service';
         TranslatePipe,
     ],
     templateUrl: './m3u-vod-detail.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrls: ['./m3u-vod-detail.component.scss'],
 })
 export class M3uVodDetailComponent {
