@@ -113,8 +113,16 @@ export class ContentCardComponent {
         this.cardClick.emit();
     }
 
-    /** Space activates like a click but must not scroll the grid. */
-    onSpaceKey(event: Event): void {
+    /**
+     * Enter/Space activate the card like a click. Only keys pressed on the
+     * card itself count: the nested Remove button's own Enter/Space bubble
+     * here too, and must not open the item they are removing. Space also
+     * prevents the page scroll.
+     */
+    onCardKey(event: Event): void {
+        if (event.target !== event.currentTarget) {
+            return;
+        }
         event.preventDefault();
         this.cardClick.emit();
     }

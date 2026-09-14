@@ -141,14 +141,43 @@ describe('ContentCardComponent', () => {
             'Blade Runner'
         );
 
-        card.triggerEventHandler('keydown.enter', new KeyboardEvent('keydown'));
+        const cardElement = card.nativeElement as HTMLElement;
+        cardElement.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
         const space = new KeyboardEvent('keydown', {
             key: ' ',
+            bubbles: true,
             cancelable: true,
         });
-        card.triggerEventHandler('keydown.space', space);
+        cardElement.dispatchEvent(space);
 
         expect(clicked).toHaveBeenCalledTimes(2);
         expect(space.defaultPrevented).toBe(true);
+    });
+
+    it('ignores Enter/Space bubbling up from the nested Remove button', () => {
+        fixture.componentRef.setInput('showRemoveButton', true);
+        fixture.detectChanges();
+        const clicked = jest.fn();
+        fixture.componentInstance.cardClick.subscribe(clicked);
+        const removeButton = fixture.debugElement.query(
+            By.css('.remove-button')
+        ).nativeElement as HTMLElement;
+
+        removeButton.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+        const space = new KeyboardEvent('keydown', {
+            key: ' ',
+            bubbles: true,
+            cancelable: true,
+        });
+        removeButton.dispatchEvent(space);
+
+        // The button's own activation removes the item; the card must
+        // neither open it nor swallow the Space the button relies on.
+        expect(clicked).not.toHaveBeenCalled();
+        expect(space.defaultPrevented).toBe(false);
     });
 });

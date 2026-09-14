@@ -4,8 +4,8 @@
     tabindex="0"
     [attr.aria-label]="title()"
     (click)="onCardClick()"
-    (keydown.enter)="onCardClick()"
-    (keydown.space)="onSpaceKey($event)"
+    (keydown.enter)="onCardKey($event)"
+    (keydown.space)="onCardKey($event)"
 >
     <div class="thumbnail-wrapper">
         @if (showRemoveButton()) {
