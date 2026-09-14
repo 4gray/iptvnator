@@ -532,6 +532,31 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             expect(service.routePlaybackPosition()?.positionSeconds).toBe(300);
         });
 
+        it('reports the row as loaded only once the read for the current route lands', async () => {
+            const load = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(load.promise);
+            expect(service.positionLoaded()).toBe(false);
+
+            const pending = service.loadPosition(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+            expect(service.positionLoaded()).toBe(false);
+            load.resolve(null);
+            await pending;
+            expect(service.positionLoaded()).toBe(true);
+
+            // A stale answer for a route that moved on never flips it back on.
+            const stale = deferred<PlaybackPositionData | null>();
+            getPlaybackPosition.mockReturnValueOnce(stale.promise);
+            const stalePending = service.loadPosition(
+                ROUTE_PLAYLIST,
+                ROUTE_VOD_ID
+            );
+            expect(service.positionLoaded()).toBe(false);
+            routeVodId.set(ROUTE_VOD_ID + 1);
+            stale.resolve(null);
+            await stalePending;
+            expect(service.positionLoaded()).toBe(false);
+        });
+
         it('drops a pending result once a row was written since the read started', async () => {
             const oldLoad = deferred<PlaybackPositionData | null>();
             getPlaybackPosition.mockReturnValueOnce(oldLoad.promise);

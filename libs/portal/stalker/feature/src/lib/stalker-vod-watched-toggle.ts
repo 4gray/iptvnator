@@ -15,6 +15,7 @@ export interface StalkerVodWatchedToggleConfig {
     position: Signal<PlaybackPositionData | null>;
     applyPosition: (position: PlaybackPositionData | null) => void;
     playingNow: Signal<boolean>;
+    positionReady: Signal<boolean>;
     snackBar: MatSnackBar;
     translateService: TranslateService;
     logger: Logger;
@@ -33,6 +34,7 @@ export function createStalkerVodWatchedToggle(
         position: config.position,
         applyPosition: config.applyPosition,
         playingNow: config.playingNow,
+        positionReady: config.positionReady,
         notify: (feedback) =>
             config.snackBar.open(
                 config.translateService.instant(

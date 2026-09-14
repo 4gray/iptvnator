@@ -38,6 +38,12 @@ export interface VodWatchedToggleConfig {
      * is true the toggle stays disabled rather than silently flipping back.
      */
     playingNow?: Signal<boolean>;
+    /**
+     * Whether `position` is the stored row rather than a placeholder: until
+     * the host's read lands the button would offer the wrong direction
+     * (re-marking a watched movie, or clearing a row it never saw).
+     */
+    positionReady?: Signal<boolean>;
     notify: (feedback: VodWatchedToggleFeedback) => void;
     /**
      * Runs after a confirmed write, e.g. to refresh catalog badges. Its
@@ -74,7 +80,10 @@ export function createVodWatchedToggle(
         isPortalPlaybackWatched(config.position())
     );
     const enabled = computed(
-        () => !busy() && !(config.playingNow?.() ?? false)
+        () =>
+            !busy() &&
+            !(config.playingNow?.() ?? false) &&
+            (config.positionReady?.() ?? true)
     );
 
     async function toggle(target: VodWatchedToggleTarget): Promise<boolean> {

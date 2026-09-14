@@ -53,6 +53,7 @@ class StubStalkerInlineDetailComponent {
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
     readonly watchedToggleBusy = input(false);
+    readonly watchedToggleReady = input(true);
     readonly playbackStartPending = input(false);
     readonly backClicked = output<void>();
     readonly playClicked = output<VodDetailsItem>();
@@ -701,7 +702,7 @@ describe('StalkerCollectionDetailComponent', () => {
         );
     });
 
-    it('keeps a watched mark when the initial collection position read lands afterwards', async () => {
+    it('blocks the collection toggle until the initial position read lands', async () => {
         let resolveRead!: (value: null) => void;
         playbackPositions.getPlaybackPosition.mockReturnValueOnce(
             new Promise<null>((resolve) => {
@@ -729,18 +730,29 @@ describe('StalkerCollectionDetailComponent', () => {
         const detail = fixture.debugElement.query(
             By.directive(StubStalkerInlineDetailComponent)
         ).componentInstance as StubStalkerInlineDetailComponent;
+        expect(detail.watchedToggleReady()).toBe(false);
         detail.watchedToggled.emit({
             item: createStalkerVodItem(sourceItem, playlist._id),
             watched: true,
         });
         await settleDetail(fixture);
-        expect(detail.isWatched()).toBe(true);
+        expect(
+            playbackPositions.savePlaybackPositionOrThrow
+        ).not.toHaveBeenCalled();
 
         resolveRead(null);
         await settleDetail(fixture);
+        expect(detail.watchedToggleReady()).toBe(true);
 
+        detail.watchedToggled.emit({
+            item: createStalkerVodItem(sourceItem, playlist._id),
+            watched: true,
+        });
+        await settleDetail(fixture);
+        expect(
+            playbackPositions.savePlaybackPositionOrThrow
+        ).toHaveBeenCalledTimes(1);
         expect(detail.isWatched()).toBe(true);
-        expect(detail.playbackPosition()).toBeGreaterThan(0);
     });
 
     it('does not load VOD playback position when the playlist id is missing', async () => {

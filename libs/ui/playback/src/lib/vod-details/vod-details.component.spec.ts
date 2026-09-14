@@ -573,6 +573,11 @@ describe('VodDetailsComponent offline playback', () => {
                 () => fixture.componentRef.setInput('watchedToggleBusy', true),
             ],
             [
+                'the stored position has not loaded yet',
+                () =>
+                    fixture.componentRef.setInput('watchedToggleReady', false),
+            ],
+            [
                 'a playback start is still resolving',
                 () =>
                     fixture.componentRef.setInput('playbackStartPending', true),

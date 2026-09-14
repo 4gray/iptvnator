@@ -106,6 +106,9 @@ export class VodDetailsComponent {
     /** A watched write is in flight; the toggle waits for it. */
     readonly watchedToggleBusy = input(false);
 
+    /** The host has the stored row in hand (`playbackPosition` is not a placeholder). */
+    readonly watchedToggleReady = input(true);
+
     /**
      * A Play/Resume is still resolving with the portal: nothing plays yet,
      * but the player about to start would overwrite a row written now.
@@ -320,6 +323,7 @@ export class VodDetailsComponent {
     readonly canToggleWatched = computed(
         () =>
             !this.watchedToggleBusy() &&
+            this.watchedToggleReady() &&
             !this.playbackStartPending() &&
             this.inlinePlayback() === null &&
             this.matchedExternalPlayback() === null &&

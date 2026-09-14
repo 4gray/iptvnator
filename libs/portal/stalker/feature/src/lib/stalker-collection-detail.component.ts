@@ -70,6 +70,7 @@ import {
                 [externalPlayback]="externalPlayback.activeSession()"
                 [isWatched]="playback.watchedToggle.isWatched()"
                 [watchedToggleBusy]="playback.watchedToggle.busy()"
+                [watchedToggleReady]="playback.positionLoaded()"
                 [playbackStartPending]="playback.playbackStartPending()"
                 (backClicked)="closeRequested.emit()"
                 (playClicked)="onVodPlay($event)"

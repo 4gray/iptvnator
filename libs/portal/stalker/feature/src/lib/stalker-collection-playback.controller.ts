@@ -64,6 +64,7 @@ export class StalkerCollectionPlaybackController {
     readonly playbackStartPending = computed(() =>
         this.vodPlayback.playbackStartPending()
     );
+    readonly positionLoaded = computed(() => this.vodPlayback.positionLoaded());
 
     /** Manual watched toggle; the child gates it on live playback itself. */
     readonly watchedToggle = createStalkerVodWatchedToggle({
@@ -72,6 +73,7 @@ export class StalkerCollectionPlaybackController {
         playingNow: computed(
             () => this.inlinePlayback() !== null || this.playbackStartPending()
         ),
+        positionReady: this.positionLoaded,
         applyPosition: (position) => {
             // A read still in flight started from the pre-write row; letting
             // it land would revert the toggle it never saw.
@@ -150,6 +152,8 @@ export class StalkerCollectionPlaybackController {
     }
 
     clearSelectedVodPosition(): void {
+        this.vodPlayback.discardPendingPositionLoad();
+        this.vodPlayback.positionLoaded.set(false);
         this.selectedVodPosition.set(null);
     }
 

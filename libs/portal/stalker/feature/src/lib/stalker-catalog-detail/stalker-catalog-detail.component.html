@@ -17,6 +17,7 @@
             [providerOnly]="providerOnly()"
             [isWatched]="watchedToggle.isWatched()"
             [watchedToggleBusy]="watchedToggle.busy()"
+            [watchedToggleReady]="positionLoaded()"
             [playbackStartPending]="playbackStartPending()"
             (playClicked)="onVodPlay($event)"
             (resumeClicked)="onVodResume($event)"

@@ -352,8 +352,12 @@ export class VodDetailsPlaybackService {
         this.positionLoadGeneration++;
     }
 
+    /** The route copy's row is in hand; fails closed while a read is in flight. */
+    readonly positionLoaded = signal(false);
+
     async loadPosition(playlistId: string, vodId: number): Promise<void> {
         const generation = ++this.positionLoadGeneration;
+        this.positionLoaded.set(false);
         const position = await this.playbackPositions.getPlaybackPosition(
             playlistId,
             vodId,
@@ -370,6 +374,7 @@ export class VodDetailsPlaybackService {
 
         this.vodPlaybackPosition.set(position);
         this.routePlaybackPosition.set(position);
+        this.positionLoaded.set(true);
     }
 
     private addToRecentlyViewed(): void {

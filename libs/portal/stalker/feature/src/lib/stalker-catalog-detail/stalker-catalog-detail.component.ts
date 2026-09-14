@@ -109,6 +109,8 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     );
     private unsubscribePositionUpdates: (() => void) | null = null;
     private positionLoadGeneration = 0;
+    /** The stored row is in hand (not the placeholder shown while reading). */
+    readonly positionLoaded = signal(false);
     /**
      * The start still waiting on the portal between the click and playback,
      * keyed by its owner: a stale resolution for the previous movie must not
@@ -151,6 +153,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         playingNow: computed(
             () => this.inlinePlayback() !== null || this.playbackStartPending()
         ),
+        positionReady: this.positionLoaded,
         applyPosition: (position) => {
             // A read still in flight started from the pre-write row; letting
             // it land would revert the toggle it never saw.
@@ -365,6 +368,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         vodId: number
     ): Promise<void> {
         const generation = ++this.positionLoadGeneration;
+        this.positionLoaded.set(false);
         if (Number.isNaN(vodId)) {
             this.selectedVodPosition.set(null);
             return;
@@ -385,6 +389,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             return;
         }
         this.selectedVodPosition.set(position ?? null);
+        this.positionLoaded.set(true);
     }
 
     private async startStalkerVodPlayback(

@@ -44,6 +44,7 @@ class StubVodDetailsComponent {
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
     readonly watchedToggleBusy = input(false);
+    readonly watchedToggleReady = input(true);
     readonly playbackStartPending = input(false);
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
@@ -221,7 +222,7 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         );
     });
 
-    it('keeps a watched mark when the initial position read lands afterwards', async () => {
+    it('blocks the toggle until the initial position read lands, then honours it', async () => {
         let resolveRead!: (value: null) => void;
         getPlaybackPosition.mockReturnValueOnce(
             new Promise<null>((resolve) => {
@@ -233,19 +234,23 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         const child = fixture.debugElement.query(
             By.directive(StubVodDetailsComponent)
         ).componentInstance as StubVodDetailsComponent;
+        expect(child.watchedToggleReady()).toBe(false);
+
+        // Before the row is known the direction would be a guess: refused.
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        expect(savePlaybackPositionOrThrow).not.toHaveBeenCalled();
+
+        resolveRead(null);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(child.watchedToggleReady()).toBe(true);
 
         child.watchedToggled.emit({ item: child.item(), watched: true });
         await fixture.whenStable();
         fixture.detectChanges();
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
         expect(child.isWatched()).toBe(true);
-
-        // The read that started before the write answers "no row" now.
-        resolveRead(null);
-        await fixture.whenStable();
-        fixture.detectChanges();
-
-        expect(child.isWatched()).toBe(true);
-        expect(child.playbackPosition()).toBeGreaterThan(0);
     });
 
     it('keeps provider-only presentation disabled for a regular VOD open', async () => {

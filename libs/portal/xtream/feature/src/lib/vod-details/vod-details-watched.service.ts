@@ -50,6 +50,7 @@ export class VodDetailsWatchedService {
                 this.playback.isExternalLaunchPending() ||
                 this.playback.playbackStartPending()
         ),
+        positionReady: this.playback.positionLoaded,
         notify: (feedback) =>
             this.snackBar.open(
                 this.translate.instant(VOD_WATCHED_FEEDBACK_KEYS[feedback]),

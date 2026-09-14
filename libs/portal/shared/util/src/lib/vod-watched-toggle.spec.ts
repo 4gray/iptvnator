@@ -223,6 +223,37 @@ describe('createVodWatchedToggle', () => {
         ).not.toHaveBeenCalled();
     });
 
+    it('stays disabled until the stored row is in hand', async () => {
+        const position = signal<PlaybackPositionData | null>(null);
+        const positionReady = signal(false);
+        const save = jest.fn().mockResolvedValue(undefined);
+        const toggle = createVodWatchedToggle({
+            playbackPositions: {
+                savePlaybackPositionOrThrow: save,
+                clearPlaybackPositionOrThrow: jest
+                    .fn()
+                    .mockResolvedValue(undefined),
+            },
+            position,
+            applyPosition: (next) => position.set(next),
+            positionReady,
+            notify: jest.fn(),
+        });
+        const target = {
+            playlistId: PLAYLIST,
+            contentXtreamId: 42,
+            stillCurrent: () => true,
+        };
+
+        expect(toggle.enabled()).toBe(false);
+        await expect(toggle.toggle(target)).resolves.toBe(false);
+        expect(save).not.toHaveBeenCalled();
+
+        positionReady.set(true);
+        expect(toggle.enabled()).toBe(true);
+        await expect(toggle.toggle(target)).resolves.toBe(true);
+    });
+
     it('serializes overlapping toggles', async () => {
         const t = setup(null);
         let release!: () => void;

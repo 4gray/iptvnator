@@ -1,4 +1,4 @@
-import { type WritableSignal, computed } from '@angular/core';
+import { type WritableSignal, computed, signal } from '@angular/core';
 import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
 import {
@@ -93,11 +93,19 @@ export class StalkerVodPlaybackController {
         this.loadSelectedVodPositionRequestId++;
     }
 
+    /**
+     * Whether `selectedVodPosition` is the stored row rather than the
+     * placeholder shown while the read is in flight. Fails closed: a read
+     * that never lands keeps the watched toggle off rather than guessing.
+     */
+    readonly positionLoaded = signal(false);
+
     async loadSelectedVodPosition(
         playlistId: string,
         vodId: number
     ): Promise<void> {
         const requestId = ++this.loadSelectedVodPositionRequestId;
+        this.positionLoaded.set(false);
 
         if (!playlistId || !Number.isFinite(vodId)) {
             this.config.selectedVodPosition.set(null);
@@ -115,6 +123,7 @@ export class StalkerVodPlaybackController {
         }
 
         this.config.selectedVodPosition.set(position ?? null);
+        this.positionLoaded.set(true);
     }
 
     handleInlineTimeUpdate(event: {

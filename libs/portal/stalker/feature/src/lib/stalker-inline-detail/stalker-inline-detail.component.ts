@@ -44,6 +44,7 @@ export class StalkerInlineDetailComponent {
     readonly providerOnly = input(false);
     readonly isWatched = input(false);
     readonly watchedToggleBusy = input(false);
+    readonly watchedToggleReady = input(true);
     readonly playbackStartPending = input(false);
 
     readonly backClicked = output<void>();
