@@ -1,4 +1,9 @@
-import { Component, input, output } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { createStalkerVodItem } from '@iptvnator/shared/interfaces';
@@ -6,7 +11,11 @@ import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail.component';
 
-@Component({ selector: 'app-vod-details', template: '' })
+@Component({
+    selector: 'app-vod-details',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubVodDetailsComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly item = input.required<unknown>();
@@ -30,7 +39,11 @@ class StubVodDetailsComponent {
     readonly inlineExternalFallbackRequested = output<unknown>();
 }
 
-@Component({ selector: 'app-stalker-series-view', template: '' })
+@Component({
+    selector: 'app-stalker-series-view',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubStalkerSeriesViewComponent {
     readonly vodWithSeries = input<unknown>(null);
     readonly providerOnly = input(false);

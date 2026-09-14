@@ -1,4 +1,9 @@
-import { Component, inject, OnInit } from '@angular/core';
+import {
+    Component,
+    inject,
+    OnInit,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import {
     FormBuilder,
     FormControl,
@@ -14,6 +19,7 @@ import { RuntimeCapabilitiesService } from '@iptvnator/services';
 @Component({
     selector: 'app-url-upload',
     templateUrl: './url-upload.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         MatFormFieldModule,
         MatInputModule,

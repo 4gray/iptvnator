@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Klein",
         "COVER_SIZE_MEDIUM": "Gemiddeld",
         "COVER_SIZE_LARGE": "Groot",
+        "COVER_TITLES": "Titels onder hoezen tonen",
+        "COVER_TITLES_DESCRIPTION": "Schakel dit uit voor een muur met alleen posters in rasters met films en reeksen: de titel verschijnt op de hoes wanneer u de muis erover beweegt of hem focust. Livekanalen, zoekresultaten en dashboardrails behouden hun labels.",
         "EPG_VIEW_MODE": "Gidsweergave",
         "EPG_OFFSET_TITLE": "EPG-tijdverschuiving",
         "EPG_OFFSET_HINT": "Verschuif weergegeven programmatijden zonder de gids te vernieuwen. Gebruik minuten van -720 tot 720.",

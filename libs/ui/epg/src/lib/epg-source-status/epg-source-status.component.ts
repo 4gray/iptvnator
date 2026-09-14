@@ -6,6 +6,7 @@ import {
     inject,
     input,
     signal,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -17,12 +18,7 @@ import {
 } from '@iptvnator/epg/data-access';
 
 type BadgeStatus =
-    | 'loading'
-    | 'queued'
-    | 'fresh'
-    | 'stale'
-    | 'error'
-    | 'unknown';
+    'loading' | 'queued' | 'fresh' | 'stale' | 'error' | 'unknown';
 
 @Component({
     selector: 'app-epg-source-status',
@@ -34,6 +30,7 @@ type BadgeStatus =
         TranslatePipe,
     ],
     templateUrl: './epg-source-status.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './epg-source-status.component.scss',
 })
 export class EpgSourceStatusComponent implements OnInit {
@@ -61,10 +58,10 @@ export class EpgSourceStatusComponent implements OnInit {
         return this.isFresh() ? 'fresh' : 'stale';
     });
 
-    readonly errorMessage = computed(() =>
-        this.epgProgress
-            .imports()
-            .find((item) => item.url === this.url())?.error
+    readonly errorMessage = computed(
+        () =>
+            this.epgProgress.imports().find((item) => item.url === this.url())
+                ?.error
     );
 
     constructor() {

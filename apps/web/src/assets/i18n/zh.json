@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "小",
         "COVER_SIZE_MEDIUM": "中",
         "COVER_SIZE_LARGE": "大",
+        "COVER_TITLES": "在封面下方显示标题",
+        "COVER_TITLES_DESCRIPTION": "关闭后，电影和剧集网格将呈现纯海报墙：将指针悬停在封面上或将其聚焦时才会显示标题。直播频道、搜索结果和仪表盘栏目将始终显示标签。",
         "EPG_VIEW_MODE": "节目指南视图",
         "EPG_OFFSET_TITLE": "EPG 时间偏移",
         "EPG_OFFSET_HINT": "无需刷新节目指南即可调整显示的节目时间。请输入 -720 到 720 之间的分钟数。",

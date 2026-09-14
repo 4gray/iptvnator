@@ -270,6 +270,36 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().webPlayerSharedControls).toBe(false);
     });
 
+    it('defaults cover titles to shown when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().showCoverTitles).toBe(true);
+    });
+
+    it('restores a persisted posters-only opt-out and persists it back', async () => {
+        storedSettings = { showCoverTitles: false };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+        expect(store.getSettings().showCoverTitles).toBe(false);
+
+        await store.updateSettings({ showCoverTitles: true });
+        expect(store.showCoverTitles?.()).toBe(true);
+        expect(storage.set).toHaveBeenLastCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({ showCoverTitles: true })
+        );
+
+        await store.updateSettings({
+            showCoverTitles: 'false' as unknown as boolean,
+        });
+        // Junk never opts out: only an explicit boolean false does.
+        expect(store.showCoverTitles?.()).toBe(true);
+    });
+
     it('defaults embedded MPV auto-reconnect to true when the stored field is missing', async () => {
         storedSettings = {};
         const store = injector.get(SettingsStore);

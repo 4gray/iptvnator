@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Pequeño",
         "COVER_SIZE_MEDIUM": "Mediano",
         "COVER_SIZE_LARGE": "Grande",
+        "COVER_TITLES": "Mostrar títulos debajo de las portadas",
+        "COVER_TITLES_DESCRIPTION": "Desactívalo para lograr un muro de solo pósteres en las cuadrículas de películas y series: el título aparece sobre la portada al pasar el cursor por encima o al enfocarla. Los canales en vivo, los resultados de búsqueda y los carriles del panel mantienen sus etiquetas.",
         "EPG_VIEW_MODE": "Vista de la guía",
         "EPG_OFFSET_TITLE": "Desfase horario de la EPG",
         "EPG_OFFSET_HINT": "Desplaza las horas mostradas de los programas sin actualizar la guía. Usa minutos, de -720 a 720.",

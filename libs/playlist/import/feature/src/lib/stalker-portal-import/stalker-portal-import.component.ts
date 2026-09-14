@@ -1,4 +1,10 @@
-import { Component, inject, output, signal } from '@angular/core';
+import {
+    Component,
+    inject,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import {
     FormControl,
     FormGroup,
@@ -59,6 +65,7 @@ interface StalkerSettledIdentity {
     ],
     selector: 'app-stalker-portal-import',
     templateUrl: './stalker-portal-import.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             :host {

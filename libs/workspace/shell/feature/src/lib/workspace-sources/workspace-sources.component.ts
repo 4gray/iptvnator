@@ -18,7 +18,12 @@ import {
     sourceHealthType,
     PlaylistUpdateState,
 } from '@iptvnator/shared/interfaces';
-import { Component, computed, inject } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -55,6 +60,7 @@ interface SortOption {
         TranslatePipe,
     ],
     templateUrl: './workspace-sources.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-sources.component.scss',
 })
 export class WorkspaceSourcesComponent {

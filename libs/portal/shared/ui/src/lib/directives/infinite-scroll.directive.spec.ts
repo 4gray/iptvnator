@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { InfiniteScrollDirective } from './infinite-scroll.directive';
@@ -13,6 +13,7 @@ import { InfiniteScrollDirective } from './infinite-scroll.directive';
         [infiniteResetKey]="resetKey()"
         (infiniteLoadMore)="onLoadMore()"
     ></div>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [InfiniteScrollDirective],
 })
 class TestHostComponent {

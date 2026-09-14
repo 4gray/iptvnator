@@ -304,27 +304,28 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    snap, F11). The controls hide themselves while the window is
    fullscreen.
 
-   Window state is **never re-read at event time**. `attachWindowStateEvents`
-   seeds `{ isMaximized, isFullScreen }` once at window creation and each
-   event patches only the flag it names; every push carries a copy of that
-   tracked state. On Windows both getters can still report the
-   pre-transition value while the matching event fires — `isFullScreen()`
-   stays `true` during an HTML fullscreen exit, and `isMaximized()` reads
-   `false` while the window is fullscreen. Because the renderer replaces
-   both flags on every push and no later event corrects a stale one,
-   polling left the controls hidden forever after leaving fullscreen and
-   stuck the maximize/restore glyph on the wrong icon. Regression coverage:
-   `app-window-state.spec.ts` and `window-controls.e2e.ts`.
+    Window state is **never re-read at event time**. `attachWindowStateEvents`
+    seeds `{ isMaximized, isFullScreen }` once at window creation and each
+    event patches only the flag it names; every push carries a copy of that
+    tracked state. On Windows both getters can still report the
+    pre-transition value while the matching event fires — `isFullScreen()`
+    stays `true` during an HTML fullscreen exit, and `isMaximized()` reads
+    `false` while the window is fullscreen. Because the renderer replaces
+    both flags on every push and no later event corrects a stale one,
+    polling left the controls hidden forever after leaving fullscreen and
+    stuck the maximize/restore glyph on the wrong icon. Regression coverage:
+    `app-window-state.spec.ts` and `window-controls.e2e.ts`.
 
-   The pushed `isFullScreen` is the OR of two flags tracked apart: native
-   (OS-level, fed by `enter/leave-full-screen`) and HTML-element (fed by
-   the `*-html-*` pair). Electron remembers when the window was already
-   natively fullscreen before the player entered HTML fullscreen and then
-   leaves ONLY the HTML state on exit — no `leave-full-screen` fires and the
-   window stays fullscreen — so a single flag cleared by
-   `leave-html-full-screen` would un-hide the controls over a window that
-   is still fullscreen. A fullscreen launch (below) or F11 followed by the
-   player's `F` → `Esc` makes that path routine on Windows/Linux.
+    The pushed `isFullScreen` is the OR of two flags tracked apart: native
+    (OS-level, fed by `enter/leave-full-screen`) and HTML-element (fed by
+    the `*-html-*` pair). Electron remembers when the window was already
+    natively fullscreen before the player entered HTML fullscreen and then
+    leaves ONLY the HTML state on exit — no `leave-full-screen` fires and the
+    window stays fullscreen — so a single flag cleared by
+    `leave-html-full-screen` would un-hide the controls over a window that
+    is still fullscreen. A fullscreen launch (below) or F11 followed by the
+    player's `F` → `Esc` makes that path routine on Windows/Linux.
+
 3. `WINDOW:TOGGLE_FULLSCREEN` toggles OS-level fullscreen (`setFullScreen`)
    and, like the maximize toggle, reports the requested state and leaves
    the `WINDOW:STATE_CHANGED` push authoritative. Because the transition is
@@ -439,15 +440,15 @@ Toolchain notes for the Electron 43 baseline:
    implicit `node-gyp rebuild` bypasses those binaries and makes installation
    depend on the host compiler toolchain. The old `node-abi` override belonged
    to v12's removed `prebuild-install` path and is no longer required.
-2. Local development supports **Node 22.13–22.x or Node >= 24**, declared in
-   `engines` as `^22.13.0 || >=24.0.0`.
-   The direct `@faker-js/faker` dependency and current lint tooling require
-   that floor. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
+2. Local development supports **Node 22.22.3–22.x or 24.15.0–24.x**, declared in
+   `engines` as `^22.22.3 || ^24.15.0`. Use `.nvmrc` (currently 22.23.2) for
+   development and CI. Angular 22 sets this supported LTS range and requires
+   TypeScript `>=6.0 <6.1`. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
    which requires Node 22.12 or newer, and the root `postinstall` runs
    `install-app-deps` on every `pnpm install`. The 26.15.7 minimum also
    carries the v26 backport that fully extracts the Snap template's `.tar.7z`
    payload; 26.15.0–26.15.6 can
-   produce a Snap that is missing `desktop-init.sh`. CI already runs Node 22.
+   produce a Snap that is missing `desktop-init.sh`.
 3. Dependabot keeps Electron, native database, packaging, EPG parser, and
    version-locked Shaka/mpegts updates out of the shared npm minor/patch group.
    Those dependencies require standalone PRs so their dedicated package,
@@ -457,7 +458,7 @@ Toolchain notes for the Electron 43 baseline:
    Electron command instead of during package `postinstall`, so `electron`
    must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local
    `pnpm run serve:backend` can include a one-time download; use `pnpm exec
-   electron --version` to prewarm it before an offline run.
+electron --version` to prewarm it before an offline run.
 
 Known caveats:
 

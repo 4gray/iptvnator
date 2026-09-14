@@ -241,6 +241,15 @@ export interface Settings {
     portalConnectivityGuard?: boolean;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
+    /**
+     * Titles under movie/series covers. Default on; only an explicit false
+     * switches VOD, series, favorites and recent grids to a posters-only
+     * wall whose title appears as an overlay on hover/focus. Live channel
+     * grids, search results and the dashboard rails always keep their
+     * labels: logos are often missing, a search answers by name, and rails
+     * carry meta rows the overlay cannot hold.
+     */
+    showCoverTitles?: boolean;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */
     epgViewMode?: EpgViewMode;
     /**

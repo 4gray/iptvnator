@@ -5,6 +5,7 @@ import {
     computed,
     inject,
     input,
+    linkedSignal,
     output,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -14,6 +15,10 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
+import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
+
+/** Channel-like cards always keep their label: logos rarely identify them. */
+const LABELLED_CONTENT_TYPES: ReadonlySet<string> = new Set(['live', 'radio']);
 
 @Component({
     selector: 'app-content-card',
@@ -21,10 +26,12 @@ import { startWith } from 'rxjs';
     imports: [DatePipe, MatIcon, MatIconButton, MatTooltip],
     templateUrl: './content-card.component.html',
     styleUrl: './content-card.component.scss',
+    host: { '[class.content-card--posters-only]': 'postersOnly()' },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ContentCardComponent {
     private readonly translate = inject(TranslateService);
+    private readonly coverTitles = inject(CoverTitlesService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
@@ -54,11 +61,33 @@ export class ContentCardComponent {
     /** Whether to render the type badge (live/movie/series) on the poster */
     readonly showTypeBadge = input<boolean>(true);
 
+    /**
+     * Whether this card may join the posters-only wall
+     * (`Settings.showCoverTitles === false`). Hosts whose grids answer by
+     * name — search results, "recently added" rails — pass false so their
+     * labels stay put regardless of the preference.
+     */
+    readonly allowPostersOnly = input<boolean>(true);
+
     /** Emitted when the card is clicked */
     readonly cardClick = output<void>();
 
     /** Emitted when the remove button is clicked */
     readonly remove = output<void>();
+    /** A failed poster URL falls back per card; a new URL gets a fresh try. */
+    protected readonly artworkFailed = linkedSignal({
+        source: this.posterUrl,
+        computation: () => false,
+    });
+    protected readonly artworkMissing = computed(
+        () => !this.posterUrl() || this.artworkFailed()
+    );
+    protected readonly postersOnly = computed(
+        () =>
+            this.allowPostersOnly() &&
+            this.coverTitles.postersOnly() &&
+            !LABELLED_CONTENT_TYPES.has(this.type() ?? '')
+    );
     readonly currentLocale = computed(() => {
         this.languageTick();
         return normalizeDateLocale(
@@ -84,13 +113,22 @@ export class ContentCardComponent {
         this.cardClick.emit();
     }
 
+    /**
+     * Enter/Space activate the card like a click; Space also prevents the
+     * page scroll. The Remove control is a sibling of the activation
+     * surface, never a descendant, so its keys cannot reach this handler.
+     */
+    onCardKey(event: Event): void {
+        event.preventDefault();
+        this.cardClick.emit();
+    }
+
     onRemoveClick(event: Event): void {
         event.stopPropagation();
         this.remove.emit();
     }
 
-    onImageError(event: Event): void {
-        (event.target as HTMLImageElement).src =
-            './assets/images/default-poster.png';
+    onImageError(): void {
+        this.artworkFailed.set(true);
     }
 }

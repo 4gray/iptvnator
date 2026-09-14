@@ -13,6 +13,7 @@ import {
     viewChild,
     ViewChild,
     signal,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
@@ -67,6 +68,7 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
         SeriesPlaybackNavigationControlsComponent,
     ],
     providers: [WebVideoControlsAdapter],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {

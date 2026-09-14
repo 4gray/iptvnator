@@ -2,12 +2,30 @@
 
 .content-card {
     @include grid.content-card;
+    position: relative;
+
+    // Keyboard/pointer activation surface; the Remove button is a sibling
+    // absolutely positioned over the poster's corner. The focus ring is
+    // drawn on this outer card: `overflow: hidden` here would clip an
+    // outline on the inner surface on every edge.
+    .content-card__activation {
+        border-radius: inherit;
+        outline: none;
+    }
+
+    &:has(> .content-card__activation:focus-visible) {
+        @include grid.focus-ring-declarations;
+    }
+
+    .remove-button {
+        @include grid.remove-button;
+    }
 
     .thumbnail-wrapper {
         @include grid.thumbnail-wrapper;
 
-        .remove-button {
-            @include grid.remove-button;
+        .cover-title-overlay {
+            @include grid.cover-title-overlay;
         }
 
         .type-badge {
@@ -18,4 +36,9 @@
     .card-info {
         @include grid.card-info;
     }
+}
+
+.content-card:hover .cover-title-overlay,
+.content-card__activation:focus-visible .cover-title-overlay {
+    opacity: 1;
 }

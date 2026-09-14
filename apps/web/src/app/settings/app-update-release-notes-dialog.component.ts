@@ -6,6 +6,7 @@ import {
     SecurityContext,
     signal,
     ViewEncapsulation,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -76,7 +77,9 @@ function decorateReleaseNotesHtml(html: string): string {
                 </button>
 
                 <div class="release-notes-dialog__version">
-                    <strong>{{ notes()?.releaseName || notes()?.tagName }}</strong>
+                    <strong>{{
+                        notes()?.releaseName || notes()?.tagName
+                    }}</strong>
                     @if (notes()?.publishedAt; as publishedAt) {
                         <span>{{ publishedAt | date: 'mediumDate' }}</span>
                     }
@@ -120,6 +123,8 @@ function decorateReleaseNotesHtml(html: string): string {
             </button>
         </mat-dialog-actions>
     `,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             .release-notes-dialog {
@@ -210,9 +215,8 @@ function decorateReleaseNotesHtml(html: string): string {
     ],
 })
 export class AppUpdateReleaseNotesDialogComponent implements OnInit {
-    private readonly data = inject<AppUpdateReleaseNotesDialogData>(
-        MAT_DIALOG_DATA
-    );
+    private readonly data =
+        inject<AppUpdateReleaseNotesDialogData>(MAT_DIALOG_DATA);
     private readonly dialogRef = inject(
         MatDialogRef<AppUpdateReleaseNotesDialogComponent>
     );
@@ -271,7 +275,9 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
                 await window.electron.getAppUpdateReleaseNotes(request)
             );
         } catch (error) {
-            this.error.set(error instanceof Error ? error.message : String(error));
+            this.error.set(
+                error instanceof Error ? error.message : String(error)
+            );
         } finally {
             this.loading.set(false);
         }

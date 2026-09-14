@@ -171,15 +171,9 @@ describe('PlaylistInfoComponent', () => {
                         currentLang: 'en',
                         get: jest.fn((key: string) => of(key)),
                         instant: jest.fn((key: string) => key),
-                        onDefaultLangChange: of({
-                            lang: 'en',
-                            translations: {},
-                        }),
-                        onLangChange: of({ lang: 'en', translations: {} }),
-                        onTranslationChange: of({
-                            lang: 'en',
-                            translations: {},
-                        }),
+                        onDefaultLangChange: new Subject(),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
                     },
                 },
                 {

@@ -244,7 +244,11 @@
                 [downloadAdapter]="episodeDownloadAdapter()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
-                    isCurrentSeasonLoading(seasonContainer?.selectedSeason())
+                    isCurrentSeasonLoading(
+                        $safeNavigationMigration(
+                            seasonContainer?.selectedSeason()
+                        )
+                    )
                 "
                 [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
                 [hasUnloadedSeasons]="hasUnloadedVodSeasons()"

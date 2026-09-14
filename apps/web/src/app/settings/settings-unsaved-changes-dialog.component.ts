@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -38,6 +38,8 @@ export interface SettingsUnsavedChangesDialogData {
             }
         `,
     ],
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <h2 mat-dialog-title>
             {{ 'SETTINGS.UNSAVED_DIALOG_TITLE' | translate }}

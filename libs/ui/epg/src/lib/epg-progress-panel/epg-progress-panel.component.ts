@@ -1,4 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -26,6 +32,7 @@ interface EpgTrustConfirmDialogData {
 @Component({
     selector: 'app-epg-trust-confirm-dialog',
     imports: [MatButtonModule, MatDialogModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <h2 mat-dialog-title>{{ data.title }}</h2>
         <mat-dialog-content class="mat-typography">
@@ -57,6 +64,7 @@ class EpgTrustConfirmDialogComponent {
         TranslatePipe,
     ],
     templateUrl: './epg-progress-panel.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './epg-progress-panel.component.scss',
 })
 export class EpgProgressPanelComponent {

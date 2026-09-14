@@ -6,6 +6,7 @@ import {
     inject,
     input,
     signal,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { Location } from '@angular/common';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -57,6 +58,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
     selector: 'app-stalker-catalog-detail',
     imports: [StalkerSeriesViewComponent, VodDetailsComponent],
     templateUrl: './stalker-catalog-detail.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             :host {

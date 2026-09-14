@@ -7,6 +7,7 @@ import {
     inject,
     untracked,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -48,6 +49,7 @@ import { LIVE_CATEGORIES_POPOVER } from '@iptvnator/portal/shared/util';
     ],
     templateUrl: './workspace-shell.component.html',
     styleUrl: './workspace-shell.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager,
     providers: [
         WorkspaceShellFacade,
         WorkspaceShellRouteStateService,
@@ -72,12 +74,10 @@ export class WorkspaceShellComponent {
     private readonly mpvOverlayVisibility = inject(
         EmbeddedMpvOverlayVisibilityService
     );
-    private readonly header = viewChild<WorkspaceShellHeaderShortcutTarget>(
-        'workspaceHeader'
-    );
-    private readonly workspaceContent = viewChild<ElementRef<HTMLElement>>(
-        'workspaceContent'
-    );
+    private readonly header =
+        viewChild<WorkspaceShellHeaderShortcutTarget>('workspaceHeader');
+    private readonly workspaceContent =
+        viewChild<ElementRef<HTMLElement>>('workspaceContent');
 
     constructor() {
         // Focus restoration is the closing half of the drawer's focus

@@ -8,7 +8,7 @@ RUN apk add --no-cache python3 make g++ git
 WORKDIR /usr/src/app
 
 COPY .npmrc ./
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
 
 # Node 25 unbundled Corepack, so `corepack enable` cannot be the way pnpm gets

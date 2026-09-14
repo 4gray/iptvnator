@@ -1,5 +1,10 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { Component, TemplateRef, input } from '@angular/core';
+import {
+    Component,
+    TemplateRef,
+    input,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
 
 /**
@@ -48,6 +53,8 @@ import { TranslateModule } from '@ngx-translate/core';
             </div>
         </section>
     `,
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrls: ['./content-about.component.scss'],
 })
 export class ContentAboutComponent {

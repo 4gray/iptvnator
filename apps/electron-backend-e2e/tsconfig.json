@@ -9,7 +9,8 @@
         "noImplicitOverride": true,
         "noPropertyAccessFromIndexSignature": true,
         "noImplicitReturns": true,
-        "noFallthroughCasesInSwitch": true
+        "noFallthroughCasesInSwitch": true,
+        "ignoreDeprecations": "6.0"
     },
     "include": [
         "**/*.ts",

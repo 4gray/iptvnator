@@ -114,9 +114,9 @@ describe('PortalChannelsListComponent', () => {
                                     ? 'Loading channels...'
                                     : key
                             ),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
+                        onDefaultLangChange: new Subject(),
                         currentLang: 'en',
                         defaultLang: 'en',
                     },

@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Klein",
         "COVER_SIZE_MEDIUM": "Mittel",
         "COVER_SIZE_LARGE": "Groß",
+        "COVER_TITLES": "Titel unter Covern anzeigen",
+        "COVER_TITLES_DESCRIPTION": "Deaktivieren Sie diese Option für eine reine Poster-Wand in Film- und Serienrastern: Der Titel erscheint auf dem Cover, wenn Sie mit der Maus darauf zeigen oder es per Tastatur fokussieren. Live-Kanäle, Suchergebnisse und Dashboard-Reihen behalten ihre Beschriftungen.",
         "EPG_VIEW_MODE": "Programmführer-Ansicht",
         "EPG_OFFSET_TITLE": "EPG-Zeitverschiebung",
         "EPG_OFFSET_HINT": "Angezeigte Sendezeiten verschieben, ohne den Programmführer zu aktualisieren. Minuten von -720 bis 720 verwenden.",

@@ -1,5 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -25,6 +30,8 @@ type SettingsDeleteSummaryItem = {
     selector: 'app-settings-delete-all-playlists-dialog',
     templateUrl: './settings-delete-all-playlists-dialog.component.html',
     styleUrls: ['./settings-delete-all-playlists-dialog.component.scss'],
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         CommonModule,
         MatButtonModule,

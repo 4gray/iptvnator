@@ -1,5 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import {
+    Component,
+    OnDestroy,
+    OnInit,
+    inject,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import {
     RemoteControlService,
     RemoteControlStatus,
@@ -9,6 +15,8 @@ import {
     selector: 'lib-remote-control',
     imports: [CommonModule],
     templateUrl: './remote-control.component.html',
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrls: ['./remote-control.component.scss'],
 })
 export class RemoteControlComponent implements OnInit, OnDestroy {

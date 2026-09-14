@@ -883,6 +883,48 @@ type XtreamRawEpgListing = {
     title: string;
 };
 
+test('@xtream posters-only wall — hides VOD titles behind a hover caption after Save', async ({
+    page,
+}) => {
+    await addXtreamPortal(page);
+    await page.locator('.context-panel .category-item').first().click();
+
+    const grid = page.locator('app-grid-list');
+    const firstCard = grid.locator('mat-card').first();
+    await expect(firstCard).toBeVisible({ timeout: 10_000 });
+    await expect(firstCard.locator('.title')).toBeVisible();
+    await expect(grid).not.toHaveClass(/grid-list--posters-only/);
+
+    const catalogUrl = page.url();
+    await page.goto('/workspace/settings/general');
+    const toggle = page.locator('[data-test-id="cover-titles-toggle"]');
+    await expect(toggle.locator('input')).toBeChecked();
+    await toggle.click();
+    const saveButton = page.locator('[data-test-id="save-settings"]');
+    await saveButton.click();
+    await expect(saveButton).toBeHidden();
+
+    await page.goto(catalogUrl);
+    await page.locator('.context-panel .category-item').first().click();
+    await expect(firstCard).toBeVisible({ timeout: 10_000 });
+    await expect(grid).toHaveClass(/grid-list--posters-only/);
+    await expect(firstCard.locator('.title')).toHaveCount(0);
+
+    // The caption is a hover/focus reveal: hidden at rest, shown when the
+    // pointer or keyboard focus lands on the card.
+    const caption = firstCard.locator('.cover-title-overlay');
+    await expect(caption).toHaveCSS('opacity', '0');
+    await firstCard.hover();
+    await expect(caption).toHaveCSS('opacity', '1');
+    await page.mouse.move(0, 0);
+    await expect(caption).toHaveCSS('opacity', '0');
+    await firstCard.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(firstCard).toBeFocused();
+    await expect(caption).toHaveCSS('opacity', '1');
+});
+
 async function getEpgFixtureStream(
     request: APIRequestContext
 ): Promise<XtreamLiveStream> {

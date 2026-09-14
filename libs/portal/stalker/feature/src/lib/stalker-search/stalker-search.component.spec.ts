@@ -1,5 +1,11 @@
 import { Location } from '@angular/common';
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
@@ -36,6 +42,7 @@ function deferred<T>() {
 @Component({
     selector: 'app-stalker-inline-detail',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class StubStalkerInlineDetailComponent {

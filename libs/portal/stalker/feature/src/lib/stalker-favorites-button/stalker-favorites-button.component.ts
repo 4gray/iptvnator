@@ -1,5 +1,10 @@
 import { AsyncPipe } from '@angular/common';
-import { Component, inject, input } from '@angular/core';
+import {
+    Component,
+    inject,
+    input,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, of, switchMap } from 'rxjs';
@@ -21,6 +26,7 @@ type FavoriteButtonItem = StalkerSelectedVodItem & {
     selector: 'app-favorites-button',
     templateUrl: './stalker-favorites-button.component.html',
     styleUrls: ['./stalker-favorites-button.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [AsyncPipe, MatIconModule, TranslateModule],
 })
 export class FavoritesButtonComponent {

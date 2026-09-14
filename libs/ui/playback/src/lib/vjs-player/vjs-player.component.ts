@@ -11,6 +11,7 @@ import {
     output,
     signal,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import '@yangkghjh/videojs-aspect-ratio-panel';
 import { createDevLogger } from '@iptvnator/shared/interfaces';
@@ -62,6 +63,7 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
         SeriesPlaybackNavigationControlsComponent,
     ],
     providers: [WebVideoControlsAdapter],
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {

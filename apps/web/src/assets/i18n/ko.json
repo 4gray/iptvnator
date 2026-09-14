@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "작게",
         "COVER_SIZE_MEDIUM": "중간",
         "COVER_SIZE_LARGE": "크게",
+        "COVER_TITLES": "커버 아래에 제목 표시",
+        "COVER_TITLES_DESCRIPTION": "끄면 영화 및 시리즈 그리드가 포스터만 표시되는 화면이 됩니다. 마우스로 가리키거나 키보드로 포커스하면 커버 위에 제목이 나타납니다. 라이브 채널, 검색 결과, 대시보드 레일은 항상 레이블을 유지합니다.",
         "EPG_VIEW_MODE": "가이드 보기",
         "EPG_OFFSET_TITLE": "EPG 시간 오프셋",
         "EPG_OFFSET_HINT": "가이드를 새로 고치지 않고 표시되는 프로그램 시간을 조정합니다. -720에서 720 사이의 분 단위로 입력하세요.",
