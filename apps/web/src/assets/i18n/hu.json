@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Kicsi",
         "COVER_SIZE_MEDIUM": "Közepes",
         "COVER_SIZE_LARGE": "Nagy",
+        "COVER_TITLES": "Borítók alatti címek megjelenítése",
+        "COVER_TITLES_DESCRIPTION": "Kapcsolja ki, ha csak borítókból álló falat szeretne a film- és sorozatrácsokban: a cím a borítón jelenik meg, amikor rámutat az egérrel vagy arra fókuszál. Az élő csatornák, a keresési találatok és az irányítópulti sávok megtartják a feliratukat.",
         "EPG_VIEW_MODE": "Műsorújság nézete",
         "EPG_OFFSET_TITLE": "EPG-időeltolás",
         "EPG_OFFSET_HINT": "A műsorok megjelenített idejének eltolása a műsorújság frissítése nélkül. Percben adja meg, -720 és 720 között.",

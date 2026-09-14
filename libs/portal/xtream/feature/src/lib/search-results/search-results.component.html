@@ -120,6 +120,7 @@
                             <div class="results-grid">
                                 @for (item of group.items; track item.id) {
                                     <app-content-card
+                                        [allowPostersOnly]="false"
                                         [posterUrl]="
                                             item.poster_url ?? undefined
                                         "
@@ -138,6 +139,7 @@
                 <div class="results-grid">
                     @for (item of xtreamStore.searchResults(); track item.id) {
                         <app-content-card
+                            [allowPostersOnly]="false"
                             [posterUrl]="item.poster_url ?? undefined"
                             [title]="item.title"
                             [type]="getDisplayType(item)"
@@ -163,6 +165,7 @@
             <div class="results-grid">
                 @for (item of visibleInPortalResults(); track item.id) {
                     <app-content-card
+                        [allowPostersOnly]="false"
                         [posterUrl]="item.poster_url ?? undefined"
                         [title]="item.title"
                         [type]="item.type"

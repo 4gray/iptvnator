@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Petite",
         "COVER_SIZE_MEDIUM": "Moyenne",
         "COVER_SIZE_LARGE": "Grande",
+        "COVER_TITLES": "Afficher les titres sous les affiches",
+        "COVER_TITLES_DESCRIPTION": "Désactivez cette option pour un mur d'affiches uniquement dans les grilles de films et de séries : le titre apparaît sur l'affiche lorsque vous la survolez ou lui donnez le focus. Les chaînes en direct, les résultats de recherche et les rangées du tableau de bord conservent leurs libellés.",
         "EPG_VIEW_MODE": "Vue du guide",
         "EPG_OFFSET_TITLE": "Décalage horaire de l’EPG",
         "EPG_OFFSET_HINT": "Décalez les horaires affichés des programmes sans actualiser le guide. Utilisez des minutes de -720 à 720.",

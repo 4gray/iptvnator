@@ -110,6 +110,25 @@
 
     <div class="setting-item">
         <div class="setting-item__meta">
+            <h4 id="cover-titles-label">
+                {{ 'SETTINGS.COVER_TITLES' | translate }}
+            </h4>
+            <p id="cover-titles-description">
+                {{ 'SETTINGS.COVER_TITLES_DESCRIPTION' | translate }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox
+                formControlName="showCoverTitles"
+                aria-labelledby="cover-titles-label"
+                aria-describedby="cover-titles-description"
+                data-test-id="cover-titles-toggle"
+            ></mat-checkbox>
+        </div>
+    </div>
+
+    <div class="setting-item">
+        <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.STARTUP_BEHAVIOR' | translate }}</h4>
             <p>
                 {{ 'SETTINGS.STARTUP_BEHAVIOR_DESCRIPTION' | translate }}

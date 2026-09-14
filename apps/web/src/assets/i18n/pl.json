@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Mały",
         "COVER_SIZE_MEDIUM": "Średni",
         "COVER_SIZE_LARGE": "Duży",
+        "COVER_TITLES": "Pokaż tytuły pod okładkami",
+        "COVER_TITLES_DESCRIPTION": "Wyłącz, aby uzyskać ścianę samych plakatów w siatkach filmów i seriali: tytuł pojawia się na okładce po najechaniu na nią kursorem lub przejściu do niej klawiaturą. Kanały na żywo, wyniki wyszukiwania i sekcje pulpitu nadal pokazują tytuły.",
         "EPG_VIEW_MODE": "Widok przewodnika",
         "EPG_OFFSET_TITLE": "Przesunięcie czasu EPG",
         "EPG_OFFSET_HINT": "Przesuń wyświetlane godziny programów bez odświeżania przewodnika. Użyj minut od -720 do 720.",
