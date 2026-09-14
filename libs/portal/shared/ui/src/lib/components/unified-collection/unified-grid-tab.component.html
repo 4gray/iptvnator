@@ -20,6 +20,7 @@
     <div class="grid-container">
         @for (item of filteredItems(); track trackByUid($index, item)) {
             <app-content-card
+                [allowPostersOnly]="!hasActiveSearch()"
                 [posterUrl]="item.posterUrl ?? ''"
                 [title]="item.name"
                 [type]="item.contentType"

@@ -260,9 +260,10 @@ row under VOD and series covers so the grid shows more rows per screen.
   the setting: live channel grids (`type` `live`/`itv`/`radio` or the
   `logo` variant — logos are too often missing to identify a channel),
   search results and "recently added" rails (they answer by name; hosts
-  pass `[allowPostersOnly]="false"` to `app-content-card`, and
-  `app-grid-list` drops the wall itself while its `searchTerm` input is
-  non-blank, i.e. an in-section search is filtering the category), and
+  pass `[allowPostersOnly]="false"` to `app-content-card`; `app-grid-list`
+  and `app-unified-grid-tab` drop the wall themselves while their
+  `searchTerm` input is non-blank, i.e. an in-section search is filtering
+  the list), and
   the dashboard rails (their meta rows do not fit an overlay).
 - **Reveal.** The title is a `.cover-title-overlay` inside the poster
   wrapper: bottom gradient scrim, two clamped lines, 150 ms ease-out
