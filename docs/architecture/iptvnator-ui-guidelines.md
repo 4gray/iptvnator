@@ -251,7 +251,7 @@ row under VOD and series covers so the grid shows more rows per screen.
 
 - **Resolution.** `CoverTitlesService.postersOnly` (`libs/portal/shared/ui`)
   is the single source: the opt-out AND a hover-capable pointer
-  (`(hover: hover)` media query, tracked live). On touch-only devices the
+  (`(any-hover: hover)` media query, tracked live). On touch-only devices the
   preference is ignored and titles stay under the covers, because a tap
   already opens the item and there is no gesture left to peek at a hidden
   name.

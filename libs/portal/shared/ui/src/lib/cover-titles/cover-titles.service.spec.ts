@@ -18,7 +18,7 @@ describe('CoverTitlesService', () => {
         listeners = [];
         removeListener = jest.fn();
         window.matchMedia = jest.fn((query: string) => ({
-            matches: query === '(hover: hover)' ? hoverMatches : false,
+            matches: query === '(any-hover: hover)' ? hoverMatches : false,
             addEventListener: (_type: string, listener: ChangeListener) => {
                 listeners.push(listener);
             },
@@ -59,6 +59,12 @@ describe('CoverTitlesService', () => {
         showCoverTitles.set(false);
 
         expect(service.postersOnly()).toBe(false);
+    });
+
+    it('reads any-hover, not hover, so a touch-first device with a mouse keeps the wall', () => {
+        TestBed.inject(CoverTitlesService);
+
+        expect(window.matchMedia).toHaveBeenCalledWith('(any-hover: hover)');
     });
 
     it('follows the hover capability when a pointer is attached or removed', () => {

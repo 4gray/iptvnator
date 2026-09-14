@@ -8,16 +8,18 @@ import {
 } from '@angular/core';
 import { SettingsStore } from '@iptvnator/services';
 
-const HOVER_CAPABLE_QUERY = '(hover: hover)';
+const HOVER_CAPABLE_QUERY = '(any-hover: hover)';
 
 /**
  * Resolves whether cover grids should render as a posters-only wall.
  *
  * The wall hides the title row under every cover and reveals the title as a
  * hover/focus overlay instead. That overlay needs a pointer that can hover,
- * so on touch-only devices (`(hover: none)`) the preference is ignored and
- * the titles stay under the covers — a tap already opens the item, leaving
- * no gesture to peek at a hidden name.
+ * so on touch-only devices the preference is ignored and the titles stay
+ * under the covers — a tap already opens the item, leaving no gesture to
+ * peek at a hidden name. `any-hover` rather than `hover`: the latter
+ * describes only the PRIMARY pointer, so a touch-first tablet with a mouse
+ * or hover-capable stylus attached would wrongly lose the wall.
  *
  * Consumers still apply their own exemptions (live grids, search results)
  * on top of this signal; it only answers "does the user want the wall AND
