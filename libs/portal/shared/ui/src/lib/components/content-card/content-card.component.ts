@@ -114,15 +114,11 @@ export class ContentCardComponent {
     }
 
     /**
-     * Enter/Space activate the card like a click. Only keys pressed on the
-     * card itself count: the nested Remove button's own Enter/Space bubble
-     * here too, and must not open the item they are removing. Space also
-     * prevents the page scroll.
+     * Enter/Space activate the card like a click; Space also prevents the
+     * page scroll. The Remove control is a sibling of the activation
+     * surface, never a descendant, so its keys cannot reach this handler.
      */
     onCardKey(event: Event): void {
-        if (event.target !== event.currentTarget) {
-            return;
-        }
         event.preventDefault();
         this.cardClick.emit();
     }

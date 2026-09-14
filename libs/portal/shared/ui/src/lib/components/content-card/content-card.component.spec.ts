@@ -133,7 +133,9 @@ describe('ContentCardComponent', () => {
         fixture.detectChanges();
         const clicked = jest.fn();
         fixture.componentInstance.cardClick.subscribe(clicked);
-        const card = fixture.debugElement.query(By.css('.content-card'));
+        const card = fixture.debugElement.query(
+            By.css('.content-card__activation')
+        );
 
         expect(card.nativeElement.getAttribute('role')).toBe('button');
         expect(card.nativeElement.getAttribute('tabindex')).toBe('0');
@@ -156,14 +158,23 @@ describe('ContentCardComponent', () => {
         expect(space.defaultPrevented).toBe(true);
     });
 
-    it('ignores Enter/Space bubbling up from the nested Remove button', () => {
+    it('keeps the Remove control outside the card button so its keys never open the item', () => {
         fixture.componentRef.setInput('showRemoveButton', true);
+        fixture.componentRef.setInput('removeTooltip', 'Remove from favorites');
         fixture.detectChanges();
         const clicked = jest.fn();
+        const removed = jest.fn();
         fixture.componentInstance.cardClick.subscribe(clicked);
+        fixture.componentInstance.remove.subscribe(removed);
         const removeButton = fixture.debugElement.query(
             By.css('.remove-button')
         ).nativeElement as HTMLElement;
+
+        // No interactive control nested inside a role="button".
+        expect(removeButton.closest('[role="button"]')).toBeNull();
+        expect(removeButton.getAttribute('aria-label')).toBe(
+            'Remove from favorites'
+        );
 
         removeButton.dispatchEvent(
             new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
@@ -174,10 +185,12 @@ describe('ContentCardComponent', () => {
             cancelable: true,
         });
         removeButton.dispatchEvent(space);
+        removeButton.click();
 
         // The button's own activation removes the item; the card must
         // neither open it nor swallow the Space the button relies on.
         expect(clicked).not.toHaveBeenCalled();
         expect(space.defaultPrevented).toBe(false);
+        expect(removed).toHaveBeenCalledTimes(1);
     });
 });

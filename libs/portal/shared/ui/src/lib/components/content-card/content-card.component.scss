@@ -2,17 +2,24 @@
 
 .content-card {
     @include grid.content-card;
-    @include grid.card-focus-ring;
+    position: relative;
+
+    // Keyboard/pointer activation surface; the Remove button is a sibling
+    // absolutely positioned over the poster's corner.
+    .content-card__activation {
+        border-radius: inherit;
+        @include grid.card-focus-ring;
+    }
+
+    .remove-button {
+        @include grid.remove-button;
+    }
 
     .thumbnail-wrapper {
         @include grid.thumbnail-wrapper;
 
         .cover-title-overlay {
             @include grid.cover-title-overlay;
-        }
-
-        .remove-button {
-            @include grid.remove-button;
         }
 
         .type-badge {
@@ -26,6 +33,6 @@
 }
 
 .content-card:hover .cover-title-overlay,
-.content-card:focus-visible .cover-title-overlay {
+.content-card__activation:focus-visible .cover-title-overlay {
     opacity: 1;
 }

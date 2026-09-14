@@ -278,10 +278,14 @@ row under VOD and series covers so the grid shows more rows per screen.
 - **Layout hints.** The grid's `contain-intrinsic-size` drops from 270 px to
   222 px (bare 2/3 poster) under `.grid-list--posters-only`, and the skeleton
   hides its text lines so loading matches the cards it precedes.
-- **Keyboard.** Both cards are `role="button"`, `tabindex="0"`, labelled by
-  the title, activated by Enter and Space (Space prevents the page scroll)
-  and carry a `:focus-visible` ring (`card-focus-ring` mixin in
-  `libs/ui/styles/_content-grid.scss`). Poster `alt` is the title, not a
+- **Keyboard.** Both cards expose a `role="button"`, `tabindex="0"` surface
+  labelled by the title, activated by Enter and Space (Space prevents the
+  page scroll) and carrying a `:focus-visible` ring (`card-focus-ring`
+  mixin in `libs/ui/styles/_content-grid.scss`). On `app-content-card` that
+  surface is the inner `.content-card__activation` element, and the Remove
+  control (labelled by `removeTooltip`) is a SIBLING positioned over the
+  poster corner — an interactive control nested inside a `role="button"`
+  is an invalid accessibility structure. Poster `alt` is the title, not a
   literal.
 
 ## EPG Views

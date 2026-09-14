@@ -1,76 +1,84 @@
-<div
-    class="content-card"
-    role="button"
-    tabindex="0"
-    [attr.aria-label]="title()"
-    (click)="onCardClick()"
-    (keydown.enter)="onCardKey($event)"
-    (keydown.space)="onCardKey($event)"
->
-    <div class="thumbnail-wrapper">
-        @if (showRemoveButton()) {
-            <button
-                mat-icon-button
-                class="remove-button"
-                [matTooltip]="removeTooltip()"
-                (click)="onRemoveClick($event)"
-            >
-                <mat-icon>close</mat-icon>
-            </button>
-        }
+<div class="content-card">
+    <!-- The activation surface is its own element so the Remove control
+         below stays a sibling: an interactive control nested inside a
+         role="button" is an invalid accessibility structure. -->
+    <div
+        class="content-card__activation"
+        role="button"
+        tabindex="0"
+        [attr.aria-label]="title()"
+        (click)="onCardClick()"
+        (keydown.enter)="onCardKey($event)"
+        (keydown.space)="onCardKey($event)"
+    >
+        <div class="thumbnail-wrapper">
+            @if (posterUrl() && !artworkFailed()) {
+                <img
+                    [src]="posterUrl()"
+                    [alt]="title()"
+                    (error)="onImageError()"
+                    class="poster"
+                    loading="lazy"
+                    decoding="async"
+                />
+            } @else if (showPlaceholder()) {
+                <div class="poster-placeholder">
+                    <mat-icon>{{ getPlaceholderIcon() }}</mat-icon>
+                </div>
+            } @else {
+                <img
+                    src="./assets/images/default-poster.png"
+                    [alt]="title()"
+                    class="poster"
+                    loading="lazy"
+                    decoding="async"
+                />
+            }
 
-        @if (posterUrl() && !artworkFailed()) {
-            <img
-                [src]="posterUrl()"
-                [alt]="title()"
-                (error)="onImageError()"
-                class="poster"
-                loading="lazy"
-                decoding="async"
-            />
-        } @else if (showPlaceholder()) {
-            <div class="poster-placeholder">
-                <mat-icon>{{ getPlaceholderIcon() }}</mat-icon>
+            @if (postersOnly()) {
+                <!-- Hover/focus caption for the posters-only wall; pinned open
+                     when the cover cannot identify the item on its own. -->
+                <div
+                    class="cover-title-overlay"
+                    [class.cover-title-overlay--pinned]="artworkMissing()"
+                    aria-hidden="true"
+                >
+                    <span class="cover-title-overlay__text">{{ title() }}</span>
+                </div>
+            }
+
+            @if (type() && showTypeBadge()) {
+                <span class="type-badge" [class]="type()">
+                    {{ type() }}
+                </span>
+            }
+        </div>
+
+        @if (!postersOnly()) {
+            <div class="card-info">
+                <h3>{{ title() }}</h3>
+                @if (date()) {
+                    <p class="date-info">
+                        {{
+                            date()
+                                | date: 'd MMM, HH:mm' : undefined : currentLocale()
+                        }}
+                    </p>
+                }
             </div>
-        } @else {
-            <img
-                src="./assets/images/default-poster.png"
-                [alt]="title()"
-                class="poster"
-                loading="lazy"
-                decoding="async"
-            />
-        }
-
-        @if (postersOnly()) {
-            <!-- Hover/focus caption for the posters-only wall; pinned open
-                 when the cover cannot identify the item on its own. -->
-            <div
-                class="cover-title-overlay"
-                [class.cover-title-overlay--pinned]="artworkMissing()"
-                aria-hidden="true"
-            >
-                <span class="cover-title-overlay__text">{{ title() }}</span>
-            </div>
-        }
-
-        @if (type() && showTypeBadge()) {
-            <span class="type-badge" [class]="type()">
-                {{ type() }}
-            </span>
         }
     </div>
 
-    @if (!postersOnly()) {
-        <div class="card-info">
-            <h3>{{ title() }}</h3>
-            @if (date()) {
-                <p class="date-info">
-                    {{
-                        date() | date: 'd MMM, HH:mm' : undefined : currentLocale()
-                    }}
-                </p>
-            }
-        </div>
+    @if (showRemoveButton()) {
+        <button
+            mat-icon-button
+            type="button"
+            class="remove-button"
+            [matTooltip]="removeTooltip()"
+            [attr.aria-label]="removeTooltip()"
+            (click)="onRemoveClick($event)"
+        >
+            <mat-icon>close</mat-icon>
+        </button>
     }
 </div>
