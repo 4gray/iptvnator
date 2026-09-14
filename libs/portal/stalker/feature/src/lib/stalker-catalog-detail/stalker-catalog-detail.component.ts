@@ -150,6 +150,13 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
 
     /** Manual watched toggle; the child gates it on live playback itself. */
     readonly watchedToggle = createStalkerVodWatchedToggle({
+        owner: () => {
+            const playlistId = this.catalog.playlist()?.id;
+            const vodId = Number(this.selectedItem()?.id);
+            return playlistId && Number.isFinite(vodId)
+                ? { playlistId, vodId }
+                : null;
+        },
         playbackPositions: this.playbackPositions,
         position: this.selectedVodPosition,
         playingNow: computed(
@@ -263,18 +270,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     }
 
     onVodWatchedToggled(event: { item: VodDetailsItem }): void {
-        if (event.item.type !== 'stalker') {
-            return;
-        }
-        const playlistId = this.catalog.playlist()?.id ?? '';
-        const vodId = Number(event.item.data.id);
-        void this.watchedToggle.toggle({
-            playlistId,
-            contentXtreamId: vodId,
-            stillCurrent: () =>
-                this.catalog.playlist()?.id === playlistId &&
-                Number(this.selectedItem()?.id) === vodId,
-        });
+        void this.watchedToggle.toggleItem(event.item);
     }
 
     onVodBack(): void {

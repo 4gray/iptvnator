@@ -68,6 +68,12 @@ export class StalkerCollectionPlaybackController {
 
     /** Manual watched toggle; the child gates it on live playback itself. */
     readonly watchedToggle = createStalkerVodWatchedToggle({
+        owner: () => {
+            const owner = this.playbackOwner();
+            return owner
+                ? { playlistId: owner.sourceId, vodId: Number(owner.contentId) }
+                : null;
+        },
         playbackPositions: this.config.playbackPositions,
         position: this.selectedVodPosition,
         playingNow: computed(
@@ -180,17 +186,7 @@ export class StalkerCollectionPlaybackController {
     }
 
     toggleSelectedVodWatched(event: { item: VodDetailsItem }): void {
-        const owner = this.playbackOwner();
-        if (!owner || event.item.type !== 'stalker') {
-            return;
-        }
-        const vodId = Number(event.item.data.id);
-        void this.watchedToggle.toggle({
-            playlistId: owner.sourceId,
-            contentXtreamId: vodId,
-            stillCurrent: () =>
-                this.playbackOwner()?.sessionKey === owner.sessionKey,
-        });
+        void this.watchedToggle.toggleItem(event.item);
     }
 
     private async startVodPlayback(
