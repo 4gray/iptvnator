@@ -1,4 +1,4 @@
-import type { WritableSignal } from '@angular/core';
+import { type WritableSignal, computed, signal } from '@angular/core';
 import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
 import type {
@@ -25,6 +25,9 @@ interface StalkerVodPlaybackControllerConfig {
 }
 
 export class StalkerVodPlaybackController {
+    /** Starts still waiting on the portal between the click and playback. */
+    private readonly pendingStarts = signal(0);
+    readonly playbackStartPending = computed(() => this.pendingStarts() > 0);
     private lastInlineSaveTime = 0;
     private loadSelectedVodPositionRequestId = 0;
     private playbackRequestId = 0;
@@ -37,6 +40,7 @@ export class StalkerVodPlaybackController {
         const requestId = ++this.playbackRequestId;
         const usesEmbeddedPlayer = this.config.portalPlayer.isEmbeddedPlayer();
         const playbackOwnerKey = this.config.playbackOwnerKey?.();
+        this.pendingStarts.update((count) => count + 1);
         try {
             const playback = await resolvePlayback();
             if (!this.isPlaybackRequestCurrent(requestId, playbackOwnerKey)) {
@@ -70,6 +74,8 @@ export class StalkerVodPlaybackController {
             this.config.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
             });
+        } finally {
+            this.pendingStarts.update((count) => count - 1);
         }
     }
 

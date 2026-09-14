@@ -441,6 +441,25 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         });
     });
 
+    it('reports a start as pending until the previous player is closed', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        activeSession.set(launched);
+        const closing = deferred<void>();
+        closeSession.mockReturnValueOnce(closing.promise);
+
+        const pending = service.startResolvedPlayback({
+            streamUrl: 'https://example.com/second.mkv',
+            title: 'Second movie',
+            contentInfo: launched.contentInfo,
+        });
+        expect(service.playbackStartPending()).toBe(true);
+
+        closing.resolve();
+        await pending;
+
+        expect(service.playbackStartPending()).toBe(false);
+    });
+
     describe('stored position loads', () => {
         it('drops a result after the route changes without starting another load', async () => {
             const oldLoad = deferred<PlaybackPositionData | null>();

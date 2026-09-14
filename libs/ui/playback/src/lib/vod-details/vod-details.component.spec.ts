@@ -572,6 +572,11 @@ describe('VodDetailsComponent offline playback', () => {
                 'a watched write is in flight',
                 () => fixture.componentRef.setInput('watchedToggleBusy', true),
             ],
+            [
+                'a playback start is still resolving',
+                () =>
+                    fixture.componentRef.setInput('playbackStartPending', true),
+            ],
         ])('disables the toggle while %s', async (_label, arrange) => {
             await render();
             const watchedToggled = jest.fn();

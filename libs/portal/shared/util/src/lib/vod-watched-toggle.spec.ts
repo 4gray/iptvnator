@@ -177,6 +177,41 @@ describe('createVodWatchedToggle', () => {
         expect(t.toggle.busy()).toBe(false);
     });
 
+    it('logs a failed post-write refresh without failing the toggle', async () => {
+        const position = signal<PlaybackPositionData | null>(null);
+        const logger = { error: jest.fn() };
+        const toggle = createVodWatchedToggle({
+            playbackPositions: {
+                savePlaybackPositionOrThrow: jest
+                    .fn()
+                    .mockResolvedValue(undefined),
+                clearPlaybackPositionOrThrow: jest
+                    .fn()
+                    .mockResolvedValue(undefined),
+            },
+            position,
+            applyPosition: (next) => position.set(next),
+            notify: jest.fn(),
+            onPersisted: () => Promise.reject(new Error('ipc down')),
+            logger,
+        });
+
+        await expect(
+            toggle.toggle({
+                playlistId: PLAYLIST,
+                contentXtreamId: 42,
+                stillCurrent: () => true,
+            })
+        ).resolves.toBe(true);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(toggle.isWatched()).toBe(true);
+        expect(logger.error).toHaveBeenCalledWith(
+            'Refresh after watched toggle failed',
+            expect.any(Error)
+        );
+    });
+
     it('stays disabled while playback could overwrite the row', async () => {
         const t = setup(null);
         t.playingNow.set(true);

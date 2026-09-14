@@ -17,6 +17,7 @@ class StubVodDetailsComponent {
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
     readonly watchedToggleBusy = input(false);
+    readonly playbackStartPending = input(false);
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
@@ -86,6 +87,7 @@ describe('StalkerInlineDetailComponent provider presentation', () => {
         fixture.componentRef.setInput('vodDetailsItem', VOD_ITEM);
         fixture.componentRef.setInput('isWatched', true);
         fixture.componentRef.setInput('watchedToggleBusy', true);
+        fixture.componentRef.setInput('playbackStartPending', true);
         const watchedToggled = jest.fn();
         fixture.componentInstance.watchedToggled.subscribe(watchedToggled);
         await fixture.whenStable();
@@ -95,6 +97,7 @@ describe('StalkerInlineDetailComponent provider presentation', () => {
         ).componentInstance as StubVodDetailsComponent;
         expect(child.isWatched()).toBe(true);
         expect(child.watchedToggleBusy()).toBe(true);
+        expect(child.playbackStartPending()).toBe(true);
 
         child.watchedToggled.emit({ item: VOD_ITEM, watched: false });
 

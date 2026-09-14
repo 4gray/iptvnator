@@ -1,13 +1,11 @@
 import { computed, signal } from '@angular/core';
 import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
-import {
-    type Logger,
-    type PortalPlaybackPositions,
-    type PortalPlayer,
-    type UnifiedCollectionItem,
-    VOD_WATCHED_FEEDBACK_KEYS,
-    createVodWatchedToggle,
+import type {
+    Logger,
+    PortalPlaybackPositions,
+    PortalPlayer,
+    UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import {
     normalizeStalkerEntityId,
@@ -21,6 +19,7 @@ import {
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
 import { StalkerVodPlaybackController } from './stalker-vod-playback-controller';
+import { createStalkerVodWatchedToggle } from './stalker-vod-watched-toggle';
 
 interface StalkerCollectionPlaybackOwner {
     readonly sourceId: string;
@@ -62,24 +61,25 @@ export class StalkerCollectionPlaybackController {
 
     private readonly vodPlayback: StalkerVodPlaybackController;
 
+    readonly playbackStartPending = computed(() =>
+        this.vodPlayback.playbackStartPending()
+    );
+
     /** Manual watched toggle; the child gates it on live playback itself. */
-    readonly watchedToggle = createVodWatchedToggle({
+    readonly watchedToggle = createStalkerVodWatchedToggle({
         playbackPositions: this.config.playbackPositions,
         position: this.selectedVodPosition,
+        playingNow: computed(
+            () => this.inlinePlayback() !== null || this.playbackStartPending()
+        ),
         applyPosition: (position) => {
             // A read still in flight started from the pre-write row; letting
             // it land would revert the toggle it never saw.
             this.vodPlayback.discardPendingPositionLoad();
             this.selectedVodPosition.set(position);
         },
-        notify: (feedback) =>
-            this.config.snackBar.open(
-                this.config.translateService.instant(
-                    VOD_WATCHED_FEEDBACK_KEYS[feedback]
-                ),
-                undefined,
-                { duration: 5000 }
-            ),
+        snackBar: this.config.snackBar,
+        translateService: this.config.translateService,
         logger: this.config.logger,
     });
 

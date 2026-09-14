@@ -42,6 +42,7 @@ describe('VodDetailsWatchedService', () => {
     const inlinePlayback = signal<unknown>(null);
     const matchedExternalPlayback = signal<unknown>(null);
     const isExternalLaunchPending = signal(false);
+    const playbackStartPending = signal(false);
     const currentPlaylist = signal<{ id: string } | null>({ id: PLAYLIST });
     const routeVodId = signal(VOD_ID);
     const loadAllPositions = jest.fn().mockResolvedValue(undefined);
@@ -57,6 +58,7 @@ describe('VodDetailsWatchedService', () => {
         inlinePlayback.set(null);
         matchedExternalPlayback.set(null);
         isExternalLaunchPending.set(false);
+        playbackStartPending.set(false);
         currentPlaylist.set({ id: PLAYLIST });
         routeVodId.set(VOD_ID);
         loadAllPositions.mockClear();
@@ -76,6 +78,7 @@ describe('VodDetailsWatchedService', () => {
                         inlinePlayback,
                         matchedExternalPlayback,
                         isExternalLaunchPending,
+                        playbackStartPending,
                         discardPendingPositionLoads,
                     },
                 },
@@ -176,6 +179,9 @@ describe('VodDetailsWatchedService', () => {
         expect(service.canToggle()).toBe(false);
         matchedExternalPlayback.set(null);
         isExternalLaunchPending.set(true);
+        expect(service.canToggle()).toBe(false);
+        isExternalLaunchPending.set(false);
+        playbackStartPending.set(true);
         expect(service.canToggle()).toBe(false);
     });
 

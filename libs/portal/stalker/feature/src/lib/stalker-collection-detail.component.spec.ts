@@ -53,6 +53,7 @@ class StubStalkerInlineDetailComponent {
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
     readonly watchedToggleBusy = input(false);
+    readonly playbackStartPending = input(false);
     readonly backClicked = output<void>();
     readonly playClicked = output<VodDetailsItem>();
     readonly resumeClicked = output<unknown>();
@@ -596,6 +597,54 @@ describe('StalkerCollectionDetailComponent', () => {
             undefined,
             expect.anything()
         );
+    });
+
+    it('blocks the watched toggle while a collection Play is still resolving', async () => {
+        const sourceItem = {
+            id: '1701',
+            title: 'Collection Movie',
+            category_id: 'vod',
+            cmd: '/media/file_1701.mpg',
+            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
+        };
+        let resolve!: (value: ResolvedPortalPlayback) => void;
+        stalkerStore.resolveVodPlayback.mockReturnValueOnce(
+            new Promise<ResolvedPortalPlayback>((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+        await settleDetail(fixture);
+        await settleDetail(fixture);
+        const detail = fixture.debugElement.query(
+            By.directive(StubStalkerInlineDetailComponent)
+        ).componentInstance as StubStalkerInlineDetailComponent;
+
+        fixture.componentInstance.onVodPlay(
+            createStalkerVodItem(sourceItem, playlist._id)
+        );
+        fixture.detectChanges();
+        expect(detail.playbackStartPending()).toBe(true);
+
+        detail.watchedToggled.emit({
+            item: createStalkerVodItem(sourceItem, playlist._id),
+            watched: true,
+        });
+        await settleDetail(fixture);
+        expect(
+            playbackPositions.savePlaybackPositionOrThrow
+        ).not.toHaveBeenCalled();
+
+        resolve({ streamUrl: 'https://streams.test/a.mp4', title: 'x' });
+        await settleDetail(fixture);
+        expect(detail.playbackStartPending()).toBe(false);
     });
 
     it('keeps a watched mark when the initial collection position read lands afterwards', async () => {

@@ -47,7 +47,8 @@ export class VodDetailsWatchedService {
             () =>
                 this.playback.inlinePlayback() !== null ||
                 this.playback.matchedExternalPlayback() !== null ||
-                this.playback.isExternalLaunchPending()
+                this.playback.isExternalLaunchPending() ||
+                this.playback.playbackStartPending()
         ),
         notify: (feedback) =>
             this.snackBar.open(
@@ -58,7 +59,7 @@ export class VodDetailsWatchedService {
         // Catalog cards read the store's position map, which only the
         // once-per-playlist load and external-player pushes fill.
         onPersisted: (playlistId) =>
-            void this.xtreamStore.loadAllPositions(playlistId),
+            this.xtreamStore.loadAllPositions(playlistId),
         logger: this.logger,
     });
 

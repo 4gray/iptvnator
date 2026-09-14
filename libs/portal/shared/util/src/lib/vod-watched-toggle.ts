@@ -39,8 +39,12 @@ export interface VodWatchedToggleConfig {
      */
     playingNow?: Signal<boolean>;
     notify: (feedback: VodWatchedToggleFeedback) => void;
-    /** Runs after a confirmed write, e.g. to refresh catalog badges. */
-    onPersisted?: (playlistId: string) => void;
+    /**
+     * Runs after a confirmed write, e.g. to refresh catalog badges. Its
+     * failure is logged and swallowed: the mutation it follows is already
+     * confirmed, so it must neither reject the toggle nor escape unhandled.
+     */
+    onPersisted?: (playlistId: string) => void | Promise<void>;
     logger?: Pick<Logger, 'error'>;
 }
 
@@ -101,7 +105,14 @@ export function createVodWatchedToggle(
                 );
             }
 
-            config.onPersisted?.(target.playlistId);
+            void Promise.resolve()
+                .then(() => config.onPersisted?.(target.playlistId))
+                .catch((error) =>
+                    config.logger?.error(
+                        'Refresh after watched toggle failed',
+                        error
+                    )
+                );
             if (!target.stillCurrent()) {
                 return true;
             }

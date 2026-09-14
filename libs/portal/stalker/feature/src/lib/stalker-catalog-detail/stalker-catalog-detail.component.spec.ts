@@ -44,6 +44,7 @@ class StubVodDetailsComponent {
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
     readonly watchedToggleBusy = input(false);
+    readonly playbackStartPending = input(false);
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
@@ -291,6 +292,40 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
             expect(child.providerOnly()).toBe(true);
         }
     );
+
+    it('blocks the watched toggle while a Play is still resolving', async () => {
+        let resolve!: (value: { streamUrl: string }) => void;
+        resolveVodPlayback.mockReturnValueOnce(
+            new Promise((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        expect(child.playbackStartPending()).toBe(false);
+
+        fixture.componentInstance.onVodPlay({
+            type: 'stalker',
+            cmd: '/media/42',
+            data: selectedItem(),
+        } as never);
+        fixture.detectChanges();
+        expect(child.playbackStartPending()).toBe(true);
+        expect(fixture.componentInstance.watchedToggle.enabled()).toBe(false);
+
+        // A toggle in this window is refused, so nothing is written.
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        expect(savePlaybackPositionOrThrow).not.toHaveBeenCalled();
+
+        resolve({ streamUrl: 'https://portal.example/movie.mpg' });
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(child.playbackStartPending()).toBe(false);
+    });
 
     it('does not mount a VOD resolution after the catalog owner changes', async () => {
         let resolve!: (value: { streamUrl: string }) => void;
