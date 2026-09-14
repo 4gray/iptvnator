@@ -15,8 +15,12 @@ import {
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import { PlaylistsService } from '@iptvnator/services';
 import {
+    PlaybackPositionRuntimeBridgeService,
+    PlaylistsService,
+} from '@iptvnator/services';
+import {
+    PlaybackPositionData,
     Playlist,
     ResolvedPortalPlayback,
     VodDetailsItem,
@@ -107,6 +111,8 @@ describe('StalkerCollectionDetailComponent', () => {
         clearPlaybackPosition: jest.Mock;
     };
     let snackBar: { open: jest.Mock };
+    let playbackUpdateHandler:
+        ((data: PlaybackPositionData) => void) | undefined;
     let playlistsService: { getPlaylistById: jest.Mock };
     let routerNavigate: jest.Mock;
 
@@ -163,6 +169,7 @@ describe('StalkerCollectionDetailComponent', () => {
             clearPlaybackPosition: jest.fn(),
         };
         snackBar = { open: jest.fn() };
+        playbackUpdateHandler = undefined;
         playlistsService = {
             getPlaylistById: jest.fn((playlistId: string) =>
                 of({ ...playlist, _id: playlistId })
@@ -215,6 +222,17 @@ describe('StalkerCollectionDetailComponent', () => {
                         onLangChange: of(null),
                         onTranslationChange: of(null),
                         onDefaultLangChange: of(null),
+                    },
+                },
+                {
+                    provide: PlaybackPositionRuntimeBridgeService,
+                    useValue: {
+                        onPlaybackPositionUpdate: jest.fn(
+                            (handler: (data: PlaybackPositionData) => void) => {
+                                playbackUpdateHandler = handler;
+                                return () => undefined;
+                            }
+                        ),
                     },
                 },
                 {
@@ -700,6 +718,58 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(fixture.componentInstance.playback.playbackStartPending()).toBe(
             false
         );
+    });
+
+    it('mirrors an external player position into the collection row', async () => {
+        const sourceItem = {
+            id: '1701',
+            title: 'Collection Movie',
+            category_id: 'vod',
+            cmd: '/media/file_1701.mpg',
+            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
+        };
+        playbackPositions.getPlaybackPosition.mockResolvedValueOnce({
+            playlistId: 'stalker-1',
+            contentXtreamId: 1701,
+            contentType: 'vod',
+            positionSeconds: 5400,
+            durationSeconds: 5400,
+        });
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+        await settleDetail(fixture);
+        await settleDetail(fixture);
+        const detail = fixture.debugElement.query(
+            By.directive(StubStalkerInlineDetailComponent)
+        ).componentInstance as StubStalkerInlineDetailComponent;
+        expect(detail.isWatched()).toBe(true);
+
+        // MPV replays the movie from the start; a foreign item's tick is ignored.
+        playbackUpdateHandler?.({
+            playlistId: 'stalker-1',
+            contentXtreamId: 9999,
+            contentType: 'vod',
+            positionSeconds: 10,
+            durationSeconds: 5400,
+        });
+        playbackUpdateHandler?.({
+            playlistId: 'stalker-1',
+            contentXtreamId: 1701,
+            contentType: 'vod',
+            positionSeconds: 1080,
+            durationSeconds: 5400,
+        });
+        await settleDetail(fixture);
+
+        expect(detail.isWatched()).toBe(false);
+        expect(detail.playbackPosition()).toBe(1080);
+        expect(detail.watchedToggleReady()).toBe(true);
     });
 
     it('blocks the collection toggle until the initial position read lands', async () => {

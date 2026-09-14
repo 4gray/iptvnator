@@ -151,6 +151,28 @@ export class StalkerCollectionPlaybackController {
         await this.vodPlayback.loadSelectedVodPosition(playlistId, vodId);
     }
 
+    /**
+     * Mirrors an external player's position into the row while it owns
+     * this item. Persistence already has it; without this the row shown
+     * here (and the watched toggle's direction) would stay at what the
+     * one-time read returned before MPV/VLC played.
+     */
+    applyRuntimePosition(data: PlaybackPositionData): void {
+        const owner = this.playbackOwner();
+        if (
+            !owner ||
+            data.contentType !== 'vod' ||
+            data.playlistId !== owner.sourceId ||
+            String(data.contentXtreamId) !== owner.contentId
+        ) {
+            return;
+        }
+        // A live tick is newer than any stored read still in flight.
+        this.vodPlayback.discardPendingPositionLoad();
+        this.selectedVodPosition.set(data);
+        this.vodPlayback.positionLoaded.set(true);
+    }
+
     clearSelectedVodPosition(): void {
         this.vodPlayback.discardPendingPositionLoad();
         this.vodPlayback.positionLoaded.set(false);

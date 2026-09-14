@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     computed,
     effect,
     forwardRef,
@@ -36,7 +37,10 @@ import {
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
-import { PlaylistsService } from '@iptvnator/services';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    PlaylistsService,
+} from '@iptvnator/services';
 import { Playlist, VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
@@ -174,6 +178,13 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
     private currentPlaybackOwnerKey = '';
 
     constructor() {
+        const unsubscribePositionUpdates = inject(
+            PlaybackPositionRuntimeBridgeService
+        ).onPlaybackPositionUpdate((data) =>
+            this.playback.applyRuntimePosition(data)
+        );
+        inject(DestroyRef).onDestroy(() => unsubscribePositionUpdates?.());
+
         effect(() => {
             this.portalFavorites.value();
             this.favorites.sync();
