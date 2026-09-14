@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Pequeno",
         "COVER_SIZE_MEDIUM": "Médio",
         "COVER_SIZE_LARGE": "Grande",
+        "COVER_TITLES": "Mostrar títulos sob as capas",
+        "COVER_TITLES_DESCRIPTION": "Desative para um mural apenas de pôsteres nas grades de filmes e séries: o título aparece sobre a capa ao passar o cursor ou focar nela. Canais ao vivo, resultados de pesquisa e os trilhos do dashboard mantêm os seus rótulos.",
         "EPG_VIEW_MODE": "Visualização do guia",
         "EPG_OFFSET_TITLE": "Deslocamento de horário do EPG",
         "EPG_OFFSET_HINT": "Desloque os horários dos programas exibidos sem atualizar o guia. Use minutos de -720 a 720.",

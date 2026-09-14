@@ -81,6 +81,29 @@ describe('SettingsComponent form', () => {
         );
     });
 
+    it('stages the posters-only cover wall until Save', async () => {
+        const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-test-id="cover-titles-toggle"] input'
+        ) as HTMLInputElement;
+        expect(checkbox).not.toBeNull();
+        expect(checkbox.checked).toBe(true);
+
+        checkbox.click();
+        fixture.detectChanges();
+
+        expect(component.settingsForm.get('showCoverTitles')?.value).toBe(
+            false
+        );
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+        await component.form.save(() => undefined);
+
+        expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({ showCoverTitles: false }),
+            expect.anything()
+        );
+    });
+
     it('hides the portal pause setting when the desktop bridge is unavailable', () => {
         fixture.destroy();
         window.electron = undefined;

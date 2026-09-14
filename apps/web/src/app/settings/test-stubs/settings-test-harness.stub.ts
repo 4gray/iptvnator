@@ -115,6 +115,7 @@ export const DEFAULT_SETTINGS = {
     embeddedMpvAutoReconnect: true,
     portalConnectivityGuard: true,
     coverSize: 'medium',
+    showCoverTitles: true,
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
     epgViewMode: 'timeline',

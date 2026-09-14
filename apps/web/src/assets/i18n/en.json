@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Small",
         "COVER_SIZE_MEDIUM": "Medium",
         "COVER_SIZE_LARGE": "Large",
+        "COVER_TITLES": "Show titles under covers",
+        "COVER_TITLES_DESCRIPTION": "Turn off for a posters-only wall in movie and series grids: the title appears on the cover when you point at it or focus it. Live channels, search results and dashboard rails keep their labels.",
         "EPG_VIEW_MODE": "Guide view",
         "EPG_OFFSET_TITLE": "EPG time offset",
         "EPG_OFFSET_HINT": "Shift displayed programme times without refreshing the guide. Use minutes, from -720 to 720.",

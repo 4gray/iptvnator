@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "Küçük",
         "COVER_SIZE_MEDIUM": "Orta",
         "COVER_SIZE_LARGE": "Büyük",
+        "COVER_TITLES": "Kapakların altında başlıkları göster",
+        "COVER_TITLES_DESCRIPTION": "Film ve dizi ızgaralarında yalnızca poster gösteren bir görünüm için kapatın: üzerine geldiğinizde veya odaklandığınızda başlık kapağın üzerinde görünür. Canlı kanallar, arama sonuçları ve pano bölümleri etiketlerini korur.",
         "EPG_VIEW_MODE": "Rehber görünümü",
         "EPG_OFFSET_TITLE": "EPG zaman kayması",
         "EPG_OFFSET_HINT": "Rehberi yenilemeden görüntülenen program saatlerini kaydırın. -720 ile 720 arasında dakika kullanın.",

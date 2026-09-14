@@ -234,6 +234,53 @@ minimum dimensions and flexible columns over fixed row widths.
 - Do not render placeholder and real logo at the same time
 - Keep logos contained with `object-fit: contain`
 
+## Cover Grids
+
+Movie and series covers render in three surfaces: the catalog grid
+(`app-grid-list`, `libs/portal/shared/ui/.../grid-list/`), the favorites /
+recent card (`app-content-card`, same lib) and the dashboard rails. All of
+them size from the `--cover-grid-min-width` / `--cover-rail-width` /
+`--cover-gap` tokens that `Settings.coverSize` writes onto `<html>` as
+`data-cover-size` (`apps/web/src/_cover-size.scss`).
+
+### Posters-only wall
+
+`Settings.showCoverTitles` (Settings > General, default on, only an explicit
+`false` opts out — coerced like `webPlayerSharedControls`) removes the title
+row under VOD and series covers so the grid shows more rows per screen.
+
+- **Resolution.** `CoverTitlesService.postersOnly` (`libs/portal/shared/ui`)
+  is the single source: the opt-out AND a hover-capable pointer
+  (`(hover: hover)` media query, tracked live). On touch-only devices the
+  preference is ignored and titles stay under the covers, because a tap
+  already opens the item and there is no gesture left to peek at a hidden
+  name.
+- **Scope.** Catalog grids (Xtream/Stalker VOD and series), unified
+  favorites/recent grids and the portal favorites tab. Exempt, regardless of
+  the setting: live channel grids (`type` `live`/`itv`/`radio` or the
+  `logo` variant — logos are too often missing to identify a channel),
+  search results and "recently added" rails (they answer by name; hosts
+  pass `[allowPostersOnly]="false"` to `app-content-card`), and the
+  dashboard rails (their meta rows do not fit an overlay).
+- **Reveal.** The title is a `.cover-title-overlay` inside the poster
+  wrapper: bottom gradient scrim, two clamped lines, 150 ms ease-out
+  opacity, shown on `:hover` and `:focus-visible` of the card, none under
+  `prefers-reduced-motion`. It is `aria-hidden`; the card itself carries the
+  accessible name.
+- **Pinned caption.** When the item has no cover to identify it — no
+  poster URL, or the image failed and the default poster / placeholder is
+  showing — the overlay is pinned open (`--pinned`). Both components track
+  failed URLs so the fallback branch re-renders instead of swapping `src`
+  in place.
+- **Layout hints.** The grid's `contain-intrinsic-size` drops from 270 px to
+  222 px (bare 2/3 poster) under `.grid-list--posters-only`, and the skeleton
+  hides its text lines so loading matches the cards it precedes.
+- **Keyboard.** Both cards are `role="button"`, `tabindex="0"`, labelled by
+  the title, activated by Enter and Space (Space prevents the page scroll)
+  and carry a `:focus-visible` ring (`card-focus-ring` mixin in
+  `libs/ui/styles/_content-grid.scss`). Poster `alt` is the title, not a
+  literal.
+
 ## EPG Views
 
 The shared timeline and list still contain local dark surfaces, blue selection

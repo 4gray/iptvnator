@@ -385,6 +385,8 @@
         "COVER_SIZE_SMALL": "小",
         "COVER_SIZE_MEDIUM": "中",
         "COVER_SIZE_LARGE": "大",
+        "COVER_TITLES": "在封面下方顯示標題",
+        "COVER_TITLES_DESCRIPTION": "停用後，電影和影集網格會變成純海報牆：滑鼠指向或聚焦封面時才會顯示標題。直播頻道、搜尋結果和儀表板欄位仍會保留標籤。",
         "EPG_VIEW_MODE": "節目表檢視方式",
         "EPG_OFFSET_TITLE": "EPG 時間偏移",
         "EPG_OFFSET_HINT": "無需重新整理節目表即可調整顯示的節目時間。請輸入 -720 到 720 之間的分鐘數。",

@@ -1,4 +1,12 @@
-<div class="content-card" (click)="onCardClick()">
+<div
+    class="content-card"
+    role="button"
+    tabindex="0"
+    [attr.aria-label]="title()"
+    (click)="onCardClick()"
+    (keydown.enter)="onCardClick()"
+    (keydown.space)="onSpaceKey($event)"
+>
     <div class="thumbnail-wrapper">
         @if (showRemoveButton()) {
             <button
@@ -11,11 +19,11 @@
             </button>
         }
 
-        @if (posterUrl()) {
+        @if (posterUrl() && !artworkFailed()) {
             <img
                 [src]="posterUrl()"
                 [alt]="title()"
-                (error)="onImageError($event)"
+                (error)="onImageError()"
                 class="poster"
                 loading="lazy"
                 decoding="async"
@@ -34,6 +42,18 @@
             />
         }
 
+        @if (postersOnly()) {
+            <!-- Hover/focus caption for the posters-only wall; pinned open
+                 when the cover cannot identify the item on its own. -->
+            <div
+                class="cover-title-overlay"
+                [class.cover-title-overlay--pinned]="artworkMissing()"
+                aria-hidden="true"
+            >
+                <span class="cover-title-overlay__text">{{ title() }}</span>
+            </div>
+        }
+
         @if (type() && showTypeBadge()) {
             <span class="type-badge" [class]="type()">
                 {{ type() }}
@@ -41,12 +61,16 @@
         }
     </div>
 
-    <div class="card-info">
-        <h3>{{ title() }}</h3>
-        @if (date()) {
-            <p class="date-info">
-                {{ date() | date: 'd MMM, HH:mm' : undefined : currentLocale() }}
-            </p>
-        }
-    </div>
+    @if (!postersOnly()) {
+        <div class="card-info">
+            <h3>{{ title() }}</h3>
+            @if (date()) {
+                <p class="date-info">
+                    {{
+                        date() | date: 'd MMM, HH:mm' : undefined : currentLocale()
+                    }}
+                </p>
+            }
+        </div>
+    }
 </div>

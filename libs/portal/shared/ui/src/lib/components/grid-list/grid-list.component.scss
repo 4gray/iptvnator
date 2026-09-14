@@ -1,4 +1,5 @@
 @use '../../styles/skeleton';
+@use '../../styles/content-grid' as grid;
 
 // ─── Card base ───────────────────────────────────────────────────────────────
 mat-card {
@@ -13,6 +14,10 @@ mat-card {
 mat-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+mat-card {
+    @include grid.card-focus-ring;
 }
 
 // ─── Grid layout ─────────────────────────────────────────────────────────────
@@ -88,6 +93,15 @@ mat-card:hover {
                 padding: 18px;
                 box-sizing: border-box;
             }
+        }
+
+        .cover-title-overlay {
+            @include grid.cover-title-overlay;
+        }
+
+        &:hover .cover-title-overlay,
+        &:focus-visible .cover-title-overlay {
+            opacity: 1;
         }
 
         .title {
@@ -209,6 +223,19 @@ mat-card:hover {
 .grid-list__grid mat-card {
     content-visibility: auto;
     contain-intrinsic-size: auto 270px;
+}
+
+// ─── Posters-only wall ───────────────────────────────────────────────────────
+// No title row: the hint shrinks to the bare 2/3 poster, and the skeleton
+// drops its text lines so the loading state matches the cards it precedes.
+:host.grid-list--posters-only {
+    .grid-list__grid mat-card {
+        contain-intrinsic-size: auto 222px;
+    }
+
+    .grid-skeleton-title {
+        display: none;
+    }
 }
 
 .grid-list__tail {

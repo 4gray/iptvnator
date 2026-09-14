@@ -311,3 +311,193 @@ describe('GridListComponent with strip country prefix enabled', () => {
         expect(renderedTitle()).toBe('US | Some Movie');
     });
 });
+
+describe('GridListComponent posters-only wall', () => {
+    let fixture: ComponentFixture<GridListComponent>;
+    let showCoverTitles: ReturnType<typeof signal<boolean>>;
+
+    beforeEach(async () => {
+        showCoverTitles = signal(false);
+        await TestBed.configureTestingModule({
+            imports: [GridListComponent],
+            providers: [
+                {
+                    provide: SettingsStore,
+                    useValue: { showCoverTitles },
+                },
+            ],
+        })
+            .overrideComponent(GridListComponent, {
+                remove: { imports: [TranslatePipe] },
+                add: {
+                    imports: [
+                        MockPipe(
+                            TranslatePipe,
+                            (value: string | null | undefined) => value ?? ''
+                        ),
+                    ],
+                },
+            })
+            .compileComponents();
+
+        fixture = TestBed.createComponent(GridListComponent);
+    });
+
+    const overlay = () =>
+        fixture.debugElement.query(By.css('.cover-title-overlay'));
+
+    it('replaces the title row with a hover overlay on VOD covers', () => {
+        fixture.componentRef.setInput('items', [
+            { title: 'Blade Runner', poster_url: 'blade-runner.jpg' },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.classList).toContain(
+            'grid-list--posters-only'
+        );
+        expect(fixture.debugElement.query(By.css('.title'))).toBeNull();
+        expect(overlay().nativeElement.textContent.trim()).toBe(
+            'Blade Runner'
+        );
+        expect(overlay().nativeElement.classList).not.toContain(
+            'cover-title-overlay--pinned'
+        );
+    });
+
+    it('pins the overlay open when the item has no cover to identify it', () => {
+        fixture.componentRef.setInput('items', [{ title: 'No Poster Film' }]);
+        fixture.componentRef.setInput('type', 'vod');
+
+        fixture.detectChanges();
+
+        expect(overlay().nativeElement.classList).toContain(
+            'cover-title-overlay--pinned'
+        );
+    });
+
+    it('pins the overlay once the cover fails to load', () => {
+        fixture.componentRef.setInput('items', [
+            { title: 'Broken Poster Film', poster_url: 'broken.jpg' },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+        fixture.detectChanges();
+        expect(overlay().nativeElement.classList).not.toContain(
+            'cover-title-overlay--pinned'
+        );
+
+        fixture.debugElement
+            .query(By.css('.stream-icon'))
+            .nativeElement.dispatchEvent(new Event('error'));
+        fixture.detectChanges();
+
+        // The template re-renders the default poster, and the overlay
+        // stays open because that poster identifies nothing.
+        expect(
+            fixture.debugElement
+                .query(By.css('.stream-icon'))
+                .nativeElement.getAttribute('src')
+        ).toContain('default-poster.png');
+        expect(overlay().nativeElement.classList).toContain(
+            'cover-title-overlay--pinned'
+        );
+    });
+
+    it('keeps the title row on live channel grids regardless of the setting', () => {
+        fixture.componentRef.setInput('items', [
+            { name: 'CNN', stream_icon: 'cnn.png' },
+        ]);
+        fixture.componentRef.setInput('type', 'live');
+        fixture.componentRef.setInput('variant', 'logo');
+
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.classList).not.toContain(
+            'grid-list--posters-only'
+        );
+        expect(
+            fixture.debugElement.query(By.css('.title')).nativeElement
+                .textContent
+        ).toContain('CNN');
+        expect(overlay()).toBeNull();
+    });
+
+    it('restores the title row as soon as the setting is switched back on', () => {
+        fixture.componentRef.setInput('items', [
+            { title: 'Blade Runner', poster_url: 'blade-runner.jpg' },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.css('.title'))).toBeNull();
+
+        showCoverTitles.set(true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(By.css('.title')).nativeElement
+                .textContent
+        ).toContain('Blade Runner');
+        expect(overlay()).toBeNull();
+    });
+});
+
+describe('GridListComponent keyboard access', () => {
+    let fixture: ComponentFixture<GridListComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [GridListComponent],
+            providers: [{ provide: SettingsStore, useValue: {} }],
+        })
+            .overrideComponent(GridListComponent, {
+                remove: { imports: [TranslatePipe] },
+                add: {
+                    imports: [
+                        MockPipe(
+                            TranslatePipe,
+                            (value: string | null | undefined) => value ?? ''
+                        ),
+                    ],
+                },
+            })
+            .compileComponents();
+
+        fixture = TestBed.createComponent(GridListComponent);
+        fixture.componentRef.setInput('items', [
+            { title: 'Blade Runner', poster_url: 'blade-runner.jpg' },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+        fixture.detectChanges();
+    });
+
+    it('exposes each card as a focusable button named after the item', () => {
+        const card = fixture.debugElement.query(By.css('mat-card'))
+            .nativeElement as HTMLElement;
+
+        expect(card.getAttribute('role')).toBe('button');
+        expect(card.getAttribute('tabindex')).toBe('0');
+        expect(card.getAttribute('aria-label')).toBe('Blade Runner');
+        expect(
+            fixture.debugElement
+                .query(By.css('.stream-icon'))
+                .nativeElement.getAttribute('alt')
+        ).toBe('Blade Runner');
+    });
+
+    it('activates a card with Enter and Space without scrolling the grid', () => {
+        const clicked = jest.fn();
+        fixture.componentInstance.itemClicked.subscribe(clicked);
+        const card = fixture.debugElement.query(By.css('mat-card'));
+
+        card.triggerEventHandler('keydown.enter', new KeyboardEvent('keydown'));
+        const space = new KeyboardEvent('keydown', {
+            key: ' ',
+            cancelable: true,
+        });
+        card.triggerEventHandler('keydown.space', space);
+
+        expect(clicked).toHaveBeenCalledTimes(2);
+        expect(space.defaultPrevented).toBe(true);
+    });
+});

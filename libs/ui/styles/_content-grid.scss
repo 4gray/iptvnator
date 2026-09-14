@@ -106,6 +106,61 @@
     }
 }
 
+// Hover/focus caption for the posters-only wall (Settings > General >
+// "Show titles under covers" off). Placed inside the poster wrapper, which
+// must be `position: relative` with `overflow: hidden`; the consumer reveals
+// it on `:hover`/`:focus-visible` and pins it with `--pinned` whenever the
+// cover cannot identify the item (default poster, placeholder).
+@mixin cover-title-overlay {
+    position: absolute;
+    inset: auto 0 0 0;
+    box-sizing: border-box;
+    padding: 28px 8px 8px;
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.3;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    background: linear-gradient(
+        180deg,
+        rgba(0, 0, 0, 0) 0%,
+        rgba(0, 0, 0, 0.72) 50%,
+        rgba(0, 0, 0, 0.88) 100%
+    );
+    opacity: 0;
+    pointer-events: none;
+    // Entrance under 300ms, ease-out: the caption answers a hover, it is
+    // not a state change worth choreographing.
+    transition: opacity 150ms ease-out;
+
+    // The clamp lives on a child: `overflow: hidden` clips at the padding
+    // edge, so a clamped element with its own padding paints the third
+    // line into that padding.
+    .cover-title-overlay__text {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        word-break: break-word;
+    }
+
+    &.cover-title-overlay--pinned {
+        opacity: 1;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+
+@mixin card-focus-ring {
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #2f7bff);
+        outline-offset: 3px;
+    }
+}
+
 @mixin card-info {
     padding: 8px 10px;
 
