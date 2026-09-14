@@ -460,6 +460,27 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(service.playbackStartPending()).toBe(false);
     });
 
+    it('does not carry a pending start over to the next routed movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        activeSession.set(launched);
+        const closing = deferred<void>();
+        closeSession.mockReturnValueOnce(closing.promise);
+
+        const pending = service.startResolvedPlayback({
+            streamUrl: 'https://example.com/second.mkv',
+            title: 'Second movie',
+            contentInfo: launched.contentInfo,
+        });
+        expect(service.playbackStartPending()).toBe(true);
+
+        routeVodId.set(ROUTE_VOD_ID + 1);
+        expect(service.playbackStartPending()).toBe(false);
+
+        closing.resolve();
+        await pending;
+        expect(service.playbackStartPending()).toBe(false);
+    });
+
     describe('stored position loads', () => {
         it('drops a result after the route changes without starting another load', async () => {
             const oldLoad = deferred<PlaybackPositionData | null>();

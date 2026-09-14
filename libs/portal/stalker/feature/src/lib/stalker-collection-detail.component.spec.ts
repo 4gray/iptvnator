@@ -647,6 +647,60 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(detail.playbackStartPending()).toBe(false);
     });
 
+    it('does not carry a pending collection start over to the next item', async () => {
+        const sourceItem = {
+            id: '1701',
+            title: 'Collection Movie',
+            category_id: 'vod',
+            cmd: '/media/file_1701.mpg',
+            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
+        };
+        let resolve!: (value: ResolvedPortalPlayback) => void;
+        stalkerStore.resolveVodPlayback.mockReturnValueOnce(
+            new Promise<ResolvedPortalPlayback>((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+        await settleDetail(fixture);
+        await settleDetail(fixture);
+        fixture.componentInstance.onVodPlay(
+            createStalkerVodItem(sourceItem, playlist._id)
+        );
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playback.playbackStartPending()).toBe(
+            true
+        );
+
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                uid: 'stalker::stalker-1::item-2',
+                stalkerId: 'item-2',
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: { ...sourceItem, id: '1702' },
+            })
+        );
+        await settleDetail(fixture);
+        expect(fixture.componentInstance.playback.playbackStartPending()).toBe(
+            false
+        );
+
+        resolve({ streamUrl: 'https://streams.test/a.mp4', title: 'x' });
+        await settleDetail(fixture);
+        expect(fixture.componentInstance.playback.playbackStartPending()).toBe(
+            false
+        );
+    });
+
     it('keeps a watched mark when the initial collection position read lands afterwards', async () => {
         let resolveRead!: (value: null) => void;
         playbackPositions.getPlaybackPosition.mockReturnValueOnce(

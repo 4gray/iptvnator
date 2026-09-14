@@ -327,6 +327,36 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         expect(child.playbackStartPending()).toBe(false);
     });
 
+    it('does not carry a pending start over to the next selected movie', async () => {
+        let resolve!: (value: { streamUrl: string }) => void;
+        resolveVodPlayback.mockReturnValueOnce(
+            new Promise((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.onVodPlay({
+            type: 'stalker',
+            cmd: '/media/42',
+            data: selectedItem(),
+        } as never);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(true);
+
+        selectedItem.set({
+            id: '99',
+            cmd: '/media/99',
+            info: { name: 'Replacement movie' },
+        });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+
+        resolve({ streamUrl: 'https://stale.example/movie.mpg' });
+        await fixture.whenStable();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+    });
+
     it('does not mount a VOD resolution after the catalog owner changes', async () => {
         let resolve!: (value: { streamUrl: string }) => void;
         resolveVodPlayback.mockReturnValueOnce(

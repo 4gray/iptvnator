@@ -18,6 +18,7 @@ import {
     consumeStalkerReturnMarker,
     createInlinePlaybackPositionWriter,
     createLogger,
+    createPendingPlaybackStart,
     resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -108,10 +109,14 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     );
     private unsubscribePositionUpdates: (() => void) | null = null;
     private positionLoadGeneration = 0;
-    /** Starts still waiting on the portal between the click and playback. */
-    private readonly pendingPlaybackStarts = signal(0);
-    readonly playbackStartPending = computed(
-        () => this.pendingPlaybackStarts() > 0
+    /**
+     * The start still waiting on the portal between the click and playback,
+     * keyed by its owner: a stale resolution for the previous movie must not
+     * hold the next movie's toggle hostage.
+     */
+    private readonly pendingStart = createPendingPlaybackStart<string>();
+    readonly playbackStartPending = computed(() =>
+        this.pendingStart.isPendingFor(this.playbackOwnerKey())
     );
 
     readonly isSeriesDetail = computed(() => {
@@ -394,7 +399,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         const usesEmbeddedPlayer = this.portalPlayer.isEmbeddedPlayer();
         if (usesEmbeddedPlayer && !sessionKey) return;
 
-        this.pendingPlaybackStarts.update((count) => count + 1);
+        const startId = this.pendingStart.begin(ownerKey);
         try {
             const playback = await this.catalog.resolveVodPlayback(
                 cmd,
@@ -435,7 +440,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                 duration: 3000,
             });
         } finally {
-            this.pendingPlaybackStarts.update((count) => count - 1);
+            this.pendingStart.settle(startId);
         }
     }
 }

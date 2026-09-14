@@ -324,7 +324,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isExternalStopAction = this.playback.isExternalStopAction;
     readonly externalPrimaryButtonState =
         this.playback.externalPrimaryButtonState;
-    readonly vodPlaybackProgress = this.playback.vodPlaybackProgress;
 
     readonly hasPlaybackPosition = this.msUi.hasPlaybackPosition;
 

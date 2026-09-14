@@ -1,10 +1,11 @@
-import { type WritableSignal, computed, signal } from '@angular/core';
+import { type WritableSignal, computed } from '@angular/core';
 import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
-import type {
-    Logger,
-    PortalPlaybackPositions,
-    PortalPlayer,
+import {
+    type Logger,
+    type PortalPlaybackPositions,
+    type PortalPlayer,
+    createPendingPlaybackStart,
 } from '@iptvnator/portal/shared/util';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
@@ -25,9 +26,17 @@ interface StalkerVodPlaybackControllerConfig {
 }
 
 export class StalkerVodPlaybackController {
-    /** Starts still waiting on the portal between the click and playback. */
-    private readonly pendingStarts = signal(0);
-    readonly playbackStartPending = computed(() => this.pendingStarts() > 0);
+    /**
+     * The start still waiting on the portal between the click and playback,
+     * keyed by its owner: a stale resolution for the previous item must not
+     * hold the next item's watched toggle hostage.
+     */
+    private readonly pendingStart = createPendingPlaybackStart<
+        string | undefined
+    >();
+    readonly playbackStartPending = computed(() =>
+        this.pendingStart.isPendingFor(this.config.playbackOwnerKey?.())
+    );
     private lastInlineSaveTime = 0;
     private loadSelectedVodPositionRequestId = 0;
     private playbackRequestId = 0;
@@ -40,7 +49,7 @@ export class StalkerVodPlaybackController {
         const requestId = ++this.playbackRequestId;
         const usesEmbeddedPlayer = this.config.portalPlayer.isEmbeddedPlayer();
         const playbackOwnerKey = this.config.playbackOwnerKey?.();
-        this.pendingStarts.update((count) => count + 1);
+        const startId = this.pendingStart.begin(playbackOwnerKey);
         try {
             const playback = await resolvePlayback();
             if (!this.isPlaybackRequestCurrent(requestId, playbackOwnerKey)) {
@@ -75,7 +84,7 @@ export class StalkerVodPlaybackController {
                 duration: 3000,
             });
         } finally {
-            this.pendingStarts.update((count) => count - 1);
+            this.pendingStart.settle(startId);
         }
     }
 

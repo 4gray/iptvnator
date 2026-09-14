@@ -13,7 +13,7 @@ import {
     createExternalPlaybackButtonState,
     createInlinePlaybackPositionWriter,
     createLogger,
-    getPortalPlaybackProgressPercent,
+    createPendingPlaybackStart,
 } from '@iptvnator/portal/shared/util';
 import {
     resolveXtreamVodPlaybackSource,
@@ -125,10 +125,6 @@ export class VodDetailsPlaybackService {
     );
     readonly isExternalStopAction = this.externalButton.isStopAction;
     readonly externalPrimaryButtonState = this.externalButton.buttonState;
-    readonly vodPlaybackProgress = computed(() =>
-        getPortalPlaybackProgressPercent(this.vodPlaybackPosition())
-    );
-
     /** Mirrors an incoming position into the route's row when it owns it. */
     private trackPosition(position: PlaybackPositionData | null): void {
         this.vodPlaybackPosition.set(position);
@@ -415,8 +411,12 @@ export class VodDetailsPlaybackService {
      * toggle waits them out: a row written inside that window would be
      * overwritten by the new player's first position tick.
      */
-    private readonly pendingStarts = signal(0);
-    readonly playbackStartPending = computed(() => this.pendingStarts() > 0);
+    private readonly pendingStart = createPendingPlaybackStart<
+        number | undefined
+    >();
+    readonly playbackStartPending = computed(() =>
+        this.pendingStart.isPendingFor(this.bindings()?.vodId())
+    );
 
     async startResolvedPlayback(
         playback: ResolvedPortalPlayback,
@@ -438,7 +438,7 @@ export class VodDetailsPlaybackService {
         }
 
         const generation = ++this.startGeneration;
-        this.pendingStarts.update((count) => count + 1);
+        const startId = this.pendingStart.begin(this.bindings()?.vodId());
         try {
             // A switch REPLACES what is playing. With MPV or VLC and instance
             // reuse off, the backend spawns a second detached player
@@ -467,7 +467,7 @@ export class VodDetailsPlaybackService {
             this.addToRecentlyViewed();
             return await this.applyPlayback(playback, isCurrent);
         } finally {
-            this.pendingStarts.update((count) => count - 1);
+            this.pendingStart.settle(startId);
         }
     }
 
