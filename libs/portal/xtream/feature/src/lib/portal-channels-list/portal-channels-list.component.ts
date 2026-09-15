@@ -168,6 +168,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     /** Last viewport slice, reused to refresh previews after a mapping change. */
     private lastVisibleChannels: XtreamChannelListItem[] = [];
 
+    /** Periodic re-pick of the visible rows' current program, cleared in `ngOnDestroy`. */
+    private epgRefreshIntervalId?: number;
+
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
     private subscriptions = new Subscription();
@@ -337,6 +340,21 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                     }
                 )
             );
+
+            // Nothing else re-evaluates the shown "current program" as
+            // wall-clock time passes (#767): applyProgram() only runs on
+            // scroll-into-view, a new EPG result, or an offset change. Only
+            // touches rows already known to be on screen, in place (no
+            // clear-and-refill, so a still-warm row never blanks out).
+            // Mirrors the EPG refresh interval in the M3U sibling
+            // `channel-list-container.component.ts`.
+            this.epgRefreshIntervalId = window.setInterval(() => {
+                if (this.lastVisibleChannels.length > 0) {
+                    this.loadEpgForVisibleChannels(this.lastVisibleChannels, {
+                        force: true,
+                    });
+                }
+            }, 60_000);
         }
     }
 
@@ -380,7 +398,17 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         this.cdr.markForCheck();
     }
 
-    private loadEpgForVisibleChannels(channels: XtreamChannelListItem[]): void {
+    /**
+     * `force` re-applies a cached preview, or re-fetches a missing one, even
+     * for a channel already tracked in `epgPrograms` -- otherwise both
+     * branches below skip it. Used by the periodic EPG refresh (#767) so an
+     * already-shown row's current program still advances once it ends,
+     * without clearing the map first (a still-warm row is never blanked).
+     */
+    private loadEpgForVisibleChannels(
+        channels: XtreamChannelListItem[],
+        options: { force?: boolean } = {}
+    ): void {
         if (!this.supportsEpg) {
             return;
         }
@@ -408,7 +436,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             if (cached !== null) {
                 const previewProgram = this.pickPreviewProgram(cached);
                 if (previewProgram) {
-                    if (!this.epgPrograms.has(channel.xtream_id)) {
+                    if (
+                        options.force ||
+                        !this.epgPrograms.has(channel.xtream_id)
+                    ) {
                         this.applyProgram(channel.xtream_id, previewProgram);
                     }
                 }
@@ -416,7 +447,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 continue;
             }
 
-            if (!this.epgPrograms.has(channel.xtream_id)) {
+            if (options.force || !this.epgPrograms.has(channel.xtream_id)) {
                 uncachedEntries.push({
                     streamId: channel.xtream_id,
                     epgChannelId: channel.epg_channel_id ?? null,
@@ -528,6 +559,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.subscriptions.unsubscribe();
+        if (this.epgRefreshIntervalId !== undefined) {
+            clearInterval(this.epgRefreshIntervalId);
+        }
     }
 
     private applyProgram(streamId: number, program: EpgItem): void {
