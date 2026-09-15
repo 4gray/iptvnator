@@ -495,6 +495,9 @@ jobs:
               # comes from the nightly-version job so every job of this run
               # builds the same version.
               if: needs.nightly-version.outputs.version != ''
+              # Windows runners default to PowerShell, where "${NIGHTLY_VERSION}"
+              # expands to nothing and the script rejects the empty version.
+              shell: bash
               env:
                   NIGHTLY_VERSION: ${{ needs.nightly-version.outputs.version }}
               run: node tools/release/nightly-version.mjs --apply --version "${NIGHTLY_VERSION}"
