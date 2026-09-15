@@ -7,7 +7,7 @@
  * released version in `package.json` is what stable users run, so a nightly
  * bumps the patch and adds a prerelease tag:
  *
- *   0.23.0  →  0.23.1-nightly.20260915.1234
+ *   0.23.0 (tag v0.23.0 exists)  →  0.23.1-nightly.20260915.1234
  *
  * - `0.23.1-nightly.*` is greater than the stable `0.23.0`, so a stable user
  *   who switches to nightly is offered it.
@@ -19,15 +19,27 @@
  * - electron-builder derives the updater channel file names from the
  *   prerelease tag (`nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`).
  *
- * Every build job of one workflow run computes the same value from the same
- * inputs, so no job needs to hand the version to another.
+ * A release cut commits the new version to master before (or together
+ * with) its tag. While `v<package.json version>` does not exist yet, that
+ * version is the UPCOMING release, so the patch is not bumped:
+ *
+ *   0.23.1 (no tag v0.23.1 yet)  →  0.23.1-nightly.20260915.1240
+ *
+ * That still orders above every earlier `0.23.1-nightly.*` (the run number
+ * grew) and below the imminent `0.23.1`, so nightly users are offered the
+ * release instead of skipping it.
+ *
+ * The workflow computes the version once, in a leading job, and hands it to
+ * every build job with `--version`, so a tag pushed while the matrix runs
+ * cannot give one run two different versions.
  *
  * Usage:
- *   node tools/release/nightly-version.mjs            # print the version
- *   node tools/release/nightly-version.mjs --apply    # also write package.json
+ *   node tools/release/nightly-version.mjs                       # print
+ *   node tools/release/nightly-version.mjs --apply --version X   # write X
  *
- * Inputs default to the repository `package.json`, the HEAD commit date, and
- * `GITHUB_RUN_NUMBER`; `--base`, `--date` and `--run-number` override them.
+ * Inputs default to the repository `package.json`, the HEAD commit date,
+ * `GITHUB_RUN_NUMBER`, and a `git ls-remote` probe for the base tag;
+ * `--base`, `--date`, `--run-number` and `--base-released` override them.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -38,13 +50,21 @@ export const NIGHTLY_TAG = 'nightly';
 const STABLE_VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)$/;
 const DATE_PATTERN = /^\d{8}$/;
 const PACKAGE_VERSION_LINE = /^(\s*"version":\s*")([^"]+)(")/m;
+const NIGHTLY_VERSION_PATTERN = /^\d+\.\d+\.\d+-nightly\.\d{8}\.\d+$/;
 const VALUE_FLAGS = {
     '--base': 'base',
+    '--base-released': 'baseReleased',
     '--date': 'date',
     '--run-number': 'runNumber',
+    '--version': 'version',
 };
 
-export function buildNightlyVersion({ baseVersion, date, runNumber }) {
+export function buildNightlyVersion({
+    baseVersion,
+    date,
+    runNumber,
+    baseReleased = true,
+}) {
     const match = STABLE_VERSION_PATTERN.exec(String(baseVersion ?? '').trim());
 
     if (!match) {
@@ -66,8 +86,26 @@ export function buildNightlyVersion({ baseVersion, date, runNumber }) {
     }
 
     const [, major, minor, patch] = match;
+    const nightlyPatch = baseReleased ? Number(patch) + 1 : Number(patch);
 
-    return `${major}.${minor}.${Number(patch) + 1}-${NIGHTLY_TAG}.${date}.${run}`;
+    return `${major}.${minor}.${nightlyPatch}-${NIGHTLY_TAG}.${date}.${run}`;
+}
+
+/** Accepts only the shape this script produces, so `--version` cannot smuggle junk in. */
+export function isNightlyVersion(value) {
+    return NIGHTLY_VERSION_PATTERN.test(String(value ?? ''));
+}
+
+export function parseBooleanFlag(value, flag) {
+    if (value === 'true') {
+        return true;
+    }
+
+    if (value === 'false') {
+        return false;
+    }
+
+    throw new Error(`${flag} must be "true" or "false", got "${value}".`);
 }
 
 /** Replaces the `version` line in `package.json` text, formatting intact. */
@@ -127,23 +165,78 @@ function readCommitDate() {
     return commitDate.toISOString().slice(0, 10).replace(/-/g, '');
 }
 
+/** Whether `v<base>` already exists on the origin remote. */
+function isBaseVersionReleased(baseVersion) {
+    try {
+        execFileSync(
+            'git',
+            [
+                'ls-remote',
+                '--exit-code',
+                '--tags',
+                'origin',
+                `refs/tags/v${baseVersion}`,
+            ],
+            { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }
+        );
+        return true;
+    } catch (error) {
+        // Exit status 2 is git's "no matching refs"; anything else (no
+        // remote, network) must not silently pick a version.
+        if (error && error.status === 2) {
+            return false;
+        }
+
+        throw new Error(
+            `Cannot probe origin for tag v${baseVersion}: ${error?.message ?? error}`
+        );
+    }
+}
+
+function resolveVersion(options, packageJsonText) {
+    if (options.version !== undefined) {
+        if (!isNightlyVersion(options.version)) {
+            throw new Error(
+                `--version must look like X.Y.Z-nightly.YYYYMMDD.N, got "${options.version}".`
+            );
+        }
+
+        return options.version;
+    }
+
+    const baseVersion = options.base ?? JSON.parse(packageJsonText).version;
+
+    return buildNightlyVersion({
+        baseVersion,
+        date: options.date ?? readCommitDate(),
+        runNumber: options.runNumber ?? process.env.GITHUB_RUN_NUMBER,
+        baseReleased:
+            options.baseReleased === undefined
+                ? isBaseVersionReleased(baseVersion)
+                : parseBooleanFlag(options.baseReleased, '--base-released'),
+    });
+}
+
 function main(argv) {
     const options = parseArguments(argv);
 
     if (!options) {
         console.error(
-            'Usage: node tools/release/nightly-version.mjs [--apply] [--base X.Y.Z] [--date YYYYMMDD] [--run-number N]'
+            'Usage: node tools/release/nightly-version.mjs [--apply] [--version X.Y.Z-nightly.YYYYMMDD.N | --base X.Y.Z --base-released true|false --date YYYYMMDD --run-number N]'
         );
         return 2;
     }
 
     const packageJsonPath = new URL('../../package.json', import.meta.url);
     const packageJsonText = readFileSync(packageJsonPath, 'utf8');
-    const version = buildNightlyVersion({
-        baseVersion: options.base ?? JSON.parse(packageJsonText).version,
-        date: options.date ?? readCommitDate(),
-        runNumber: options.runNumber ?? process.env.GITHUB_RUN_NUMBER,
-    });
+    let version;
+
+    try {
+        version = resolveVersion(options, packageJsonText);
+    } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        return 1;
+    }
 
     if (options.apply) {
         writeFileSync(

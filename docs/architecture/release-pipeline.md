@@ -302,15 +302,20 @@ frontend and backend builds and before electron-builder reads it
 - electron-builder derives the updater channel files from the prerelease
   tag: `nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`. The artifact
   upload globs and the macOS metadata merge accept both names.
-- Every job derives the same value from the same inputs (commit date + run
-  number), so nothing is handed between jobs. The release job recomputes it
-  to name the tag `v<version>`.
 - The root `package.json` is an Nx `sharedGlobals` input, so the rewritten
   version reaches the `web` and `electron-backend` bundles (which embed it)
   instead of a cache hit built from the released version.
-- The base is the released version in `package.json`. In the short window
-  between a version bump commit and its tag, a nightly is numbered above the
-  upcoming release; the next nightly after the tag corrects that.
+- The base is the version in `package.json`. The patch is bumped only when
+  `v<base>` already exists on origin. A release cut commits the bump before
+  (or together with) its tag, and while that tag is missing the base is the
+  UPCOMING release, so the nightly keeps its patch
+  (`0.23.1` untagged → `0.23.1-nightly.<date>.<run>`): still above every
+  earlier nightly, still below the imminent `0.23.1`, so nightly users are
+  offered that release instead of skipping it.
+- The version is computed once, in the leading `nightly-version` job, and
+  handed to every build job as `--version` — a tag pushed while the matrix
+  runs cannot give one run two different versions. The release job reads
+  the same output to name the tag `v<version>`.
 
 **Publication** (steps at the end of the `create-release` job):
 
@@ -327,7 +332,10 @@ frontend and backend builds and before electron-builder reads it
 3. The release is created as a draft, assets are uploaded, then it is
    published in one edit, so electron-updater never sees a release whose
    channel file is still missing. Missing `nightly-mac.yml`,
-   `nightly.yml` or `nightly-linux.yml` fails the step instead.
+   `nightly.yml` or `nightly-linux.yml` fails the step instead. A published
+   release is never deleted by a re-run: re-running after a successful
+   publish is a no-op, and only a draft left behind by a failed run is
+   replaced.
 4. The release job is serialized per ref, but two master runs can finish out
    of order. electron-updater takes the newest feed entry, so a nightly older
    than the newest published one is dropped rather than published.

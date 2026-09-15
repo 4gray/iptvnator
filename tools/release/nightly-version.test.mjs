@@ -3,7 +3,9 @@ import { describe, it } from 'node:test';
 import {
     applyNightlyVersion,
     buildNightlyVersion,
+    isNightlyVersion,
     parseArguments,
+    parseBooleanFlag,
 } from './nightly-version.mjs';
 
 describe('buildNightlyVersion', () => {
@@ -76,6 +78,30 @@ describe('buildNightlyVersion', () => {
         assert.ok(semverOrder(nextDay, '0.24.0') < 0);
     });
 
+    it('keeps the base patch while the base version is not tagged yet', () => {
+        // The release-cut commit bumps package.json to 0.23.1 before the
+        // v0.23.1 tag exists: the nightly must sit BELOW 0.23.1 so the
+        // imminent stable release is still offered.
+        assert.equal(
+            buildNightlyVersion({
+                baseVersion: '0.23.1',
+                date: '20260915',
+                runNumber: 1240,
+                baseReleased: false,
+            }),
+            '0.23.1-nightly.20260915.1240'
+        );
+        assert.equal(
+            buildNightlyVersion({
+                baseVersion: '0.23.1',
+                date: '20260915',
+                runNumber: 1241,
+                baseReleased: true,
+            }),
+            '0.23.2-nightly.20260915.1241'
+        );
+    });
+
     it('rejects a base version that is already a prerelease', () => {
         assert.throws(
             () =>
@@ -138,6 +164,25 @@ describe('applyNightlyVersion', () => {
     });
 });
 
+describe('explicit version input', () => {
+    it('accepts only the shape the script itself produces', () => {
+        assert.equal(isNightlyVersion('0.23.1-nightly.20260915.1234'), true);
+        assert.equal(isNightlyVersion('0.23.1'), false);
+        assert.equal(isNightlyVersion('0.23.1-beta.1'), false);
+        assert.equal(isNightlyVersion('0.23.1-nightly.2026915.1'), false);
+        assert.equal(isNightlyVersion(undefined), false);
+    });
+
+    it('parses the base-released flag strictly', () => {
+        assert.equal(parseBooleanFlag('true', '--base-released'), true);
+        assert.equal(parseBooleanFlag('false', '--base-released'), false);
+        assert.throws(
+            () => parseBooleanFlag('yes', '--base-released'),
+            /--base-released must be "true" or "false"/
+        );
+    });
+});
+
 describe('parseArguments', () => {
     it('reads the flags and ignores a bare separator', () => {
         assert.deepEqual(
@@ -150,12 +195,18 @@ describe('parseArguments', () => {
                 '20260915',
                 '--run-number',
                 '12',
+                '--base-released',
+                'false',
+                '--version',
+                '0.23.0-nightly.20260915.12',
             ]),
             {
                 apply: true,
                 base: '0.23.0',
                 date: '20260915',
                 runNumber: '12',
+                baseReleased: 'false',
+                version: '0.23.0-nightly.20260915.12',
             }
         );
     });

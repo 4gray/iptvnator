@@ -14,6 +14,8 @@ const availableStatus: ElectronBridgeAppUpdateStatus = {
     manualDownloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
     status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
     supportedSelfUpdate: true,
+    channel: 'stable',
+    installedChannel: 'stable',
 };
 
 describe('AppUpdateNotificationPanelComponent', () => {

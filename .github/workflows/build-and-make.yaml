@@ -14,13 +14,13 @@ name: Build and Make Electron App
 # window is visible and bounded; refreshing drafts on skipped runs is not
 # worth a separate workflow.
 #
-# Master pushes are the nightly channel: every build job rewrites the
-# package.json version to <next patch>-nightly.<date>.<run number>
-# (tools/release/nightly-version.mjs) so electron-updater treats the build
-# as newer than the released version, and the release job publishes the
-# artifacts as a prerelease of 4gray/iptvnator-nightly instead of the
-# rolling test-master draft. Contract: docs/architecture/release-pipeline.md
-# ("Nightly channel").
+# Master pushes are the nightly channel: the nightly-version job computes
+# one <patch>-nightly.<date>.<run number> version for the whole run
+# (tools/release/nightly-version.mjs), every build job writes it into
+# package.json so electron-updater treats the build as newer than the
+# released version, and the release job publishes the artifacts as a
+# prerelease of 4gray/iptvnator-nightly instead of the rolling test-master
+# draft. Contract: docs/architecture/release-pipeline.md ("Nightly channel").
 on:
     push:
         branches:
@@ -50,6 +50,39 @@ permissions:
     contents: read
 
 jobs:
+    # One version for the whole run. Computed here rather than in each build
+    # job because the rule depends on whether the base tag exists on origin:
+    # a tag pushed while the matrix runs would otherwise give one run two
+    # different versions. Empty output means "not a nightly build".
+    nightly-version:
+        name: Resolve nightly version
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            version: ${{ steps.resolve.outputs.version }}
+        steps:
+            - name: Checkout code
+              if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == '4gray/iptvnator'
+              uses: actions/checkout@v7
+
+            - name: Resolve nightly version
+              id: resolve
+              shell: bash
+              env:
+                  NIGHTLY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == '4gray/iptvnator' }}
+              run: |
+                  set -euo pipefail
+
+                  if [ "${NIGHTLY}" != "true" ]; then
+                      echo "version=" >> "${GITHUB_OUTPUT}"
+                      echo "Not a master push; no nightly version."
+                      exit 0
+                  fi
+
+                  VERSION="$(node tools/release/nightly-version.mjs)"
+                  echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+                  echo "Nightly version: ${VERSION}"
+
     linux-embedded-mpv-runtime:
         name: Build pinned Linux Embedded MPV runtime
         runs-on: ubuntu-22.04
@@ -348,6 +381,7 @@ jobs:
 
     build-cross-platform:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
+        needs: nightly-version
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -457,11 +491,13 @@ jobs:
               # Master merges feed the nightly update channel. The version
               # must be greater than the released one for electron-updater to
               # offer it, and it must be in package.json before the frontend
-              # and backend builds and electron-builder read it. Every job of
-              # this run derives the same value from the commit date and the
-              # run number, so nothing has to be handed between jobs.
-              if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == '4gray/iptvnator'
-              run: node tools/release/nightly-version.mjs --apply
+              # and backend builds and electron-builder read it. The value
+              # comes from the nightly-version job so every job of this run
+              # builds the same version.
+              if: needs.nightly-version.outputs.version != ''
+              env:
+                  NIGHTLY_VERSION: ${{ needs.nightly-version.outputs.version }}
+              run: node tools/release/nightly-version.mjs --apply --version "${NIGHTLY_VERSION}"
 
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
@@ -1260,7 +1296,9 @@ jobs:
 
     build-linux:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }} (${{ matrix.linux_profile }})
-        needs: linux-embedded-mpv-runtime
+        needs:
+            - linux-embedded-mpv-runtime
+            - nightly-version
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -1297,6 +1335,7 @@ jobs:
     create-release:
         name: Create Draft Release
         needs:
+            - nightly-version
             - build-cross-platform
             - build-linux
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -1665,10 +1704,14 @@ jobs:
               shell: bash
               env:
                   NIGHTLY_RELEASE_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+                  VERSION: ${{ needs.nightly-version.outputs.version }}
               run: |
                   set -euo pipefail
 
-                  VERSION="$(node tools/release/nightly-version.mjs)"
+                  if [ -z "${VERSION}" ]; then
+                      echo "::error::The nightly-version job produced no version for this master push."
+                      exit 1
+                  fi
                   {
                       echo "version=${VERSION}"
                       echo "tag=v${VERSION}"
@@ -1738,10 +1781,12 @@ jobs:
 
             # Created as a draft, assets uploaded, then published in one edit,
             # so electron-updater never sees a release whose channel file is
-            # still missing. The release job is serialized per ref but two
-            # master runs can still finish out of order, so a nightly that is
-            # older than the newest published one is dropped instead of
-            # becoming the feed's newest entry.
+            # still missing. A published release is never deleted here: a
+            # rerun after a successful publish is a no-op, and only a draft
+            # left behind by a failed run is replaced. The release job is
+            # serialized per ref but two master runs can still finish out of
+            # order, so a nightly that is older than the newest published one
+            # is dropped instead of becoming the feed's newest entry.
             - name: Publish nightly release
               if: steps.nightly-meta.outputs.publish == 'true'
               shell: bash
@@ -1799,9 +1844,16 @@ jobs:
                       artifacts/windows-artifacts/*.blockmap
                   )
 
-                  if gh release view "${TAG}" --repo "${NIGHTLY_REPOSITORY}" > /dev/null 2>&1; then
-                      echo "Release ${TAG} already exists (re-run); replacing it."
-                      gh release delete "${TAG}" --repo "${NIGHTLY_REPOSITORY}" --cleanup-tag --yes
+                  EXISTING="$(gh api "repos/${NIGHTLY_REPOSITORY}/releases?per_page=100" --paginate |
+                      jq -c --arg tag "${TAG}" 'map(select(.tag_name == $tag)) | first // empty')"
+                  if [ -n "${EXISTING}" ]; then
+                      if [ "$(jq -r '.draft' <<< "${EXISTING}")" != "true" ]; then
+                          echo "::notice::${TAG} is already published in ${NIGHTLY_REPOSITORY}; nothing to do for this re-run."
+                          exit 0
+                      fi
+                      DRAFT_ID="$(jq -r '.id' <<< "${EXISTING}")"
+                      echo "Removing the draft ${TAG} (id ${DRAFT_ID}) a failed run left behind."
+                      gh api -X DELETE "repos/${NIGHTLY_REPOSITORY}/releases/${DRAFT_ID}"
                   fi
 
                   gh release create "${TAG}" "${assets[@]}" \
