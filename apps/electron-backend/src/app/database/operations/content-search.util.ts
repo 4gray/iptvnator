@@ -16,12 +16,18 @@ export function escapeLikePattern(term: string): string {
     return term.replace(/[%_\\]/g, '\\$&');
 }
 
+// Search case folding is deliberately locale-invariant (toLowerCase, not
+// toLocaleLowerCase). Under a Turkish or Azeri locale toLocaleLowerCase maps
+// ASCII "I" to the dotless "ı" and folds the dotted "İ" its own way, so the
+// same title would be found or missed depending on the user's OS locale, and
+// the query would not line up with the SQLite FTS index, which folds
+// locale-invariantly. Issue #609: "İnş" and "inş" returned different results.
 export function normalizeSearchMatchText(value: unknown): string {
     return typeof value === 'string'
         ? value
               .normalize('NFKD')
               .replace(/[\u0300-\u036f]/g, '')
-              .toLocaleLowerCase()
+              .toLowerCase()
               .replace(/[^\p{L}\p{N}]+/gu, ' ')
               .trim()
               .replace(/\s+/g, ' ')
@@ -31,7 +37,15 @@ export function normalizeSearchMatchText(value: unknown): string {
 function normalizeSqlSearchText(value: unknown): string {
     return typeof value === 'string'
         ? value
-              .toLocaleLowerCase()
+              .toLowerCase()
+              // Drop the combining marks case folding leaves behind, before the
+              // split below can read them as word separators: "İ" (U+0130)
+              // lower-cases to "i" plus a combining dot above (U+0307), which
+              // otherwise split "İnş" into "i" and "nş" while "inş" stayed one
+              // token, routing the two differently (issue #609). Same
+              // U+0300-U+036F range normalizeSearchMatchText strips; precomposed
+              // letters (ç, ş, ü, é) are outside it and left untouched.
+              .replace(/[\u0300-\u036f]/g, '')
               .replace(/[^\p{L}\p{N}]+/gu, ' ')
               .trim()
               .replace(/\s+/g, ' ')
@@ -77,13 +91,13 @@ export function buildLikePatterns(
 
         const titleCase =
             trimmedValue.length > 0
-                ? trimmedValue.charAt(0).toLocaleUpperCase() +
-                  trimmedValue.slice(1).toLocaleLowerCase()
+                ? trimmedValue.charAt(0).toUpperCase() +
+                  trimmedValue.slice(1).toLowerCase()
                 : trimmedValue;
 
         variants.add(trimmedValue);
-        variants.add(trimmedValue.toLocaleLowerCase());
-        variants.add(trimmedValue.toLocaleUpperCase());
+        variants.add(trimmedValue.toLowerCase());
+        variants.add(trimmedValue.toUpperCase());
         variants.add(titleCase);
     }
 
@@ -98,11 +112,11 @@ export function buildGlobPrefixPatterns(token: string): string[] {
 
     for (const value of [token, ...getSqlSearchTokenVariants(token)]) {
         variants.add(value);
-        variants.add(value.toLocaleLowerCase());
-        variants.add(value.toLocaleUpperCase());
+        variants.add(value.toLowerCase());
+        variants.add(value.toUpperCase());
         variants.add(
-            value.charAt(0).toLocaleUpperCase() +
-                value.slice(1).toLocaleLowerCase()
+            value.charAt(0).toUpperCase() +
+                value.slice(1).toLowerCase()
         );
     }
 
@@ -237,11 +251,11 @@ export function buildCompoundLikePatterns(word: string): string[] {
 
     for (const value of getCompoundWordVariants(word)) {
         variants.add(value);
-        variants.add(value.toLocaleLowerCase());
-        variants.add(value.toLocaleUpperCase());
+        variants.add(value.toLowerCase());
+        variants.add(value.toUpperCase());
         variants.add(
-            value.charAt(0).toLocaleUpperCase() +
-                value.slice(1).toLocaleLowerCase()
+            value.charAt(0).toUpperCase() +
+                value.slice(1).toLowerCase()
         );
     }
 
@@ -261,7 +275,7 @@ export function buildCompoundFtsMatchQuery(searchTerm: string): string {
             const quotedVariants = [
                 ...new Set(
                     getCompoundWordVariants(word).map((variant) =>
-                        variant.toLocaleLowerCase()
+                        variant.toLowerCase()
                     )
                 ),
             ].map((variant) => `"${variant.replace(/"/g, '""')}"`);
