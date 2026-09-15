@@ -70,7 +70,7 @@ describe('PortalChannelsListComponent', () => {
     const epgQueueService = {
         epgResult$: epgResults$,
         getCached: jest.fn().mockReturnValue(null),
-        enqueue: jest.fn(),
+        enqueue: jest.fn().mockResolvedValue(undefined),
     };
 
     beforeEach(async () => {
@@ -270,6 +270,215 @@ describe('PortalChannelsListComponent', () => {
             })
         );
         expect(component.currentProgramsProgress.get(50)).toBeCloseTo(50, 1);
+    });
+
+    /** Sizes the viewport so its rendered range covers the given channels and
+     * `lastVisibleChannels` gets populated, matching what a real scroll does. */
+    async function renderViewport(
+        fixture: ComponentFixture<PortalChannelsListComponent>
+    ) {
+        const viewport = fixture.componentInstance.viewport();
+        if (!viewport) {
+            throw new Error('Expected channel viewport');
+        }
+        Object.defineProperty(viewport.elementRef.nativeElement, 'clientHeight', {
+            configurable: true,
+            value: 520,
+        });
+        viewport.checkViewportSize();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        jest.advanceTimersByTime(300); // renderedRangeStream's debounceTime
+        fixture.detectChanges();
+    }
+
+    it('re-picks a channel current program once its end time passes, without a scroll or re-entry (#767)', async () => {
+        jest.useFakeTimers();
+        const firstStartTimestamp = Math.floor(
+            Date.parse('2026-04-05T05:30:00.000Z') / 1000
+        );
+        const firstStopTimestamp = Math.floor(
+            Date.parse('2026-04-05T06:00:00.000Z') / 1000
+        );
+        const secondStartTimestamp = firstStopTimestamp;
+        const secondStopTimestamp = Math.floor(
+            Date.parse('2026-04-05T06:30:00.000Z') / 1000
+        );
+
+        jest.setSystemTime(new Date('2026-04-05T05:45:00.000Z'));
+
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([
+            {
+                title: 'Cartoon Network',
+                xtream_id: 50,
+            },
+        ]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+
+        fixture.detectChanges();
+        await renderViewport(fixture);
+
+        const firstProgram = buildEpgItem({
+            id: 'first',
+            title: 'Current Show',
+            start: '2026-04-05T05:30:00.000Z',
+            stop: '2026-04-05T06:00:00.000Z',
+            startTimestamp: firstStartTimestamp,
+            stopTimestamp: firstStopTimestamp,
+        });
+        const secondProgram = buildEpgItem({
+            id: 'second',
+            title: 'Next Show',
+            start: '2026-04-05T06:00:00.000Z',
+            stop: '2026-04-05T06:30:00.000Z',
+            startTimestamp: secondStartTimestamp,
+            stopTimestamp: secondStopTimestamp,
+        });
+
+        epgResults$.next({
+            streamId: 50,
+            items: [firstProgram, secondProgram],
+        });
+        fixture.detectChanges();
+
+        const component = fixture.componentInstance;
+        expect(component.epgPrograms.get(50)?.title).toBe('Current Show');
+
+        // The queue's cache holds both programmes for this channel, as it
+        // would once the EPG result above had arrived through the real
+        // service.
+        epgQueueService.getCached.mockImplementation((streamId: number) =>
+            streamId === 50 ? [firstProgram, secondProgram] : null
+        );
+        epgQueueService.enqueue.mockClear();
+
+        // Wall-clock time moves past the first programme's end with no
+        // scroll-out/in and no EPG settings change: the reporter's exact
+        // scenario from #767. The channel stays on screen throughout; the
+        // 60s interval fires several times along the way, landing on the
+        // next programme by the time 20 minutes have passed.
+        jest.advanceTimersByTime(20 * 60 * 1000);
+
+        expect(component.epgPrograms.get(50)?.title).toBe('Next Show');
+        // The cache was already warm, so the refresh re-picked from it
+        // instead of enqueuing a new fetch.
+        expect(epgQueueService.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('re-fetches EPG on the refresh tick once the cache has expired, without blanking the row (#767)', async () => {
+        // The queue's own cache is short-lived (a 5 minute TTL); a channel
+        // left on screen without a scroll event needs the periodic refresh
+        // to re-fetch it, not just re-pick from a cache entry that is gone.
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-04-05T05:45:00.000Z'));
+
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([
+            {
+                title: 'Cartoon Network',
+                xtream_id: 50,
+            },
+        ]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+
+        fixture.detectChanges();
+        await renderViewport(fixture);
+
+        epgResults$.next({
+            streamId: 50,
+            items: [
+                buildEpgItem({
+                    id: 'first',
+                    title: 'Current Show',
+                    start: '2026-04-05T05:30:00.000Z',
+                    stop: '2026-04-05T06:00:00.000Z',
+                    startTimestamp: Math.floor(
+                        Date.parse('2026-04-05T05:30:00.000Z') / 1000
+                    ),
+                    stopTimestamp: Math.floor(
+                        Date.parse('2026-04-05T06:00:00.000Z') / 1000
+                    ),
+                }),
+            ],
+        });
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        expect(component.epgPrograms.get(50)?.title).toBe('Current Show');
+
+        // Simulate the cache having aged out: getCached now returns null.
+        epgQueueService.getCached.mockReturnValue(null);
+        epgQueueService.enqueue.mockClear();
+
+        jest.advanceTimersByTime(20 * 60 * 1000);
+
+        expect(epgQueueService.enqueue).toHaveBeenCalledWith(
+            expect.arrayContaining([
+                expect.objectContaining({ streamId: 50 }),
+            ]),
+            expect.any(Set),
+            expect.objectContaining({ serverUrl: 'http://demo.example' })
+        );
+        // The row is never cleared while the fetch is in flight: it keeps
+        // showing the last-known program instead of going blank.
+        expect(component.epgPrograms.get(50)?.title).toBe('Current Show');
+
+        // The fetch resolves with the next programme; the row updates.
+        epgResults$.next({
+            streamId: 50,
+            items: [
+                buildEpgItem({
+                    id: 'second',
+                    title: 'Next Show',
+                    start: '2026-04-05T06:00:00.000Z',
+                    stop: '2026-04-05T06:30:00.000Z',
+                    startTimestamp: Math.floor(
+                        Date.parse('2026-04-05T06:00:00.000Z') / 1000
+                    ),
+                    stopTimestamp: Math.floor(
+                        Date.parse('2026-04-05T06:30:00.000Z') / 1000
+                    ),
+                }),
+            ],
+        });
+        fixture.detectChanges();
+        expect(component.epgPrograms.get(50)?.title).toBe('Next Show');
+    });
+
+    it('does not fetch off-screen channels on the refresh tick when nothing has been scrolled into view', () => {
+        // No renderViewport() here: lastVisibleChannels stays empty, as it
+        // would before the first scroll event settles.
+        jest.useFakeTimers();
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set(
+            Array.from({ length: 60 }, (_, index) => ({
+                title: `Channel ${index + 1}`,
+                xtream_id: index + 1,
+            }))
+        );
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+
+        fixture.detectChanges();
+        epgQueueService.enqueue.mockClear();
+
+        jest.advanceTimersByTime(60_000);
+
+        expect(epgQueueService.enqueue).not.toHaveBeenCalled();
     });
 
     it('does not derive or subscribe to row EPG previews in browser/PWA mode', async () => {
