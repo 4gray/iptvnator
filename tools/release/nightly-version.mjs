@@ -264,20 +264,29 @@ function main(argv) {
     }
 
     if (options.apply) {
-        writeFileSync(
-            packageJsonPath,
-            applyNightlyVersion(packageJsonText, version)
-        );
+        // Resolve both replacements before touching either file, so a bad
+        // electron-builder.json cannot leave package.json half-applied.
         const electronBuilderJsonPath = new URL(
             '../../electron-builder.json',
             import.meta.url
         );
-        writeFileSync(
-            electronBuilderJsonPath,
-            applyNightlyPublishChannel(
+        let nextPackageJson;
+        let nextElectronBuilderJson;
+
+        try {
+            nextPackageJson = applyNightlyVersion(packageJsonText, version);
+            nextElectronBuilderJson = applyNightlyPublishChannel(
                 readFileSync(electronBuilderJsonPath, 'utf8')
-            )
-        );
+            );
+        } catch (error) {
+            console.error(
+                error instanceof Error ? error.message : String(error)
+            );
+            return 1;
+        }
+
+        writeFileSync(packageJsonPath, nextPackageJson);
+        writeFileSync(electronBuilderJsonPath, nextElectronBuilderJson);
         console.error(
             `Applied nightly version ${version} to package.json and the nightly publish channel to electron-builder.json.`
         );
