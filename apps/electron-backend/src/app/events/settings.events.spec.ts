@@ -22,6 +22,7 @@ type SettingsUpdateHandler = (
 
 const SETTINGS_UPDATE = 'SETTINGS_UPDATE';
 const STORE_KEYS = {
+    APP_UPDATE_CHANNEL: 'APP_UPDATE_CHANNEL',
     EMBEDDED_MPV_AUTO_RECONNECT: 'EMBEDDED_MPV_AUTO_RECONNECT',
     EMBEDDED_MPV_EXTRA_OPTIONS: 'EMBEDDED_MPV_EXTRA_OPTIONS',
     EMBEDDED_MPV_FRAME_COPY: 'EMBEDDED_MPV_FRAME_COPY',
@@ -50,6 +51,7 @@ jest.mock('electron', () => ({
 }));
 
 jest.mock('../services/store.service', () => ({
+    APP_UPDATE_CHANNEL: STORE_KEYS.APP_UPDATE_CHANNEL,
     EMBEDDED_MPV_AUTO_RECONNECT: STORE_KEYS.EMBEDDED_MPV_AUTO_RECONNECT,
     EMBEDDED_MPV_EXTRA_OPTIONS: STORE_KEYS.EMBEDDED_MPV_EXTRA_OPTIONS,
     EMBEDDED_MPV_FRAME_COPY: STORE_KEYS.EMBEDDED_MPV_FRAME_COPY,
@@ -217,6 +219,37 @@ describe('SETTINGS_UPDATE', () => {
         expect(mockStoreSet.mock.calls).toEqual([
             [STORE_KEYS.STARTUP_WINDOW_MODE, 'normal'],
         ]);
+    });
+
+    it('mirrors the update channel into the main-process store and notifies the updater', async () => {
+        const channelModule = await import('../services/app-update-channel');
+        const listener = jest.fn();
+        channelModule.onAppUpdateChannelChange(listener);
+
+        settingsUpdateHandler({}, { updateChannel: 'nightly' });
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.APP_UPDATE_CHANNEL, 'nightly'],
+        ]);
+        expect(listener).toHaveBeenCalledWith('nightly');
+    });
+
+    it('normalizes an unknown update channel to stable and stays quiet when nothing changed', async () => {
+        const channelModule = await import('../services/app-update-channel');
+        const listener = jest.fn();
+        channelModule.onAppUpdateChannelChange(listener);
+
+        settingsUpdateHandler(
+            {},
+            {
+                updateChannel: 'canary' as unknown as 'stable',
+            }
+        );
+
+        expect(mockStoreSet.mock.calls).toEqual([
+            [STORE_KEYS.APP_UPDATE_CHANNEL, 'stable'],
+        ]);
+        expect(listener).not.toHaveBeenCalled();
     });
 
     it('reconciles an enabled remote-control update with the stored port', () => {

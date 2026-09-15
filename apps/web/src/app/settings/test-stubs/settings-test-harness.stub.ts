@@ -97,6 +97,7 @@ export const DEFAULT_SETTINGS = {
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
     startupWindowMode: 'normal',
+    updateChannel: 'stable',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
@@ -128,6 +129,8 @@ export const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {
     manualDownloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
     status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle,
     supportedSelfUpdate: true,
+    channel: 'stable',
+    installedChannel: 'stable',
 };
 
 export class MatSnackBarStub {

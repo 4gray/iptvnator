@@ -13,6 +13,7 @@ import {
     StartupBehaviorOption,
     StartupWindowModeOption,
     ThemeOption,
+    UpdateChannelOption,
 } from './settings.models';
 
 export const SETTINGS_THEME_OPTIONS: ThemeOption[] = [
@@ -87,6 +88,17 @@ export const SETTINGS_STARTUP_WINDOW_MODE_OPTIONS: StartupWindowModeOption[] = [
     {
         value: 'fullscreen',
         labelKey: 'SETTINGS.STARTUP_WINDOW_MODE_FULLSCREEN',
+    },
+];
+
+export const SETTINGS_UPDATE_CHANNEL_OPTIONS: UpdateChannelOption[] = [
+    {
+        value: 'stable',
+        labelKey: 'SETTINGS.APP_UPDATE_CHANNEL_STABLE',
+    },
+    {
+        value: 'nightly',
+        labelKey: 'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY',
     },
 ];
 

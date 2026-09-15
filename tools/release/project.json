@@ -18,6 +18,7 @@
                 "{workspaceRoot}/tools/release/extract-changelog-section.mjs",
                 "{workspaceRoot}/tools/release/check-release-note-gate.mjs",
                 "{workspaceRoot}/tools/release/build-release-notes.mjs",
+                "{workspaceRoot}/tools/release/nightly-version.mjs",
                 "{workspaceRoot}/tools/release/screenshot-guards.mjs",
                 "{workspaceRoot}/tools/release/screenshots.manifest.json",
                 "{workspaceRoot}/.github/workflows/build-and-make.yaml",
@@ -27,10 +28,11 @@
                 "{workspaceRoot}/tools/release/release-announcements.test.mjs",
                 "{workspaceRoot}/tools/release/verify-draft-release.test.mjs",
                 "{workspaceRoot}/tools/release/highlight-cards.test.mjs",
-                "{workspaceRoot}/tools/release/screenshot-guards.test.mjs"
+                "{workspaceRoot}/tools/release/screenshot-guards.test.mjs",
+                "{workspaceRoot}/tools/release/nightly-version.test.mjs"
             ],
             "options": {
-                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/build-release-notes.test.mjs tools/release/release-announcements.test.mjs tools/release/verify-draft-release.test.mjs tools/release/highlight-cards.test.mjs tools/release/screenshot-guards.test.mjs",
+                "command": "node --test tools/release/release-notes.test.mjs tools/release/release-note-gate.test.mjs tools/release/build-release-notes.test.mjs tools/release/release-announcements.test.mjs tools/release/verify-draft-release.test.mjs tools/release/highlight-cards.test.mjs tools/release/screenshot-guards.test.mjs tools/release/nightly-version.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },

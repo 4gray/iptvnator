@@ -1,10 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormControl, FormGroup } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
+import { SETTINGS_UPDATE_CHANNEL_OPTIONS } from './settings-options';
 
 function getButton(fixture: ComponentFixture<SettingsAboutSectionComponent>, id: string) {
     return fixture.nativeElement.querySelector(
@@ -185,5 +187,88 @@ describe('SettingsAboutSectionComponent version display', () => {
         fixture.detectChanges();
 
         expect(getCommitMarker()).toBeNull();
+    });
+});
+
+describe('SettingsAboutSectionComponent update channel', () => {
+    let fixture: ComponentFixture<SettingsAboutSectionComponent>;
+
+    const query = (id: string) =>
+        fixture.nativeElement.querySelector(
+            `[data-test-id="${id}"]`
+        ) as HTMLElement | null;
+
+    const configure = (
+        status: Partial<ElectronBridgeAppUpdateStatus>,
+        form: FormGroup | null
+    ) => {
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('form', form);
+        fixture.componentRef.setInput(
+            'updateChannelOptions',
+            SETTINGS_UPDATE_CHANNEL_OPTIONS
+        );
+        fixture.componentRef.setInput('appUpdateStatus', {
+            currentVersion: '0.23.0',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator/releases/latest',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle,
+            supportedSelfUpdate: true,
+            channel: 'stable',
+            installedChannel: 'stable',
+            ...status,
+        });
+        fixture.detectChanges();
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [
+                SettingsAboutSectionComponent,
+                TranslateModule.forRoot(),
+            ],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SettingsAboutSectionComponent);
+    });
+
+    it('binds the channel select to the shared settings form', () => {
+        const form = new FormGroup({
+            updateChannel: new FormControl('stable'),
+        });
+        configure({}, form);
+
+        expect(query('select-update-channel')).not.toBeNull();
+        expect(query('app-update-channel-nightly-warning')).toBeNull();
+
+        form.controls.updateChannel.setValue('nightly');
+        fixture.detectChanges();
+
+        expect(query('app-update-channel-nightly-warning')).not.toBeNull();
+    });
+
+    it('renders no channel control without a form to bind to', () => {
+        configure({}, null);
+
+        expect(query('select-update-channel')).toBeNull();
+    });
+
+    it('explains that a nightly build on the stable channel waits for the next release', () => {
+        const form = new FormGroup({
+            updateChannel: new FormControl('stable'),
+        });
+        configure(
+            {
+                currentVersion: '0.23.1-nightly.20260915.7',
+                installedChannel: 'nightly',
+            },
+            form
+        );
+
+        expect(query('app-update-nightly-on-stable-hint')).not.toBeNull();
+
+        configure({ channel: 'nightly', installedChannel: 'nightly' }, form);
+
+        expect(query('app-update-nightly-on-stable-hint')).toBeNull();
     });
 });

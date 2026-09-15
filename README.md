@@ -146,6 +146,18 @@ Download the latest version of the application for macOS, Windows, and Linux fro
 
 Alternatively, you can install the application using one of the following package managers:
 
+### Nightly builds
+
+Every merge into `master` is published as a prerelease in
+[4gray/iptvnator-nightly](https://github.com/4gray/iptvnator-nightly). The
+desktop app can follow them: **Settings → About → Update channel → Nightly**
+offers each new build through the built-in updater (macOS, Windows, and the
+Linux AppImage). Nightly builds are untested snapshots — they may break, and
+their database changes are permanent, so switching back to **Stable** keeps
+the installed nightly until the next stable release is newer. Back up your
+playlists first, and mention the version and commit shown in *About* when
+reporting a bug from a nightly.
+
 ### Homebrew
 
 ```shell

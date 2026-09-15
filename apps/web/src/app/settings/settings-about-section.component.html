@@ -63,6 +63,65 @@
                         ></progress>
                     }
                 </div>
+                @if (canSelectUpdateChannel()) {
+                    <div
+                        class="app-update-channel"
+                        [formGroup]="form()!"
+                        data-test-id="app-update-channel"
+                    >
+                        <mat-form-field appearance="outline">
+                            <mat-label>{{
+                                'SETTINGS.APP_UPDATE_CHANNEL' | translate
+                            }}</mat-label>
+                            <mat-select
+                                formControlName="updateChannel"
+                                data-test-id="select-update-channel"
+                            >
+                                @for (
+                                    option of updateChannelOptions();
+                                    track option.value
+                                ) {
+                                    <mat-option
+                                        [value]="option.value"
+                                        [attr.data-test-id]="
+                                            'update-channel-' + option.value
+                                        "
+                                    >
+                                        {{ option.labelKey | translate }}
+                                    </mat-option>
+                                }
+                            </mat-select>
+                        </mat-form-field>
+                        <small class="app-update-channel__note">
+                            {{
+                                'SETTINGS.APP_UPDATE_CHANNEL_DESCRIPTION'
+                                    | translate
+                            }}
+                        </small>
+                        @if (form()!.get('updateChannel')?.value === 'nightly') {
+                            <small
+                                class="app-update-channel__note"
+                                data-test-id="app-update-channel-nightly-warning"
+                            >
+                                {{
+                                    'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY_WARNING'
+                                        | translate
+                                }}
+                            </small>
+                        }
+                        @if (isNightlyBuildOnStableChannel()) {
+                            <small
+                                class="app-update-channel__note"
+                                data-test-id="app-update-nightly-on-stable-hint"
+                            >
+                                {{
+                                    'SETTINGS.APP_UPDATE_NIGHTLY_ON_STABLE_HINT'
+                                        | translate
+                                }}
+                            </small>
+                        }
+                    </div>
+                }
                 <div class="app-update-actions">
                     <button
                         mat-stroked-button

@@ -1,3 +1,4 @@
+import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
 import type {
@@ -263,7 +264,12 @@ export interface ElectronBridgeAppUpdateStatus {
     progress?: ElectronBridgeAppUpdateProgress;
     error?: string;
     supportedSelfUpdate: boolean;
+    /** Release page for the configured channel; opened for manual installs. */
     manualDownloadUrl: string;
+    /** Channel the updater checks (`Settings.updateChannel`, mirrored). */
+    channel: AppUpdateChannel;
+    /** Channel the running build came from, read off its version string. */
+    installedChannel: AppUpdateChannel;
 }
 
 export type ElectronBridgeAppUpdateReleaseNotesDirection = 'previous' | 'next';
