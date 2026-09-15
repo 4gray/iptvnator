@@ -299,9 +299,13 @@ frontend and backend builds and before electron-builder reads it
   is offered it; smaller than `0.23.1` and `0.24.0`, so the next stable
   release is offered to nightly users on either channel.
 - The run number only grows, so nightlies order correctly within a day.
-- electron-builder derives the updater channel files from the prerelease
-  tag: `nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`. The artifact
-  upload globs and the macOS metadata merge accept both names.
+- The same `--apply` sets `publish[0].channel: nightly` in
+  `electron-builder.json`, which names the updater metadata
+  `nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`. electron-builder does
+  not derive that name from the prerelease tag for the GitHub provider (the
+  first nightly run produced `latest-*.yml` and the publish step refused
+  it). The artifact upload globs and the macOS metadata merge accept both
+  names.
 - The root `package.json` is an Nx `sharedGlobals` input, so the rewritten
   version reaches the `web` and `electron-backend` bundles (which embed it)
   instead of a cache hit built from the released version.

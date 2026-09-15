@@ -24,9 +24,10 @@ export const DEFAULT_APP_UPDATE_CHANNEL: AppUpdateChannel = 'stable';
 
 /**
  * Prerelease identifier every nightly version carries
- * (`0.23.1-nightly.20260915.1234`). electron-builder derives the updater
- * channel file (`nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`) from
- * it, and electron-updater matches release tags on the same identifier.
+ * (`0.23.1-nightly.20260915.1234`). The nightly build sets the same name as
+ * electron-builder's publish channel, which names the updater metadata
+ * (`nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`), and
+ * electron-updater matches release tags on the same identifier.
  */
 export const NIGHTLY_PRERELEASE_TAG = 'nightly';
 

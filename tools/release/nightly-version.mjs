@@ -16,8 +16,12 @@
  * - The date is the commit's UTC date and the last identifier is the
  *   workflow run number, which only ever grows, so nightlies order
  *   correctly across days and within one day.
- * - electron-builder derives the updater channel file names from the
- *   prerelease tag (`nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`).
+ * - `--apply` also sets `publish[0].channel` to `nightly` in
+ *   `electron-builder.json`, which is what names the updater metadata
+ *   `nightly-mac.yml` / `nightly.yml` / `nightly-linux.yml`. electron-builder
+ *   does NOT derive that name from the prerelease tag for the GitHub
+ *   provider: the first nightly run shipped `latest-*.yml` files and the
+ *   publish step refused them.
  *
  * A release cut commits the new version to master before (or together
  * with) its tag. While `v<package.json version>` does not exist yet, that
@@ -36,6 +40,7 @@
  * Usage:
  *   node tools/release/nightly-version.mjs                       # print
  *   node tools/release/nightly-version.mjs --apply --version X   # write X
+ *                                   into package.json + electron-builder.json
  *
  * Inputs default to the repository `package.json`, the HEAD commit date,
  * `GITHUB_RUN_NUMBER`, and a `git ls-remote` probe for the base tag;
@@ -106,6 +111,26 @@ export function parseBooleanFlag(value, flag) {
     }
 
     throw new Error(`${flag} must be "true" or "false", got "${value}".`);
+}
+
+/**
+ * Points electron-builder's updater metadata at the nightly channel. Written
+ * as 4-space JSON like `configure-linux-frame-copy-build.mjs`, which has
+ * already rewritten the file the same way on Linux by the time this runs.
+ */
+export function applyNightlyPublishChannel(electronBuilderJsonText) {
+    const config = JSON.parse(electronBuilderJsonText);
+    const publish = Array.isArray(config.publish) ? config.publish : null;
+
+    if (!publish || publish.length === 0 || publish[0]?.provider !== 'github') {
+        throw new Error(
+            'electron-builder.json must declare a github publish provider first.'
+        );
+    }
+
+    publish[0] = { ...publish[0], channel: NIGHTLY_TAG };
+
+    return `${JSON.stringify(config, null, 4)}\n`;
 }
 
 /** Replaces the `version` line in `package.json` text, formatting intact. */
@@ -239,11 +264,32 @@ function main(argv) {
     }
 
     if (options.apply) {
-        writeFileSync(
-            packageJsonPath,
-            applyNightlyVersion(packageJsonText, version)
+        // Resolve both replacements before touching either file, so a bad
+        // electron-builder.json cannot leave package.json half-applied.
+        const electronBuilderJsonPath = new URL(
+            '../../electron-builder.json',
+            import.meta.url
         );
-        console.error(`Applied nightly version ${version} to package.json.`);
+        let nextPackageJson;
+        let nextElectronBuilderJson;
+
+        try {
+            nextPackageJson = applyNightlyVersion(packageJsonText, version);
+            nextElectronBuilderJson = applyNightlyPublishChannel(
+                readFileSync(electronBuilderJsonPath, 'utf8')
+            );
+        } catch (error) {
+            console.error(
+                error instanceof Error ? error.message : String(error)
+            );
+            return 1;
+        }
+
+        writeFileSync(packageJsonPath, nextPackageJson);
+        writeFileSync(electronBuilderJsonPath, nextElectronBuilderJson);
+        console.error(
+            `Applied nightly version ${version} to package.json and the nightly publish channel to electron-builder.json.`
+        );
     }
 
     console.log(version);

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import {
+    applyNightlyPublishChannel,
     applyNightlyVersion,
     buildNightlyVersion,
     isNightlyVersion,
@@ -160,6 +162,60 @@ describe('applyNightlyVersion', () => {
         assert.throws(
             () => applyNightlyVersion('{ "name": "x" }', '1.0.1-nightly.1.1'),
             /no "version" line/
+        );
+    });
+});
+
+describe('applyNightlyPublishChannel', () => {
+    it('sets the github publish channel and keeps the rest of the config', () => {
+        const source = JSON.stringify(
+            {
+                appId: 'x',
+                publish: [{ provider: 'github', owner: '4gray', repo: 'iptvnator' }],
+                mac: { target: ['dmg'] },
+            },
+            null,
+            4
+        );
+
+        const result = applyNightlyPublishChannel(source);
+
+        assert.deepEqual(JSON.parse(result), {
+            appId: 'x',
+            publish: [
+                {
+                    provider: 'github',
+                    owner: '4gray',
+                    repo: 'iptvnator',
+                    channel: 'nightly',
+                },
+            ],
+            mac: { target: ['dmg'] },
+        });
+        assert.ok(result.endsWith('}\n'));
+        assert.match(result, /^\{\n {4}"appId"/);
+    });
+
+    it('applies to the repository config as committed', () => {
+        const committed = readFileSync(
+            new URL('../../electron-builder.json', import.meta.url),
+            'utf8'
+        );
+
+        assert.equal(
+            JSON.parse(applyNightlyPublishChannel(committed)).publish[0].channel,
+            'nightly'
+        );
+    });
+
+    it('refuses a config without a github publish provider', () => {
+        assert.throws(
+            () => applyNightlyPublishChannel('{"publish":[{"provider":"generic"}]}'),
+            /github publish provider/
+        );
+        assert.throws(
+            () => applyNightlyPublishChannel('{}'),
+            /github publish provider/
         );
     });
 });
