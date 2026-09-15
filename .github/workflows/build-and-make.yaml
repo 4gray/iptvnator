@@ -493,7 +493,9 @@ jobs:
               # offer it, and it must be in package.json before the frontend
               # and backend builds and electron-builder read it. The value
               # comes from the nightly-version job so every job of this run
-              # builds the same version.
+              # builds the same version. The script also sets the electron-
+              # builder publish channel to "nightly", which names the updater
+              # metadata nightly-mac.yml / nightly.yml / nightly-linux.yml.
               if: needs.nightly-version.outputs.version != ''
               # Windows runners default to PowerShell, where "${NIGHTLY_VERSION}"
               # expands to nothing and the script rejects the empty version.
