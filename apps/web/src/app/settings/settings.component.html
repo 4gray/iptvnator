@@ -92,6 +92,8 @@
                 @case ('about') {
                     <app-settings-about-section
                         [isDesktop]="isDesktop"
+                        [form]="settingsForm"
+                        [updateChannelOptions]="updateChannelOptions"
                         [version]="appUpdate.version()"
                         [buildCommit]="buildCommit"
                         [updateMessage]="appUpdate.updateMessage()"

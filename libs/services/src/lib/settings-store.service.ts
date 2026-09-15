@@ -29,6 +29,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
+    normalizeAppUpdateChannel,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeStartupWindowMode,
@@ -49,6 +50,7 @@ const DEFAULT_SETTINGS: Settings = {
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
     startupWindowMode: 'normal',
+    updateChannel: 'stable',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
@@ -287,6 +289,9 @@ export const SettingsStore = signalStore(
                     startupBehavior: store.startupBehavior(),
                     startupWindowMode: normalizeStartupWindowMode(
                         store.startupWindowMode?.()
+                    ),
+                    updateChannel: normalizeAppUpdateChannel(
+                        store.updateChannel?.()
                     ),
                     showExternalPlaybackBar:
                         store.showExternalPlaybackBar?.() ??

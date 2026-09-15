@@ -1,6 +1,9 @@
 import { Conf } from 'electron-conf/main';
 import { getElectronConfigDirectory } from '@iptvnator/shared/database';
-import type { StartupWindowMode } from '@iptvnator/shared/interfaces';
+import type {
+    AppUpdateChannel,
+    StartupWindowMode,
+} from '@iptvnator/shared/interfaces';
 
 export const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
 export const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
@@ -27,6 +30,14 @@ export const STARTUP_WINDOW_MODE = 'STARTUP_WINDOW_MODE';
 
 /** Desktop portal request cooldown; absent means enabled. */
 export const PORTAL_CONNECTIVITY_GUARD = 'PORTAL_CONNECTIVITY_GUARD';
+
+/**
+ * Update channel (`stable` / `nightly`). Mirrored here from the renderer's
+ * settings by the SETTINGS_UPDATE handler because the startup update check
+ * runs before the renderer's IndexedDB settings are reachable; absent means
+ * `stable`. Read and written only through `app-update-channel.ts`.
+ */
+export const APP_UPDATE_CHANNEL = 'APP_UPDATE_CHANNEL';
 
 /**
  * Local XMLTV files the EPG importer may read: every path the native picker
@@ -64,6 +75,7 @@ export type StoreType = {
     [EMBEDDED_MPV_AUTO_RECONNECT]: boolean;
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
     [PORTAL_CONNECTIVITY_GUARD]: boolean;
+    [APP_UPDATE_CHANNEL]: AppUpdateChannel;
     [TRUSTED_LOCAL_EPG_SOURCES]: string[];
 };
 

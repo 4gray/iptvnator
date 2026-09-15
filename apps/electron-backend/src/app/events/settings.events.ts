@@ -19,6 +19,7 @@ import {
 } from '../services/store.service';
 import { httpServer } from '../server/http-server';
 import { setHostConnectivityGuardEnabled } from '../util/host-connectivity-guard';
+import { persistAppUpdateChannel } from '../services/app-update-channel';
 
 export default class SettingsEvents {
     static bootstrapSettingsEvents(): Electron.IpcMain {
@@ -89,6 +90,12 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
 
     if (arg.vlcReuseInstance !== undefined) {
         store.set(VLC_REUSE_INSTANCE, arg.vlcReuseInstance);
+    }
+
+    // Mirrored for the startup update check, which runs before the renderer
+    // exists; a change re-points the running updater immediately.
+    if (arg.updateChannel !== undefined) {
+        persistAppUpdateChannel(arg.updateChannel);
     }
 
     // Handle remote control settings

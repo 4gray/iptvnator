@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import {
+    AppUpdateChannel,
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
@@ -8,9 +9,64 @@ import { AppUpdateService } from './app-update.service';
 class FakeUpdater extends EventEmitter {
     autoDownload = true;
     autoInstallOnAppQuit = true;
+    // electron-updater turns these on by itself for prerelease builds and
+    // channel assignments; the service must reset them explicitly.
+    allowPrerelease = true;
+    allowDowngrade = true;
+    channel: string | null = null;
+    setFeedURL = jest.fn();
     checkForUpdates = jest.fn().mockResolvedValue(null);
     downloadUpdate = jest.fn().mockResolvedValue([]);
     quitAndInstall = jest.fn();
+}
+
+const nightlyReleases = [
+    {
+        body: '## Nightly\n\nNewest master build\n\n<!-- iptvnator-commit: abc -->',
+        draft: false,
+        html_url:
+            'https://github.com/4gray/iptvnator-nightly/releases/tag/v0.23.1-nightly.20260915.7',
+        name: 'Nightly 0.23.1-nightly.20260915.7',
+        prerelease: true,
+        published_at: '2026-09-15T00:00:00.000Z',
+        tag_name: 'v0.23.1-nightly.20260915.7',
+    },
+    {
+        body: 'not a nightly',
+        draft: false,
+        html_url:
+            'https://github.com/4gray/iptvnator-nightly/releases/tag/v9.9.9',
+        name: 'stray tag',
+        prerelease: false,
+        published_at: '2026-09-14T12:00:00.000Z',
+        tag_name: 'v9.9.9',
+    },
+    {
+        body: '## Nightly\n\nOlder master build',
+        draft: false,
+        html_url:
+            'https://github.com/4gray/iptvnator-nightly/releases/tag/v0.23.1-nightly.20260914.5',
+        name: 'Nightly 0.23.1-nightly.20260914.5',
+        prerelease: true,
+        published_at: '2026-09-14T00:00:00.000Z',
+        tag_name: 'v0.23.1-nightly.20260914.5',
+    },
+];
+
+/** Answers the stable and nightly repositories with their own lists. */
+function createChannelReleaseFetcher() {
+    return jest.fn(async (url: string) => {
+        const releases = url.includes('/iptvnator-nightly/')
+            ? nightlyReleases
+            : githubReleases;
+
+        return {
+            json: jest.fn().mockResolvedValue(releases),
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+        };
+    });
 }
 
 const githubReleases = [
@@ -84,6 +140,8 @@ function createService(
         env?: NodeJS.ProcessEnv;
         prepareQuit?: () => void;
         cancelPreparedQuit?: () => void;
+        channel?: AppUpdateChannel;
+        appVersion?: string;
     } = {}
 ) {
     const updater = new FakeUpdater();
@@ -93,6 +151,8 @@ function createService(
             getVersion: () => '0.22.0',
             isPackaged: overrides.isPackaged ?? true,
         },
+        appVersion: overrides.appVersion,
+        channel: overrides.channel,
         getMainWindow: () => win,
         cancelPreparedQuit: overrides.cancelPreparedQuit,
         platform: overrides.platform ?? 'darwin',
@@ -115,6 +175,8 @@ describe('AppUpdateService', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
         expect(updater.autoDownload).toBe(true);
     });
@@ -136,6 +198,8 @@ describe('AppUpdateService', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
 
         await service.checkForUpdatesOnStartup();
@@ -160,6 +224,8 @@ describe('AppUpdateService', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
     });
 
@@ -281,6 +347,8 @@ describe('AppUpdateService', () => {
             },
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
             supportedSelfUpdate: false,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
     });
 
@@ -312,6 +380,8 @@ describe('AppUpdateService', () => {
             latestVersion: '0.24.0',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
             supportedSelfUpdate: false,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
     });
 
@@ -533,5 +603,187 @@ describe('AppUpdateService', () => {
         service.handleError(new Error('check failed'));
 
         expect(cancelPreparedQuit).not.toHaveBeenCalled();
+    });
+    it('points electron-updater at the stable repository before every check', async () => {
+        const { service, updater } = createService();
+
+        await service.checkForUpdates();
+
+        expect(updater.setFeedURL).toHaveBeenCalledWith({
+            provider: 'github',
+            owner: '4gray',
+            repo: 'iptvnator',
+        });
+        expect(updater.allowPrerelease).toBe(false);
+        expect(updater.channel).toBe('latest');
+        expect(updater.allowDowngrade).toBe(false);
+        expect(updater.setFeedURL.mock.invocationCallOrder[0]).toBeLessThan(
+            updater.checkForUpdates.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('follows the nightly repository and its prerelease channel when configured', async () => {
+        const { service, updater } = createService({ channel: 'nightly' });
+
+        expect(service.getStatus()).toMatchObject({
+            channel: 'nightly',
+            installedChannel: 'stable',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator-nightly/releases',
+        });
+
+        await service.checkForUpdates();
+
+        expect(updater.setFeedURL).toHaveBeenCalledWith({
+            provider: 'github',
+            owner: '4gray',
+            repo: 'iptvnator-nightly',
+        });
+        expect(updater.allowPrerelease).toBe(true);
+        expect(updater.channel).toBe('nightly');
+        expect(updater.allowDowngrade).toBe(false);
+    });
+
+    it('reports the installed channel from the running version', () => {
+        const { service } = createService({
+            appVersion: '0.23.1-nightly.20260915.7',
+        });
+
+        expect(service.getStatus()).toMatchObject({
+            currentVersion: '0.23.1-nightly.20260915.7',
+            channel: 'stable',
+            installedChannel: 'nightly',
+        });
+    });
+
+    it('re-checks on an idle updater when the channel changes and forgets the old verdict', async () => {
+        const { service, updater, win } = createService();
+        await service.checkForUpdates();
+        service.handleUpdateNotAvailable({ version: '0.22.0' });
+        updater.checkForUpdates.mockClear();
+
+        service.setChannel('stable');
+        expect(updater.checkForUpdates).not.toHaveBeenCalled();
+
+        service.setChannel('nightly');
+        await Promise.resolve();
+
+        expect(updater.checkForUpdates).toHaveBeenCalledTimes(1);
+        expect(updater.setFeedURL).toHaveBeenLastCalledWith(
+            expect.objectContaining({ repo: 'iptvnator-nightly' })
+        );
+        const pushed = (
+            win.webContents.send.mock.calls as [
+                string,
+                ElectronBridgeAppUpdateStatus,
+            ][]
+        ).map(([, status]) => status);
+        expect(
+            pushed.some(
+                (status) =>
+                    status.channel === 'nightly' &&
+                    status.latestVersion === undefined &&
+                    status.release === undefined
+            )
+        ).toBe(true);
+    });
+
+    it('leaves a running download on the old channel but reports the new one', async () => {
+        const { service, updater } = createService();
+        service.handleUpdateAvailable({ version: '0.23.0' });
+        updater.downloadUpdate.mockImplementationOnce(
+            () => new Promise(() => undefined)
+        );
+        void service.downloadUpdate();
+        updater.checkForUpdates.mockClear();
+
+        service.setChannel('nightly');
+        await Promise.resolve();
+
+        expect(updater.checkForUpdates).not.toHaveBeenCalled();
+        expect(service.getStatus()).toMatchObject({
+            channel: 'nightly',
+            latestVersion: '0.23.0',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator-nightly/releases',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading,
+        });
+    });
+
+    it('offers newer nightlies through the manual fallback using prerelease-aware ordering', async () => {
+        const fetcher = createChannelReleaseFetcher();
+        const { service, updater } = createService({
+            appVersion: '0.23.1-nightly.20260914.5',
+            channel: 'nightly',
+            env: {},
+            fetcher,
+            platform: 'linux',
+        });
+
+        await service.checkForUpdates();
+
+        expect(updater.checkForUpdates).not.toHaveBeenCalled();
+        expect(fetcher).toHaveBeenCalledWith(
+            'https://api.github.com/repos/4gray/iptvnator-nightly/releases?per_page=10&page=1',
+            expect.any(Object)
+        );
+        // v9.9.9 is not a nightly and must not win the list.
+        expect(service.getStatus()).toMatchObject({
+            latestVersion: '0.23.1-nightly.20260915.7',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
+            installedChannel: 'nightly',
+        });
+    });
+
+    it('never downgrades a nightly build that follows the stable channel', async () => {
+        const fetcher = createChannelReleaseFetcher();
+        const { service } = createService({
+            appVersion: '0.24.1-nightly.20260915.7',
+            env: {},
+            fetcher,
+            platform: 'linux',
+        });
+
+        await service.checkForUpdates();
+
+        expect(service.getStatus()).toMatchObject({
+            latestVersion: '0.24.0',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
+            installedChannel: 'nightly',
+        });
+    });
+
+    it('reads release notes from the repository the requested version belongs to', async () => {
+        const fetcher = createChannelReleaseFetcher();
+        const { service } = createService({ fetcher });
+
+        const nightlyNotes = await service.getReleaseNotes({
+            version: '0.23.1-nightly.20260915.7',
+        });
+        expect(nightlyNotes).toMatchObject({
+            tagName: 'v0.23.1-nightly.20260915.7',
+            hasNext: false,
+            hasPrevious: true,
+        });
+
+        const previous = await service.getReleaseNotes({
+            version: nightlyNotes.tagName,
+            direction: 'previous',
+        });
+        expect(previous.tagName).toBe('v0.23.1-nightly.20260914.5');
+
+        const stableNotes = await service.getReleaseNotes({
+            version: '0.23.0',
+        });
+        expect(stableNotes.tagName).toBe('v0.23.0');
+
+        const latestOnStableChannel = await service.getReleaseNotes();
+        expect(latestOnStableChannel.tagName).toBe('v0.24.0');
+        expect(
+            fetcher.mock.calls.map(([url]) => new URL(url).pathname)
+        ).toEqual([
+            '/repos/4gray/iptvnator-nightly/releases',
+            '/repos/4gray/iptvnator/releases',
+        ]);
     });
 });

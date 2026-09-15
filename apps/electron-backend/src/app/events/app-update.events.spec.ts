@@ -14,8 +14,9 @@ jest.mock('electron', () => ({
     ipcMain: {
         handle: jest.fn(
             (channel: string, handler: (...args: unknown[]) => unknown) => {
-            mockHandlers.set(channel, handler);
-        }),
+                mockHandlers.set(channel, handler);
+            }
+        ),
     },
 }));
 
@@ -32,6 +33,8 @@ describe('AppUpdateEvents', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle,
             supportedSelfUpdate: true,
+            channel: 'stable',
+            installedChannel: 'stable',
         };
         const service = {
             checkForUpdates: jest.fn().mockResolvedValue({
@@ -59,7 +62,8 @@ describe('AppUpdateEvents', () => {
                 status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
             })),
         };
-        const { default: AppUpdateEvents } = await import('./app-update.events');
+        const { default: AppUpdateEvents } =
+            await import('./app-update.events');
 
         AppUpdateEvents.bootstrapAppUpdateEvents(service);
 

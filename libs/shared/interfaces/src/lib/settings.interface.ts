@@ -1,3 +1,4 @@
+import type { AppUpdateChannel } from './app-update-channel.util';
 import { Language } from './language.enum';
 import { StreamFormat } from './stream-format.enum';
 import { Theme } from './theme.enum';
@@ -189,6 +190,15 @@ export interface Settings {
      * value means `'normal'`. F11 leaves or re-enters fullscreen.
      */
     startupWindowMode?: StartupWindowMode;
+    /**
+     * Desktop update channel: `stable` (tagged releases) or `nightly`
+     * (prereleases published from every master merge). Electron only;
+     * a missing value means `stable`. Mirrored into the main-process config
+     * on Save so the startup update check already uses it. Forward-only:
+     * switching back to stable keeps the installed nightly until a newer
+     * stable release exists.
+     */
+    updateChannel?: AppUpdateChannel;
     /** Show the desktop footer bar for external playback status */
     showExternalPlaybackBar?: boolean;
     /** Strip country/group prefixes like "US | " or "UK - " from channel names */

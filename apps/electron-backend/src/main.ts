@@ -33,6 +33,10 @@ import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
 import { AppUpdateService } from './app/services/app-update.service';
+import {
+    onAppUpdateChannelChange,
+    readStoredAppUpdateChannel,
+} from './app/services/app-update-channel';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import { bootstrapWindowCloseGuard } from './app/services/window-close-guard.service';
@@ -141,6 +145,7 @@ export default class Main {
         const appUpdateService = new AppUpdateService({
             app,
             appVersion: environment.version,
+            channel: readStoredAppUpdateChannel(),
             getMainWindow: () => App.mainWindow,
             updater: () => autoUpdater,
             // quitAndInstall() closes the windows before 'before-quit' fires
@@ -150,6 +155,9 @@ export default class Main {
             cancelPreparedQuit: () => windowCloseGuard.revokeAllowedClose(),
         });
         AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
+        onAppUpdateChannelChange((channel) =>
+            appUpdateService.setChannel(channel)
+        );
 
         registerStaticHeaderShims();
         ElectronEvents.bootstrapElectronEvents();

@@ -82,6 +82,38 @@ describe('settings form utils — startup window mode', () => {
     });
 });
 
+describe('settings form utils — update channel', () => {
+    const formBuilder = new FormBuilder();
+
+    it('defaults the form control to the stable channel', () => {
+        const form = createSettingsForm(formBuilder, true);
+
+        expect(form.getRawValue().updateChannel).toBe('stable');
+    });
+
+    it('carries the chosen channel into the settings object', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({ updateChannel: 'nightly' });
+
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).updateChannel
+        ).toBe('nightly');
+    });
+
+    it('collapses a missing or unknown channel to stable', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({ updateChannel: null as unknown as 'stable' });
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).updateChannel
+        ).toBe('stable');
+
+        form.patchValue({ updateChannel: 'canary' as unknown as 'stable' });
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).updateChannel
+        ).toBe('stable');
+    });
+});
+
 describe('settings form utils — EPG display offset', () => {
     const formBuilder = new FormBuilder();
 

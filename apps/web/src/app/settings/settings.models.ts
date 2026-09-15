@@ -1,4 +1,5 @@
 import {
+    AppUpdateChannel,
     CoverSize,
     EpgViewMode,
     StartupBehavior,
@@ -27,6 +28,11 @@ export interface StartupBehaviorOption {
 
 export interface StartupWindowModeOption {
     value: StartupWindowMode;
+    labelKey: string;
+}
+
+export interface UpdateChannelOption {
+    value: AppUpdateChannel;
     labelKey: string;
 }
 

@@ -13,6 +13,14 @@ name: Build and Make Electron App
 # cleanup-pr-draft.yml deletes the draft when the PR closes, so the stale
 # window is visible and bounded; refreshing drafts on skipped runs is not
 # worth a separate workflow.
+#
+# Master pushes are the nightly channel: the nightly-version job computes
+# one <patch>-nightly.<date>.<run number> version for the whole run
+# (tools/release/nightly-version.mjs), every build job writes it into
+# package.json so electron-updater treats the build as newer than the
+# released version, and the release job publishes the artifacts as a
+# prerelease of 4gray/iptvnator-nightly instead of the rolling test-master
+# draft. Contract: docs/architecture/release-pipeline.md ("Nightly channel").
 on:
     push:
         branches:
@@ -42,6 +50,39 @@ permissions:
     contents: read
 
 jobs:
+    # One version for the whole run. Computed here rather than in each build
+    # job because the rule depends on whether the base tag exists on origin:
+    # a tag pushed while the matrix runs would otherwise give one run two
+    # different versions. Empty output means "not a nightly build".
+    nightly-version:
+        name: Resolve nightly version
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            version: ${{ steps.resolve.outputs.version }}
+        steps:
+            - name: Checkout code
+              if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == '4gray/iptvnator'
+              uses: actions/checkout@v7
+
+            - name: Resolve nightly version
+              id: resolve
+              shell: bash
+              env:
+                  NIGHTLY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == '4gray/iptvnator' }}
+              run: |
+                  set -euo pipefail
+
+                  if [ "${NIGHTLY}" != "true" ]; then
+                      echo "version=" >> "${GITHUB_OUTPUT}"
+                      echo "Not a master push; no nightly version."
+                      exit 0
+                  fi
+
+                  VERSION="$(node tools/release/nightly-version.mjs)"
+                  echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+                  echo "Nightly version: ${VERSION}"
+
     linux-embedded-mpv-runtime:
         name: Build pinned Linux Embedded MPV runtime
         runs-on: ubuntu-22.04
@@ -340,6 +381,7 @@ jobs:
 
     build-cross-platform:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
+        needs: nightly-version
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -444,6 +486,18 @@ jobs:
               env:
                   BUILD_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
               run: node tools/build/inject-build-commit.mjs
+
+            - name: Apply nightly version
+              # Master merges feed the nightly update channel. The version
+              # must be greater than the released one for electron-updater to
+              # offer it, and it must be in package.json before the frontend
+              # and backend builds and electron-builder read it. The value
+              # comes from the nightly-version job so every job of this run
+              # builds the same version.
+              if: needs.nightly-version.outputs.version != ''
+              env:
+                  NIGHTLY_VERSION: ${{ needs.nightly-version.outputs.version }}
+              run: node tools/release/nightly-version.mjs --apply --version "${NIGHTLY_VERSION}"
 
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
@@ -1188,6 +1242,7 @@ jobs:
                       dist/executables/**/*.dmg
                       dist/executables/**/*.zip
                       dist/executables/**/latest-mac.yml
+                      dist/executables/**/nightly-mac.yml
                       dist/executables/**/*.blockmap
                   retention-days: 7
 
@@ -1212,6 +1267,7 @@ jobs:
                       dist/executables/*.AppImage
                       dist/executables/*.snap
                       dist/executables/**/latest-linux*.yml
+                      dist/executables/**/nightly-linux*.yml
                       dist/executables/**/*.blockmap
                   retention-days: 7
 
@@ -1234,12 +1290,15 @@ jobs:
                       dist/executables/**/*.msi
                       dist/executables/**/*.zip
                       dist/executables/**/latest.yml
+                      dist/executables/**/nightly.yml
                       dist/executables/**/*.blockmap
                   retention-days: 7
 
     build-linux:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }} (${{ matrix.linux_profile }})
-        needs: linux-embedded-mpv-runtime
+        needs:
+            - linux-embedded-mpv-runtime
+            - nightly-version
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         concurrency:
@@ -1276,6 +1335,7 @@ jobs:
     create-release:
         name: Create Draft Release
         needs:
+            - nightly-version
             - build-cross-platform
             - build-linux
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -1285,6 +1345,12 @@ jobs:
             cancel-in-progress: false
         permissions:
             contents: write
+        env:
+            # Master pushes publish to the nightly repository (steps at the
+            # end of this job) instead of the rolling draft.
+            NIGHTLY: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == '4gray/iptvnator' }}
+            NIGHTLY_REPOSITORY: 4gray/iptvnator-nightly
+            NIGHTLY_KEEP_RELEASES: '20'
 
         steps:
             - name: Checkout code
@@ -1306,10 +1372,20 @@ jobs:
                   node <<'NODE'
                   const fs = require('fs');
 
-                  const candidates = [
-                    'artifacts/macos-x64-artifacts/latest-mac.yml',
-                    'artifacts/macos-arm64-artifacts/latest-mac.yml',
-                  ].filter((filePath) => fs.existsSync(filePath));
+                  // electron-builder names the updater metadata after the
+                  // channel: latest-mac.yml for releases, nightly-mac.yml for
+                  // the prerelease versions master builds carry.
+                  const channelFile = ['latest-mac.yml', 'nightly-mac.yml'].find(
+                    (name) =>
+                      fs.existsSync(`artifacts/macos-x64-artifacts/${name}`) ||
+                      fs.existsSync(`artifacts/macos-arm64-artifacts/${name}`)
+                  );
+                  const candidates = channelFile
+                    ? [
+                        `artifacts/macos-x64-artifacts/${channelFile}`,
+                        `artifacts/macos-arm64-artifacts/${channelFile}`,
+                      ].filter((filePath) => fs.existsSync(filePath))
+                    : [];
 
                   if (candidates.length === 0) {
                     console.log('No macOS update metadata found; skipping merge.');
@@ -1407,8 +1483,8 @@ jobs:
                     mergedEntries
                   );
 
-                  fs.writeFileSync('artifacts/latest-mac.yml', merged);
-                  console.log(`Merged ${candidates.length} macOS update metadata files.`);
+                  fs.writeFileSync(`artifacts/${channelFile}`, merged);
+                  console.log(`Merged ${candidates.length} macOS update metadata files into ${channelFile}.`);
                   NODE
 
             - name: Get version from package.json
@@ -1422,6 +1498,7 @@ jobs:
             # for every push. PR builds must not use github.sha here: that is the
             # ephemeral merge-commit SHA, which resolves to nothing in the repo.
             - name: Compose release metadata
+              if: env.NIGHTLY != 'true'
               id: release-meta
               shell: bash
               env:
@@ -1499,7 +1576,7 @@ jobs:
             # full current set right after. Only drafts are pruned; published
             # releases are never touched.
             - name: Prune stale draft assets
-              if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
+              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   RELEASE_TAG: ${{ steps.release-meta.outputs.tag }}
@@ -1522,7 +1599,7 @@ jobs:
 
             - name: Create Draft Release
               id: draft-release
-              if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
+              if: env.NIGHTLY != 'true' && (github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open')
               uses: softprops/action-gh-release@v3
               with:
                   draft: true
@@ -1569,7 +1646,7 @@ jobs:
             # body is left as the action set it and only title/commitish are
             # re-asserted.
             - name: Ensure draft metadata is current
-              if: steps.draft-release.outputs.id != ''
+              if: env.NIGHTLY != 'true' && steps.draft-release.outputs.id != ''
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   RELEASE_ID: ${{ steps.draft-release.outputs.id }}
@@ -1612,3 +1689,196 @@ jobs:
                       --arg body "${FULL_BODY}" \
                       '{tag_name: $tag, name: $name, target_commitish: $commitish, body: ($body | .[0:120000])}' |
                       gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --input - > /dev/null
+
+            # ── Nightly channel ──────────────────────────────────────────
+            # Drafts are invisible to anyone without write access and to
+            # electron-updater, so master builds are published as prereleases
+            # of the nightly repository, which the desktop app's Nightly update
+            # channel follows. The repository needs one commit on its default
+            # branch (gh creates the release tag there) and a fine-grained PAT
+            # with Contents: read/write on it, stored as NIGHTLY_RELEASE_TOKEN.
+            # Without the token the build still succeeds and only warns.
+            - name: Resolve nightly release metadata
+              if: env.NIGHTLY == 'true'
+              id: nightly-meta
+              shell: bash
+              env:
+                  NIGHTLY_RELEASE_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+                  VERSION: ${{ needs.nightly-version.outputs.version }}
+              run: |
+                  set -euo pipefail
+
+                  if [ -z "${VERSION}" ]; then
+                      echo "::error::The nightly-version job produced no version for this master push."
+                      exit 1
+                  fi
+                  {
+                      echo "version=${VERSION}"
+                      echo "tag=v${VERSION}"
+                  } >> "${GITHUB_OUTPUT}"
+
+                  if [ -z "${NIGHTLY_RELEASE_TOKEN}" ]; then
+                      echo "::warning::NIGHTLY_RELEASE_TOKEN is not configured; the nightly release for ${VERSION} is skipped."
+                      echo "publish=false" >> "${GITHUB_OUTPUT}"
+                  else
+                      echo "publish=true" >> "${GITHUB_OUTPUT}"
+                  fi
+
+            # The notes list the master commits since the previous nightly.
+            # That nightly's source commit is read back from the marker its
+            # own notes carry, because the nightly repository has no copy of
+            # the app history to compare against. The main-repository compare
+            # uses GITHUB_TOKEN; only the nightly repository is read with the
+            # PAT.
+            - name: Compose nightly release notes
+              if: steps.nightly-meta.outputs.publish == 'true'
+              id: nightly-notes
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  NIGHTLY_RELEASE_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+                  VERSION: ${{ steps.nightly-meta.outputs.version }}
+                  HEAD_SHA: ${{ github.sha }}
+                  REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  set -euo pipefail
+
+                  SHORT_SHA="${HEAD_SHA:0:7}"
+                  NOTES_FILE="${RUNNER_TEMP}/nightly-notes.md"
+
+                  PREVIOUS_TAG="$(GH_TOKEN="${NIGHTLY_RELEASE_TOKEN}" gh release list \
+                      --repo "${NIGHTLY_REPOSITORY}" --exclude-drafts --limit 1 \
+                      --json tagName --jq '.[0].tagName // ""')"
+                  PREVIOUS_SHA=""
+                  if [ -n "${PREVIOUS_TAG}" ]; then
+                      PREVIOUS_SHA="$(GH_TOKEN="${NIGHTLY_RELEASE_TOKEN}" gh release view "${PREVIOUS_TAG}" \
+                          --repo "${NIGHTLY_REPOSITORY}" --json body --jq '.body // ""' |
+                          sed -n 's/.*<!-- iptvnator-commit: \([0-9a-f]\{40\}\) -->.*/\1/p' | head -n 1)"
+                  fi
+
+                  COMMITS=""
+                  if [ -n "${PREVIOUS_SHA}" ] && [ "${PREVIOUS_SHA}" != "${HEAD_SHA}" ]; then
+                      # A rewritten history makes the compare fail; the notes
+                      # then just omit the list rather than failing the release.
+                      COMMITS="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${PREVIOUS_SHA}...${HEAD_SHA}" \
+                          --jq '.commits[] | "- [`\(.sha[0:7])`](\(.html_url)) \(.commit.message | split("\n")[0])"' || true)"
+                  fi
+
+                  {
+                      printf '🌙 Nightly build from `master` — commit [`%s`](%s/commit/%s) · [workflow run](%s)\n\n' \
+                          "${SHORT_SHA}" "${REPO_URL}" "${HEAD_SHA}" "${RUN_URL}"
+                      printf 'Untested snapshot of master for the desktop app'"'"'s **Nightly** update channel (Settings → About → Update channel). Nightly builds may break, and their database changes are permanent: switching back to Stable keeps this build installed until the next stable release is newer. Back up your playlists first.\n\n'
+                      if [ -n "${COMMITS}" ]; then
+                          printf '## Changes since %s\n\n%s\n\n' "${PREVIOUS_TAG}" "${COMMITS}"
+                      else
+                          printf 'See the [commit history](%s/commits/master) for what changed.\n\n' "${REPO_URL}"
+                      fi
+                      printf '<!-- iptvnator-commit: %s -->\n' "${HEAD_SHA}"
+                  } > "${NOTES_FILE}"
+
+                  echo "notes-file=${NOTES_FILE}" >> "${GITHUB_OUTPUT}"
+
+            # Created as a draft, assets uploaded, then published in one edit,
+            # so electron-updater never sees a release whose channel file is
+            # still missing. A published release is never deleted here: a
+            # rerun after a successful publish is a no-op, and only a draft
+            # left behind by a failed run is replaced. The release job is
+            # serialized per ref but two master runs can still finish out of
+            # order, so a nightly that is older than the newest published one
+            # is dropped instead of becoming the feed's newest entry.
+            - name: Publish nightly release
+              if: steps.nightly-meta.outputs.publish == 'true'
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+                  TAG: ${{ steps.nightly-meta.outputs.tag }}
+                  VERSION: ${{ steps.nightly-meta.outputs.version }}
+                  HEAD_SHA: ${{ github.sha }}
+                  NOTES_FILE: ${{ steps.nightly-notes.outputs.notes-file }}
+              run: |
+                  set -euo pipefail
+                  shopt -s nullglob
+
+                  NEWEST_PUBLISHED="$(gh release list --repo "${NIGHTLY_REPOSITORY}" --exclude-drafts --limit 200 \
+                      --json tagName --jq '.[].tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+-nightly\\."))' |
+                      sort -V | tail -n 1)"
+                  if [ -n "${NEWEST_PUBLISHED}" ] && [ "${NEWEST_PUBLISHED}" != "${TAG}" ] &&
+                      [ "$(printf '%s\n%s\n' "${NEWEST_PUBLISHED}" "${TAG}" | sort -V | tail -n 1)" != "${TAG}" ]; then
+                      echo "::notice::${NEWEST_PUBLISHED} is already published and newer than ${TAG}; not publishing this superseded build."
+                      exit 0
+                  fi
+
+                  for required in \
+                      artifacts/nightly-mac.yml \
+                      artifacts/windows-artifacts/nightly.yml \
+                      artifacts/linux-portable-artifacts/nightly-linux.yml; do
+                      if [ ! -f "${required}" ]; then
+                          echo "::error::Missing updater metadata ${required}; the nightly channel would be unable to install this build."
+                          exit 1
+                      fi
+                  done
+
+                  assets=(
+                      artifacts/macos-x64-artifacts/*-x64.dmg
+                      artifacts/macos-x64-artifacts/*-x64.zip
+                      artifacts/macos-x64-artifacts/*.blockmap
+                      artifacts/macos-arm64-artifacts/*-arm64.dmg
+                      artifacts/macos-arm64-artifacts/*-arm64.zip
+                      artifacts/macos-arm64-artifacts/*.blockmap
+                      artifacts/nightly-mac.yml
+                      artifacts/linux-system-artifacts/*.deb
+                      artifacts/linux-system-artifacts/*.rpm
+                      artifacts/linux-system-artifacts/*.pacman
+                      artifacts/linux-system-artifacts/*.pkg.tar.*
+                      artifacts/linux-portable-artifacts/*.AppImage
+                      artifacts/linux-portable-artifacts/*.snap
+                      artifacts/linux-portable-artifacts/nightly-linux*.yml
+                      artifacts/linux-portable-artifacts/*.blockmap
+                      artifacts/linux-flatpak-artifacts/*.flatpak
+                      artifacts/linux-frame-copy-runtime-sources/linux-frame-copy-runtime-sources.tar.xz
+                      artifacts/windows-artifacts/*-setup.exe
+                      artifacts/windows-artifacts/*.msi
+                      artifacts/windows-artifacts/*.zip
+                      artifacts/windows-artifacts/nightly.yml
+                      artifacts/windows-artifacts/*.blockmap
+                  )
+
+                  EXISTING="$(gh api "repos/${NIGHTLY_REPOSITORY}/releases?per_page=100" --paginate |
+                      jq -c --arg tag "${TAG}" 'map(select(.tag_name == $tag)) | first // empty')"
+                  if [ -n "${EXISTING}" ]; then
+                      if [ "$(jq -r '.draft' <<< "${EXISTING}")" != "true" ]; then
+                          echo "::notice::${TAG} is already published in ${NIGHTLY_REPOSITORY}; nothing to do for this re-run."
+                          exit 0
+                      fi
+                      DRAFT_ID="$(jq -r '.id' <<< "${EXISTING}")"
+                      echo "Removing the draft ${TAG} (id ${DRAFT_ID}) a failed run left behind."
+                      gh api -X DELETE "repos/${NIGHTLY_REPOSITORY}/releases/${DRAFT_ID}"
+                  fi
+
+                  gh release create "${TAG}" "${assets[@]}" \
+                      --repo "${NIGHTLY_REPOSITORY}" \
+                      --draft \
+                      --prerelease \
+                      --title "Nightly ${VERSION} (${HEAD_SHA:0:7})" \
+                      --notes-file "${NOTES_FILE}"
+                  gh release edit "${TAG}" --repo "${NIGHTLY_REPOSITORY}" --draft=false --prerelease
+
+                  echo "Published ${TAG} to ${NIGHTLY_REPOSITORY} with ${#assets[@]} assets."
+
+            - name: Prune old nightly releases
+              if: steps.nightly-meta.outputs.publish == 'true'
+              shell: bash
+              env:
+                  GH_TOKEN: ${{ secrets.NIGHTLY_RELEASE_TOKEN }}
+              run: |
+                  set -euo pipefail
+
+                  gh release list --repo "${NIGHTLY_REPOSITORY}" --exclude-drafts --limit 200 \
+                      --json tagName --jq '.[].tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+-nightly\\."))' |
+                      sort -V -r | tail -n "+$((NIGHTLY_KEEP_RELEASES + 1))" |
+                      while read -r tag; do
+                          [ -n "${tag}" ] || continue
+                          echo "Deleting nightly ${tag} (keeping the newest ${NIGHTLY_KEEP_RELEASES})."
+                          gh release delete "${tag}" --repo "${NIGHTLY_REPOSITORY}" --cleanup-tag --yes
+                      done
