@@ -42,6 +42,7 @@ jest.mock('./services/store.service', () => ({
         set: jest.fn(),
     },
     WINDOW_BOUNDS: 'windowBounds',
+    ZOOM_LEVEL: 'zoomLevel',
 }));
 
 import { WINDOW_STATE_CHANGED } from '@iptvnator/shared/interfaces';

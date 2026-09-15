@@ -16,6 +16,7 @@ import {
     STARTUP_WINDOW_MODE,
     store,
     WINDOW_BOUNDS,
+    ZOOM_LEVEL,
 } from './services/store.service';
 import { isFrameCopyRuntimeUsable } from './services/embedded-mpv-frame-copy-platform.util';
 import { isEmbeddedMpvFeatureEnabled } from './services/embedded-mpv-runtime-policy.util';
@@ -450,6 +451,29 @@ export default class App {
         });
     }
 
+    /**
+     * Windows whose renderer has finished loading at least once, so their
+     * getZoomLevel() reflects the restored level rather than the pre-load
+     * default. Keyed by window identity, so a window rebuilt on macOS is
+     * tracked apart from the one it replaced.
+     */
+    private static readonly loadedWindows = new WeakSet<Electron.BrowserWindow>();
+
+    /**
+     * Persist the state restored on the next launch: window bounds and the
+     * zoom level. Runs from both the window 'close' and app 'before-quit'
+     * handlers, since either can be the last to run before the process ends.
+     */
+    private static persistWindowState(win: Electron.BrowserWindow): void {
+        store.set(WINDOW_BOUNDS, win.getNormalBounds());
+        // Save zoom only from a loaded window (before that getZoomLevel is the
+        // default 0, and saving it would wipe the stored level), and never
+        // touch a destroyed webContents, whose getZoomLevel would throw.
+        if (App.loadedWindows.has(win) && !win.webContents.isDestroyed()) {
+            store.set(ZOOM_LEVEL, win.webContents.getZoomLevel());
+        }
+    }
+
     private static initMainWindow() {
         const workAreaSize = screen.getPrimaryDisplay().workAreaSize;
         const width = Math.min(1280, workAreaSize.width || 1280);
@@ -539,6 +563,25 @@ export default class App {
             App.handleRendererNavigation
         );
 
+        // Reapply the persisted zoom level on every renderer load. Chromium
+        // resets zoom to the default on each document load, and 'did-finish-load'
+        // is the one point both the initial load and a full reload pass through;
+        // in-app section changes are SPA routing and never reload, so the level
+        // simply holds between them. did-finish-load also marks the window
+        // loaded, which gates the save so a close before the first load cannot
+        // overwrite the stored level with the default 0.
+        const zoomTarget = App.mainWindow;
+        zoomTarget.webContents.on('did-finish-load', () => {
+            App.loadedWindows.add(zoomTarget);
+            const savedZoomLevel = store.get(ZOOM_LEVEL);
+            if (
+                typeof savedZoomLevel === 'number' &&
+                Number.isFinite(savedZoomLevel)
+            ) {
+                zoomTarget.webContents.setZoomLevel(savedZoomLevel);
+            }
+        });
+
         // Emitted when the window is closed.
         App.mainWindow.on('closed', () => {
             // Dereference the window object, usually you would store windows
@@ -551,7 +594,7 @@ export default class App {
 
         App.mainWindow.on('close', () => {
             if (App.mainWindow) {
-                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+                App.persistWindowState(App.mainWindow);
             }
         });
 
@@ -653,8 +696,7 @@ export default class App {
         }
         App.application.on('activate', App.onActivate); // App is activated
         App.application.on('before-quit', () => {
-            if (App.mainWindow)
-                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+            if (App.mainWindow) App.persistWindowState(App.mainWindow);
         });
     }
 }

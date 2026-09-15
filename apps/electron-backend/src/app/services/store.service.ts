@@ -6,6 +6,8 @@ import type {
 } from '@iptvnator/shared/interfaces';
 
 export const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
+/** App-wide zoom, as the raw Electron zoom level (0 is default). */
+export const ZOOM_LEVEL = 'ZOOM_LEVEL';
 export const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
 export const MPV_PLAYER_ARGUMENTS = 'MPV_PLAYER_ARGUMENTS';
 export const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
@@ -64,6 +66,7 @@ export const EMBEDDED_MPV_AUTO_RECONNECT = 'EMBEDDED_MPV_AUTO_RECONNECT';
 
 export type StoreType = {
     [WINDOW_BOUNDS]: Electron.Rectangle;
+    [ZOOM_LEVEL]: number;
     [MPV_PLAYER_PATH]: string;
     [MPV_PLAYER_ARGUMENTS]: string;
     [VLC_PLAYER_PATH]: string;
