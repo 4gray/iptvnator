@@ -216,6 +216,36 @@ describe('withSelection', () => {
         );
     });
 
+    it('matches every whitespace-separated term in the section search', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(null);
+        store.setCategorySearchTerm('contact first');
+
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'First Contact',
+        ]);
+    });
+
+    it('excludes a term prefixed with a minus sign in the section search', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(null);
+        store.setCategorySearchTerm('first -contact');
+
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'First',
+        ]);
+    });
+
+    it('excludes a quoted phrase in the section search', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(null);
+        store.setCategorySearchTerm('first -"first contact"');
+
+        expect(store.getPaginatedContent().map((item) => item.title)).toEqual([
+            'First',
+        ]);
+    });
+
     it('resets the render window when the category changes', () => {
         store.setSelectedContentType('vod');
         store.setSelectedCategory(90);

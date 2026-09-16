@@ -17,3 +17,5 @@ export * from './lib/components/unified-collection/unified-collection-page.compo
 export * from './lib/components/unified-collection/unified-collection-detail.directive';
 export * from './lib/components/unified-collection/unified-live-tab.component';
 export * from './lib/navigation/portal-rail-links.component';
+
+export * from './lib/components/category-search/category-search.component';

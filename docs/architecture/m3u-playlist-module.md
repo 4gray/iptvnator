@@ -620,7 +620,10 @@ channel-list-container/
   `libs/ui/components/src/lib/channel-list-container/groups-view/`.
 - The groups rail header also owns an inline search toggle that filters the
   currently visible groups without mutating the workspace-level route search
-  term used by the broader channel views.
+  term used by the broader channel views. It uses the shared local query
+  syntax: positive terms are joined with AND,
+  quotes preserve a phrase, and `-term` or `-"quoted phrase"` excludes a
+  group. The Manage groups dialog uses the same syntax.
 - The dialog operates on the full grouped dataset, while the left rail and
   channel pane render only groups whose titles are not listed in
   `hiddenGroupTitles`.

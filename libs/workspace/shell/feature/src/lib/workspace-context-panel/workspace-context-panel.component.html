@@ -102,32 +102,21 @@
     </header>
 
     @if (isSearchOpen()) {
-        <label class="context-search">
-            <mat-icon class="context-search__icon">search</mat-icon>
-            <input
-                #searchInput
-                type="search"
-                spellcheck="false"
-                [value]="categorySearchTerm()"
-                (input)="onSearchInput($event)"
-                [placeholder]="
-                    'WORKSPACE.CONTEXT.SEARCH_CATEGORIES' | translate
-                "
-                [attr.aria-label]="
-                    'WORKSPACE.CONTEXT.SEARCH_CATEGORIES' | translate
-                "
-            />
-            @if (categorySearchTerm()) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    class="context-search__clear"
-                    (click)="clearCategorySearch()"
-                >
-                    <mat-icon>close</mat-icon>
-                </button>
-            }
-        </label>
+        <app-category-search
+            [(query)]="categorySearchTerm"
+            [(exclusions)]="categoryExcludedTerm"
+            [(mode)]="categorySearchMode"
+            [matched]="
+                isXtreamCategories()
+                    ? filteredXtreamCategories().length
+                    : filteredStalkerCategories().length
+            "
+            [total]="
+                isXtreamCategories()
+                    ? xtreamCategories().length
+                    : stalkerCategories().length
+            "
+        />
     } @else {
         <div class="context-divider"></div>
     }

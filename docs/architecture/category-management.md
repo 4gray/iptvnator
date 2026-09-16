@@ -96,7 +96,7 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 ### Filtered Bulk Selection
 
 The Electron dialog applies bulk actions to the currently displayed categories
-for Live TV, Movies, and Series. Search is case-insensitive. With an empty
+for Live TV, Movies, and Series. Search is case- and accent-insensitive. With an empty
 search, actions apply to the entire list for that content type. Changing or
 clearing the search preserves all pending selections, including both selected
 and unselected categories outside the current results.
@@ -209,3 +209,38 @@ global.d.ts                      # TypeScript types for IPC methods
     }
 }
 ```
+
+### Multi-keyword category search
+
+The Xtream management dialog and the Xtream/Stalker workspace category panel
+(including its live popover) share `CategorySearchComponent` and the pure
+`category-search.ts` matcher in portal shared util. Space- or comma-separated
+terms require every keyword by default (AND); the Match control can explicitly
+switch to at-least-one-word matching (OR).
+Double quotes keep a phrase together. Exclusions always veto a match in either
+mode and can be used without inclusion keywords; prefix a term or quoted phrase
+with `-` (for example, `2025 EN CAP -ES` or `-"the girls"`). The separate
+Exclude keywords field accepts either form (`ES` or `-ES`, and quoted phrases
+with or without `-`). Partial matching is retained.
+Empty filters show all categories; removing a chip removes that individual term.
+Clear filters resets both fields and the mode to AND. Closing sidebar search also resets
+all filters. Filtering never changes the selected category or starts playback.
+
+The result counter counts displayed categories; the management dialog's separate
+Total selected counter still covers the full catalog. Bulk selection operates on
+results and preserves hidden draft selections; Save still writes the full draft.
+Names are normalized in computed caches independent of the query; query parsing
+runs once per filter change. No database migration or provider request is needed.
+English and French labels are supplied, with the app's English fallback for other
+locales. Regression tests cover the matcher, shared input, and filtered selection.
+
+This syntax applies only to local portal and playlist filters. Global and Advanced
+Search keep their separate behavior and are not covered by this contract.
+
+### Local content search
+
+The same parser also filters locally cached Xtream Movies and Series content,
+and the Xtream Live TV channel list. Positive terms require every word by
+default; quoted phrases preserve their internal whitespace; and `-term` or
+`-\"quoted phrase\"` removes a matching item. These filters are local to the
+selected playlist or portal and do not change Global or Advanced Search.

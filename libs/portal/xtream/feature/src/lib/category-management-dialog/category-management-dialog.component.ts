@@ -18,7 +18,13 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService, XCategoryFromDb } from '@iptvnator/services';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import {
+    createLogger,
+    CategorySearchMode,
+    categorySearchPredicate,
+    normalizeCategorySearch,
+} from '@iptvnator/portal/shared/util';
+import { CategorySearchComponent } from '@iptvnator/portal/shared/ui';
 
 export interface CategoryManagementDialogData {
     playlistId: string;
@@ -39,6 +45,7 @@ interface CategoryWithSelection extends XCategoryFromDb {
         MatIconModule,
         MatProgressSpinnerModule,
         TranslatePipe,
+        CategorySearchComponent,
     ],
     templateUrl: './category-management-dialog.component.html',
     styleUrl: './category-management-dialog.component.scss',
@@ -57,11 +64,29 @@ export class CategoryManagementDialogComponent implements OnInit {
     readonly categories = signal<CategoryWithSelection[]>([]);
     readonly searchTerm = signal('');
 
+    readonly excludedSearchTerm = signal('');
+    readonly searchMode = signal<CategorySearchMode>('all');
+    readonly hasSearch = computed(() =>
+        Boolean(this.searchTerm().trim() || this.excludedSearchTerm().trim())
+    );
+    private readonly normalizedNames = computed(
+        () =>
+            new Map(
+                this.categories().map((category) => [
+                    category.id,
+                    normalizeCategorySearch(category.name),
+                ])
+            )
+    );
     readonly filteredCategories = computed(() => {
-        const term = this.searchTerm().toLowerCase();
-        if (!term) return this.categories();
-        return this.categories().filter((c) =>
-            c.name.toLowerCase().includes(term)
+        const matches = categorySearchPredicate(
+            this.searchTerm(),
+            this.excludedSearchTerm(),
+            this.searchMode()
+        );
+        const names = this.normalizedNames();
+        return this.categories().filter((category) =>
+            matches(names.get(category.id) ?? '')
         );
     });
 
@@ -128,6 +153,8 @@ export class CategoryManagementDialogComponent implements OnInit {
 
     clearSearch(): void {
         this.searchTerm.set('');
+        this.excludedSearchTerm.set('');
+        this.searchMode.set('all');
     }
 
     getItemCount(category: CategoryWithSelection): number {

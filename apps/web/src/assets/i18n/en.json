@@ -1,4 +1,16 @@
 {
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "Keywords",
+        "MODE": "Match",
+        "ANY": "At least one word (OR)",
+        "ALL": "All words (AND)",
+        "EXCLUDE": "Exclude keywords",
+        "HELP": "Separate words with spaces. Use quotes for a phrase and prefix exclusions with -, e.g. \"French Canada\" -ES.",
+        "COUNT": "{{matched}} of {{total}} categories",
+        "CLEAR": "Clear filters",
+        "REMOVE": "Remove {{term}}",
+        "REMOVE_EXCLUSION": "Remove exclusion {{term}}"
+    },
     "CANCEL": "Cancel",
     "CLEAR": "Clear",
     "CLOSE": "Close",

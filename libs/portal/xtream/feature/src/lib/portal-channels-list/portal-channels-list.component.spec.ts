@@ -518,6 +518,24 @@ describe('PortalChannelsListComponent', () => {
         expect(scrollToIndex).not.toHaveBeenCalled();
     });
 
+    it('applies inline exclusions to Live TV search terms', () => {
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([
+            { title: 'CA FR: TSN/RDS Extra 1', xtream_id: 1 },
+            { title: 'CA EN: Sportsnet Ontario', xtream_id: 2 },
+            { title: 'IT: TSN Tele Sondrio News', xtream_id: 3 },
+        ]);
+        fixture.componentRef.setInput('searchTermInput', 'tsn -net');
+        fixture.detectChanges();
+
+        expect(
+            fixture.componentInstance.filteredChannels().map((item) => item.title)
+        ).toEqual([
+            'CA FR: TSN/RDS Extra 1',
+            'IT: TSN Tele Sondrio News',
+        ]);
+    });
+
     it('carries the live-channels pane id only outside the fullscreen panel copy', () => {
         // The category list's ArrowRight hand-off looks the pane up by id,
         // so the panel's second instance must not duplicate it.

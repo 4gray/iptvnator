@@ -1,4 +1,16 @@
 {
+    "CATEGORY_SEARCH": {
+        "KEYWORDS": "Mots-clés",
+        "MODE": "Correspondance",
+        "ANY": "Au moins un mot (OU)",
+        "ALL": "Tous les mots (ET)",
+        "EXCLUDE": "Exclure des mots-clés",
+        "HELP": "Séparez les mots par des espaces. Utilisez des guillemets pour une expression et le préfixe - pour exclure, ex. \"Canada français\" -ES.",
+        "COUNT": "{{matched}} catégories sur {{total}}",
+        "CLEAR": "Effacer les filtres",
+        "REMOVE": "Retirer {{term}}",
+        "REMOVE_EXCLUSION": "Retirer l’exclusion {{term}}"
+    },
     "CANCEL": "Annuler",
     "CLEAR": "Effacer",
     "CLOSE": "Fermer",
