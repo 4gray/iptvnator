@@ -22,6 +22,7 @@ import {
     createLogger,
     CategorySearchMode,
     categorySearchPredicate,
+    categorySearchTerms,
     normalizeCategorySearch,
 } from '@iptvnator/portal/shared/util';
 import { CategorySearchComponent } from '@iptvnator/portal/shared/ui';
@@ -67,7 +68,10 @@ export class CategoryManagementDialogComponent implements OnInit {
     readonly excludedSearchTerm = signal('');
     readonly searchMode = signal<CategorySearchMode>('all');
     readonly hasSearch = computed(() =>
-        Boolean(this.searchTerm().trim() || this.excludedSearchTerm().trim())
+        Boolean(
+            categorySearchTerms(this.searchTerm()).length ||
+                categorySearchTerms(this.excludedSearchTerm()).length
+        )
     );
     private readonly normalizedNames = computed(
         () =>

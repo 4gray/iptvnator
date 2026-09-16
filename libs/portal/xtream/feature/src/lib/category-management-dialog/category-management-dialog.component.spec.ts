@@ -229,6 +229,34 @@ describe('CategoryManagementDialogComponent', () => {
         expect(component.filteredCategories()).toHaveLength(4);
     });
 
+    it.each([
+        ['sports', true],
+        ['sports canada', true],
+        ['-ES', true],
+        ['-"Spanish Dub"', true],
+        [',', false],
+        ['""', false],
+        ['-', false],
+        ['   ', false],
+    ])(
+        'derives whether bulk actions are filtered from parsed terms for %p',
+        (query, expectedHasSearch) => {
+            component.searchTerm.set(query);
+
+            expect(component.hasSearch()).toBe(expectedHasSearch);
+            expect(bulkButtons()[0].textContent).toContain(
+                expectedHasSearch
+                    ? 'XTREAM.CATEGORY_MANAGEMENT.SELECT_FILTERED'
+                    : 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL'
+            );
+            expect(bulkButtons()[1].textContent).toContain(
+                expectedHasSearch
+                    ? 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_FILTERED'
+                    : 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL'
+            );
+        }
+    );
+
     it('discards pending bulk changes on cancel', () => {
         component.searchTerm.set('FR');
         component.selectAll();
