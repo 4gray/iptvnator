@@ -1,5 +1,5 @@
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
-import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import {
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
@@ -10,6 +10,7 @@ import {
     ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
     OPEN_FILE,
+    WINDOW_GET_ZOOM_LEVEL,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     attachEmbeddedMpvFrameView,
@@ -19,6 +20,7 @@ import {
     createPreloadPerformanceCapture,
     toPreloadPerformanceTargetMethod,
 } from './preload-performance-capture';
+import { applyPersistedZoomLevel } from './preload-zoom-level';
 import {
     createXtreamPreloadPerformanceCapture,
     isXtreamPreloadPerformanceCaptureEnabled,
@@ -1150,5 +1152,15 @@ const electronApi: ElectronBridgeApi = {
         return () => ipcRenderer.off('RECORDINGS_UPDATE_EVENT', handler);
     },
 };
+
+// Restore the app zoom level before the first paint (issue #1109). Must be
+// webFrame (temporary, frame-bound zoom), not a main-process setZoomLevel:
+// under file:// Chromium keys zoom by full URL, and the app's pushState
+// routing would reset it on the next resize. See preload-zoom-level.ts.
+applyPersistedZoomLevel({
+    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    getZoomLevel: () => webFrame.getZoomLevel(),
+    setZoomLevel: (level) => webFrame.setZoomLevel(level),
+});
 
 contextBridge.exposeInMainWorld('electron', wrapElectronApi(electronApi));

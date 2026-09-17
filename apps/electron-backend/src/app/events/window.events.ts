@@ -9,11 +9,16 @@ import { BrowserWindow, ipcMain } from 'electron';
 import {
     WINDOW_CLOSE,
     WINDOW_GET_STATE,
+    WINDOW_GET_ZOOM_LEVEL,
     WINDOW_MINIMIZE,
     WINDOW_TOGGLE_FULLSCREEN,
     WINDOW_TOGGLE_MAXIMIZE,
 } from '@iptvnator/shared/interfaces';
 import { toggleFullScreen } from '../services/native-fullscreen-transitions';
+import {
+    markZoomLevelApplied,
+    readPersistedZoomLevel,
+} from '../services/window-zoom-level';
 
 interface WindowState {
     isMaximized: boolean;
@@ -97,4 +102,13 @@ ipcMain.handle(WINDOW_CLOSE, (event) => {
 
 ipcMain.handle(WINDOW_GET_STATE, (event): WindowState => {
     return getWindowState(getSenderWindow(event));
+});
+
+// Answered synchronously (`returnValue`): the preload applies the level with
+// webFrame.setZoomLevel before the page paints, so the window never shows the
+// default zoom first. Answering also hands the sender ownership of the level —
+// from here on its getZoomLevel() is the app's value and may be persisted.
+ipcMain.on(WINDOW_GET_ZOOM_LEVEL, (event) => {
+    event.returnValue = readPersistedZoomLevel();
+    markZoomLevelApplied(event.sender);
 });

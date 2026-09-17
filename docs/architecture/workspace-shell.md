@@ -407,6 +407,49 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
    `window.events.spec.ts`, and the startup-window-mode cases in
    `settings.e2e.ts`.
 
+Zoom level (Cmd/Ctrl and +/−, issue #1109):
+
+1. The packaged renderer runs under `file://` with path routing. Chromium
+   keys per-host zoom by the FULL URL when a URL has no host, so every
+   `pushState` to another section owns a separate zoom entry: after a route
+   change `webContents.getZoomLevel()` already reports that entry (usually
+   0) and the next visual-properties sync — a window resize, a display
+   change — snaps the renderer back to it. Chromium persists those per-URL
+   entries in `Preferences` on its own, which is why the level used to
+   "appear briefly" on `index.html` at startup and then reset. Dev mode
+   (`http://localhost:4200`) is per-host and never shows this, so only a
+   packaged or `ELECTRON_IS_DEV=0` run can verify zoom behaviour.
+2. Restore therefore happens in the preload, not the main process:
+   `applyPersistedZoomLevel` (`api/preload-zoom-level.ts`) asks for the
+   stored level over the synchronous `WINDOW:GET_ZOOM_LEVEL` IPC and applies
+   it with `webFrame.setZoomLevel`, which installs a TEMPORARY, frame-bound
+   zoom level. It survives in-page navigation and resizes, the macOS menu
+   roles (`zoomIn`/`zoomOut`/`resetZoom`) increment it, and `getZoomLevel()`
+   reports it regardless of the route. `webContents.setZoomLevel` from the
+   main process would write the per-URL entry and re-create the bug. When
+   nothing is stored the preload re-applies the current level for the same
+   reason: entering temporary mode makes the first zoom shortcut
+   URL-independent too. Synchronous on purpose, so the page never paints at
+   the default zoom first; a failed handshake is swallowed and only costs
+   this load its restore.
+3. Chromium never persists temporary zoom, so `services/window-zoom-level.ts`
+   owns the electron-conf key `ZOOM_LEVEL`: the IPC answer marks the sender
+   as owning the level, `persistZoomLevel` writes it back from the window
+   `close` and app `before-quit` handlers (the bounds-only saves of before,
+   folded into `persistWindowState`), and `attachZoomLevelPersistence` also
+   writes it on every main-frame cross-document `did-start-navigation` —
+   a reload drops the temporary level, and by `did-finish-load` the new
+   document's preload has already read whatever was stored. That
+   navigation also releases ownership until the next preload answers, so a
+   close mid-reload cannot save the per-URL default over the user's level.
+4. Windows/Linux have no zoom shortcuts today: the window calls
+   `setMenu(null)` and nothing handles `zoom-changed`, so only macOS' default
+   application menu zooms. Persistence is platform-neutral and would pick
+   up any future shortcut that goes through `webContents.setZoomLevel`.
+   Regression coverage lives in `window-zoom-level.e2e.ts`, which measures
+   the rendered factor (content width ÷ `window.innerWidth`) across a
+   section change, a resize, a reload and a restart.
+
 Layout integration:
 
 1. `document.body` gets a `frameless-platform` class (set in

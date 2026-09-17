@@ -5,10 +5,26 @@ const mockHandlers = new Map<
     (event: unknown, ...args: unknown[]) => unknown
 >();
 const mockFromWebContents = jest.fn();
+const mockReadPersistedZoomLevel = jest.fn();
+const mockMarkZoomLevelApplied = jest.fn();
+
+jest.mock('../services/window-zoom-level', () => ({
+    readPersistedZoomLevel: () => mockReadPersistedZoomLevel(),
+    markZoomLevelApplied: (contents: unknown) =>
+        mockMarkZoomLevelApplied(contents),
+}));
 
 jest.mock('electron', () => ({
     ipcMain: {
         handle: jest.fn(
+            (
+                channel: string,
+                handler: (event: unknown, ...args: unknown[]) => unknown
+            ) => {
+                mockHandlers.set(channel, handler);
+            }
+        ),
+        on: jest.fn(
             (
                 channel: string,
                 handler: (event: unknown, ...args: unknown[]) => unknown
@@ -90,6 +106,7 @@ describe('WindowEvents', () => {
         expect([...mockHandlers.keys()].sort()).toEqual([
             'WINDOW:CLOSE',
             'WINDOW:GET_STATE',
+            'WINDOW:GET_ZOOM_LEVEL',
             'WINDOW:MINIMIZE',
             'WINDOW:TOGGLE_FULLSCREEN',
             'WINDOW:TOGGLE_MAXIMIZE',
@@ -440,5 +457,35 @@ describe('WindowEvents', () => {
         mockHandlers.get('WINDOW:MINIMIZE')!(fakeEvent);
 
         expect(win.minimize).not.toHaveBeenCalled();
+    });
+});
+
+describe('WINDOW:GET_ZOOM_LEVEL', () => {
+    beforeEach(() => {
+        mockReadPersistedZoomLevel.mockReset();
+        mockMarkZoomLevelApplied.mockReset();
+    });
+
+    it('answers the preload synchronously and hands it ownership of the level', () => {
+        mockReadPersistedZoomLevel.mockReturnValue(1.5);
+        const sender = { id: 7 };
+        const event: { sender: unknown; returnValue?: unknown } = { sender };
+
+        mockHandlers.get('WINDOW:GET_ZOOM_LEVEL')?.(event);
+
+        expect(event.returnValue).toBe(1.5);
+        expect(mockMarkZoomLevelApplied).toHaveBeenCalledWith(sender);
+    });
+
+    it('answers null when nothing usable is stored, still marking the sender', () => {
+        mockReadPersistedZoomLevel.mockReturnValue(null);
+        const event: { sender: unknown; returnValue?: unknown } = {
+            sender: {},
+        };
+
+        mockHandlers.get('WINDOW:GET_ZOOM_LEVEL')?.(event);
+
+        expect(event.returnValue).toBeNull();
+        expect(mockMarkZoomLevelApplied).toHaveBeenCalledTimes(1);
     });
 });

@@ -59,6 +59,7 @@ import { app as electronApp, BrowserWindow, screen } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { store } from './services/store.service';
+import { markZoomLevelApplied } from './services/window-zoom-level';
 import { getPendingFullScreenTarget } from './services/native-fullscreen-transitions';
 
 type MockMainWindow = {
@@ -82,7 +83,6 @@ type MockMainWindow = {
         openDevTools: jest.Mock<void, []>;
         setWindowOpenHandler: jest.Mock<void, [unknown]>;
         getZoomLevel: jest.Mock<number, []>;
-        setZoomLevel: jest.Mock<void, [number]>;
         isDestroyed: jest.Mock<boolean, []>;
     };
 };
@@ -107,7 +107,6 @@ function createMockMainWindow(): MockMainWindow {
             openDevTools: jest.fn<void, []>(),
             setWindowOpenHandler: jest.fn<void, [unknown]>(),
             getZoomLevel: jest.fn<number, []>().mockReturnValue(0),
-            setZoomLevel: jest.fn<void, [number]>(),
             isDestroyed: jest.fn<boolean, []>().mockReturnValue(false),
         },
     };
@@ -495,8 +494,11 @@ describe('Electron app security helpers', () => {
     });
 
     describe('zoom level persistence', () => {
+        const bounds = { x: 1, y: 2, width: 3, height: 4 };
+
         function createWindowViaOnReady(): MockMainWindow {
             const mainWindow = createMockMainWindow();
+            mainWindow.getNormalBounds.mockReturnValue(bounds);
             (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
             getAppInternals().onReady();
             return mainWindow;
@@ -504,130 +506,57 @@ describe('Electron app security helpers', () => {
 
         function fireHandlers(
             calls: Array<[string, (...args: unknown[]) => void]>,
-            eventName: string
+            eventName: string,
+            ...args: unknown[]
         ): void {
             const handlers = calls
                 .filter(([name]) => name === eventName)
                 .map(([, handler]) => handler);
 
             expect(handlers).toHaveLength(1);
-            handlers[0]();
+            handlers[0](...args);
         }
 
         function fireWindowEvent(win: MockMainWindow, eventName: string): void {
             fireHandlers(win.on.mock.calls, eventName);
         }
 
-        function fireWebContentsEvent(
-            win: MockMainWindow,
-            eventName: string
-        ): void {
-            fireHandlers(win.webContents.on.mock.calls, eventName);
-        }
-
-        function storeZoomLevel(value: unknown): void {
-            (store.get as jest.Mock).mockImplementation((key: string) =>
-                key === 'zoomLevel' ? value : undefined
+        /** The preload asked for the level: its getZoomLevel() is now the app's. */
+        function preloadAppliedZoom(win: MockMainWindow, level: number): void {
+            win.webContents.getZoomLevel.mockReturnValue(level);
+            markZoomLevelApplied(
+                win.webContents as unknown as Electron.WebContents
             );
         }
 
-        it('reapplies the persisted zoom level on did-finish-load', () => {
-            storeZoomLevel(-1.5);
-
+        it('persists the zoom level next to the bounds when a window whose preload owns the level closes', () => {
             const mainWindow = createWindowViaOnReady();
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
-
-            expect(mainWindow.webContents.setZoomLevel).toHaveBeenCalledWith(
-                -1.5
-            );
-        });
-
-        it('reapplies the zoom level again on a later reload', () => {
-            storeZoomLevel(2);
-
-            const mainWindow = createWindowViaOnReady();
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
-
-            expect(mainWindow.webContents.setZoomLevel).toHaveBeenCalledTimes(2);
-        });
-
-        it('leaves the zoom level untouched when nothing is stored', () => {
-            // beforeEach makes store.get return undefined for every key.
-            const mainWindow = createWindowViaOnReady();
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
-
-            expect(mainWindow.webContents.setZoomLevel).not.toHaveBeenCalled();
-        });
-
-        it('ignores a non-finite stored zoom level', () => {
-            storeZoomLevel(Number.NaN);
-
-            const mainWindow = createWindowViaOnReady();
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
-
-            expect(mainWindow.webContents.setZoomLevel).not.toHaveBeenCalled();
-        });
-
-        it('persists the current zoom level and bounds when a loaded window closes', () => {
-            const mainWindow = createWindowViaOnReady();
-            mainWindow.webContents.getZoomLevel.mockReturnValue(1.5);
-            mainWindow.getNormalBounds.mockReturnValue({
-                x: 1,
-                y: 2,
-                width: 3,
-                height: 4,
-            });
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
+            preloadAppliedZoom(mainWindow, 1.5);
 
             fireWindowEvent(mainWindow, 'close');
 
             expect(store.set).toHaveBeenCalledWith('zoomLevel', 1.5);
-            expect(store.set).toHaveBeenCalledWith('windowBounds', {
-                x: 1,
-                y: 2,
-                width: 3,
-                height: 4,
-            });
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
         });
 
-        it('does not overwrite the stored zoom level when a window closes before it loads', () => {
+        it('saves only the bounds when the window closes before its preload applied the level', () => {
             const mainWindow = createWindowViaOnReady();
-            // getZoomLevel still reads the default 0 on an unloaded window;
-            // saving it would clobber a previously persisted level.
+            // Before the preload handshake getZoomLevel() is Chromium's
+            // per-URL default; saving it would clobber the persisted level.
             mainWindow.webContents.getZoomLevel.mockReturnValue(0);
-            mainWindow.getNormalBounds.mockReturnValue({
-                x: 1,
-                y: 2,
-                width: 3,
-                height: 4,
-            });
 
-            // No did-finish-load: the renderer never finished loading.
             fireWindowEvent(mainWindow, 'close');
 
             expect(store.set).not.toHaveBeenCalledWith(
                 'zoomLevel',
                 expect.anything()
             );
-            // Bounds are still saved even without a completed load.
-            expect(store.set).toHaveBeenCalledWith('windowBounds', {
-                x: 1,
-                y: 2,
-                width: 3,
-                height: 4,
-            });
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
         });
 
         it('does not read zoom from a destroyed webContents on close', () => {
             const mainWindow = createWindowViaOnReady();
-            mainWindow.getNormalBounds.mockReturnValue({
-                x: 1,
-                y: 2,
-                width: 3,
-                height: 4,
-            });
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
+            preloadAppliedZoom(mainWindow, 1.5);
             mainWindow.webContents.isDestroyed.mockReturnValue(true);
 
             fireWindowEvent(mainWindow, 'close');
@@ -637,42 +566,50 @@ describe('Electron app security helpers', () => {
                 'zoomLevel',
                 expect.anything()
             );
-            // Bounds are still saved.
-            expect(store.set).toHaveBeenCalledWith('windowBounds', {
-                x: 1,
-                y: 2,
-                width: 3,
-                height: 4,
-            });
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
         });
 
         it('persists the zoom level and bounds on before-quit', () => {
             const mainWindow = createMockMainWindow();
-            mainWindow.webContents.getZoomLevel.mockReturnValue(2);
-            mainWindow.getNormalBounds.mockReturnValue({
-                x: 5,
-                y: 6,
-                width: 7,
-                height: 8,
-            });
+            mainWindow.getNormalBounds.mockReturnValue(bounds);
             (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
             (electronApp.isReady as jest.Mock).mockReturnValue(true);
             App.main(electronApp, BrowserWindow);
-            fireWebContentsEvent(mainWindow, 'did-finish-load');
+            preloadAppliedZoom(mainWindow, 2);
 
-            const handlers = (electronApp.on as jest.Mock).mock.calls
-                .filter(([name]) => name === 'before-quit')
-                .map(([, handler]) => handler);
-            expect(handlers).toHaveLength(1);
-            handlers[0]();
+            fireHandlers(
+                (electronApp.on as jest.Mock).mock.calls,
+                'before-quit'
+            );
 
             expect(store.set).toHaveBeenCalledWith('zoomLevel', 2);
-            expect(store.set).toHaveBeenCalledWith('windowBounds', {
-                x: 5,
-                y: 6,
-                width: 7,
-                height: 8,
-            });
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
+        });
+
+        it('saves the zoom level right before a reload, which drops the temporary level', () => {
+            const mainWindow = createWindowViaOnReady();
+            preloadAppliedZoom(mainWindow, 3);
+
+            fireHandlers(
+                mainWindow.webContents.on.mock.calls,
+                'did-start-navigation',
+                { isMainFrame: true, isSameDocument: false }
+            );
+
+            expect(store.set).toHaveBeenCalledWith('zoomLevel', 3);
+        });
+
+        it('leaves in-app (same-document) routing alone', () => {
+            const mainWindow = createWindowViaOnReady();
+            preloadAppliedZoom(mainWindow, 3);
+
+            fireHandlers(
+                mainWindow.webContents.on.mock.calls,
+                'did-start-navigation',
+                { isMainFrame: true, isSameDocument: true }
+            );
+
+            expect(store.set).not.toHaveBeenCalled();
         });
     });
 

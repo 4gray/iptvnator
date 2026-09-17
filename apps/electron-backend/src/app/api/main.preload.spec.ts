@@ -31,11 +31,13 @@ type MockIpcRenderer = {
     on: jest.Mock;
     off: jest.Mock;
     send: jest.Mock;
+    sendSync: jest.Mock;
 };
 
 let mockExposedApi: ExposedElectronApi | null;
 let mockIpcRenderer: MockIpcRenderer;
 let mockGetPathForFile: jest.Mock;
+let mockWebFrame: { getZoomLevel: jest.Mock; setZoomLevel: jest.Mock };
 
 function getExposedApi(): ExposedElectronApi {
     if (!mockExposedApi) {
@@ -64,6 +66,11 @@ describe('main preload DB IPC contract', () => {
             on: jest.fn(),
             off: jest.fn(),
             send: jest.fn(),
+            sendSync: jest.fn().mockReturnValue(1.5),
+        };
+        mockWebFrame = {
+            getZoomLevel: jest.fn().mockReturnValue(0),
+            setZoomLevel: jest.fn(),
         };
 
         jest.doMock('electron', () => ({
@@ -75,6 +82,7 @@ describe('main preload DB IPC contract', () => {
                 ),
             },
             ipcRenderer: mockIpcRenderer,
+            webFrame: mockWebFrame,
             webUtils: {
                 getPathForFile: mockGetPathForFile,
             },
@@ -85,6 +93,17 @@ describe('main preload DB IPC contract', () => {
 
     afterEach(() => {
         jest.dontMock('electron');
+    });
+
+    it('restores the persisted zoom level synchronously before exposing the bridge', () => {
+        // Synchronous on purpose: the level must land before the first paint,
+        // and through webFrame (temporary zoom) so the app's pushState routing
+        // under file:// cannot reset it (issue #1109).
+        expect(mockIpcRenderer.sendSync).toHaveBeenCalledWith(
+            'WINDOW:GET_ZOOM_LEVEL'
+        );
+        expect(mockWebFrame.setZoomLevel).toHaveBeenCalledWith(1.5);
+        expect(mockExposedApi).not.toBeNull();
     });
 
     it('covers every worker-backed DB operation exposed by the preload bridge', () => {
