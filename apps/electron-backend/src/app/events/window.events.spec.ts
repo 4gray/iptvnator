@@ -110,6 +110,7 @@ describe('WindowEvents', () => {
             'WINDOW:MINIMIZE',
             'WINDOW:TOGGLE_FULLSCREEN',
             'WINDOW:TOGGLE_MAXIMIZE',
+            'WINDOW:ZOOM_LEVEL_APPLIED',
         ]);
     });
 
@@ -460,24 +461,27 @@ describe('WindowEvents', () => {
     });
 });
 
-describe('WINDOW:GET_ZOOM_LEVEL', () => {
+describe('zoom level IPC', () => {
     beforeEach(() => {
         mockReadPersistedZoomLevel.mockReset();
         mockMarkZoomLevelApplied.mockReset();
     });
 
-    it('answers the preload synchronously and hands it ownership of the level', () => {
+    it('answers the preload synchronously without taking ownership yet', () => {
         mockReadPersistedZoomLevel.mockReturnValue(1.5);
-        const sender = { id: 7 };
-        const event: { sender: unknown; returnValue?: unknown } = { sender };
+        const event: { sender: unknown; returnValue?: unknown } = {
+            sender: {},
+        };
 
         mockHandlers.get('WINDOW:GET_ZOOM_LEVEL')?.(event);
 
         expect(event.returnValue).toBe(1.5);
-        expect(mockMarkZoomLevelApplied).toHaveBeenCalledWith(sender);
+        // Ownership waits for the applied acknowledgement: until then the
+        // sender's getZoomLevel() is still Chromium's per-URL default.
+        expect(mockMarkZoomLevelApplied).not.toHaveBeenCalled();
     });
 
-    it('answers null when nothing usable is stored, still marking the sender', () => {
+    it('answers null when nothing usable is stored', () => {
         mockReadPersistedZoomLevel.mockReturnValue(null);
         const event: { sender: unknown; returnValue?: unknown } = {
             sender: {},
@@ -486,6 +490,13 @@ describe('WINDOW:GET_ZOOM_LEVEL', () => {
         mockHandlers.get('WINDOW:GET_ZOOM_LEVEL')?.(event);
 
         expect(event.returnValue).toBeNull();
-        expect(mockMarkZoomLevelApplied).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks the sender as owning the level once the preload applied it', () => {
+        const sender = { id: 7 };
+
+        mockHandlers.get('WINDOW:ZOOM_LEVEL_APPLIED')?.({ sender });
+
+        expect(mockMarkZoomLevelApplied).toHaveBeenCalledWith(sender);
     });
 });

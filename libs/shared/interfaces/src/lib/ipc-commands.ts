@@ -134,9 +134,11 @@ export const WINDOW_TOGGLE_FULLSCREEN = 'WINDOW:TOGGLE_FULLSCREEN';
 export const WINDOW_CLOSE = 'WINDOW:CLOSE';
 export const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 export const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
-// Synchronous preload request for the persisted app zoom level: answered
-// with `event.returnValue` so the preload can apply it before the first paint
+// Synchronous preload request for the persisted app zoom level (answered
+// with `event.returnValue`), and the preload's acknowledgement once it has
+// applied that level with webFrame.setZoomLevel at DOMContentLoaded
 export const WINDOW_GET_ZOOM_LEVEL = 'WINDOW:GET_ZOOM_LEVEL';
+export const WINDOW_ZOOM_LEVEL_APPLIED = 'WINDOW:ZOOM_LEVEL_APPLIED';
 
 // Close guard: while active, closing/quitting the app is intercepted in the
 // main process and handed to the renderer for a save/discard/stay decision

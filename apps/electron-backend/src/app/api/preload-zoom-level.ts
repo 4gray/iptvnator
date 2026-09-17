@@ -1,8 +1,7 @@
 /**
  * Preload half of the app zoom level persistence (issue #1109).
  *
- * Runs synchronously at preload start, before the page paints. It asks the
- * main process for the persisted level and applies it through
+ * The level is requested synchronously at preload start and applied through
  * `webFrame.setZoomLevel`, which installs a temporary, frame-bound zoom level
  * instead of Chromium's per-URL entry — the only form that survives the
  * app's `pushState` routing under `file://` (see
@@ -10,6 +9,15 @@
  * it re-applies the current level for the same reason: entering temporary
  * mode makes the very first zoom shortcut URL-independent too, and keeps
  * whatever per-URL level Chromium restored on its own for this document.
+ *
+ * The apply itself is deferred to `DOMContentLoaded`. Calling
+ * `webFrame.setZoomLevel` earlier — at preload start, or from a `setTimeout`
+ * — leaves a hidden window without a first frame on Linux and Windows:
+ * `ready-to-show` never fires, `show()` never runs, and the renderer gets no
+ * animation frames (the splash that `main.ts` removes in a
+ * `requestAnimationFrame` stays forever). macOS is unaffected, which is why
+ * only the packaged Linux/Windows E2E caught it. After the parser finishes
+ * the call is harmless, and it still lands before the first Angular paint.
  */
 
 export interface PreloadZoomLevelPorts {
@@ -19,12 +27,16 @@ export interface PreloadZoomLevelPorts {
     getZoomLevel(): number;
     /** `webFrame.setZoomLevel(level)` */
     setZoomLevel(level: number): void;
+    /** Runs `apply` once the document is parsed (DOMContentLoaded), or at once if it already is. */
+    whenDocumentParsed(apply: () => void): void;
+    /** `ipcRenderer.send(WINDOW_ZOOM_LEVEL_APPLIED)` — hands the main process ownership of the level. */
+    notifyApplied(): void;
 }
 
 /**
- * Returns the level applied, or `null` when the handshake failed. A failure
- * here must never break the bridge: the preload continues and the window
- * merely keeps Chromium's default zoom behaviour for this load.
+ * Returns the level that will be applied, or `null` when the request failed.
+ * A failure here must never break the bridge: the preload continues and the
+ * window merely keeps Chromium's default zoom behaviour for this load.
  */
 export function applyPersistedZoomLevel(
     ports: PreloadZoomLevelPorts
@@ -36,7 +48,14 @@ export function applyPersistedZoomLevel(
                 ? saved
                 : ports.getZoomLevel();
 
-        ports.setZoomLevel(level);
+        ports.whenDocumentParsed(() => {
+            try {
+                ports.setZoomLevel(level);
+                ports.notifyApplied();
+            } catch {
+                // Same contract as below: never take the bridge down.
+            }
+        });
         return level;
     } catch {
         return null;

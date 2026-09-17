@@ -38,6 +38,7 @@ let mockExposedApi: ExposedElectronApi | null;
 let mockIpcRenderer: MockIpcRenderer;
 let mockGetPathForFile: jest.Mock;
 let mockWebFrame: { getZoomLevel: jest.Mock; setZoomLevel: jest.Mock };
+let mockDocumentListeners: Map<string, () => void>;
 
 function getExposedApi(): ExposedElectronApi {
     if (!mockExposedApi) {
@@ -72,6 +73,14 @@ describe('main preload DB IPC contract', () => {
             getZoomLevel: jest.fn().mockReturnValue(0),
             setZoomLevel: jest.fn(),
         };
+        // The preload defers webFrame.setZoomLevel to DOMContentLoaded; the
+        // jest environment is node, so stand in for the parsing document.
+        mockDocumentListeners = new Map();
+        (globalThis as { document?: unknown }).document = {
+            readyState: 'loading',
+            addEventListener: (event: string, listener: () => void) =>
+                mockDocumentListeners.set(event, listener),
+        };
 
         jest.doMock('electron', () => ({
             contextBridge: {
@@ -93,17 +102,26 @@ describe('main preload DB IPC contract', () => {
 
     afterEach(() => {
         jest.dontMock('electron');
+        delete (globalThis as { document?: unknown }).document;
     });
 
-    it('restores the persisted zoom level synchronously before exposing the bridge', () => {
-        // Synchronous on purpose: the level must land before the first paint,
-        // and through webFrame (temporary zoom) so the app's pushState routing
-        // under file:// cannot reset it (issue #1109).
+    it('requests the persisted zoom level synchronously and applies it at DOMContentLoaded', () => {
+        // Through webFrame (temporary zoom) so the app's pushState routing
+        // under file:// cannot reset it, and only once the document is parsed:
+        // an earlier webFrame.setZoomLevel leaves a hidden Linux/Windows
+        // window without ready-to-show (issue #1109).
         expect(mockIpcRenderer.sendSync).toHaveBeenCalledWith(
             'WINDOW:GET_ZOOM_LEVEL'
         );
-        expect(mockWebFrame.setZoomLevel).toHaveBeenCalledWith(1.5);
+        expect(mockWebFrame.setZoomLevel).not.toHaveBeenCalled();
         expect(mockExposedApi).not.toBeNull();
+
+        mockDocumentListeners.get('DOMContentLoaded')?.();
+
+        expect(mockWebFrame.setZoomLevel).toHaveBeenCalledWith(1.5);
+        expect(mockIpcRenderer.send).toHaveBeenCalledWith(
+            'WINDOW:ZOOM_LEVEL_APPLIED'
+        );
     });
 
     it('covers every worker-backed DB operation exposed by the preload bridge', () => {

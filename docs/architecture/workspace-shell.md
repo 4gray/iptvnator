@@ -421,19 +421,30 @@ Zoom level (Cmd/Ctrl and +/−, issue #1109):
    packaged or `ELECTRON_IS_DEV=0` run can verify zoom behaviour.
 2. Restore therefore happens in the preload, not the main process:
    `applyPersistedZoomLevel` (`api/preload-zoom-level.ts`) asks for the
-   stored level over the synchronous `WINDOW:GET_ZOOM_LEVEL` IPC and applies
-   it with `webFrame.setZoomLevel`, which installs a TEMPORARY, frame-bound
-   zoom level. It survives in-page navigation and resizes, the macOS menu
-   roles (`zoomIn`/`zoomOut`/`resetZoom`) increment it, and `getZoomLevel()`
-   reports it regardless of the route. `webContents.setZoomLevel` from the
-   main process would write the per-URL entry and re-create the bug. When
-   nothing is stored the preload re-applies the current level for the same
-   reason: entering temporary mode makes the first zoom shortcut
-   URL-independent too. Synchronous on purpose, so the page never paints at
-   the default zoom first; a failed handshake is swallowed and only costs
-   this load its restore.
+   stored level over the synchronous `WINDOW:GET_ZOOM_LEVEL` IPC at preload
+   start and applies it with `webFrame.setZoomLevel`, which installs a
+   TEMPORARY, frame-bound zoom level. It survives in-page navigation and
+   resizes, the macOS menu roles (`zoomIn`/`zoomOut`/`resetZoom`) increment
+   it, and `getZoomLevel()` reports it regardless of the route.
+   `webContents.setZoomLevel` from the main process would write the per-URL
+   entry and re-create the bug. When nothing is stored the preload re-applies
+   the current level for the same reason: entering temporary mode makes the
+   first zoom shortcut URL-independent too. A failed request is swallowed
+   and only costs this load its restore.
+   The apply is deferred to `DOMContentLoaded` — never at preload start and
+   never from a `setTimeout`: on Linux and Windows a `webFrame.setZoomLevel`
+   that early leaves the hidden window without a first frame, `ready-to-show`
+   never fires, `show()` never runs, and the renderer gets no animation
+   frames (the splash `main.ts` removes in a `requestAnimationFrame` stays).
+   macOS is unaffected and CDP-driven tests force frames, so only the
+   packaged Linux/Windows E2E asserting the splash is gone caught it
+   (`legacy-playlist-migration.e2e.ts`, defer-epg). After the parser
+   finishes the call is harmless and still lands before the first Angular
+   paint. The preload then sends `WINDOW:ZOOM_LEVEL_APPLIED`.
 3. Chromium never persists temporary zoom, so `services/window-zoom-level.ts`
-   owns the electron-conf key `ZOOM_LEVEL`: the IPC answer marks the sender
+   owns the electron-conf key `ZOOM_LEVEL`: the applied acknowledgement (not
+   the request — between the two the sender's `getZoomLevel()` is still the
+   per-URL default) marks the sender
    as owning the level, `persistZoomLevel` writes it back from the window
    `close` and app `before-quit` handlers (the bounds-only saves of before,
    folded into `persistWindowState`), and `attachZoomLevelPersistence` also
