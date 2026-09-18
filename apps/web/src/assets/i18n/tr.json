@@ -1741,6 +1741,8 @@
                 "OPEN_RECENTLY_VIEWED": "Son görüntülenenleri aç",
                 "SUBMIT_SHELL_SEARCH": "Çalışma alanı aramasını gönder",
                 "TOGGLE_WINDOW_FULLSCREEN": "Uygulama penceresi tam ekranını aç/kapat",
+                "ZOOM_IN_OUT": "Uygulamayı yakınlaştır veya uzaklaştır",
+                "RESET_ZOOM": "Uygulama yakınlaştırmasını sıfırla",
                 "TOGGLE_SIDEBAR": "Kenar çubuğunu aç/kapat",
                 "M3U_CHANNEL_NUMBER": "M3U kanalını numarayla seç",
                 "PLAY_PAUSE": "Gömülü MPV oynatmasını oynat veya duraklat",

@@ -1741,6 +1741,8 @@
                 "OPEN_RECENTLY_VIEWED": "فتح العناصر المشاهدة مؤخرًا",
                 "SUBMIT_SHELL_SEARCH": "إرسال بحث مساحة العمل",
                 "TOGGLE_WINDOW_FULLSCREEN": "تبديل ملء الشاشة لنافذة التطبيق",
+                "ZOOM_IN_OUT": "تكبير التطبيق أو تصغيره",
+                "RESET_ZOOM": "إعادة ضبط تكبير التطبيق",
                 "TOGGLE_SIDEBAR": "تبديل الشريط الجانبي",
                 "M3U_CHANNEL_NUMBER": "اختيار قناة M3U حسب الرقم",
                 "PLAY_PAUSE": "تشغيل أو إيقاف تشغيل Embedded MPV مؤقتًا",

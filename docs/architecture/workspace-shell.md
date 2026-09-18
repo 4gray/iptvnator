@@ -407,7 +407,7 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
    `window.events.spec.ts`, and the startup-window-mode cases in
    `settings.e2e.ts`.
 
-Zoom level (Cmd/Ctrl and +/−, issue #1109):
+Zoom level (Cmd/Ctrl and +/−/0, issue #1109):
 
 1. The packaged renderer runs under `file://` with path routing. Chromium
    keys per-host zoom by the FULL URL when a URL has no host, so every
@@ -424,8 +424,8 @@ Zoom level (Cmd/Ctrl and +/−, issue #1109):
    stored level over the synchronous `WINDOW:GET_ZOOM_LEVEL` IPC at preload
    start and applies it with `webFrame.setZoomLevel`, which installs a
    TEMPORARY, frame-bound zoom level. It survives in-page navigation and
-   resizes, the macOS menu roles (`zoomIn`/`zoomOut`/`resetZoom`) increment
-   it, and `getZoomLevel()` reports it regardless of the route.
+   resizes, the zoom shortcuts (point 4) step it through the same call, and
+   `getZoomLevel()` reports it regardless of the route.
    `webContents.setZoomLevel` from the main process would write the per-URL
    entry and re-create the bug. When nothing is stored the preload re-applies
    the current level for the same reason: entering temporary mode makes the
@@ -453,13 +453,44 @@ Zoom level (Cmd/Ctrl and +/−, issue #1109):
    document's preload has already read whatever was stored. That
    navigation also releases ownership until the next preload answers, so a
    close mid-reload cannot save the per-URL default over the user's level.
-4. Windows/Linux have no zoom shortcuts today: the window calls
-   `setMenu(null)` and nothing handles `zoom-changed`, so only macOS' default
-   application menu zooms. Persistence is platform-neutral and would pick
-   up any future shortcut that goes through `webContents.setZoomLevel`.
-   Regression coverage lives in `window-zoom-level.e2e.ts`, which measures
-   the rendered factor (content width ÷ `window.innerWidth`) across a
-   section change, a resize, a reload and a restart.
+4. The shortcuts are a renderer key binding, not a native menu: the
+   Windows/Linux window calls `setMenu(null)`, so no accelerator could reach
+   it there. `WorkspaceKeyboardShortcutsService` (`libs/workspace/shell`)
+   listens on the document like it does for F11 and resolves the chord with
+   `resolveZoomShortcutAction` (`libs/portal/shared/util`): Cmd on macOS,
+   Ctrl elsewhere, never Alt; `+`/`=` (so `Ctrl+=` and `Ctrl+Shift+=` both
+   zoom in), `-`/`_`, `0`, and the numpad `+`/`-`/`0` (by `code`, since a
+   NumLock-off `0` reports `Insert`). Keys are matched by `event.key`, so
+   non-US layouts zoom with their own `+`/`-` keys. Like F11 it is not gated
+   by the typing-target check — browsers zoom from any focus — and a key
+   another handler already `preventDefault`ed is left alone. The binding
+   calls the synchronous, preload-local `window.electron.adjustZoomLevel`
+   (`adjustFrameZoomLevel` in `api/preload-zoom-level.ts`), which steps the
+   frame's temporary level through the same `webFrame.setZoomLevel` as the
+   restore and returns the level applied — never a main-process
+   `webContents.setZoomLevel`, which would re-create the per-URL bug. The
+   step and limits live in `libs/shared/interfaces/src/lib/zoom-level.util.ts`
+   (`stepZoomLevel`): 0.5 per press, Electron's own `zoomIn`/`zoomOut` role
+   step (≈10 %), clamped to levels −4…6 (≈48 %…299 %, inside Chromium's
+   25–500 %), off-grid levels snapping to the next grid point in the pressed
+   direction; `Ctrl/Cmd+0` returns to level 0. Persistence needs nothing
+   extra: the main process reads the live level back (point 3). On macOS the
+   default application menu still carries the `zoomIn`/`zoomOut`/`resetZoom`
+   roles, but Chromium hands a key equivalent to the web contents first and
+   Electron performs the menu equivalent only in
+   `WebContents::PlatformHandleKeyboardEvent`
+   (`shell/browser/api/electron_api_web_contents_mac.mm`, Electron 43.3.0),
+   the unhandled-keyboard-event hook — a `preventDefault`ed keydown never
+   gets there, so the binding keeps one press at one step. CDP-dispatched
+   keys (the E2E) never reach the menu at all.
+   Without a bridge (PWA) the browser keeps its own zoom, and the help
+   dialog lists the chords as Electron-only. Regression coverage:
+   `window-zoom-level.e2e.ts` presses the real shortcuts (in, out, numpad,
+   reset) and measures the rendered factor (content width ÷
+   `window.innerWidth`) across a section change, a resize, a reload and a
+   restart; key resolution and the bridge step are unit-tested in
+   `keyboard-shortcuts.spec.ts`, `workspace-keyboard-shortcuts.service.spec.ts`
+   and `preload-zoom-level.spec.ts`.
 
 Layout integration:
 

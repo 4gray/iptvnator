@@ -1741,6 +1741,8 @@
                 "OPEN_RECENTLY_VIEWED": "Legutóbbi megtekintések megnyitása",
                 "SUBMIT_SHELL_SEARCH": "Munkaterületi keresés indítása",
                 "TOGGLE_WINDOW_FULLSCREEN": "Az alkalmazásablak teljes képernyős módjának be- vagy kikapcsolása",
+                "ZOOM_IN_OUT": "Az alkalmazás nagyítása vagy kicsinyítése",
+                "RESET_ZOOM": "Az alkalmazás nagyításának visszaállítása",
                 "TOGGLE_SIDEBAR": "Oldalsáv megjelenítése vagy elrejtése",
                 "M3U_CHANNEL_NUMBER": "M3U-csatorna kiválasztása a számának beírásával",
                 "PLAY_PAUSE": "A beágyazott MPV lejátszásának indítása vagy szüneteltetése",

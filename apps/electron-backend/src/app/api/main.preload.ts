@@ -21,7 +21,10 @@ import {
     createPreloadPerformanceCapture,
     toPreloadPerformanceTargetMethod,
 } from './preload-performance-capture';
-import { applyPersistedZoomLevel } from './preload-zoom-level';
+import {
+    adjustFrameZoomLevel,
+    applyPersistedZoomLevel,
+} from './preload-zoom-level';
 import {
     createXtreamPreloadPerformanceCapture,
     isXtreamPreloadPerformanceCaptureEnabled,
@@ -277,6 +280,11 @@ function wrapElectronApi<T extends object>(api: T): T {
     ) as T;
 }
 
+const frameZoomPorts = {
+    getZoomLevel: () => webFrame.getZoomLevel(),
+    setZoomLevel: (level: number) => webFrame.setZoomLevel(level),
+};
+
 const electronApi: ElectronBridgeApi = {
     // Remote control channel change listener
     onChannelChange: (
@@ -424,6 +432,9 @@ const electronApi: ElectronBridgeApi = {
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
     toggleFullScreenWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_FULLSCREEN),
     closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),
+    // Zoom shortcuts: same frame-bound webFrame route as the restore below;
+    // synchronous, no IPC — persistence reads the level back in main.
+    adjustZoomLevel: (action) => adjustFrameZoomLevel(frameZoomPorts, action),
     getWindowState: () => ipcRenderer.invoke(WINDOW_GET_STATE),
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
@@ -1161,8 +1172,7 @@ const electronApi: ElectronBridgeApi = {
 // preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
 applyPersistedZoomLevel({
     requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
-    getZoomLevel: () => webFrame.getZoomLevel(),
-    setZoomLevel: (level) => webFrame.setZoomLevel(level),
+    ...frameZoomPorts,
     whenDocumentParsed: (apply) => {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', apply, { once: true });

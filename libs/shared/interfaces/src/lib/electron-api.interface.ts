@@ -1,6 +1,7 @@
 import type { AppUpdateChannel } from './app-update-channel.util';
 import type { SourceProbeContext, SourceHealthResult } from './source-health';
 import type { XtreamConnectionFailure } from './xtream-connection-test';
+import type { ZoomLevelAction } from './zoom-level.util';
 import type {
     CatchupDownloadMetadata,
     DownloadRecoveryResult,
@@ -718,6 +719,16 @@ export interface ElectronBridgeApi {
      */
     toggleFullScreenWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;
+    /**
+     * Zoom shortcuts (Cmd/Ctrl and +/−/0). Synchronous and preload-local:
+     * steps the FRAME-BOUND temporary zoom level through `webFrame` (never a
+     * main-process `webContents.setZoomLevel`, whose per-URL entry the app's
+     * `file://` path routing resets — issue #1109), clamped to
+     * `ZOOM_LEVEL_MIN..ZOOM_LEVEL_MAX`, and returns the level now applied.
+     * Persistence needs nothing from the caller: the main process reads the
+     * live level back on close, quit and reload.
+     */
+    adjustZoomLevel: (action: ZoomLevelAction) => number;
     getWindowState: () => Promise<ElectronBridgeWindowState>;
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void

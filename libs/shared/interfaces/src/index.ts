@@ -7,6 +7,7 @@ export * from './lib/dev-logger.util';
 export * from './lib/download-metadata.interface';
 export * from './lib/embedded-mpv-session.interface';
 export * from './lib/subtitle-style.util';
+export * from './lib/zoom-level.util';
 export * from './lib/electron-api.interface';
 export * from './lib/epg-channel-metadata.model';
 export * from './lib/epg-channel-with-programs.interface';

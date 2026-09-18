@@ -1741,6 +1741,8 @@
                 "OPEN_RECENTLY_VIEWED": "打开最近观看",
                 "SUBMIT_SHELL_SEARCH": "提交工作区搜索",
                 "TOGGLE_WINDOW_FULLSCREEN": "切换应用窗口全屏",
+                "ZOOM_IN_OUT": "放大或缩小应用",
+                "RESET_ZOOM": "重置应用缩放",
                 "TOGGLE_SIDEBAR": "切换侧边栏",
                 "M3U_CHANNEL_NUMBER": "按数字选择 M3U 频道",
                 "PLAY_PAUSE": "播放或暂停嵌入式 MPV 播放",

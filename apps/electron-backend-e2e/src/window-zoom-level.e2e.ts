@@ -25,12 +25,23 @@ async function renderedZoomFactor(app: LaunchedElectronApp): Promise<number> {
     return contentWidth / innerWidth;
 }
 
-/** What the macOS menu roles (Cmd +/−) do: `webContents.zoomLevel += 1`. */
-async function zoomInFromMenu(app: LaunchedElectronApp): Promise<void> {
-    await app.electronApp.evaluate(({ BrowserWindow }) => {
-        const [win] = BrowserWindow.getAllWindows();
-        win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 1);
-    });
+/**
+ * The app zoom shortcuts as the renderer receives them: Cmd on macOS, Ctrl
+ * elsewhere. Dispatched through CDP they reach the renderer's keydown
+ * binding directly (`WorkspaceKeyboardShortcutsService`), which steps the
+ * frame-bound level through the preload bridge; the macOS application menu
+ * is not in this path.
+ */
+const ZOOM_MODIFIER = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+async function pressZoomShortcut(
+    app: LaunchedElectronApp,
+    key: 'Equal' | 'Minus' | 'Digit0' | 'NumpadAdd' | 'NumpadSubtract',
+    times = 1
+): Promise<void> {
+    for (let index = 0; index < times; index += 1) {
+        await app.mainWindow.keyboard.press(`${ZOOM_MODIFIER}+${key}`);
+    }
 }
 
 /**
@@ -58,11 +69,13 @@ async function resizeWindowBy(
     }, delta);
 }
 
-// Zoom level 1 is a 1.2 factor. The packaged renderer runs under file:// with
-// path routing, where Chromium keys zoom by full URL: without frame-bound
-// (temporary) zoom the level "holds" only until the next resize after a
-// section change, and a restart brings back the default (issue #1109).
+// Zoom level 1 is a 1.2 factor; each shortcut press steps the level by 0.5
+// (Electron's zoomIn/zoomOut role step). The packaged renderer runs under
+// file:// with path routing, where Chromium keys zoom by full URL: without
+// frame-bound (temporary) zoom the level "holds" only until the next resize
+// after a section change, and a restart brings back the default (issue #1109).
 const ZOOMED_FACTOR = 1.2;
+const HALF_STEP_FACTOR = Math.sqrt(ZOOMED_FACTOR);
 
 test('@electron @window keeps the zoom level across sections, resizes and a restart', async ({
     dataDir,
@@ -72,7 +85,23 @@ test('@electron @window keeps the zoom level across sections, resizes and a rest
     try {
         expect(await renderedZoomFactor(app)).toBeCloseTo(1, 1);
 
-        await zoomInFromMenu(app);
+        // In three times, out once (main keys and numpad): level 1.
+        await pressZoomShortcut(app, 'Equal', 2);
+        await pressZoomShortcut(app, 'NumpadAdd');
+        await expect
+            .poll(() => renderedZoomFactor(app))
+            .toBeCloseTo(ZOOMED_FACTOR * HALF_STEP_FACTOR, 1);
+        await pressZoomShortcut(app, 'Minus');
+        await expect
+            .poll(() => renderedZoomFactor(app))
+            .toBeCloseTo(ZOOMED_FACTOR, 1);
+
+        // Reset returns to level 0, then zoom back in (three in, one out on
+        // the numpad) for the persistence checks below.
+        await pressZoomShortcut(app, 'Digit0');
+        await expect.poll(() => renderedZoomFactor(app)).toBeCloseTo(1, 1);
+        await pressZoomShortcut(app, 'Equal', 3);
+        await pressZoomShortcut(app, 'NumpadSubtract');
         await expect
             .poll(() => renderedZoomFactor(app))
             .toBeCloseTo(ZOOMED_FACTOR, 1);

@@ -1741,6 +1741,8 @@
                 "OPEN_RECENTLY_VIEWED": "開啟最近觀看",
                 "SUBMIT_SHELL_SEARCH": "提交工作區搜尋",
                 "TOGGLE_WINDOW_FULLSCREEN": "切換應用程式視窗全螢幕",
+                "ZOOM_IN_OUT": "放大或縮小應用程式",
+                "RESET_ZOOM": "重設應用程式縮放",
                 "TOGGLE_SIDEBAR": "切換側邊欄",
                 "M3U_CHANNEL_NUMBER": "按數字選擇 M3U 頻道",
                 "PLAY_PAUSE": "播放或暫停嵌入式 MPV 播放",
