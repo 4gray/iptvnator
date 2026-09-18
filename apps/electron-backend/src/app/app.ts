@@ -18,6 +18,10 @@ import {
     WINDOW_BOUNDS,
 } from './services/store.service';
 import { isFrameCopyRuntimeUsable } from './services/embedded-mpv-frame-copy-platform.util';
+import {
+    attachZoomLevelPersistence,
+    persistZoomLevel,
+} from './services/window-zoom-level';
 import { isEmbeddedMpvFeatureEnabled } from './services/embedded-mpv-runtime-policy.util';
 import {
     FULLSCREEN_LAUNCH_SWITCH,
@@ -450,6 +454,18 @@ export default class App {
         });
     }
 
+    /**
+     * Persist the state restored on the next launch: window bounds and the
+     * zoom level. Runs from both the window 'close' and app 'before-quit'
+     * handlers, since either can be the last to run before the process ends.
+     * The zoom half is a no-op until the window's preload took ownership of
+     * the level (`services/window-zoom-level.ts`).
+     */
+    private static persistWindowState(win: Electron.BrowserWindow): void {
+        store.set(WINDOW_BOUNDS, win.getNormalBounds());
+        persistZoomLevel(win);
+    }
+
     private static initMainWindow() {
         const workAreaSize = screen.getPrimaryDisplay().workAreaSize;
         const width = Math.min(1280, workAreaSize.width || 1280);
@@ -539,6 +555,10 @@ export default class App {
             App.handleRendererNavigation
         );
 
+        // The preload restores the zoom level on every document load; the
+        // main process only saves it back before a reload drops it.
+        attachZoomLevelPersistence(App.mainWindow);
+
         // Emitted when the window is closed.
         App.mainWindow.on('closed', () => {
             // Dereference the window object, usually you would store windows
@@ -551,7 +571,7 @@ export default class App {
 
         App.mainWindow.on('close', () => {
             if (App.mainWindow) {
-                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+                App.persistWindowState(App.mainWindow);
             }
         });
 
@@ -653,8 +673,7 @@ export default class App {
         }
         App.application.on('activate', App.onActivate); // App is activated
         App.application.on('before-quit', () => {
-            if (App.mainWindow)
-                store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+            if (App.mainWindow) App.persistWindowState(App.mainWindow);
         });
     }
 }

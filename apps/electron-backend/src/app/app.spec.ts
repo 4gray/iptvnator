@@ -37,6 +37,7 @@ jest.mock('./services/store.service', () => ({
     },
     STARTUP_WINDOW_MODE: 'startupWindowMode',
     WINDOW_BOUNDS: 'windowBounds',
+    ZOOM_LEVEL: 'zoomLevel',
 }));
 
 jest.mock('./services/embedded-mpv-frame-copy-platform.util', () => ({
@@ -58,6 +59,7 @@ import { app as electronApp, BrowserWindow, screen } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { store } from './services/store.service';
+import { markZoomLevelApplied } from './services/window-zoom-level';
 import { getPendingFullScreenTarget } from './services/native-fullscreen-transitions';
 
 type MockMainWindow = {
@@ -80,6 +82,8 @@ type MockMainWindow = {
         on: jest.Mock<void, [string, (...args: unknown[]) => void]>;
         openDevTools: jest.Mock<void, []>;
         setWindowOpenHandler: jest.Mock<void, [unknown]>;
+        getZoomLevel: jest.Mock<number, []>;
+        isDestroyed: jest.Mock<boolean, []>;
     };
 };
 
@@ -102,6 +106,8 @@ function createMockMainWindow(): MockMainWindow {
             on: jest.fn<void, [string, (...args: unknown[]) => void]>(),
             openDevTools: jest.fn<void, []>(),
             setWindowOpenHandler: jest.fn<void, [unknown]>(),
+            getZoomLevel: jest.fn<number, []>().mockReturnValue(0),
+            isDestroyed: jest.fn<boolean, []>().mockReturnValue(false),
         },
     };
 }
@@ -484,6 +490,126 @@ describe('Electron app security helpers', () => {
             );
             fireReadyToShow(mainWindow);
             expect(mainWindow.maximize).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('zoom level persistence', () => {
+        const bounds = { x: 1, y: 2, width: 3, height: 4 };
+
+        function createWindowViaOnReady(): MockMainWindow {
+            const mainWindow = createMockMainWindow();
+            mainWindow.getNormalBounds.mockReturnValue(bounds);
+            (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+            getAppInternals().onReady();
+            return mainWindow;
+        }
+
+        function fireHandlers(
+            calls: Array<[string, (...args: unknown[]) => void]>,
+            eventName: string,
+            ...args: unknown[]
+        ): void {
+            const handlers = calls
+                .filter(([name]) => name === eventName)
+                .map(([, handler]) => handler);
+
+            expect(handlers).toHaveLength(1);
+            handlers[0](...args);
+        }
+
+        function fireWindowEvent(win: MockMainWindow, eventName: string): void {
+            fireHandlers(win.on.mock.calls, eventName);
+        }
+
+        /** The preload asked for the level: its getZoomLevel() is now the app's. */
+        function preloadAppliedZoom(win: MockMainWindow, level: number): void {
+            win.webContents.getZoomLevel.mockReturnValue(level);
+            markZoomLevelApplied(
+                win.webContents as unknown as Electron.WebContents
+            );
+        }
+
+        it('persists the zoom level next to the bounds when a window whose preload owns the level closes', () => {
+            const mainWindow = createWindowViaOnReady();
+            preloadAppliedZoom(mainWindow, 1.5);
+
+            fireWindowEvent(mainWindow, 'close');
+
+            expect(store.set).toHaveBeenCalledWith('zoomLevel', 1.5);
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
+        });
+
+        it('saves only the bounds when the window closes before its preload applied the level', () => {
+            const mainWindow = createWindowViaOnReady();
+            // Before the preload handshake getZoomLevel() is Chromium's
+            // per-URL default; saving it would clobber the persisted level.
+            mainWindow.webContents.getZoomLevel.mockReturnValue(0);
+
+            fireWindowEvent(mainWindow, 'close');
+
+            expect(store.set).not.toHaveBeenCalledWith(
+                'zoomLevel',
+                expect.anything()
+            );
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
+        });
+
+        it('does not read zoom from a destroyed webContents on close', () => {
+            const mainWindow = createWindowViaOnReady();
+            preloadAppliedZoom(mainWindow, 1.5);
+            mainWindow.webContents.isDestroyed.mockReturnValue(true);
+
+            fireWindowEvent(mainWindow, 'close');
+
+            expect(mainWindow.webContents.getZoomLevel).not.toHaveBeenCalled();
+            expect(store.set).not.toHaveBeenCalledWith(
+                'zoomLevel',
+                expect.anything()
+            );
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
+        });
+
+        it('persists the zoom level and bounds on before-quit', () => {
+            const mainWindow = createMockMainWindow();
+            mainWindow.getNormalBounds.mockReturnValue(bounds);
+            (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+            (electronApp.isReady as jest.Mock).mockReturnValue(true);
+            App.main(electronApp, BrowserWindow);
+            preloadAppliedZoom(mainWindow, 2);
+
+            fireHandlers(
+                (electronApp.on as jest.Mock).mock.calls,
+                'before-quit'
+            );
+
+            expect(store.set).toHaveBeenCalledWith('zoomLevel', 2);
+            expect(store.set).toHaveBeenCalledWith('windowBounds', bounds);
+        });
+
+        it('saves the zoom level right before a reload, which drops the temporary level', () => {
+            const mainWindow = createWindowViaOnReady();
+            preloadAppliedZoom(mainWindow, 3);
+
+            fireHandlers(
+                mainWindow.webContents.on.mock.calls,
+                'did-start-navigation',
+                { isMainFrame: true, isSameDocument: false }
+            );
+
+            expect(store.set).toHaveBeenCalledWith('zoomLevel', 3);
+        });
+
+        it('leaves in-app (same-document) routing alone', () => {
+            const mainWindow = createWindowViaOnReady();
+            preloadAppliedZoom(mainWindow, 3);
+
+            fireHandlers(
+                mainWindow.webContents.on.mock.calls,
+                'did-start-navigation',
+                { isMainFrame: true, isSameDocument: true }
+            );
+
+            expect(store.set).not.toHaveBeenCalled();
         });
     });
 
