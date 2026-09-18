@@ -51,7 +51,9 @@ import {
     resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
+    getVodSeasonLoadStates,
     getVodSeriesSeasonKey,
+    isVodSeasonHydrationPending,
     isVodSeriesItem,
     mapRegularSeriesEpisodes,
     mapRegularSeriesSeasons,
@@ -1237,7 +1239,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * every series toggle re-fetch it.
      */
     private isSeasonHydrationPending(season: VodSeriesSeasonVm): boolean {
-        return season.episodes.length === 0 && !season.episodesLoaded;
+        return isVodSeasonHydrationPending(season);
     }
 
     /** Seasons whose episode lists still need a portal request (lazy VOD). */
@@ -1249,27 +1251,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             )
     );
 
-    /**
-     * Per-season load state for the fullscreen episode panel: in flight, or
-     * unanswered (never asked, or the request failed — the panel offers a
-     * retry there, since the tabs never re-emit the selected key).
-     */
-    readonly vodSeasonLoadStates = computed<
-        Record<string, 'loading' | 'unloaded'>
-    >(() => {
-        const states: Record<string, 'loading' | 'unloaded'> = {};
-        if (!this.isVodSeries()) {
-            return states;
-        }
-        for (const season of this.vodSeriesSeasons()) {
-            if (season.isLoading) {
-                states[getVodSeriesSeasonKey(season)] = 'loading';
-            } else if (this.isSeasonHydrationPending(season)) {
-                states[getVodSeriesSeasonKey(season)] = 'unloaded';
-            }
-        }
-        return states;
-    });
+    /** Per-season load state for the fullscreen episode panel (lazy VOD). */
+    readonly vodSeasonLoadStates = computed(() =>
+        this.isVodSeries() ? getVodSeasonLoadStates(this.vodSeriesSeasons()) : {}
+    );
 
     async handleSeriesPlaybackToggleRequested(
         request: SeasonContainerSeriesPlaybackToggleRequest

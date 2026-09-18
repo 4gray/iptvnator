@@ -595,10 +595,14 @@ the component both series hosts (Xtream `SerialDetailsComponent`, Stalker
 `StalkerSeriesViewComponent`) render around `app-web-player-view` and that
 already feeds the Up Next rail — so it is the nearest provider for the nested
 view, which also shields that view from a page-level channel-list provider
-(the M3U player's) while its VOD detail hosts the player. It declares
-`panelKind: 'episodes'` and `panelSearchEnabled: false`: season tabs are the
-navigation, and the header shows the series title (`seriesTitle`, else the
-playback title) where the search field would be.
+(the M3U player's) while its VOD detail hosts the player. The host object
+itself is built by `createEpisodePanelHost()`
+(`portal-inline-player-episode-panel.host.ts`) from the component's inputs
+and exposed as `episodePanel`, so the player's own responsibilities stay
+readable. It declares `panelKind: 'episodes'` and `panelSearchEnabled:
+false`: season tabs are the navigation, and the header shows the series
+title (`seriesTitle`, else the playback title) where the search field would
+be.
 
 - Data: the hosts pass their season→episodes map (`seriesEpisodes`, the same
   `Record<seasonKey, XtreamSerieEpisode[]>` the season container gets, so the
@@ -606,7 +610,8 @@ playback title) where the search field would be.
   playback-position map (`episodePlaybackPositions`) and, for Stalker lazy
   VOD series, per-season load states (`seasonLoadStates`: `loading` while
   a request is on the wire, `unloaded` while the portal has not answered —
-  after a failed request too; `vodSeasonLoadStates` on the host).
+  after a failed request too; `vodSeasonLoadStates` on the host, computed
+  by `getVodSeasonLoadStates()` in `@iptvnator/portal/stalker/data-access`).
   `buildFullscreenEpisodePanelSeasons()`
   (`libs/ui/playback/src/lib/fullscreen-episode-panel/fullscreen-episode-panel.util.ts`)
   turns them into `FullscreenEpisodePanelSeason[]` — numeric keys ascending,

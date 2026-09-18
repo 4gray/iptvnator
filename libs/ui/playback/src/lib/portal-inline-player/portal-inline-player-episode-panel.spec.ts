@@ -158,7 +158,7 @@ describe('PortalInlinePlayerComponent fullscreen episode panel host', () => {
         const host = fixture.debugElement.injector.get(
             FULLSCREEN_CHANNEL_PANEL
         );
-        expect(host).toBe(component);
+        expect(host).toBe(component.episodePanel);
         expect(host.panelTemplate()).not.toBeNull();
         expect(host.panelTitle?.()).toBe('Some Show');
         expect(host.panelSearchEnabled?.()).toBe(false);
@@ -184,7 +184,7 @@ describe('PortalInlinePlayerComponent fullscreen episode panel host', () => {
         fixture.componentRef.setInput('seasonLoadStates', { '2': 'loading' });
         fixture.detectChanges();
 
-        const seasons = component.fullscreenEpisodeSeasons();
+        const seasons = component.episodePanel.seasons();
         expect(seasons.map((season) => season.key)).toEqual(['1', '2']);
         expect(seasons[0].episodes.map((e) => e.isPlaying)).toEqual([
             false,
@@ -199,20 +199,20 @@ describe('PortalInlinePlayerComponent fullscreen episode panel host', () => {
         fixture.componentRef.setInput('playback', moviePlayback);
         fixture.componentRef.setInput('seriesEpisodes', seriesEpisodes);
         fixture.detectChanges();
-        expect(component.panelTemplate()).toBeNull();
+        expect(component.episodePanel.panelTemplate()).toBeNull();
 
         fixture.componentRef.setInput('playback', episodePlayback);
         fixture.componentRef.setInput('seriesEpisodes', null);
         fixture.detectChanges();
-        expect(component.panelTemplate()).toBeNull();
+        expect(component.episodePanel.panelTemplate()).toBeNull();
 
         fixture.componentRef.setInput('seriesEpisodes', seriesEpisodes);
         fixture.detectChanges();
-        expect(component.panelTemplate()).not.toBeNull();
+        expect(component.episodePanel.panelTemplate()).not.toBeNull();
 
         panelEnabled.set(false);
         fixture.detectChanges();
-        expect(component.panelTemplate()).toBeNull();
+        expect(component.episodePanel.panelTemplate()).toBeNull();
     });
 
     it('stamps the episode panel and relays a pick through the Up Next output, then closes the panel', async () => {

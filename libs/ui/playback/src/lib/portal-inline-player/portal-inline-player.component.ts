@@ -5,7 +5,6 @@ import {
     computed,
     effect,
     ElementRef,
-    forwardRef,
     inject,
     input,
     output,
@@ -33,15 +32,13 @@ import type { PlayerMediaTitle } from '../player-controls';
 import {
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
-    type FullscreenChannelPanelHost,
-    type FullscreenPanelKind,
 } from '../fullscreen-channel-panel/fullscreen-channel-panel.model';
 import { FullscreenEpisodePanelComponent } from '../fullscreen-episode-panel/fullscreen-episode-panel.component';
+import type { FullscreenPanelEpisodeLike } from '../fullscreen-episode-panel/fullscreen-episode-panel.util';
 import {
-    buildFullscreenEpisodePanelSeasons,
-    type FullscreenPanelEpisodeLike,
-    type FullscreenPanelSeasonLoadState,
-} from '../fullscreen-episode-panel/fullscreen-episode-panel.util';
+    createEpisodePanelHost,
+    type SeasonLoadStates,
+} from './portal-inline-player-episode-panel.host';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 import type {
     SeriesEpisodeMetadata,
@@ -81,7 +78,7 @@ import type { UpNextRailItem } from './up-next-rail.util';
         // from a page-level channel-list provider (the M3U player's).
         {
             provide: FULLSCREEN_CHANNEL_PANEL,
-            useExisting: forwardRef(() => PortalInlinePlayerComponent),
+            useFactory: () => inject(PortalInlinePlayerComponent).episodePanel,
         },
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -90,7 +87,7 @@ import type { UpNextRailItem } from './up-next-rail.util';
         '[attr.data-has-player]': 'hasPlayback()',
     },
 })
-export class PortalInlinePlayerComponent implements FullscreenChannelPanelHost {
+export class PortalInlinePlayerComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly playback = input<ResolvedPortalPlayback | null>(null);
     readonly episodeMetadata = input<SeriesEpisodeMetadata | null>(null);
@@ -117,9 +114,7 @@ export class PortalInlinePlayerComponent implements FullscreenChannelPanelHost {
      * Seasons in flight or not yet answered by the portal (Stalker lazy VOD
      * series), keyed by season; absent keys are loaded.
      */
-    readonly seasonLoadStates = input<Readonly<
-        Record<string, Exclude<FullscreenPanelSeasonLoadState, 'loaded'>>
-    > | null>(null);
+    readonly seasonLoadStates = input<SeasonLoadStates | null>(null);
     /**
      * Initial player volume. Only hosts that own a persisted volume pass it
      * (the M3U player shares one across its channels); the portals keep the
@@ -223,45 +218,21 @@ export class PortalInlinePlayerComponent implements FullscreenChannelPanelHost {
         () => this.upNextEpisodes() ?? []
     );
 
-    // ─── FULLSCREEN_CHANNEL_PANEL host (series episodes) ─────────────────
     private readonly fullscreenEpisodePanelTemplate = viewChild<
         TemplateRef<FullscreenChannelPanelContext>
     >('fullscreenEpisodePanel');
-    /** The playing episode's id; the panel marks its row and follows its season. */
-    private readonly playingEpisodeId = computed<number | null>(() => {
-        const info = this.playback()?.contentInfo;
-        return info?.contentType === 'episode' && !this.playback()?.isLive
-            ? info.contentXtreamId
-            : null;
+    /** FULLSCREEN_CHANNEL_PANEL host for the nested view: this series' episodes. */
+    readonly episodePanel = createEpisodePanelHost({
+        template: this.fullscreenEpisodePanelTemplate,
+        panelEnabled: () =>
+            this.settingsStore.fullscreenChannelPanel?.() !== false,
+        playback: this.playback,
+        seriesEpisodes: this.seriesEpisodes,
+        playbackPositions: this.episodePlaybackPositions,
+        seasonLoadStates: this.seasonLoadStates,
+        seriesTitle: this.seriesTitle,
+        fallbackTitle: this.title,
     });
-    readonly fullscreenEpisodeSeasons = computed(() =>
-        buildFullscreenEpisodePanelSeasons({
-            episodesBySeason: this.seriesEpisodes(),
-            currentEpisodeId: this.playingEpisodeId(),
-            playbackPositions: this.episodePlaybackPositions(),
-            seasonLoadStates: this.seasonLoadStates(),
-        })
-    );
-    /**
-     * The episode list, only while an episode plays inline and the host
-     * supplied seasons — a movie never gets it — unless the user opted out
-     * of the fullscreen panel. Native-view Embedded MPV and the external
-     * players are excluded upstream: the view withholds the panel for the
-     * former, and the latter never mount this inline player at all.
-     */
-    readonly panelTemplate = computed(() =>
-        this.settingsStore.fullscreenChannelPanel?.() === false ||
-        this.playingEpisodeId() === null ||
-        this.fullscreenEpisodeSeasons().length === 0
-            ? null
-            : (this.fullscreenEpisodePanelTemplate() ?? null)
-    );
-    readonly panelTitle = computed(
-        () => this.seriesTitle()?.trim() || this.title()
-    );
-    /** Season tabs are the panel's navigation; no search field. */
-    readonly panelSearchEnabled = signal(false).asReadonly();
-    readonly panelKind: FullscreenPanelKind = 'episodes';
 
     readonly closed = output<void>();
     /** Back arrow in the now-playing bar: route-level back, not just close. */

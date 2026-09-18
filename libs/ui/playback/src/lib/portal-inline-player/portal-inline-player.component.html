@@ -123,7 +123,7 @@
      the Up Next rail so fullscreen survives the switch. -->
 <ng-template #fullscreenEpisodePanel let-open="open" let-close="close">
     <app-fullscreen-episode-panel
-        [seasons]="fullscreenEpisodeSeasons()"
+        [seasons]="episodePanel.seasons()"
         [open]="open()"
         (seasonSelected)="episodePanelSeasonSelected.emit($event)"
         (episodeSelected)="onPanelEpisodeSelected($event, close)"
