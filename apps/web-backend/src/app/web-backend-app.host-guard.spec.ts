@@ -41,6 +41,48 @@ function createTestGuard(): {
 }
 
 describe('web backend host connectivity guard', () => {
+    it('keeps proxying to a provider that accepts connections but never answers', async () => {
+        // The same `ECONNABORTED` axios raises for an unanswered SYN, but the
+        // transport saw the handshake: a slow panel, not a dead one.
+        const httpClient = new StubHttpClient();
+        httpClient.queueNetworkError(hostLevelFailure('ECONNABORTED'), {
+            connected: true,
+        });
+        httpClient.queueNetworkError(hostLevelFailure('ECONNABORTED'), {
+            connected: true,
+        });
+        httpClient.queueResponse({ user_info: { username: 'demo' } });
+        const { guard } = createTestGuard();
+
+        await withServer(
+            createWebBackendApp({
+                hostGuard: guard,
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
+                const call = () =>
+                    fetch(
+                        `${baseUrl}/xtream?targetId=${targetId}&username=demo&password=secret&action=get_account_info`
+                    );
+
+                await call();
+                await call();
+                const third = await call();
+
+                expect(httpClient.requests).toHaveLength(3);
+                expect(await third.json()).toEqual({
+                    action: 'get_account_info',
+                    payload: { user_info: { username: 'demo' } },
+                });
+            }
+        );
+    });
+
     it('fast-fails Xtream requests with HTTP 200 and the provider-error body once the host stops answering', async () => {
         const httpClient = new StubHttpClient();
         httpClient.queueNetworkError(hostLevelFailure());

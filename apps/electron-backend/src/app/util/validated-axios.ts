@@ -8,6 +8,7 @@ import type { LookupAddress } from 'node:dns';
 import { Agent as HttpAgent } from 'node:http';
 import { Agent as HttpsAgent } from 'node:https';
 import { isIP, LookupFunction } from 'node:net';
+import { observeAgentSocketConnections } from '@iptvnator/shared/host-health';
 import {
     RemoteUrlPolicy,
     UnsafeUrlError,
@@ -32,6 +33,15 @@ export type ValidatedAxiosRequestConfig = Omit<
 > & {
     agentFactory?: ValidatedRequestAgentFactory;
     onResponse?: () => void;
+    /**
+     * Called once a hop's TCP connection is established (or a pooled, already
+     * connected socket was handed to it). Lets the host connectivity guard
+     * tell a panel that never accepted the connection from one that accepted
+     * it and then went silent. Requesting it gives the request its own agent
+     * instead of the shared keep-alive `globalAgent`, since the observer is
+     * per request and must never be installed on a shared agent.
+     */
+    onConnect?: () => void;
 };
 
 function copyHeadersWithoutSensitiveValues(
@@ -134,6 +144,34 @@ function pinRequestToValidatedAddresses(
     };
 }
 
+function observeHopConnections(
+    config: AxiosRequestConfig,
+    url: URL,
+    onConnect: (() => void) | undefined
+): AxiosRequestConfig {
+    if (!onConnect) {
+        return config;
+    }
+
+    if (url.protocol === 'https:') {
+        return {
+            ...config,
+            httpsAgent: observeAgentSocketConnections(
+                config.httpsAgent ?? new HttpsAgent(),
+                onConnect
+            ),
+        };
+    }
+
+    return {
+        ...config,
+        httpAgent: observeAgentSocketConnections(
+            config.httpAgent ?? new HttpAgent(),
+            onConnect
+        ),
+    };
+}
+
 function getRedirectValidationPolicy(
     currentUrl: string,
     initialOrigin: string | undefined,
@@ -168,7 +206,7 @@ function getRedirectValidationPolicy(
  */
 export async function requestWithValidatedRedirects<T = unknown>(
     rawUrl: string,
-    { onResponse, ...config }: ValidatedAxiosRequestConfig = {},
+    { onResponse, onConnect, ...config }: ValidatedAxiosRequestConfig = {},
     policy: RemoteUrlPolicy = {},
     maxRedirects = 5
 ): Promise<AxiosResponse<T>> {
@@ -198,10 +236,14 @@ export async function requestWithValidatedRedirects<T = unknown>(
             validatedUrl.origin === initialOrigin
                 ? initialAddresses
                 : validatedTarget.addresses;
-        const pinnedConfig = pinRequestToValidatedAddresses(
-            requestConfig,
+        const pinnedConfig = observeHopConnections(
+            pinRequestToValidatedAddresses(
+                requestConfig,
+                validatedUrl,
+                addresses
+            ),
             validatedUrl,
-            addresses
+            onConnect
         );
         const response = await axios<T>({
             ...pinnedConfig,

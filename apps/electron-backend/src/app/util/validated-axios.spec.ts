@@ -144,6 +144,54 @@ describe('requestWithValidatedRedirects', () => {
         expect(requestConfig.url).toBe('https://epg.example/guide.xml');
     });
 
+    it('hands the request its own observed agent when onConnect is requested', async () => {
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+        const onConnect = jest.fn();
+
+        await requestWithValidatedRedirects(
+            'http://panel.example/player_api.php',
+            { method: 'GET', onConnect },
+            // The portal handlers' policy: private targets allowed, no pinning,
+            // which used to leave the request on the shared global agent.
+            { allowPrivateNetworks: true }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0];
+        expect(requestConfig).not.toHaveProperty('onConnect');
+        expect(requestConfig.httpAgent).toBeInstanceOf(HttpAgent);
+        // The observer is installed on the instance, never on the prototype
+        // every other agent shares.
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                requestConfig.httpAgent,
+                'addRequest'
+            )
+        ).toBe(true);
+        expect(
+            Object.prototype.hasOwnProperty.call(new HttpAgent(), 'addRequest')
+        ).toBe(false);
+        expect(onConnect).not.toHaveBeenCalled();
+    });
+
+    it('observes the agent an explicit factory supplies instead of replacing it', async () => {
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+        const { factory } = createCapturingAgentFactory();
+
+        await requestWithValidatedRedirects(
+            'https://panel.example/player_api.php',
+            { agentFactory: factory, method: 'GET', onConnect: jest.fn() },
+            { resolveHostname: publicResolver }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0];
+        const created = jest.mocked(factory.createHttpsAgent).mock.results[0]
+            .value;
+        expect(requestConfig.httpsAgent).toBe(created);
+        expect(
+            Object.prototype.hasOwnProperty.call(created, 'addRequest')
+        ).toBe(true);
+    });
+
     it('supplies the validated lookup to an explicit HTTP agent factory', async () => {
         axiosMock.mockResolvedValueOnce({
             status: 200,

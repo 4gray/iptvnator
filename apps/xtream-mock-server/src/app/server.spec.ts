@@ -269,6 +269,31 @@ describe('Xtream mock server factory', () => {
         }
     });
 
+    it('never answers the silent scenario detail actions while the rest of the portal works', async () => {
+        const running = await startLoopbackServer(
+            createXtreamMockApp({ host: '127.0.0.1', port: 0 })
+        );
+        try {
+            const categories = await fetch(
+                `${running.origin}/player_api.php?username=silent&password=silent&action=get_vod_categories`
+            );
+            expect(categories.status).toBe(200);
+            expect(await categories.json()).toHaveLength(2);
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 300);
+            await expect(
+                fetch(
+                    `${running.origin}/player_api.php?username=silent&password=silent&action=get_vod_info&vod_id=1`,
+                    { signal: controller.signal }
+                )
+            ).rejects.toMatchObject({ name: 'AbortError' });
+            clearTimeout(timer);
+        } finally {
+            await running.close();
+        }
+    });
+
     it('keeps a non-EPG timezone stream empty across repeated short-EPG requests', async () => {
         const running = await startLoopbackServer(
             createXtreamMockApp({ host: '127.0.0.1', port: 0 })

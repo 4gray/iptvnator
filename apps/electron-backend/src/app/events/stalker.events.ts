@@ -5,7 +5,7 @@ import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
  * between the frontend and the electron backend.
  */
 
-import axios, { AxiosRequestConfig } from 'axios';
+import axios from 'axios';
 import { ipcMain } from 'electron';
 import {
     classifyStalkerAuthFailureBody,
@@ -20,7 +20,10 @@ import { rememberStalkerPlaybackContext } from '../services/stalker-playback-con
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { formatPortalRequestError } from './portal-request-error.util';
 import { assertRemoteUrlAllowed } from './url-safety';
-import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    requestWithValidatedRedirects,
+    ValidatedAxiosRequestConfig,
+} from '../util/validated-axios';
 import {
     HostConnectivityGuardError,
     HostRequestToken,
@@ -77,6 +80,9 @@ ipcMain.handle(
         let debugRequest: Record<string, unknown> | undefined;
         let requestUrlForLog = payload.url;
         let guardToken: HostRequestToken | null = null;
+        // Set by the transport once the portal accepts the TCP connection, so
+        // a timeout can be told apart from a host that never answered at all.
+        let socketConnected = false;
         const countsTowardsGuard = !payload.skipConnectionGuard;
         try {
             const { url, macAddress, params, token, serialNumber, requestId } =
@@ -110,7 +116,10 @@ ipcMain.handle(
             const requestTimeout = isCreateLink ? 30000 : 15000;
 
             // Configure axios request
-            const config: AxiosRequestConfig = {
+            const config: ValidatedAxiosRequestConfig = {
+                onConnect: () => {
+                    socketConnected = true;
+                },
                 method: 'GET',
                 signal: probeControl.signal,
                 url: fullUrl,
@@ -226,6 +235,7 @@ ipcMain.handle(
             reportGuardedHostFailure(guardToken, error, {
                 countFailures: countsTowardsGuard,
                 requestUrl: requestUrlForLog,
+                connected: socketConnected,
             });
 
             console.error(

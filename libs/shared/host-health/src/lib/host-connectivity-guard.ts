@@ -154,7 +154,32 @@ export function isHostConnectivityGuardDisabled(): boolean {
  * that says nothing about reachability: a cancelled request, a URL rejected by
  * the SSRF policy, a bug in our own code.
  */
-export function classifyHostRequestFailure(error: unknown): HostRequestOutcome {
+export interface HostRequestFailureContext {
+    /**
+     * Whether the transport saw the TCP connection for this request get
+     * established (or handed the request a socket that already was).
+     */
+    readonly connected?: boolean;
+}
+
+/**
+ * Reads what a failed request proves about its endpoint.
+ *
+ * `context.connected` matters for the timeout codes: axios raises the same
+ * `ECONNABORTED` whether the SYN went unanswered or the panel accepted the
+ * connection and then thought for longer than the request budget. Only the
+ * former is a host that stopped answering. A panel that is merely slow (a
+ * heavy `get_vod_info` on a busy home server) accepts every connection, and
+ * tripping the breaker on it turns "slow" into thirty seconds of "not
+ * responding" for every request — the reported symptom. So a host-level
+ * code observed after the handshake is `inconclusive`: it neither counts
+ * towards the streak nor clears it. The remaining codes cannot occur once a
+ * connection exists, so the rule costs nothing for them.
+ */
+export function classifyHostRequestFailure(
+    error: unknown,
+    context: HostRequestFailureContext = {}
+): HostRequestOutcome {
     if (!error || typeof error !== 'object') {
         return 'inconclusive';
     }
@@ -165,7 +190,7 @@ export function classifyHostRequestFailure(error: unknown): HostRequestOutcome {
 
     const code = (error as { code?: unknown }).code;
     if (typeof code === 'string' && HOST_LEVEL_FAILURE_CODES.has(code)) {
-        return 'host-level';
+        return context.connected ? 'inconclusive' : 'host-level';
     }
 
     return 'inconclusive';

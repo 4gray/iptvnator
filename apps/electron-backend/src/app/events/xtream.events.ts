@@ -82,6 +82,9 @@ ipcMain.handle(
             payload.requestId
         );
         let initialResponded = false;
+        // Set by the transport once the panel accepts the TCP connection, so a
+        // timeout can be told apart from a host that never answered at all.
+        let socketConnected = false;
         let activeRequestKey: string | null = null;
         let requestUrlForLog = payload.url;
         let guardToken: HostRequestToken | null = null;
@@ -110,6 +113,9 @@ ipcMain.handle(
             const config: ValidatedAxiosRequestConfig = {
                 onResponse: () => {
                     initialResponded = true;
+                },
+                onConnect: () => {
+                    socketConnected = true;
                 },
                 method: 'GET',
                 url: apiUrl.toString(),
@@ -230,6 +236,7 @@ ipcMain.handle(
             if (payload.connectionTest) {
                 reportGuardedHostFailure(guardToken, error, {
                     requestUrl: requestUrlForLog,
+                    connected: socketConnected,
                 });
                 return {
                     payload: null,
@@ -253,6 +260,7 @@ ipcMain.handle(
 
             reportGuardedHostFailure(guardToken, error, {
                 requestUrl: requestUrlForLog,
+                connected: socketConnected,
             });
 
             if (!payload.suppressErrorLog) {

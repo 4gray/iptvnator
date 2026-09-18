@@ -115,10 +115,33 @@ errs towards contacting the host:
 
 **Host-level failure** means an error with no HTTP response whose code is one of
 `ETIMEDOUT`, `ECONNABORTED`, `ENOTFOUND`, `EAI_AGAIN`, `ECONNREFUSED`,
-`EHOSTUNREACH`, `ENETUNREACH`. `ECONNRESET` is deliberately excluded: a reset
-mid-transfer happens on hosts that are very much alive. Cancelled requests
-(`ERR_CANCELED`) and SSRF-policy refusals are `inconclusive` — they say nothing
-about reachability and only release the half-open slot.
+`EHOSTUNREACH`, `ENETUNREACH` — observed **before the TCP connection was
+established**. `ECONNRESET` is deliberately excluded: a reset mid-transfer
+happens on hosts that are very much alive. Cancelled requests (`ERR_CANCELED`)
+and SSRF-policy refusals are `inconclusive` — they say nothing about
+reachability and only release the half-open slot.
+
+**A timeout after the handshake is a slow host, not a dead one.** axios raises
+the same `ECONNABORTED` whether the SYN went unanswered or the panel accepted
+the connection and then thought for longer than the request budget (a heavy
+`get_vod_info` on a busy home server). Only the former is what the guard
+exists for; tripping on the latter turned "slow" into thirty seconds of
+"portal is not responding" for every request, which is how users described
+it. Each transport therefore reports whether the connection was established —
+Electron through `ValidatedAxiosRequestConfig.onConnect` (the request gets its
+own agent, observed via `observeAgentSocketConnections`, instead of the shared
+keep-alive `globalAgent`; a pooled socket that is already connected counts as
+connected), the web backend through `WebBackendHttpGetOptions.onConnect`,
+honoured by `ProviderAxiosTransport`, which owns the `ClientRequest` — and
+`classifyHostRequestFailure(error, { connected })` downgrades a host-level
+code to `inconclusive` when it is set. Redirect attribution is evaluated
+before this rule: a chain that reached a later hop proves the guarded
+endpoint answered outright, which outranks merely not counting the failure.
+Such a request still costs its full timeout; the guard only stops charging it
+to the host. Regression coverage:
+`apps/electron-backend/src/app/util/host-connectivity-guard.slow-host.spec.ts`
+(real loopback sockets) and the Xtream mock's `silent` scenario, whose
+`get_vod_info` / `get_series_info` accept the connection and never answer.
 
 **A failure is only charged to the endpoint that produced it.** Reaching any
 later hop _proves_ the guarded endpoint answered — the first hop is always the

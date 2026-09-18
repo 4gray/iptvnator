@@ -185,7 +185,16 @@ export function reportProviderRequestFailure(
     guard: HostConnectivityGuard,
     token: HostRequestToken | null,
     error: unknown,
-    options: { countFailures?: boolean; requestUrl?: string } = {}
+    options: {
+        countFailures?: boolean;
+        requestUrl?: string;
+        /**
+         * The transport's word that the provider accepted the TCP connection
+         * (`WebBackendHttpGetOptions.onConnect`). A timeout after that is a
+         * slow provider, not a dead one — see `classifyHostRequestFailure`.
+         */
+        connected?: boolean;
+    } = {}
 ): void {
     if (!token) {
         return;
@@ -200,21 +209,24 @@ export function reportProviderRequestFailure(
         error = error.cause;
     }
     const countFailures = options.countFailures ?? true;
-    switch (classifyHostRequestFailure(error)) {
+    // Redirect attribution is checked BEFORE the exemption and before the
+    // connected rule, not after. A 3xx from the guarded endpoint is an answer,
+    // and an exempt probe observing one has to clear the record just as it
+    // does for any other response — otherwise an ordinary timeout, a probe
+    // that was redirected to a dead destination, and another ordinary timeout
+    // still read as two consecutive failures.
+    if (
+        !manualChain &&
+        classifyHostRequestFailure(error) === 'host-level' &&
+        failedAfterRedirect(error, token, options.requestUrl)
+    ) {
+        guard.reportSuccess(token);
+        return;
+    }
+    switch (
+        classifyHostRequestFailure(error, { connected: options.connected })
+    ) {
         case 'host-level':
-            // Redirect attribution is checked BEFORE the exemption, not after.
-            // A 3xx from the guarded endpoint is an answer, and an exempt probe
-            // observing one has to clear the record just as it does for any
-            // other response — otherwise an ordinary timeout, a probe that was
-            // redirected to a dead destination, and another ordinary timeout
-            // still read as two consecutive failures.
-            if (
-                !manualChain &&
-                failedAfterRedirect(error, token, options.requestUrl)
-            ) {
-                guard.reportSuccess(token);
-                break;
-            }
             if (!countFailures) {
                 break;
             }

@@ -6,9 +6,21 @@ import { handleGetVodInfo } from '../handlers/get-vod-info.handler.js';
 import { handleGetSeriesInfo } from '../handlers/get-series-info.handler.js';
 import { handleGetFullEpg } from '../handlers/get-full-epg.handler.js';
 import { handleGetShortEpg } from '../handlers/get-short-epg.handler.js';
+import { getScenario } from '../scenarios.js';
 
 export function dispatchAction(req: Request, res: Response): void {
     const action = (req.query['action'] as string) ?? '';
+    const { username = '', password = '' } = req.query as Record<
+        string,
+        string
+    >;
+
+    // A silent action holds the connection open and never writes a byte:
+    // the panel accepted the request and then went quiet. The client's own
+    // timeout ends it; the server only sees the socket close.
+    if (getScenario(username, password).silentActions?.includes(action)) {
+        return;
+    }
 
     switch (action) {
         case '':

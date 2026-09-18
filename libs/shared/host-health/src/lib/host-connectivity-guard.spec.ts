@@ -37,6 +37,33 @@ describe('classifyHostRequestFailure', () => {
         }
     });
 
+    it('reads a timeout after an accepted connection as inconclusive, not host-level', () => {
+        // axios raises the same code whether the SYN went unanswered or the
+        // panel accepted the connection and then thought for longer than
+        // the budget. Only the former is a dead host.
+        for (const code of ['ECONNABORTED', 'ETIMEDOUT']) {
+            expect(
+                classifyHostRequestFailure(timeoutError(code), {
+                    connected: true,
+                })
+            ).toBe('inconclusive');
+            expect(
+                classifyHostRequestFailure(timeoutError(code), {
+                    connected: false,
+                })
+            ).toBe('host-level');
+        }
+        // An HTTP response outranks the flag either way.
+        expect(
+            classifyHostRequestFailure(
+                Object.assign(timeoutError('ECONNABORTED'), {
+                    response: { status: 504 },
+                }),
+                { connected: true }
+            )
+        ).toBe('responded');
+    });
+
     it('treats an error carrying an HTTP response as proof the host answered', () => {
         // 5xx reaches the handlers as a rejection: validateStatus only
         // tolerates < 500. The host still answered.

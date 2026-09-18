@@ -259,6 +259,9 @@ export function createWebBackendApp(
         // The URL actually requested, so a failure on a redirect hop can be
         // told apart from a failure of the endpoint we guarded.
         let requestUrl: string | undefined;
+        // Whether the provider accepted the TCP connection: a timeout after
+        // that is a slow provider, not a dead one.
+        let connected = false;
         try {
             // Before URL validation, not after: that step resolves the hostname
             // over DNS, and a dead host is exactly where DNS is slow or failing
@@ -284,6 +287,9 @@ export function createWebBackendApp(
             const response = await httpClient.get(requestUrl, {
                 params: getProxyParams(req, ['targetId', 'connectionTest']),
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
+                onConnect: () => {
+                    connected = true;
+                },
             });
             reportProviderRequestSuccess(hostGuard, guardToken);
             guardToken = null;
@@ -295,6 +301,7 @@ export function createWebBackendApp(
         } catch (error) {
             reportProviderRequestFailure(hostGuard, guardToken, error, {
                 requestUrl,
+                connected,
             });
             logProviderRequestFailure({ error, route: '/xtream', url });
             if (getQueryString(req, 'connectionTest') === 'true') {
@@ -331,6 +338,9 @@ export function createWebBackendApp(
             getQueryString(req, 'skipConnectionGuard') !== 'true';
         let guardToken: HostRequestToken | null = null;
         let requestUrl: string | undefined;
+        // Whether the portal accepted the TCP connection: a timeout after
+        // that is a slow portal, not a dead one.
+        let connected = false;
         try {
             // `macAddress`, `token` and `serialNumber` are portal credentials,
             // not protocol content: they reach the portal only as the same
@@ -400,6 +410,9 @@ export function createWebBackendApp(
                     params['action'] === 'create_link'
                         ? PROVIDER_REQUEST_TIMEOUT_MS.stalkerCreateLink
                         : PROVIDER_REQUEST_TIMEOUT_MS.stalker,
+                onConnect: () => {
+                    connected = true;
+                },
             });
             reportProviderRequestSuccess(hostGuard, guardToken);
             guardToken = null;
@@ -415,6 +428,7 @@ export function createWebBackendApp(
             reportProviderRequestFailure(hostGuard, guardToken, error, {
                 countFailures: countsTowardsGuard,
                 requestUrl,
+                connected,
             });
             logProviderRequestFailure({ error, route: '/stalker', url });
             res.json(normalizeProviderError(error));
