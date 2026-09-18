@@ -11,7 +11,7 @@
 
 // ─── Closed state ────────────────────────────────────────────────────────────
 
-// Invisible by design: nothing sits over the video until the mouse rests here.
+// Invisible by design: nothing sits over the video until the mouse moves.
 // It stops well above the shared controls bar (up to ~130px tall in its
 // two-row layout), whose leftmost button starts 16px from the edge — the
 // strip must never intercept a click or tap meant for play/pause.
@@ -21,7 +21,59 @@
     bottom: max(25%, 140px);
     left: 0;
     z-index: 6;
-    width: 28px;
+    width: 40px;
+}
+
+// Slim tab on the edge, drawn only while the pointer is moving over the
+// stage (`--visible`) or resting in the hot zone (`--armed`). A CSS chevron
+// rather than an icon glyph keeps the zone free of text and of the icon
+// font. Pointer-transparent: the hot zone stays the event target.
+.fullscreen-channel-panel__edge-hint {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 22px;
+    height: 96px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-left: 0;
+    border-radius: 0 12px 12px 0;
+    background: rgba(13, 15, 18, 0.72);
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(12px);
+    opacity: 0;
+    transform: translate(-100%, -50%);
+    pointer-events: none;
+    transition:
+        opacity 180ms ease-out,
+        transform 180ms ease-out,
+        background-color 150ms ease-out,
+        border-color 150ms ease-out;
+}
+
+.fullscreen-channel-panel__edge-hint::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 5px;
+    width: 8px;
+    height: 8px;
+    border-top: 2px solid rgba(255, 255, 255, 0.75);
+    border-right: 2px solid rgba(255, 255, 255, 0.75);
+    transform: translateY(-50%) rotate(45deg);
+}
+
+.fullscreen-channel-panel__edge-hint--visible {
+    opacity: 1;
+    transform: translate(0, -50%);
+}
+
+.fullscreen-channel-panel__edge-hint--armed {
+    border-color: var(--app-selection-color, #78adff);
+    background: rgba(13, 15, 18, 0.9);
+}
+
+.fullscreen-channel-panel__edge-hint--armed::after {
+    border-color: #ffffff;
 }
 
 // ─── Open state ──────────────────────────────────────────────────────────────
@@ -198,7 +250,7 @@
 @media (pointer: coarse) {
     // A finger needs a wider target than a resting mouse.
     .fullscreen-channel-panel__hot-zone {
-        width: 40px;
+        width: 48px;
     }
 }
 
@@ -209,7 +261,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .fullscreen-channel-panel {
+    .fullscreen-channel-panel,
+    .fullscreen-channel-panel__edge-hint {
         transition: none;
     }
 }

@@ -505,22 +505,42 @@ engine on first entry; a confirmed frame-copy capability survives an unknown
 probe during an MPV application remount, preserving the open panel and its
 search/scroll state. A confirmed native/unsupported result revokes it, and
 switching to a web engine clears the remembered MPV capability). Nothing is
-drawn over the video while the panel is closed — there is
-no handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
+drawn over the video while the panel is closed and the pointer rests. Mouse
+movement over the stage (the fullscreen element) reveals a slim, pointer-
+transparent hint tab on the left edge — a CSS chevron, no icon glyph or text
+— that fades `CHANNEL_PANEL_HINT_IDLE_MS` (2.5 s) after the last move, so it
+comes and goes with the controls chrome; it lights up (`--armed`) while the
+pointer rests in the hot zone, and it is not rendered while the panel is
+open. Touch movement never reveals it. The hint answered the first field
+report: the zone was an invisible strip with nothing telling the user where
+the list lived. An invisible 40px hot zone (48px on coarse pointers) on the
 left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
-is ignored. The zone remains mounted above the scrim and below the panel while
-open, preserving the pointer target until the opening animation covers it.
-A delayed fullscreen paint therefore cannot turn a stationary edge hover into
-a synthetic mouse-leave that closes the panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`)
-so the leftmost transport button never loses a click or tap to it. The `C` key opens it too and focuses the search field (hover does
-not steal focus). Touch has neither hover nor a `C` key, so a tap on the hot
-zone opens the panel at once: the handler is bound to `pointerup`, not
-`pointerdown`, so the hot zone is still the tap's click target and the click
-that follows dies on it instead of reaching the video. It closes when the
-mouse leaves the panel for 420ms, on the close button (tooltip names Escape),
-on Escape, on the host's `close`, or through a transparent scrim
-over the video that swallows the click so the player's click-to-pause never
-sees it. The Escape that closes the panel is consumed (`preventDefault`):
+is ignored, and a click or tap on the zone opens at once without the dwell —
+only a primary press that began inside the zone and is released there
+(`pointerdown` records the pointer, `pointerup` must match it; a drag
+released over the edge, a right or middle button, or a pen barrel button
+never opens). The synthetic `pointerenter` that follows an explicit close
+neither opens nor arms the hint: the zone re-arms on the next real
+`pointermove`. The zone remains mounted above the
+scrim and below the panel while open, preserving the pointer target until
+the opening animation covers it. A delayed fullscreen paint therefore cannot
+turn a stationary edge hover into a synthetic mouse-leave that closes the
+panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
+the leftmost transport button never loses a click or tap to it. The `C` key
+opens it too and focuses the search field (hover does not steal focus).
+Touch has neither hover nor a `C` key, so the tap path above is its way in:
+the handler is bound to `pointerup`, not `pointerdown`, so the hot zone is
+still the tap's click target and the click that follows dies on it instead
+of reaching the video. It closes when the mouse leaves the panel for
+`CHANNEL_PANEL_CLOSE_GRACE_MS` (1 s) — but only once the pointer has engaged
+with the panel: a hover-opened panel counts as engaged from the start, while
+a `C`-opened one ignores the mouse roaming over the video until it has
+visited the list, so the shortcut never leaves the user typing into a closing
+search field (`FullscreenChannelPanelState.show(opener)`) — on the close
+button (tooltip names Escape), on Escape, on the host's `close`, or through
+a transparent scrim over the video that swallows the click so the player's
+click-to-pause never sees it. Clicks inside the panel never close it: the
+panel sits above the scrim, so no in-panel hit can reach it. The Escape that closes the panel is consumed (`preventDefault`):
 Electron leaves HTML fullscreen on an unhandled Escape, and the close
 shortcut must only slide the panel away; a closed panel leaves Escape alone,
 so the key still exits fullscreen then. A CDK overlay the list opens (sort menu, row context menu) renders in
