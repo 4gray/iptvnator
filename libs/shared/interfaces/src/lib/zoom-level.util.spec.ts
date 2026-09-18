@@ -23,11 +23,23 @@ describe('zoom level shortcuts contract', () => {
     it('clamps at the app limits, not at Chromium limits', () => {
         expect(stepZoomLevel(ZOOM_LEVEL_MAX, 'in')).toBe(ZOOM_LEVEL_MAX);
         expect(stepZoomLevel(ZOOM_LEVEL_MIN, 'out')).toBe(ZOOM_LEVEL_MIN);
-        expect(stepZoomLevel(ZOOM_LEVEL_MAX + 3, 'in')).toBe(ZOOM_LEVEL_MAX);
-        expect(stepZoomLevel(ZOOM_LEVEL_MAX + 3, 'out')).toBe(
-            ZOOM_LEVEL_MAX - ZOOM_LEVEL_STEP
-        );
+        expect(stepZoomLevel(ZOOM_LEVEL_MAX - 0.5, 'in')).toBe(ZOOM_LEVEL_MAX);
         expect(clampZoomLevel(ZOOM_LEVEL_MIN - 1)).toBe(ZOOM_LEVEL_MIN);
+    });
+
+    it('never moves a stored out-of-range level against the request', () => {
+        // The macOS menu roles never clamped and the store restores any
+        // finite level, so an upgrade can start beyond the limits.
+        expect(stepZoomLevel(ZOOM_LEVEL_MAX + 1, 'in')).toBe(
+            ZOOM_LEVEL_MAX + 1
+        );
+        expect(stepZoomLevel(ZOOM_LEVEL_MAX + 1, 'out')).toBe(ZOOM_LEVEL_MAX);
+        expect(stepZoomLevel(ZOOM_LEVEL_MAX + 0.3, 'out')).toBe(ZOOM_LEVEL_MAX);
+        expect(stepZoomLevel(ZOOM_LEVEL_MIN - 1, 'out')).toBe(
+            ZOOM_LEVEL_MIN - 1
+        );
+        expect(stepZoomLevel(ZOOM_LEVEL_MIN - 1, 'in')).toBe(ZOOM_LEVEL_MIN);
+        expect(stepZoomLevel(ZOOM_LEVEL_MIN - 1, 'reset')).toBe(0);
     });
 
     it('snaps an off-grid level to the next grid point in the requested direction', () => {

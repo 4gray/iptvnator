@@ -33,7 +33,10 @@ export function clampZoomLevel(level: number): number {
  * The level `action` produces from `current`. Steps are snapped to the step
  * grid so a level restored from an older store (or set by the macOS menu
  * before the shortcuts existed) does not carry a fractional offset forever.
- * A non-finite `current` is treated as the default.
+ * A level already outside the limits — the macOS menu roles never clamped,
+ * and the store restores any finite level — is never moved AGAINST the
+ * request: a press further out leaves it where it is, a press back in lands
+ * on the limit. A non-finite `current` is treated as the default.
  */
 export function stepZoomLevel(
     current: number,
@@ -43,8 +46,13 @@ export function stepZoomLevel(
         return ZOOM_LEVEL_DEFAULT;
     }
 
-    const base = clampZoomLevel(current);
+    const base = Number.isFinite(current) ? current : ZOOM_LEVEL_DEFAULT;
     const direction = action === 'in' ? 1 : -1;
+
+    if (direction > 0 ? base >= ZOOM_LEVEL_MAX : base <= ZOOM_LEVEL_MIN) {
+        return base;
+    }
+
     const steps = base / ZOOM_LEVEL_STEP;
     // A level between grid points steps to the next grid point in the
     // requested direction instead of skipping past it.
@@ -53,7 +61,6 @@ export function stepZoomLevel(
         : direction > 0
           ? Math.ceil(steps)
           : Math.floor(steps);
-    const next = nextSteps * ZOOM_LEVEL_STEP;
 
-    return clampZoomLevel(next);
+    return clampZoomLevel(nextSteps * ZOOM_LEVEL_STEP);
 }

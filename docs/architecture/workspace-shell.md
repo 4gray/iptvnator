@@ -473,7 +473,10 @@ Zoom level (Cmd/Ctrl and +/−/0, issue #1109):
    (`stepZoomLevel`): 0.5 per press, Electron's own `zoomIn`/`zoomOut` role
    step (≈10 %), clamped to levels −4…6 (≈48 %…299 %, inside Chromium's
    25–500 %), off-grid levels snapping to the next grid point in the pressed
-   direction; `Ctrl/Cmd+0` returns to level 0. Persistence needs nothing
+   direction; `Ctrl/Cmd+0` returns to level 0. A stored level already
+   outside the limits (the macOS menu roles never clamped) is never moved
+   against the request: a press further out leaves it, a press back in
+   lands on the limit. Persistence needs nothing
    extra: the main process reads the live level back (point 3). On macOS the
    default application menu still carries the `zoomIn`/`zoomOut`/`resetZoom`
    roles, but Chromium hands a key equivalent to the web contents first and
