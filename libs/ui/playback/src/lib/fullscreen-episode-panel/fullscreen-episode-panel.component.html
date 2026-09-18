@@ -1,0 +1,115 @@
+<div class="episode-panel">
+    <div class="episode-panel__tabs">
+        <app-season-tabs
+            [seasonKeys]="seasonKeys()"
+            [selectedSeason]="selectedSeasonKey() ?? undefined"
+            [episodeCounts]="episodeCounts()"
+            [watchedCounts]="watchedCounts()"
+            [playingSeasonKey]="playingSeasonKey()"
+            (seasonSelected)="onSeasonSelected($event)"
+            (backToPlayingRequested)="backToPlaying()"
+        />
+    </div>
+
+    <div
+        #list
+        class="episode-panel__list"
+        role="list"
+        data-test-id="fullscreen-episode-panel-list"
+    >
+        @if (selectedSeason(); as season) {
+            @if (!season.loaded) {
+                <div
+                    class="episode-panel__state"
+                    data-test-id="fullscreen-episode-panel-loading"
+                >
+                    <mat-spinner diameter="22" />
+                    <span>{{ 'PORTALS.LOADING_EPISODES' | translate }}</span>
+                </div>
+            } @else if (season.episodes.length === 0) {
+                <div
+                    class="episode-panel__state"
+                    data-test-id="fullscreen-episode-panel-empty"
+                >
+                    <mat-icon aria-hidden="true">tv_off</mat-icon>
+                    <span>{{ 'PORTALS.SEASON_EMPTY' | translate }}</span>
+                </div>
+            } @else {
+                @for (item of season.episodes; track item.id) {
+                    <button
+                        type="button"
+                        role="listitem"
+                        class="episode-panel__item"
+                        data-test-id="fullscreen-episode-panel-episode"
+                        [class.episode-panel__item--playing]="item.isPlaying"
+                        [class.episode-panel__item--watched]="item.watched"
+                        [attr.aria-current]="item.isPlaying ? 'true' : null"
+                        [attr.data-episode-id]="item.id"
+                        (click)="onEpisodeClick(item)"
+                    >
+                        <span class="episode-panel__thumb" aria-hidden="true">
+                            @if (hasStill(item)) {
+                                <img
+                                    class="episode-panel__still"
+                                    [src]="item.thumbnailUrl"
+                                    alt=""
+                                    loading="lazy"
+                                    (error)="onStillError(item)"
+                                />
+                            } @else {
+                                <span class="episode-panel__number">
+                                    {{ item.episodeNumber }}
+                                </span>
+                            }
+                            @if (item.isPlaying) {
+                                <span class="episode-panel__playing-badge">
+                                    <mat-icon>equalizer</mat-icon>
+                                </span>
+                            }
+                            @if (item.progressPercent !== null) {
+                                <span class="episode-panel__progress">
+                                    <span
+                                        class="episode-panel__progress-bar"
+                                        [style.width.%]="item.progressPercent"
+                                    ></span>
+                                </span>
+                            }
+                        </span>
+                        <span class="episode-panel__meta">
+                            <span class="episode-panel__label">
+                                <span>{{ item.label }}</span>
+                                @if (item.durationLabel) {
+                                    <span class="episode-panel__duration">
+                                        {{ item.durationLabel }}
+                                    </span>
+                                }
+                                @if (item.watched && !item.isPlaying) {
+                                    <mat-icon
+                                        class="episode-panel__watched"
+                                        [attr.aria-label]="
+                                            'XTREAM.WATCHED' | translate
+                                        "
+                                        >check</mat-icon
+                                    >
+                                }
+                                @if (item.isPlaying) {
+                                    <span class="episode-panel__now-playing">
+                                        {{ 'PORTALS.NOW_PLAYING' | translate }}
+                                    </span>
+                                }
+                            </span>
+                            <span class="episode-panel__title">
+                                {{ item.title || item.label }}
+                            </span>
+                            @if (item.overview) {
+                                <span class="episode-panel__overview">
+                                    {{ item.overview }}
+                                </span>
+                            }
+                        </span>
+                    </button>
+                }
+            }
+        }
+    </div>
+</div>

@@ -1249,6 +1249,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             )
     );
 
+    /** Keys of those seasons, so the fullscreen episode panel shows them as loading. */
+    readonly pendingVodSeasonKeys = computed<string[]>(() =>
+        this.isVodSeries()
+            ? this.vodSeriesSeasons()
+                  .filter((season) => this.isSeasonHydrationPending(season))
+                  .map(getVodSeriesSeasonKey)
+            : []
+    );
+
     async handleSeriesPlaybackToggleRequested(
         request: SeasonContainerSeriesPlaybackToggleRequest
     ): Promise<void> {

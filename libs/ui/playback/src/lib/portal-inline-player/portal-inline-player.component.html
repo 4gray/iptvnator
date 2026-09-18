@@ -117,3 +117,15 @@
         </div>
     </section>
 }
+
+<!-- Stamped into the player's fullscreen side panel (FULLSCREEN_CHANNEL_PANEL):
+     the series' seasons and episodes, picked through the same inline path as
+     the Up Next rail so fullscreen survives the switch. -->
+<ng-template #fullscreenEpisodePanel let-open="open" let-close="close">
+    <app-fullscreen-episode-panel
+        [seasons]="fullscreenEpisodeSeasons()"
+        [open]="open()"
+        (seasonSelected)="episodePanelSeasonSelected.emit($event)"
+        (episodeSelected)="onPanelEpisodeSelected($event, close)"
+    />
+</ng-template>

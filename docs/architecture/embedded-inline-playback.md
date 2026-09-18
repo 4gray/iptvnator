@@ -248,6 +248,16 @@ seasons, with per-episode watch-progress bars from playback positions.
 - Layering: the rail is an opaque panel rendered on top of the stage, so the
   ambient fill stays behind it and shows in the flexible gap between the
   docked player and the rail on very wide stages.
+- Fullscreen: the rail cannot show over a fullscreen video, so the same
+  host offers the whole series — season tabs plus the selected season's
+  episodes — as the slide-in side panel of the player's fullscreen surface.
+  `PortalInlinePlayerComponent` provides `FULLSCREEN_CHANNEL_PANEL` for the
+  nested view from the hosts' `seriesEpisodes` / `episodePlaybackPositions` /
+  `pendingSeasonKeys` inputs, an episode picked there travels the same
+  `upNextEpisodeSelected` output as a rail click, and a season tab picked
+  there travels `episodePanelSeasonSelected` into the host's
+  `onSeasonSelected`. Contract: "Fullscreen episode panel" in
+  `docs/architecture/player-controls-contract.md`.
 
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old

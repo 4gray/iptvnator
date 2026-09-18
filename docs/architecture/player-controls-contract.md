@@ -399,11 +399,21 @@ is rendered by `WebPlayerViewComponent` as a sibling of the engine and staged
 on the view's `fullscreenSurface` — the same host element every engine
 receives as `fullscreenTarget` — so it sits inside the fullscreen element and
 survives the engine remount a channel switch causes.
-It injects `FULLSCREEN_CHANNEL_PANEL` optionally: a live host provides
-`FullscreenChannelPanelHost` (`panelTemplate`, optional `panelTitle`) from its
-component `providers`, and the panel stamps that template into its body with a
-`FullscreenChannelPanelContext` of `{ searchTerm: Signal<string>, close }`.
-Without a provider — VOD detail pages, series playback — nothing renders. The
+It is a host-agnostic side panel — a channel list for live hosts, an episode
+list for series playback (see "Fullscreen episode panel" below) — and keeps
+its `FULLSCREEN_CHANNEL_PANEL` name for history. It injects the token
+optionally: a host provides `FullscreenChannelPanelHost` from its component
+`providers` — `panelTemplate`, optional `panelTitle`, optional
+`panelSearchEnabled` (default true; false drops the header's search field and
+shows the title as a text row in its place, keeping the header height) and
+optional `panelKind` (`'channels'` | `'episodes'`, only the accessible name
+of the list and the close button's label; every pointer and keyboard rule
+is identical for both) — and the panel stamps that template into its body
+with a `FullscreenChannelPanelContext` of
+`{ searchTerm: Signal<string>, open: Signal<boolean>, close }`. `open` lets a
+body that stays mounted between openings react to the panel coming up (the
+episode list centres its playing row on it). Without a provider — a movie in
+a VOD detail page — nothing renders. The
 host resolves the user preference itself: `Settings.fullscreenChannelPanel`
 (default on, Settings → Playback, offered for the web players while the
 shared controls are on and for Embedded MPV — the legacy vendor chrome
@@ -527,7 +537,9 @@ the opening animation covers it. A delayed fullscreen paint therefore cannot
 turn a stationary edge hover into a synthetic mouse-leave that closes the
 panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
 the leftmost transport button never loses a click or tap to it. The `C` key
-opens it too and focuses the search field (hover does not steal focus).
+opens it too and focuses the search field — or, for a host without one, the
+panel itself (`tabindex="-1"`), so the next Tab reaches its first control
+(hover does not steal focus).
 Touch has neither hover nor a `C` key, so the tap path above is its way in:
 the handler is bound to `pointerup`, not `pointerdown`, so the hot zone is
 still the tap's click target and the click that follows dies on it instead
@@ -574,6 +586,64 @@ CDK overlays render inside the fullscreen element because the app registers
 without it every tooltip, sort menu and context menu opened while fullscreen —
 the panel's view-switcher tooltips and row context menus included — would sit
 invisibly under the top layer.
+
+#### Fullscreen episode panel (series)
+
+Series playback gets the same panel as an **episode list**. The provider is
+`PortalInlinePlayerComponent` (`libs/ui/playback/src/lib/portal-inline-player/`),
+the component both series hosts (Xtream `SerialDetailsComponent`, Stalker
+`StalkerSeriesViewComponent`) render around `app-web-player-view` and that
+already feeds the Up Next rail — so it is the nearest provider for the nested
+view, which also shields that view from a page-level channel-list provider
+(the M3U player's) while its VOD detail hosts the player. It declares
+`panelKind: 'episodes'` and `panelSearchEnabled: false`: season tabs are the
+navigation, and the header shows the series title (`seriesTitle`, else the
+playback title) where the search field would be.
+
+- Data: the hosts pass their season→episodes map (`seriesEpisodes`, the same
+  `Record<seasonKey, XtreamSerieEpisode[]>` the season container gets, so the
+  TMDB overlay's stills and overviews ride in `info`), the per-episode
+  playback-position map (`episodePlaybackPositions`) and, for Stalker lazy
+  VOD series, the keys of seasons not fetched yet (`pendingSeasonKeys`,
+  `pendingVodSeasonKeys` on the host). `buildFullscreenEpisodePanelSeasons()`
+  (`libs/ui/playback/src/lib/fullscreen-episode-panel/fullscreen-episode-panel.util.ts`)
+  turns them into `FullscreenEpisodePanelSeason[]` — numeric keys ascending,
+  named keys after, each row a `FullscreenEpisodePanelItem` that extends the
+  Up Next entry with `seasonKey`, `episodeNumber`, `overview`, a "45 min"
+  `durationLabel` (numeric `duration_secs`, else the portals' text forms) and
+  the shared ≥90 % `watched` rule; the playing row is the one whose id equals
+  `contentInfo.contentXtreamId`.
+- Body: `app-fullscreen-episode-panel` stamps `SeasonTabsComponent` (the
+  detail page's tabs: pills up to six seasons, a dropdown beyond, watched
+  check marks, the "Back to playing episode" chip) over the selected season's
+  rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
+  case still looks designed; the `S01E03` label, runtime, watched check or
+  "Now playing" marker; the title (label as fallback); a 3-line clamped
+  overview when there is one; a progress bar on the thumbnail. A pending
+  season shows a loading row, a loaded empty one the season-empty copy.
+- Selection: the tab follows the playing episode's season (`linkedSignal`)
+  and resets to it whenever playback moves into another season; a tab the
+  user picks holds until then. Opening the panel (context `open`) centres
+  the playing row inside the list's own scroll box — `scrollTop` math, never
+  `scrollIntoView`, so the stage and page are not scrolled with it — and the
+  effect depends on primitives only (open flag, shown season key, playing
+  season key and episode id), so the season objects a progress tick rebuilds
+  never yank a list the user is scrolling.
+- Actions: an episode click emits the item through the inline player's
+  `upNextEpisodeSelected` — the Up Next rail's output, so the host plays it
+  through its inline episode flow and the engine remount keeps fullscreen
+  exactly as a "next episode" does — and then calls the context's `close`;
+  a click on the playing row is inert. A season tab click emits
+  `episodePanelSeasonSelected`, wired by both hosts to the same
+  `onSeasonSelected` their season container uses, so Xtream's TMDB season
+  enrichment and Stalker's lazy VOD season load run for the panel's season
+  too.
+- Gates: `Settings.fullscreenChannelPanel` (one setting for channels and
+  episodes; its label reads "Channel and episode list in fullscreen"),
+  `contentInfo.contentType === 'episode'` and non-live playback (a movie
+  never gets the panel), and at least one season. Native-view Embedded MPV is
+  withheld by the view's `enabled` input as for channels; external MPV/VLC
+  never mount the inline player, so they are excluded by construction.
 
 ### Keyboard ownership
 

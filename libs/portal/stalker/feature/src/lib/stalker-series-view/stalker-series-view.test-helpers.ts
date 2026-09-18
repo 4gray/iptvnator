@@ -48,6 +48,9 @@ export class StubPortalInlinePlayerComponent {
     readonly seriesTitle = input<string | null>(null);
     readonly seriesNavigation = input<unknown>(null);
     readonly upNextEpisodes = input<unknown>(null);
+    readonly seriesEpisodes = input<unknown>(null);
+    readonly episodePlaybackPositions = input<unknown>(null);
+    readonly pendingSeasonKeys = input<readonly string[]>([]);
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();
     readonly streamUrlCopied = output<void>();
@@ -56,6 +59,7 @@ export class StubPortalInlinePlayerComponent {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly upNextEpisodeSelected = output<unknown>();
+    readonly episodePanelSeasonSelected = output<string>();
 }
 
 @Component({

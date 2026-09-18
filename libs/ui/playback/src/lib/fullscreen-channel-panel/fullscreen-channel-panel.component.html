@@ -46,68 +46,72 @@
         class="fullscreen-channel-panel dark-theme"
         [class.fullscreen-channel-panel--open]="state.open()"
         role="dialog"
-        [attr.aria-label]="
-            panelTitle() || ('EMBEDDED_MPV.PLAYER.CHANNEL_LIST' | translate)
-        "
+        tabindex="-1"
+        [attr.aria-label]="panelTitle() || (listLabelKey | translate)"
         [attr.aria-hidden]="!state.open()"
         [attr.inert]="state.open() ? null : ''"
+        [attr.data-panel-kind]="kind"
         data-test-id="fullscreen-channel-panel"
         (pointerenter)="onPanelPointerEnter($event)"
         (pointerleave)="onPanelPointerLeave($event)"
     >
         <header class="fullscreen-channel-panel__header">
-            <label class="fullscreen-channel-panel__search">
-                <mat-icon
-                    class="fullscreen-channel-panel__search-icon"
-                    aria-hidden="true"
-                    >search</mat-icon
+            @if (!searchEnabled()) {
+                <h2
+                    class="fullscreen-channel-panel__title"
+                    data-test-id="fullscreen-channel-panel-title"
                 >
-                <input
-                    #searchInput
-                    class="fullscreen-channel-panel__search-input"
-                    type="search"
-                    autocomplete="off"
-                    spellcheck="false"
-                    data-test-id="fullscreen-channel-panel-search"
-                    [value]="searchTerm()"
-                    [placeholder]="
-                        panelTitle()
-                            ? ('EMBEDDED_MPV.PLAYER.SEARCH_IN'
-                              | translate: { title: panelTitle() })
-                            : ('EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS'
-                              | translate)
-                    "
-                    [attr.aria-label]="
-                        'EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS' | translate
-                    "
-                    (input)="onSearchInput($event)"
-                />
-                @if (searchTerm()) {
-                    <button
-                        type="button"
-                        class="fullscreen-channel-panel__search-clear"
-                        data-test-id="fullscreen-channel-panel-search-clear"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH' | translate
-                        "
-                        (click)="clearSearch()"
+                    {{ panelTitle() || (listLabelKey | translate) }}
+                </h2>
+            } @else {
+                <label class="fullscreen-channel-panel__search">
+                    <mat-icon
+                        class="fullscreen-channel-panel__search-icon"
+                        aria-hidden="true"
+                        >search</mat-icon
                     >
-                        <mat-icon>close</mat-icon>
-                    </button>
-                }
-            </label>
+                    <input
+                        #searchInput
+                        class="fullscreen-channel-panel__search-input"
+                        type="search"
+                        autocomplete="off"
+                        spellcheck="false"
+                        data-test-id="fullscreen-channel-panel-search"
+                        [value]="searchTerm()"
+                        [placeholder]="
+                            panelTitle()
+                                ? ('EMBEDDED_MPV.PLAYER.SEARCH_IN'
+                                  | translate: { title: panelTitle() })
+                                : ('EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS'
+                                  | translate)
+                        "
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.SEARCH_CHANNELS' | translate
+                        "
+                        (input)="onSearchInput($event)"
+                    />
+                    @if (searchTerm()) {
+                        <button
+                            type="button"
+                            class="fullscreen-channel-panel__search-clear"
+                            data-test-id="fullscreen-channel-panel-search-clear"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH' | translate
+                            "
+                            (click)="clearSearch()"
+                        >
+                            <mat-icon>close</mat-icon>
+                        </button>
+                    }
+                </label>
+            }
             <button
                 mat-icon-button
                 type="button"
                 class="fullscreen-channel-panel__close"
                 data-test-id="fullscreen-channel-panel-close"
-                [attr.aria-label]="
-                    'EMBEDDED_MPV.PLAYER.HIDE_CHANNEL_LIST' | translate
-                "
-                [matTooltip]="
-                    ('EMBEDDED_MPV.PLAYER.HIDE_CHANNEL_LIST' | translate) +
-                    ' (Esc)'
-                "
+                [attr.aria-label]="hideLabelKey | translate"
+                [matTooltip]="(hideLabelKey | translate) + ' (Esc)'"
                 (click)="state.hide()"
             >
                 <mat-icon>close</mat-icon>

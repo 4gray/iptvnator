@@ -574,8 +574,10 @@ unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
   A confirmed frame-copy capability survives the unknown support probe during
   an engine remount, preserving panel search/scroll on channel changes; the
   first unknown probe and confirmed native/unsupported results withhold it.
-  A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
-  `panelTitle`) and the panel slides that list over the video: left-edge hover
+  A host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
+  `panelTitle`, `panelSearchEnabled` and `panelKind: 'channels' | 'episodes'`;
+  the template context carries `searchTerm`, `open` and `close`) and the
+  panel slides that list over the video: left-edge hover
   dwell, a click or tap on that edge, or `C`. The hot zone stays mounted above
   the scrim and below the panel during opening, so a delayed paint cannot turn
   stationary hover into a synthetic leave. Nothing is drawn while it is closed
@@ -625,9 +627,27 @@ unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
   ignored. Windowed commands keep the
   complete catalog.
   Xtream's two `PortalChannelsListComponent` instances relay favorite toggles
-  through `XtreamFavoriteMarksService`. CDK overlays follow the
+  through `XtreamFavoriteMarksService`. Series playback gets the same panel
+  as an episode list: `PortalInlinePlayerComponent` (the component both
+  series hosts render around the view, and the Up Next rail's host) is the
+  nearest provider — `panelKind: 'episodes'`, no search field (a title row
+  instead, `C` focuses the panel) — and stamps `app-fullscreen-episode-panel`
+  (`libs/ui/playback/src/lib/fullscreen-episode-panel/`: `SeasonTabsComponent`
+  over the selected season's rows with TMDB still or numeral tile, `S01E03`
+  label, runtime, clamped overview, progress bar, watched check and
+  now-playing marker; the tab follows the playing season, the playing row is
+  centred on open) built by `buildFullscreenEpisodePanelSeasons` from the
+  hosts' `seriesEpisodes` / `episodePlaybackPositions` / `pendingSeasonKeys`
+  inputs. An episode click travels `upNextEpisodeSelected` (the rail's path,
+  so fullscreen survives the engine remount) and closes the panel; a season
+  tab click travels `episodePanelSeasonSelected` into the hosts'
+  `onSeasonSelected` (Xtream TMDB season enrichment, Stalker lazy VOD season
+  load, shown as a loading row meanwhile). Movies never get it, external
+  MPV/VLC never mount the inline player, native-view Embedded MPV is
+  withheld by the view. CDK overlays follow the
   fullscreen element via `FullscreenOverlayContainer`. Contract:
-  `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel").
+  `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel",
+  "Fullscreen episode panel").
 - Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)
   go through the relative `seekEmbeddedMpvBy` IPC: every backend forwards the
   delta as mpv `seek <delta> relative+exact` (addon export `seekBy`, helper
