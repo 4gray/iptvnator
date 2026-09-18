@@ -66,6 +66,35 @@ class HostComponent implements FullscreenChannelPanelHost {
 })
 class NoHostComponent {}
 
+@Component({
+    imports: [FullscreenChannelPanelComponent],
+    template: `
+        <div #stage class="stage">
+            <app-fullscreen-channel-panel [stage]="stage" />
+        </div>
+        <ng-template #panel let-open="open" let-close="close">
+            <div data-test-id="host-body">{{ open() ? 'open' : 'closed' }}</div>
+            <button type="button" data-test-id="host-close" (click)="close()">
+                close
+            </button>
+        </ng-template>
+    `,
+    providers: [
+        {
+            provide: FULLSCREEN_CHANNEL_PANEL,
+            useExisting: forwardRef(() => NoSearchHostComponent),
+        },
+    ],
+})
+class NoSearchHostComponent implements FullscreenChannelPanelHost {
+    private readonly panelRef =
+        viewChild<TemplateRef<FullscreenChannelPanelContext>>('panel');
+    readonly panelTemplate = computed(() => this.panelRef() ?? null);
+    readonly panelTitle = signal('Some Show');
+    readonly panelSearchEnabled = signal(false);
+    readonly panelKind = 'episodes' as const;
+}
+
 function pointerEvent(
     type: string,
     pointerType = 'mouse',
@@ -126,6 +155,7 @@ describe('FullscreenChannelPanelComponent', () => {
             imports: [
                 HostComponent,
                 NoHostComponent,
+                NoSearchHostComponent,
                 NoopAnimationsModule,
                 TranslateModule.forRoot(),
             ],
@@ -685,5 +715,85 @@ describe('FullscreenChannelPanelComponent', () => {
         expect(query('host-list')).toBeNull();
         openByHover();
         expect(query('host-list')?.textContent?.trim()).toBe('');
+    });
+
+    describe('host without a search field (series episodes)', () => {
+        let noSearch: ComponentFixture<NoSearchHostComponent>;
+        const q = <T extends HTMLElement>(testId: string): T | null =>
+            noSearch.nativeElement.querySelector(`[data-test-id="${testId}"]`);
+
+        beforeEach(() => {
+            fixture.destroy();
+            const translate = TestBed.inject(TranslateService);
+            translate.setTranslation(
+                'en',
+                {
+                    EMBEDDED_MPV: {
+                        PLAYER: {
+                            EPISODE_LIST: 'Episode list',
+                            HIDE_EPISODE_LIST: 'Hide episode list',
+                        },
+                    },
+                },
+                true
+            );
+            translate.use('en');
+            noSearch = TestBed.createComponent(NoSearchHostComponent);
+            noSearch.detectChanges();
+            fullscreenElement = noSearch.nativeElement.querySelector('.stage');
+            document.dispatchEvent(new Event('fullscreenchange'));
+            noSearch.detectChanges();
+        });
+
+        afterEach(() => noSearch.destroy());
+
+        it('shows the title as a header row instead of the search field and names the list by kind', () => {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }));
+            noSearch.detectChanges();
+
+            const panel = q('fullscreen-channel-panel');
+            expect(panel?.classList).toContain(
+                'fullscreen-channel-panel--open'
+            );
+            expect(panel?.getAttribute('data-panel-kind')).toBe('episodes');
+            expect(panel?.getAttribute('aria-label')).toBe('Some Show');
+            expect(q('fullscreen-channel-panel-search')).toBeNull();
+            expect(
+                q('fullscreen-channel-panel-title')?.textContent?.trim()
+            ).toBe('Some Show');
+            expect(
+                q('fullscreen-channel-panel-close')?.getAttribute('aria-label')
+            ).toBe('Hide episode list');
+
+            noSearch.componentInstance.panelTitle.set('');
+            noSearch.detectChanges();
+            expect(
+                q('fullscreen-channel-panel-title')?.textContent?.trim()
+            ).toBe('Episode list');
+            expect(panel?.getAttribute('aria-label')).toBe('Episode list');
+        });
+
+        it('lands keyboard focus on the panel itself when C opens it', () => {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }));
+            noSearch.detectChanges();
+            jest.advanceTimersByTime(0);
+
+            expect(document.activeElement).toBe(q('fullscreen-channel-panel'));
+        });
+
+        it('tells the host template whether the panel is open', () => {
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }));
+            noSearch.detectChanges();
+            expect(q('host-body')?.textContent?.trim()).toBe('open');
+
+            q('host-close')?.click();
+            noSearch.detectChanges();
+            expect(q('host-body')?.textContent?.trim()).toBe('closed');
+            expect(
+                q('fullscreen-channel-panel')?.classList.contains(
+                    'fullscreen-channel-panel--open'
+                )
+            ).toBe(false);
+        });
     });
 });

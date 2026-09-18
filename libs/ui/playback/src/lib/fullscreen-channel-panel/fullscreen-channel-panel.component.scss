@@ -126,7 +126,7 @@
         visibility 0s;
 }
 
-// ─── Header: one row, search + close ─────────────────────────────────────────
+// ─── Header: one row, search (or title) + close ──────────────────────────────
 
 .fullscreen-channel-panel__header {
     display: flex;
@@ -134,6 +134,28 @@
     gap: 4px;
     flex-shrink: 0;
     padding: 10px 6px 10px 12px;
+}
+
+// A host without a search field (`panelSearchEnabled` false) shows its title in
+// the field's place, so the header keeps the same height in both shapes.
+.fullscreen-channel-panel__title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0 4px;
+    line-height: 36px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #ffffff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+// Focus lands here after a `C` opening without a search field; the visible
+// ring belongs to the controls inside, not to the dialog surface.
+.fullscreen-channel-panel:focus {
+    outline: none;
 }
 
 .fullscreen-channel-panel__search {

@@ -23,6 +23,7 @@ import { FullscreenChannelPanelState } from './fullscreen-channel-panel-state';
 import {
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
+    type FullscreenPanelKind,
 } from './fullscreen-channel-panel.model';
 
 const EDITABLE_SELECTOR =
@@ -42,15 +43,17 @@ function targetsEditable(event: KeyboardEvent): boolean {
 }
 
 /**
- * Slide-in channel list for fullscreen playback.
+ * Slide-in side panel for fullscreen playback: a channel list for live
+ * hosts, an episode list for series playback.
  *
  * Rendered by `WebPlayerViewComponent` beside the engine, inside the element
  * that owns DOM fullscreen, so the list stays visible while the video is
- * fullscreen and survives the engine remount a channel switch causes. The
- * content comes from the host page through {@link FULLSCREEN_CHANNEL_PANEL};
- * without a provider (VOD detail pages, series) nothing renders. The view
- * can also switch it off through `enabled` for an engine that paints above
- * the DOM (native-view Embedded MPV), where no DOM panel could show.
+ * fullscreen and survives the engine remount a channel or episode switch
+ * causes. The content comes from the host through
+ * {@link FULLSCREEN_CHANNEL_PANEL}; without a provider (a movie in a VOD
+ * detail page) nothing renders. The view can also switch it off through
+ * `enabled` for an engine that paints above the DOM (native-view Embedded
+ * MPV), where no DOM panel could show.
  *
  * Nothing is drawn over the video while the panel is closed and the pointer
  * rests. Moving the mouse over the stage reveals a slim hint tab on the left
@@ -114,18 +117,35 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     readonly isFullscreen = this.fullscreen.isFullscreen;
     readonly template = computed(() => this.panelHost?.panelTemplate() ?? null);
     /**
-     * The host's context label (playlist or category name). It carries no row
-     * of its own: the search field's placeholder reads "Search in <title>".
+     * The host's context label (playlist, category or series name). With the
+     * search field it carries no row of its own: the placeholder reads
+     * "Search in <title>". Without the field it is the header's text.
      */
     readonly panelTitle = computed(
         () => this.panelHost?.panelTitle?.()?.trim() ?? ''
     );
+    /** The header's search field; hosts with their own navigation drop it. */
+    readonly searchEnabled = computed(
+        () => this.panelHost?.panelSearchEnabled?.() ?? true
+    );
+    readonly kind: FullscreenPanelKind =
+        this.panelHost?.panelKind ?? 'channels';
+    /** Accessible name of the list and of the close button, per kind. */
+    readonly listLabelKey =
+        this.kind === 'episodes'
+            ? 'EMBEDDED_MPV.PLAYER.EPISODE_LIST'
+            : 'EMBEDDED_MPV.PLAYER.CHANNEL_LIST';
+    readonly hideLabelKey =
+        this.kind === 'episodes'
+            ? 'EMBEDDED_MPV.PLAYER.HIDE_EPISODE_LIST'
+            : 'EMBEDDED_MPV.PLAYER.HIDE_CHANNEL_LIST';
     /** Every affordance exists only in fullscreen and only with a host list. */
     readonly active = computed(
         () => this.enabled() && this.isFullscreen() && this.template() !== null
     );
     readonly context: FullscreenChannelPanelContext = {
         searchTerm: this.searchTerm.asReadonly(),
+        open: this.state.open.asReadonly(),
         close: () => this.state.hide(),
     };
 
@@ -352,17 +372,23 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
             return;
         }
         this.state.show('keyboard');
-        this.focusSearch();
+        this.focusPanel();
     }
 
-    /** A keyboard opening lands in the search field; hover does not steal focus. */
-    private focusSearch(): void {
+    /**
+     * A keyboard opening lands in the search field — or, for a host without
+     * one, on the panel itself, so the next Tab reaches its first control;
+     * hover does not steal focus.
+     */
+    private focusPanel(): void {
         window.setTimeout(() => {
-            if (this.state.open()) {
-                this.searchInput()?.nativeElement.focus({
-                    preventScroll: true,
-                });
+            if (!this.state.open()) {
+                return;
             }
+            const target =
+                this.searchInput()?.nativeElement ??
+                this.panelElement()?.nativeElement;
+            target?.focus({ preventScroll: true });
         }, 0);
     }
 }

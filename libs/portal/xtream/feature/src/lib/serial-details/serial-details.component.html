@@ -218,6 +218,8 @@
                 [seriesTitle]="item.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 [upNextEpisodes]="upNextEpisodes()"
+                [seriesEpisodes]="item.episodes"
+                [episodePlaybackPositions]="episodePlaybackPositions()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (backClicked)="goBack()"
@@ -226,6 +228,7 @@
                 (previousEpisodeRequested)="playPreviousEpisode()"
                 (nextEpisodeRequested)="playNextEpisode()"
                 (upNextEpisodeSelected)="playUpNextEpisode($event)"
+                (episodePanelSeasonSelected)="onSeasonSelected($event)"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "

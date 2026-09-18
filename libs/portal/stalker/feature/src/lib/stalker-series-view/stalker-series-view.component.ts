@@ -51,7 +51,9 @@ import {
     resolveStalkerBackNavigation,
 } from '@iptvnator/portal/shared/util';
 import {
+    getVodSeasonLoadStates,
     getVodSeriesSeasonKey,
+    isVodSeasonHydrationPending,
     isVodSeriesItem,
     mapRegularSeriesEpisodes,
     mapRegularSeriesSeasons,
@@ -1237,7 +1239,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * every series toggle re-fetch it.
      */
     private isSeasonHydrationPending(season: VodSeriesSeasonVm): boolean {
-        return season.episodes.length === 0 && !season.episodesLoaded;
+        return isVodSeasonHydrationPending(season);
     }
 
     /** Seasons whose episode lists still need a portal request (lazy VOD). */
@@ -1247,6 +1249,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             this.vodSeriesSeasons().some((season) =>
                 this.isSeasonHydrationPending(season)
             )
+    );
+
+    /** Per-season load state for the fullscreen episode panel (lazy VOD). */
+    readonly vodSeasonLoadStates = computed(() =>
+        this.isVodSeries() ? getVodSeasonLoadStates(this.vodSeriesSeasons()) : {}
     );
 
     async handleSeriesPlaybackToggleRequested(
