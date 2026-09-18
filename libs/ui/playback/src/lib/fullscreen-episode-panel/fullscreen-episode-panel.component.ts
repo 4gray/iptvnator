@@ -135,6 +135,15 @@ export class FullscreenEpisodePanelComponent {
         this.seasonSelected.emit(seasonKey);
     }
 
+    /**
+     * A season the portal never answered for (its request failed): the tabs
+     * do not re-emit an already selected key, so the state row offers the
+     * retry, which runs the host's selection hook again.
+     */
+    retrySeason(seasonKey: string): void {
+        this.seasonSelected.emit(seasonKey);
+    }
+
     backToPlaying(): void {
         const playing = this.playingSeasonKey();
         if (playing !== null) {

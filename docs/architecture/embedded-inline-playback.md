@@ -253,7 +253,7 @@ seasons, with per-episode watch-progress bars from playback positions.
   episodes — as the slide-in side panel of the player's fullscreen surface.
   `PortalInlinePlayerComponent` provides `FULLSCREEN_CHANNEL_PANEL` for the
   nested view from the hosts' `seriesEpisodes` / `episodePlaybackPositions` /
-  `pendingSeasonKeys` inputs, an episode picked there travels the same
+  `seasonLoadStates` inputs, an episode picked there travels the same
   `upNextEpisodeSelected` output as a rail click, and a season tab picked
   there travels `episodePanelSeasonSelected` into the host's
   `onSeasonSelected`. Contract: "Fullscreen episode panel" in

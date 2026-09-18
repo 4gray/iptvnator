@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "Falha ao obter URL de reprodução",
         "LOADING_SEASONS": "Carregando temporadas...",
         "LOADING_EPISODES": "Carregando episódios...",
+        "EPISODES_LOAD_FAILED": "Não foi possível carregar os episódios.",
         "LOADING_ALL_CHANNELS": "A carregar a lista completa de canais…",
         "REFRESH_CHANNEL_LIST": "Atualizar lista de canais",
         "NO_CHANNELS_IN_CATEGORY": "Nenhum canal nesta categoria",

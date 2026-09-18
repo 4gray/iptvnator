@@ -213,7 +213,7 @@
                 [upNextEpisodes]="upNextEpisodes()"
                 [seriesEpisodes]="mappedSeasons()"
                 [episodePlaybackPositions]="episodePlaybackPositions()"
-                [pendingSeasonKeys]="pendingVodSeasonKeys()"
+                [seasonLoadStates]="vodSeasonLoadStates()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (backClicked)="goBack()"

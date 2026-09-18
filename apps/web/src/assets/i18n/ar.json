@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "فشل الحصول على رابط التشغيل",
         "LOADING_SEASONS": "جارٍ تحميل المواسم...",
         "LOADING_EPISODES": "جارٍ تحميل الحلقات...",
+        "EPISODES_LOAD_FAILED": "تعذر تحميل الحلقات.",
         "LOADING_ALL_CHANNELS": "جارٍ تحميل قائمة القنوات الكاملة…",
         "REFRESH_CHANNEL_LIST": "تحديث قائمة القنوات",
         "NO_CHANNELS_IN_CATEGORY": "لا توجد قنوات في هذه الفئة",

@@ -30,15 +30,23 @@
 }
 
 .episode-panel__list {
+    // Positioned so a row's offsetTop is measured against this scroll box.
+    position: relative;
     display: grid;
     gap: 4px;
     align-content: start;
     flex: 1;
     min-height: 0;
+    margin: 0;
     padding: 8px;
+    list-style: none;
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.episode-panel__row {
+    display: block;
 }
 
 .episode-panel__state {
@@ -52,6 +60,36 @@
 
     mat-icon {
         color: rgba(255, 255, 255, 0.4);
+    }
+}
+
+.episode-panel__state--stacked {
+    flex-direction: column;
+}
+
+.episode-panel__retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+    background: transparent;
+    color: #ffffff;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        color: inherit;
     }
 }
 

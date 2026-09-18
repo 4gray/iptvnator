@@ -637,12 +637,13 @@ unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
   label, runtime, clamped overview, progress bar, watched check and
   now-playing marker; the tab follows the playing season, the playing row is
   centred on open) built by `buildFullscreenEpisodePanelSeasons` from the
-  hosts' `seriesEpisodes` / `episodePlaybackPositions` / `pendingSeasonKeys`
+  hosts' `seriesEpisodes` / `episodePlaybackPositions` / `seasonLoadStates`
   inputs. An episode click travels `upNextEpisodeSelected` (the rail's path,
   so fullscreen survives the engine remount) and closes the panel; a season
   tab click travels `episodePanelSeasonSelected` into the hosts'
   `onSeasonSelected` (Xtream TMDB season enrichment, Stalker lazy VOD season
-  load, shown as a loading row meanwhile). Movies never get it, external
+  load — a spinner row while in flight, a Retry row after a failed request).
+  Movies never get it, external
   MPV/VLC never mount the inline player, native-view Embedded MPV is
   withheld by the view. CDK overlays follow the
   fullscreen element via `FullscreenOverlayContainer`. Contract:

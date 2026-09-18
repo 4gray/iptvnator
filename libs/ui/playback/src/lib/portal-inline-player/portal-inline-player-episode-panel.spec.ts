@@ -165,7 +165,7 @@ describe('PortalInlinePlayerComponent fullscreen episode panel host', () => {
         expect(host.panelKind).toBe('episodes');
     });
 
-    it('builds the seasons for the panel with the playing row, positions and pending seasons', async () => {
+    it('builds the seasons for the panel with the playing row, positions and load states', async () => {
         await setup();
         const positions = new Map<number, PlaybackPositionData>([
             [
@@ -181,7 +181,7 @@ describe('PortalInlinePlayerComponent fullscreen episode panel host', () => {
         fixture.componentRef.setInput('playback', episodePlayback);
         fixture.componentRef.setInput('seriesEpisodes', seriesEpisodes);
         fixture.componentRef.setInput('episodePlaybackPositions', positions);
-        fixture.componentRef.setInput('pendingSeasonKeys', ['2']);
+        fixture.componentRef.setInput('seasonLoadStates', { '2': 'loading' });
         fixture.detectChanges();
 
         const seasons = component.fullscreenEpisodeSeasons();
@@ -191,7 +191,7 @@ describe('PortalInlinePlayerComponent fullscreen episode panel host', () => {
             true,
         ]);
         expect(seasons[0].episodes[0].watched).toBe(true);
-        expect(seasons[1].loaded).toBe(false);
+        expect(seasons[1].loadState).toBe('loading');
     });
 
     it('withholds the panel for a movie, without seasons, and when the setting is off', async () => {

@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "Nem sikerült lekérni a lejátszáshoz szükséges URL-címet",
         "LOADING_SEASONS": "Évadok betöltése…",
         "LOADING_EPISODES": "Epizódok betöltése…",
+        "EPISODES_LOAD_FAILED": "Az epizódokat nem sikerült betölteni.",
         "LOADING_ALL_CHANNELS": "Loading full channel list…",
         "REFRESH_CHANNEL_LIST": "Refresh channel list",
         "NO_CHANNELS_IN_CATEGORY": "No channels in this category",

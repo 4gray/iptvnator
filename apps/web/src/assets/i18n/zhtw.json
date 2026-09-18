@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "無法取得播放網址",
         "LOADING_SEASONS": "正在載入季數...",
         "LOADING_EPISODES": "正在載入集數...",
+        "EPISODES_LOAD_FAILED": "無法載入集數。",
         "LOADING_ALL_CHANNELS": "正在載入完整頻道清單…",
         "REFRESH_CHANNEL_LIST": "重新整理頻道清單",
         "NO_CHANNELS_IN_CATEGORY": "此分類中沒有頻道",

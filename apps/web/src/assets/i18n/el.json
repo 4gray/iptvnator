@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "Αποτυχία λήψης διεύθυνσης URL αναπαραγωγής",
         "LOADING_SEASONS": "Φόρτωση σεζόν...",
         "LOADING_EPISODES": "Φόρτωση επεισοδίων...",
+        "EPISODES_LOAD_FAILED": "Δεν ήταν δυνατή η φόρτωση των επεισοδίων.",
         "LOADING_ALL_CHANNELS": "Φόρτωση πλήρους λίστας καναλιών…",
         "REFRESH_CHANNEL_LIST": "Ανανέωση λίστας καναλιών",
         "NO_CHANNELS_IN_CATEGORY": "Δεν υπάρχουν κανάλια σε αυτήν την κατηγορία",

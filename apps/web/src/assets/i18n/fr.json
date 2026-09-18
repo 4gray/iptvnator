@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "Échec de l'obtention de l'URL de lecture",
         "LOADING_SEASONS": "Chargement des saisons…",
         "LOADING_EPISODES": "Chargement des épisodes…",
+        "EPISODES_LOAD_FAILED": "Les épisodes n'ont pas pu être chargés.",
         "LOADING_ALL_CHANNELS": "Chargement de la liste complète des chaînes…",
         "REFRESH_CHANNEL_LIST": "Actualiser la liste des chaînes",
         "NO_CHANNELS_IN_CATEGORY": "Aucune chaîne dans cette catégorie",

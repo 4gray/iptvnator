@@ -604,8 +604,10 @@ playback title) where the search field would be.
   `Record<seasonKey, XtreamSerieEpisode[]>` the season container gets, so the
   TMDB overlay's stills and overviews ride in `info`), the per-episode
   playback-position map (`episodePlaybackPositions`) and, for Stalker lazy
-  VOD series, the keys of seasons not fetched yet (`pendingSeasonKeys`,
-  `pendingVodSeasonKeys` on the host). `buildFullscreenEpisodePanelSeasons()`
+  VOD series, per-season load states (`seasonLoadStates`: `loading` while
+  a request is on the wire, `unloaded` while the portal has not answered —
+  after a failed request too; `vodSeasonLoadStates` on the host).
+  `buildFullscreenEpisodePanelSeasons()`
   (`libs/ui/playback/src/lib/fullscreen-episode-panel/fullscreen-episode-panel.util.ts`)
   turns them into `FullscreenEpisodePanelSeason[]` — numeric keys ascending,
   named keys after, each row a `FullscreenEpisodePanelItem` that extends the
@@ -619,8 +621,13 @@ playback title) where the search field would be.
   rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
   case still looks designed; the `S01E03` label, runtime, watched check or
   "Now playing" marker; the title (label as fallback); a 3-line clamped
-  overview when there is one; a progress bar on the thumbnail. A pending
-  season shows a loading row, a loaded empty one the season-empty copy.
+  overview when there is one; a progress bar on the thumbnail. Rows are
+  buttons inside `<li>`s of a `<ul>`, so their button role survives for
+  assistive technology. A loading season shows a spinner row, a loaded empty
+  one the season-empty copy, and an unanswered one a "could not be loaded"
+  row with a Retry button that re-emits the season selection — the tabs
+  never re-emit an already selected key, so a failed lazy load would
+  otherwise be stuck.
 - Selection: the tab follows the playing episode's season (`linkedSignal`)
   and resets to it whenever playback moves into another season; a tab the
   user picks holds until then. Opening the panel (context `open`) centres
@@ -634,10 +641,10 @@ playback title) where the search field would be.
   through its inline episode flow and the engine remount keeps fullscreen
   exactly as a "next episode" does — and then calls the context's `close`;
   a click on the playing row is inert. A season tab click emits
-  `episodePanelSeasonSelected`, wired by both hosts to the same
-  `onSeasonSelected` their season container uses, so Xtream's TMDB season
-  enrichment and Stalker's lazy VOD season load run for the panel's season
-  too.
+  `episodePanelSeasonSelected` (as does the retry row), wired by both hosts
+  to the same `onSeasonSelected` their season container uses, so Xtream's
+  TMDB season enrichment and Stalker's lazy VOD season load run for the
+  panel's season too.
 - Gates: `Settings.fullscreenChannelPanel` (one setting for channels and
   episodes; its label reads "Channel and episode list in fullscreen"),
   `contentInfo.contentType === 'episode'` and non-live playback (a movie

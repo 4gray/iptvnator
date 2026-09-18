@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "Не удалось получить URL для воспроизведения",
         "LOADING_SEASONS": "Загрузка сезонов…",
         "LOADING_EPISODES": "Загрузка серий…",
+        "EPISODES_LOAD_FAILED": "Не удалось загрузить серии.",
         "LOADING_ALL_CHANNELS": "Загрузка полного списка каналов…",
         "REFRESH_CHANNEL_LIST": "Обновить список каналов",
         "NO_CHANNELS_IN_CATEGORY": "В этой категории нет каналов",

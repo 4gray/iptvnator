@@ -1249,14 +1249,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             )
     );
 
-    /** Keys of those seasons, so the fullscreen episode panel shows them as loading. */
-    readonly pendingVodSeasonKeys = computed<string[]>(() =>
-        this.isVodSeries()
-            ? this.vodSeriesSeasons()
-                  .filter((season) => this.isSeasonHydrationPending(season))
-                  .map(getVodSeriesSeasonKey)
-            : []
-    );
+    /**
+     * Per-season load state for the fullscreen episode panel: in flight, or
+     * unanswered (never asked, or the request failed — the panel offers a
+     * retry there, since the tabs never re-emit the selected key).
+     */
+    readonly vodSeasonLoadStates = computed<
+        Record<string, 'loading' | 'unloaded'>
+    >(() => {
+        const states: Record<string, 'loading' | 'unloaded'> = {};
+        if (!this.isVodSeries()) {
+            return states;
+        }
+        for (const season of this.vodSeriesSeasons()) {
+            if (season.isLoading) {
+                states[getVodSeriesSeasonKey(season)] = 'loading';
+            } else if (this.isSeasonHydrationPending(season)) {
+                states[getVodSeriesSeasonKey(season)] = 'unloaded';
+            }
+        }
+        return states;
+    });
 
     async handleSeriesPlaybackToggleRequested(
         request: SeasonContainerSeriesPlaybackToggleRequest

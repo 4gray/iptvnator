@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "Oynatma URL'si alınamadı",
         "LOADING_SEASONS": "Sezonlar yükleniyor...",
         "LOADING_EPISODES": "Bölümler yükleniyor...",
+        "EPISODES_LOAD_FAILED": "Bölümler yüklenemedi.",
         "LOADING_ALL_CHANNELS": "Tüm kanal listesi yükleniyor…",
         "REFRESH_CHANNEL_LIST": "Kanal listesini yenile",
         "NO_CHANNELS_IN_CATEGORY": "Bu kategoride kanal yok",

@@ -54,7 +54,9 @@ describe('buildFullscreenEpisodePanelSeasons', () => {
         });
 
         expect(seasons.map((season) => season.key)).toEqual(['1', '2', '10']);
-        expect(seasons.every((season) => season.loaded)).toBe(true);
+        expect(seasons.every((season) => season.loadState === 'loaded')).toBe(
+            true
+        );
         const playing = seasons[1].episodes[1];
         expect(playing.isPlaying).toBe(true);
         expect(playing.label).toBe('S02E02');
@@ -142,15 +144,23 @@ describe('buildFullscreenEpisodePanelSeasons', () => {
         );
     });
 
-    it('flags pending seasons so the panel shows them as loading rather than empty', () => {
+    it('carries the host\u2019s in-flight and unanswered season states, defaulting to loaded', () => {
         const seasons = buildFullscreenEpisodePanelSeasons({
-            episodesBySeason: { '1': [episode(11, 1, 1)], '2': [] },
+            episodesBySeason: { '1': [episode(11, 1, 1)], '2': [], '3': [] },
             currentEpisodeId: 11,
-            pendingSeasonKeys: ['2'],
+            seasonLoadStates: { '2': 'loading', '3': 'unloaded' },
         });
 
-        expect(seasons[0].loaded).toBe(true);
-        expect(seasons[1]).toEqual({ key: '2', loaded: false, episodes: [] });
+        expect(seasons.map((season) => season.loadState)).toEqual([
+            'loaded',
+            'loading',
+            'unloaded',
+        ]);
+        expect(seasons[1]).toEqual({
+            key: '2',
+            loadState: 'loading',
+            episodes: [],
+        });
     });
 
     it('falls back to the season key and the list index when an episode carries no numbers', () => {

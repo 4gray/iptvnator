@@ -46,16 +46,20 @@ export interface FullscreenEpisodePanelItem<
     watched: boolean;
 }
 
+/**
+ * Where a season's episode list stands with the portal. Every Xtream season
+ * is `loaded` up front; a Stalker lazy VOD season is `loading` while its
+ * request is on the wire and `unloaded` while the portal has not answered
+ * yet — after a failed request too, which is why the panel offers a retry
+ * there instead of a spinner that nothing would ever end.
+ */
+export type FullscreenPanelSeasonLoadState = 'loaded' | 'loading' | 'unloaded';
+
 export interface FullscreenEpisodePanelSeason<TEpisode = unknown> {
     /** Provider season key, as the season container uses it. */
     key: string;
     episodes: FullscreenEpisodePanelItem<TEpisode>[];
-    /**
-     * False while the host still has to ask the portal for this season
-     * (Stalker lazy VOD series): the panel then shows a loading row instead
-     * of "empty". Every Xtream season is loaded up front.
-     */
-    loaded: boolean;
+    loadState: FullscreenPanelSeasonLoadState;
 }
 
 export interface BuildFullscreenEpisodePanelSeasonsOptions<
@@ -65,8 +69,10 @@ export interface BuildFullscreenEpisodePanelSeasonsOptions<
     /** Id of the episode playing inline; its row carries the marker. */
     currentEpisodeId: string | number | null | undefined;
     playbackPositions?: ReadonlyMap<number, PlaybackPositionData> | null;
-    /** Season keys the host has not fetched episodes for yet. */
-    pendingSeasonKeys?: readonly string[] | null;
+    /** Per season key, in flight or not yet answered; absent means loaded. */
+    seasonLoadStates?: Readonly<
+        Record<string, Exclude<FullscreenPanelSeasonLoadState, 'loaded'>>
+    > | null;
 }
 
 /**
@@ -80,13 +86,12 @@ export function buildFullscreenEpisodePanelSeasons<
     episodesBySeason,
     currentEpisodeId,
     playbackPositions,
-    pendingSeasonKeys,
+    seasonLoadStates,
 }: BuildFullscreenEpisodePanelSeasonsOptions<TEpisode>): FullscreenEpisodePanelSeason<TEpisode>[] {
     if (!episodesBySeason) {
         return [];
     }
 
-    const pending = new Set(pendingSeasonKeys ?? []);
     const currentId =
         currentEpisodeId === null || currentEpisodeId === undefined
             ? null
@@ -96,7 +101,7 @@ export function buildFullscreenEpisodePanelSeasons<
         const episodes = episodesBySeason[seasonKey] ?? [];
         return {
             key: seasonKey,
-            loaded: !pending.has(seasonKey),
+            loadState: seasonLoadStates?.[seasonKey] ?? 'loaded',
             episodes: episodes.map((episode, index) =>
                 toPanelItem(
                     episode,

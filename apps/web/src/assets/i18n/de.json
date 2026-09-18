@@ -1257,6 +1257,7 @@
         "PLAYBACK_ERROR": "Wiedergabe-URL konnte nicht abgerufen werden",
         "LOADING_SEASONS": "Staffeln werden geladen …",
         "LOADING_EPISODES": "Episoden werden geladen …",
+        "EPISODES_LOAD_FAILED": "Die Episoden konnten nicht geladen werden.",
         "LOADING_ALL_CHANNELS": "Vollständige Senderliste wird geladen…",
         "REFRESH_CHANNEL_LIST": "Senderliste aktualisieren",
         "NO_CHANNELS_IN_CATEGORY": "Keine Sender in dieser Kategorie",

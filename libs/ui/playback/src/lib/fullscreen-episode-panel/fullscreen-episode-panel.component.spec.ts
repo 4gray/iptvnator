@@ -34,7 +34,7 @@ function seasons(playingId: number | null): FullscreenEpisodePanelSeason[] {
     return [
         {
             key: '1',
-            loaded: true,
+            loadState: 'loaded',
             episodes: [
                 item(11, '1', 1, {
                     isPlaying: playingId === 11,
@@ -52,10 +52,10 @@ function seasons(playingId: number | null): FullscreenEpisodePanelSeason[] {
         },
         {
             key: '2',
-            loaded: true,
+            loadState: 'loaded',
             episodes: [item(21, '2', 1, { isPlaying: playingId === 21 })],
         },
-        { key: '3', loaded: false, episodes: [] },
+        { key: '3', loadState: 'loading', episodes: [] },
     ];
 }
 
@@ -202,7 +202,7 @@ describe('FullscreenEpisodePanelComponent', () => {
 
         fixture.componentRef.setInput('seasons', [
             ...seasons(12).slice(0, 2),
-            { key: '3', loaded: true, episodes: [] },
+            { key: '3', loadState: 'loaded', episodes: [] },
         ]);
         fixture.detectChanges();
         expect(
@@ -211,6 +211,48 @@ describe('FullscreenEpisodePanelComponent', () => {
             )
         ).not.toBeNull();
         expect(rows()).toHaveLength(0);
+    });
+
+    it('offers a retry for an unanswered season, since the tabs never re-emit the selected key', () => {
+        const selected: string[] = [];
+        fixture.componentRef.setInput('seasons', [
+            ...seasons(12).slice(0, 2),
+            { key: '3', loadState: 'unloaded', episodes: [] },
+        ]);
+        component.seasonSelected.subscribe((key) => selected.push(key));
+        fixture.detectChanges();
+
+        pills()[2].click();
+        fixture.detectChanges();
+        expect(selected).toEqual(['3']);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="fullscreen-episode-panel-loading"]'
+            )
+        ).toBeNull();
+
+        pills()[2].click();
+        expect(selected).toEqual(['3']);
+        const retry = fixture.nativeElement.querySelector(
+            '[data-test-id="fullscreen-episode-panel-retry"]'
+        ) as HTMLButtonElement;
+        retry.click();
+        expect(selected).toEqual(['3', '3']);
+    });
+
+    it('keeps the rows as buttons inside list items', () => {
+        fixture.componentRef.setInput('seasons', seasons(12));
+        fixture.detectChanges();
+
+        const list = fixture.nativeElement.querySelector(
+            '[data-test-id="fullscreen-episode-panel-list"]'
+        ) as HTMLElement;
+        expect(list.tagName).toBe('UL');
+        for (const row of rows()) {
+            expect(row.tagName).toBe('BUTTON');
+            expect(row.getAttribute('role')).toBeNull();
+            expect(row.parentElement?.tagName).toBe('LI');
+        }
     });
 
     it('keeps the user’s tab through progress rebuilds but follows playback into another season', () => {

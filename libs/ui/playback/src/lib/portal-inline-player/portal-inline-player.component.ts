@@ -40,6 +40,7 @@ import { FullscreenEpisodePanelComponent } from '../fullscreen-episode-panel/ful
 import {
     buildFullscreenEpisodePanelSeasons,
     type FullscreenPanelEpisodeLike,
+    type FullscreenPanelSeasonLoadState,
 } from '../fullscreen-episode-panel/fullscreen-episode-panel.util';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 import type {
@@ -112,8 +113,13 @@ export class PortalInlinePlayerComponent implements FullscreenChannelPanelHost {
         number,
         PlaybackPositionData
     > | null>(null);
-    /** Seasons the host has not fetched yet (Stalker lazy VOD series). */
-    readonly pendingSeasonKeys = input<readonly string[]>([]);
+    /**
+     * Seasons in flight or not yet answered by the portal (Stalker lazy VOD
+     * series), keyed by season; absent keys are loaded.
+     */
+    readonly seasonLoadStates = input<Readonly<
+        Record<string, Exclude<FullscreenPanelSeasonLoadState, 'loaded'>>
+    > | null>(null);
     /**
      * Initial player volume. Only hosts that own a persisted volume pass it
      * (the M3U player shares one across its channels); the portals keep the
@@ -233,7 +239,7 @@ export class PortalInlinePlayerComponent implements FullscreenChannelPanelHost {
             episodesBySeason: this.seriesEpisodes(),
             currentEpisodeId: this.playingEpisodeId(),
             playbackPositions: this.episodePlaybackPositions(),
-            pendingSeasonKeys: this.pendingSeasonKeys(),
+            seasonLoadStates: this.seasonLoadStates(),
         })
     );
     /**
