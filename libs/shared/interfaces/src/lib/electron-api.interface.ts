@@ -723,10 +723,13 @@ export interface ElectronBridgeApi {
      * Zoom shortcuts (Cmd/Ctrl and +/−/0). Synchronous and preload-local:
      * steps the FRAME-BOUND temporary zoom level through `webFrame` (never a
      * main-process `webContents.setZoomLevel`, whose per-URL entry the app's
-     * `file://` path routing resets — issue #1109), clamped to
-     * `ZOOM_LEVEL_MIN..ZOOM_LEVEL_MAX`, and returns the level now applied.
-     * Persistence needs nothing from the caller: the main process reads the
-     * live level back on close, quit and reload.
+     * `file://` path routing resets — issue #1109) by `stepZoomLevel`'s
+     * rules — one `ZOOM_LEVEL_STEP` inside `ZOOM_LEVEL_MIN..ZOOM_LEVEL_MAX`,
+     * a stored level already outside them never moved against the request —
+     * and returns the level now applied, which is therefore not itself
+     * guaranteed to be within the limits. Persistence needs nothing from the
+     * caller: the main process reads the live level back on close, quit and
+     * reload.
      */
     adjustZoomLevel: (action: ZoomLevelAction) => number;
     getWindowState: () => Promise<ElectronBridgeWindowState>;
