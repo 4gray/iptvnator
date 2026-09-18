@@ -31,6 +31,7 @@ import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
+import { applyElectronNetworkDefaults } from './app/util/network-defaults';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
 import { AppUpdateService } from './app/services/app-update.service';
 import {
@@ -59,6 +60,13 @@ import {
 import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
+
+// Before the first portal, playlist or update request leaves this process.
+applyElectronNetworkDefaults((line) => {
+    if (isStartupTraceEnabled()) {
+        console.log(`[IPTVnator Trace][startup] ${line}`);
+    }
+});
 
 // Packaged Linux launchers force X11 via the .desktop entry
 // (electron-builder `executableArgs`), but direct binary/AppImage launches
