@@ -37,6 +37,13 @@ This file provides guidance to coding agents working in this repository.
   and run `pnpm run deps:electron-builder:test` after related dependency
   updates — the test fails when the patched version no longer matches the
   installed one.
+- `node-gyp` is a declared root devDependency because
+  `apps/electron-backend/build-embedded-mpv.js` resolves it with
+  `require.resolve`. Do not drop it as "unused": without the declaration it is
+  reachable only through pnpm's hidden hoist (`node_modules/.pnpm/node_modules`),
+  which pnpm's `.bin` shims put on `NODE_PATH` — so `pnpm nx …` and CI keep
+  working while a plain `node apps/electron-backend/build-embedded-mpv.js`
+  fails on a clean install with "Unable to resolve node-gyp".
 - `nx-electron@22.0.0` uses a local Nx 23 export-path patch and an explicit
   `webpack-node-externals` package extension. Scoped peer allowances for it
   and `ngx-indexed-db@22.0.0` live in `pnpm-workspace.yaml`; they are project
