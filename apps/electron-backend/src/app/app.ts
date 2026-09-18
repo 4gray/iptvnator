@@ -22,6 +22,11 @@ import {
     attachZoomLevelPersistence,
     persistZoomLevel,
 } from './services/window-zoom-level';
+import {
+    attachRendererReloadFallback,
+    resolveRoutedRendererUrl,
+    restoreRendererRoute,
+} from './services/renderer-reload-fallback';
 import { isEmbeddedMpvFeatureEnabled } from './services/embedded-mpv-runtime-policy.util';
 import {
     FULLSCREEN_LAUNCH_SWITCH,
@@ -358,6 +363,20 @@ export default class App {
 
         event.preventDefault();
 
+        // A renderer-initiated reload (`location.reload()`, e.g. the
+        // settings unsaved-changes guard) on an in-app route arrives here as
+        // a routed file:// URL with no file behind it. Send it straight to
+        // the packaged index with that route instead of cancelling it.
+        if (!App.isDevelopmentMode() && App.mainWindow) {
+            const rendererIndexPath = getPackagedRendererIndexPath();
+            const route = resolveRoutedRendererUrl(url, rendererIndexPath);
+
+            if (route !== null) {
+                restoreRendererRoute(App.mainWindow, rendererIndexPath, route);
+                return;
+            }
+        }
+
         if (isExternalBrowserUrl(url)) {
             shell.openExternal(url);
         }
@@ -558,6 +577,14 @@ export default class App {
         // The preload restores the zoom level on every document load; the
         // main process only saves it back before a reload drops it.
         attachZoomLevelPersistence(App.mainWindow);
+
+        // A reload on an in-app route asks file:// for a path that does not
+        // exist; re-load the packaged index with that route instead of
+        // leaving Chromium's error page (see renderer-reload-fallback.ts).
+        attachRendererReloadFallback(
+            App.mainWindow,
+            getPackagedRendererIndexPath()
+        );
 
         // Emitted when the window is closed.
         App.mainWindow.on('closed', () => {

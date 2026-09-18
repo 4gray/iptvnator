@@ -1,9 +1,22 @@
 import { bootstrapApplication } from '@angular/platform-browser';
+import { resolveRestoredRendererRoute } from '@iptvnator/shared/interfaces';
 import { registerAppDateLocales } from './app/app-date-locales';
 import { AppComponent } from './app/app.component';
 import { appConfig } from './app/app.config';
 
 registerAppDateLocales();
+
+// A reloaded packaged renderer arrives on index.html with the route it was
+// on carried in the query string (the Electron main process recovers the
+// file:// reload that way). Put that route back before the router reads the
+// URL for its initial navigation.
+const restoredHref = resolveRestoredRendererRoute(
+    window.location.href,
+    document.baseURI
+);
+if (restoredHref !== null) {
+    window.history.replaceState(window.history.state, '', restoredHref);
+}
 
 bootstrapApplication(AppComponent, appConfig)
     .then(() => {

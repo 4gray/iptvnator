@@ -461,6 +461,80 @@ Zoom level (Cmd/Ctrl and +/−, issue #1109):
    the rendered factor (content width ÷ `window.innerWidth`) across a
    section change, a resize, a reload and a restart.
 
+Reloading the renderer on an in-app route:
+
+1. The packaged renderer is `dist/apps/web/index.html` over `file://` and
+   Angular routes by path (no hash strategy), so once the user is on a
+   section the document URL is `file:///…/web/workspace/sources` — a path
+   with no file behind it. A reload of that URL fails with
+   `ERR_FILE_NOT_FOUND` (-6) or is cancelled outright, depending on who
+   starts it. Two user-reachable triggers: the macOS default application
+   menu (nothing calls `Menu.setApplicationMenu`, so View › Reload / Force
+   Reload are live; Windows/Linux drop the menu bar via `setMenu(null)`),
+   and the settings unsaved-changes guard, which calls
+   `window.location.reload()` after the user confirms a reload intent on
+   `/workspace/settings/<section>`. Dev mode (`http://localhost:4200`) never
+   shows either — the dev server serves the index for every path.
+2. Both legs live in `services/renderer-reload-fallback.ts` and end in the
+   same `restoreRendererRoute`: load the packaged index with the routed
+   URL's route — its path relative to the renderer root plus query and
+   fragment (`resolveRoutedRendererUrl`) — in the `restoreRoute` query
+   parameter.
+    - A main-process reload (`webContents.reload()`, the menu role,
+      DevTools) fires no `will-navigate`, so it cannot be redirected up
+      front: it fails, Chromium commits `chrome-error://chromewebdata/`
+      and `app-root` stays empty until the app restarts.
+      `attachRendererReloadFallback` recovers it after the fact from the
+      main-frame `did-fail-load` with `ERR_FILE_NOT_FOUND`
+      (`resolveReloadedRendererRoute`); other error codes, subframes and
+      non-`file:` URLs are left alone. The recovery load is deferred to
+      the error page's `dom-ready` and never issued from inside
+      `did-fail-load`: a `loadFile` started while Chromium is still
+      committing the error page yields a document that never receives
+      animation frames — the splash stays, nothing paints, while
+      `document.visibilityState` still says `visible` — and the same load
+      after `dom-ready` paints normally (Electron emits `did-fail-load`
+      before that `dom-ready`). A cross-document navigation starting in
+      between withdraws the pending recovery, so a stale `dom-ready` can
+      never re-load the index over a newer navigation.
+    - A renderer-initiated reload (`location.reload()`, the settings
+      guard) does fire `will-navigate`, where the routed URL is not the
+      trusted index and `handleRendererNavigation` would cancel it —
+      silently, so the confirmed reload simply never happened. The handler
+      now recognizes a routed renderer URL and sends it straight to the
+      index with its route, with no failed load in between; every other
+      untrusted navigation is still blocked (external URLs still open in
+      the browser).
+   A failed `index.html` itself is never re-requested (it would loop):
+   `resolveRoutedRendererUrl` rejects the index, and the recovery load
+   carries `index.html` as its path, so a second failure cannot recurse.
+3. The renderer consumes the parameter before Angular bootstraps:
+   `apps/web/src/main.ts` calls `resolveRestoredRendererRoute`
+   (`libs/shared/interfaces/src/lib/renderer-reload-route.util.ts`, which
+   also owns the parameter name) and installs the result with
+   `history.replaceState`, so the router's initial navigation lands on the
+   route the user was on. The route is resolved against `document.baseURI`
+   (the packaged `<base href="./">`, i.e. the renderer directory — the same
+   prefix Angular strips from `location.pathname`), and anything that would
+   leave that directory (an absolute URL, another scheme, a `..` escape)
+   is dropped with only the parameter removed, so the app boots at its
+   default route instead of following an arbitrary target.
+4. Zoom persistence is unaffected: the failed reload's
+   `did-start-navigation` already saved the level and released ownership,
+   the recovery load's `did-start-navigation` is then a no-op, and the new
+   document's preload restores the level as after any other reload. The
+   main-process close guard also treats the recovery like any full
+   navigation (`did-navigate` disarms it).
+5. Regression coverage: `renderer-reload.e2e.ts` reloads from the main
+   process (`webContents.reload()`, the menu role) on Sources and from the
+   renderer (`window.location.reload()`, the settings guard) on a settings
+   section and asserts a NEW document is rendered on the same route with
+   the parameter gone (`renderer-reload.support.ts` marks the old document,
+   since the URL alone is identical before and after);
+   `window-zoom-level.e2e.ts` reloads the same way. Unit coverage:
+   `renderer-reload-fallback.spec.ts`, `renderer-reload-route.util.spec.ts`,
+   `app.spec.ts` ("renderer reload recovery").
+
 Layout integration:
 
 1. `document.body` gets a `frameless-platform` class (set in

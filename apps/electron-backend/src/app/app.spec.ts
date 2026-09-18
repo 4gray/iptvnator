@@ -55,7 +55,7 @@ import {
     isTrustedRendererNavigationUrl,
 } from './app';
 import App from './app';
-import { app as electronApp, BrowserWindow, screen } from 'electron';
+import { app as electronApp, BrowserWindow, screen, shell } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { store } from './services/store.service';
@@ -504,6 +504,9 @@ describe('Electron app security helpers', () => {
             return mainWindow;
         }
 
+        // Every listener of the event fires, since the window registers
+        // more than one `did-start-navigation` listener (zoom persistence
+        // and the renderer reload recovery).
         function fireHandlers(
             calls: Array<[string, (...args: unknown[]) => void]>,
             eventName: string,
@@ -513,8 +516,10 @@ describe('Electron app security helpers', () => {
                 .filter(([name]) => name === eventName)
                 .map(([, handler]) => handler);
 
-            expect(handlers).toHaveLength(1);
-            handlers[0](...args);
+            expect(handlers.length).toBeGreaterThanOrEqual(1);
+            for (const handler of handlers) {
+                handler(...args);
+            }
         }
 
         function fireWindowEvent(win: MockMainWindow, eventName: string): void {
@@ -610,6 +615,99 @@ describe('Electron app security helpers', () => {
             );
 
             expect(store.set).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('renderer reload recovery', () => {
+        const rendererRoot = path.dirname(
+            path.resolve(__dirname, '..', 'web', 'index.html')
+        );
+        const routedUrl = pathToFileURL(
+            path.join(rendererRoot, 'workspace', 'sources')
+        ).href;
+
+        function fireWebContentsEvent(
+            win: MockMainWindow,
+            eventName: string,
+            ...args: unknown[]
+        ): void {
+            const handlers = win.webContents.on.mock.calls
+                .filter(([name]) => name === eventName)
+                .map(([, handler]) => handler);
+
+            expect(handlers).toHaveLength(1);
+            handlers[0](...args);
+        }
+
+        function createPackagedWindow(): MockMainWindow {
+            process.env.ELECTRON_IS_DEV = '0';
+            const mainWindow = createMockMainWindow();
+            (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+            getAppInternals().onReady();
+            return mainWindow;
+        }
+
+        it('re-loads the packaged index with the route a failed file:// reload named', () => {
+            const mainWindow = createPackagedWindow();
+
+            fireWebContentsEvent(
+                mainWindow,
+                'did-fail-load',
+                {},
+                -6,
+                'ERR_FILE_NOT_FOUND',
+                routedUrl,
+                true
+            );
+            // Deferred to the error page's dom-ready, or the new document
+            // never paints.
+            expect(mainWindow.loadFile).not.toHaveBeenCalled();
+            fireWebContentsEvent(mainWindow, 'dom-ready');
+
+            expect(mainWindow.loadFile).toHaveBeenCalledWith(
+                path.join(rendererRoot, 'index.html'),
+                { query: { restoreRoute: 'workspace/sources' } }
+            );
+        });
+
+        it('sends a renderer-initiated reload of a routed URL to the index instead of cancelling it', () => {
+            const mainWindow = createPackagedWindow();
+            const event = { preventDefault: jest.fn() };
+
+            fireWebContentsEvent(mainWindow, 'will-navigate', event, routedUrl);
+
+            expect(event.preventDefault).toHaveBeenCalled();
+            expect(mainWindow.loadFile).toHaveBeenCalledWith(
+                path.join(rendererRoot, 'index.html'),
+                { query: { restoreRoute: 'workspace/sources' } }
+            );
+            expect(shell.openExternal).not.toHaveBeenCalled();
+        });
+
+        it('still opens external URLs in the browser and blocks other navigations', () => {
+            const mainWindow = createPackagedWindow();
+            const external = { preventDefault: jest.fn() };
+            const foreignFile = { preventDefault: jest.fn() };
+
+            fireWebContentsEvent(
+                mainWindow,
+                'will-navigate',
+                external,
+                'https://example.com/'
+            );
+            fireWebContentsEvent(
+                mainWindow,
+                'will-navigate',
+                foreignFile,
+                pathToFileURL(path.join(rendererRoot, '..', 'other')).href
+            );
+
+            expect(external.preventDefault).toHaveBeenCalled();
+            expect(shell.openExternal).toHaveBeenCalledWith(
+                'https://example.com/'
+            );
+            expect(foreignFile.preventDefault).toHaveBeenCalled();
+            expect(mainWindow.loadFile).not.toHaveBeenCalled();
         });
     });
 
