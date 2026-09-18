@@ -69,12 +69,20 @@ class NoHostComponent {}
 function pointerEvent(
     type: string,
     pointerType = 'mouse',
-    init: { relatedTarget?: EventTarget | null } = {}
+    init: {
+        relatedTarget?: EventTarget | null;
+        button?: number;
+        pointerId?: number;
+    } = {}
 ): Event {
     const event = new Event(type, { bubbles: true, cancelable: true });
     Object.defineProperty(event, 'pointerType', { value: pointerType });
     Object.defineProperty(event, 'relatedTarget', {
         value: init.relatedTarget ?? null,
+    });
+    Object.defineProperty(event, 'button', { value: init.button ?? 0 });
+    Object.defineProperty(event, 'pointerId', {
+        value: init.pointerId ?? 1,
     });
     return event;
 }
@@ -314,13 +322,52 @@ describe('FullscreenChannelPanelComponent', () => {
         expect(edgeHint()).toBeNull();
     });
 
-    it('opens at once on a mouse click on the edge, without the dwell', () => {
+    it('opens at once on a primary click on the edge, without the dwell', () => {
         setFullscreen(stage);
+        hotZone()?.dispatchEvent(pointerEvent('pointerdown'));
         hotZone()?.dispatchEvent(pointerEvent('pointerup'));
         fixture.detectChanges();
 
         expect(isOpen()).toBe(true);
         expect(query('host-list')).not.toBeNull();
+    });
+
+    it('ignores a release that is not a primary click begun on the edge', () => {
+        setFullscreen(stage);
+        const expectClosed = () => {
+            fixture.detectChanges();
+            expect(isOpen()).toBe(false);
+        };
+
+        // A drag started elsewhere and released over the edge.
+        hotZone()?.dispatchEvent(pointerEvent('pointerup'));
+        expectClosed();
+
+        // Right and middle buttons.
+        for (const button of [1, 2]) {
+            hotZone()?.dispatchEvent(
+                pointerEvent('pointerdown', 'mouse', { button })
+            );
+            hotZone()?.dispatchEvent(
+                pointerEvent('pointerup', 'mouse', { button })
+            );
+            expectClosed();
+        }
+
+        // A press that left the zone before its release.
+        hotZone()?.dispatchEvent(pointerEvent('pointerdown'));
+        hotZone()?.dispatchEvent(pointerEvent('pointerleave'));
+        hotZone()?.dispatchEvent(pointerEvent('pointerup'));
+        expectClosed();
+
+        // A different pointer releasing than the one that pressed.
+        hotZone()?.dispatchEvent(
+            pointerEvent('pointerdown', 'mouse', { pointerId: 1 })
+        );
+        hotZone()?.dispatchEvent(
+            pointerEvent('pointerup', 'mouse', { pointerId: 2 })
+        );
+        expectClosed();
     });
 
     it('keeps a C-opened panel while the mouse roams the video until it has visited the list', () => {
@@ -416,6 +463,7 @@ describe('FullscreenChannelPanelComponent', () => {
         fixture.detectChanges();
         expect(isOpen()).toBe(false);
 
+        hotZone()?.dispatchEvent(pointerEvent('pointerdown', 'touch'));
         hotZone()?.dispatchEvent(pointerEvent('pointerup', 'touch'));
         fixture.detectChanges();
         expect(isOpen()).toBe(true);
@@ -567,13 +615,16 @@ describe('FullscreenChannelPanelComponent', () => {
         expect(isOpen()).toBe(false);
 
         // The panel slid out from under the pointer: the browser reports the
-        // hot zone under it again without any movement.
+        // hot zone under it again without any movement. The edge stays clear.
         hotZone()?.dispatchEvent(pointerEvent('pointerenter'));
         jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
         fixture.detectChanges();
         expect(isOpen()).toBe(false);
+        expect(isHintVisible()).toBe(false);
 
         stage.dispatchEvent(pointerEvent('pointermove'));
+        fixture.detectChanges();
+        expect(isHintVisible()).toBe(true);
         jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
         fixture.detectChanges();
         expect(isOpen()).toBe(true);

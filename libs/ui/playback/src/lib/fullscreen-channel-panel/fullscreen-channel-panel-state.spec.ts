@@ -130,13 +130,27 @@ describe('FullscreenChannelPanelState', () => {
         state.hotZoneEnter();
         jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
         expect(state.open()).toBe(false);
+        // The disarmed edge shows no armed hint either.
+        expect(state.hotZoneHover()).toBe(false);
 
-        // A real move inside the zone starts the dwell again.
+        // A real move inside the zone arms the hint and starts the dwell.
         state.stageActivity();
+        expect(state.hotZoneHover()).toBe(true);
         jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS - 1);
         expect(state.open()).toBe(false);
         jest.advanceTimersByTime(1);
         expect(state.open()).toBe(true);
+    });
+
+    it('does not arm from a move once the pointer has left the disarmed zone', () => {
+        state.show();
+        state.hide();
+        state.hotZoneEnter();
+        state.hotZoneLeave();
+        state.stageActivity();
+        jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
+        expect(state.open()).toBe(false);
+        expect(state.hotZoneHover()).toBe(false);
     });
 
     it('re-arms the hot zone on a move made before the pointer reaches it', () => {

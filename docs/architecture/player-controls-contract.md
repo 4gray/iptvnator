@@ -515,8 +515,13 @@ open. Touch movement never reveals it. The hint answered the first field
 report: the zone was an invisible strip with nothing telling the user where
 the list lived. An invisible 40px hot zone (48px on coarse pointers) on the
 left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
-is ignored, and a click or tap on the zone opens at once without the dwell
-(`pointerup` for every pointer type). The zone remains mounted above the
+is ignored, and a click or tap on the zone opens at once without the dwell —
+only a primary press that began inside the zone and is released there
+(`pointerdown` records the pointer, `pointerup` must match it; a drag
+released over the edge, a right or middle button, or a pen barrel button
+never opens). The synthetic `pointerenter` that follows an explicit close
+neither opens nor arms the hint: the zone re-arms on the next real
+`pointermove`. The zone remains mounted above the
 scrim and below the panel while open, preserving the pointer target until
 the opening animation covers it. A delayed fullscreen paint therefore cannot
 turn a stationary edge hover into a synthetic mouse-leave that closes the

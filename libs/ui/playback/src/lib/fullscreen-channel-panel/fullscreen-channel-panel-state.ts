@@ -55,12 +55,18 @@ export class FullscreenChannelPanelState {
      * while the panel was closed, so the user is looking for something.
      */
     readonly hintVisible = signal(false);
-    /** The pointer is resting in the hot zone, waiting out the dwell. */
+    /**
+     * The pointer is resting in an armed hot zone, waiting out the dwell.
+     * Stays false for the synthetic enter that follows an explicit close, so
+     * the hint does not light up on an edge that cannot open yet.
+     */
     readonly hotZoneHover = signal(false);
 
     private pointerEngaged = false;
     /** False between an explicit close and the next pointer move. */
     private pointerMovedSinceHide = true;
+    /** Where the pointer physically is, armed or not. */
+    private pointerInHotZone = false;
     private openTimer: number | null = null;
     private closeTimer: number | null = null;
     private hintTimer: number | null = null;
@@ -91,14 +97,16 @@ export class FullscreenChannelPanelState {
 
     /** Mouse entered the edge hot zone: open once it has rested there. */
     hotZoneEnter(): void {
-        this.hotZoneHover.set(true);
+        this.pointerInHotZone = true;
         if (this.open() || !this.pointerMovedSinceHide) {
             return;
         }
+        this.hotZoneHover.set(true);
         this.startDwell();
     }
 
     hotZoneLeave(): void {
+        this.pointerInHotZone = false;
         this.hotZoneHover.set(false);
         this.clearOpenTimer();
     }
@@ -137,8 +145,9 @@ export class FullscreenChannelPanelState {
             this.hintVisible.set(false);
         }, CHANNEL_PANEL_HINT_IDLE_MS);
         // The pointer was already resting in the zone when it re-armed: this
-        // move is the dwell's start.
-        if (this.hotZoneHover() && this.openTimer === null) {
+        // move arms the hint and starts the dwell.
+        if (this.pointerInHotZone && this.openTimer === null) {
+            this.hotZoneHover.set(true);
             this.startDwell();
         }
     }
@@ -148,6 +157,7 @@ export class FullscreenChannelPanelState {
         this.clearTimers();
         this.pointerEngaged = false;
         this.pointerMovedSinceHide = true;
+        this.pointerInHotZone = false;
         this.hintVisible.set(false);
         this.hotZoneHover.set(false);
         this.open.set(false);

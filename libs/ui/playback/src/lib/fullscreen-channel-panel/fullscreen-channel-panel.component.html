@@ -19,8 +19,10 @@
         data-test-id="fullscreen-channel-panel-hot-zone"
         aria-hidden="true"
         (pointerenter)="onHotZoneEnter($event)"
-        (pointerleave)="state.hotZoneLeave()"
-        (pointerup)="onHotZonePointerUp()"
+        (pointerleave)="onHotZoneLeave()"
+        (pointerdown)="onHotZonePointerDown($event)"
+        (pointerup)="onHotZonePointerUp($event)"
+        (pointercancel)="onHotZoneLeave()"
     >
         <!-- Purely visual (the zone itself is the target): a tab that shows
              where the list lives while the pointer is moving, and lights up

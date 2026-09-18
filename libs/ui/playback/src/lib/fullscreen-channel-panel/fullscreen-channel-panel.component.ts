@@ -129,6 +129,9 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         close: () => this.state.hide(),
     };
 
+    /** Pointer whose primary press began inside the hot zone, if any. */
+    private hotZonePressPointerId: number | null = null;
+
     private readonly onDocumentKeydown = (event: KeyboardEvent) =>
         this.handleKeydown(event);
 
@@ -201,13 +204,30 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     /**
      * A click or tap on the edge opens at once, without the hover dwell:
      * touch has no hover and no `C` key, and a mouse user who has found the
-     * hint tab should not have to hold still. Bound to pointerup, not
-     * pointerdown: the hot zone must still be the click target when the
-     * press completes, so the click that follows dies on it instead of
-     * reaching the video's click-to-pause.
+     * hint tab should not have to hold still. Only a primary press that
+     * began inside the zone counts: a drag released over the edge, a right
+     * or middle click and a pen barrel button are not a click. Completed on
+     * pointerup, not pointerdown: the hot zone must still be the click
+     * target when the press completes, so the click that follows dies on it
+     * instead of reaching the video's click-to-pause.
      */
-    onHotZonePointerUp(): void {
+    onHotZonePointerDown(event: PointerEvent): void {
+        this.hotZonePressPointerId =
+            event.button === 0 ? event.pointerId : null;
+    }
+
+    onHotZonePointerUp(event: PointerEvent): void {
+        const pressed = this.hotZonePressPointerId;
+        this.hotZonePressPointerId = null;
+        if (pressed === null || pressed !== event.pointerId) {
+            return;
+        }
         this.state.show('pointer');
+    }
+
+    onHotZoneLeave(): void {
+        this.hotZonePressPointerId = null;
+        this.state.hotZoneLeave();
     }
 
     onPanelPointerEnter(event: PointerEvent): void {
