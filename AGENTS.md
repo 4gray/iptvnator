@@ -576,12 +576,16 @@ unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
   first unknown probe and confirmed native/unsupported results withhold it.
   A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
   `panelTitle`) and the panel slides that list over the video: left-edge hover
-  dwell, a touch tap on that edge, or `C`. The hot zone stays mounted above the
-  scrim and below the panel during opening, so a delayed paint cannot turn
+  dwell, a click or tap on that edge, or `C`. The hot zone stays mounted above
+  the scrim and below the panel during opening, so a delayed paint cannot turn
   stationary hover into a synthetic leave. Nothing is drawn while it is closed
-  (no handle), the hot zone stops above the controls bar, and scrim/Escape/
-  mouse-leave close it — while a CDK overlay opened from the list counts as
-  the panel, so hover keeps it open and Escape closes the overlay first. The
+  and the pointer rests — mouse movement over the stage reveals a slim edge
+  hint tab that fades after 2.5 s idle — the hot zone stops above the controls
+  bar, and scrim/Escape/mouse-leave close it, mouse-leave after 1 s and only
+  once the pointer has been inside the panel (a `C`-opened panel survives the
+  mouse roaming over the video) — while a CDK overlay opened from the list
+  counts as the panel, so hover keeps it open and Escape closes the overlay
+  first. The
   header is one row (search whose placeholder carries the host title, plus
   close) and the list stays mounted per fullscreen session.
   `Settings.fullscreenChannelPanel` (default on) gates it, offered only for the

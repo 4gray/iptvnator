@@ -52,15 +52,19 @@ function targetsEditable(event: KeyboardEvent): boolean {
  * can also switch it off through `enabled` for an engine that paints above
  * the DOM (native-view Embedded MPV), where no DOM panel could show.
  *
- * Nothing is drawn over the video while the panel is closed: opening is
- * resting the mouse on the left edge (a tap on that edge for touch, which has
- * no hover) or pressing `C`. Closing: moving the mouse away, clicking the
- * video (a scrim swallows that click so it never pauses playback), the close
- * button, Escape, or leaving fullscreen. A CDK overlay opened from the list
- * (sort menu, row context menu) counts as part of the panel: the pointer
- * moving into it does not start the close, and Escape closes that overlay
- * first. The list stays mounted between openings of one fullscreen session
- * so its scroll position and search survive.
+ * Nothing is drawn over the video while the panel is closed and the pointer
+ * rests. Moving the mouse over the stage reveals a slim hint tab on the left
+ * edge (it fades with the rest of the chrome once the pointer goes idle), and
+ * opening is resting the mouse on that edge, clicking or tapping it, or
+ * pressing `C`. Closing: moving the mouse away after it has been inside the
+ * panel, clicking the video (a scrim swallows that click so it never pauses
+ * playback), the close button, Escape, or leaving fullscreen. A panel opened
+ * with `C` ignores the mouse roaming over the video until it has visited the
+ * list, so the key never leaves the user typing into a closing search field.
+ * A CDK overlay opened from the list (sort menu, row context menu) counts as
+ * part of the panel: the pointer moving into it does not start the close, and
+ * Escape closes that overlay first. The list stays mounted between openings
+ * of one fullscreen session so its scroll position and search survive.
  */
 @Component({
     selector: 'app-fullscreen-channel-panel',
@@ -142,6 +146,25 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
             }
             untracked(() => this.resetSession());
         });
+        // The edge hint follows pointer activity over the stage, the element
+        // that owns fullscreen: any mouse movement over the video reveals it.
+        effect((onCleanup) => {
+            const stage = this.stage();
+            if (!this.active() || !stage) {
+                return;
+            }
+            const onPointerMove = (event: PointerEvent) => {
+                if (event.pointerType !== 'touch') {
+                    this.state.stageActivity();
+                }
+            };
+            stage.addEventListener('pointermove', onPointerMove, {
+                passive: true,
+            });
+            onCleanup(() =>
+                stage.removeEventListener('pointermove', onPointerMove)
+            );
+        });
         // While open, hover intent is tracked document-wide: a CDK overlay the
         // list opens (sort menu, context menu) renders outside the <aside>, so
         // the aside's own pointerleave alone would close the panel under the
@@ -176,16 +199,15 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
     }
 
     /**
-     * Touch has no hover and no `C` key, so a tap on the edge is its way in.
-     * Bound to pointerup, not pointerdown: the hot zone must still be the
-     * click target when the tap completes, so the click that follows dies on
-     * it instead of reaching the video.
+     * A click or tap on the edge opens at once, without the hover dwell:
+     * touch has no hover and no `C` key, and a mouse user who has found the
+     * hint tab should not have to hold still. Bound to pointerup, not
+     * pointerdown: the hot zone must still be the click target when the
+     * press completes, so the click that follows dies on it instead of
+     * reaching the video's click-to-pause.
      */
-    onHotZonePointerUp(event: PointerEvent): void {
-        if (event.pointerType !== 'touch') {
-            return;
-        }
-        this.state.show();
+    onHotZonePointerUp(): void {
+        this.state.show('pointer');
     }
 
     onPanelPointerEnter(event: PointerEvent): void {
@@ -220,13 +242,22 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         }
         if (
             this.isInsidePanel(event.target) ||
-            this.hotZoneElement()?.nativeElement === event.target ||
+            this.isInsideHotZone(event.target) ||
             this.isInsideOverlay(event.target)
         ) {
             this.state.panelEnter();
         } else {
             this.state.panelLeave();
         }
+    }
+
+    private isInsideHotZone(target: EventTarget | null): boolean {
+        const hotZone = this.hotZoneElement()?.nativeElement;
+        return (
+            hotZone !== undefined &&
+            target instanceof Node &&
+            hotZone.contains(target)
+        );
     }
 
     private isInsidePanel(target: EventTarget | null): boolean {
@@ -300,7 +331,7 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
             this.state.hide();
             return;
         }
-        this.state.show();
+        this.state.show('keyboard');
         this.focusSearch();
     }
 

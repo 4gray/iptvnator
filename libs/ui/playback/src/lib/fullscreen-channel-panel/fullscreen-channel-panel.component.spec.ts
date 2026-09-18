@@ -12,6 +12,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     CHANNEL_PANEL_CLOSE_GRACE_MS,
+    CHANNEL_PANEL_HINT_IDLE_MS,
     CHANNEL_PANEL_OPEN_DWELL_MS,
 } from './fullscreen-channel-panel-state';
 import { FullscreenChannelPanelComponent } from './fullscreen-channel-panel.component';
@@ -90,6 +91,11 @@ describe('FullscreenChannelPanelComponent', () => {
     const hotZone = () => query('fullscreen-channel-panel-hot-zone');
     const isOpen = () =>
         panel()?.classList.contains('fullscreen-channel-panel--open') === true;
+    const edgeHint = () => query('fullscreen-channel-panel-edge-hint');
+    const isHintVisible = () =>
+        edgeHint()?.classList.contains(
+            'fullscreen-channel-panel__edge-hint--visible'
+        ) === true;
 
     const setFullscreen = (element: Element | null) => {
         fullscreenElement = element;
@@ -97,7 +103,10 @@ describe('FullscreenChannelPanelComponent', () => {
         fixture.detectChanges();
     };
 
+    // A real mouse moves over the stage before it reaches the edge; the move
+    // is what re-arms the hot zone after an explicit close.
     const openByHover = () => {
+        stage.dispatchEvent(pointerEvent('pointermove'));
         hotZone()?.dispatchEvent(pointerEvent('pointerenter'));
         jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
         fixture.detectChanges();
@@ -248,7 +257,7 @@ describe('FullscreenChannelPanelComponent', () => {
         });
     });
 
-    it('draws nothing over the video while closed: only the hot zone beside the inert, off-screen panel', () => {
+    it('draws nothing over the video while closed and idle: only the hot zone with its hidden hint beside the inert, off-screen panel', () => {
         setFullscreen(stage);
 
         const children = Array.from(
@@ -264,10 +273,92 @@ describe('FullscreenChannelPanelComponent', () => {
         ]);
         expect(children[0]).toBe(hotZone());
         expect(hotZone()?.textContent?.trim()).toBe('');
+        expect(hotZone()?.children.length).toBe(1);
+        expect(hotZone()?.firstElementChild).toBe(edgeHint());
+        expect(isHintVisible()).toBe(false);
         expect(isOpen()).toBe(false);
         expect(panel()?.getAttribute('aria-hidden')).toBe('true');
         expect(panel()?.hasAttribute('inert')).toBe(true);
         expect(query('host-list')).toBeNull();
+    });
+
+    it('reveals the edge hint while the mouse moves over the stage and hides it once idle', () => {
+        setFullscreen(stage);
+
+        stage.dispatchEvent(pointerEvent('pointermove'));
+        fixture.detectChanges();
+        expect(isHintVisible()).toBe(true);
+
+        jest.advanceTimersByTime(CHANNEL_PANEL_HINT_IDLE_MS);
+        fixture.detectChanges();
+        expect(isHintVisible()).toBe(false);
+
+        // Touch has no pointer to hint at.
+        stage.dispatchEvent(pointerEvent('pointermove', 'touch'));
+        fixture.detectChanges();
+        expect(isHintVisible()).toBe(false);
+
+        // Resting on the edge lights the hint up before the dwell completes.
+        hotZone()?.dispatchEvent(pointerEvent('pointerenter'));
+        fixture.detectChanges();
+        expect(isHintVisible()).toBe(true);
+        expect(
+            edgeHint()?.classList.contains(
+                'fullscreen-channel-panel__edge-hint--armed'
+            )
+        ).toBe(true);
+
+        jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(true);
+        expect(edgeHint()).toBeNull();
+    });
+
+    it('opens at once on a mouse click on the edge, without the dwell', () => {
+        setFullscreen(stage);
+        hotZone()?.dispatchEvent(pointerEvent('pointerup'));
+        fixture.detectChanges();
+
+        expect(isOpen()).toBe(true);
+        expect(query('host-list')).not.toBeNull();
+    });
+
+    it('keeps a C-opened panel while the mouse roams the video until it has visited the list', () => {
+        setFullscreen(stage);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }));
+        fixture.detectChanges();
+        expect(isOpen()).toBe(true);
+
+        query('fullscreen-channel-panel-scrim')?.dispatchEvent(
+            pointerEvent('pointerover')
+        );
+        panel()?.dispatchEvent(pointerEvent('pointerleave'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(true);
+
+        panel()?.dispatchEvent(pointerEvent('pointerenter'));
+        panel()?.dispatchEvent(pointerEvent('pointerleave'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(false);
+    });
+
+    it('never closes on a click inside the panel, even where the click target is replaced', () => {
+        setFullscreen(stage);
+        openByHover();
+        const list = query('host-list');
+        if (!list) {
+            throw new Error('host list missing');
+        }
+        // A click that re-renders what was under the pointer: the pointer's
+        // next target is still inside the panel, so no close is scheduled.
+        list.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        panel()?.dispatchEvent(pointerEvent('pointerover'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_CLOSE_GRACE_MS);
+        fixture.detectChanges();
+
+        expect(isOpen()).toBe(true);
     });
 
     it('slides in after the mouse rests on the left edge and stamps the host list', () => {
@@ -463,6 +554,27 @@ describe('FullscreenChannelPanelComponent', () => {
         document.dispatchEvent(
             new KeyboardEvent('keydown', { key: 'c', ctrlKey: true })
         );
+        fixture.detectChanges();
+        expect(isOpen()).toBe(true);
+    });
+
+    it('stays closed after Escape until the resting mouse actually moves', () => {
+        setFullscreen(stage);
+        openByHover();
+
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+        expect(isOpen()).toBe(false);
+
+        // The panel slid out from under the pointer: the browser reports the
+        // hot zone under it again without any movement.
+        hotZone()?.dispatchEvent(pointerEvent('pointerenter'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(false);
+
+        stage.dispatchEvent(pointerEvent('pointermove'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
         fixture.detectChanges();
         expect(isOpen()).toBe(true);
     });

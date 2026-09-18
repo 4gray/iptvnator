@@ -20,8 +20,24 @@
         aria-hidden="true"
         (pointerenter)="onHotZoneEnter($event)"
         (pointerleave)="state.hotZoneLeave()"
-        (pointerup)="onHotZonePointerUp($event)"
-    ></div>
+        (pointerup)="onHotZonePointerUp()"
+    >
+        <!-- Purely visual (the zone itself is the target): a tab that shows
+             where the list lives while the pointer is moving, and lights up
+             while it rests on the edge. Keyboard users have C. -->
+        @if (!state.open()) {
+            <div
+                class="fullscreen-channel-panel__edge-hint"
+                [class.fullscreen-channel-panel__edge-hint--visible]="
+                    state.hintVisible() || state.hotZoneHover()
+                "
+                [class.fullscreen-channel-panel__edge-hint--armed]="
+                    state.hotZoneHover()
+                "
+                data-test-id="fullscreen-channel-panel-edge-hint"
+            ></div>
+        }
+    </div>
 
     <aside
         #panel
