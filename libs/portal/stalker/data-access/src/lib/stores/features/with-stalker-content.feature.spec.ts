@@ -120,6 +120,7 @@ function createItvCacheMock(
     return {
         versionFor: jest.fn(() => version()),
         getChannels: jest.fn(() => channels),
+        isUnsupported: jest.fn(() => false),
         ensureLoaded: jest.fn().mockResolvedValue(undefined),
         refresh: jest.fn().mockResolvedValue(undefined),
         isReady: jest.fn(() => channels !== null),

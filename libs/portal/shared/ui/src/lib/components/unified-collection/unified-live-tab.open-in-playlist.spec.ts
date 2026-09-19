@@ -191,11 +191,39 @@ describe('UnifiedLiveTabComponent open in playlist', () => {
         );
     });
 
-    it('keeps the chip out of the panel for a Stalker channel', async () => {
+    it('offers the chip for a Stalker channel and lands on its ITV section', async () => {
         await activate('stalker');
 
+        expect(chip()).not.toBeNull();
+        (
+            chip().componentInstance as OpenInPlaylistChipComponent
+        ).activated.emit();
+
+        expect(navigate).toHaveBeenCalledWith(
+            ['/workspace', 'stalker', 'pl-3', 'itv'],
+            {
+                state: {
+                    openStalkerLiveItemId: '30',
+                    openStalkerLivePlaylistId: 'pl-3',
+                    openStalkerLiveTitle: 'Stalker Live',
+                    openStalkerLivePoster: 'stalker.png',
+                },
+            }
+        );
+    });
+
+    it('keeps the chip out of the panel for a Stalker radio station', async () => {
+        const item = { ...buildLiveItem('stalker'), radio: 'true' };
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
         expect(component.openInPlaylistTarget()).toBeNull();
-        expect(chip()).toBeNull();
+        const list = fixture.debugElement.query(
+            By.directive(StubGlobalFavoritesListComponent)
+        ).componentInstance as StubGlobalFavoritesListComponent;
+        list.openInPlaylistRequested.emit(list.channels()[0]);
+        expect(navigate).not.toHaveBeenCalled();
     });
 
     it('navigates when a sidebar row asks to open in its playlist', async () => {
@@ -216,7 +244,7 @@ describe('UnifiedLiveTabComponent open in playlist', () => {
     });
 
     it('ignores row requests whose target does not resolve', async () => {
-        const item = buildLiveItem('stalker');
+        const item = { ...buildLiveItem('stalker'), stalkerId: undefined };
         fixture.componentRef.setInput('items', [item]);
         fixture.detectChanges();
         await fixture.whenStable();

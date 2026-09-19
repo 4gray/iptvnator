@@ -33,6 +33,8 @@ import {
     FavoritesChannelSortMode,
     getLiveCollectionPlaylistNavigation,
     LiveEpgPanelState,
+    resolveStalkerLiveGenreId,
+    resolveStalkerProviderId,
     matchesOpenLiveCollectionItem,
     OpenLiveCollectionItemState,
     PORTAL_PLAYER,
@@ -498,6 +500,19 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             tvArchive: item.tvArchive ?? null,
             tvArchiveDuration: item.tvArchiveDuration ?? null,
             tvgId: item.tvgId,
+            // Rows have no stored item to re-check, so only the row's proven
+            // provider id travels; a synthetic list id would open nothing.
+            stalkerId:
+                item.sourceType !== 'stalker'
+                    ? item.stalkerId
+                    : item.stalkerItem == null
+                      ? item.stalkerId
+                      : (resolveStalkerProviderId(item.stalkerItem) ??
+                        undefined),
+            stalkerGenreId:
+                item.sourceType === 'stalker'
+                    ? resolveStalkerLiveGenreId(item)
+                    : undefined,
             stalkerCmd: item.stalkerCmd,
             stalkerPortalUrl: item.stalkerPortalUrl,
             stalkerMacAddress: item.stalkerMacAddress,

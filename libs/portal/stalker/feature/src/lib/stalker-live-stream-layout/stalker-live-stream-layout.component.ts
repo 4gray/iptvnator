@@ -1,6 +1,7 @@
 import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
+    DestroyRef,
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
@@ -138,6 +139,7 @@ function matchesStalkerChannelTerm(
 }
 
 import { StalkerLiveNavigation } from './stalker-live-navigation';
+import { StalkerLiveAutoOpen } from './stalker-live-auto-open';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -605,6 +607,21 @@ export class StalkerLiveStreamLayoutComponent
         loading: () =>
             this.isLoadingMore() ||
             this.stalkerStore.isPaginatedContentLoading(),
+    });
+    /** Arrival handoff: select and play `openStalkerLiveItemId` (see the class). */
+    readonly autoOpen = new StalkerLiveAutoOpen({
+        store: this.stalkerStore,
+        router: inject(Router, { optional: true }),
+        destroyRef: inject(DestroyRef),
+        sidebar: this.liveSidebarStateService,
+        rows: () => this.filteredChannels(),
+        rowsSettled: () =>
+            !this.isInitialChannelsLoading() &&
+            !this.isLoadingMore() &&
+            !this.stalkerStore.isPaginatedContentLoading(),
+        play: (item) => {
+            void this.playChannel(item, true);
+        },
     });
     private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;

@@ -162,9 +162,44 @@ with a return handler keep Back available.
   effect re-runs as the store switches and loads;
   M3U navigates to `/workspace/playlists/:id/all` with `openM3uChannelUrl`
   (`OPEN_M3U_CHANNEL_URL_STATE_KEY`), the same key global search writes and
-  the M3U player selects by URL. Stalker resolves to `null` — its ITV layout
-  has no open-on-arrival contract yet, and a jump that only reached `/itv`
-  would not be the affordance promised — so the action is hidden there.
+  the M3U player selects by URL; Stalker navigates to `/workspace/stalker/:id/itv`
+  with `openStalkerLiveItemId` + `openStalkerLivePlaylistId` (+ the row's
+  genre as `openStalkerLiveCategoryId` when known) from
+  `buildStalkerLiveNavigationTarget`, which `StalkerLiveAutoOpen`
+  (`stalker-live-stream-layout/stalker-live-auto-open.ts`, the Stalker
+  counterpart of the Xtream service + effect) consumes: it reads the state at
+  construction and on every `NavigationEnd`, waits until `currentPlaylist` is
+  the requested portal (channel ids are provider-local, so a colliding id in
+  the previous portal's list must never match), then locates the channel in
+  the full ITV channel list cache — `get_ordered_list` is server-paged, so
+  the row may sit on any page of its genre — selects that genre (`'*'` for a
+  channel without one), expands the rail and plays it. While the list loads it
+  waits (the cache turning ready re-runs the effect); a portal that cannot
+  serve a full list (`itvFullListUnsupported`, the cache's reactive
+  unsupported set), a load that fails transiently (the cache only arms a
+  retry cooldown and changes no signal, so the flow awaits the preload
+  promise and treats "settled, neither ready nor unsupported" as the same
+  outcome) or a channel missing from the list (censored genres are excluded
+  from `get_all_channels`) falls back to selecting the remembered genre, so
+  the user still lands in the right list, and the handoff is consumed either
+  way. That remembered genre is the stored row's `tv_genre_id` (an opaque
+  portal id, numeric on most panels but not all); the row's `categoryId`
+  counts only when it is not a section marker, because app-written
+  favorites/recent rows carry `'itv'` there. Playback is deferred whenever
+  selecting the genre changes the list scope (another genre, the All Items
+  grid — `null`, a different row source from the `'*'` All list — or an
+  active search): `playChannel` → `navigation.prepare` captures the
+  displayed rows as the remote/numeric channel order, and right after
+  `setSelectedCategory` those are still the previous scope's even when they
+  contain the channel. The deferred play fires once the list was re-served —
+  a new array holding the channel, or a load observed after the switch that
+  settled (the `'*'` list is the full cache by reference, so identity alone
+  cannot prove a re-serve; a legacy-paged genre whose first page lacks the
+  row plays with that page) — and is dropped if a newer handoff arrives or
+  the user switches portal, genre or section or starts a search first, or
+  the layout is destroyed. Stalker radio stations resolve to `null`: they live in the separate
+  `radio` section, whose station list is legacy-paged with no
+  open-on-arrival contract, so the action stays hidden for them.
   Two surfaces render the one verdict: `app-open-in-playlist-chip`
   (`libs/portal/shared/ui`), projected into the EPG timeline / list-view
   toolbar through the panels' `[epgToolbarAction]` content slot beside the
