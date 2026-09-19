@@ -247,9 +247,11 @@ export class StalkerLiveAutoOpen {
             : this.pendingCategoryId();
 
         const staleRows = this.options.rows();
+        // Exact comparison: `null` (the All Items grid) and `'*'` (the All
+        // category list) are different row sources.
         const scopeChanged =
             !!category &&
-            ((store.selectedCategoryId() ?? '*') !== category ||
+            (store.selectedCategoryId() !== category ||
                 store.searchPhrase().trim() !== '');
         if (category) {
             store.setSearchPhrase('');
@@ -287,7 +289,7 @@ export class StalkerLiveAutoOpen {
             normalizeStalkerEntityId(store.currentPlaylist()?._id) !==
                 deferred.playlistId ||
             store.selectedContentType() !== 'itv' ||
-            (store.selectedCategoryId() ?? '*') !== deferred.category ||
+            store.selectedCategoryId() !== deferred.category ||
             store.searchPhrase().trim() !== ''
         ) {
             // The user moved on (another portal, genre or section, or

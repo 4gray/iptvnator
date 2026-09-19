@@ -205,6 +205,23 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(channel('31', 7));
     });
 
+    it('defers the jump from the All Items grid into the All category list', () => {
+        // `null` (All Items grid) and '*' (All category) read different rows,
+        // so even a genre-less channel must wait for the re-served list.
+        const noGenre = { id: '30', cmd: 'x', name: 'No genre' };
+        rows.set([noGenre]);
+        store.selectedCategoryId.set(null);
+        store.itvFullChannelList.set([noGenre]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        expect(store.setSelectedCategory).toHaveBeenCalledWith('*');
+        expect(play).not.toHaveBeenCalled();
+
+        serveRows(noGenre);
+        expect(play).toHaveBeenCalledWith(noGenre);
+    });
+
     it('drops the deferred play when the user switches portal first', () => {
         // A genre-less channel targets '*', which a fresh portal's reset
         // (selectedCategoryId null) would otherwise look identical to.
