@@ -1,3 +1,4 @@
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
@@ -397,5 +398,65 @@ describe('EpgTimelineComponent', () => {
         expect(button).not.toBeNull();
         button.click();
         expect(openGuide).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('EpgTimelineComponent toolbar action slot', () => {
+    @Component({
+        imports: [EpgTimelineComponent],
+        template: `
+            <app-epg-timeline [programs]="[]" [collapsed]="collapsed()">
+                <button
+                    epgToolbarAction
+                    type="button"
+                    data-testid="host-action"
+                >
+                    Host action
+                </button>
+            </app-epg-timeline>
+        `,
+    })
+    class HostComponent {
+        readonly collapsed = signal(false);
+    }
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({
+            imports: [HostComponent],
+            providers: [
+                {
+                    provide: MatDialog,
+                    useValue: {
+                        open: () => ({ afterClosed: () => of(undefined) }),
+                    },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                        onLangChange: new BehaviorSubject(null),
+                        onTranslationChange: new BehaviorSubject(null),
+                        onDefaultLangChange: new BehaviorSubject(null),
+                        get: (key: string) => of(key),
+                    },
+                },
+            ],
+        });
+    });
+
+    it('projects [epgToolbarAction] into the toolbar in both panel states', () => {
+        const fixture = TestBed.createComponent(HostComponent);
+        fixture.detectChanges();
+
+        const inToolbar = () =>
+            fixture.nativeElement.querySelector(
+                '.epg-timeline__toolbar [data-testid="host-action"]'
+            );
+        expect(inToolbar()).not.toBeNull();
+
+        fixture.componentInstance.collapsed.set(true);
+        fixture.detectChanges();
+        expect(inToolbar()).not.toBeNull();
     });
 });

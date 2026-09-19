@@ -76,6 +76,19 @@
             <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
         </button>
     }
+    @if (contextMenuCanOpenInPlaylist()) {
+        <button
+            mat-menu-item
+            data-testid="channel-open-in-playlist"
+            (click)="openContextMenuChannelInPlaylist()"
+        >
+            <mat-icon>open_in_new</mat-icon>
+            <span>{{
+                'PORTALS.VIEW_IN_PORTAL_TOOLTIP'
+                    | translate: { name: contextMenuPlaylistName() }
+            }}</span>
+        </button>
+    }
     @if (mode() === 'recent') {
         <button mat-menu-item (click)="removeContextMenuChannel()">
             <mat-icon>delete</mat-icon>

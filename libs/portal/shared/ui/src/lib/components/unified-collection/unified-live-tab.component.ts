@@ -17,6 +17,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     applyChannelNameStrip,
@@ -30,6 +31,7 @@ import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     deriveVisibleFavoriteChannels,
     FavoritesChannelSortMode,
+    getLiveCollectionPlaylistNavigation,
     LiveEpgPanelState,
     matchesOpenLiveCollectionItem,
     OpenLiveCollectionItemState,
@@ -61,6 +63,7 @@ import {
     toLiveEpgPanelSummary,
 } from './unified-live-epg-summary.util';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
+import { OpenInPlaylistChipComponent } from '../open-in-playlist-chip/open-in-playlist-chip.component';
 import { ChannelListHiddenStateComponent } from '../channel-list-hidden-state/channel-list-hidden-state.component';
 import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
 import {
@@ -106,6 +109,7 @@ import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-ses
         MatIconModule,
         MatProgressSpinnerModule,
         ChannelListHiddenStateComponent,
+        OpenInPlaylistChipComponent,
         PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
@@ -156,6 +160,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     private readonly destroyRef = inject(DestroyRef);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
+    private readonly router = inject(Router);
     /** Stream URL of the radio playback whose header override this tab configured. */
     private radioHeaderScopeUrl: string | null = null;
 
@@ -188,6 +193,18 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
      *  portal archive fields (tvArchive/tvArchiveDuration) and to
      *  supply credentials for Xtream catch-up URL resolution. */
     readonly activeItem = signal<UnifiedCollectionItem | null>(null);
+    /**
+     * "Open in playlist" for the channel on screen: the EPG panel chip
+     * renders only while this resolves (Xtream/M3U; Stalker has no
+     * open-on-arrival contract yet). Same verdict the row menu uses.
+     */
+    readonly openInPlaylistTarget = computed(() => {
+        const item = this.activeItem();
+        return item ? getLiveCollectionPlaylistNavigation(item) : null;
+    });
+    readonly openInPlaylistName = computed(() =>
+        playlistDisplayLabel(this.activeItem()?.playlistName)
+    );
     readonly playbackSessionKey = computed(() =>
         createUnifiedLivePlaybackSessionKey(this.activeItem())
     );
@@ -633,6 +650,29 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             } else {
                 this.favoriteToggled.emit(item);
             }
+        }
+    }
+
+    openActiveItemInPlaylist(): void {
+        const item = this.activeItem();
+        if (item) {
+            this.openInPlaylist(item);
+        }
+    }
+
+    onOpenInPlaylistRequested(channel: UnifiedFavoriteChannel): void {
+        const item = this.items().find(
+            (candidate) => candidate.uid === channel.uid
+        );
+        if (item) {
+            this.openInPlaylist(item);
+        }
+    }
+
+    private openInPlaylist(item: UnifiedCollectionItem): void {
+        const target = getLiveCollectionPlaylistNavigation(item);
+        if (target) {
+            void this.router.navigate(target.link, { state: target.state });
         }
     }
 

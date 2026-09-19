@@ -136,6 +136,47 @@ with a return handler keep Back available.
   and those rows keep the history return as well. The marker is set only by this
   builder and only alongside `returnTo`, so the dashboard handoff and every
   other `stalkerReturnTo` caller keeps its re-navigating behaviour.
+- Live channels in the same collections (the unified live tab of global
+  favorites/recent and a portal's own favorites/recent tabs) get the live
+  counterpart of that bridge, "open in playlist". Targets come from
+  `getLiveCollectionPlaylistNavigation()` (`libs/portal/shared/util`), which
+  lands on the channel, never on the playlist root: Xtream reuses
+  `buildXtreamNavigationTarget` and its `openXtreamLiveItemId` state, which
+  `LiveStreamAutoOpenStateService` turns into a selected, playing channel.
+  The layout reads that state once at mount and again on every
+  `NavigationEnd`: arriving from another route, the Xtream shell mounts the
+  layout only after its session bootstrap, i.e. after the arrival's
+  `NavigationEnd`, which a subscription made in the layout can never observe
+  (the handoff used to be silently lost for every cross-route arrival), while
+  the event read still covers re-navigation to the same `/live` route with the
+  component reused. The state also carries `openXtreamLivePlaylistId`: `NavigationEnd` fires
+  before the route session resets the shared `XtreamStore`, so at capture
+  time `liveStreams()` can still be the PREVIOUS playlist's catalog, and the
+  live layout used to read "not in this list" as "channel gone" and drop the
+  handoff (a jump from a collection or global search into another portal then
+  landed on the live root with nothing selected). The layout now consults the
+  catalog at all only once `currentPlaylist()` is the requested playlist —
+  stream ids are provider-local, so a colliding id in the previous catalog
+  would otherwise play the wrong channel — and treats a miss as final only
+  once `isContentInitialized()` is true; until then it keeps waiting and the
+  effect re-runs as the store switches and loads;
+  M3U navigates to `/workspace/playlists/:id/all` with `openM3uChannelUrl`
+  (`OPEN_M3U_CHANNEL_URL_STATE_KEY`), the same key global search writes and
+  the M3U player selects by URL. Stalker resolves to `null` — its ITV layout
+  has no open-on-arrival contract yet, and a jump that only reached `/itv`
+  would not be the affordance promised — so the action is hidden there.
+  Two surfaces render the one verdict: `app-open-in-playlist-chip`
+  (`libs/portal/shared/ui`), projected into the EPG timeline / list-view
+  toolbar through the panels' `[epgToolbarAction]` content slot beside the
+  channel name (the "where is this from" answer sits on the now-playing
+  surface and survives the collapsed state; it is absent for radio, which
+  has no EPG panel, and without EPG support), and an "Open in <playlist>"
+  entry in `app-global-favorites-list`'s row context menu
+  (`openInPlaylistRequested`), which also covers radio rows and rows that
+  are not playing. Both label with `playlistDisplayLabel` (a stored playlist
+  name can be a URL carrying credentials) and reuse
+  `PORTALS.VIEW_IN_PORTAL_TOOLTIP`; `UnifiedLiveTabComponent` performs the
+  navigation. A row whose target does not resolve shows neither.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 
