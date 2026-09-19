@@ -1671,6 +1671,23 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
 
 - Per-playlist favorites and global favorites
 - Recently viewed tracks watch history
+- Live channels in the unified favorites/recent live tab (global collections
+  and a portal's own tabs) carry the live counterpart of the VOD "View in
+  portal" handoff: `getLiveCollectionPlaylistNavigation()`
+  (`libs/portal/shared/util`) resolves the channel INSIDE its playlist —
+  Xtream via `buildXtreamNavigationTarget` + `openXtreamLiveItemId` (the live
+  layout's auto-open service plays it), M3U via `/workspace/playlists/:id/all`
+  + `openM3uChannelUrl` (the player selects it by URL); Stalker resolves to
+  `null` until its ITV layout gets an open-on-arrival contract, so the
+  affordance is hidden there rather than landing on the section root. Two
+  surfaces share that verdict: `app-open-in-playlist-chip`
+  (`libs/portal/shared/ui`), projected into the EPG timeline/list-view
+  toolbars through their `[epgToolbarAction]` slot beside the channel name
+  (visible collapsed too; absent for radio and without EPG support), and an
+  "Open in <playlist>" row in `app-global-favorites-list`'s context menu
+  (`openInPlaylistRequested`), which also covers radio rows. Both label with
+  `playlistDisplayLabel` and reuse `PORTALS.VIEW_IN_PORTAL_TOOLTIP`; the tab
+  navigates. Contract: `docs/architecture/portal-detail-navigation.md`.
 
 **Internationalization**:
 
