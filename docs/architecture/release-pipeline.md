@@ -276,6 +276,24 @@ References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-
 [AppManager desktop parser](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/desktop_entry.vala),
 [AppManager updater](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/updater.vala).
 
+## Rolling test drafts
+
+Every non-fork PR build publishes its artifacts to a rolling **draft** release
+tagged `test-pr-<n>`; a non-PR, non-tag build (a dispatch on a branch) uses
+`test-<branch>`, the shape master pushes used before the nightly channel took
+over. The tag is stable per PR, so the draft is updated in place and a PR has
+at most one.
+
+`cleanup-pr-draft.yml` deletes a PR's draft when the PR closes. That event is
+the fast path, not a guarantee: GitHub does not run a `pull_request: closed`
+workflow when the head ref is already gone at event time, which is what
+Dependabot does when it supersedes one of its own PRs — 15 drafts were
+orphaned that way before this was noticed. A daily scheduled sweep in the same
+workflow (also runnable with `gh workflow run cleanup-pr-draft.yml`) therefore
+lists every `test-pr-<n>` draft, asks GitHub for that PR's live state, and
+deletes the draft only when the PR is closed; anything else — an open PR, a
+lookup failure, a `test-<branch>` draft — is left alone.
+
 ## Nightly channel
 
 Every push to `master` of `4gray/iptvnator` is also a nightly. The same
