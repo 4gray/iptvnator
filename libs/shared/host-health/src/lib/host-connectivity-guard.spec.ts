@@ -37,16 +37,17 @@ describe('classifyHostRequestFailure', () => {
         }
     });
 
-    it('reads a timeout after an accepted connection as inconclusive, not host-level', () => {
+    it('reads a timeout after an accepted connection as an answer, not a host-level failure', () => {
         // axios raises the same code whether the SYN went unanswered or the
         // panel accepted the connection and then thought for longer than
-        // the budget. Only the former is a dead host.
+        // the budget. Only the former is a dead host; the latter proved the
+        // host reachable and clears the streak like any response.
         for (const code of ['ECONNABORTED', 'ETIMEDOUT']) {
             expect(
                 classifyHostRequestFailure(timeoutError(code), {
                     connected: true,
                 })
-            ).toBe('inconclusive');
+            ).toBe('responded');
             expect(
                 classifyHostRequestFailure(timeoutError(code), {
                     connected: false,

@@ -104,10 +104,9 @@ export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
  *
  * `connected` is the transport's word that the endpoint accepted the TCP
  * connection (`ValidatedAxiosRequestConfig.onConnect`). A timeout after that
- * is a slow panel, not a dead one, and is reported inconclusive — see
- * `classifyHostRequestFailure`. Redirect attribution is checked first: a chain
- * that reached a later hop proves the guarded endpoint answered outright,
- * which outranks merely not counting the failure.
+ * is a slow panel, not a dead one, and clears the streak like a response —
+ * see `classifyHostRequestFailure`. Redirect attribution is checked first so
+ * an exempt probe's redirect evidence is not lost behind the exemption.
  */
 export function reportGuardedHostFailure(
     token: HostRequestToken | null,

@@ -89,6 +89,50 @@ describe('host connectivity guard against a real socket', () => {
         });
     });
 
+    it('lets an accepted-but-silent request clear a refused one, so refuse/accept/refuse is not a streak', async () => {
+        // One origin that flaps: nothing listening, then a listener that
+        // accepts and never answers, then nothing listening again. The
+        // middle request proved the host alive, so the two refusals around
+        // it are not two consecutive failures.
+        const server = createServer(() => undefined);
+        await new Promise<void>((resolve) =>
+            server.listen(0, '127.0.0.1', resolve)
+        );
+        const port = (server.address() as AddressInfo).port;
+        const origin = `http://127.0.0.1:${port}`;
+        const stop = () =>
+            new Promise<void>((resolve) => {
+                server.closeAllConnections();
+                server.close(() => resolve());
+            });
+        await stop();
+        try {
+            expect(await guardedRequest(origin)).toBe('ECONNREFUSED');
+
+            await new Promise<void>((resolve) =>
+                server.listen(port, '127.0.0.1', resolve)
+            );
+            expect(await guardedRequest(origin)).toBe('ECONNABORTED');
+            await stop();
+
+            expect(await guardedRequest(origin)).toBe('ECONNREFUSED');
+            expect(() =>
+                releaseGuardedHostRequest(
+                    beginGuardedHostRequest(`${origin}/player_api.php`)
+                )
+            ).not.toThrow();
+            expect(consoleWarnSpy).not.toHaveBeenCalled();
+
+            // A second refusal in a row is a streak again.
+            expect(await guardedRequest(origin)).toBe('ECONNREFUSED');
+            expect(() =>
+                beginGuardedHostRequest(`${origin}/player_api.php`)
+            ).toThrow(/not responding/);
+        } finally {
+            await stop().catch(() => undefined);
+        }
+    });
+
     it('still opens for a host that never accepts the connection', async () => {
         const origin = await withSilentServer(async (origin) => origin);
 

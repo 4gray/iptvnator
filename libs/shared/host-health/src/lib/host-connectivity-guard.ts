@@ -115,6 +115,12 @@ export type HostConnectivityCheck =
     | { readonly allowed: true; readonly token: HostRequestToken }
     | { readonly allowed: false; readonly retryAfterMs: number };
 
+/**
+ * `responded`: the endpoint answered — an HTTP response of any status, or an
+ * accepted TCP connection that then timed out (see
+ * {@link classifyHostRequestFailure}). `host-level`: the host never answered.
+ * `inconclusive`: the failure says nothing about reachability.
+ */
 export type HostRequestOutcome = 'responded' | 'host-level' | 'inconclusive';
 
 interface HostState {
@@ -172,8 +178,12 @@ export interface HostRequestFailureContext {
  * heavy `get_vod_info` on a busy home server) accepts every connection, and
  * tripping the breaker on it turns "slow" into thirty seconds of "not
  * responding" for every request — the reported symptom. So a host-level
- * code observed after the handshake is `inconclusive`: it neither counts
- * towards the streak nor clears it. The remaining codes cannot occur once a
+ * code observed after the handshake reads as `responded`: the endpoint
+ * demonstrably accepted a connection, which is the reachability the guard
+ * measures, and it clears the streak like an HTTP response would. Merely not
+ * counting it would let an unanswered SYN, an accepted-but-slow request and
+ * another unanswered SYN add up to a trip although the middle one proved
+ * the host alive in between. The remaining codes cannot occur once a
  * connection exists, so the rule costs nothing for them.
  */
 export function classifyHostRequestFailure(
@@ -190,7 +200,7 @@ export function classifyHostRequestFailure(
 
     const code = (error as { code?: unknown }).code;
     if (typeof code === 'string' && HOST_LEVEL_FAILURE_CODES.has(code)) {
-        return context.connected ? 'inconclusive' : 'host-level';
+        return context.connected ? 'responded' : 'host-level';
     }
 
     return 'inconclusive';

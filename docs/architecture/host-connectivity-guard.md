@@ -109,7 +109,7 @@ errs towards contacting the host:
 | Trip        | 2 consecutive host-level failures within an inclusive 120 s window     |
 | Open for    | 30 s (`OPEN_DURATION_MS`), matching the repo's other cooldowns         |
 | Half-open   | exactly ONE trial request; the rest keep fast-failing until it settles |
-| Reset       | any HTTP response — 200, 404, even 502 — the host answered             |
+| Reset       | any HTTP response — 200, 404, even 502 — or an accepted TCP connection |
 | Key         | `URL.origin` — scheme, host **and** port (see below)                   |
 | Kill switch | `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` (read per call)               |
 
@@ -133,12 +133,13 @@ own agent, observed via `observeAgentSocketConnections`, instead of the shared
 keep-alive `globalAgent`; a pooled socket that is already connected counts as
 connected), the web backend through `WebBackendHttpGetOptions.onConnect`,
 honoured by `ProviderAxiosTransport`, which owns the `ClientRequest` — and
-`classifyHostRequestFailure(error, { connected })` downgrades a host-level
-code to `inconclusive` when it is set. Redirect attribution is evaluated
-before this rule: a chain that reached a later hop proves the guarded
-endpoint answered outright, which outranks merely not counting the failure.
-Such a request still costs its full timeout; the guard only stops charging it
-to the host. Regression coverage:
+`classifyHostRequestFailure(error, { connected })` reads a host-level code
+as `responded` when it is set: the endpoint accepted a connection, which is
+the reachability the guard measures, so it CLEARS the streak like an HTTP
+response. Merely declining to count it would let an unanswered SYN, an
+accepted-but-slow request and another unanswered SYN add up to a trip although
+the middle request proved the host alive in between. Such a request still
+costs its full timeout; the guard only stops charging it to the host. Regression coverage:
 `apps/electron-backend/src/app/util/host-connectivity-guard.slow-host.spec.ts`
 (real loopback sockets) and the Xtream mock's `silent` scenario, whose
 `get_vod_info` / `get_series_info` accept the connection and never answer.

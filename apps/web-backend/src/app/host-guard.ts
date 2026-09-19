@@ -191,7 +191,8 @@ export function reportProviderRequestFailure(
         /**
          * The transport's word that the provider accepted the TCP connection
          * (`WebBackendHttpGetOptions.onConnect`). A timeout after that is a
-         * slow provider, not a dead one — see `classifyHostRequestFailure`.
+         * slow provider, not a dead one, and clears the streak like a
+         * response — see `classifyHostRequestFailure`.
          */
         connected?: boolean;
     } = {}
