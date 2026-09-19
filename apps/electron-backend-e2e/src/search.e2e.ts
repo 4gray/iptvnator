@@ -1540,8 +1540,8 @@ async function addCurrentDetailToFavorites(page: Page): Promise<void> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: browse uses the sticky Back, watch uses the
-    // now-playing bar's direct Back (the sticky watch action is Close player).
+    // Return to the list: the shell's sticky Back is route-level in browse
+    // and watch alike (closing the player is the bar's own Close button).
     const backButton = page
         .locator('app-portal-detail-shell')
         .first()

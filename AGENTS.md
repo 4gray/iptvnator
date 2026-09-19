@@ -338,9 +338,10 @@ row Enter/Space activation stays separate from focus movement. Portal Live TV
 uses ArrowRight from the selected category and ArrowLeft from the channels
 pane to move between columns. Shared live sidebars reserve scrollbar space
 beside the resize handle. `PortalDetailShellComponent` owns a visible native
-scrollbar and guarded initial page focus. Its sticky control and Escape close
-inline playback to browse, then invoke the host's existing Back action; the
-now-playing bar retains its separate direct route Back. Browse Escape requires
+scrollbar and guarded initial page focus. Its one sticky arrow is the host's
+Back action in browse and watch alike; only Escape unwinds one level (close
+inline playback to browse, then Back), and the now-playing bar's Close button
+is the pointer way back to browse. Browse Escape requires
 focus inside the shell; watch preserves the global close shortcut. Menus,
 dialogs, fullscreen, editable fields, repeats and hidden/inert surfaces retain
 their keys. M3U and collection bootstrap shells set `backAvailable=false` when

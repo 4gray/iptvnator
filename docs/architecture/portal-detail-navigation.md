@@ -30,10 +30,14 @@ The button has an opaque app-themed surface, visible keyboard focus, an Escape
 shortcut hint via native `title` and Electron `no-drag` hit testing. The hint
 does not create an overlay that could consume the first Escape press.
 
-The sticky control and Escape unwind one level: watch emits
-`closePlayerRequested`, browse emits `backClicked`. Hosts retain their existing
-route/inline/collection return behavior. The now-playing bar's separate route
-Back action still returns directly to the list. Browse Escape requires focus
+The sticky control is route-level Back in both states: it emits `backClicked`
+whether or not inline playback is active, so the arrow keeps one meaning and
+the list is one click away while watching. Only Escape unwinds one level: watch
+emits `closePlayerRequested`, browse emits `backClicked`. Hosts retain their
+existing route/inline/collection return behavior. The now-playing bar carries
+no second arrow; its "Close player" button is the pointer counterpart of the
+watch Escape (two arrows with different meanings, and two controls for one
+action, were the pre-#1576 confusion this replaces). Browse Escape requires focus
 inside this shell; watch keeps the existing global close shortcut, including
 M3U playback started from its sidebar. Handled events, key repeats/modifiers,
 editable fields, inert/hidden shells, fullscreen, dialogs and menus are ignored.
@@ -41,13 +45,15 @@ Escape bubbles through the shell before Material's body-level tooltip dispatcher
 so focused detail actions return with one press even while their tooltip is open.
 The document listener remains the outside-shell watch fallback; `defaultPrevented`
 prevents duplicate actions and preserves descendant handlers' priority.
-After closing a player, lost focus moves to the sticky control (or the shell
-when there is no browse Back), without scrolling or stealing existing focus.
+After Escape closes a player, lost focus moves to the sticky control (or the
+shell when there is no browse Back), without scrolling or stealing existing
+focus.
 
 Hosts without browse navigation set `backAvailable=false`: M3U uses its channel
 sidebar, and collection bootstrap placeholders have no return handler. They
-have no browse button or browse Escape action; M3U watch still offers Close
-player. Loading/error shells with a return handler keep Back available.
+render no sticky arrow in either state and have no browse Escape action; their
+watch exits are the bar's Close player button and Escape. Loading/error shells
+with a return handler keep Back available.
 
 ## Summary
 
@@ -55,9 +61,9 @@ player. Loading/error shells with a return handler keep Back available.
 - Stalker uses an inline/store-state detail model.
 - Detail pages themselves are two-state (browse ↔ watch) inside
   `PortalDetailShellComponent`; entering/leaving watch is a layout state,
-  not a navigation. Route-level back semantics are unchanged; the
-  sticky watch control closes the inline player, while the now-playing bar
-  retains its separate direct return to the list. See
+  not a navigation. Route-level back semantics are unchanged; the one
+  sticky arrow returns to the list from either state, while Escape and the
+  now-playing bar's Close button close the inline player. See
   [Embedded Inline Playback](./embedded-inline-playback.md).
 - Favorites and recently viewed collections now use collection-owned inline detail
   for non-live Xtream and Stalker items.

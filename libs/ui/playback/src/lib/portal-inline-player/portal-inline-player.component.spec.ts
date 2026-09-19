@@ -252,33 +252,24 @@ describe('PortalInlinePlayerComponent', () => {
         });
     });
 
-    it('emits backClicked (not closed) from the back button in the now-playing bar', () => {
-        let backCount = 0;
-        let closedCount = 0;
+    it('offers no back arrow in the now-playing bar: leaving the page belongs to the detail shell', () => {
         fixture.componentRef.setInput('playback', {
             streamUrl: 'https://example.test/vod/1.mp4',
             title: 'Movie',
         });
-        (
-            component as unknown as {
-                backClicked: { subscribe: (fn: () => void) => void };
-            }
-        ).backClicked.subscribe(() => backCount++);
-        (
-            component as unknown as {
-                closed: { subscribe: (fn: () => void) => void };
-            }
-        ).closed.subscribe(() => closedCount++);
-
         fixture.detectChanges();
 
-        const backButton = fixture.nativeElement.querySelector(
-            '[data-testid="inline-player-back"]'
-        ) as HTMLButtonElement;
-        expect(backButton).toBeTruthy();
-        backButton.click();
-        expect(backCount).toBe(1);
-        expect(closedCount).toBe(0);
+        const header = fixture.nativeElement.querySelector(
+            '.player-shell__header'
+        ) as HTMLElement;
+        expect(header).toBeTruthy();
+        expect(header.querySelector('.player-shell__back')).toBeNull();
+        expect(
+            Array.from(header.querySelectorAll('mat-icon')).map((icon) =>
+                icon.textContent?.trim()
+            )
+        ).not.toContain('arrow_back');
+        expect('backClicked' in component).toBe(false);
     });
 
     describe('with strip country prefix enabled', () => {
