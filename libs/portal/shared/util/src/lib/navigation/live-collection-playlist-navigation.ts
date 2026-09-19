@@ -1,4 +1,5 @@
 import {
+    buildStalkerLiveNavigationTarget,
     buildXtreamNavigationTarget,
     WorkspaceNavigationTarget,
 } from './workspace-portal-navigation';
@@ -25,6 +26,14 @@ export interface LiveCollectionPlaylistNavigationSource {
     logo?: string | null;
     xtreamId?: number | null;
     streamUrl?: string;
+    /** Stalker channel id (`UnifiedCollectionItem.stalkerId`). */
+    stalkerId?: string | number | null;
+    /** Stalker: the channel's genre, the fallback list when it cannot be located. */
+    categoryId?: string | number | null;
+    /** Stalker: the stored row, read for `tv_genre_id` when `categoryId` is absent. */
+    stalkerItem?: unknown;
+    /** `'true'` for radio stations, which live in a different Stalker section. */
+    radio?: string;
 }
 
 /**
@@ -34,14 +43,15 @@ export interface LiveCollectionPlaylistNavigationSource {
  * The target is the channel itself, not the playlist root: Xtream lands on
  * the live layout with `openXtreamLiveItemId`, which its auto-open state
  * service turns into a playing, selected channel; M3U lands on the player's
- * `all` view with `openM3uChannelUrl`, which selects the channel by URL.
- * Stalker returns `null` for now — its ITV layout has no open-on-arrival
- * contract yet, and a jump that only reached the section root would not be
- * the affordance this promises.
+ * `all` view with `openM3uChannelUrl`, which selects the channel by URL;
+ * Stalker lands on the ITV section with `openStalkerLiveItemId`, which
+ * `StalkerLiveAutoOpen` resolves through the full channel list cache. Stalker
+ * radio stations return `null`: they live in the separate `radio` section,
+ * whose station list is legacy-paged and has no open-on-arrival contract.
  *
  * Like `getUnifiedCollectionDetailNavigation`, this never degrades to a
- * playlist-only route: without a positive stream id (Xtream) or a stream URL
- * (M3U) the caller is expected to hide the action.
+ * playlist-only route: without a positive stream id (Xtream), a stream URL
+ * (M3U) or a channel id (Stalker) the caller is expected to hide the action.
  */
 export function getLiveCollectionPlaylistNavigation(
     source: LiveCollectionPlaylistNavigationSource
@@ -82,5 +92,30 @@ export function getLiveCollectionPlaylistNavigation(
         };
     }
 
+    if (source.sourceType === 'stalker') {
+        if (source.radio === 'true') {
+            return null;
+        }
+
+        return buildStalkerLiveNavigationTarget({
+            playlistId,
+            itemId: source.stalkerId,
+            categoryId:
+                source.categoryId ?? stalkerItemGenre(source.stalkerItem),
+            title: source.name,
+            imageUrl: source.logo ?? null,
+        });
+    }
+
     return null;
+}
+
+function stalkerItemGenre(item: unknown): string | number | null {
+    if (!item || typeof item !== 'object') {
+        return null;
+    }
+    const genre = (item as { tv_genre_id?: unknown }).tv_genre_id;
+    return typeof genre === 'string' || typeof genre === 'number'
+        ? genre
+        : null;
 }

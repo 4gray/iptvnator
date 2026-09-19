@@ -753,6 +753,10 @@ export function withStalkerContent() {
                 itvFullListLoading: computed(() =>
                     itvCache.isLoading(storeContext.currentPlaylist())
                 ),
+                /** True once the portal proved it cannot serve a full list this session. */
+                itvFullListUnsupported: computed(() =>
+                    itvCache.isUnsupported(storeContext.currentPlaylist())
+                ),
                 itvFullListProgress: computed(() =>
                     itvCache.progressOf(storeContext.currentPlaylist())
                 ),

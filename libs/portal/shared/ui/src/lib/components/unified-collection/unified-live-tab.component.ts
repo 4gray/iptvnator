@@ -498,6 +498,7 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             tvArchive: item.tvArchive ?? null,
             tvArchiveDuration: item.tvArchiveDuration ?? null,
             tvgId: item.tvgId,
+            stalkerId: item.stalkerId,
             stalkerCmd: item.stalkerCmd,
             stalkerPortalUrl: item.stalkerPortalUrl,
             stalkerMacAddress: item.stalkerMacAddress,

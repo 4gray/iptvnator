@@ -251,12 +251,14 @@ describe('StalkerItvCacheService', () => {
             page: () => pageOf([], 0),
         });
 
+        expect(service.isUnsupported(PLAYLIST)).toBe(false);
         await service.ensureLoaded(PLAYLIST);
         const callsAfterFirstAttempt = sendIpcEvent.mock.calls.length;
 
         await service.ensureLoaded(PLAYLIST);
 
         expect(service.isReady(PLAYLIST)).toBe(false);
+        expect(service.isUnsupported(PLAYLIST)).toBe(true);
         expect(sendIpcEvent.mock.calls.length).toBe(callsAfterFirstAttempt);
     });
 

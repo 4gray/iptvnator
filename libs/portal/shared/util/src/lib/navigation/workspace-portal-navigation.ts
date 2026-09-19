@@ -20,6 +20,12 @@ export interface WorkspaceNavigationTarget {
 }
 
 export const OPEN_LIVE_COLLECTION_ITEM_STATE_KEY = 'openLiveCollectionItem';
+/** Stalker ITV arrival: the channel to select and play (consumed by the live layout). */
+export const OPEN_STALKER_LIVE_ITEM_STATE_KEY = 'openStalkerLiveItemId';
+export const OPEN_STALKER_LIVE_PLAYLIST_STATE_KEY = 'openStalkerLivePlaylistId';
+export const OPEN_STALKER_LIVE_CATEGORY_STATE_KEY = 'openStalkerLiveCategoryId';
+export const OPEN_STALKER_LIVE_TITLE_STATE_KEY = 'openStalkerLiveTitle';
+export const OPEN_STALKER_LIVE_POSTER_STATE_KEY = 'openStalkerLivePoster';
 export const OPEN_COLLECTION_DETAIL_STATE_KEY = 'openCollectionDetailItem';
 export const OPEN_STALKER_ITEM_STATE_KEY = 'openStalkerItem';
 export const STALKER_RETURN_TO_STATE_KEY = 'stalkerReturnTo';
@@ -191,6 +197,40 @@ export function buildXtreamNavigationTarget(params: {
             openXtreamLivePlaylistId: params.playlistId,
             openXtreamLiveTitle: params.title || '',
             openXtreamLivePoster: params.imageUrl || '',
+        },
+    };
+}
+
+/**
+ * Lands on a Stalker live channel inside its portal's ITV section. The
+ * layout locates the channel through the full ITV channel list, scoped to
+ * `playlistId` (channel ids are provider-local); `categoryId` is the
+ * fallback list to open when the channel cannot be located.
+ */
+export function buildStalkerLiveNavigationTarget(params: {
+    playlistId: string;
+    itemId: string | number | null | undefined;
+    categoryId?: string | number | null;
+    title?: string;
+    imageUrl?: string | null;
+}): WorkspaceNavigationTarget | null {
+    const playlistId = toPathSegment(params.playlistId);
+    const itemId = toPathSegment(params.itemId);
+    if (!playlistId || !itemId) {
+        return null;
+    }
+
+    const categoryId = toPathSegment(params.categoryId);
+    return {
+        link: ['/workspace', 'stalker', playlistId, 'itv'],
+        state: {
+            [OPEN_STALKER_LIVE_ITEM_STATE_KEY]: itemId,
+            [OPEN_STALKER_LIVE_PLAYLIST_STATE_KEY]: playlistId,
+            ...(categoryId
+                ? { [OPEN_STALKER_LIVE_CATEGORY_STATE_KEY]: categoryId }
+                : {}),
+            [OPEN_STALKER_LIVE_TITLE_STATE_KEY]: params.title || '',
+            [OPEN_STALKER_LIVE_POSTER_STATE_KEY]: params.imageUrl || '',
         },
     };
 }

@@ -41,7 +41,48 @@ describe('getLiveCollectionPlaylistNavigation', () => {
         });
     });
 
-    it('hides the action for Stalker rows until their ITV layout can open a channel', () => {
+    it('opens a Stalker channel inside its portal ITV section, remembering its genre', () => {
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                contentType: 'live',
+                name: 'Stalker Live',
+                logo: 'stalker.png',
+                stalkerId: 30,
+                stalkerItem: { tv_genre_id: 7 },
+            })
+        ).toEqual({
+            link: ['/workspace', 'stalker', 'pl-3', 'itv'],
+            state: {
+                openStalkerLiveItemId: '30',
+                openStalkerLivePlaylistId: 'pl-3',
+                openStalkerLiveCategoryId: '7',
+                openStalkerLiveTitle: 'Stalker Live',
+                openStalkerLivePoster: 'stalker.png',
+            },
+        });
+        // An explicit category wins over the stored row's genre.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: '5',
+                stalkerItem: { tv_genre_id: 7 },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('5');
+    });
+
+    it('hides the action for Stalker radio stations and rows without a channel id', () => {
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: 30,
+                radio: 'true',
+            })
+        ).toBeNull();
         expect(
             getLiveCollectionPlaylistNavigation({
                 sourceType: 'stalker',
