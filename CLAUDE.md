@@ -110,7 +110,7 @@ pnpm nx show projects
   must receive the temporary keychain's own password, not the `.p12` import
   password. macOS runner images since `macos-26-arm64` 20260831 verify that
   password, and `Build on macos arm64` failed with `SecKeychainUnlock: The user
-name or passphrase you entered is not correct`. Keep the patch until
+  name or passphrase you entered is not correct`. Keep the patch until
   electron-builder resolves an `app-builder-lib` containing the fix (26.16.1+),
   and run `pnpm run deps:electron-builder:test` after related dependency
   updates — the test fails when the patched version no longer matches the
@@ -1563,7 +1563,7 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
 - A successful external MPV/VLC episode launch immediately persists the selected episode as the latest playback-position entry and retargets the series CTA to `Play episode N`; real player telemetry overwrites that marker when available, so episode identity is reliable while exact external timestamps remain best-effort.
 - Stalker preserves this contract for regular `/series`, embedded VOD `series[]`, and lazy Ministra VOD `is_series` items; `is_series` is normalized only from `true`, `1`, or `'1'`. Quick-start translation parameters must reach the CTA, and inline/external episode handoffs must include the parent series id plus resolved season and episode numbers. Single-season title markers correct both displayed and playback season coordinates; lazy VOD retains the original provider season key/number for stable IDs and old progress. Lazy VOD episode tracking IDs scope the parent series, provider episode, original season key, and episode number; the previous season/episode hash is only a compatibility alias. Exact scoped positions win, while compatible legacy rows are considered only for the current parent and must match the episode and either its resolved or retained original provider season. The scoped row is persisted through the strict failure-propagating boundary before confirmed legacy cleanup, so a failed save keeps the old row; compatibility is lazy and performs no schema migration or bulk rewrite. Season resources ignore metadata-only selection patches, and episode responses belong to the exact loading VM so navigation cannot mix episode lists.
 - Hosts pass hero chips/meta/actions as `*appDetailTags`/`*appDetailMeta`/`*appDetailActions` templates; the shell stamps them into both the hero and the About block
-- Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → earliest season with unwatched episodes → latest non-empty season; Stalker lazy-VOD series with unhydrated seasons fall back to the first season, and a session's own watched-toggle echo never re-resolves the selection) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream, provider-first with URL-only junk filtered by `sanitizeProviderOverview` and a TMDB season-overview fallback stored as `tmdb_season_overviews` by the lazy season enrichment) or TMDB (Stalker). The tabs sit in a season card with the selected season's own **season cover** on the left (`SeasonContainerComponent.seasonPosters`, keyed like the descriptions; TMDB-first: `tmdb_season_posters` written by the same lazy season enrichment as a `w342` `tmdbSeasonPosterUrl`, then Xtream's provider `seasons[].cover_big`/`cover` when it is an http(s) URL other than the show poster — `buildSeasonPosters` in `serial-details/season-posters.util.ts`; Stalker is TMDB-only via `StalkerSeriesTmdbSeasonsService.posters()`). Sized by `--season-cover-width`; the column is not rendered for one-season items, seasons without a poster, or a failed image, so those cases are today's markup. The hero poster never follows the season. The fullscreen episode panel shows the same poster as a season strip (poster + name + episode count) above its tabs, fed through `PortalInlinePlayerComponent.seasonPosters` and `FullscreenEpisodePanelSeason.posterUrl`, under the same gates
+- Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → earliest season with unwatched episodes → latest non-empty season; Stalker lazy-VOD series with unhydrated seasons fall back to the first season, and a session's own watched-toggle echo never re-resolves the selection) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream, provider-first with URL-only junk filtered by `sanitizeProviderOverview` and a TMDB season-overview fallback stored as `tmdb_season_overviews` by the lazy season enrichment) or TMDB (Stalker). The tabs sit in a season card with the selected season's own **season cover** on the left (`SeasonContainerComponent.seasonPosters`, keyed like the descriptions; TMDB-first: `tmdb_season_posters` written by the same lazy season enrichment as a `w342` `tmdbSeasonPosterUrl`, then Xtream's provider `seasons[].cover_big`/`cover` when it is a trimmed http(s) URL other than the show poster — `buildSeasonPosters` in `serial-details/season-posters.util.ts`; Stalker is TMDB-only via `StalkerSeriesTmdbSeasonsService.posters()`). Sized by `--season-cover-width`; the column is not rendered for one-season items, seasons without a poster, or a failed image, so those cases are today's markup. The hero poster never follows the season. The fullscreen episode panel shows the same poster as a season strip (poster + name + episode count) above its tabs, fed through `PortalInlinePlayerComponent.seasonPosters` and `FullscreenEpisodePanelSeason.posterUrl`, under the same gates
 - The season header hosts a bulk watched toggle next to "Download season" (both portals): marking writes full-progress position rows for the unwatched episodes only — skipping the episode currently playing/launching, whose position ticks would overwrite the row — and a fully watched season flips the action to unwatch-all (`buildSeasonWatchToggleRequest` in `libs/ui/components/.../season-watch-toggle.util.ts`). Xtream persists via the batch IPC `DB_SAVE/CLEAR_PLAYBACK_POSITIONS_BATCH` (one SQLite transaction; the PWA data source rewrites its localStorage blob once) and refreshes `XtreamStore.loadAllPositions` after any toggle so catalog progress badges follow; Stalker loops the serialized position-mutation queue (legacy-row reconciliation, one coalesced reload) and reports direction-specific partial failures. A batch resolving after navigation neither mutates the new page's state nor shows its snackbar. A series-level counterpart sits in a `⋮` menu at the end of the header row (`SeasonWatchPresenter` owns both scopes' state math; `buildSeriesWatchToggleRequest` flattens every loaded season; the direction is always the one the label advertised). It reuses the same host machinery per portal (Xtream: scope-parameterized `SerialDetailsSeasonWatchService`; Stalker: shared `runWatchToggleBatch` core). Stalker lazy-VOD hydrates unloaded seasons sequentially first (abort with zero writes on a failed fetch; a well-formed EMPTY portal answer marks the season loaded-and-empty via `VodSeriesSeasonVm.episodesLoaded` rather than eternally pending, while `fetchVodSeriesEpisodes` rejects malformed envelopes and answers without recognizable episodes; `loadEpisodesForSeason` is single-flight per season so concurrent callers join one request), re-runs the position reconcile synchronously so hydrated episodes' legacy rows are cleaned, then rebuilds the request keeping the clicked direction — the `hasUnloadedSeasons` container input blocks the unwatch verdict and the count label until everything is loaded. Contract: `docs/architecture/embedded-inline-playback.md`
 - Movies get the same manual toggle in the detail action row (Xtream: icon square after Favorite, `VodDetailsWatchedService`; Stalker: labelled button in the shared `app-vod-details`, both the routed catalog detail and the collection inline detail wire it). Both portals go through one helper, `createVodWatchedToggle` in `@iptvnator/portal/shared/util`: marking writes a full-progress `vod` position row (stored duration → provider `duration_secs` → 1 s fallback, since Stalker states no runtime), unmarking deletes the row and so forgets the resume point, both through the rejecting `*OrThrow` persistence boundary so the row on screen changes only after a confirmed write. The toggle is disabled while the movie plays inline or in an external session (the ~15 s position tick would overwrite the row), acts only on the route copy's row (a pinned multi-source alternative keeps its own), and a completion landing after navigation refreshes the catalog badges but neither patches the new page nor shows its snackbar. A watched copy shows Play, never "Resume" from its final seconds. Catalog cards on both portals derive their corner badge from one shared `PortalWatchState` (`resolvePortalWatchState` / `watchStateFromProgressPercent`, 90% threshold; `resolvePortalSeriesWatchState` reports a series as at most `in-progress`, because the list payload never carries the episode total).
 - The dashboard hero CTA and the Continue Watching cards' explicit "Resume episode" ⋮ action for an Xtream series carry a one-shot resume target through the global-recent inline-detail handoff; after series metadata and playback positions load, the exact saved episode starts at its stored position. A failed positions load leaves the target unconsumed and the handoff detail-only, so a transient storage error never starts the episode from the beginning. Continue Watching cards' DEFAULT click is detail-only (movie-like, issue #1441), and their ⋮ menu (`buildDashboardContinueWatchingActions`) also offers "Mark as Watched" (maxes out the existing position row via `DashboardDataService.markRecentItemWatched`) and "Remove from history". Ordinary global-recent grid clicks remain detail-only.
@@ -1869,31 +1869,30 @@ preventing destination failures from penalizing the initial endpoint. Contracts:
 Portal live layouts (Xtream `live`, Stalker `itv`/`radio`) fold their panels
 from the outside in, in three nested levels owned by `LiveSidebarState`
 (`@iptvnator/portal/shared/util`): `expanded` (categories rail + channels rail
-
-- player), `categories-hidden` (channels rail + player) and `collapsed`
-  (player only). `LiveLayoutSidebarStateService` is the single source of truth, per
-  surface (`m3u` / `portal` / `collection`; the levels apply to `portal`); the
-  shell context sidebar folds the categories rail on
-  `areCategoriesHiddenFor('portal')` (at level 2 only while the portal store has
-  a selected category — the live root has no channels header to host the way
-  back — and always at level 3), the channels rail folds on
-  `isCollapsedFor('portal')`. While the rail is folded the
-  channels header turns its title into a category dropdown that opens the same
-  `WorkspaceContextPanelComponent` as a CDK popover through the
-  `LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
-  `WorkspaceLiveCategoriesPopoverService` (focus-trapped `role="dialog"`,
-  closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
-  the live layouts reach it through `createLivePanelsController()` (level
-  flags, dropdown bridge and focus handoff in one shared object; the token is
-  optional). `Cmd/Ctrl+B`, the header toggle and the
-  floating restore handle return to the level the user collapsed from (the
-  target is session-only; every level is restored as stored per surface).
-  Folded rails carry `inert`, and
-  `handoffFocusOnLiveSidebarChange()` / `focusIfFocusLost()` move focus to the
-  replacement affordance only when the activated button was removed or inerted.
-  M3U and the unified live tab have no categories rail and treat level 2 like
-  level 1. Contract: `docs/architecture/iptvnator-ui-guidelines.md`
-  ("Collapsible Live Sidebar").
++ player), `categories-hidden` (channels rail + player) and `collapsed`
+(player only). `LiveLayoutSidebarStateService` is the single source of truth, per
+surface (`m3u` / `portal` / `collection`; the levels apply to `portal`); the
+shell context sidebar folds the categories rail on
+`areCategoriesHiddenFor('portal')` (at level 2 only while the portal store has
+a selected category — the live root has no channels header to host the way
+back — and always at level 3), the channels rail folds on
+`isCollapsedFor('portal')`. While the rail is folded the
+channels header turns its title into a category dropdown that opens the same
+`WorkspaceContextPanelComponent` as a CDK popover through the
+`LIVE_CATEGORIES_POPOVER` token: the workspace shell provides
+`WorkspaceLiveCategoriesPopoverService` (focus-trapped `role="dialog"`,
+closed by backdrop, Escape, selection, its footer and any `NavigationStart`),
+the live layouts reach it through `createLivePanelsController()` (level
+flags, dropdown bridge and focus handoff in one shared object; the token is
+optional). `Cmd/Ctrl+B`, the header toggle and the
+floating restore handle return to the level the user collapsed from (the
+target is session-only; every level is restored as stored per surface).
+Folded rails carry `inert`, and
+`handoffFocusOnLiveSidebarChange()` / `focusIfFocusLost()` move focus to the
+replacement affordance only when the activated button was removed or inerted.
+M3U and the unified live tab have no categories rail and treat level 2 like
+level 1. Contract: `docs/architecture/iptvnator-ui-guidelines.md`
+("Collapsible Live Sidebar").
 
 ## Live Channel Return
 

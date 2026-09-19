@@ -27,12 +27,15 @@ export function buildSeasonPosters(
     for (const [seasonKey, url] of Object.entries(
         item?.tmdb_season_posters ?? {}
     )) {
-        if (isUsableUrl(url)) {
-            posters[seasonKey] = url;
+        const usable = usableUrl(url);
+        if (usable) {
+            posters[seasonKey] = usable;
         }
     }
     const showPoster =
-        item?.info && !Array.isArray(item.info) ? item.info.cover : undefined;
+        item?.info && !Array.isArray(item.info)
+            ? usableUrl(item.info.cover)
+            : null;
     for (const season of item?.seasons ?? []) {
         if (season?.season_number === undefined) {
             continue;
@@ -41,9 +44,14 @@ export function buildSeasonPosters(
         if (posters[seasonKey]) {
             continue;
         }
-        const cover = [season.cover_big, season.cover].find(
-            (candidate) => isUsableUrl(candidate) && candidate !== showPoster
-        );
+        // Panels pad URLs with whitespace now and then; compare and store
+        // the trimmed form so a padded copy of the show poster is still
+        // recognized as the duplicate it is.
+        const cover = [season.cover_big, season.cover]
+            .map(usableUrl)
+            .find(
+                (candidate) => candidate !== null && candidate !== showPoster
+            );
         if (cover) {
             posters[seasonKey] = cover;
         }
@@ -51,6 +59,11 @@ export function buildSeasonPosters(
     return posters;
 }
 
-function isUsableUrl(value: unknown): value is string {
-    return typeof value === 'string' && HTTP_URL_PATTERN.test(value.trim());
+/** The trimmed http(s) URL, or null for anything else. */
+function usableUrl(value: unknown): string | null {
+    if (typeof value !== 'string') {
+        return null;
+    }
+    const trimmed = value.trim();
+    return HTTP_URL_PATTERN.test(trimmed) ? trimmed : null;
 }

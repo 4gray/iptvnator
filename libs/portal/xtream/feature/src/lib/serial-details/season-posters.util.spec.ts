@@ -73,6 +73,26 @@ describe('buildSeasonPosters', () => {
         ).toEqual({ '2': 'https://cdn.example.com/s2.jpg' });
     });
 
+    it('trims padded URLs and still recognizes a padded show-poster duplicate', () => {
+        expect(
+            buildSeasonPosters({
+                info: { cover: ` ${SHOW_POSTER}\n` },
+                seasons: [
+                    season(1, { cover_big: `  ${SHOW_POSTER}  ` }),
+                    season(2, {
+                        cover_big: ' https://cdn.example.com/s2.jpg ',
+                    }),
+                ],
+                tmdb_season_posters: {
+                    '3': '\thttps://image.tmdb.org/t/p/w342/s3.jpg ',
+                },
+            })
+        ).toEqual({
+            '2': 'https://cdn.example.com/s2.jpg',
+            '3': 'https://image.tmdb.org/t/p/w342/s3.jpg',
+        });
+    });
+
     it('accepts only http(s) URLs from either source', () => {
         expect(
             buildSeasonPosters({
@@ -91,7 +111,9 @@ describe('buildSeasonPosters', () => {
             buildSeasonPosters({
                 info: [],
                 seasons: [
-                    { cover_big: 'https://cdn.example.com/x.jpg' } as XtreamSerieSeason,
+                    {
+                        cover_big: 'https://cdn.example.com/x.jpg',
+                    } as XtreamSerieSeason,
                     season(2, { cover_big: 'https://cdn.example.com/s2.jpg' }),
                 ],
             })
