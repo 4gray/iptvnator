@@ -29,7 +29,7 @@ export interface LiveCollectionPlaylistNavigationSource {
     /** Stalker channel id (`UnifiedCollectionItem.stalkerId`). */
     stalkerId?: string | number | null;
     /**
-     * Stalker: used as the fallback genre only when it is a numeric genre id.
+     * Stalker: used as the fallback genre unless it is a section marker.
      * Favorites/recent rows written by the app carry the SECTION marker here
      * (`'itv'`), which is not a genre.
      */
@@ -117,9 +117,10 @@ export function getLiveCollectionPlaylistNavigation(
 
 /**
  * The Stalker live row's genre for the auto-open fallback: an already
- * resolved value, else the stored row's `tv_genre_id`, else `categoryId`
- * when it is a numeric genre id (app-written favorites/recent carry the
- * SECTION marker `'itv'` there, which is not a genre).
+ * resolved value, else the stored row's `tv_genre_id` (genre ids are opaque
+ * portal strings, numeric on most panels but not all), else `categoryId`
+ * unless it is a section marker — app-written favorites/recent carry
+ * `'itv'` there, which is not a genre.
  */
 export function resolveStalkerLiveGenreId(
     source: Pick<
@@ -130,9 +131,11 @@ export function resolveStalkerLiveGenreId(
     return (
         stalkerGenreId(source.stalkerGenreId) ??
         stalkerItemGenre(source.stalkerItem) ??
-        stalkerGenreId(source.categoryId)
+        stalkerCategoryGenre(source.categoryId)
     );
 }
+
+const STALKER_SECTION_MARKERS = new Set(['itv', 'radio', 'vod', 'series']);
 
 function stalkerItemGenre(item: unknown): string | null {
     if (!item || typeof item !== 'object') {
@@ -141,8 +144,15 @@ function stalkerItemGenre(item: unknown): string | null {
     return stalkerGenreId((item as { tv_genre_id?: unknown }).tv_genre_id);
 }
 
-/** Stalker ITV genres are numeric ids; anything else (`'itv'`, `'*'`) is not a genre. */
+/** Any non-blank genre id except the All pseudo-genre. */
 function stalkerGenreId(value: unknown): string | null {
     const text = String(value ?? '').trim();
-    return /^\d+$/.test(text) ? text : null;
+    return text && text !== '*' ? text : null;
+}
+
+function stalkerCategoryGenre(value: unknown): string | null {
+    const genre = stalkerGenreId(value);
+    return genre && !STALKER_SECTION_MARKERS.has(genre.toLowerCase())
+        ? genre
+        : null;
 }

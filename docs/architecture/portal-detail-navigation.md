@@ -182,16 +182,22 @@ with a return handler keep Back available.
   outcome) or a channel missing from the list (censored genres are excluded
   from `get_all_channels`) falls back to selecting the remembered genre, so
   the user still lands in the right list, and the handoff is consumed either
-  way. That remembered genre is the stored row's `tv_genre_id`; the row's
-  `categoryId` counts only when it is a numeric genre id, because app-written
-  favorites/recent rows carry the SECTION marker (`'itv'`) there. Playback is
-  deferred until the genre's rows are on screen: `playChannel` →
-  `navigation.prepare` captures the displayed rows as the remote/numeric
-  channel order, and right after `setSelectedCategory` those are still the
-  previous genre's — the deferred play fires once the rows hold the channel,
-  or once they were replaced and loading settled (a legacy-paged genre whose
-  first page lacks the row), and is dropped if the user selects another genre
-  or section first. Stalker radio stations resolve to `null`: they live in the separate
+  way. That remembered genre is the stored row's `tv_genre_id` (an opaque
+  portal id, numeric on most panels but not all); the row's `categoryId`
+  counts only when it is not a section marker, because app-written
+  favorites/recent rows carry `'itv'` there. Playback is deferred whenever
+  selecting the genre changes the list scope (another genre, the All Items
+  grid — `null`, a different row source from the `'*'` All list — or an
+  active search): `playChannel` → `navigation.prepare` captures the
+  displayed rows as the remote/numeric channel order, and right after
+  `setSelectedCategory` those are still the previous scope's even when they
+  contain the channel. The deferred play fires once the list was re-served —
+  a new array holding the channel, or a load observed after the switch that
+  settled (the `'*'` list is the full cache by reference, so identity alone
+  cannot prove a re-serve; a legacy-paged genre whose first page lacks the
+  row plays with that page) — and is dropped if a newer handoff arrives or
+  the user switches portal, genre or section or starts a search first, or
+  the layout is destroyed. Stalker radio stations resolve to `null`: they live in the separate
   `radio` section, whose station list is legacy-paged with no
   open-on-arrival contract, so the action stays hidden for them.
   Two surfaces render the one verdict: `app-open-in-playlist-chip`

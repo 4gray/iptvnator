@@ -55,6 +55,12 @@ interface DeferredPlay {
     category: string;
     /** The rows on screen when the category was switched — the OLD list. */
     staleRows: readonly StalkerItvChannel[];
+    /**
+     * Set once a load was observed after the switch. The re-served list may
+     * be the very same array (`'*'` serves the full cache by reference), so
+     * identity alone cannot prove a re-serve; a completed load can.
+     */
+    sawLoading: boolean;
 }
 
 /**
@@ -268,6 +274,7 @@ export class StalkerLiveAutoOpen {
                     ),
                     category,
                     staleRows,
+                    sawLoading: false,
                 });
             } else {
                 this.options.play(item);
@@ -299,12 +306,17 @@ export class StalkerLiveAutoOpen {
         }
 
         // The old scope's rows may already contain the channel; only a
-        // re-served list belongs to the genre.
+        // re-served list belongs to the genre. A re-serve shows either as a
+        // new array or as a load that ran after the switch and settled.
         const rows = this.options.rows();
+        const settled = this.options.rowsSettled();
+        if (!settled) {
+            deferred.sawLoading = true;
+        }
+        const reserved = rows !== deferred.staleRows;
         const ready =
-            rows !== deferred.staleRows &&
-            (this.containsChannel(rows, deferred.item) ||
-                this.options.rowsSettled());
+            (reserved && this.containsChannel(rows, deferred.item)) ||
+            (settled && (reserved || deferred.sawLoading));
         if (!ready) {
             return;
         }

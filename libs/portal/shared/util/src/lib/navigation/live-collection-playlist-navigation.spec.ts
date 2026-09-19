@@ -63,7 +63,7 @@ describe('getLiveCollectionPlaylistNavigation', () => {
             },
         });
         // The stored row's genre wins; `categoryId` is the section marker
-        // on app-written favorites and counts only when it is a numeric genre.
+        // on app-written favorites and counts only when it is not one.
         expect(
             getLiveCollectionPlaylistNavigation({
                 sourceType: 'stalker',
@@ -90,6 +90,16 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 stalkerItem: { tv_genre_id: '*' },
             })?.state
         ).not.toHaveProperty('openStalkerLiveCategoryId');
+        // Genre ids are opaque portal strings, not necessarily numeric.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
+                stalkerItem: { tv_genre_id: 'sports' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('sports');
         // List rows carry the genre already resolved by the collection tab.
         expect(
             getLiveCollectionPlaylistNavigation({

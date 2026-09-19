@@ -175,19 +175,46 @@ describe('StalkerLiveAutoOpen', () => {
         rows.set(previous);
         store.itvFullChannelList.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
-        rowsSettled.set(false);
 
         arrive();
-        expect(play).not.toHaveBeenCalled();
-
-        // Same (stale) array, loading still settled → keep waiting.
-        rowsSettled.set(true);
-        TestBed.tick();
         expect(play).not.toHaveBeenCalled();
 
         // Rows replaced (page 1 of the genre, row on a later page) and settled.
         serveRows(channel('40', 7));
         expect(play).toHaveBeenCalledWith(channel('30', 7));
+    });
+
+    it('keeps waiting on the previous scope rows while nothing has reloaded', () => {
+        rows.set([channel('9', 2), channel('30', 7)]);
+        store.selectedCategoryId.set('2');
+        store.itvFullChannelList.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        TestBed.tick();
+
+        // Same array, no load observed: those rows still belong to genre 2.
+        expect(play).not.toHaveBeenCalled();
+    });
+
+    it('plays after a load that re-serves the identical array', () => {
+        // '*' serves the full cache by reference: a previously opened All
+        // list comes back as the same array, so identity never changes.
+        const all = [channel('1', 2), { id: '30', cmd: 'x', name: 'No genre' }];
+        rows.set(all);
+        store.selectedCategoryId.set(null);
+        store.itvFullChannelList.set(all);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        expect(play).not.toHaveBeenCalled();
+
+        rowsSettled.set(false);
+        TestBed.tick();
+        rowsSettled.set(true);
+        TestBed.tick();
+
+        expect(play).toHaveBeenCalledWith(all[1]);
     });
 
     it('lets a newer handoff supersede a channel still waiting for its rows', () => {
