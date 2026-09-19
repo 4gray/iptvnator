@@ -9,7 +9,9 @@ import {
     input,
     output,
     signal,
+    untracked,
     viewChild,
+    viewChildren,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -40,6 +42,18 @@ export interface DashboardRailCard {
     state?: Record<string, unknown>;
     actions?: DashboardRailAction[];
     epgLookupKey?: string;
+    /**
+     * Key of the portal (Xtream/Stalker) EPG answer for a live card, asked
+     * for lazily once the card is on screen — see
+     * `DashboardPortalLiveEpgPresenter`. Unset for M3U cards.
+     */
+    liveEpgSourceKey?: string | null;
+    /**
+     * `'pending'` while the card's first portal answer is on its way: the
+     * 'channel' layout shows a placeholder instead of the subtitle. A later
+     * refresh keeps the previous answer on screen, so it never flashes.
+     */
+    nowPlayingState?: 'pending' | null;
 
     /**
      * Optional EPG enrichment shown by the 'channel' rail layout. Populated
@@ -115,6 +129,13 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     readonly testId = input<string | null>(null);
     readonly actionSelected = output<DashboardRailActionSelection>();
     /**
+     * The cards inside (or just beyond, see `rootMargin`) the rail's
+     * viewport, in item order; emitted whenever that set changes. Lets the
+     * host ask for per-card data — portal EPG — only for cards the user can
+     * see. Environments without `IntersectionObserver` report every card.
+     */
+    readonly visibleCardsChanged = output<DashboardRailCard[]>();
+    /**
      * True total in the underlying dataset. Shown as a count badge next to
      * the rail label. Falls back to `items().length` when not supplied.
      */
@@ -122,6 +143,8 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
 
     private readonly track =
         viewChild.required<ElementRef<HTMLDivElement>>('track');
+    private readonly cardElements =
+        viewChildren<ElementRef<HTMLElement>>('cardEl');
 
     readonly canScrollLeft = signal(false);
     readonly canScrollRight = signal(false);
@@ -129,6 +152,9 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     private readonly viewReady = signal(false);
 
     private resizeObserver?: ResizeObserver;
+    private intersectionObserver?: IntersectionObserver;
+    private readonly visibleCardIds = new Set<string>();
+    private lastVisibleSignature: string | null = null;
     private resetFrameId: number | null = null;
     private settleFrameId: number | null = null;
 
@@ -137,6 +163,14 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
             this.items();
             if (!this.viewReady()) return;
             this.scheduleResetToStart();
+        });
+        // The rendered card set changed: watch the new elements. Reading
+        // `items()` too keeps an id-only change (same elements, new cards)
+        // from leaving a stale visible set behind.
+        effect(() => {
+            const elements = this.cardElements();
+            this.items();
+            untracked(() => this.observeCards(elements));
         });
     }
 
@@ -151,7 +185,71 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.resizeObserver?.disconnect();
+        this.intersectionObserver?.disconnect();
         this.cancelPendingReset();
+    }
+
+    private observeCards(elements: readonly ElementRef<HTMLElement>[]): void {
+        const renderedIds = new Set(
+            elements.map((element) => element.nativeElement.dataset['cardId'])
+        );
+        for (const id of [...this.visibleCardIds]) {
+            if (!renderedIds.has(id)) this.visibleCardIds.delete(id);
+        }
+
+        if (typeof IntersectionObserver === 'undefined') {
+            for (const id of renderedIds) {
+                if (id) this.visibleCardIds.add(id);
+            }
+            this.emitVisibleCards();
+            return;
+        }
+
+        this.intersectionObserver?.disconnect();
+        // Cards that left the list are reported gone at once; the observer's
+        // initial notifications then settle the cards that are still here.
+        this.emitVisibleCards();
+        if (elements.length === 0) {
+            return;
+        }
+        // Lazily created: the first non-empty card list means the track
+        // exists. A margin of roughly one card lets the next card's answer
+        // arrive before the user scrolls to it. Observing fires an initial
+        // notification for every target, which settles the visible set.
+        this.intersectionObserver ??= new IntersectionObserver(
+            (entries) => this.onCardsIntersect(entries),
+            {
+                root: this.track().nativeElement,
+                rootMargin: '0px 160px 0px 160px',
+                threshold: 0,
+            }
+        );
+        for (const element of elements) {
+            this.intersectionObserver.observe(element.nativeElement);
+        }
+    }
+
+    private onCardsIntersect(entries: IntersectionObserverEntry[]): void {
+        for (const entry of entries) {
+            const id = (entry.target as HTMLElement).dataset['cardId'];
+            if (!id) continue;
+            if (entry.isIntersecting) {
+                this.visibleCardIds.add(id);
+            } else {
+                this.visibleCardIds.delete(id);
+            }
+        }
+        this.emitVisibleCards();
+    }
+
+    private emitVisibleCards(): void {
+        const visible = this.items().filter((card) =>
+            this.visibleCardIds.has(card.id)
+        );
+        const signature = visible.map((card) => card.id).join(' ');
+        if (signature === this.lastVisibleSignature) return;
+        this.lastVisibleSignature = signature;
+        this.visibleCardsChanged.emit(visible);
     }
 
     onScroll(): void {
