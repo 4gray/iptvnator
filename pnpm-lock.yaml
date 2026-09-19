@@ -138,7 +138,7 @@ importers:
         version: 0.45.2(@types/better-sqlite3@9.6.0)(better-sqlite3@13.0.3)
       electron-conf:
         specifier: 1.3.0
-        version: 1.3.0(electron@43.3.0)
+        version: 1.3.0(electron@44.4.1)
       electron-updater:
         specifier: 6.8.9
         version: 6.8.9
@@ -378,8 +378,8 @@ importers:
         specifier: 0.31.10
         version: 0.31.10
       electron:
-        specifier: ^43.3.0
-        version: 43.3.0
+        specifier: ^44.4.1
+        version: 44.4.1
       electron-builder:
         specifier: ^26.15.7
         version: 26.15.7(electron-builder-squirrel-windows@26.15.7)
@@ -454,7 +454,7 @@ importers:
         version: 23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))
       nx-electron:
         specifier: 22.0.0
-        version: 22.0.0(patch_hash=4d5ac9c5b10268dcc40998d7a2b166d004105ae7875fa182130d6810871a1e84)(@nx/devkit@23.2.1(nx@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@43.3.0)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@6.0.3)
+        version: 22.0.0(patch_hash=4d5ac9c5b10268dcc40998d7a2b166d004105ae7875fa182130d6810871a1e84)(@nx/devkit@23.2.1(nx@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@44.4.1)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@6.0.3)
       prettier:
         specifier: ^3.9.6
         version: 3.9.6
@@ -4306,8 +4306,8 @@ packages:
   '@types/node@20.19.9':
     resolution: {integrity: sha512-cuVNgarYWZqxRJDQHEB58GEONhOK79QVR/qYx4S7kcUObQvUwvFnYxJuuHUKm2aieN9X3yZB4LZsuYNU1Qphsw==}
 
-  '@types/node@24.13.3':
-    resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
+  '@types/node@24.13.5':
+    resolution: {integrity: sha512-TXyindR+lBr22aJIdMQzCFHPHR6cR4js838mRDCSz5hOKWZvZwsXSSiXDmjRj4iJmgl+sR9O+1mkoVBSMadNug==}
 
   '@types/parse-json@4.0.2':
     resolution: {integrity: sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==}
@@ -5751,8 +5751,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@43.3.0:
-    resolution: {integrity: sha512-nLlvu0WFjftWsSaTkV2B/c4NDuJBspTyXu8vKSQ6vLvFt8uG3NgN49LLKcXddwX0GqVvAQDhciWp+4xOdTdhew==}
+  electron@44.4.1:
+    resolution: {integrity: sha512-gXJarQ2Utfn8G6bp/IqLXvckOSCtrxPWjFqQaqm02Gf4zYn1aP+RN9PKimoLH/DMqjKLfBrNC4C4CviPv0cXnQ==}
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
@@ -13751,7 +13751,7 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/node@24.13.3':
+  '@types/node@24.13.5':
     dependencies:
       undici-types: 7.18.2
 
@@ -13771,7 +13771,7 @@ snapshots:
 
   '@types/sax@1.2.7':
     dependencies:
-      '@types/node': 24.13.3
+      '@types/node': 20.19.9
 
   '@types/send@1.2.1':
     dependencies:
@@ -15294,10 +15294,10 @@ snapshots:
       - electron-builder-squirrel-windows
       - supports-color
 
-  electron-conf@1.3.0(electron@43.3.0):
+  electron-conf@1.3.0(electron@44.4.1):
     dependencies:
       ajv: 8.20.0
-      electron: 43.3.0
+      electron: 44.4.1
 
   electron-playwright-helpers@1.8.2:
     dependencies:
@@ -15344,11 +15344,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@43.3.0:
+  electron@44.4.1:
     dependencies:
       '@electron-internal/extract-zip': 1.0.5
       '@electron/get': 5.1.0
-      '@types/node': 24.13.3
+      '@types/node': 24.13.5
     transitivePeerDependencies:
       - supports-color
 
@@ -18202,12 +18202,12 @@ snapshots:
 
   nwsapi@2.2.27: {}
 
-  nx-electron@22.0.0(patch_hash=4d5ac9c5b10268dcc40998d7a2b166d004105ae7875fa182130d6810871a1e84)(@nx/devkit@23.2.1(nx@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@43.3.0)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@6.0.3):
+  nx-electron@22.0.0(patch_hash=4d5ac9c5b10268dcc40998d7a2b166d004105ae7875fa182130d6810871a1e84)(@nx/devkit@23.2.1(nx@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@44.4.1)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@6.0.3):
     dependencies:
       '@nx/devkit': 23.2.1(nx@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))
       '@nx/workspace': 23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))
       copy-webpack-plugin: 12.0.2(webpack@5.104.1(@swc/core@1.16.1(@swc/helpers@0.5.23))(esbuild@0.28.2))
-      electron: 43.3.0
+      electron: 44.4.1
       electron-builder: 26.15.7(electron-builder-squirrel-windows@26.15.7)
       fork-ts-checker-webpack-plugin: 9.1.0(typescript@6.0.3)(webpack@5.104.1(@swc/core@1.16.1(@swc/helpers@0.5.23))(esbuild@0.28.2))
       license-webpack-plugin: 4.0.2(webpack@5.104.1(@swc/core@1.16.1(@swc/helpers@0.5.23))(esbuild@0.28.2))
@@ -19661,7 +19661,7 @@ snapshots:
 
   sitemap@9.0.1:
     dependencies:
-      '@types/node': 24.13.3
+      '@types/node': 24.13.5
       '@types/sax': 1.2.7
       arg: 5.0.2
       sax: 1.6.1
