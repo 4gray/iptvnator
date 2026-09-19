@@ -594,6 +594,162 @@ describe('EpgService', () => {
         );
     });
 
+    it('retries keys the global scope left unresolved against every source when anySourceFallback is set', async () => {
+        // The dashboard rails: no playlist scope, one global XMLTV in
+        // Settings, and a channel whose guide only exists in an XMLTV another
+        // playlist imported. The "See all" pages resolve it unscoped, so the
+        // rails must too — but only after the configured scope had its say.
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Global Bulletin',
+                },
+                'guide-sports': null,
+            })
+            .mockResolvedValueOnce({
+                'guide-sports': {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Other Playlist Sports',
+                },
+            });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(
+                ['guide-news', 'guide-sports'],
+                { anySourceFallback: true }
+            )
+        );
+
+        expect(result.get('guide-news')?.title).toBe('Global Bulletin');
+        expect(result.get('guide-sports')?.title).toBe('Other Playlist Sports');
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
+            1,
+            ['guide-news', 'guide-sports'],
+            expect.objectContaining({
+                sourceUrls: ['https://global.example.com/guide.xml'],
+            })
+        );
+        // The retry carries only the unresolved key and no source scope.
+        const [retryIds, retryOptions] = (
+            epgBridge.getCurrentProgramsBatch as jest.Mock
+        ).mock.calls[1];
+        expect(retryIds).toEqual(['guide-sports']);
+        expect(retryOptions).not.toHaveProperty('sourceUrls');
+    });
+
+    it('keeps the scoped verdict when the any-source retry finds nothing either', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({ 'guide-sports': null })
+            .mockResolvedValueOnce({ 'guide-sports': null });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'], {
+                anySourceFallback: true,
+            })
+        );
+
+        expect(result.size).toBe(1);
+        expect(result.get('guide-sports')).toBeNull();
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('skips the any-source retry when every key resolved in scope, and never retries without the option', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Global Bulletin',
+                },
+            })
+            .mockResolvedValueOnce({ 'guide-sports': null });
+
+        const resolved = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                anySourceFallback: true,
+            })
+        );
+        expect(resolved.get('guide-news')?.title).toBe('Global Bulletin');
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+
+        // Scoped callers (the channel list) keep today's contract: a miss in
+        // the configured scope stays a miss.
+        const unresolved = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'])
+        );
+        expect(unresolved.get('guide-sports')).toBeNull();
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('runs the any-source retry after the playlist scope and its global fallback', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({ 'guide-sports': null })
+            .mockResolvedValueOnce({ 'guide-sports': null })
+            .mockResolvedValueOnce({
+                'guide-sports': {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Other Playlist Sports',
+                },
+            });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+                anySourceFallback: true,
+            })
+        );
+
+        expect(result.get('guide-sports')?.title).toBe('Other Playlist Sports');
+        const calls = (epgBridge.getCurrentProgramsBatch as jest.Mock).mock
+            .calls;
+        expect(calls.map(([, options]) => options.sourceUrls)).toEqual([
+            ['https://playlist.example.com/guide.xml'],
+            ['https://global.example.com/guide.xml'],
+            undefined,
+        ]);
+    });
+
     it('caches scoped batch current programs by EPG source URL scope', async () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;

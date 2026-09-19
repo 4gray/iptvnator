@@ -978,7 +978,17 @@ These URLs are playlist-scoped by default:
   TTL expires.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
-  playlists are not treated as global fallback sources. Single-channel current
+  playlists are not treated as global fallback sources. The one opt-out is
+  `EpgLookupOptions.anySourceFallback` (renderer-only, never forwarded to the
+  bridge): after the scope — playlist sources, then the global ones — has
+  answered, the keys still without a programme are retried once against every
+  imported source through the source-less batch path and its cache. The
+  dashboard live rails pass it because they mix channels of every playlist
+  and have no playlist scope to offer; without it a favourite whose guide
+  only exists in another playlist's XMLTV showed no programme on the
+  dashboard while its "See all" row — resolved by `StreamResolverService`,
+  which never scopes by source — had one. The channel list keeps the strict
+  scope. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped

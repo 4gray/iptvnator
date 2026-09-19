@@ -801,6 +801,109 @@ test.describe('Electron EPG', () => {
         }
     });
 
+    test('@epg @electron dashboard live rails show the programme of a favourite whose guide is playlist-scoped while a global source exists', async ({
+        dataDir,
+    }) => {
+        test.setTimeout(120000);
+        // The playlist declares its own XMLTV; Settings carry a global XMLTV
+        // that does not know the channel. The dashboard rails have no
+        // playlist scope, so they used to search the global source alone and
+        // showed no programme while the "See all" row resolved it unscoped.
+        const playlistEpgServer = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'playlist-guide-news',
+                'Playlist Guide News',
+                'Playlist Scoped Bulletin'
+            ),
+            {
+                contentType: 'application/xml; charset=utf-8',
+                resourcePath: '/guides/playlist-guide.xml',
+            }
+        );
+        const globalEpgServer = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'global-other',
+                'Global Other',
+                'Global Other Bulletin'
+            ),
+            {
+                contentType: 'application/xml; charset=utf-8',
+                resourcePath: '/guides/global-guide.xml',
+            }
+        );
+        const playlistContent = buildM3uContent([
+            {
+                name: 'Playlist Guide News',
+                tvgId: 'playlist-guide-news',
+                url: 'https://example.com/live/playlist-guide-news.m3u8',
+            },
+        ]).replace(
+            '#EXTM3U',
+            `#EXTM3U x-tvg-url="${playlistEpgServer.resourceUrl}"`
+        );
+        const playlistServer = await createMutableTextServer(playlistContent, {
+            contentType: 'application/x-mpegurl; charset=utf-8',
+            resourcePath: '/playlist-with-scoped-epg.m3u',
+        });
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                playlistServer.resourceUrl
+            );
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1, { timeout: 30000 });
+
+            await openWorkspaceSection(app.mainWindow, 'All channels');
+            const channelItem = channelItemByTitle(
+                app.mainWindow,
+                'Playlist Guide News'
+            );
+            await expect(channelItem).toBeVisible();
+            await channelItem.hover();
+            await channelItem.locator('.favorite-button').first().click();
+            await expect(
+                channelItem.locator('.favorite-button mat-icon').first()
+            ).toHaveText(/star/);
+
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .first()
+                .fill(globalEpgServer.resourceUrl);
+            await saveSettings(app.mainWindow);
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBe(2);
+
+            await goToDashboard(app.mainWindow);
+            const card = app.mainWindow
+                .locator('[data-test-id="dashboard-live-favorites-rail-card"]')
+                .filter({ hasText: 'Playlist Guide News' })
+                .first();
+            await expect(card).toBeVisible({ timeout: 20000 });
+            await expect(card.locator('.rail__channel-now')).toContainText(
+                'Playlist Scoped Bulletin',
+                { timeout: 30000 }
+            );
+        } finally {
+            await closeElectronApp(app);
+            await playlistServer.close();
+            await playlistEpgServer.close();
+            await globalEpgServer.close();
+        }
+    });
+
     test('@epg @electron uses the XMLTV channel icon as a fallback when the playlist has no tvg-logo', async ({
         dataDir,
     }) => {
