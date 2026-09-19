@@ -181,6 +181,10 @@ test('@web @m3u @dash ClearKey and clear DASH channels play inline', async ({
 test('@web @m3u @dash ClearKey reopens from recent and favorites collections', async ({
     page,
 }) => {
+    // Five cold loads of the dev-served app (import + four collection routes)
+    // cost ~6 s each on the CI runner, so the default 30 s budget expired on
+    // the last route (#1630). Sized like the other multi-load specs.
+    test.setTimeout(90_000);
     await serveDashFixtures(page);
     await importDashPlaylist(page);
     await page.getByText('1. ClearKey DASH').click();
@@ -203,10 +207,14 @@ test('@web @m3u @dash ClearKey reopens from recent and favorites collections', a
         // Full navigation also proves persisted channels survive a cold load.
         await page.goto(route);
         if (route.startsWith('/workspace/global-')) {
-            await page
+            const allPlaylists = page
                 .locator('.scope-toggle')
-                .getByText('All playlists', { exact: true })
-                .click();
+                .getByRole('radio', { name: 'All playlists' });
+            await allPlaylists.click();
+            // The global routes default to the active playlist's scope; make
+            // sure the toggle took before waiting for a row only "All
+            // playlists" can show, or a lost click surfaces as a missing row.
+            await expect(allPlaylists).toBeChecked();
         }
         const collection = page.locator('app-unified-live-tab');
         await collection
