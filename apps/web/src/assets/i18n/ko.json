@@ -1745,6 +1745,8 @@
                 "OPEN_RECENTLY_VIEWED": "최근 시청 항목 열기",
                 "SUBMIT_SHELL_SEARCH": "워크스페이스 검색 실행",
                 "TOGGLE_WINDOW_FULLSCREEN": "앱 창 전체 화면 전환",
+                "ZOOM_IN_OUT": "앱 확대 또는 축소",
+                "RESET_ZOOM": "앱 확대/축소 초기화",
                 "TOGGLE_SIDEBAR": "사이드바 전환",
                 "M3U_CHANNEL_NUMBER": "번호로 M3U 채널 선택",
                 "PLAY_PAUSE": "Embedded MPV 재생 또는 일시정지",

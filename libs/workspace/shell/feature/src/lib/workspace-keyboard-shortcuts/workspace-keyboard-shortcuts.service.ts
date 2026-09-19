@@ -5,6 +5,7 @@ import {
     getKeyboardShortcutGroups,
     isKeyboardShortcutHelpTrigger,
     isTypingInInput,
+    resolveZoomShortcutAction,
 } from '@iptvnator/portal/shared/util';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
@@ -78,7 +79,10 @@ export class WorkspaceKeyboardShortcutsService {
     }
 
     private handleKeydown(event: KeyboardEvent): void {
-        if (this.handleWindowFullscreenToggle(event)) {
+        if (
+            this.handleWindowFullscreenToggle(event) ||
+            this.handleZoomShortcut(event)
+        ) {
             return;
         }
 
@@ -126,6 +130,44 @@ export class WorkspaceKeyboardShortcutsService {
 
         event.preventDefault();
         void bridge.toggleFullScreenWindow().catch(() => undefined);
+        return true;
+    }
+
+    /**
+     * Cmd/Ctrl and +/−/0 zoom the app (issue #1109). Like F11 this is not
+     * gated by `isTypingInInput`: browsers zoom from any focus, and the
+     * combination is not one a text field consumes. The bridge steps the
+     * frame-bound zoom level itself, so no native menu is needed — Windows
+     * and Linux run without one. On macOS the renderer sees the key before
+     * the application menu's `zoomIn`/`zoomOut`/`resetZoom` roles do, and
+     * `preventDefault()` stops the role from stepping a second time, so one
+     * press is one step on every platform. A key another handler already
+     * consumed is left alone; without a bridge (PWA) the browser keeps its
+     * own zoom.
+     */
+    private handleZoomShortcut(event: KeyboardEvent): boolean {
+        if (event.defaultPrevented) {
+            return false;
+        }
+
+        const bridge = window.electron;
+        if (typeof bridge?.adjustZoomLevel !== 'function') {
+            return false;
+        }
+
+        const action = resolveZoomShortcutAction(event, {
+            isMac: bridge.platform === 'darwin',
+        });
+        if (!action) {
+            return false;
+        }
+
+        event.preventDefault();
+        try {
+            bridge.adjustZoomLevel(action);
+        } catch {
+            // The frame refused the write; the level on screen is unchanged.
+        }
         return true;
     }
 

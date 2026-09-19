@@ -1745,6 +1745,8 @@
                 "OPEN_RECENTLY_VIEWED": "Otwórz ostatnio oglądane",
                 "SUBMIT_SHELL_SEARCH": "Uruchom wyszukiwanie w obszarze roboczym",
                 "TOGGLE_WINDOW_FULLSCREEN": "Przełącz pełny ekran okna aplikacji",
+                "ZOOM_IN_OUT": "Powiększ lub pomniejsz aplikację",
+                "RESET_ZOOM": "Zresetuj powiększenie aplikacji",
                 "TOGGLE_SIDEBAR": "Przełącz pasek boczny",
                 "M3U_CHANNEL_NUMBER": "Wybierz kanał M3U według numeru",
                 "PLAY_PAUSE": "Odtwórz lub wstrzymaj osadzony MPV",

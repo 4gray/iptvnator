@@ -1745,6 +1745,8 @@
                 "OPEN_RECENTLY_VIEWED": "Open recently viewed",
                 "SUBMIT_SHELL_SEARCH": "Submit workspace search",
                 "TOGGLE_WINDOW_FULLSCREEN": "Toggle app window fullscreen",
+                "ZOOM_IN_OUT": "Zoom the app in or out",
+                "RESET_ZOOM": "Reset app zoom",
                 "TOGGLE_SIDEBAR": "Toggle sidebar",
                 "M3U_CHANNEL_NUMBER": "Select M3U channel by number",
                 "PLAY_PAUSE": "Play or pause embedded MPV playback",

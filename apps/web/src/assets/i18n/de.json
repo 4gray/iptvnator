@@ -1745,6 +1745,8 @@
                 "OPEN_RECENTLY_VIEWED": "Kürzlich angesehene Elemente öffnen",
                 "SUBMIT_SHELL_SEARCH": "Arbeitsbereichssuche absenden",
                 "TOGGLE_WINDOW_FULLSCREEN": "Vollbild für das App-Fenster umschalten",
+                "ZOOM_IN_OUT": "App vergrößern oder verkleinern",
+                "RESET_ZOOM": "App-Zoom zurücksetzen",
                 "TOGGLE_SIDEBAR": "Seitenleiste umschalten",
                 "M3U_CHANNEL_NUMBER": "M3U-Kanal per Nummer auswählen",
                 "PLAY_PAUSE": "Eingebettete MPV-Wiedergabe starten oder pausieren",

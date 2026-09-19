@@ -1745,6 +1745,8 @@
                 "OPEN_RECENTLY_VIEWED": "Recent bekeken openen",
                 "SUBMIT_SHELL_SEARCH": "Werkruimtezoekopdracht uitvoeren",
                 "TOGGLE_WINDOW_FULLSCREEN": "Volledig scherm voor het app-venster in- of uitschakelen",
+                "ZOOM_IN_OUT": "App in- of uitzoomen",
+                "RESET_ZOOM": "App-zoom herstellen",
                 "TOGGLE_SIDEBAR": "Zijbalk in- of uitschakelen",
                 "M3U_CHANNEL_NUMBER": "M3U-kanaal selecteren op nummer",
                 "PLAY_PAUSE": "Ingebedde MPV-weergave afspelen of pauzeren",

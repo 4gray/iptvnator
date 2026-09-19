@@ -1745,6 +1745,8 @@
                 "OPEN_RECENTLY_VIEWED": "حل المتشافين مؤخراً",
                 "SUBMIT_SHELL_SEARCH": "رسل بحث مساحة العمل",
                 "TOGGLE_WINDOW_FULLSCREEN": "بدل ملء الشاشة ديال نافذة التطبيق",
+                "ZOOM_IN_OUT": "كبر ولا صغر التطبيق",
+                "RESET_ZOOM": "رجع تكبير التطبيق للأصل",
                 "TOGGLE_SIDEBAR": "بدل عرض الشريط الجانبي",
                 "M3U_CHANNEL_NUMBER": "اختار قناة M3U بالرقم",
                 "PLAY_PAUSE": "شغل ولا وقف مؤقتاً تشغيل MPV المدمج",

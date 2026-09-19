@@ -179,6 +179,116 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         });
     });
 
+    describe('zoom shortcuts', () => {
+        const testWindow = window as unknown as {
+            electron?: Record<string, unknown>;
+        };
+        let adjustZoomLevel: jest.Mock;
+
+        function press(
+            init: KeyboardEventInit,
+            target: EventTarget = document
+        ): KeyboardEvent {
+            const event = new KeyboardEvent('keydown', {
+                bubbles: true,
+                cancelable: true,
+                ...init,
+            });
+            target.dispatchEvent(event);
+            return event;
+        }
+
+        beforeEach(() => {
+            adjustZoomLevel = jest.fn().mockReturnValue(0.5);
+            testWindow.electron = { adjustZoomLevel, platform: 'linux' };
+        });
+
+        afterEach(() => {
+            delete testWindow.electron;
+        });
+
+        it('zooms in, out and resets through the bridge with Ctrl on Linux/Windows', () => {
+            const zoomIn = press({ key: '=', ctrlKey: true });
+            const zoomOut = press({ key: '-', ctrlKey: true });
+            const reset = press({ key: '0', ctrlKey: true });
+
+            expect(adjustZoomLevel.mock.calls).toEqual([
+                ['in'],
+                ['out'],
+                ['reset'],
+            ]);
+            expect(zoomIn.defaultPrevented).toBe(true);
+            expect(zoomOut.defaultPrevented).toBe(true);
+            expect(reset.defaultPrevented).toBe(true);
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
+        it('takes the numpad keys and Ctrl+Shift+=', () => {
+            press({ key: '+', code: 'NumpadAdd', ctrlKey: true });
+            press({ key: '+', ctrlKey: true, shiftKey: true });
+
+            expect(adjustZoomLevel.mock.calls).toEqual([['in'], ['in']]);
+        });
+
+        it('follows the bridge platform: Cmd on macOS, and swallows the key so the menu role cannot step twice', () => {
+            testWindow.electron = { adjustZoomLevel, platform: 'darwin' };
+
+            const ctrl = press({ key: '=', ctrlKey: true });
+            const cmd = press({ key: '=', metaKey: true });
+
+            expect(adjustZoomLevel.mock.calls).toEqual([['in']]);
+            expect(ctrl.defaultPrevented).toBe(false);
+            expect(cmd.defaultPrevented).toBe(true);
+        });
+
+        it('works while typing in an input, like the browser zoom it replaces', () => {
+            const input = document.createElement('input');
+            document.body.appendChild(input);
+
+            press({ key: '=', ctrlKey: true }, input);
+
+            expect(adjustZoomLevel).toHaveBeenCalledWith('in');
+            input.remove();
+        });
+
+        it('leaves a key another handler already consumed alone', () => {
+            const event = new KeyboardEvent('keydown', {
+                key: '=',
+                ctrlKey: true,
+                bubbles: true,
+                cancelable: true,
+            });
+            event.preventDefault();
+            document.dispatchEvent(event);
+
+            expect(adjustZoomLevel).not.toHaveBeenCalled();
+        });
+
+        it('ignores unrelated Ctrl combinations and unmodified keys', () => {
+            press({ key: 'k', ctrlKey: true });
+            press({ key: '=' });
+            press({ key: '=', ctrlKey: true, altKey: true });
+
+            expect(adjustZoomLevel).not.toHaveBeenCalled();
+        });
+
+        it('leaves zoom to the browser without a bridge', () => {
+            delete testWindow.electron;
+
+            const event = press({ key: '=', ctrlKey: true });
+
+            expect(event.defaultPrevented).toBe(false);
+        });
+
+        it('swallows a bridge failure', () => {
+            adjustZoomLevel.mockImplementation(() => {
+                throw new Error('frame gone');
+            });
+
+            expect(() => press({ key: '=', ctrlKey: true })).not.toThrow();
+        });
+    });
+
     it('does not open duplicate dialogs while one is active', () => {
         service.openShortcutsDialog();
         service.openShortcutsDialog();

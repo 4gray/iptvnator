@@ -1745,6 +1745,8 @@
                 "OPEN_RECENTLY_VIEWED": "Abrir vistos recientemente",
                 "SUBMIT_SHELL_SEARCH": "Enviar búsqueda del espacio de trabajo",
                 "TOGGLE_WINDOW_FULLSCREEN": "Alternar pantalla completa de la ventana de la aplicación",
+                "ZOOM_IN_OUT": "Acercar o alejar la aplicación",
+                "RESET_ZOOM": "Restablecer el zoom de la aplicación",
                 "TOGGLE_SIDEBAR": "Mostrar u ocultar barra lateral",
                 "M3U_CHANNEL_NUMBER": "Seleccionar canal M3U por número",
                 "PLAY_PAUSE": "Reproducir o pausar MPV integrado",
