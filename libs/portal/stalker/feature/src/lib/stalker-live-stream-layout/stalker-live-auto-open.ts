@@ -134,6 +134,9 @@ export class StalkerLiveAutoOpen {
             ) || null
         );
         this.generation += 1;
+        // A newer handoff supersedes a channel still waiting for its genre's
+        // rows; otherwise the old one would play once they settle.
+        this.deferredPlay.set(null);
         this.pendingItemId.set(itemId);
     }
 

@@ -153,6 +153,21 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
+    it('lets a newer handoff supersede a channel still waiting for its rows', () => {
+        store.itvFullChannelList.set([channel('30', 7), channel('31', 7)]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        arrive({
+            openStalkerLiveItemId: '31',
+            openStalkerLivePlaylistId: 'pl-3',
+        });
+        serveRows(channel('30', 7), channel('31', 7));
+
+        expect(play).toHaveBeenCalledTimes(1);
+        expect(play).toHaveBeenCalledWith(channel('31', 7));
+    });
+
     it('drops the deferred play when the user selects another genre first', () => {
         store.itvFullChannelList.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
