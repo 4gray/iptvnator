@@ -1,6 +1,7 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
+    pressTab,
     rasterizedBorderContrast,
     setInputValue,
     surfaceContrast,
@@ -978,6 +979,7 @@ for (const theme of ['light', 'dark']) {
 
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({
         page,
+        browserName,
     }) => {
         await addXtreamPortal(page);
         await page.getByRole('link', { name: 'Live TV', exact: true }).click();
@@ -993,10 +995,10 @@ for (const theme of ['light', 'dark']) {
         await page.keyboard.press('ArrowRight');
         await expect(viewport).toBeFocused();
         await expect(page.locator('app-web-player-view')).toHaveCount(0);
-        await page.keyboard.press('Tab');
+        await pressTab(page, browserName);
         const firstAction = viewport.locator('button.channel-content').first();
         await expect(firstAction).toBeFocused();
-        await page.keyboard.press('Shift+Tab');
+        await pressTab(page, browserName, 'backward');
         await expect(viewport).toBeFocused();
 
         const row = viewport.locator('.channel-name').first();
@@ -1021,7 +1023,7 @@ for (const theme of ['light', 'dark']) {
         await page.keyboard.press('Space');
         await expect(page.locator('app-web-player-view')).toBeVisible();
         await expect(firstAction).toBeFocused();
-        await page.keyboard.press('Tab');
+        await pressTab(page, browserName);
         await expect(
             viewport.locator('.favorite-button').first()
         ).toBeFocused();
