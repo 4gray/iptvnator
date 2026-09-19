@@ -358,7 +358,35 @@ silently enables downgrades and the constructor enables prereleases for any
 prerelease build. Release notes and the manual-install fallback (Linux
 without AppImage) read the channel's release list; notes for a nightly
 version always come from the nightly repository, so a nightly build on the
-stable channel still shows its own notes.
+stable channel still shows its own notes. Each catalog is a snapshot of the
+GitHub release list kept for the whole process, so `findIndex` reloads it
+once when a version is missing from a fully paged list — the updater had
+offered a nightly published after the catalog was first read, and "What's
+new" answered "not found" for it — and `handleUpdateAvailable` drops every
+catalog, since a newly found release proves the snapshots stale. The
+not-found rejection carries the shared
+`APP_UPDATE_RELEASE_NOTES_NOT_FOUND_MARKER` text: `ipcRenderer.invoke`
+strips custom properties off rejections, so the dialog recognises the case
+by that text, shows localized copy with the version, and links to the
+channel's release list (`appUpdateReleasesListUrl`) instead of printing the
+IPC wrapper; every other failure keeps its underlying reason under a
+localized headline.
+
+The About section keeps the select honest about that Save boundary. The
+status block carries a badge naming the channel the verdict describes
+(`status.channel`), and while the select shows a different channel the
+verdict is dimmed, a hint names both channels, and the plain "Check again"
+button is replaced by a primary "Save and check for <channel> updates"
+button that submits the settings form
+(`SettingsAboutSectionComponent.saveAndCheckForAppUpdate` →
+`SettingsComponent.onSubmit()`). No renderer-side check follows: the saved
+channel reaches `persistAppUpdateChannel`, whose change listener calls
+`AppUpdateService.setChannel`, which already re-checks an idle updater. A
+download in flight or finished belongs to the previous channel and is kept
+by `setChannel`, so in those states the plain check stays and only the hint
+is shown. Checking the unsaved channel without saving was rejected on
+purpose: the updater would then offer a download for a channel that is not
+persisted.
 
 Switching is forward-only on purpose: a nightly build stays installed until
 a newer stable release exists, because a downgrade could land on a release

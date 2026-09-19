@@ -753,6 +753,60 @@ describe('AppUpdateService', () => {
         });
     });
 
+    it('reloads a fully paged catalog when a version the updater just offered is missing from it', async () => {
+        // A snapshot taken before the newest nightly was published: only the
+        // older one exists, and it fits in one page, so the catalog believes
+        // it has read everything.
+        const published: unknown[] = [nightlyReleases[2]];
+        const fetcher = jest.fn(async (_url: string) => ({
+            json: jest.fn().mockResolvedValue([...published]),
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+        }));
+        const { service } = createService({ fetcher });
+
+        const older = await service.getReleaseNotes({
+            version: '0.23.1-nightly.20260914.5',
+        });
+        expect(older.tagName).toBe('v0.23.1-nightly.20260914.5');
+        expect(fetcher).toHaveBeenCalledTimes(1);
+
+        published.unshift(nightlyReleases[0]);
+
+        const newer = await service.getReleaseNotes({
+            version: '0.23.1-nightly.20260915.7',
+        });
+        expect(newer).toMatchObject({
+            tagName: 'v0.23.1-nightly.20260915.7',
+            hasNext: false,
+            hasPrevious: true,
+        });
+        expect(fetcher).toHaveBeenCalledTimes(2);
+
+        // A version GitHub really does not have reloads once and then stops.
+        await expect(
+            service.getReleaseNotes({ version: '0.23.1-nightly.20260916.9' })
+        ).rejects.toThrow(
+            'Release notes were not found for 0.23.1-nightly.20260916.9'
+        );
+        expect(fetcher).toHaveBeenCalledTimes(3);
+    });
+
+    it('forgets loaded catalogs once the updater reports a newer release', async () => {
+        const fetcher = createReleaseFetcher();
+        const { service } = createService({ fetcher });
+
+        await service.getReleaseNotes();
+        await service.getReleaseNotes();
+        expect(fetcher).toHaveBeenCalledTimes(1);
+
+        service.handleUpdateAvailable({ version: '0.25.0' });
+
+        await service.getReleaseNotes();
+        expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
     it('reads release notes from the repository the requested version belongs to', async () => {
         const fetcher = createChannelReleaseFetcher();
         const { service } = createService({ fetcher });

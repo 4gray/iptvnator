@@ -1,7 +1,7 @@
 import {
     AppUpdateChannel,
     appUpdateReleasesApiUrl,
-    appUpdateReleasesPageUrl,
+    appUpdateReleasesListUrl,
     appVersionChannel,
 } from '@iptvnator/shared/interfaces';
 
@@ -59,9 +59,15 @@ function isGitHubRelease(value: unknown): value is GitHubReleaseResponse {
  * prereleases (a beta tag must not become "the latest version"), while the
  * nightly catalog keeps only releases whose version carries the nightly
  * identifier, so a stray tag in that repository cannot be offered either.
+ *
+ * The list is a snapshot of GitHub at load time and the service keeps it
+ * for the whole process, so a release published later is invisible to it
+ * until something reloads it — `findIndex` does, once, when a version is
+ * missing from a fully paged list (a nightly the updater just offered had
+ * "no release notes" for exactly this reason).
  */
 export class AppUpdateReleaseCatalog {
-    readonly releases: CachedGitHubRelease[] = [];
+    releases: CachedGitHubRelease[] = [];
     loadedReleasePages = 0;
     loadedAllReleases = false;
 
@@ -87,13 +93,25 @@ export class AppUpdateReleaseCatalog {
         }
     }
 
-    /** Index of `version` (or its tag), paging further until it is found. */
+    /** Forgets every loaded page so the next read starts from GitHub again. */
+    reset(): void {
+        this.releases = [];
+        this.loadedReleasePages = 0;
+        this.loadedAllReleases = false;
+    }
+
+    /**
+     * Index of `version` (or its tag), paging further until it is found.
+     * A miss on a completely paged list reloads the list once before
+     * answering -1: the snapshot may simply predate the release.
+     */
     async findIndex(version: string | undefined): Promise<number> {
         if (!version) {
             return -1;
         }
 
         const normalizedVersion = normalizeVersion(version);
+        let reloaded = false;
 
         while (true) {
             const index = this.releases.findIndex(
@@ -102,8 +120,17 @@ export class AppUpdateReleaseCatalog {
                     normalizeVersion(release.tagName) === normalizedVersion
             );
 
-            if (index !== -1 || this.loadedAllReleases) {
+            if (index !== -1) {
                 return index;
+            }
+
+            if (this.loadedAllReleases) {
+                if (reloaded) {
+                    return -1;
+                }
+
+                reloaded = true;
+                this.reset();
             }
 
             await this.ensurePageLoaded(this.loadedReleasePages + 1);
@@ -143,10 +170,7 @@ export class AppUpdateReleaseCatalog {
             throw new Error('GitHub releases response was not an array');
         }
 
-        const releasesPageUrl = appUpdateReleasesPageUrl(this.channel).replace(
-            /\/latest$/,
-            ''
-        );
+        const releasesPageUrl = appUpdateReleasesListUrl(this.channel);
 
         for (const release of payload) {
             if (!isGitHubRelease(release) || !this.belongsToChannel(release)) {

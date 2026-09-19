@@ -2,6 +2,7 @@ import {
     APP_UPDATE_STATUS_CHANGED,
     AppUpdateChannel,
     appUpdateReleasesPageUrl,
+    buildAppUpdateReleaseNotesNotFoundMessage,
     appVersionChannel,
     compareAppVersions,
     DEFAULT_APP_UPDATE_CHANNEL,
@@ -212,8 +213,7 @@ export class AppUpdateService {
         );
         this.releaseFetcher =
             options.releaseFetcher ??
-            ((url, init) =>
-                fetch(url, init) as Promise<ReleaseFetchResponse>);
+            ((url, init) => fetch(url, init) as Promise<ReleaseFetchResponse>);
         this.status = {
             currentVersion: this.currentVersion,
             manualDownloadUrl: appUpdateReleasesPageUrl(this.channel),
@@ -250,7 +250,8 @@ export class AppUpdateService {
         const busy =
             this.status.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading ||
-            this.status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded;
+            this.status.status ===
+                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded;
 
         if (busy || !this.isPackaged) {
             this.setStatus({});
@@ -324,7 +325,8 @@ export class AppUpdateService {
             request.version ? appVersionChannel(request.version) : this.channel
         );
         const canFallbackToLatest =
-            !request.direction && (!request.version || request.fallbackToLatest);
+            !request.direction &&
+            (!request.version || request.fallbackToLatest);
 
         if (canFallbackToLatest) {
             await catalog.ensureFirstReleaseLoaded();
@@ -340,13 +342,16 @@ export class AppUpdateService {
 
         if (index === -1) {
             throw new Error(
-                `Release notes were not found for ${request.version ?? 'latest release'}`
+                buildAppUpdateReleaseNotesNotFoundMessage(request.version)
             );
         }
 
         if (request.direction === 'previous') {
             index += 1;
-            while (index >= catalog.releases.length && !catalog.loadedAllReleases) {
+            while (
+                index >= catalog.releases.length &&
+                !catalog.loadedAllReleases
+            ) {
                 await catalog.ensurePageLoaded(catalog.loadedReleasePages + 1);
             }
         } else if (request.direction === 'next') {
@@ -416,6 +421,13 @@ export class AppUpdateService {
 
     handleUpdateAvailable(info: AppUpdateInfo): void {
         const release = toRelease(info);
+
+        // A release the updater just found is newer than anything the
+        // catalogs were loaded with, so their snapshots are stale by
+        // definition. Forgetting them keeps the "latest" fallback honest;
+        // a version lookup would reload on its own.
+        this.catalogs.clear();
+
         this.setStatus({
             error: undefined,
             latestVersion: release.version,

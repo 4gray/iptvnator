@@ -13,6 +13,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslateModule } from '@ngx-translate/core';
 import {
+    AppUpdateChannel,
+    APP_UPDATE_CHANNELS,
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
@@ -38,6 +40,8 @@ import { UpdateChannelOption } from './settings.models';
         '.app-update-channel { margin-top: 12px; }',
         '.app-update-channel mat-form-field { width: 100%; max-width: 320px; }',
         '.app-update-channel__note { display: block; margin-top: 4px; opacity: 0.75; font-size: 0.85em; }',
+        '.app-update-status__channel { align-self: flex-start; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; color: var(--mat-sys-on-surface-variant); background: color-mix(in srgb, var(--mat-sys-on-surface) 9%, transparent); }',
+        '.app-update-status--stale strong, .app-update-status--stale .app-update-status__channel { opacity: 0.55; }',
     ],
 })
 export class SettingsAboutSectionComponent {
@@ -63,6 +67,13 @@ export class SettingsAboutSectionComponent {
     });
 
     readonly checkForAppUpdate = output<void>();
+    /**
+     * Emitted instead of a plain check while the channel select shows a
+     * channel the updater has not been told about yet. The host saves the
+     * form; the main process re-checks on its own once the saved channel
+     * changes, so one click yields the verdict the user is looking at.
+     */
+    readonly saveAndCheckForAppUpdate = output<void>();
     readonly downloadAppUpdate = output<void>();
     readonly installAppUpdate = output<void>();
     readonly openManualAppUpdate = output<void>();
@@ -83,6 +94,58 @@ export class SettingsAboutSectionComponent {
             status?.installedChannel === 'nightly' &&
             status.channel === 'stable'
         );
+    });
+
+    /**
+     * The channel the select currently shows. Read off the control on every
+     * check rather than tracked as a signal: the section is eagerly checked
+     * and the sibling nightly warning already reads the control the same way.
+     */
+    draftUpdateChannel(): AppUpdateChannel | null {
+        const value: unknown = this.form()?.get('updateChannel')?.value;
+
+        return APP_UPDATE_CHANNELS.includes(value as AppUpdateChannel)
+            ? (value as AppUpdateChannel)
+            : null;
+    }
+
+    /**
+     * True while the select shows a channel other than the one the last
+     * verdict describes. The verdict on screen is then about the OTHER
+     * channel, and a plain "check again" would silently repeat it.
+     */
+    hasPendingChannelChange(): boolean {
+        const draft = this.draftUpdateChannel();
+        const applied = this.appUpdateStatus()?.channel;
+
+        return draft !== null && applied !== undefined && draft !== applied;
+    }
+
+    /**
+     * Whether Save would make the updater re-check. A download in flight or
+     * finished belongs to the previous channel and is kept, so saving there
+     * changes the channel without a new verdict and the plain check stays.
+     */
+    canSaveAndCheckForAppUpdate(): boolean {
+        const status = this.appUpdateStatus()?.status;
+
+        return (
+            this.hasPendingChannelChange() &&
+            status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading &&
+            status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+        );
+    }
+
+    channelLabelKey(channel: AppUpdateChannel | null | undefined): string {
+        return channel === 'nightly'
+            ? 'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY'
+            : 'SETTINGS.APP_UPDATE_CHANNEL_STABLE';
+    }
+
+    readonly appliedChannelLabelKey = computed(() => {
+        const channel = this.appUpdateStatus()?.channel;
+
+        return channel ? this.channelLabelKey(channel) : null;
     });
 
     readonly isAppUpdateBusy = computed(() => {

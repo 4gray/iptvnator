@@ -8,7 +8,10 @@ import {
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SETTINGS_UPDATE_CHANNEL_OPTIONS } from './settings-options';
 
-function getButton(fixture: ComponentFixture<SettingsAboutSectionComponent>, id: string) {
+function getButton(
+    fixture: ComponentFixture<SettingsAboutSectionComponent>,
+    id: string
+) {
     return fixture.nativeElement.querySelector(
         `[data-test-id="${id}"]`
     ) as HTMLButtonElement | null;
@@ -30,10 +33,7 @@ describe('SettingsAboutSectionComponent app updates', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [
-                SettingsAboutSectionComponent,
-                TranslateModule.forRoot(),
-            ],
+            imports: [SettingsAboutSectionComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(SettingsAboutSectionComponent);
@@ -43,7 +43,9 @@ describe('SettingsAboutSectionComponent app updates', () => {
         const download = jest.fn();
         fixture.componentInstance.downloadAppUpdate.subscribe(download);
         const openNotes = jest.fn();
-        fixture.componentInstance.openAppUpdateReleaseNotes.subscribe(openNotes);
+        fixture.componentInstance.openAppUpdateReleaseNotes.subscribe(
+            openNotes
+        );
         configureComponent(fixture, {
             currentVersion: '0.22.0',
             latestVersion: '0.23.0',
@@ -84,7 +86,9 @@ describe('SettingsAboutSectionComponent app updates', () => {
 
     it('shows release notes for the current version when no update is available', () => {
         const openNotes = jest.fn();
-        fixture.componentInstance.openAppUpdateReleaseNotes.subscribe(openNotes);
+        fixture.componentInstance.openAppUpdateReleaseNotes.subscribe(
+            openNotes
+        );
         configureComponent(fixture, {
             currentVersion: '0.22.0',
             latestVersion: '0.22.0',
@@ -139,10 +143,7 @@ describe('SettingsAboutSectionComponent version display', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [
-                SettingsAboutSectionComponent,
-                TranslateModule.forRoot(),
-            ],
+            imports: [SettingsAboutSectionComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(SettingsAboutSectionComponent);
@@ -223,10 +224,7 @@ describe('SettingsAboutSectionComponent update channel', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [
-                SettingsAboutSectionComponent,
-                TranslateModule.forRoot(),
-            ],
+            imports: [SettingsAboutSectionComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(SettingsAboutSectionComponent);
@@ -270,5 +268,118 @@ describe('SettingsAboutSectionComponent update channel', () => {
         configure({ channel: 'nightly', installedChannel: 'nightly' }, form);
 
         expect(query('app-update-nightly-on-stable-hint')).toBeNull();
+    });
+
+    it('labels the verdict with the channel it describes', () => {
+        configure({ channel: 'stable' }, null);
+
+        expect(query('app-update-status-channel')?.textContent?.trim()).toBe(
+            'SETTINGS.APP_UPDATE_CHANNEL_STABLE'
+        );
+
+        configure({ channel: 'nightly' }, null);
+
+        expect(query('app-update-status-channel')?.textContent?.trim()).toBe(
+            'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY'
+        );
+    });
+
+    it('offers Save and check instead of a plain check while the select shows another channel', () => {
+        const check = jest.fn();
+        const saveAndCheck = jest.fn();
+        fixture.componentInstance.checkForAppUpdate.subscribe(check);
+        fixture.componentInstance.saveAndCheckForAppUpdate.subscribe(
+            saveAndCheck
+        );
+        const form = new FormGroup({
+            updateChannel: new FormControl('stable'),
+        });
+        configure(
+            {
+                channel: 'stable',
+                status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
+            },
+            form
+        );
+
+        expect(query('app-update-check')).not.toBeNull();
+        expect(query('app-update-save-and-check')).toBeNull();
+        expect(query('app-update-channel-pending-hint')).toBeNull();
+
+        form.controls.updateChannel.setValue('nightly');
+        fixture.detectChanges();
+
+        expect(query('app-update-check')).toBeNull();
+        expect(query('app-update-channel-pending-hint')).not.toBeNull();
+        expect(
+            query('app-update-status')?.classList.contains(
+                'app-update-status--stale'
+            )
+        ).toBe(true);
+
+        query('app-update-save-and-check')?.click();
+
+        expect(saveAndCheck).toHaveBeenCalledTimes(1);
+        expect(check).not.toHaveBeenCalled();
+    });
+
+    it('returns to the plain check once the saved channel matches the select', () => {
+        const form = new FormGroup({
+            updateChannel: new FormControl('nightly'),
+        });
+        configure({ channel: 'stable' }, form);
+
+        expect(query('app-update-save-and-check')).not.toBeNull();
+
+        configure(
+            {
+                channel: 'nightly',
+                status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
+            },
+            form
+        );
+
+        expect(query('app-update-save-and-check')).toBeNull();
+        expect(query('app-update-channel-pending-hint')).toBeNull();
+        expect(
+            query('app-update-status')?.classList.contains(
+                'app-update-status--stale'
+            )
+        ).toBe(false);
+        expect((query('app-update-check') as HTMLButtonElement).disabled).toBe(
+            true
+        );
+    });
+
+    it('keeps the plain check while a download of the previous channel is in flight or finished', () => {
+        const form = new FormGroup({
+            updateChannel: new FormControl('nightly'),
+        });
+
+        for (const status of [
+            ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading,
+            ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+        ]) {
+            configure(
+                { channel: 'stable', latestVersion: '0.24.0', status },
+                form
+            );
+
+            expect(query('app-update-save-and-check')).toBeNull();
+            expect(query('app-update-check')).not.toBeNull();
+            expect(query('app-update-channel-pending-hint')).not.toBeNull();
+        }
+    });
+
+    it('disables Save and check while the form cannot be saved', () => {
+        const form = new FormGroup({
+            updateChannel: new FormControl('nightly'),
+            broken: new FormControl('', () => ({ invalid: true })),
+        });
+        configure({ channel: 'stable' }, form);
+
+        expect(
+            (query('app-update-save-and-check') as HTMLButtonElement).disabled
+        ).toBe(true);
     });
 });

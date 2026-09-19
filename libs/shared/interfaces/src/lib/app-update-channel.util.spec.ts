@@ -1,6 +1,9 @@
 import {
     appUpdateReleasesApiUrl,
+    appUpdateReleasesListUrl,
     appUpdateReleasesPageUrl,
+    buildAppUpdateReleaseNotesNotFoundMessage,
+    isAppUpdateReleaseNotesNotFoundMessage,
     appUpdateRepository,
     appVersionChannel,
     compareAppVersions,
@@ -36,6 +39,32 @@ describe('app update channel util', () => {
         expect(appUpdateReleasesApiUrl('nightly')).toBe(
             'https://api.github.com/repos/4gray/iptvnator-nightly/releases'
         );
+        expect(appUpdateReleasesListUrl('stable')).toBe(
+            'https://github.com/4gray/iptvnator/releases'
+        );
+        expect(appUpdateReleasesListUrl('nightly')).toBe(
+            'https://github.com/4gray/iptvnator-nightly/releases'
+        );
+    });
+
+    it('recognises the not-found rejection through the IPC wrapper', () => {
+        const message = buildAppUpdateReleaseNotesNotFoundMessage('0.24.0');
+
+        expect(message).toBe('Release notes were not found for 0.24.0');
+        expect(buildAppUpdateReleaseNotesNotFoundMessage(undefined)).toBe(
+            'Release notes were not found for latest release'
+        );
+        expect(
+            isAppUpdateReleaseNotesNotFoundMessage(
+                `Error invoking remote method 'APP_UPDATE:GET_RELEASE_NOTES': Error: ${message}`
+            )
+        ).toBe(true);
+        expect(
+            isAppUpdateReleaseNotesNotFoundMessage(
+                'GitHub releases request failed: 403 Forbidden'
+            )
+        ).toBe(false);
+        expect(isAppUpdateReleaseNotesNotFoundMessage(null)).toBe(false);
     });
 
     it('reads the channel a build belongs to off its version', () => {

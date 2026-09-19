@@ -99,6 +99,7 @@
                         [updateMessage]="appUpdate.updateMessage()"
                         [appUpdateStatus]="appUpdate.status()"
                         (checkForAppUpdate)="appUpdate.checkForAppUpdate()"
+                        (saveAndCheckForAppUpdate)="onSubmit()"
                         (downloadAppUpdate)="appUpdate.downloadAppUpdate()"
                         (installAppUpdate)="appUpdate.installAppUpdate()"
                         (openManualAppUpdate)="appUpdate.openManualAppUpdate()"
