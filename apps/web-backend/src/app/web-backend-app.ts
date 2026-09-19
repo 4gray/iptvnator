@@ -20,6 +20,7 @@ import {
     observeProviderRequest,
     PROVIDER_REQUEST_TIMEOUT_MS,
     releaseProviderRequest,
+    reportProviderRequestConnected,
     reportProviderRequestFailure,
     reportProviderRequestSuccess,
     resetProviderHost,
@@ -289,6 +290,7 @@ export function createWebBackendApp(
                 timeout: PROVIDER_REQUEST_TIMEOUT_MS.xtream,
                 onConnect: () => {
                     connected = true;
+                    reportProviderRequestConnected(hostGuard, guardToken);
                 },
             });
             reportProviderRequestSuccess(hostGuard, guardToken);
@@ -412,6 +414,7 @@ export function createWebBackendApp(
                         : PROVIDER_REQUEST_TIMEOUT_MS.stalker,
                 onConnect: () => {
                     connected = true;
+                    reportProviderRequestConnected(hostGuard, guardToken);
                 },
             });
             reportProviderRequestSuccess(hostGuard, guardToken);

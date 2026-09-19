@@ -9,6 +9,7 @@ import { AddressInfo } from 'node:net';
 import {
     beginGuardedHostRequest,
     releaseGuardedHostRequest,
+    reportGuardedHostConnected,
     reportGuardedHostFailure,
     resetHostConnectivityGuardForTests,
 } from './host-connectivity-guard';
@@ -44,6 +45,7 @@ async function guardedRequest(origin: string): Promise<string | undefined> {
                 timeout: REQUEST_TIMEOUT_MS,
                 onConnect: () => {
                     connected = true;
+                    reportGuardedHostConnected(token);
                 },
             },
             { allowPrivateNetworks: true }

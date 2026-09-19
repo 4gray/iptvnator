@@ -29,6 +29,7 @@ import {
     HostRequestToken,
     beginGuardedHostRequest,
     observeGuardedHostRequest,
+    reportGuardedHostConnected,
     reportGuardedHostFailure,
     reportGuardedHostSuccess,
     releaseGuardedHostRequest,
@@ -119,6 +120,7 @@ ipcMain.handle(
             const config: ValidatedAxiosRequestConfig = {
                 onConnect: () => {
                     socketConnected = true;
+                    reportGuardedHostConnected(guardToken);
                 },
                 method: 'GET',
                 signal: probeControl.signal,

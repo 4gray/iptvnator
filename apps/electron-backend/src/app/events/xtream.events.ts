@@ -27,6 +27,7 @@ import {
     HostConnectivityGuardError,
     HostRequestToken,
     beginGuardedHostRequest,
+    reportGuardedHostConnected,
     reportGuardedHostFailure,
     reportGuardedHostSuccess,
     releaseGuardedHostRequest,
@@ -116,6 +117,7 @@ ipcMain.handle(
                 },
                 onConnect: () => {
                     socketConnected = true;
+                    reportGuardedHostConnected(guardToken);
                 },
                 method: 'GET',
                 url: apiUrl.toString(),

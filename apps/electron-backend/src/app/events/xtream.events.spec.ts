@@ -762,6 +762,40 @@ describe('XtreamEvents host connectivity guard', () => {
         expect(consoleWarnSpy).not.toHaveBeenCalled();
     });
 
+    it('does not let a hung request that connected earlier reopen a host that died meanwhile', async () => {
+        mockConnectHooks.length = 0;
+        const hung = createDeferred<never>();
+        // A: the panel accepts the connection, then never answers.
+        axiosMock.mockImplementationOnce(() => {
+            mockConnectHooks.at(-1)?.();
+            return hung.promise;
+        });
+        const first = request().then(
+            () => undefined,
+            (error) => error
+        );
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(mockConnectHooks).toHaveLength(1);
+
+        // B and C: the host is gone, nothing connects.
+        axiosMock.mockRejectedValueOnce(timedOut());
+        axiosMock.mockRejectedValueOnce(timedOut());
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toThrow(
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+        );
+
+        // A's timeout settles last; its connect is older than B's and C's
+        // failures and must not clear them.
+        hung.reject(timedOut());
+        await first;
+        await expect(request()).rejects.toThrow(
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+        );
+        expect(axiosMock).toHaveBeenCalledTimes(3);
+    });
+
     it('contacts the panel again once the guard is reset', async () => {
         axiosMock.mockRejectedValue(timedOut());
         await expect(request()).rejects.toBeDefined();

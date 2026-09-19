@@ -37,17 +37,19 @@ describe('classifyHostRequestFailure', () => {
         }
     });
 
-    it('reads a timeout after an accepted connection as an answer, not a host-level failure', () => {
+    it('reads a timeout after an accepted connection as inconclusive, never host-level', () => {
         // axios raises the same code whether the SYN went unanswered or the
         // panel accepted the connection and then thought for longer than
-        // the budget. Only the former is a dead host; the latter proved the
-        // host reachable and clears the streak like any response.
+        // the budget. Only the former is a dead host. The accepted
+        // connection was reported when it happened; by the time the
+        // timeout settles it is stale evidence and must not clear failures
+        // recorded since.
         for (const code of ['ECONNABORTED', 'ETIMEDOUT']) {
             expect(
                 classifyHostRequestFailure(timeoutError(code), {
                     connected: true,
                 })
-            ).toBe('responded');
+            ).toBe('inconclusive');
             expect(
                 classifyHostRequestFailure(timeoutError(code), {
                     connected: false,
@@ -234,6 +236,28 @@ describe('HostConnectivityGuard', () => {
             now: () => clock,
             onOpen: (host) => opened.push(host),
         });
+    });
+
+    it('lets an accepted connection clear the streak without closing an open breaker', () => {
+        // One refusal, then a request whose connection is accepted: the
+        // streak restarts from zero, so the next refusal is not the second.
+        failRequest();
+        guard.reportConnected(expectAllowed());
+        failRequest();
+        expectAllowed();
+        expect(opened).toEqual([]);
+
+        // A second refusal in a row opens it. The half-open trial connects
+        // but stays silent: the breaker keeps waiting for the trial to
+        // settle instead of closing on the handshake alone.
+        failRequest();
+        expect(opened).toEqual([HOST]);
+        advance(OPEN_DURATION_MS + 1);
+        const trial = expectAllowed();
+        guard.reportConnected(trial);
+        expectBlocked();
+        guard.reportInconclusive(trial);
+        expectAllowed();
     });
 
     it('allows requests to a host it has never seen', () => {

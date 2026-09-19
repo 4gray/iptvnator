@@ -94,6 +94,21 @@ export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
         getHostConnectivityGuard().reportSuccess(token);
     }
 }
+
+/**
+ * The endpoint accepted the TCP connection for this request — reachability
+ * evidence, reported the moment it happens (from the transport's `onConnect`
+ * hook), never deferred to the request's outcome. A request that connects and
+ * then hangs for 30 s must not, when it finally times out, clear failures
+ * that later requests recorded in between: those are newer evidence.
+ */
+export function reportGuardedHostConnected(
+    token: HostRequestToken | null
+): void {
+    if (token && currentTokens.has(token)) {
+        getHostConnectivityGuard().reportConnected(token);
+    }
+}
 /**
  * Records what a failed request proved about its endpoint.
  *
@@ -104,7 +119,8 @@ export function reportGuardedHostSuccess(token: HostRequestToken | null): void {
  *
  * `connected` is the transport's word that the endpoint accepted the TCP
  * connection (`ValidatedAxiosRequestConfig.onConnect`). A timeout after that
- * is a slow panel, not a dead one, and clears the streak like a response —
+ * is a slow panel, not a dead one, and does not count; the connection itself
+ * was already credited by `reportGuardedHostConnected` when it happened —
  * see `classifyHostRequestFailure`. Redirect attribution is checked first so
  * an exempt probe's redirect evidence is not lost behind the exemption.
  */

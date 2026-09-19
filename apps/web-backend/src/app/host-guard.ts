@@ -115,6 +115,21 @@ export function releaseProviderRequest(
 }
 
 /** The host answered — whatever the status was, it is reachable. */
+/**
+ * The provider accepted the TCP connection — reachability evidence, reported
+ * the moment the transport's `onConnect` fires rather than when the request
+ * settles. A request that connects and then hangs must not, on its eventual
+ * timeout, clear failures that later requests recorded in between.
+ */
+export function reportProviderRequestConnected(
+    guard: HostConnectivityGuard,
+    token: HostRequestToken | null
+): void {
+    if (token) {
+        guard.reportConnected(token);
+    }
+}
+
 export function reportProviderRequestSuccess(
     guard: HostConnectivityGuard,
     token: HostRequestToken | null
@@ -191,8 +206,9 @@ export function reportProviderRequestFailure(
         /**
          * The transport's word that the provider accepted the TCP connection
          * (`WebBackendHttpGetOptions.onConnect`). A timeout after that is a
-         * slow provider, not a dead one, and clears the streak like a
-         * response — see `classifyHostRequestFailure`.
+         * slow provider, not a dead one, and does not count; the connection
+         * itself was credited by `reportProviderRequestConnected` when it
+         * happened — see `classifyHostRequestFailure`.
          */
         connected?: boolean;
     } = {}

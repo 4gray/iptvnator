@@ -39,7 +39,9 @@ export type ValidatedAxiosRequestConfig = Omit<
      * tell a panel that never accepted the connection from one that accepted
      * it and then went silent. Requesting it gives the request its own agent
      * instead of the shared keep-alive `globalAgent`, since the observer is
-     * per request and must never be installed on a shared agent.
+     * per request and must never be installed on a shared agent. Not honoured
+     * while an environment proxy applies to the URL: the socket would be the
+     * proxy's, and its handshake proves nothing about the portal.
      */
     onConnect?: () => void;
 };
@@ -144,12 +146,37 @@ function pinRequestToValidatedAddresses(
     };
 }
 
+/**
+ * Whether axios would route `url` through an environment proxy: its
+ * `proxy-from-env` lookup reads `<protocol>_proxy` and `all_proxy` in either
+ * case. `NO_PROXY` exemptions are deliberately not evaluated here — the check
+ * only decides whether to trust a socket's `connect` as the portal's own, and
+ * declining that trust merely keeps the pre-observer behaviour, whereas
+ * granting it wrongly would credit a proxy's handshake to a dead portal.
+ */
+function environmentDeclaresProxy(url: URL): boolean {
+    const protocol = url.protocol.replace(/:$/, '');
+    return [`${protocol}_proxy`, 'all_proxy'].some((name) => {
+        const value =
+            process.env[name.toLowerCase()] ?? process.env[name.toUpperCase()];
+        return typeof value === 'string' && value.trim() !== '';
+    });
+}
+
 function observeHopConnections(
     config: AxiosRequestConfig,
     url: URL,
     onConnect: (() => void) | undefined
 ): AxiosRequestConfig {
     if (!onConnect) {
+        return config;
+    }
+    // Unpinned requests keep axios' environment proxy support. Through a
+    // proxy the observed socket connects to the proxy, not the portal, and a
+    // proxy that accepts TCP but cannot reach the portal would then pass as
+    // the portal answering. No observer there: such requests keep reporting
+    // their timeouts as host-level, exactly as before the hook existed.
+    if (config.proxy !== false && environmentDeclaresProxy(url)) {
         return config;
     }
 

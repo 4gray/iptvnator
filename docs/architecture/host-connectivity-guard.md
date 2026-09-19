@@ -109,7 +109,7 @@ errs towards contacting the host:
 | Trip        | 2 consecutive host-level failures within an inclusive 120 s window     |
 | Open for    | 30 s (`OPEN_DURATION_MS`), matching the repo's other cooldowns         |
 | Half-open   | exactly ONE trial request; the rest keep fast-failing until it settles |
-| Reset       | any HTTP response — 200, 404, even 502 — or an accepted TCP connection |
+| Reset       | any HTTP response — 200, 404, even 502; an accepted TCP connection clears the streak but not an open breaker |
 | Key         | `URL.origin` — scheme, host **and** port (see below)                   |
 | Kill switch | `IPTVNATOR_DISABLE_CONNECTIVITY_GUARD=1` (read per call)               |
 
@@ -133,13 +133,26 @@ own agent, observed via `observeAgentSocketConnections`, instead of the shared
 keep-alive `globalAgent`; a pooled socket that is already connected counts as
 connected), the web backend through `WebBackendHttpGetOptions.onConnect`,
 honoured by `ProviderAxiosTransport`, which owns the `ClientRequest` — and
-`classifyHostRequestFailure(error, { connected })` reads a host-level code
-as `responded` when it is set: the endpoint accepted a connection, which is
-the reachability the guard measures, so it CLEARS the streak like an HTTP
-response. Merely declining to count it would let an unanswered SYN, an
-accepted-but-slow request and another unanswered SYN add up to a trip although
-the middle request proved the host alive in between. Such a request still
-costs its full timeout; the guard only stops charging it to the host. Regression coverage:
+the accepted connection is credited THE MOMENT IT HAPPENS
+(`reportGuardedHostConnected` / `reportProviderRequestConnected` from the
+connect hook call `HostConnectivityGuard.reportConnected`, which clears the
+failure streak but deliberately closes no open or half-open breaker: whether a
+host that accepts a connection also answers is exactly what the trial exists
+to find out, so the trial keeps its slot until it settles), and
+`classifyHostRequestFailure(error, { connected })` then reads the eventual
+host-level code as `inconclusive`. Two things hang on that
+ordering. Clearing at connect time is what keeps an unanswered SYN, an
+accepted-but-slow request and another unanswered SYN from adding up to a
+trip, since the middle request proved the host alive in between. Crediting it
+at connect time rather than when the timeout settles is what keeps a request
+that connected and then hung for 30 s from reopening a breaker that later
+requests opened in the meantime — by then its evidence is older than theirs.
+Such a request still costs its full timeout; the guard only stops charging it
+to the host. Electron does not install the observer while an environment
+proxy (`http_proxy` / `https_proxy` / `all_proxy`) applies to the request:
+through a proxy the socket connects to the proxy, whose handshake proves
+nothing about the portal, so those requests keep reporting their timeouts as
+host-level exactly as before. Regression coverage:
 `apps/electron-backend/src/app/util/host-connectivity-guard.slow-host.spec.ts`
 (real loopback sockets) and the Xtream mock's `silent` scenario, whose
 `get_vod_info` / `get_series_info` accept the connection and never answer.

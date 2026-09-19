@@ -116,10 +116,11 @@ export type HostConnectivityCheck =
     | { readonly allowed: false; readonly retryAfterMs: number };
 
 /**
- * `responded`: the endpoint answered — an HTTP response of any status, or an
- * accepted TCP connection that then timed out (see
- * {@link classifyHostRequestFailure}). `host-level`: the host never answered.
- * `inconclusive`: the failure says nothing about reachability.
+ * `responded`: the endpoint answered with an HTTP response of any status.
+ * `host-level`: the host never answered. `inconclusive`: the failure says
+ * nothing about reachability — including a timeout after an accepted
+ * connection, whose evidence the owner already reported at connect time (see
+ * {@link classifyHostRequestFailure}).
  */
 export type HostRequestOutcome = 'responded' | 'host-level' | 'inconclusive';
 
@@ -178,12 +179,16 @@ export interface HostRequestFailureContext {
  * heavy `get_vod_info` on a busy home server) accepts every connection, and
  * tripping the breaker on it turns "slow" into thirty seconds of "not
  * responding" for every request — the reported symptom. So a host-level
- * code observed after the handshake reads as `responded`: the endpoint
- * demonstrably accepted a connection, which is the reachability the guard
- * measures, and it clears the streak like an HTTP response would. Merely not
- * counting it would let an unanswered SYN, an accepted-but-slow request and
- * another unanswered SYN add up to a trip although the middle one proved
- * the host alive in between. The remaining codes cannot occur once a
+ * code observed after the handshake is `inconclusive`: it must not count.
+ *
+ * It does not clear the streak here either, and that is deliberate. The
+ * accepted connection IS reachability evidence and does clear the streak —
+ * but the owner reports it the moment the socket connects
+ * (`reportConnected` from the transport's connect hook), not when the
+ * timeout settles up to 30 s later. Ordering matters: while A sits connected and
+ * silent, B and C can fail to connect and open the breaker for a host that
+ * has just died; clearing at A's settle time would reopen it on evidence
+ * older than B's and C's failures. The remaining codes cannot occur once a
  * connection exists, so the rule costs nothing for them.
  */
 export function classifyHostRequestFailure(
@@ -200,7 +205,7 @@ export function classifyHostRequestFailure(
 
     const code = (error as { code?: unknown }).code;
     if (typeof code === 'string' && HOST_LEVEL_FAILURE_CODES.has(code)) {
-        return context.connected ? 'responded' : 'host-level';
+        return context.connected ? 'inconclusive' : 'host-level';
     }
 
     return 'inconclusive';
@@ -311,6 +316,28 @@ export class HostConnectivityGuard {
         state.lastFailureAt = 0;
         state.openUntil = 0;
         state.trialInFlight = false;
+        state.lastTouchedAt = this.now();
+    }
+
+    /**
+     * The host accepted this request's TCP connection. Reported the moment it
+     * happens, so its place in the order of evidence is exact: it clears the
+     * failure streak recorded up to now, and later failures start a new one.
+     *
+     * It deliberately does NOT close an open or half-open breaker. Whether a
+     * host that has just accepted a connection also answers is exactly what
+     * the half-open trial exists to find out, so the trial keeps its slot
+     * until it settles, and a request admitted before the breaker opened does
+     * not reopen the host on the strength of a handshake alone.
+     */
+    reportConnected(token: HostRequestToken): void {
+        const state = this.states.get(token.endpoint);
+        if (!state || isHostConnectivityGuardDisabled()) {
+            return;
+        }
+
+        state.consecutiveFailures = 0;
+        state.lastFailureAt = 0;
         state.lastTouchedAt = this.now();
     }
 
