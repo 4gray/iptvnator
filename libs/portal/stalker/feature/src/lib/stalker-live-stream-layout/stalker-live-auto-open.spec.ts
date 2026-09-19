@@ -205,6 +205,26 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(channel('31', 7));
     });
 
+    it('drops the deferred play when the user switches portal first', () => {
+        // A genre-less channel targets '*', which a fresh portal's reset
+        // (selectedCategoryId null) would otherwise look identical to.
+        const noGenre = { id: '30', cmd: 'x', name: 'No genre' };
+        rows.set([channel('1', 2)]);
+        store.selectedCategoryId.set('2');
+        store.itvFullChannelList.set([noGenre]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        expect(play).not.toHaveBeenCalled();
+
+        store.currentPlaylist.set({ _id: 'pl-9' });
+        store.selectedCategoryId.set(null);
+        TestBed.tick();
+        serveRows(noGenre);
+
+        expect(play).not.toHaveBeenCalled();
+    });
+
     it('drops the deferred play when the user starts a search first', () => {
         store.itvFullChannelList.set([channel('30', 7)]);
         store.itvFullListActive.set(true);

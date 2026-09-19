@@ -50,6 +50,8 @@ export interface StalkerLiveAutoOpenOptions {
 
 interface DeferredPlay {
     item: StalkerItvChannel;
+    /** The portal the channel belongs to; a portal switch drops the request. */
+    playlistId: string;
     category: string;
     /** The rows on screen when the category was switched — the OLD list. */
     staleRows: readonly StalkerItvChannel[];
@@ -257,7 +259,14 @@ export class StalkerLiveAutoOpen {
         }
         if (item) {
             if (scopeChanged) {
-                this.deferredPlay.set({ item, category, staleRows });
+                this.deferredPlay.set({
+                    item,
+                    playlistId: normalizeStalkerEntityId(
+                        store.currentPlaylist()?._id
+                    ),
+                    category,
+                    staleRows,
+                });
             } else {
                 this.options.play(item);
             }
@@ -275,12 +284,14 @@ export class StalkerLiveAutoOpen {
 
         const { store } = this.options;
         if (
+            normalizeStalkerEntityId(store.currentPlaylist()?._id) !==
+                deferred.playlistId ||
             store.selectedContentType() !== 'itv' ||
             (store.selectedCategoryId() ?? '*') !== deferred.category ||
             store.searchPhrase().trim() !== ''
         ) {
-            // The user moved on (another genre/section, or started a
-            // search) before the genre's rows arrived.
+            // The user moved on (another portal, genre or section, or
+            // started a search) before the genre's rows arrived.
             untracked(() => this.deferredPlay.set(null));
             return;
         }
