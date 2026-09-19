@@ -6,6 +6,10 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
+import {
+    categorySearchPredicate,
+    normalizeCategorySearch,
+} from '@iptvnator/portal/shared/util';
 import { ContentType, XtreamContentLoadState } from '../../xtream-state';
 
 /**
@@ -295,14 +299,14 @@ export function withSelection() {
                 items: XtreamSelectionItem[],
                 searchTerm: string
             ): XtreamSelectionItem[] => {
-                const normalized = searchTerm.trim().toLocaleLowerCase();
-                if (!normalized) {
+                const matches = categorySearchPredicate(searchTerm, '', 'all');
+                if (!searchTerm.trim()) {
                     return items;
                 }
 
                 return items.filter((item) => {
                     const title = (item.title ?? item.name ?? '').toString();
-                    return title.toLocaleLowerCase().includes(normalized);
+                    return matches(normalizeCategorySearch(title));
                 });
             };
 

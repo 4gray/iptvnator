@@ -37,6 +37,10 @@ import {
     sortPlaylistChannelItems,
 } from '../channel-list-sort.util';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
+import {
+    categorySearchPredicate,
+    normalizeCategorySearch,
+} from '@iptvnator/portal/shared/util';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
@@ -355,14 +359,17 @@ export class GroupsViewComponent {
     });
 
     readonly filteredGroups = computed<FilteredGroupView[]>(() => {
-        const term = this.localGroupSearchTerm().trim().toLowerCase();
+        const query = this.localGroupSearchTerm();
         const groups = this.workspaceFilteredGroups();
 
-        if (!term) {
+        if (!query.trim()) {
             return groups;
         }
 
-        return groups.filter((group) => group.key.toLowerCase().includes(term));
+        const matches = categorySearchPredicate(query, '', 'all');
+        return groups.filter((group) =>
+            matches(normalizeCategorySearch(group.key))
+        );
     });
 
     readonly hasAnyGroups = computed(() => this.allGroups().length > 0);

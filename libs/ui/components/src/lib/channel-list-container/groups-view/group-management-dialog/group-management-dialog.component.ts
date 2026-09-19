@@ -15,6 +15,10 @@ import {
 } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import {
+    categorySearchPredicate,
+    normalizeCategorySearch,
+} from '@iptvnator/portal/shared/util';
 
 export interface GroupManagementDialogGroup {
     readonly count: number;
@@ -59,14 +63,15 @@ export class GroupManagementDialogComponent {
     );
 
     readonly filteredGroups = computed(() => {
-        const term = this.searchTerm().trim().toLowerCase();
+        const query = this.searchTerm();
 
-        if (!term) {
+        if (!query.trim()) {
             return this.groups();
         }
 
+        const matches = categorySearchPredicate(query, '', 'all');
         return this.groups().filter((group) =>
-            group.key.toLowerCase().includes(term)
+            matches(normalizeCategorySearch(group.key))
         );
     });
 

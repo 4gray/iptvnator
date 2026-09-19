@@ -1,0 +1,78 @@
+<div class="category-search">
+    <label>
+        <span>{{ 'CATEGORY_SEARCH.KEYWORDS' | translate }}</span>
+        <input
+            #searchInput
+            type="search"
+            spellcheck="false"
+            autocomplete="off"
+            [value]="query()"
+            (input)="query.set($any($event.target).value)"
+            [placeholder]="'WORKSPACE.CONTEXT.SEARCH_CATEGORIES' | translate"
+        />
+    </label>
+    @if (keywords().length) {
+        <div class="keywords">
+            @for (term of keywords(); track $index) {
+                <button
+                    type="button"
+                    class="keyword"
+                    (click)="remove($index)"
+                    [attr.aria-label]="
+                        'CATEGORY_SEARCH.REMOVE' | translate: { term: term }
+                    "
+                >
+                    <span>{{ term }}</span
+                    ><span aria-hidden="true">×</span>
+                </button>
+            }
+        </div>
+    }
+    <label>
+        <span>{{ 'CATEGORY_SEARCH.MODE' | translate }}</span>
+        <select [value]="mode()" (change)="mode.set($any($event.target).value)">
+            <option value="any">{{ 'CATEGORY_SEARCH.ANY' | translate }}</option>
+            <option value="all">{{ 'CATEGORY_SEARCH.ALL' | translate }}</option>
+        </select>
+    </label>
+    <label>
+        <span>{{ 'CATEGORY_SEARCH.EXCLUDE' | translate }}</span>
+        <input
+            type="search"
+            spellcheck="false"
+            autocomplete="off"
+            [value]="exclusions()"
+            (input)="exclusions.set($any($event.target).value)"
+        />
+    </label>
+    @if (excludedKeywords().length) {
+        <div class="keywords">
+            @for (term of excludedKeywords(); track $index) {
+                <button
+                    type="button"
+                    class="keyword"
+                    (click)="remove($index, true)"
+                    [attr.aria-label]="
+                        'CATEGORY_SEARCH.REMOVE_EXCLUSION'
+                            | translate: { term: term }
+                    "
+                >
+                    <span>− {{ term }}</span
+                    ><span aria-hidden="true">×</span>
+                </button>
+            }
+        </div>
+    }
+    <small>{{ 'CATEGORY_SEARCH.HELP' | translate }}</small>
+    <div class="search-summary">
+        <span role="status">{{
+            'CATEGORY_SEARCH.COUNT'
+                | translate: { matched: matched(), total: total() }
+        }}</span>
+        @if (query() || exclusions() || mode() !== 'all') {
+            <button type="button" (click)="clear()">
+                {{ 'CATEGORY_SEARCH.CLEAR' | translate }}
+            </button>
+        }
+    </div>
+</div>

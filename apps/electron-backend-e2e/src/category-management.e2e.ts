@@ -47,7 +47,11 @@ test.describe('Electron Xtream Category Management', () => {
                     dialog.getByRole('checkbox', { name, exact: true });
                 await checkbox(outside[0]).uncheck();
                 await checkbox(matched[0]).uncheck();
-                const search = () => dialog.locator('input[type="search"]');
+                const search = () =>
+                    dialog.getByRole('searchbox', {
+                        name: 'Keywords',
+                        exact: true,
+                    });
                 await search().fill('a');
                 const select = () =>
                     dialog.getByRole('button', {
@@ -169,7 +173,7 @@ test.describe('Electron Xtream Category Management', () => {
             ).toBeVisible();
 
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, false);
             await dialog
@@ -205,7 +209,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, true);
             await dialog
@@ -217,7 +221,7 @@ test.describe('Electron Xtream Category Management', () => {
 
             dialog = await openManageCategoriesDialog(app.mainWindow);
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             const restoredRows = dialog.locator('.category-item');
             await expect(restoredRows).toHaveCount(1, { timeout: 15000 });
@@ -267,7 +271,7 @@ test.describe('Electron Xtream Category Management', () => {
             ).toHaveCount(0);
 
             await dialog
-                .locator('input[type="search"]')
+                .getByRole('searchbox', { name: 'Keywords', exact: true })
                 .fill(targetCategory.name);
             await toggleManagedCategory(dialog, targetCategory, true);
             await dialog

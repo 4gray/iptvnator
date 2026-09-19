@@ -41,8 +41,10 @@ import {
     EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
+    categorySearchPredicate,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
+    normalizeCategorySearch,
     PortalChannelSortMode,
     sortPortalChannelItems,
 } from '@iptvnator/portal/shared/util';
@@ -146,17 +148,20 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         );
     });
     readonly filteredChannels = computed(() => {
-        const term = this.searchTermInput().trim().toLowerCase();
+        const searchTerm = this.searchTermInput();
         const channels = this.sortedChannels();
 
-        if (!term) {
+        if (!searchTerm.trim()) {
             return channels;
         }
 
+        const matches = categorySearchPredicate(searchTerm, '', 'all');
         return channels.filter((item) =>
-            `${item.title ?? ''} ${item.name ?? ''}`
-                .toLowerCase()
-                .includes(term)
+            matches(
+                normalizeCategorySearch(
+                    `${item.title ?? ''} ${item.name ?? ''}`
+                )
+            )
         );
     });
 

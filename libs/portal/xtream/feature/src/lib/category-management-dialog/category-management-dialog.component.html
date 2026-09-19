@@ -23,7 +23,7 @@
                     "
                 >
                     {{
-                        (searchTerm()
+                        (hasSearch()
                             ? 'XTREAM.CATEGORY_MANAGEMENT.SELECT_FILTERED'
                             : 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL'
                         ) | translate
@@ -35,7 +35,7 @@
                     [disabled]="isSaving() || filteredSelectedCount() === 0"
                 >
                     {{
-                        (searchTerm()
+                        (hasSearch()
                             ? 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_FILTERED'
                             : 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL'
                         ) | translate
@@ -44,28 +44,13 @@
             </div>
         </div>
 
-        <label class="search-inline">
-            <mat-icon class="search-inline__icon">search</mat-icon>
-            <input
-                type="search"
-                spellcheck="false"
-                [value]="searchTerm()"
-                (input)="searchTerm.set($any($event.target).value)"
-                [placeholder]="
-                    'XTREAM.CATEGORY_MANAGEMENT.SEARCH_PLACEHOLDER' | translate
-                "
-            />
-            @if (searchTerm()) {
-                <button
-                    type="button"
-                    mat-icon-button
-                    class="search-inline__clear"
-                    (click)="clearSearch()"
-                >
-                    <mat-icon>close</mat-icon>
-                </button>
-            }
-        </label>
+        <app-category-search
+            [(query)]="searchTerm"
+            [(exclusions)]="excludedSearchTerm"
+            [(mode)]="searchMode"
+            [matched]="filteredCategories().length"
+            [total]="totalCount()"
+        />
 
         <div class="categories-list">
             @for (category of filteredCategories(); track category.id) {
@@ -88,7 +73,7 @@
                 </div>
             } @empty {
                 <div class="empty-message">
-                    @if (searchTerm()) {
+                    @if (hasSearch()) {
                         {{
                             'XTREAM.CATEGORY_MANAGEMENT.NO_RESULTS' | translate
                         }}

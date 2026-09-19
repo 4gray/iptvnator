@@ -194,6 +194,42 @@ describe('WorkspaceContextPanelComponent', () => {
         });
     });
 
+    it.each([
+        ['xtreams', 'live'],
+        ['stalker', 'itv'],
+    ] as const)(
+        'uses AND by default and supports quoted exclusions for %s categories',
+        (provider, section) => {
+            fixture.componentRef.setInput('context', {
+                provider,
+                playlistId: 'playlist-1',
+            });
+            fixture.componentRef.setInput('section', section);
+            const names = [
+                'CA Sports Canada',
+                'CA Sports Canada Spanish Dub',
+                'CA Sports News',
+            ];
+            xtreamCategories.set(names.map((name, id) => ({ id, name })));
+            stalkerStore.getCategoryResource.set(
+                names.map((category_name, id) => ({
+                    category_id: String(id),
+                    category_name,
+                }))
+            );
+
+            const component = fixture.componentInstance;
+            component.categorySearchTerm.set('sports canada -"spanish dub"');
+            const results = provider === 'xtreams'
+                ? component.filteredXtreamCategories()
+                : component.filteredStalkerCategories();
+
+            expect(component.categorySearchMode()).toBe('all');
+            expect(results).toHaveLength(1);
+            expect(component.categorySearchTerm()).toContain('-"spanish dub"');
+        }
+    );
+
     it('renders loading meta and blocks xtream category clicks until counts are ready', () => {
         fixture.componentRef.setInput('section', 'live');
         fixture.detectChanges();

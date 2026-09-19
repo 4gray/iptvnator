@@ -584,6 +584,31 @@ describe('GroupsViewComponent', () => {
         ]);
     });
 
+    it('supports multiple terms, quoted phrases, and exclusions in local group search', () => {
+        setInputs({
+            groupedChannels: {
+                Sports: [sportsCenter],
+                'Sports News': [worldUpdate],
+                'Science Fiction': [movieClassic],
+                'Science News': [worldUpdate],
+            },
+        });
+        component.updateGroupSearchTerm('sports -news');
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Sports',
+        ]);
+
+        component.updateGroupSearchTerm('sports -"sports news"');
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Sports',
+        ]);
+
+        component.updateGroupSearchTerm('"science fiction"');
+        expect(component.filteredGroups().map((group) => group.key)).toEqual([
+            'Science Fiction',
+        ]);
+    });
+
     it('emits channel and favorite events from the selected group pane', () => {
         const channelSelected = jest.fn();
         const favoriteToggled = jest.fn();

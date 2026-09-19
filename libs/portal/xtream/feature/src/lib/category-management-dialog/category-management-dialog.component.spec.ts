@@ -171,6 +171,92 @@ describe('CategoryManagementDialogComponent', () => {
         expect(dialogRef.close).toHaveBeenCalledWith(true);
     });
 
+    it('combines OR, AND and exclusions without losing selections on save', async () => {
+        component.searchTerm.set('FR DE');
+        expect(component.searchMode()).toBe('all');
+        component.searchMode.set('any');
+        component.excludedSearchTerm.set('Sports');
+        expect(component.filteredCategories().map((c) => c.id)).toEqual([
+            11, 13,
+        ]);
+        component.deselectAll();
+        component.searchTerm.set('Sports FR');
+        component.excludedSearchTerm.set('');
+        component.searchMode.set('all');
+        expect(component.filteredCategories().map((c) => c.id)).toEqual([12]);
+        component.selectAll();
+        component.clearSearch();
+        expect(selectedIds()).toEqual([12]);
+        expect(component.searchMode()).toBe('all');
+        await component.save();
+        expect(db.updateCategoryVisibility.mock.calls).toEqual([
+            [[11, 13, 14], true],
+            [[12], false],
+        ]);
+    });
+
+    it.each([
+        ['ES', [12, 13, 14]],
+        ['-ES', [12, 13, 14]],
+        ['"Spanish Dub"', [11, 13, 14]],
+        ['-"Spanish Dub"', [11, 13, 14]],
+    ])('filters the separate exclusion input %s', (query, expectedIds) => {
+        component.categories.update((items) =>
+            items.map((item) => ({
+                ...item,
+                name: item.id === 11 ? 'ES News'
+                    : item.id === 12 ? 'Spanish Dub' : item.name,
+            }))
+        );
+        fixture.detectChanges();
+        const input = fixture.nativeElement.querySelectorAll(
+            'app-category-search input'
+        )[1];
+        input.value = query;
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(component.filteredCategories().map((item) => item.id)).toEqual(
+            expectedIds
+        );
+    });
+
+    it('labels exclusion-only bulk actions as filtered and uses the full catalog after clear', () => {
+        component.excludedSearchTerm.set('Sports');
+        expect(bulkButtons()[1].textContent).toContain('DESELECT_FILTERED');
+        component.deselectAll();
+        expect(selectedIds()).toEqual([]);
+        component.clearSearch();
+        expect(component.filteredCategories()).toHaveLength(4);
+    });
+
+    it.each([
+        ['sports', true],
+        ['sports canada', true],
+        ['-ES', true],
+        ['-"Spanish Dub"', true],
+        [',', false],
+        ['""', false],
+        ['-', false],
+        ['   ', false],
+    ])(
+        'derives whether bulk actions are filtered from parsed terms for %p',
+        (query, expectedHasSearch) => {
+            component.searchTerm.set(query);
+
+            expect(component.hasSearch()).toBe(expectedHasSearch);
+            expect(bulkButtons()[0].textContent).toContain(
+                expectedHasSearch
+                    ? 'XTREAM.CATEGORY_MANAGEMENT.SELECT_FILTERED'
+                    : 'XTREAM.CATEGORY_MANAGEMENT.SELECT_ALL'
+            );
+            expect(bulkButtons()[1].textContent).toContain(
+                expectedHasSearch
+                    ? 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_FILTERED'
+                    : 'XTREAM.CATEGORY_MANAGEMENT.DESELECT_ALL'
+            );
+        }
+    );
+
     it('discards pending bulk changes on cancel', () => {
         component.searchTerm.set('FR');
         component.selectAll();
