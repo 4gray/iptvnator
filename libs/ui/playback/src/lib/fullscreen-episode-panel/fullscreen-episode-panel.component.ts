@@ -106,6 +106,16 @@ export class FullscreenEpisodePanelComponent {
     readonly episodeCounts = computed(() =>
         countBySeason(this.seasons(), (season) => season.episodes.length)
     );
+    /** Season poster URLs keyed by season, for the tabs' dropdown thumbnails. */
+    readonly seasonPosters = computed<Record<string, string>>(() => {
+        const posters: Record<string, string> = {};
+        for (const season of this.seasons()) {
+            if (season.posterUrl) {
+                posters[season.key] = season.posterUrl;
+            }
+        }
+        return posters;
+    });
     /** Season poster URLs whose image request failed; the strip then folds. */
     private readonly failedPosters = signal<ReadonlySet<string>>(new Set());
     /**

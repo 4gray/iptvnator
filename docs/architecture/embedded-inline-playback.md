@@ -291,9 +291,24 @@ poster is the show poster a few hundred pixels below the hero), or when the
 image request failed. The hero poster never follows the season: the show
 keeps its identity element, the season gets its own picture next to its own
 text. The fullscreen episode panel shows the same poster as a compact season
-strip (poster, season name, episode count) above its season tabs, under the
+strip (poster, season name, episode count — `PORTALS.EPISODE_COUNT_ONE` /
+`PORTALS.EPISODE_COUNT_OTHER`) above its season tabs, under the
 same gates, from `PortalInlinePlayerComponent.seasonPosters` through
 `buildFullscreenEpisodePanelSeasons`.
+
+Beyond six seasons the tabs become a `mat-menu` dropdown, and that dropdown
+carries **season thumbnails** from the same `seasonPosters` map
+(`SeasonTabsComponent.seasonPosters`, passed by the season container and by
+the fullscreen episode panel): a 28×42 poster projected into the leading slot
+of each menu row that has one, and the selected season's poster inside the
+closed trigger (`season-tabs__dropdown--with-thumb` tightens the pill around
+it). A season without a poster gets no placeholder tile — its row simply
+starts with the text — and a poster whose image request fails is dropped from
+both places rather than left as a broken-image frame (the component keeps its
+own failed-URL set, independent of the container's cover column). The pill
+row (six seasons or fewer) deliberately stays text-only: the design review
+rejected per-pill thumbnails as a second poster rail, and the season cover
+beside the tabs already shows the selected season's picture.
 
 ### Manual watched toggle for movies
 

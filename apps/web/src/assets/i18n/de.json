@@ -1249,6 +1249,8 @@
         "ABOUT": "Info",
         "SEASONS_AND_EPISODES": "Staffeln und Folgen",
         "SEASON_TAB": "Staffel {{number}}",
+        "EPISODE_COUNT_ONE": "1 Episode",
+        "EPISODE_COUNT_OTHER": "{{count}} Episoden",
         "BACK_TO_PLAYING_EPISODE": "Zurück zur laufenden Folge",
         "GRID_VIEW": "Rasteransicht",
         "LIST_VIEW": "Listenansicht",

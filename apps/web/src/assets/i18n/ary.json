@@ -1249,6 +1249,8 @@
         "ABOUT": "حول",
         "SEASONS_AND_EPISODES": "المواسم والحلقات",
         "SEASON_TAB": "الموسم {{number}}",
+        "EPISODE_COUNT_ONE": "حلقة وحدة",
+        "EPISODE_COUNT_OTHER": "{{count}} حلقات",
         "BACK_TO_PLAYING_EPISODE": "رجوع للحلقة اللي كتشغل",
         "GRID_VIEW": "عرض الشبكة",
         "LIST_VIEW": "عرض اللائحة",

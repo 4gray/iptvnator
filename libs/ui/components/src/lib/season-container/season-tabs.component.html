@@ -3,9 +3,21 @@
         <button
             class="season-tabs__dropdown"
             data-testid="season-dropdown"
+            [class.season-tabs__dropdown--with-thumb]="selectedPosterUrl()"
             [matMenuTriggerFor]="seasonMenu"
             type="button"
         >
+            @if (selectedPosterUrl(); as posterUrl) {
+                <img
+                    class="season-tabs__thumb"
+                    data-testid="season-dropdown-thumb"
+                    [src]="posterUrl"
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    (error)="onPosterError(posterUrl)"
+                />
+            }
             <span>
                 {{
                     'PORTALS.SEASON_TAB'
@@ -23,6 +35,20 @@
                     "
                     (click)="selectSeason(seasonKey)"
                 >
+                    <!-- Projected into the item's leading slot so the row
+                         stays a flex line: thumbnail, name, count, check. -->
+                    @if (posterUrlOf(seasonKey); as posterUrl) {
+                        <img
+                            matMenuItemIcon
+                            class="season-tabs__thumb season-tabs__thumb--menu"
+                            data-testid="season-menu-thumb"
+                            [src]="posterUrl"
+                            alt=""
+                            aria-hidden="true"
+                            loading="lazy"
+                            (error)="onPosterError(posterUrl)"
+                        />
+                    }
                     <span>
                         {{
                             'PORTALS.SEASON_TAB'

@@ -1249,6 +1249,8 @@
         "ABOUT": "簡介",
         "SEASONS_AND_EPISODES": "季數與集數",
         "SEASON_TAB": "第 {{number}} 季",
+        "EPISODE_COUNT_ONE": "1 集",
+        "EPISODE_COUNT_OTHER": "{{count}} 集",
         "BACK_TO_PLAYING_EPISODE": "返回正在播放的集數",
         "GRID_VIEW": "格狀檢視",
         "LIST_VIEW": "清單檢視",

@@ -50,6 +50,28 @@
         font-weight: 600;
         font-family: inherit;
         cursor: pointer;
+
+        // The trigger hugs its thumbnail: less inset on the picture side and
+        // vertically, so the pill grows only as much as the 42px poster needs.
+        &--with-thumb {
+            gap: 8px;
+            padding: 4px 10px 4px 4px;
+        }
+    }
+
+    // Season thumbnail in the dropdown (trigger + menu rows). Poster ratio at
+    // 28×42 — small enough to keep the 48px menu row height Material sets.
+    &__thumb {
+        flex: none;
+        width: 28px;
+        height: 42px;
+        object-fit: cover;
+        border-radius: 3px;
+        background: var(--tag-bg, rgba(255, 255, 255, 0.08));
+
+        &--menu {
+            margin-right: 12px;
+        }
     }
 
     &__menu-count {

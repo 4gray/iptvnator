@@ -1249,6 +1249,8 @@
         "ABOUT": "Σχετικά",
         "SEASONS_AND_EPISODES": "Σεζόν και επεισόδια",
         "SEASON_TAB": "Σεζόν {{number}}",
+        "EPISODE_COUNT_ONE": "1 επεισόδιο",
+        "EPISODE_COUNT_OTHER": "{{count}} επεισόδια",
         "BACK_TO_PLAYING_EPISODE": "Πίσω στο επεισόδιο που παίζει",
         "GRID_VIEW": "Προβολή πλέγματος",
         "LIST_VIEW": "Προβολή λίστας",
