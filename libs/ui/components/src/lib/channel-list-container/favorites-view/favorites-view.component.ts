@@ -22,6 +22,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '@iptvnator/services';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
+    foldSearchText,
     Channel,
     EpgProgram,
     epgProviderClockMs,
@@ -97,16 +98,16 @@ export class FavoritesViewComponent {
     );
     readonly filteredFavorites = computed(() => {
         const favorites = this.favorites();
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
 
         if (!term) {
             return favorites;
         }
 
         return favorites.filter((channel) =>
-            `${channel.name ?? ''} ${channel.group?.title ?? ''}`
-                .toLowerCase()
-                .includes(term)
+            foldSearchText(
+                `${channel.name ?? ''} ${channel.group?.title ?? ''}`
+            ).includes(term)
         );
     });
 

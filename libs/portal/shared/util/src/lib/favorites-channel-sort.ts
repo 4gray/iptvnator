@@ -1,19 +1,17 @@
+import { foldSearchText } from '@iptvnator/shared/interfaces';
+
 const FAVORITES_SORT_COLLATOR = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: 'base',
 });
 
 export type FavoritesChannelSortMode =
-    | 'custom'
-    | 'name-asc'
-    | 'name-desc'
-    | 'date-desc';
+    'custom' | 'name-asc' | 'name-desc' | 'date-desc';
 
 export const DEFAULT_FAVORITES_CHANNEL_SORT_MODE: FavoritesChannelSortMode =
     'custom';
 
-export const FAVORITES_CHANNEL_SORT_STORAGE_KEY =
-    'favorites-channel-sort-mode';
+export const FAVORITES_CHANNEL_SORT_STORAGE_KEY = 'favorites-channel-sort-mode';
 
 export function isFavoritesChannelSortMode(
     value: unknown
@@ -72,10 +70,10 @@ export function deriveVisibleFavoriteChannels<T>(
         getAddedAt?: (item: T) => string | null | undefined;
     }
 ): readonly T[] {
-    const term = options.searchTerm.trim().toLowerCase();
+    const term = foldSearchText(options.searchTerm.trim());
     const filtered = term
         ? channels.filter((channel) =>
-              (options.getName(channel) ?? '').toLowerCase().includes(term)
+              foldSearchText(options.getName(channel) ?? '').includes(term)
           )
         : channels;
 

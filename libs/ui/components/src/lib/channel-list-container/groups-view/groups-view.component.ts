@@ -24,6 +24,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
 import {
+    foldSearchText,
     Channel,
     EpgProgram,
     epgProviderClockMs,
@@ -320,7 +321,7 @@ export class GroupsViewComponent {
     });
 
     readonly workspaceFilteredGroups = computed<FilteredGroupView[]>(() => {
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
         const groups = this.visibleGroups();
 
         if (!term) {
@@ -333,11 +334,11 @@ export class GroupsViewComponent {
         }
 
         return groups.reduce<FilteredGroupView[]>((acc, group) => {
-            const titleMatches = group.key.toLowerCase().includes(term);
+            const titleMatches = foldSearchText(group.key).includes(term);
             const channels = titleMatches
                 ? group.channels
                 : group.channels.filter((channel) =>
-                      `${channel.name ?? ''}`.toLowerCase().includes(term)
+                      foldSearchText(`${channel.name ?? ''}`).includes(term)
                   );
 
             if (channels.length === 0) {
@@ -355,14 +356,16 @@ export class GroupsViewComponent {
     });
 
     readonly filteredGroups = computed<FilteredGroupView[]>(() => {
-        const term = this.localGroupSearchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.localGroupSearchTerm().trim());
         const groups = this.workspaceFilteredGroups();
 
         if (!term) {
             return groups;
         }
 
-        return groups.filter((group) => group.key.toLowerCase().includes(term));
+        return groups.filter((group) =>
+            foldSearchText(group.key).includes(term)
+        );
     });
 
     readonly hasAnyGroups = computed(() => this.allGroups().length > 0);

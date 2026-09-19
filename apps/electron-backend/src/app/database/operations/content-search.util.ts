@@ -16,12 +16,47 @@ export function escapeLikePattern(term: string): string {
     return term.replace(/[%_\\]/g, '\\$&');
 }
 
+/**
+ * Case spellings a stored title may use for `value`, for LIKE/GLOB patterns:
+ * SQLite LIKE folds only ASCII and GLOB folds nothing, so every form has to
+ * be spelled out. Besides lower/upper/title case, a value containing "i"
+ * also gets the Turkish forms with the dotted capital İ (U+0130) — "inş"
+ * becomes "İNŞ" / "İnş" — because the locale-invariant `toUpperCase()`
+ * yields "INŞ", which never matches a title such as "İnşaat" (issue #609).
+ * The explicit `'tr'` locale is the point: it is fixed, not the OS locale.
+ */
+function getCaseVariants(value: string): string[] {
+    const lower = value.toLowerCase();
+    const folded = lower.replace(/[\u0300-\u036f]/g, '');
+    const variants = new Set<string>([
+        value,
+        lower,
+        value.toUpperCase(),
+        value.charAt(0).toUpperCase() + value.slice(1).toLowerCase(),
+    ]);
+
+    if (folded.includes('i')) {
+        variants.add(folded.toLocaleUpperCase('tr'));
+        variants.add(
+            folded.charAt(0).toLocaleUpperCase('tr') + folded.slice(1)
+        );
+    }
+
+    return [...variants];
+}
+
+// Search case folding is deliberately locale-invariant (toLowerCase, not
+// toLocaleLowerCase). Under a Turkish or Azeri locale toLocaleLowerCase maps
+// ASCII "I" to the dotless "ı" and folds the dotted "İ" its own way, so the
+// same title would be found or missed depending on the user's OS locale, and
+// the query would not line up with the SQLite FTS index, which folds
+// locale-invariantly. Issue #609: "İnş" and "inş" returned different results.
 export function normalizeSearchMatchText(value: unknown): string {
     return typeof value === 'string'
         ? value
               .normalize('NFKD')
               .replace(/[\u0300-\u036f]/g, '')
-              .toLocaleLowerCase()
+              .toLowerCase()
               .replace(/[^\p{L}\p{N}]+/gu, ' ')
               .trim()
               .replace(/\s+/g, ' ')
@@ -31,7 +66,15 @@ export function normalizeSearchMatchText(value: unknown): string {
 function normalizeSqlSearchText(value: unknown): string {
     return typeof value === 'string'
         ? value
-              .toLocaleLowerCase()
+              .toLowerCase()
+              // Drop the combining marks case folding leaves behind, before the
+              // split below can read them as word separators: "İ" (U+0130)
+              // lower-cases to "i" plus a combining dot above (U+0307), which
+              // otherwise split "İnş" into "i" and "nş" while "inş" stayed one
+              // token, routing the two differently (issue #609). Same
+              // U+0300-U+036F range normalizeSearchMatchText strips; precomposed
+              // letters (ç, ş, ü, é) are outside it and left untouched.
+              .replace(/[\u0300-\u036f]/g, '')
               .replace(/[^\p{L}\p{N}]+/gu, ' ')
               .trim()
               .replace(/\s+/g, ' ')
@@ -75,16 +118,9 @@ export function buildLikePatterns(
             continue;
         }
 
-        const titleCase =
-            trimmedValue.length > 0
-                ? trimmedValue.charAt(0).toLocaleUpperCase() +
-                  trimmedValue.slice(1).toLocaleLowerCase()
-                : trimmedValue;
-
-        variants.add(trimmedValue);
-        variants.add(trimmedValue.toLocaleLowerCase());
-        variants.add(trimmedValue.toLocaleUpperCase());
-        variants.add(titleCase);
+        for (const variant of getCaseVariants(trimmedValue)) {
+            variants.add(variant);
+        }
     }
 
     return [...variants].map((value) => {
@@ -97,13 +133,9 @@ export function buildGlobPrefixPatterns(token: string): string[] {
     const variants = new Set<string>();
 
     for (const value of [token, ...getSqlSearchTokenVariants(token)]) {
-        variants.add(value);
-        variants.add(value.toLocaleLowerCase());
-        variants.add(value.toLocaleUpperCase());
-        variants.add(
-            value.charAt(0).toLocaleUpperCase() +
-                value.slice(1).toLocaleLowerCase()
-        );
+        for (const variant of getCaseVariants(value)) {
+            variants.add(variant);
+        }
     }
 
     return [...variants].map((value) => `${value}*`);
@@ -236,13 +268,9 @@ export function buildCompoundLikePatterns(word: string): string[] {
     const variants = new Set<string>();
 
     for (const value of getCompoundWordVariants(word)) {
-        variants.add(value);
-        variants.add(value.toLocaleLowerCase());
-        variants.add(value.toLocaleUpperCase());
-        variants.add(
-            value.charAt(0).toLocaleUpperCase() +
-                value.slice(1).toLocaleLowerCase()
-        );
+        for (const variant of getCaseVariants(value)) {
+            variants.add(variant);
+        }
     }
 
     return [...variants].map((value) => `%${escapeLikePattern(value)}%`);
@@ -261,7 +289,7 @@ export function buildCompoundFtsMatchQuery(searchTerm: string): string {
             const quotedVariants = [
                 ...new Set(
                     getCompoundWordVariants(word).map((variant) =>
-                        variant.toLocaleLowerCase()
+                        variant.toLowerCase()
                     )
                 ),
             ].map((variant) => `"${variant.replace(/"/g, '""')}"`);
