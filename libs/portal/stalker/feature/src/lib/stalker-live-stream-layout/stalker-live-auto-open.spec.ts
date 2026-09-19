@@ -205,6 +205,18 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(channel('31', 7));
     });
 
+    it('drops the deferred play when the user starts a search first', () => {
+        store.itvFullChannelList.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        store.setSearchPhrase('sport');
+        TestBed.tick();
+        serveRows(channel('30', 7));
+
+        expect(play).not.toHaveBeenCalled();
+    });
+
     it('drops the deferred play when the user selects another genre first', () => {
         store.itvFullChannelList.set([channel('30', 7)]);
         store.itvFullListActive.set(true);

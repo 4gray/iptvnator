@@ -276,9 +276,11 @@ export class StalkerLiveAutoOpen {
         const { store } = this.options;
         if (
             store.selectedContentType() !== 'itv' ||
-            (store.selectedCategoryId() ?? '*') !== deferred.category
+            (store.selectedCategoryId() ?? '*') !== deferred.category ||
+            store.searchPhrase().trim() !== ''
         ) {
-            // The user moved on before the genre's rows arrived.
+            // The user moved on (another genre/section, or started a
+            // search) before the genre's rows arrived.
             untracked(() => this.deferredPlay.set(null));
             return;
         }
