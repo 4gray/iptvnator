@@ -162,7 +162,10 @@ ArrowUp/Down, PageUp/Down, Home/End and Space retain native scrolling there;
 scroll keys do not bubble into document-level player shortcuts. A row's main
 button remains separate from favorite/info actions, supports native Enter and
 Space activation, and retains keyboard focus on activation. Tab/Shift+Tab use
-the normal DOM order. Scrolling from a virtual row moves focus to its viewport
+the normal DOM order; Safari's default keyboard preference skips buttons on
+plain Tab, so there the row button is reached with Option+Tab (WebKit E2E
+runs press it through `pressTab` in `apps/web-e2e/src/e2e-helpers.ts`).
+Scrolling from a virtual row moves focus to its viewport
 before CDK can recycle the row; asynchronous data updates never move focus.
 Xtream aligns a newly selected channel only when it is outside the viewport;
 updates to the same selected ID never re-align it. A smooth scroll to an

@@ -7,6 +7,32 @@ import type {
 import { expect } from './fixtures';
 import sharp from 'sharp';
 
+/**
+ * Move keyboard focus to the next (or previous) tabbable element the way a
+ * user of that browser does.
+ *
+ * Safari's default keyboard preference makes plain Tab visit only text fields
+ * and links; buttons are reached with Option+Tab, or with plain Tab once
+ * "Press Tab to highlight each item on a webpage" is enabled. Playwright's
+ * WebKit emulates that default, so a plain `Tab` from a focused channel pane
+ * lands on the sidebar search field instead of the first row button — the
+ * app's focus order is intact, Safari simply skips the button. Pressing
+ * Option+Tab there keeps the assertion about the app's DOM order rather than
+ * about Safari's preference; Chromium and Firefox treat Alt+Tab as a plain
+ * Tab, but they get the unmodified key so their run stays a literal user Tab.
+ */
+export async function pressTab(
+    page: Page,
+    browserName: string,
+    direction: 'forward' | 'backward' = 'forward'
+): Promise<void> {
+    const modifiers = [
+        ...(browserName === 'webkit' ? ['Alt'] : []),
+        ...(direction === 'backward' ? ['Shift'] : []),
+    ];
+    await page.keyboard.press([...modifiers, 'Tab'].join('+'));
+}
+
 export async function setInputValue(
     input: Locator,
     value: string
