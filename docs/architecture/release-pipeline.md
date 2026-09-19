@@ -381,7 +381,8 @@ localized headline.
 
 The About section keeps the select honest about that Save boundary. The
 status block carries a badge naming the channel the verdict describes
-(`status.channel`), and while the select shows a different channel the
+(`status.verdictChannel`, see below), and while the select shows a channel
+other than the saved one (`status.channel`) the
 verdict is dimmed, a hint names both channels, and the plain "Check again"
 button is replaced by a primary "Save and check for <channel> updates"
 button that submits the settings form
