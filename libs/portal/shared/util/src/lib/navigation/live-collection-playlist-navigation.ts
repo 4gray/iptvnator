@@ -149,17 +149,19 @@ export function resolveStalkerLiveGenreId(
 const STALKER_SECTION_MARKERS = new Set(['itv', 'radio', 'vod', 'series']);
 
 /**
- * The stored Stalker row's real provider id: the first NON-BLANK of
- * `id`/`stream_id`/`series_id`/`movie_id`, or `null` for an id-less row.
- * (Unlike the collection services' extractor, a blank `id` does not shadow
- * a valid `stream_id`.)
+ * The stored Stalker LIVE row's provider id: the first NON-BLANK of
+ * `id`/`stream_id`, or `null` for an id-less row. Exactly the fields the
+ * ITV cache mapper and crawler identify a channel by — `series_id` /
+ * `movie_id` name VOD entities that no channel list can match, so a row
+ * carrying only those is not openable here. (Unlike the collection
+ * services' extractor, a blank `id` does not shadow a valid `stream_id`.)
  */
 export function resolveStalkerProviderId(item: unknown): string | null {
     if (!item || typeof item !== 'object') {
         return null;
     }
     const raw = item as Record<string, unknown>;
-    for (const key of ['id', 'stream_id', 'series_id', 'movie_id']) {
+    for (const key of ['id', 'stream_id']) {
         const value = String(raw[key] ?? '').trim();
         if (value) {
             return value;

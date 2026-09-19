@@ -132,6 +132,15 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 stalkerItem: { name: 'Nameless', cmd: 'x' },
             })
         ).toBeNull();
+        // VOD identities are not channel ids: the ITV list cannot match them.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '77',
+                stalkerItem: { series_id: 77, cmd: 'x' },
+            })
+        ).toBeNull();
         expect(
             getLiveCollectionPlaylistNavigation({
                 sourceType: 'stalker',
