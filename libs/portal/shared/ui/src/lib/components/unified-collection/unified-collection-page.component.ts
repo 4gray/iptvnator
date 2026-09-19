@@ -35,6 +35,11 @@ import {
     routeParamSignal,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
+import {
+    CollectionLoadRequest,
+    CollectionMode,
+    UnifiedCollectionDataService,
+} from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
@@ -44,11 +49,6 @@ import {
     setupClearCollectionViewCommand,
 } from './unified-collection-clear-action';
 import { createCollectionContentTypeState } from './unified-collection-content-type';
-import {
-    CollectionLoadRequest,
-    CollectionMode,
-    UnifiedCollectionDataService,
-} from './unified-collection-data.service';
 import {
     buildCollectionDetailNavigation,
     buildCollectionPortalNavigation,

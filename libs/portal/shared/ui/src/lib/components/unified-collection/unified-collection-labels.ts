@@ -1,5 +1,5 @@
 import { computed, Signal } from '@angular/core';
-import { CollectionMode } from './unified-collection-data.service';
+import { CollectionMode } from '@iptvnator/portal/shared/data-access';
 
 export interface CollectionModeLabels {
     readonly title: Signal<string>;

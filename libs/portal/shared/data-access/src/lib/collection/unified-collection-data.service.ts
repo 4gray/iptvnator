@@ -1,14 +1,12 @@
 import { DestroyRef, inject, Injectable, Signal, signal } from '@angular/core';
 import {
-    UnifiedFavoritesDataService,
-    UnifiedRecentDataService,
-} from '@iptvnator/portal/shared/data-access';
-import {
     CollectionContentType,
     CollectionScope,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { createCollectionReloadIndicator } from './collection-reload-indicator';
+import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
+import { UnifiedRecentDataService } from './unified-recent-data.service';
 
 export type CollectionMode = 'favorites' | 'recent';
 
@@ -20,9 +18,10 @@ export interface CollectionLoadRequest {
 
 /**
  * Reads and writes the rows of one unified collection (a favorites or a
- * recently-viewed list) and owns their loading state. Provided by
- * `UnifiedCollectionPageComponent`, so every instance of the page has its
- * own; the page itself keeps only the view concerns on top of this.
+ * recently-viewed list) and owns their loading state. Not `providedIn:
+ * 'root'`: `UnifiedCollectionPageComponent` provides it, so every mounted
+ * page has its own; the page itself keeps only the view concerns on top of
+ * this.
  */
 @Injectable()
 export class UnifiedCollectionDataService {

@@ -5,11 +5,11 @@ import {
     UnifiedCollectionItem,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
-import { DialogService } from '@iptvnator/ui/components';
 import {
     CollectionMode,
     UnifiedCollectionDataService,
-} from './unified-collection-data.service';
+} from '@iptvnator/portal/shared/data-access';
+import { DialogService } from '@iptvnator/ui/components';
 import { resolveClearCollectionDialogKeys } from './unified-collection-labels';
 
 export interface ClearCollectionAction {

@@ -11,11 +11,11 @@ import {
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { CollectionScope } from '@iptvnator/portal/shared/util';
 import {
     CollectionLoadRequest,
     CollectionMode,
-} from './unified-collection-data.service';
+} from '@iptvnator/portal/shared/data-access';
+import { CollectionScope } from '@iptvnator/portal/shared/util';
 
 /**
  * Re-load the collection whenever what it should contain changes: its mode,

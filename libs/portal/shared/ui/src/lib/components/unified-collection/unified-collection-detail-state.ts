@@ -16,7 +16,7 @@ import {
     SeriesResumeTarget,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
-import { CollectionMode } from './unified-collection-data.service';
+import { CollectionMode } from '@iptvnator/portal/shared/data-access';
 import {
     buildCollectionDetailNavigation,
     canRenderCollectionDetailOnRoute,
