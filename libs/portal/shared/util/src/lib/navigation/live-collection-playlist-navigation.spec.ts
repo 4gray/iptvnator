@@ -90,6 +90,15 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 stalkerItem: { tv_genre_id: '*' },
             })?.state
         ).not.toHaveProperty('openStalkerLiveCategoryId');
+        // List rows carry the genre already resolved by the collection tab.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                stalkerGenreId: '9',
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('9');
     });
 
     it('hides the action for Stalker radio stations and rows without a channel id', () => {

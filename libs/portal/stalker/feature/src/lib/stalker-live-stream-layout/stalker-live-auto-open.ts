@@ -25,6 +25,7 @@ export interface StalkerLiveAutoOpenStore {
     currentPlaylist: Signal<{ _id?: string } | null | undefined>;
     selectedContentType: Signal<string | null | undefined>;
     selectedCategoryId: Signal<string | null | undefined>;
+    searchPhrase: Signal<string>;
     itvFullChannelList: Signal<StalkerItvChannel[]>;
     itvFullListActive: Signal<boolean>;
     itvFullListUnsupported: Signal<boolean>;
@@ -81,13 +82,14 @@ interface DeferredPlay {
  * neither ready nor unsupported, and the genre fallback runs instead of
  * leaving the handoff pending forever.
  *
- * Playback is deferred until the selected genre's rows are on screen:
- * `playChannel` → `navigation.prepare` captures the displayed rows as the
- * remote/numeric channel order, and right after `setSelectedCategory` those
- * are still the previous genre's. The deferred play fires once the rows hold
- * the channel, or — a legacy-paged genre whose first page does not — once
- * the rows were replaced and loading settled. Selecting another genre or
- * section meanwhile drops it.
+ * Playback is deferred whenever selecting the genre changes the list scope
+ * (another genre, All Items, or an active search): `playChannel` →
+ * `navigation.prepare` captures the displayed rows as the remote/numeric
+ * channel order, and right after `setSelectedCategory` those are still the
+ * previous scope's — even when they happen to contain the channel. The
+ * deferred play fires once the rows were re-served for the genre and either
+ * hold the channel or loading settled (a legacy-paged genre whose first page
+ * lacks it). Selecting another genre or section, or a newer handoff, drops it.
  */
 export class StalkerLiveAutoOpen {
     readonly pendingItemId = signal<string | null>(null);
@@ -237,6 +239,10 @@ export class StalkerLiveAutoOpen {
             : this.pendingCategoryId();
 
         const staleRows = this.options.rows();
+        const scopeChanged =
+            !!category &&
+            ((store.selectedCategoryId() ?? '*') !== category ||
+                store.searchPhrase().trim() !== '');
         if (category) {
             store.setSearchPhrase('');
             store.setSelectedCategory(category);
@@ -244,14 +250,10 @@ export class StalkerLiveAutoOpen {
             this.options.sidebar?.expand('portal');
         }
         if (item) {
-            if (this.containsChannel(staleRows, item)) {
-                this.options.play(item);
+            if (scopeChanged) {
+                this.deferredPlay.set({ item, category, staleRows });
             } else {
-                this.deferredPlay.set({
-                    item,
-                    category: category ?? '*',
-                    staleRows,
-                });
+                this.options.play(item);
             }
         }
 
@@ -275,10 +277,13 @@ export class StalkerLiveAutoOpen {
             return;
         }
 
+        // The old scope's rows may already contain the channel; only a
+        // re-served list belongs to the genre.
         const rows = this.options.rows();
         const ready =
-            this.containsChannel(rows, deferred.item) ||
-            (rows !== deferred.staleRows && this.options.rowsSettled());
+            rows !== deferred.staleRows &&
+            (this.containsChannel(rows, deferred.item) ||
+                this.options.rowsSettled());
         if (!ready) {
             return;
         }

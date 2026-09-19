@@ -33,6 +33,7 @@ import {
     FavoritesChannelSortMode,
     getLiveCollectionPlaylistNavigation,
     LiveEpgPanelState,
+    resolveStalkerLiveGenreId,
     matchesOpenLiveCollectionItem,
     OpenLiveCollectionItemState,
     PORTAL_PLAYER,
@@ -499,6 +500,10 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
             tvArchiveDuration: item.tvArchiveDuration ?? null,
             tvgId: item.tvgId,
             stalkerId: item.stalkerId,
+            stalkerGenreId:
+                item.sourceType === 'stalker'
+                    ? resolveStalkerLiveGenreId(item)
+                    : undefined,
             stalkerCmd: item.stalkerCmd,
             stalkerPortalUrl: item.stalkerPortalUrl,
             stalkerMacAddress: item.stalkerMacAddress,

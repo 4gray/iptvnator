@@ -36,6 +36,8 @@ export interface LiveCollectionPlaylistNavigationSource {
     categoryId?: string | number | null;
     /** Stalker: the stored row; its `tv_genre_id` is the channel's real genre. */
     stalkerItem?: unknown;
+    /** Stalker: the genre already resolved by `resolveStalkerLiveGenreId` (list rows). */
+    stalkerGenreId?: string | null;
     /** `'true'` for radio stations, which live in a different Stalker section. */
     radio?: string;
 }
@@ -104,15 +106,32 @@ export function getLiveCollectionPlaylistNavigation(
         return buildStalkerLiveNavigationTarget({
             playlistId,
             itemId: source.stalkerId,
-            categoryId:
-                stalkerItemGenre(source.stalkerItem) ??
-                stalkerGenreId(source.categoryId),
+            categoryId: resolveStalkerLiveGenreId(source),
             title: source.name,
             imageUrl: source.logo ?? null,
         });
     }
 
     return null;
+}
+
+/**
+ * The Stalker live row's genre for the auto-open fallback: an already
+ * resolved value, else the stored row's `tv_genre_id`, else `categoryId`
+ * when it is a numeric genre id (app-written favorites/recent carry the
+ * SECTION marker `'itv'` there, which is not a genre).
+ */
+export function resolveStalkerLiveGenreId(
+    source: Pick<
+        LiveCollectionPlaylistNavigationSource,
+        'stalkerGenreId' | 'stalkerItem' | 'categoryId'
+    >
+): string | null {
+    return (
+        stalkerGenreId(source.stalkerGenreId) ??
+        stalkerItemGenre(source.stalkerItem) ??
+        stalkerGenreId(source.categoryId)
+    );
 }
 
 function stalkerItemGenre(item: unknown): string | null {

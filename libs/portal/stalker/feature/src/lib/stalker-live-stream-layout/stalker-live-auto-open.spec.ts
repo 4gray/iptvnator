@@ -22,11 +22,14 @@ describe('StalkerLiveAutoOpen', () => {
         currentPlaylist: signal<{ _id?: string } | null>({ _id: 'pl-3' }),
         selectedContentType: signal<string | null>('itv'),
         selectedCategoryId: signal<string | null>(null),
+        searchPhrase: signal(''),
         itvFullChannelList: signal<StalkerItvChannel[]>([]),
         itvFullListActive: signal(false),
         itvFullListUnsupported: signal(false),
         preloadItvChannels: jest.fn(() => Promise.resolve()),
-        setSearchPhrase: jest.fn(),
+        setSearchPhrase: jest.fn((phrase: string) =>
+            store.searchPhrase.set(phrase)
+        ),
         setSelectedCategory: jest.fn((category: string | null) =>
             store.selectedCategoryId.set(category)
         ),
@@ -64,6 +67,7 @@ describe('StalkerLiveAutoOpen', () => {
         store.currentPlaylist.set({ _id: 'pl-3' });
         store.selectedContentType.set('itv');
         store.selectedCategoryId.set(null);
+        store.searchPhrase.set('');
         store.itvFullChannelList.set([]);
         store.itvFullListActive.set(false);
         store.itvFullListUnsupported.set(false);
@@ -95,6 +99,7 @@ describe('StalkerLiveAutoOpen', () => {
         );
         store.itvFullListActive.set(true);
         store.itvFullChannelList.set([channel('30')]);
+        store.selectedCategoryId.set('7');
         rows.set([channel('30')]);
 
         const mounted = TestBed.runInInjectionContext(
@@ -102,6 +107,7 @@ describe('StalkerLiveAutoOpen', () => {
         );
         TestBed.tick();
 
+        // Genre 7 was already the list on screen: no scope change, play now.
         expect(play).toHaveBeenCalledWith(channel('30'));
         expect(mounted.pendingItemId()).toBeNull();
         expect(window.history.state).toEqual({});
@@ -130,6 +136,37 @@ describe('StalkerLiveAutoOpen', () => {
 
         serveRows(channel('30', 7), channel('31', 7));
 
+        expect(play).toHaveBeenCalledWith(channel('30', 7));
+    });
+
+    it('defers even when the old scope (All Items / search) already shows the channel', () => {
+        // All Items on screen holds the channel, but those rows are not the
+        // genre's list: prepare() would capture the wrong channel order.
+        const allItems = [channel('1', 2), channel('30', 7)];
+        rows.set(allItems);
+        store.itvFullChannelList.set(allItems);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        expect(store.setSelectedCategory).toHaveBeenCalledWith('7');
+        expect(play).not.toHaveBeenCalled();
+
+        serveRows(channel('30', 7));
+        expect(play).toHaveBeenCalledWith(channel('30', 7));
+    });
+
+    it('defers when the genre is already selected but a search narrows it', () => {
+        store.selectedCategoryId.set('7');
+        store.searchPhrase.set('news');
+        rows.set([channel('30', 7)]);
+        store.itvFullChannelList.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        expect(store.setSearchPhrase).toHaveBeenCalledWith('');
+        expect(play).not.toHaveBeenCalled();
+
+        serveRows(channel('30', 7), channel('31', 7));
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
