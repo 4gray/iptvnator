@@ -6,6 +6,8 @@ export const TMDB_POSTER_SIZE = 'w500';
 export const TMDB_BACKDROP_SIZE = 'w1280';
 export const TMDB_PROFILE_SIZE = 'w185';
 export const TMDB_STILL_SIZE = 'w300';
+/** Season covers render at most 144 CSS px wide, so w342 covers 2× DPR */
+export const TMDB_SEASON_POSTER_SIZE = 'w342';
 
 /**
  * Embedded application API key used when the user has not configured their
@@ -106,4 +108,12 @@ export function tmdbProfileUrl(
 
 export function tmdbStillUrl(path: string | null | undefined): string | null {
     return path ? `${TMDB_IMAGE_BASE_URL}/${TMDB_STILL_SIZE}${path}` : null;
+}
+
+export function tmdbSeasonPosterUrl(
+    path: string | null | undefined
+): string | null {
+    return path
+        ? `${TMDB_IMAGE_BASE_URL}/${TMDB_SEASON_POSTER_SIZE}${path}`
+        : null;
 }

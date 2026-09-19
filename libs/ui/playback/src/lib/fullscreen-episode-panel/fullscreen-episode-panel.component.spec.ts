@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { FullscreenEpisodePanelComponent } from './fullscreen-episode-panel.component';
 import type {
     FullscreenEpisodePanelItem,
@@ -186,6 +186,74 @@ describe('FullscreenEpisodePanelComponent', () => {
         expect(component.selectedSeasonKey()).toBe('1');
         // Coming back is a local move, not a host selection.
         expect(selected).toEqual(['2']);
+    });
+
+    it('shows the season strip with poster, name and count, follows the tab and folds on a dead image', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            PORTALS: { SEASON_TAB: 'Season {{number}}' },
+            DOWNLOADS: {
+                EPISODE_COUNT_ONE: '1 episode',
+                EPISODE_COUNT_OTHER: '{{count}} episodes',
+            },
+        });
+        translate.use('en');
+        const withPosters = seasons(12).map((season) =>
+            season.key === '1'
+                ? { ...season, posterUrl: 'https://img.test/season-1.jpg' }
+                : season
+        );
+        fixture.componentRef.setInput('seasons', withPosters);
+        fixture.detectChanges();
+
+        const strip = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="fullscreen-episode-panel-season"]'
+            ) as HTMLElement | null;
+        expect(
+            strip()?.querySelector<HTMLImageElement>(
+                '.episode-panel__season-poster'
+            )?.src
+        ).toBe('https://img.test/season-1.jpg');
+        expect(
+            strip()
+                ?.querySelector('.episode-panel__season-name')
+                ?.textContent?.trim()
+        ).toBe('Season 1');
+        expect(
+            strip()
+                ?.querySelector('.episode-panel__season-count')
+                ?.textContent?.trim()
+        ).toBe('2 episodes');
+
+        // Season two has no poster: the strip is withheld, tabs stay.
+        pills()[1].click();
+        fixture.detectChanges();
+        expect(strip()).toBeNull();
+        expect(pills()).toHaveLength(3);
+
+        pills()[0].click();
+        fixture.detectChanges();
+        strip()
+            ?.querySelector('.episode-panel__season-poster')
+            ?.dispatchEvent(new Event('error'));
+        fixture.detectChanges();
+        expect(strip()).toBeNull();
+    });
+
+    it('withholds the season strip for a one-season series', () => {
+        const [first] = seasons(12);
+        fixture.componentRef.setInput('seasons', [
+            { ...first, posterUrl: 'https://img.test/season-1.jpg' },
+        ]);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="fullscreen-episode-panel-season"]'
+            )
+        ).toBeNull();
+        expect(rows()).toHaveLength(2);
     });
 
     it('shows a pending season as loading and a loaded empty season as empty', () => {

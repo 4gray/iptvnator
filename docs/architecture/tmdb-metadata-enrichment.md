@@ -45,7 +45,7 @@ store imports):
 
 | File                         | Responsibility                                                                                                                               |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tmdb-config.ts`             | API/image base URLs, empty default API key placeholder, cache TTLs, app-language → TMDB-language mapping                                              |
+| `tmdb-config.ts`             | API/image base URLs, empty default API key placeholder, cache TTLs, app-language → TMDB-language mapping                                     |
 | `tmdb.types.ts`              | TMDB v3 response shapes (search, details with credits)                                                                                       |
 | `tmdb-api.service.ts`        | Thin `fetch`-based client (TMDB supports CORS; works in Electron renderer and PWA). Accepts v3 keys (`api_key` param) and v4 tokens (Bearer) |
 | `tmdb-matcher.ts`            | Title normalization, year extraction, and the match-confidence gate (pure functions)                                                         |
@@ -247,6 +247,25 @@ a `get_series_info` season overview wins when it is real prose, but panels
 routinely fill it with a bare cover-image URL —
 `sanitizeProviderOverview` (`@iptvnator/shared/interfaces`) treats a
 URL-only value as absent, and the stored TMDB overview fills the gap.
+
+The same payload's `poster_path` — every TMDB season has its own poster,
+distinct from the show poster on most shows — is stored as a full `w342`
+URL (`tmdbSeasonPosterUrl`) in `tmdb_season_posters[seasonKey]` beside the
+overview, under the same write-only-if-changed convergence guard. Stalker
+keeps it in `StalkerSeriesTmdbSeasonsService.posters(tmdbId)` next to
+`descriptions(tmdbId)`, dropped together with the entry when a replacement
+fetch fails. Season posters resolve **TMDB-first**, like the show artwork
+merge (`prefer(tmdbPoster, provider)`): `buildSeasonPosters`
+(`libs/portal/xtream/feature/src/lib/serial-details/season-posters.util.ts`)
+takes the stored TMDB poster and falls back to the provider's
+`seasons[].cover_big`/`cover` from `get_series_info`, accepted only as an
+http(s) URL that differs from the show poster because panels repeat it on
+every season. Stalker has no provider season art, so it is TMDB-only. The
+detail views render the selected season's poster as the season cover beside
+the season tabs and in the fullscreen episode panel's season strip; both are
+withheld for one-season items (that poster is the show poster) and fold on a
+failed image request. Contract: "Two-State Detail Layout" in
+`embedded-inline-playback.md`.
 
 The season number `{n}` is the provider's episode season number, with one
 correction (`resolveEnrichmentSeasonNumber` in
@@ -622,40 +641,41 @@ since shipped.)
   form) — catalogs frequently name items in their original language
   while the app language localizes the TMDB titles.
 
-  Catalog matching itself is the shared pair described under
-  "Resolving a batched match": this rail is the caller that passes two
-  aliases, via `candidateLookup()`. Only matched, year-compatible titles
-  render, each card navigating to its detail view. What stays local to
-  the rail is what happens AFTER a row is picked — title collisions are
-  resolved by the catalog row a candidate resolved to, since same-titled
-  remakes ("Dune" 1984 and 2021) are different films that must both
-  reach the matcher, while two candidates landing on one row would
-  render as duplicate cards opening the same item. Fewer than
-  `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
-  the latch entirely, because an empty match result is indistinguishable
-  from a transient worker failure (`matchTitles` maps failures to `[]`),
-  re-running is cheap (mirrors trending's retry-on-empty), and a
-  previously successful input set must be reloadable after a hidden
-  interlude. The rail header names the seed ("Because you watched X")
-  when exactly one seed contributed, else falls back to the generic
-  "Recommended for you". A load latches only once EVERY seed answered —
-  a seed that did not resolve may have failed transiently, and latching
-  on its behalf would drop its recommendations for the session; a seed
-  that has no TMDB match never resolves either, so that user's rail
-  re-runs each visit, which is bounded work (cached enrichment misses
-  plus one batched worker call). Latched loads are keyed by the TMDB language
-  (payloads are localized; the facade exposes `language()` for this), the
-  seed set, the watched/favorited exclusion set AND the imported-playlist
-  id set — watching something new re-seeds on the next dashboard visit,
-  favoriting a recommended title re-filters it out, a language change
-  re-localizes the cards, and importing/deleting a playlist re-runs the
-  matching (a refresh keeps its id and is not detected, parity with
-  trending); a cleared watch history
-  clears the rail (the service is root-provided and outlives the
-  dashboard); a load requested while one is in flight is queued and
-  re-run afterwards; a load where no seed resolved (TMDB unreachable)
-  does not latch and retries instead. Same gating as trending: TMDB
-  opt-in + Electron DB worker, deferred behind the dashboard's own data.
+    Catalog matching itself is the shared pair described under
+    "Resolving a batched match": this rail is the caller that passes two
+    aliases, via `candidateLookup()`. Only matched, year-compatible titles
+    render, each card navigating to its detail view. What stays local to
+    the rail is what happens AFTER a row is picked — title collisions are
+    resolved by the catalog row a candidate resolved to, since same-titled
+    remakes ("Dune" 1984 and 2021) are different films that must both
+    reach the matcher, while two candidates landing on one row would
+    render as duplicate cards opening the same item. Fewer than
+    `MIN_RECOMMENDATION_MATCHES` (5) hides the rail — and resets
+    the latch entirely, because an empty match result is indistinguishable
+    from a transient worker failure (`matchTitles` maps failures to `[]`),
+    re-running is cheap (mirrors trending's retry-on-empty), and a
+    previously successful input set must be reloadable after a hidden
+    interlude. The rail header names the seed ("Because you watched X")
+    when exactly one seed contributed, else falls back to the generic
+    "Recommended for you". A load latches only once EVERY seed answered —
+    a seed that did not resolve may have failed transiently, and latching
+    on its behalf would drop its recommendations for the session; a seed
+    that has no TMDB match never resolves either, so that user's rail
+    re-runs each visit, which is bounded work (cached enrichment misses
+    plus one batched worker call). Latched loads are keyed by the TMDB language
+    (payloads are localized; the facade exposes `language()` for this), the
+    seed set, the watched/favorited exclusion set AND the imported-playlist
+    id set — watching something new re-seeds on the next dashboard visit,
+    favoriting a recommended title re-filters it out, a language change
+    re-localizes the cards, and importing/deleting a playlist re-runs the
+    matching (a refresh keeps its id and is not detected, parity with
+    trending); a cleared watch history
+    clears the rail (the service is root-provided and outlives the
+    dashboard); a load requested while one is in flight is queued and
+    re-run afterwards; a load where no seed resolved (TMDB unreachable)
+    does not latch and retries instead. Same gating as trending: TMDB
+    opt-in + Electron DB worker, deferred behind the dashboard's own data.
+
 - **Hero extras**: `DashboardHeroTmdbService`
   (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
   backdrop (when the activity row has none), a rating badge and up to two
@@ -722,20 +742,21 @@ Contracts worth keeping:
   a title year like "2001: A Space Odyssey" can never be frozen into the row
   as that film's release year.
 
-  Keeping that true needs one thing from the merge. `xtreamDetailContentMetadata`
-  runs against the object the detail view is RENDERING, and
-  `mergeVodInfoWithTmdb`/`mergeSerieInfoWithTmdb` fill `releasedate`/
-  `releaseDate` from `details.release_date`/`first_air_date` whenever the
-  provider left them empty — silently, so afterwards the field alone cannot
-  say who stated the date. The merge therefore marks its own substitution
-  with `tmdb_supplied_release_date`, and the extractor skips the year when it
-  is set. Sniffing for enrichment instead would not work: the `tmdb_*` fields
-  the merge adds are all conditional on having content, so a film with no
-  credits and no recommendations carries none of them and reads as
-  un-enriched. Since the column is never overwritten, getting this wrong is
-  unfixable after the fact — a real provider date arriving later cannot
-  correct it. The same marker is what `trustedReleaseYear` (the
-  recommendations exclusion index) must consult if it ever reads this column.
+    Keeping that true needs one thing from the merge. `xtreamDetailContentMetadata`
+    runs against the object the detail view is RENDERING, and
+    `mergeVodInfoWithTmdb`/`mergeSerieInfoWithTmdb` fill `releasedate`/
+    `releaseDate` from `details.release_date`/`first_air_date` whenever the
+    provider left them empty — silently, so afterwards the field alone cannot
+    say who stated the date. The merge therefore marks its own substitution
+    with `tmdb_supplied_release_date`, and the extractor skips the year when it
+    is set. Sniffing for enrichment instead would not work: the `tmdb_*` fields
+    the merge adds are all conditional on having content, so a film with no
+    credits and no recommendations carries none of them and reads as
+    un-enriched. Since the column is never overwritten, getting this wrong is
+    unfixable after the fact — a real provider date arriving later cannot
+    correct it. The same marker is what `trustedReleaseYear` (the
+    recommendations exclusion index) must consult if it ever reads this column.
+
 - **The id is stored unvetted.** Every consumer reaches TMDB through
   `TmdbEnrichmentService`, whose `detailsForProviderId` runs
   `assessProviderId` and lets the title search take over when the years

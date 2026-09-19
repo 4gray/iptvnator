@@ -50,15 +50,16 @@ describe('StalkerSeriesTmdbSeasonsService', () => {
                 seasonCount: 1,
             });
 
-        expect(getSeason).toHaveBeenCalledWith(82856, 2);
+            expect(getSeason).toHaveBeenCalledWith(82856, 2);
 
-        // Overlay still keys by the provider's season key
-        const overlaid = service.overlay(
-            { '1': episodesOfSeason(1) },
-            82856
-        );
-        expect(overlaid['1'][0].title).toBe('The Marshal');
-    });
+            // Overlay still keys by the provider's season key
+            const overlaid = service.overlay(
+                { '1': episodesOfSeason(1) },
+                82856
+            );
+            expect(overlaid['1'][0].title).toBe('The Marshal');
+        }
+    );
 
     it('keeps provider numbering for multi-season items despite a marker', async () => {
         await service.fetchSeason(82856, '1', episodesOfSeason(1), {
@@ -149,6 +150,55 @@ describe('StalkerSeriesTmdbSeasonsService', () => {
         });
         const healed = service.overlay({ '1': episodesOfSeason(1) }, 82856);
         expect(healed['1'][0].title).toBe('Season 3 Episode');
+    });
+
+    it('exposes each fetched season poster per show and drops it with the entry', async () => {
+        getSeason.mockResolvedValueOnce({
+            overview: 'Season 2 overview',
+            poster_path: '/season-two.jpg',
+            episodes: [{ episode_number: 1, name: 'Season 2 Episode' }],
+        });
+        await service.fetchSeason(82856, '1', episodesOfSeason(1), {
+            rawTitle: 'Мандалорец (2 сезон)',
+            seasonCount: 1,
+        });
+        getSeason.mockResolvedValueOnce({
+            overview: 'Other show',
+            poster_path: '/other-show.jpg',
+            episodes: [],
+        });
+        await service.fetchSeason(99, '3', episodesOfSeason(3));
+
+        expect(service.posters(82856)).toEqual({
+            '1': 'https://image.tmdb.org/t/p/w342/season-two.jpg',
+        });
+        expect(service.posters(99)).toEqual({
+            '3': 'https://image.tmdb.org/t/p/w342/other-show.jpg',
+        });
+        expect(service.posters(null)).toEqual({});
+
+        // A replacement resolution that fails drops the poster with the
+        // stale entry, so another slice never wears season two's art.
+        getSeason.mockResolvedValueOnce(null);
+        await service.fetchSeason(82856, '1', episodesOfSeason(1), {
+            rawTitle: 'Мандалорец (3 сезон)',
+            seasonCount: 1,
+        });
+        expect(service.posters(82856)).toEqual({});
+    });
+
+    it('keeps no poster for a season TMDB has no art for', async () => {
+        getSeason.mockResolvedValueOnce({
+            overview: 'Season overview',
+            poster_path: null,
+            episodes: [{ episode_number: 1, name: 'The Marshal' }],
+        });
+        await service.fetchSeason(82856, '1', episodesOfSeason(1));
+
+        expect(service.descriptions(82856)).toEqual({
+            '1': 'Season overview',
+        });
+        expect(service.posters(82856)).toEqual({});
     });
 
     it('does not cache a failed fetch, so a later trigger retries', async () => {

@@ -163,6 +163,17 @@ describe('buildFullscreenEpisodePanelSeasons', () => {
         });
     });
 
+    it('carries the host’s season poster only for seasons that have one', () => {
+        const seasons = buildFullscreenEpisodePanelSeasons({
+            episodesBySeason: { '1': [episode(11, 1, 1)], '2': [] },
+            currentEpisodeId: 11,
+            seasonPosters: { '1': 'https://img.test/season-1.jpg' },
+        });
+
+        expect(seasons[0].posterUrl).toBe('https://img.test/season-1.jpg');
+        expect('posterUrl' in seasons[1]).toBe(false);
+    });
+
     it('falls back to the season key and the list index when an episode carries no numbers', () => {
         const [season] = buildFullscreenEpisodePanelSeasons({
             episodesBySeason: {

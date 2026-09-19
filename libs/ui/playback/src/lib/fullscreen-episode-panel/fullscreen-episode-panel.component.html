@@ -1,5 +1,36 @@
 <div class="episode-panel">
     <div class="episode-panel__tabs">
+        @if (seasonStrip(); as strip) {
+            <div
+                class="episode-panel__season"
+                data-test-id="fullscreen-episode-panel-season"
+            >
+                <img
+                    class="episode-panel__season-poster"
+                    [src]="strip.posterUrl"
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    (error)="onSeasonPosterError(strip.posterUrl)"
+                />
+                <span class="episode-panel__season-meta">
+                    <span class="episode-panel__season-name">
+                        {{
+                            'PORTALS.SEASON_TAB'
+                                | translate: { number: strip.seasonKey }
+                        }}
+                    </span>
+                    <span class="episode-panel__season-count">
+                        {{
+                            (strip.episodeCount === 1
+                                ? 'DOWNLOADS.EPISODE_COUNT_ONE'
+                                : 'DOWNLOADS.EPISODE_COUNT_OTHER'
+                            ) | translate: { count: strip.episodeCount }
+                        }}
+                    </span>
+                </span>
+            </div>
+        }
         <app-season-tabs
             [seasonKeys]="seasonKeys()"
             [selectedSeason]="selectedSeasonKey() ?? undefined"

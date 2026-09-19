@@ -77,9 +77,42 @@
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
 
+// Season card: an optional cover column (--season-cover-width follows
+// Settings.coverSize: 96 / 120 / 144px, tokens in apps/web/src/_cover-size.scss)
+// next to the tabs + description. Without a cover the grid is one column and
+// the tabs render exactly as they did before season posters existed.
+.season-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+    margin-bottom: 16px;
+
+    &--with-cover {
+        grid-template-columns: var(--season-cover-width, 120px) minmax(0, 1fr);
+    }
+
+    &__cover {
+        display: block;
+        width: 100%;
+        aspect-ratio: 2 / 3;
+        object-fit: cover;
+        border-radius: 8px;
+        background: var(--app-widget-bg);
+        box-shadow: var(--poster-shadow, 0 8px 40px rgba(0, 0, 0, 0.5));
+    }
+}
+
 app-season-tabs {
     display: block;
-    margin-bottom: 16px;
+    min-width: 0;
+}
+
+@media (max-width: 640px) {
+    .season-card--with-cover {
+        grid-template-columns: 88px minmax(0, 1fr);
+        gap: 14px;
+    }
 }
 
 // Episode Card

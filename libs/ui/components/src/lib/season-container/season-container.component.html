@@ -22,16 +22,37 @@
     />
 
     @if (hasSeasons()) {
-        <app-season-tabs
-            [seasonKeys]="sortedSeasonKeys()"
-            [selectedSeason]="selectedSeason()"
-            [episodeCounts]="episodeCounts()"
-            [watchedCounts]="watchedCounts()"
-            [seasonDescription]="selectedSeasonDescription()"
-            [playingSeasonKey]="playingSeasonKey()"
-            (seasonSelected)="selectSeason($event)"
-            (backToPlayingRequested)="scrollToPlayingEpisode()"
-        />
+        <!-- Season card: the selected season's own cover beside the tabs and
+             description. Without a cover the column is not rendered at all,
+             so the tabs sit exactly where they did before season posters. -->
+        <div
+            class="season-card"
+            [class.season-card--with-cover]="selectedSeasonPosterUrl()"
+        >
+            @if (selectedSeasonPosterUrl(); as posterUrl) {
+                <img
+                    class="season-card__cover"
+                    data-testid="season-cover"
+                    [src]="posterUrl"
+                    [alt]="
+                        'PORTALS.SEASON_TAB'
+                            | translate: { number: selectedSeason() }
+                    "
+                    loading="lazy"
+                    (error)="onSeasonPosterError(posterUrl)"
+                />
+            }
+            <app-season-tabs
+                [seasonKeys]="sortedSeasonKeys()"
+                [selectedSeason]="selectedSeason()"
+                [episodeCounts]="episodeCounts()"
+                [watchedCounts]="watchedCounts()"
+                [seasonDescription]="selectedSeasonDescription()"
+                [playingSeasonKey]="playingSeasonKey()"
+                (seasonSelected)="selectSeason($event)"
+                (backToPlayingRequested)="scrollToPlayingEpisode()"
+            />
+        </div>
     }
 
     <div class="content-container">

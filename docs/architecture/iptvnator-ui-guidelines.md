@@ -241,7 +241,10 @@ Movie and series covers render in three surfaces: the catalog grid
 recent card (`app-content-card`, same lib) and the dashboard rails. All of
 them size from the `--cover-grid-min-width` / `--cover-rail-width` /
 `--cover-gap` tokens that `Settings.coverSize` writes onto `<html>` as
-`data-cover-size` (`apps/web/src/_cover-size.scss`).
+`data-cover-size` (`apps/web/src/_cover-size.scss`). The same file carries
+`--season-cover-width` (96 / 120 / 144px) for the season cover beside the
+season tabs on series detail pages; medium equals the About block's 120px
+poster so browse and watch share one secondary-poster size.
 
 ### Posters-only wall
 

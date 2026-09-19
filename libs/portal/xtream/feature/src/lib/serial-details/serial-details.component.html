@@ -219,6 +219,7 @@
                 [seriesNavigation]="inlineSeriesNavigation()"
                 [upNextEpisodes]="upNextEpisodes()"
                 [seriesEpisodes]="item.episodes"
+                [seasonPosters]="seasonPosters()"
                 [episodePlaybackPositions]="episodePlaybackPositions()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
@@ -250,6 +251,7 @@
                 inlinePlayback()?.contentInfo?.contentXtreamId ?? null
             "
             [seasonDescriptions]="seasonDescriptions()"
+            [seasonPosters]="seasonPosters()"
             [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
             (episodeClicked)="playEpisode($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"

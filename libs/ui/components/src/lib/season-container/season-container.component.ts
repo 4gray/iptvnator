@@ -36,6 +36,7 @@ import {
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
 import { formatEpisodePositionText } from './episode-progress.util';
+import { resolveAutoSelectedSeason } from './season-auto-select.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
 import {
     type EpisodeViewMode,
@@ -95,6 +96,11 @@ export class SeasonContainerComponent implements OnInit {
     readonly playingEpisodeId = input<number | null>(null);
     /** Per-season descriptions (TMDB/provider), keyed by season key. */
     readonly seasonDescriptions = input<Record<string, string> | null>(null);
+    /**
+     * Per-season poster URLs (TMDB season poster, provider season cover),
+     * keyed by season key. Rendered as the season cover beside the tabs.
+     */
+    readonly seasonPosters = input<Record<string, string> | null>(null);
     /** True while a host is persisting a season-level watched toggle. */
     readonly seasonWatchBatchRunning = input(false);
     /**
@@ -201,6 +207,26 @@ export class SeasonContainerComponent implements OnInit {
         return this.seasonDescriptions()?.[selected] ?? null;
     });
 
+    /** Poster URLs whose image request failed; the cover column then folds. */
+    private readonly failedSeasonPosters = signal<ReadonlySet<string>>(
+        new Set()
+    );
+
+    /**
+     * The selected season's cover. Withheld for one-season items — that
+     * poster is the show poster again, a few hundred pixels below the hero —
+     * and for a URL whose image failed, so a dead provider link never leaves
+     * a broken-image frame beside the tabs.
+     */
+    readonly selectedSeasonPosterUrl = computed(() => {
+        const selected = this.selectedSeason();
+        if (!selected || this.sortedSeasonKeys().length < 2) {
+            return null;
+        }
+        const url = this.seasonPosters()?.[selected] ?? null;
+        return url && !this.failedSeasonPosters().has(url) ? url : null;
+    });
+
     constructor() {
         this.downloadPresenter.connect({
             adapter: this.downloadAdapter,
@@ -296,6 +322,10 @@ export class SeasonContainerComponent implements OnInit {
 
     selectSeason(seasonKey: string) {
         this.selectedSeason.set(seasonKey);
+    }
+
+    onSeasonPosterError(url: string): void {
+        this.failedSeasonPosters.update((failed) => new Set(failed).add(url));
     }
 
     scrollToPlayingEpisode(): void {
@@ -427,66 +457,16 @@ export class SeasonContainerComponent implements OnInit {
         return null;
     }
 
+    /** Auto-select rules live in season-auto-select.util.ts. */
     private resolveAutoSeason(): string | undefined {
-        const keys = this.sortedSeasonKeys();
-        if (keys.length === 0) {
-            return undefined;
-        }
-
-        const playingSeason = this.playingSeasonKey();
-        if (playingSeason) {
-            return playingSeason;
-        }
-
-        const resumeSeason = this.findMostRecentInProgressSeason();
-        return resumeSeason ?? this.resolveDefaultSeason(keys);
-    }
-
-    /**
-     * Fallback when nothing is playing or in progress: the earliest season
-     * with unwatched episodes, or — once everything loaded is watched — the
-     * latest non-empty season, where new episodes land (issue #1441).
-     * Loaded-but-empty seasons (a valid Stalker answer) are never picked over
-     * one that has episodes. Stalker lazy-VOD series with unhydrated seasons
-     * keep the first season: their watched state is unknown, so skipping
-     * past them would be a guess.
-     */
-    private resolveDefaultSeason(keys: readonly string[]): string {
-        if (this.hasUnloadedSeasons()) {
-            return keys[0];
-        }
-
-        const episodeCounts = this.episodeCounts();
-        const watchedCounts = this.watchedCounts();
-        const firstUnwatched = keys.find((key) => {
-            const total = episodeCounts[key] ?? 0;
-            return total > 0 && (watchedCounts[key] ?? 0) < total;
+        return resolveAutoSelectedSeason({
+            keys: this.sortedSeasonKeys(),
+            playingSeasonKey: this.playingSeasonKey(),
+            seasons: this.seasons(),
+            positionOf: (episode) => this.getEpisodePosition(episode),
+            hasUnloadedSeasons: this.hasUnloadedSeasons(),
+            episodeCounts: this.episodeCounts(),
+            watchedCounts: this.watchedCounts(),
         });
-        if (firstUnwatched) {
-            return firstUnwatched;
-        }
-        const latestWithEpisodes = [...keys]
-            .reverse()
-            .find((key) => (episodeCounts[key] ?? 0) > 0);
-        return latestWithEpisodes ?? keys[0];
-    }
-
-    private findMostRecentInProgressSeason(): string | null {
-        let bestSeason: string | null = null;
-        let bestUpdatedAt = '';
-        for (const [key, episodes] of Object.entries(this.seasons())) {
-            for (const episode of episodes ?? []) {
-                const position = this.getEpisodePosition(episode);
-                if (!isPortalPlaybackInProgress(position)) {
-                    continue;
-                }
-                const updatedAt = position?.updatedAt ?? '';
-                if (updatedAt >= bestUpdatedAt) {
-                    bestUpdatedAt = updatedAt;
-                    bestSeason = key;
-                }
-            }
-        }
-        return bestSeason;
     }
 }

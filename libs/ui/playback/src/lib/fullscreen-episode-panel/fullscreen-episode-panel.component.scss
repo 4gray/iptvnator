@@ -29,6 +29,42 @@
     --accent-success: #4ade80;
 }
 
+// ─── Season strip: the shown season's poster, name and count above the tabs ──
+
+.episode-panel__season {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 4px 10px;
+}
+
+.episode-panel__season-poster {
+    flex: none;
+    width: 44px;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.episode-panel__season-meta {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.episode-panel__season-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.episode-panel__season-count {
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
 .episode-panel__list {
     // Positioned so a row's offsetTop is measured against this scroll box.
     position: relative;
