@@ -211,6 +211,9 @@
                 [seriesTitle]="serial.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 [upNextEpisodes]="upNextEpisodes()"
+                [seriesEpisodes]="mappedSeasons()"
+                [episodePlaybackPositions]="episodePlaybackPositions()"
+                [seasonLoadStates]="vodSeasonLoadStates()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (backClicked)="goBack()"
@@ -219,6 +222,7 @@
                 (previousEpisodeRequested)="playPreviousEpisode()"
                 (nextEpisodeRequested)="playNextEpisode()"
                 (upNextEpisodeSelected)="playUpNextEpisode($event)"
+                (episodePanelSeasonSelected)="onSeasonSelected($event)"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "

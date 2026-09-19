@@ -1,4 +1,3 @@
-import { join } from 'path';
 import {
     closeElectronApp,
     expect,
@@ -7,8 +6,11 @@ import {
     openSources,
     restartElectronApp,
     test,
-    workspaceRoot,
 } from './electron-test-fixtures';
+import {
+    expectRendererReloadedOnRoute,
+    reloadFromMainProcess,
+} from './renderer-reload.support';
 
 /**
  * Chromium's zoom factor as the renderer actually renders it: the window's
@@ -47,15 +49,16 @@ async function pressZoomShortcut(
 /**
  * A cross-document navigation of the renderer (what a reload is for zoom:
  * Chromium drops the temporary level and the new document's preload must
- * restore it). Loads the packaged index the way startup does — a plain
- * `page.reload()` on a routed `file://` URL has no file behind it.
+ * restore it). A real reload of the routed `file://` URL: the main process
+ * recovers the missing file by re-loading the index on the same route
+ * (`renderer-reload.e2e.ts`).
  */
 async function reloadRenderer(app: LaunchedElectronApp): Promise<void> {
-    await app.electronApp.evaluate(({ BrowserWindow }, indexPath) => {
-        const [win] = BrowserWindow.getAllWindows();
-        return win.loadFile(indexPath);
-    }, join(workspaceRoot, 'dist/apps/web/index.html'));
-    await app.mainWindow.waitForSelector('app-root');
+    await reloadFromMainProcess(app);
+    await expectRendererReloadedOnRoute(
+        app.mainWindow,
+        /\/workspace\/sources$/
+    );
 }
 
 async function resizeWindowBy(
