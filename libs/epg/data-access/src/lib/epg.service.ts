@@ -249,11 +249,37 @@ export class EpgService {
             return of(new Map());
         }
 
+        const scoped$ = this.getSourceScopedCurrentProgramsForChannels(
+            channelIds,
+            options
+        );
+        if (!scoped$) {
+            return this.getUnscopedCurrentProgramsForChannels(channelIds);
+        }
+        if (!options?.anySourceFallback) {
+            return scoped$;
+        }
+
+        return scoped$.pipe(
+            switchMap((scopedMap) => this.fillFromAnySource(scopedMap))
+        );
+    }
+
+    /**
+     * The scoped lookup: the caller's playlist sources first (with the global
+     * sources as fallback), else the Settings-managed global sources alone.
+     * `null` when no scope applies and the unscoped pool is the only answer.
+     */
+    private getSourceScopedCurrentProgramsForChannels(
+        channelIds: string[],
+        options?: EpgLookupOptions
+    ): Observable<Map<string, EpgProgram | null>> | null {
+        if (!this.epgBridge.supportsCurrentProgramBatch) {
+            return null;
+        }
+
         const sourceUrls = this.normalizeSourceUrls(options);
-        if (
-            sourceUrls.length > 0 &&
-            this.epgBridge.supportsCurrentProgramBatch
-        ) {
+        if (sourceUrls.length > 0) {
             return this.getScopedCurrentProgramsForChannels(
                 channelIds,
                 sourceUrls
@@ -261,10 +287,7 @@ export class EpgService {
         }
 
         const globalSourceUrls = this.getGlobalEpgSourceUrls();
-        if (
-            globalSourceUrls.length > 0 &&
-            this.epgBridge.supportsCurrentProgramBatch
-        ) {
+        if (globalSourceUrls.length > 0) {
             return this.getScopedCurrentProgramsForChannels(
                 channelIds,
                 globalSourceUrls,
@@ -272,6 +295,42 @@ export class EpgService {
             );
         }
 
+        return null;
+    }
+
+    /**
+     * `anySourceFallback`: keys the scope answered with `null` are retried
+     * against every imported source. A scoped miss is kept as the answer
+     * when the pool has nothing either, so the merged map still names every
+     * requested key.
+     */
+    private fillFromAnySource(
+        scopedMap: Map<string, EpgProgram | null>
+    ): Observable<Map<string, EpgProgram | null>> {
+        const unresolvedIds = Array.from(scopedMap.entries())
+            .filter(([, program]) => !program)
+            .map(([channelId]) => channelId);
+        if (unresolvedIds.length === 0) {
+            return of(scopedMap);
+        }
+
+        return this.getUnscopedCurrentProgramsForChannels(unresolvedIds).pipe(
+            map((anySourceMap) => {
+                const mergedMap = new Map(scopedMap);
+                anySourceMap.forEach((program, channelId) => {
+                    if (program) {
+                        mergedMap.set(channelId, program);
+                    }
+                });
+                return mergedMap;
+            })
+        );
+    }
+
+    /** Lookup across every imported source, cached under the source-less key. */
+    private getUnscopedCurrentProgramsForChannels(
+        channelIds: string[]
+    ): Observable<Map<string, EpgProgram | null>> {
         const resultMap = new Map<string, EpgProgram | null>();
         const channelsToFetch: string[] = [];
         const now = Date.now();

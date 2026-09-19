@@ -271,6 +271,12 @@ export class WorkspaceDashboardRailsComponent {
     // (tvg-id -> tvg-name -> name), with the card title as a final fallback.
     // Xtream/Stalker live items often have no XMLTV side-channel and will
     // simply return null — the card renders without the program row.
+    // The rails mix channels from every playlist and carry no playlist
+    // scope, so the lookup opts into the any-source retry: the Settings
+    // global sources first, then every imported XMLTV, which is what the
+    // "See all" collection pages resolve against. Without it a channel
+    // whose guide only exists in another playlist's XMLTV showed no
+    // programme here while its "See all" row had one.
     private readonly liveChannelLookupKeys = computed(() => {
         const heroLiveCard = this.heroLiveCard();
         return buildLiveEpgLookupKeys(
@@ -298,7 +304,8 @@ export class WorkspaceDashboardRailsComponent {
                           startWith(0),
                           switchMap(() =>
                               this.epgService.getCurrentProgramsForChannels(
-                                  keys
+                                  keys,
+                                  { anySourceFallback: true }
                               )
                           )
                       )
