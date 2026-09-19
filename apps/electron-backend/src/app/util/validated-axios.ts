@@ -9,6 +9,7 @@ import { Agent as HttpAgent } from 'node:http';
 import { Agent as HttpsAgent } from 'node:https';
 import { isIP, LookupFunction } from 'node:net';
 import { observeAgentSocketConnections } from '@iptvnator/shared/host-health';
+import { getProxyForUrl } from 'proxy-from-env';
 import {
     RemoteUrlPolicy,
     UnsafeUrlError,
@@ -147,20 +148,14 @@ function pinRequestToValidatedAddresses(
 }
 
 /**
- * Whether axios would route `url` through an environment proxy: its
- * `proxy-from-env` lookup reads `<protocol>_proxy` and `all_proxy` in either
- * case. `NO_PROXY` exemptions are deliberately not evaluated here — the check
- * only decides whether to trust a socket's `connect` as the portal's own, and
- * declining that trust merely keeps the pre-observer behaviour, whereas
- * granting it wrongly would credit a proxy's handshake to a dead portal.
+ * Whether axios would route `url` through an environment proxy. The very
+ * resolution axios' http adapter performs (`proxy-from-env`, the same pinned
+ * package): `<protocol>_proxy` / `all_proxy` in either case with the same
+ * lowercase-then-uppercase fallback, and `no_proxy` exemptions honoured — a
+ * LAN portal listed there connects directly and keeps its observer.
  */
-function environmentDeclaresProxy(url: URL): boolean {
-    const protocol = url.protocol.replace(/:$/, '');
-    return [`${protocol}_proxy`, 'all_proxy'].some((name) => {
-        const value =
-            process.env[name.toLowerCase()] ?? process.env[name.toUpperCase()];
-        return typeof value === 'string' && value.trim() !== '';
-    });
+function environmentProxiesUrl(url: URL): boolean {
+    return getProxyForUrl(url.href) !== '';
 }
 
 function observeHopConnections(
@@ -176,7 +171,7 @@ function observeHopConnections(
     // proxy that accepts TCP but cannot reach the portal would then pass as
     // the portal answering. No observer there: such requests keep reporting
     // their timeouts as host-level, exactly as before the hook existed.
-    if (config.proxy !== false && environmentDeclaresProxy(url)) {
+    if (config.proxy !== false && environmentProxiesUrl(url)) {
         return config;
     }
 

@@ -149,10 +149,12 @@ that connected and then hung for 30 s from reopening a breaker that later
 requests opened in the meantime — by then its evidence is older than theirs.
 Such a request still costs its full timeout; the guard only stops charging it
 to the host. Electron does not install the observer while an environment
-proxy (`http_proxy` / `https_proxy` / `all_proxy`) applies to the request:
-through a proxy the socket connects to the proxy, whose handshake proves
-nothing about the portal, so those requests keep reporting their timeouts as
-host-level exactly as before. Regression coverage:
+proxy applies to the request — decided by the very resolution axios performs
+(`proxy-from-env`, the same pinned package: `<protocol>_proxy` / `all_proxy`
+in either case, `no_proxy` exemptions honoured, so a LAN portal listed there
+keeps its observer): through a proxy the socket connects to the proxy, whose
+handshake proves nothing about the portal, so those requests keep reporting
+their timeouts as host-level exactly as before. Regression coverage:
 `apps/electron-backend/src/app/util/host-connectivity-guard.slow-host.spec.ts`
 (real loopback sockets) and the Xtream mock's `silent` scenario, whose
 `get_vod_info` / `get_series_info` accept the connection and never answer.
