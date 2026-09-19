@@ -7,6 +7,13 @@
         flex: 1;
         min-height: 0;
         overflow: hidden;
+        transition: opacity var(--collection-reload-dim-duration, 160ms) ease;
+    }
+
+    // Reload feedback dims the channel list only; the player in
+    // .content-container keeps playing at full opacity.
+    &--reloading > app-global-favorites-list {
+        opacity: var(--collection-reload-dim-opacity, 0.6);
     }
 }
 

@@ -140,6 +140,8 @@ export class UnifiedLiveTabComponent implements FullscreenChannelPanelHost {
     readonly itemPlayed = output<UnifiedCollectionItem>();
     readonly autoOpenHandled = output<void>();
     readonly isSidebarCollapsed = input(false);
+    /** The page is reloading the list; dim the rail but never the player. */
+    readonly reloading = input(false);
     /** The rail is owned by the page header toggle; ask it to expand. */
     readonly restoreSidebarRequested = output<void>();
 

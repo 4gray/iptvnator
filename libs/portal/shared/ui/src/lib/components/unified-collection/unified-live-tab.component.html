@@ -1,6 +1,7 @@
 <div
     class="sidebar"
     [class.sidebar-collapsed]="isSidebarCollapsed()"
+    [class.sidebar--reloading]="reloading()"
     appResizable
     [minWidth]="250"
     [maxWidth]="600"

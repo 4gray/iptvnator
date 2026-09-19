@@ -19,6 +19,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -63,6 +64,7 @@ import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
+import { createCollectionReloadIndicator } from './collection-reload-indicator';
 import {
     UnifiedCollectionDetailContext,
     UnifiedCollectionDetailDirective,
@@ -81,6 +83,7 @@ import {
         MatIconButton,
         MatIconModule,
         MatMenuModule,
+        MatProgressBar,
         MatTooltip,
         TranslatePipe,
         UnifiedGridTabComponent,
@@ -144,8 +147,32 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             getCollectionViewState(window.history.state)
         );
 
+    /** First load with nothing on screen: the skeleton replaces the content. */
     readonly isLoading = signal(true);
+    private readonly reloadIndicator = createCollectionReloadIndicator(
+        this.destroyRef
+    );
+    /**
+     * A reload (scope switch, favorites reload) is in flight while the
+     * previous items stay mounted. Never swaps to the skeleton, so a playing
+     * channel and the focused toggle survive.
+     */
+    readonly isReloading = this.reloadIndicator.active;
+    /** `isReloading` past its grace period: progress bar + dimming render. */
+    readonly showReloadIndicator = this.reloadIndicator.visible;
     readonly allItems = signal<UnifiedCollectionItem[]>([]);
+    /**
+     * The request that produced `allItems`. Actions on displayed rows (Clear,
+     * drag reorder) must use it, not `effectiveScope()`: during a reload the
+     * toggle already names the requested scope while the previous rows are
+     * still on screen, and "This playlist" against global rows would delete
+     * other playlists' favorites or write foreign URLs into this playlist.
+     */
+    private readonly loadedRequest = signal<{
+        scope: CollectionScope;
+        playlistId?: string;
+        portalType?: string;
+    } | null>(null);
     readonly favoriteUidSet = signal<ReadonlySet<string>>(new Set<string>());
     readonly selectedContentType = signal<CollectionContentType>(
         this.historyCollectionViewState()?.selectedContentType ?? 'live'
@@ -581,7 +608,9 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
 
         const isFavorites = this.mode() === 'favorites';
         const type = this.translate.instant(this.currentTypeLabelKey());
-        const isPlaylistScope = this.effectiveScope() === 'playlist';
+        const isPlaylistScope =
+            (this.loadedRequest()?.scope ?? this.effectiveScope()) ===
+            'playlist';
         const titleKey = isFavorites
             ? 'WORKSPACE.SHELL.CLEAR_FAVORITES_DIALOG_TITLE'
             : 'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_DIALOG_TITLE';
@@ -618,11 +647,14 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     async onReorder(items: UnifiedCollectionItem[]): Promise<void> {
         const nonLive = this.allItems().filter((i) => i.contentType !== 'live');
         this.allItems.set([...items, ...nonLive]);
-        await this.favoritesData.reorder(items, {
-            scope: this.effectiveScope(),
-            playlistId: this.playlistId(),
-            portalType: this.portalType(),
-        });
+        await this.favoritesData.reorder(
+            items,
+            this.loadedRequest() ?? {
+                scope: this.effectiveScope(),
+                playlistId: this.playlistId(),
+                portalType: this.portalType(),
+            }
+        );
     }
 
     onItemPlayed(item: UnifiedCollectionItem): void {
@@ -671,6 +703,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         const requestId = ++this.loadRequestId;
         if (this.allItems().length === 0) {
             this.isLoading.set(true);
+        } else {
+            this.reloadIndicator.begin();
         }
 
         try {
@@ -694,6 +728,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
                 return;
             }
             this.allItems.set(items);
+            this.loadedRequest.set({
+                scope: params.scope,
+                playlistId: params.playlistId,
+                portalType: params.portalType,
+            });
             this.favoriteUidSet.set(favoriteUids);
             this.autoSelectContentType();
             if (
@@ -710,6 +749,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         } finally {
             if (requestId === this.loadRequestId) {
                 this.isLoading.set(false);
+                this.reloadIndicator.settle();
             }
         }
     }
