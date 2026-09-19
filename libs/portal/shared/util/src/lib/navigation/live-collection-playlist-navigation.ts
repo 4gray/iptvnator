@@ -137,17 +137,24 @@ export function resolveStalkerLiveGenreId(
 
 const STALKER_SECTION_MARKERS = new Set(['itv', 'radio', 'vod', 'series']);
 
+/**
+ * An authoritative stored row answers even without a genre: a genreless
+ * channel lives in the All list, so `'*'` is its fallback (a portal without
+ * a full list otherwise lands on the empty "select a category" screen).
+ */
 function stalkerItemGenre(item: unknown): string | null {
     if (!item || typeof item !== 'object') {
         return null;
     }
-    return stalkerGenreId((item as { tv_genre_id?: unknown }).tv_genre_id);
+    return (
+        stalkerGenreId((item as { tv_genre_id?: unknown }).tv_genre_id) ?? '*'
+    );
 }
 
-/** Any non-blank genre id except the All pseudo-genre. */
+/** Any non-blank genre id, the All pseudo-genre included. */
 function stalkerGenreId(value: unknown): string | null {
     const text = String(value ?? '').trim();
-    return text && text !== '*' ? text : null;
+    return text || null;
 }
 
 function stalkerCategoryGenre(value: unknown): string | null {

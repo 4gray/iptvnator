@@ -81,13 +81,23 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 categoryId: '5',
             })?.state?.['openStalkerLiveCategoryId']
         ).toBe('5');
+        // A stored row without a genre still falls back to the All list;
+        // the section marker alone (no stored row) yields no fallback.
         expect(
             getLiveCollectionPlaylistNavigation({
                 sourceType: 'stalker',
                 playlistId: 'pl-3',
                 stalkerId: '30',
                 categoryId: 'itv',
-                stalkerItem: { tv_genre_id: '*' },
+                stalkerItem: { tv_genre_id: ' ' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('*');
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
             })?.state
         ).not.toHaveProperty('openStalkerLiveCategoryId');
         // Genre ids are opaque portal strings, not necessarily numeric.
