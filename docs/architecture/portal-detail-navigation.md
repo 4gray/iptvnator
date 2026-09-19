@@ -176,10 +176,22 @@ with a return handler keep Back available.
   channel without one), expands the rail and plays it. While the list loads it
   waits (the cache turning ready re-runs the effect); a portal that cannot
   serve a full list (`itvFullListUnsupported`, the cache's reactive
-  unsupported set) or a channel missing from it (censored genres are excluded
+  unsupported set), a load that fails transiently (the cache only arms a
+  retry cooldown and changes no signal, so the flow awaits the preload
+  promise and treats "settled, neither ready nor unsupported" as the same
+  outcome) or a channel missing from the list (censored genres are excluded
   from `get_all_channels`) falls back to selecting the remembered genre, so
   the user still lands in the right list, and the handoff is consumed either
-  way. Stalker radio stations resolve to `null`: they live in the separate
+  way. That remembered genre is the stored row's `tv_genre_id`; the row's
+  `categoryId` counts only when it is a numeric genre id, because app-written
+  favorites/recent rows carry the SECTION marker (`'itv'`) there. Playback is
+  deferred until the genre's rows are on screen: `playChannel` →
+  `navigation.prepare` captures the displayed rows as the remote/numeric
+  channel order, and right after `setSelectedCategory` those are still the
+  previous genre's — the deferred play fires once the rows hold the channel,
+  or once they were replaced and loading settled (a legacy-paged genre whose
+  first page lacks the row), and is dropped if the user selects another genre
+  or section first. Stalker radio stations resolve to `null`: they live in the separate
   `radio` section, whose station list is legacy-paged with no
   open-on-arrival contract, so the action stays hidden for them.
   Two surfaces render the one verdict: `app-open-in-playlist-chip`

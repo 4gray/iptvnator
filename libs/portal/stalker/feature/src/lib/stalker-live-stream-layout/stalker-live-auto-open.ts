@@ -24,10 +24,12 @@ import {
 export interface StalkerLiveAutoOpenStore {
     currentPlaylist: Signal<{ _id?: string } | null | undefined>;
     selectedContentType: Signal<string | null | undefined>;
+    selectedCategoryId: Signal<string | null | undefined>;
     itvFullChannelList: Signal<StalkerItvChannel[]>;
     itvFullListActive: Signal<boolean>;
     itvFullListUnsupported: Signal<boolean>;
-    preloadItvChannels(): void;
+    /** Resolves when the full-list load settles (also when it fails). */
+    preloadItvChannels(): Promise<void> | void;
     setSearchPhrase(phrase: string): void;
     setSelectedCategory(category: string | null): void;
     setPage(page: number): void;
@@ -38,7 +40,18 @@ export interface StalkerLiveAutoOpenOptions {
     router: Router | null;
     destroyRef: DestroyRef;
     sidebar?: { expand(surface: 'portal'): void };
+    /** The channel rows currently on screen for the selected category. */
+    rows: () => readonly StalkerItvChannel[];
+    /** True while no category page or full-list load is in flight. */
+    rowsSettled: () => boolean;
     play: (item: StalkerItvChannel) => void;
+}
+
+interface DeferredPlay {
+    item: StalkerItvChannel;
+    category: string;
+    /** The rows on screen when the category was switched — the OLD list. */
+    staleRows: readonly StalkerItvChannel[];
 }
 
 /**
@@ -62,12 +75,27 @@ export interface StalkerLiveAutoOpenOptions {
  * provide the list, or a channel missing from it (censored genres are
  * excluded from `get_all_channels`), falls back to selecting the category the
  * collection row remembered, when it did, so the user lands in the right list
- * even though the row cannot be picked; then the handoff is consumed.
+ * even though the row cannot be picked; then the handoff is consumed. A load
+ * that fails transiently (the cache only arms a retry cooldown, no signal
+ * changes) resolves the same way: the preload promise settles, the list is
+ * neither ready nor unsupported, and the genre fallback runs instead of
+ * leaving the handoff pending forever.
+ *
+ * Playback is deferred until the selected genre's rows are on screen:
+ * `playChannel` → `navigation.prepare` captures the displayed rows as the
+ * remote/numeric channel order, and right after `setSelectedCategory` those
+ * are still the previous genre's. The deferred play fires once the rows hold
+ * the channel, or — a legacy-paged genre whose first page does not — once
+ * the rows were replaced and loading settled. Selecting another genre or
+ * section meanwhile drops it.
  */
 export class StalkerLiveAutoOpen {
     readonly pendingItemId = signal<string | null>(null);
     readonly pendingPlaylistId = signal<string | null>(null);
     readonly pendingCategoryId = signal<string | null>(null);
+    private readonly deferredPlay = signal<DeferredPlay | null>(null);
+    /** Bumped whenever the pending item changes, to retire a stale preload. */
+    private generation = 0;
 
     constructor(private readonly options: StalkerLiveAutoOpenOptions) {
         this.captureFromHistoryState();
@@ -79,6 +107,7 @@ export class StalkerLiveAutoOpen {
             .subscribe(() => this.captureFromHistoryState());
 
         effect(() => this.run());
+        effect(() => this.runDeferredPlay());
     }
 
     captureFromHistoryState(): void {
@@ -104,10 +133,12 @@ export class StalkerLiveAutoOpen {
                 state?.[OPEN_STALKER_LIVE_CATEGORY_STATE_KEY]
             ) || null
         );
+        this.generation += 1;
         this.pendingItemId.set(itemId);
     }
 
     clearPendingItem(): void {
+        this.generation += 1;
         this.pendingItemId.set(null);
         this.pendingPlaylistId.set(null);
         this.pendingCategoryId.set(null);
@@ -163,8 +194,24 @@ export class StalkerLiveAutoOpen {
 
         if (!store.itvFullListActive()) {
             // Idempotent: the layout's own preload effect may already have
-            // started it, and the cache de-duplicates in-flight loads.
-            untracked(() => store.preloadItvChannels());
+            // started it, and the cache de-duplicates in-flight loads. When
+            // the load settles without the list turning ready or unsupported
+            // it failed transiently — fall back to the genre rather than wait
+            // for a retry nothing schedules.
+            const generation = this.generation;
+            untracked(() => {
+                void Promise.resolve(store.preloadItvChannels()).then(() => {
+                    if (
+                        generation !== this.generation ||
+                        !this.pendingItemId() ||
+                        store.itvFullListActive() ||
+                        store.itvFullListUnsupported()
+                    ) {
+                        return;
+                    }
+                    this.settle(null);
+                });
+            });
             return;
         }
 
@@ -186,6 +233,7 @@ export class StalkerLiveAutoOpen {
                 : '*'
             : this.pendingCategoryId();
 
+        const staleRows = this.options.rows();
         if (category) {
             store.setSearchPhrase('');
             store.setSelectedCategory(category);
@@ -193,10 +241,56 @@ export class StalkerLiveAutoOpen {
             this.options.sidebar?.expand('portal');
         }
         if (item) {
-            this.options.play(item);
+            if (this.containsChannel(staleRows, item)) {
+                this.options.play(item);
+            } else {
+                this.deferredPlay.set({
+                    item,
+                    category: category ?? '*',
+                    staleRows,
+                });
+            }
         }
 
         this.clearPendingItem();
         this.clearHistoryState();
+    }
+
+    private runDeferredPlay(): void {
+        const deferred = this.deferredPlay();
+        if (!deferred) {
+            return;
+        }
+
+        const { store } = this.options;
+        if (
+            store.selectedContentType() !== 'itv' ||
+            (store.selectedCategoryId() ?? '*') !== deferred.category
+        ) {
+            // The user moved on before the genre's rows arrived.
+            untracked(() => this.deferredPlay.set(null));
+            return;
+        }
+
+        const rows = this.options.rows();
+        const ready =
+            this.containsChannel(rows, deferred.item) ||
+            (rows !== deferred.staleRows && this.options.rowsSettled());
+        if (!ready) {
+            return;
+        }
+
+        untracked(() => {
+            this.deferredPlay.set(null);
+            this.options.play(deferred.item);
+        });
+    }
+
+    private containsChannel(
+        rows: readonly StalkerItvChannel[],
+        item: StalkerItvChannel
+    ): boolean {
+        const id = normalizeStalkerEntityId(item.id);
+        return rows.some((row) => normalizeStalkerEntityId(row.id) === id);
     }
 }

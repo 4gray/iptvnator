@@ -28,9 +28,13 @@ export interface LiveCollectionPlaylistNavigationSource {
     streamUrl?: string;
     /** Stalker channel id (`UnifiedCollectionItem.stalkerId`). */
     stalkerId?: string | number | null;
-    /** Stalker: the channel's genre, the fallback list when it cannot be located. */
+    /**
+     * Stalker: used as the fallback genre only when it is a numeric genre id.
+     * Favorites/recent rows written by the app carry the SECTION marker here
+     * (`'itv'`), which is not a genre.
+     */
     categoryId?: string | number | null;
-    /** Stalker: the stored row, read for `tv_genre_id` when `categoryId` is absent. */
+    /** Stalker: the stored row; its `tv_genre_id` is the channel's real genre. */
     stalkerItem?: unknown;
     /** `'true'` for radio stations, which live in a different Stalker section. */
     radio?: string;
@@ -101,7 +105,8 @@ export function getLiveCollectionPlaylistNavigation(
             playlistId,
             itemId: source.stalkerId,
             categoryId:
-                source.categoryId ?? stalkerItemGenre(source.stalkerItem),
+                stalkerItemGenre(source.stalkerItem) ??
+                stalkerGenreId(source.categoryId),
             title: source.name,
             imageUrl: source.logo ?? null,
         });
@@ -110,12 +115,15 @@ export function getLiveCollectionPlaylistNavigation(
     return null;
 }
 
-function stalkerItemGenre(item: unknown): string | number | null {
+function stalkerItemGenre(item: unknown): string | null {
     if (!item || typeof item !== 'object') {
         return null;
     }
-    const genre = (item as { tv_genre_id?: unknown }).tv_genre_id;
-    return typeof genre === 'string' || typeof genre === 'number'
-        ? genre
-        : null;
+    return stalkerGenreId((item as { tv_genre_id?: unknown }).tv_genre_id);
+}
+
+/** Stalker ITV genres are numeric ids; anything else (`'itv'`, `'*'`) is not a genre. */
+function stalkerGenreId(value: unknown): string | null {
+    const text = String(value ?? '').trim();
+    return /^\d+$/.test(text) ? text : null;
 }

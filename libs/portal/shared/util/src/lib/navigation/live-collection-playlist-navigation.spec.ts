@@ -62,7 +62,8 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 openStalkerLivePoster: 'stalker.png',
             },
         });
-        // An explicit category wins over the stored row's genre.
+        // The stored row's genre wins; `categoryId` is the section marker
+        // on app-written favorites and counts only when it is a numeric genre.
         expect(
             getLiveCollectionPlaylistNavigation({
                 sourceType: 'stalker',
@@ -71,7 +72,24 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 categoryId: '5',
                 stalkerItem: { tv_genre_id: 7 },
             })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('7');
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: '5',
+            })?.state?.['openStalkerLiveCategoryId']
         ).toBe('5');
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
+                stalkerItem: { tv_genre_id: '*' },
+            })?.state
+        ).not.toHaveProperty('openStalkerLiveCategoryId');
     });
 
     it('hides the action for Stalker radio stations and rows without a channel id', () => {

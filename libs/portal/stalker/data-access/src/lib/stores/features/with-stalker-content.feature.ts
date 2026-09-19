@@ -885,8 +885,10 @@ export function withStalkerContent() {
                  * available immediately. Safe to call repeatedly — the cache
                  * de-duplicates in-flight loads and memoizes unsupported portals.
                  */
-                preloadItvChannels(): void {
-                    void itvCache.ensureLoaded(storeContext.currentPlaylist());
+                preloadItvChannels(): Promise<void> {
+                    return itvCache.ensureLoaded(
+                        storeContext.currentPlaylist()
+                    );
                 },
                 /**
                  * Re-runs the content loader with unchanged params — the retry
