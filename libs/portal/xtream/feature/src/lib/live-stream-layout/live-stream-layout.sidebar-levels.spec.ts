@@ -125,6 +125,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         selectedItem: signal(null),
         currentPlaylist: signal({ _id: 'pl-1', title: 'Playlist' }),
         liveStreams: emptyList,
+        isContentInitialized: signal(true),
         selectItemsFromSelectedCategory: jest.fn(() => []),
         constructStreamUrl: jest.fn(() => ''),
         openPlayer: jest.fn(),

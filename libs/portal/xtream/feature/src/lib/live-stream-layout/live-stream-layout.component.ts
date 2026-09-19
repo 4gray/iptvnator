@@ -447,9 +447,16 @@ export class LiveStreamLayoutComponent
             onCleanup(() => clearInterval(intervalId));
         });
 
-        // Read pending auto-open state on every NavigationEnd — covers both the
-        // initial navigation (Angular fires NavigationEnd after component creation)
-        // and re-navigation to the same /live route when the component is reused.
+        // Read pending auto-open state once at mount and again on every
+        // NavigationEnd. Arriving from another route (a collection's "open in
+        // playlist", the dashboard, global search into another portal), the
+        // Xtream shell mounts this layout only after its session bootstrap —
+        // i.e. AFTER that navigation's NavigationEnd, which a subscription
+        // made here can never observe; the history entry still carries the
+        // keys, so the mount-time read is what serves those arrivals. The
+        // NavigationEnd read covers re-navigation to the same /live route
+        // while the component is reused (in-portal search, playlist switch).
+        this.liveAutoOpenState.captureFromHistoryState();
         this.router.events
             .pipe(
                 filter((e) => e instanceof NavigationEnd),
@@ -481,7 +488,22 @@ export class LiveStreamLayoutComponent
                 (channel) => Number(channel?.xtream_id) === pendingId
             );
             if (!item) {
-                this.pendingAutoOpenLiveItemId.set(null);
+                // "Not in the catalog" is a verdict only once the shared
+                // store serves the requested playlist and has finished
+                // loading it: NavigationEnd fires before the route session
+                // resets the store, so the list here may still be the
+                // previous playlist's. Otherwise keep waiting — the effect
+                // re-runs when the playlist, catalog or init flag changes.
+                const pendingPlaylistId =
+                    this.liveAutoOpenState.pendingPlaylistId();
+                const catalogSettled =
+                    this.xtreamStore.isContentInitialized() &&
+                    (!pendingPlaylistId ||
+                        this.xtreamStore.currentPlaylist()?.id ===
+                            pendingPlaylistId);
+                if (catalogSettled) {
+                    this.liveAutoOpenState.clearPendingItem();
+                }
                 return;
             }
 

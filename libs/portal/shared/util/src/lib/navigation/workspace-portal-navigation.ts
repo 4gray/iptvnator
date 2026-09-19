@@ -77,9 +77,7 @@ export function getRecentItemNavigation(
     const collectionItem = buildDashboardCollectionDetailItem(item);
     if (collectionItem) {
         const detailItem =
-            item.source === 'xtream' &&
-            item.type === 'series' &&
-            seriesResume
+            item.source === 'xtream' && item.type === 'series' && seriesResume
                 ? {
                       ...collectionItem,
                       uid: buildXtreamCollectionUid(
@@ -185,6 +183,12 @@ export function buildXtreamNavigationTarget(params: {
         link,
         state: {
             openXtreamLiveItemId: streamId,
+            // Lets the live layout tell "this channel is not in the catalog"
+            // apart from "the store still holds the previous playlist's
+            // catalog" — the XtreamStore is shared and resets asynchronously
+            // after NavigationEnd, so a verdict against a foreign catalog
+            // would silently drop the handoff.
+            openXtreamLivePlaylistId: params.playlistId,
             openXtreamLiveTitle: params.title || '',
             openXtreamLivePoster: params.imageUrl || '',
         },
