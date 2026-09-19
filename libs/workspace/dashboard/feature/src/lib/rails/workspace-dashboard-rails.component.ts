@@ -44,6 +44,7 @@ import {
     DashboardDataService,
     DashboardFavoriteItem,
     DashboardRecentlyAddedItem,
+    buildDashboardPortalLiveEpgKey,
     DashboardRecommendationItem,
     DashboardRecommendationsService,
     DashboardSourceExpiryService,
@@ -60,8 +61,12 @@ import type {
     DashboardRailCard,
     DashboardRailActionSelection,
 } from './dashboard-rail.component';
-import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import type {
+    PlaylistMeta,
+    PortalActivityItem,
+} from '@iptvnator/shared/interfaces';
 import type { DashboardHeroModel } from './dashboard-hero.utils';
+import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
 import {
     buildDashboardLiveEpgDetails,
@@ -110,9 +115,11 @@ import type {
     host: {
         '[class.rails-page-host--empty]': 'ready() && !hasPlaylists()',
     },
+    providers: [DashboardPortalLiveEpgPresenter],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
+    readonly portalLiveEpg = inject(DashboardPortalLiveEpgPresenter);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
@@ -283,6 +290,30 @@ export class WorkspaceDashboardRailsComponent {
         );
     });
 
+    // The Xtream/Stalker live rows behind the hero and the two live rails.
+    // Their programmes come from the portal, asked for lazily per visible
+    // card by DashboardPortalLiveEpgPresenter; M3U rows stay on the XMLTV
+    // batch above.
+    private readonly portalLiveItems = computed<readonly PortalActivityItem[]>(
+        () => {
+            const rails = this.dashboardRails();
+            const hero = this.heroRecentItem();
+            return [
+                ...(rails.hero && hero?.type === 'live' ? [hero] : []),
+                ...(rails.liveFavorites
+                    ? this.data
+                          .globalFavoriteLiveItems()
+                          .slice(0, RAIL_ITEM_LIMIT)
+                    : []),
+                ...(rails.recentlyWatchedLive
+                    ? this.data
+                          .globalRecentLiveItems()
+                          .slice(0, RAIL_ITEM_LIMIT)
+                    : []),
+            ];
+        }
+    );
+
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
     );
@@ -417,6 +448,18 @@ export class WorkspaceDashboardRailsComponent {
         // backdrops that do not change recency ordering.
         void this.data.reloadGlobalRecentItems();
         void this.data.reloadGlobalFavorites();
+
+        // Portal EPG for the live cards: the presenter asks only for cards
+        // the rails report as visible; the hero sits at the top and is
+        // pinned so it never waits for a scroll.
+        this.portalLiveEpg.connect(this.portalLiveItems);
+        effect(() => {
+            this.portalLiveEpg.setPinnedKeys([
+                this.dashboardRails().hero
+                    ? this.heroLiveCard()?.liveEpgSourceKey
+                    : null,
+            ]);
+        });
 
         // Refresh when Xtream playlist count changes so a newly added provider
         // populates the rail without a manual dashboard reload. The Xtream
@@ -606,10 +649,21 @@ export class WorkspaceDashboardRailsComponent {
     ): DashboardRailCard[] {
         return cards.map((card) => {
             const details = this.getLiveEpgDetailsForCard(card);
-            if (!details) {
+            // Placeholder only before the FIRST portal answer: a refresh
+            // keeps the previous answer on screen instead of flashing.
+            const pending =
+                !details &&
+                this.portalLiveEpg.programFor(card.liveEpgSourceKey) ===
+                    undefined &&
+                this.portalLiveEpg.isPending(card.liveEpgSourceKey);
+            if (!details && !pending) {
                 return card;
             }
-            return { ...card, ...details };
+            return {
+                ...card,
+                ...(details ?? {}),
+                nowPlayingState: pending ? 'pending' : null,
+            };
         });
     }
 
@@ -619,7 +673,11 @@ export class WorkspaceDashboardRailsComponent {
         if (!card) {
             return null;
         }
-        const program = getLiveEpgProgramForCard(card, this.liveEpgPrograms());
+        // A portal answer wins; its `null` ("asked, nothing on air") and
+        // "not asked yet" both fall back to the XMLTV batch's title match.
+        const program =
+            this.portalLiveEpg.programFor(card.liveEpgSourceKey) ??
+            getLiveEpgProgramForCard(card, this.liveEpgPrograms());
         // Recompute the now-window each tick so progress moves between
         // 30s ticks even if the program identity is unchanged.
         return buildDashboardLiveEpgDetails(
@@ -671,6 +729,7 @@ export class WorkspaceDashboardRailsComponent {
             icon: this.typeIcon(item.type),
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
+            liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getRecentItemLink(item),
             // Default click is detail-only for every card — an in-progress
             // series no longer auto-plays on click (issue #1441); resuming
@@ -707,6 +766,7 @@ export class WorkspaceDashboardRailsComponent {
             icon: this.typeIcon(item.type),
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
+            liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
         };
