@@ -456,7 +456,7 @@ tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>|v2'               -- details payload row
               'id:<tmdbId>|season:<n>'       -- season payload row
-              'title:<normalized>|year:<y>|v2' -- search resolution row
+              'title:<normalized>|year:<y>|v3' -- search resolution row
               'person:<personId>'            -- person payload row
               'trending:week'                -- trending list row
               'badProviderId:<tmdbId>'       -- id confirmed 404 by TMDB
@@ -471,14 +471,37 @@ tmdb_metadata (
 TTLs (enforced at read time in `TmdbCacheService.isFresh`): details and
 positive matches 30 days, negative matches 7 days.
 
-Search and details keys carry a `|v2` version suffix (`buildDetailsLookupKey`
-in `tmdb-matcher.ts`): for search rows so normalization changes cannot reuse
-stale positive or negative resolutions, for details rows because payloads now
-include videos via `append_to_response` and pre-videos cache rows had to be
-invalidated. Database startup deletes the obsolete
-unversioned search rows once and records
-`migration:tmdb-search-lookup-v2-cache-cleanup:v1` in `app_state`; details and
-person cache rows are unaffected.
+Search keys carry a `|v3` and details keys a `|v2` version suffix
+(`buildSearchLookupKey` / `buildDetailsLookupKey` in `tmdb-matcher.ts`): for
+search rows so normalization or query changes cannot reuse stale positive or
+negative resolutions, for details rows because payloads now include videos
+via `append_to_response` and pre-videos cache rows had to be invalidated.
+Search v2 → v3 retired the rows written while the folded comparison key was
+also the wire query (see "Search query vs. comparison key" below). Database
+startup deletes the rows of every retired search-key generation once, each
+under its own `app_state` marker so a skipped release still runs the cleanups
+it missed (`migration:tmdb-search-lookup-v2-cache-cleanup:v1` for the
+unversioned rows, `migration:tmdb-search-lookup-v3-cache-cleanup:v1` for the
+`|v2` rows; `LEGACY_TMDB_SEARCH_CACHE_CLEANUPS` in `connection.ts`); details
+and person cache rows are unaffected.
+
+### Search query vs. comparison key
+
+`buildSearchTitleVariants` yields `{ query, normalized }` pairs. `normalized`
+is `normalizeTitle` — the folded key used for the cache row and for
+`pickConfidentMatch`, where both sides fold the same way. `query` is
+`cleanTitleForSearch` (`libs/shared/interfaces`): the same tag, bracket,
+season and trailing-year stripping, but the letters left as the provider
+wrote them. The two must differ because folding is lossy outside Latin: NFD
+splits Cyrillic "й" into "и" + a combining breve and "ё" into "е" + a
+diaeresis, and Arabic hamza forms ("أ") into a bare alef + a combining hamza
+that the punctuation step then turns into a space inside the word. The key
+drops or splits on those marks, and TMDB's `/search` does not fold them the
+same way — a query of `феик` returns zero results while `Фейк` returns the
+show. Under the old single-form design every Russian title with "й"/"ё"
+("Фейк (10 серий)", "Волшебный участок", "Молодой Шерлок") was searched
+folded, missed, and cached as missing for the 7-day negative TTL. Compare
+results only through `normalized`; never send it over the wire.
 
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):

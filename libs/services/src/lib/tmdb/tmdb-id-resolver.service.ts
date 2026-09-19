@@ -55,10 +55,10 @@ export class TmdbIdResolverService {
 
         const year = query.year ?? extractYear(null, query.title);
         const cacheLanguage = tmdbSearchLanguageForTitle(
-            variants[0],
+            variants[0].normalized,
             this.runtime.appLanguage()
         );
-        const lookupKey = buildSearchLookupKey(variants[0], year);
+        const lookupKey = buildSearchLookupKey(variants[0].normalized, year);
 
         const cached = await this.cache.get(
             mediaType,
@@ -79,21 +79,24 @@ export class TmdbIdResolverService {
             // own language so TMDB returns comparable titles — see
             // tmdbSearchLanguageForTitle. Search by title only: TMDB's
             // year params filter strictly; the ±1/season tolerance lives
-            // in pickConfidentMatch instead.
+            // in pickConfidentMatch instead. The wire query is the
+            // provider's own spelling (`variant.query`), never the folded
+            // comparison key: TMDB does not fold Cyrillic "й" the way the
+            // key does, and a folded query finds nothing.
             const language = tmdbSearchLanguageForTitle(
-                variant,
+                variant.normalized,
                 this.runtime.appLanguage()
             );
             const results =
                 mediaType === 'movie'
                     ? await this.api.searchMovie(
-                          variant,
+                          variant.query,
                           null,
                           language,
                           this.runtime.apiKey()
                       )
                     : await this.api.searchTv(
-                          variant,
+                          variant.query,
                           null,
                           language,
                           this.runtime.apiKey()
@@ -101,7 +104,7 @@ export class TmdbIdResolverService {
 
             match = pickConfidentMatch(
                 results,
-                { title: variant, year },
+                { title: variant.normalized, year },
                 mediaType
             );
             if (match) {

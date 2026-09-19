@@ -1,5 +1,6 @@
 import {
     TmdbMediaType,
+    cleanTitleForSearch,
     extractYear,
     normalizeTitle,
 } from '@iptvnator/shared/interfaces';
@@ -37,21 +38,38 @@ function stripLeadingLanguageToken(raw: string): string | null {
 }
 
 /**
+ * One search candidate: what to SEND to TMDB and what to COMPARE its
+ * answers against. The two differ on purpose — see `cleanTitleForSearch`:
+ * a folded query ("феик") finds nothing on TMDB while the folded key is
+ * exactly what the confidence gate and the cache need.
+ */
+export interface SearchTitleVariant {
+    /** Provider spelling with tags/brackets/season/year stripped */
+    query: string;
+    /** `normalizeTitle` of the same text; cache key and comparison form */
+    normalized: string;
+}
+
+/**
  * Ordered search-title candidates for one provider item: the original
  * title, the display title, then the same values with a leading
  * language-looking token dropped. The confidence gate still applies to
  * every variant, so extra candidates cannot produce wrong matches — only
- * extra searches on misses.
+ * extra searches on misses. Deduplicated by the normalized form, so two
+ * spellings that fold to one key cost one search.
  */
 export function buildSearchTitleVariants(
     title: string | null | undefined,
     originalTitle?: string | null
-): string[] {
-    const variants: string[] = [];
+): SearchTitleVariant[] {
+    const variants: SearchTitleVariant[] = [];
     const push = (raw: string | null | undefined) => {
         const normalized = normalizeTitle(raw);
-        if (normalized && !variants.includes(normalized)) {
-            variants.push(normalized);
+        if (
+            normalized &&
+            !variants.some((variant) => variant.normalized === normalized)
+        ) {
+            variants.push({ query: cleanTitleForSearch(raw), normalized });
         }
     };
 
@@ -72,8 +90,12 @@ export function buildSearchLookupKey(
 ): string {
     // v2: normalizeTitleKeys learned to strip appended language/quality
     // tags; the version suffix invalidates cached (incl. negative) match
-    // resolutions keyed on the old polluted titles
-    return `title:${normalizedTitle}|year:${year ?? ''}|v2`;
+    // resolutions keyed on the old polluted titles.
+    // v3: the search query stopped being the folded key ("феик" for
+    // "Фейк"), which TMDB answered with nothing; every negative row recorded
+    // under v2 for a title with "й"/"ё" is that bug, not a missing title, and
+    // must not block the retry for its 7-day TTL.
+    return `title:${normalizedTitle}|year:${year ?? ''}|v3`;
 }
 
 export function buildDetailsLookupKey(tmdbId: number): string {
@@ -108,9 +130,7 @@ export function parseProviderTmdbId(
  *   name mismatch alone says more about our own inputs than about the id.
  */
 export type ProviderIdVerdict =
-    | 'corroborated'
-    | 'contradicted'
-    | 'inconclusive';
+    'corroborated' | 'contradicted' | 'inconclusive';
 
 /** The same tolerance the search gate uses, applied in reverse */
 function yearsAgree(
@@ -135,7 +155,11 @@ export function assessProviderId(
         original_name?: string;
         first_air_date?: string;
     },
-    query: { title?: string | null; originalTitle?: string | null; year?: number | null },
+    query: {
+        title?: string | null;
+        originalTitle?: string | null;
+        year?: number | null;
+    },
     mediaType: TmdbMediaType
 ): ProviderIdVerdict {
     // Same effective year the search would use, so the two agree on what
@@ -171,7 +195,9 @@ export function detailsMatchProviderTitle(
     query: { title?: string | null; originalTitle?: string | null }
 ): boolean {
     const variants = new Set(
-        buildSearchTitleVariants(query.title, query.originalTitle)
+        buildSearchTitleVariants(query.title, query.originalTitle).map(
+            (variant) => variant.normalized
+        )
     );
     if (variants.size === 0) {
         // Nothing to compare against — never call that a mismatch
