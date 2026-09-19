@@ -117,16 +117,22 @@ export class AppUpdateReleaseCatalog {
 
     /**
      * Index of `version` (or its tag), paging further until it is found.
-     * A miss on a completely paged list reloads the list once before
-     * answering -1: the snapshot may simply predate the release.
+     * With `reloadOnMiss`, a miss on a completely paged list reloads the
+     * list once before answering -1: the snapshot may simply predate the
+     * release. Callers that fall back to the newest release on a miss pass
+     * false — an unpublished local build would otherwise page the whole
+     * list twice for an answer the first pass already had.
      */
-    async findIndex(version: string | undefined): Promise<number> {
+    async findIndex(
+        version: string | undefined,
+        reloadOnMiss = true
+    ): Promise<number> {
         if (!version) {
             return -1;
         }
 
         const normalizedVersion = normalizeVersion(version);
-        let reloaded = false;
+        let reloaded = !reloadOnMiss;
 
         while (true) {
             const index = this.releases.findIndex(

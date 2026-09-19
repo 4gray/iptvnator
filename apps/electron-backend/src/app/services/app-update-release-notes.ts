@@ -120,7 +120,10 @@ export class AppUpdateReleaseCatalogs {
             await catalog.ensurePageLoaded(1);
         }
 
-        let index = await catalog.findIndex(request.version);
+        let index = await catalog.findIndex(
+            request.version,
+            !canFallbackToLatest
+        );
 
         if (index === -1 && canFallbackToLatest) {
             index = 0;

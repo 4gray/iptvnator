@@ -441,6 +441,9 @@ describe('AppUpdateService', () => {
             tagName: 'v0.24.0',
             version: '0.24.0',
         });
+        // The miss must not reload the list before falling back: the
+        // first pass already holds the answer.
+        expect(fetcher).toHaveBeenCalledTimes(1);
     });
 
     it('stores available release details from updater events', () => {
