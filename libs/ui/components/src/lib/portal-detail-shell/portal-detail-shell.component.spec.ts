@@ -277,23 +277,44 @@ describe('PortalDetailShellComponent', () => {
         expect(host.closeRequests).toBe(0);
     });
 
-    it('keeps one labelled back control outside the collapsing hero', async () => {
+    it('keeps one route-back control outside the collapsing hero in both states', () => {
         const back = requiredQuery('.shell__back-button');
         expect(back.closest('app-content-hero')).toBeNull();
+        expect(back.getAttribute('aria-label')).toBe('Return to downloads');
+        expect(back.getAttribute('aria-keyshortcuts')).toBe('Escape');
         back.click();
         expect(host.backRequests).toBe(1);
         host.playbackActive.set(true);
         fixture.detectChanges();
         expect(query('.shell__back-button')).toBe(back);
-        expect(back.getAttribute('aria-label')).toBe('Close player');
-        expect(back.getAttribute('aria-keyshortcuts')).toBe('Escape');
-        requiredQuery('.fake-player').tabIndex = 0;
-        requiredQuery('.fake-player').focus();
+        // Watch keeps the arrow's meaning: it leaves the page, it does not
+        // close the player. Escape is the close shortcut, so the hint goes.
+        expect(back.getAttribute('aria-label')).toBe('Return to downloads');
+        expect(back.getAttribute('aria-keyshortcuts')).toBeNull();
+        expect(back.getAttribute('title')).toBe('Return to downloads');
         back.click();
+        expect(host.backRequests).toBe(2);
+        expect(host.closeRequests).toBe(0);
+    });
+
+    it('moves lost focus to the back control after Escape closes the player', async () => {
+        host.playbackActive.set(true);
+        fixture.detectChanges();
+        const back = requiredQuery('.shell__back-button');
+        const player = requiredQuery('.fake-player');
+        player.tabIndex = 0;
+        player.focus();
+        player.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
         fixture.detectChanges();
         await fixture.whenStable();
         expect(host.closeRequests).toBe(1);
-        expect(host.backRequests).toBe(1);
+        expect(host.backRequests).toBe(0);
         expect(document.activeElement).toBe(back);
     });
 
@@ -311,8 +332,18 @@ describe('PortalDetailShellComponent', () => {
         expect(host.backRequests).toBe(0);
         host.playbackActive.set(true);
         fixture.detectChanges();
-        requiredQuery('.shell__back-button').click();
+        // No route to go back to, so no arrow in watch either; the player's
+        // own Close button and Escape remain the exits.
+        expect(query('.shell__back-button')).toBeNull();
+        requiredQuery('app-portal-detail-shell').dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: 'Escape',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
         expect(host.closeRequests).toBe(1);
+        expect(host.backRequests).toBe(0);
     });
 
     it.each([

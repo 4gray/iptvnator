@@ -2,17 +2,6 @@
     <section class="player-shell" aria-label="Inline player">
         <header class="player-shell__header">
             <div class="player-shell__title-row">
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="player-shell__back"
-                    data-testid="inline-player-back"
-                    [attr.aria-label]="'BACK' | translate"
-                    [matTooltip]="'BACK' | translate"
-                    (click)="onBack()"
-                >
-                    <mat-icon>arrow_back</mat-icon>
-                </button>
                 <div class="player-shell__heading">
                     <div class="player-shell__eyebrow">
                         {{ 'PORTALS.NOW_PLAYING' | translate }}

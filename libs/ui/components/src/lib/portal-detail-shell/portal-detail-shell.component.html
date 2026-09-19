@@ -1,17 +1,16 @@
-@if (backAvailable() || isWatch()) {
-    @let label =
-        isWatch()
-            ? ('PORTALS.CLOSE_PLAYER' | translate)
-            : backLabel() || ('BACK' | translate);
+@if (backAvailable()) {
+    @let label = backLabel() || ('BACK' | translate);
+    <!-- Route-level Back in both states. Watch keeps the arrow's meaning;
+         closing the player belongs to the player's own Close button and Escape. -->
     <div class="shell__navigation">
         <button
             #backButton
             class="shell__back-button"
             type="button"
             [attr.aria-label]="label"
-            aria-keyshortcuts="Escape"
-            [title]="label + ' (Esc)'"
-            (click)="onBack()"
+            [attr.aria-keyshortcuts]="isWatch() ? null : 'Escape'"
+            [title]="isWatch() ? label : label + ' (Esc)'"
+            (click)="backClicked.emit()"
         >
             <mat-icon aria-hidden="true">arrow_back</mat-icon>
         </button>
