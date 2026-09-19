@@ -154,10 +154,12 @@ with a return handler keep Back available.
   time `liveStreams()` can still be the PREVIOUS playlist's catalog, and the
   live layout used to read "not in this list" as "channel gone" and drop the
   handoff (a jump from a collection or global search into another portal then
-  landed on the live root with nothing selected). The layout now treats a miss
-  as final only once `currentPlaylist()` is the requested playlist and
-  `isContentInitialized()` is true; until then it keeps waiting and the effect
-  re-runs as the store switches and loads;
+  landed on the live root with nothing selected). The layout now consults the
+  catalog at all only once `currentPlaylist()` is the requested playlist —
+  stream ids are provider-local, so a colliding id in the previous catalog
+  would otherwise play the wrong channel — and treats a miss as final only
+  once `isContentInitialized()` is true; until then it keeps waiting and the
+  effect re-runs as the store switches and loads;
   M3U navigates to `/workspace/playlists/:id/all` with `openM3uChannelUrl`
   (`OPEN_M3U_CHANNEL_URL_STATE_KEY`), the same key global search writes and
   the M3U player selects by URL. Stalker resolves to `null` — its ITV layout

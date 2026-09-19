@@ -477,6 +477,21 @@ export class LiveStreamLayoutComponent
                 return;
             }
 
+            // The shared store may still serve the PREVIOUS playlist here:
+            // NavigationEnd fires before the route session resets it. Stream
+            // ids are provider-local, so a colliding id in that catalog would
+            // otherwise play the wrong channel and consume the handoff. Wait
+            // until the store is the requested playlist's — the effect
+            // re-runs when the playlist, catalog or init flag changes.
+            const pendingPlaylistId =
+                this.liveAutoOpenState.pendingPlaylistId();
+            if (
+                pendingPlaylistId &&
+                this.xtreamStore.currentPlaylist()?.id !== pendingPlaylistId
+            ) {
+                return;
+            }
+
             // Search across all live streams, not just the category-filtered view,
             // so a channel from a different category can still be auto-opened.
             const allChannels = this.getAllLiveStreams();
@@ -488,20 +503,9 @@ export class LiveStreamLayoutComponent
                 (channel) => Number(channel?.xtream_id) === pendingId
             );
             if (!item) {
-                // "Not in the catalog" is a verdict only once the shared
-                // store serves the requested playlist and has finished
-                // loading it: NavigationEnd fires before the route session
-                // resets the store, so the list here may still be the
-                // previous playlist's. Otherwise keep waiting — the effect
-                // re-runs when the playlist, catalog or init flag changes.
-                const pendingPlaylistId =
-                    this.liveAutoOpenState.pendingPlaylistId();
-                const catalogSettled =
-                    this.xtreamStore.isContentInitialized() &&
-                    (!pendingPlaylistId ||
-                        this.xtreamStore.currentPlaylist()?.id ===
-                            pendingPlaylistId);
-                if (catalogSettled) {
+                // "Not in the catalog" is a verdict only once this
+                // playlist's catalog has finished loading.
+                if (this.xtreamStore.isContentInitialized()) {
                     this.liveAutoOpenState.clearPendingItem();
                 }
                 return;

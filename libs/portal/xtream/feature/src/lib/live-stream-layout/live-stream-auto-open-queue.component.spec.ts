@@ -249,6 +249,38 @@ describe('Xtream live auto-open playback queue', () => {
         expect(window.history.state).toEqual({});
     });
 
+    it('never plays a colliding id from the previous playlist catalog', () => {
+        // Stream ids are provider-local: playlist-1's catalog holds the same
+        // numeric id as the channel requested in playlist-2.
+        window.history.replaceState(
+            {
+                openXtreamLiveItemId: target.xtream_id,
+                openXtreamLivePlaylistId: 'playlist-2',
+            },
+            ''
+        );
+        events.next(new NavigationEnd(1, '/live', '/live'));
+        fixture.detectChanges();
+
+        expect(store.constructStreamUrl).not.toHaveBeenCalled();
+        expect(autoOpenState().pendingItemId()).toBe(target.xtream_id);
+        expect(window.history.state.openXtreamLiveItemId).toBe(
+            target.xtream_id
+        );
+
+        const theirs = {
+            xtream_id: target.xtream_id,
+            category_id: '9',
+            name: 'Theirs',
+        };
+        store.currentPlaylist.set({ id: 'playlist-2' });
+        store.liveStreams.set([theirs]);
+        fixture.detectChanges();
+
+        expect(store.constructStreamUrl).toHaveBeenCalledTimes(1);
+        expect(store.constructStreamUrl).toHaveBeenCalledWith(theirs);
+    });
+
     it('gives up only once the requested playlist has loaded its catalog', () => {
         window.history.replaceState(
             {
