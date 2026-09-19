@@ -161,6 +161,18 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     /** `isReloading` past its grace period: progress bar + dimming render. */
     readonly showReloadIndicator = this.reloadIndicator.visible;
     readonly allItems = signal<UnifiedCollectionItem[]>([]);
+    /**
+     * The request that produced `allItems`. Actions on displayed rows (Clear,
+     * drag reorder) must use it, not `effectiveScope()`: during a reload the
+     * toggle already names the requested scope while the previous rows are
+     * still on screen, and "This playlist" against global rows would delete
+     * other playlists' favorites or write foreign URLs into this playlist.
+     */
+    private readonly loadedRequest = signal<{
+        scope: CollectionScope;
+        playlistId?: string;
+        portalType?: string;
+    } | null>(null);
     readonly favoriteUidSet = signal<ReadonlySet<string>>(new Set<string>());
     readonly selectedContentType = signal<CollectionContentType>(
         this.historyCollectionViewState()?.selectedContentType ?? 'live'
@@ -596,7 +608,9 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
 
         const isFavorites = this.mode() === 'favorites';
         const type = this.translate.instant(this.currentTypeLabelKey());
-        const isPlaylistScope = this.effectiveScope() === 'playlist';
+        const isPlaylistScope =
+            (this.loadedRequest()?.scope ?? this.effectiveScope()) ===
+            'playlist';
         const titleKey = isFavorites
             ? 'WORKSPACE.SHELL.CLEAR_FAVORITES_DIALOG_TITLE'
             : 'WORKSPACE.SHELL.CLEAR_RECENTLY_VIEWED_DIALOG_TITLE';
@@ -633,11 +647,14 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
     async onReorder(items: UnifiedCollectionItem[]): Promise<void> {
         const nonLive = this.allItems().filter((i) => i.contentType !== 'live');
         this.allItems.set([...items, ...nonLive]);
-        await this.favoritesData.reorder(items, {
-            scope: this.effectiveScope(),
-            playlistId: this.playlistId(),
-            portalType: this.portalType(),
-        });
+        await this.favoritesData.reorder(
+            items,
+            this.loadedRequest() ?? {
+                scope: this.effectiveScope(),
+                playlistId: this.playlistId(),
+                portalType: this.portalType(),
+            }
+        );
     }
 
     onItemPlayed(item: UnifiedCollectionItem): void {
@@ -711,6 +728,11 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
                 return;
             }
             this.allItems.set(items);
+            this.loadedRequest.set({
+                scope: params.scope,
+                playlistId: params.playlistId,
+                portalType: params.portalType,
+            });
             this.favoriteUidSet.set(favoriteUids);
             this.autoSelectContentType();
             if (

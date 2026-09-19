@@ -1079,13 +1079,16 @@ describe('UnifiedCollectionPageComponent', () => {
                 .injector.get(MatButtonToggleGroup).value;
         }
 
-        async function mountWithLiveItems(): Promise<void> {
+        async function mountWithLiveItems(
+            scope: CollectionScope = 'playlist',
+            items: UnifiedCollectionItem[] = [liveItem]
+        ): Promise<void> {
             setRouteParams({ id: 'playlist-1' });
-            setRouteQueryParams({ scope: 'playlist' });
+            setRouteQueryParams({ scope });
             playlistsLoaded.set(true);
             fixture.componentRef.setInput('portalType', 'm3u');
             fixture.componentRef.setInput('defaultScope', undefined);
-            favoritesData.getFavorites.mockResolvedValueOnce([liveItem]);
+            favoritesData.getFavorites.mockResolvedValueOnce(items);
 
             fixture.detectChanges();
             await fixture.whenStable();
@@ -1093,8 +1096,8 @@ describe('UnifiedCollectionPageComponent', () => {
 
             expect(fixture.componentInstance.isLoading()).toBe(false);
             expect(fixture.componentInstance.isReloading()).toBe(false);
-            expect(liveTab()?.items()).toEqual([liveItem]);
-            expect(scopeToggleValue()).toBe('playlist');
+            expect(liveTab()?.items()).toEqual(items);
+            expect(scopeToggleValue()).toBe(scope);
         }
 
         afterEach(() => {
@@ -1206,6 +1209,51 @@ describe('UnifiedCollectionPageComponent', () => {
             expect(fixture.componentInstance.showReloadIndicator()).toBe(false);
             expect(reloadBar()).toBeNull();
             expect(liveTab()?.items()).toEqual([otherLiveItem]);
+        });
+
+        it('binds Clear and reorder to the scope that loaded the rows still on screen', async () => {
+            await mountWithLiveItems('all', [liveItem, otherLiveItem]);
+            const pending = deferred<UnifiedCollectionItem[]>();
+            favoritesData.getFavorites.mockReturnValueOnce(pending.promise);
+
+            fixture.componentInstance.onScopeChange('playlist');
+            fixture.detectChanges();
+
+            expect(scopeToggleValue()).toBe('playlist');
+            expect(liveTab()?.items()).toEqual([liveItem, otherLiveItem]);
+
+            fixture.componentInstance.clearAllCurrent();
+            const [dialogConfig] =
+                dialogService.openConfirmDialog.mock.calls.at(-1) ?? [null];
+            expect(dialogConfig.message).toContain(
+                'CLEAR_FAVORITES_DIALOG_MESSAGE_ALL'
+            );
+
+            await fixture.componentInstance.onReorder([
+                otherLiveItem,
+                liveItem,
+            ]);
+            expect(favoritesData.reorder).toHaveBeenLastCalledWith(
+                [otherLiveItem, liveItem],
+                { scope: 'all', playlistId: 'playlist-1', portalType: 'm3u' }
+            );
+
+            pending.resolve([liveItem]);
+            await flushMicrotasks();
+            fixture.detectChanges();
+
+            await fixture.componentInstance.onReorder([liveItem]);
+            expect(favoritesData.reorder).toHaveBeenLastCalledWith([liveItem], {
+                scope: 'playlist',
+                playlistId: 'playlist-1',
+                portalType: 'm3u',
+            });
+            fixture.componentInstance.clearAllCurrent();
+            const [playlistDialogConfig] =
+                dialogService.openConfirmDialog.mock.calls.at(-1) ?? [null];
+            expect(playlistDialogConfig.message).toContain(
+                'CLEAR_FAVORITES_DIALOG_MESSAGE_PLAYLIST'
+            );
         });
 
         it('keeps the empty first load on the skeleton instead of the reload indicator', async () => {
