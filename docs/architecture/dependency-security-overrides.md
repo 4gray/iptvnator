@@ -33,7 +33,8 @@ is _outside_ the parent's range. Taking "latest" would break them:
 | ---------------- | --------- | --------------------------------------- | ------------- |
 | `@xmldom/xmldom` | 0.8.13    | `mpd-parser` `^0.8.3`, `plist` `^0.8.8` | 0.9.x ❌      |
 | `fast-uri`       | 3.1.4     | `ajv` `^3.0.1`                          | 4.x ❌        |
-| `js-yaml`        | 4.3.0     | `electron-updater` `^4.1.0`             | 5.x ❌        |
+| `js-yaml`        | 4.3.2     | `electron-updater` `^4.1.0`             | 5.x ❌        |
+| `smol-toml`      | 1.7.1     | `nx` exact `1.6.1` (see below)          | 1.8.x ❌      |
 | `form-data`      | 4.0.6     | `axios` `^4.0.5`                        | 4.0.6 ✅      |
 | `ajv`            | 8.18.0    | `electron-conf` `^8.13.0`               | 8.20.0 ✅     |
 
@@ -42,6 +43,12 @@ Before changing any of these, check the parent's declared range first:
 ```bash
 npm view <parent>@<version> dependencies --json
 ```
+
+One deliberate exception: `nx` pins `smol-toml` to an exact version, so no
+override can stay inside that "range". The `smol-toml` override targets the
+first patched release (a minor above the pin) and is re-checked against
+`npm view nx@latest dependencies.smol-toml` whenever Nx is updated — once Nx
+itself ships the patched pin, the override is dropped.
 
 ## Verifying an override actually applied
 
