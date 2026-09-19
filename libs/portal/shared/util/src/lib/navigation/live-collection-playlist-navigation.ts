@@ -99,19 +99,24 @@ export function getLiveCollectionPlaylistNavigation(
     }
 
     if (source.sourceType === 'stalker') {
-        // A stored row without a provider id gets a synthetic list-only id
-        // (`<playlist>-<index>`) from the collection services; the ITV
-        // catalog can never match it, so there is nothing to open.
-        if (
-            source.radio === 'true' ||
-            !hasStalkerProviderId(source.stalkerItem)
-        ) {
+        if (source.radio === 'true') {
+            return null;
+        }
+        // The stored row is the authority on the provider id: the collection
+        // services mint a synthetic list-only id (`<playlist>-<index>`, or
+        // `-` for a blank `id` beside a valid `stream_id`) for rows they
+        // cannot identify, and the ITV catalog can never match those.
+        const itemId =
+            source.stalkerItem === undefined || source.stalkerItem === null
+                ? source.stalkerId
+                : resolveStalkerProviderId(source.stalkerItem);
+        if (!itemId) {
             return null;
         }
 
         return buildStalkerLiveNavigationTarget({
             playlistId,
-            itemId: source.stalkerId,
+            itemId,
             categoryId: resolveStalkerLiveGenreId(source),
             title: source.name,
             imageUrl: source.logo ?? null,
@@ -144,21 +149,23 @@ export function resolveStalkerLiveGenreId(
 const STALKER_SECTION_MARKERS = new Set(['itv', 'radio', 'vod', 'series']);
 
 /**
- * Whether a stored Stalker row carries a real provider id. `undefined`
- * (no row to check — a list row already vetted by the collection tab)
- * counts as proven; a row present but id-less does not.
+ * The stored Stalker row's real provider id: the first NON-BLANK of
+ * `id`/`stream_id`/`series_id`/`movie_id`, or `null` for an id-less row.
+ * (Unlike the collection services' extractor, a blank `id` does not shadow
+ * a valid `stream_id`.)
  */
-export function hasStalkerProviderId(item: unknown): boolean {
-    if (item === undefined || item === null) {
-        return true;
-    }
-    if (typeof item !== 'object') {
-        return false;
+export function resolveStalkerProviderId(item: unknown): string | null {
+    if (!item || typeof item !== 'object') {
+        return null;
     }
     const raw = item as Record<string, unknown>;
-    return ['id', 'stream_id', 'series_id', 'movie_id'].some(
-        (key) => String(raw[key] ?? '').trim() !== ''
-    );
+    for (const key of ['id', 'stream_id', 'series_id', 'movie_id']) {
+        const value = String(raw[key] ?? '').trim();
+        if (value) {
+            return value;
+        }
+    }
+    return null;
 }
 
 /**

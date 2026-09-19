@@ -140,6 +140,16 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 stalkerItem: { stream_id: 30 },
             })?.link
         ).toEqual(['/workspace', 'stalker', 'pl-3', 'itv']);
+        // The stored row's own id wins over a synthetic list id minted from
+        // a blank `id` beside a valid `stream_id`.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '-',
+                stalkerItem: { id: '', stream_id: 30 },
+            })?.state?.['openStalkerLiveItemId']
+        ).toBe('30');
     });
 
     it('hides the action for Stalker radio stations and rows without a channel id', () => {
