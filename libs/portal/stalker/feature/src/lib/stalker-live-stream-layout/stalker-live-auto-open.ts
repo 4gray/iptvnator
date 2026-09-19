@@ -232,10 +232,9 @@ export class StalkerLiveAutoOpen {
 
     private settle(item: StalkerItvChannel | null): void {
         const { store } = this.options;
+        // A blank genre (`''`, whitespace) is as absent as a missing one.
         const category = item
-            ? item.tv_genre_id != null
-                ? String(item.tv_genre_id)
-                : '*'
+            ? normalizeStalkerEntityId(item.tv_genre_id) || '*'
             : this.pendingCategoryId();
 
         const staleRows = this.options.rows();

@@ -322,15 +322,26 @@ describe('StalkerLiveAutoOpen', () => {
         expect(window.history.state).toEqual({});
     });
 
-    it('opens the All pseudo-category for a channel without a genre', () => {
-        const noGenre = { id: '30', cmd: 'x', name: 'No genre' };
-        store.itvFullListActive.set(true);
-        store.itvFullChannelList.set([noGenre]);
+    it.each([
+        { label: 'missing', genre: undefined },
+        { label: 'blank', genre: ' ' },
+    ])(
+        'opens the All pseudo-category for a channel with a $label genre',
+        ({ genre }) => {
+            const noGenre = {
+                id: '30',
+                cmd: 'x',
+                name: 'No genre',
+                tv_genre_id: genre,
+            };
+            store.itvFullListActive.set(true);
+            store.itvFullChannelList.set([noGenre]);
 
-        arrive();
-        serveRows(noGenre);
+            arrive();
+            serveRows(noGenre);
 
-        expect(store.setSelectedCategory).toHaveBeenCalledWith('*');
-        expect(play).toHaveBeenCalledWith(noGenre);
-    });
+            expect(store.setSelectedCategory).toHaveBeenCalledWith('*');
+            expect(play).toHaveBeenCalledWith(noGenre);
+        }
+    );
 });
