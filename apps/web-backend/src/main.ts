@@ -1,7 +1,7 @@
 import {
     applyDefaultAutoSelectFamilyAttemptTimeout,
     AUTO_SELECT_FAMILY_ATTEMPT_TIMEOUT_FLAG,
-} from './app/network-family-autoselection';
+} from '@iptvnator/shared/host-health';
 import { createWebBackendApp } from './app/web-backend-app';
 
 const attemptTimeout = applyDefaultAutoSelectFamilyAttemptTimeout();

@@ -37,6 +37,15 @@ export interface ScenarioConfig {
      * gate rejects the public HLS stub every other scenario redirects to).
      */
     downloadStreamFixture?: 'slow-series' | 'local-media';
+    /**
+     * Optional `player_api.php` actions the portal accepts and then never
+     * answers: the connection stays open until the client gives up. Models a
+     * live but overloaded panel (the shape behind "connection keeps
+     * dropping" reports) so the host connectivity guard can be exercised
+     * without a real dead host. Everything else answers normally, so the
+     * source still imports.
+     */
+    silentActions?: readonly string[];
 }
 
 /**
@@ -253,6 +262,19 @@ export const SCENARIOS: Record<string, ScenarioConfig> = {
         episodesPerSeason: 5,
         accountStatus: 'Disabled',
         expiryDate: '2020-01-01',
+    },
+    'silent:silent': {
+        name: 'silent-details',
+        description:
+            'Live panel whose detail endpoints never answer — host guard tests',
+        seed: 6006,
+        categoryCount: { live: 2, vod: 2, series: 2 },
+        itemsPerCategory: 5,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 3,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        silentActions: ['get_vod_info', 'get_series_info'],
     },
 };
 

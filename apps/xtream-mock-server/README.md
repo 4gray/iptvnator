@@ -121,8 +121,16 @@ media. Barriers and delays are coordination tools, not timing inputs.
 | `multisrc2`   | `multisrc2`   | multi-source portal B      | 1         | 2        | 1           | 5         | active   |
 | `expired`     | `expired`     | expired account            | 4         | 4        | 4           | 10        | Expired  |
 | `inactive`    | `inactive`    | disabled account           | 4         | 4        | 4           | 10        | Disabled |
+| `silent`      | `silent`      | silent detail endpoints    | 2         | 2        | 2           | 5         | active   |
 
 Any other credential pair is auto-generated using a hash of `username:password` as the faker seed (6 categories, 30 items each, active account).
+
+`silent` imports and browses normally, but `get_vod_info` and
+`get_series_info` accept the connection and never answer — the client's own
+timeout (30 s in the app) ends each request. It models a live but overloaded
+panel, which is what the host connectivity guard must NOT mistake for a dead
+host: open two movie details and the guard has to stay closed. A dead host
+is reproduced with a non-routable address instead (`http://10.255.255.1:8080`).
 
 `multisrc1` and `multisrc2` deliberately share one faker seed, so both portals
 generate an identical catalog. That overlap is what the VOD multi-source E2E
