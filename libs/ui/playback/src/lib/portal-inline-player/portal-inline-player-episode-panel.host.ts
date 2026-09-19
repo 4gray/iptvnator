@@ -30,6 +30,8 @@ export interface EpisodePanelHostInputs {
     > | null>;
     playbackPositions: Signal<ReadonlyMap<number, PlaybackPositionData> | null>;
     seasonLoadStates: Signal<SeasonLoadStates | null>;
+    /** Per season key, the season's poster for the panel's season strip. */
+    seasonPosters?: Signal<Readonly<Record<string, string>> | null>;
     seriesTitle: Signal<string | null>;
     /** Playback title, the header fallback when the host names no series. */
     fallbackTitle: Signal<string>;
@@ -72,6 +74,7 @@ export function createEpisodePanelHost(
             currentEpisodeId: playingEpisodeId(),
             playbackPositions: inputs.playbackPositions(),
             seasonLoadStates: inputs.seasonLoadStates(),
+            seasonPosters: inputs.seasonPosters?.() ?? null,
         })
     );
 

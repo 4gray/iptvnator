@@ -52,6 +52,7 @@ class StubSeasonContainerComponent {
     readonly activeEpisodeId = input<number | null>(null);
     readonly playingEpisodeId = input<number | null>(null);
     readonly seasonDescriptions = input<unknown>(null);
+    readonly seasonPosters = input<unknown>(null);
     readonly seasonWatchBatchRunning = input(false);
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
@@ -72,6 +73,7 @@ class StubPortalInlinePlayerComponent {
     readonly seriesNavigation = input<unknown>(null);
     readonly upNextEpisodes = input<unknown>(null);
     readonly seriesEpisodes = input<unknown>(null);
+    readonly seasonPosters = input<unknown>(null);
     readonly episodePlaybackPositions = input<unknown>(null);
     readonly seasonLoadStates = input<unknown>(null);
     readonly timeUpdate = output<unknown>();

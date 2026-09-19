@@ -60,6 +60,8 @@ export interface FullscreenEpisodePanelSeason<TEpisode = unknown> {
     key: string;
     episodes: FullscreenEpisodePanelItem<TEpisode>[];
     loadState: FullscreenPanelSeasonLoadState;
+    /** The season's own poster (TMDB or provider), when the host has one. */
+    posterUrl?: string;
 }
 
 export interface BuildFullscreenEpisodePanelSeasonsOptions<
@@ -73,6 +75,8 @@ export interface BuildFullscreenEpisodePanelSeasonsOptions<
     seasonLoadStates?: Readonly<
         Record<string, Exclude<FullscreenPanelSeasonLoadState, 'loaded'>>
     > | null;
+    /** Per season key, the season's poster URL; absent means none known. */
+    seasonPosters?: Readonly<Record<string, string>> | null;
 }
 
 /**
@@ -87,6 +91,7 @@ export function buildFullscreenEpisodePanelSeasons<
     currentEpisodeId,
     playbackPositions,
     seasonLoadStates,
+    seasonPosters,
 }: BuildFullscreenEpisodePanelSeasonsOptions<TEpisode>): FullscreenEpisodePanelSeason<TEpisode>[] {
     if (!episodesBySeason) {
         return [];
@@ -99,9 +104,11 @@ export function buildFullscreenEpisodePanelSeasons<
 
     return sortSeasonKeys(Object.keys(episodesBySeason)).map((seasonKey) => {
         const episodes = episodesBySeason[seasonKey] ?? [];
+        const posterUrl = seasonPosters?.[seasonKey];
         return {
             key: seasonKey,
             loadState: seasonLoadStates?.[seasonKey] ?? 'loaded',
+            ...(posterUrl ? { posterUrl } : {}),
             episodes: episodes.map((episode, index) =>
                 toPanelItem(
                     episode,

@@ -305,6 +305,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.tmdbSeasons.descriptions(this.displayItem()?.info?.tmdb_id)
     );
 
+    /** Season posters for the season cover and the fullscreen episode panel. */
+    readonly seasonPosters = computed<Record<string, string>>(() =>
+        this.tmdbSeasons.posters(this.displayItem()?.info?.tmdb_id)
+    );
+
     /**
      * Track VOD series seasons with their loaded episodes
      */
@@ -1253,7 +1258,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     /** Per-season load state for the fullscreen episode panel (lazy VOD). */
     readonly vodSeasonLoadStates = computed(() =>
-        this.isVodSeries() ? getVodSeasonLoadStates(this.vodSeriesSeasons()) : {}
+        this.isVodSeries()
+            ? getVodSeasonLoadStates(this.vodSeriesSeasons())
+            : {}
     );
 
     async handleSeriesPlaybackToggleRequested(
@@ -1411,10 +1418,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             request.requests.map((item) =>
                 (item.nextPosition
                     ? this.persistSeriesPosition(playlistId, item.nextPosition)
-                    : this.clearSeriesPosition(
-                          playlistId,
-                          item.contentXtreamId
-                      )
+                    : this.clearSeriesPosition(playlistId, item.contentXtreamId)
                 ).then(
                     () => true,
                     // The scoped watched row was saved and published —

@@ -133,6 +133,8 @@ export interface TmdbTvDetails extends TmdbDetailsBase {
         name: string;
         profile_path?: string | null;
     }[];
+    /** Per-season summaries, including each season's own poster */
+    seasons?: TmdbSeasonSummary[];
 }
 
 export interface TmdbEpisode {
@@ -150,7 +152,17 @@ export interface TmdbEpisode {
 export interface TmdbSeasonDetails {
     season_number?: number;
     overview?: string;
+    /** The season's own poster; distinct from the show poster on most shows */
+    poster_path?: string | null;
     episodes?: TmdbEpisode[];
+}
+
+/** One entry of a TV details payload's `seasons[]` summary list */
+export interface TmdbSeasonSummary {
+    season_number?: number;
+    episode_count?: number;
+    air_date?: string | null;
+    poster_path?: string | null;
 }
 
 /** One credit from /person/{id} combined_credits (cast or crew) */

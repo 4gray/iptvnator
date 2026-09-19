@@ -248,6 +248,25 @@ routinely fill it with a bare cover-image URL —
 `sanitizeProviderOverview` (`@iptvnator/shared/interfaces`) treats a
 URL-only value as absent, and the stored TMDB overview fills the gap.
 
+The same payload's `poster_path` — every TMDB season has its own poster,
+distinct from the show poster on most shows — is stored as a full `w342`
+URL (`tmdbSeasonPosterUrl`) in `tmdb_season_posters[seasonKey]` beside the
+overview, under the same write-only-if-changed convergence guard. Stalker
+keeps it in `StalkerSeriesTmdbSeasonsService.posters(tmdbId)` next to
+`descriptions(tmdbId)`, dropped together with the entry when a replacement
+fetch fails. Season posters resolve **TMDB-first**, like the show artwork
+merge (`prefer(tmdbPoster, provider)`): `buildSeasonPosters`
+(`libs/portal/xtream/feature/src/lib/serial-details/season-posters.util.ts`)
+takes the stored TMDB poster and falls back to the provider's
+`seasons[].cover_big`/`cover` from `get_series_info`, accepted only as a
+trimmed http(s) URL that differs from the show poster because panels repeat
+it on every season. Stalker has no provider season art, so it is TMDB-only.
+The detail views render the selected season's poster as the season cover
+beside the season tabs and in the fullscreen episode panel's season strip;
+both are withheld for one-season items (that poster is the show poster) and
+fold on a failed image request. Contract: "Two-State Detail Layout" in
+`embedded-inline-playback.md`.
+
 The season number `{n}` is the provider's episode season number, with one
 correction (`resolveEnrichmentSeasonNumber` in
 `libs/shared/interfaces/src/lib/season-marker.util.ts`): providers often

@@ -720,6 +720,76 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
 });
 
 // ---------------------------------------------------------------------------
+// Season cover beside the season tabs (provider tier)
+//
+// The default scenario's get_series_info carries a distinct seasons[].cover
+// per season, which differs from the show cover, so with TMDB enrichment off
+// the serial details page shows that cover next to the tabs and swaps it on
+// a tab click. Image requests are answered locally so a slow or blocked CDN
+// cannot fold the column (the app hides a cover whose image failed).
+// ---------------------------------------------------------------------------
+
+test('@xtream season cover — shows the provider season cover and follows the selected tab', async ({
+    page,
+    request,
+}) => {
+    const TRANSPARENT_PNG = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64'
+    );
+    await page.route('**/picsum.photos/**', (route) =>
+        route.fulfill({ contentType: 'image/png', body: TRANSPARENT_PNG })
+    );
+
+    const categories = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
+        )
+    ).json()) as Array<{ category_id: string; category_name: string }>;
+    const category = categories[0];
+    const seriesItems = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
+        )
+    ).json()) as Array<{ name: string; series_id: number }>;
+    const targetSeries = seriesItems[0];
+
+    await addXtreamPortal(page);
+    await page.goto(page.url().replace(/\/vod.*$/, '/series'));
+
+    const categoryItem = page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: category.category_name })
+        .first();
+    await expect(categoryItem).toBeVisible({ timeout: 10_000 });
+    await categoryItem.click();
+
+    const seriesCard = page
+        .locator('app-grid-list mat-card')
+        .filter({ hasText: targetSeries.name })
+        .first();
+    await expect(seriesCard).toBeVisible({ timeout: 10_000 });
+    await seriesCard.click();
+
+    // Season 1 is auto-selected; its provider cover sits beside the tabs.
+    // The mock seeds season art as `season-<id>-<n>` (cover) and
+    // `season-big-<id>-<n>` (cover_big); the app prefers cover_big.
+    const cover = page.locator('[data-testid="season-cover"]');
+    await expect(cover).toBeVisible({ timeout: 15_000 });
+    await expect(cover).toHaveAttribute(
+        'src',
+        new RegExp(`season(-big)?-${targetSeries.series_id}-1/`)
+    );
+
+    // The cover follows the selected tab.
+    await page.locator('.season-tabs__pill').nth(1).click();
+    await expect(cover).toHaveAttribute(
+        'src',
+        new RegExp(`season(-big)?-${targetSeries.series_id}-2/`)
+    );
+});
+
+// ---------------------------------------------------------------------------
 // Series-level watched toggle: the season header's ⋮ menu marks EVERY season
 // in one action (default scenario: 3 seasons × 8 episodes = 24), flips to
 // unwatch-all once the whole series is watched, and survives a reload.

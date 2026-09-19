@@ -106,6 +106,34 @@ export class FullscreenEpisodePanelComponent {
     readonly episodeCounts = computed(() =>
         countBySeason(this.seasons(), (season) => season.episodes.length)
     );
+    /** Season poster URLs whose image request failed; the strip then folds. */
+    private readonly failedPosters = signal<ReadonlySet<string>>(new Set());
+    /**
+     * The season strip above the tabs: the shown season's own poster with
+     * its name and episode count. Withheld for one-season series (that
+     * poster is the show poster) and for a poster whose image failed.
+     */
+    readonly seasonStrip = computed<{
+        posterUrl: string;
+        seasonKey: string;
+        episodeCount: number;
+    } | null>(() => {
+        const season = this.selectedSeason();
+        const posterUrl = season?.posterUrl;
+        if (
+            !season ||
+            !posterUrl ||
+            this.seasons().length < 2 ||
+            this.failedPosters().has(posterUrl)
+        ) {
+            return null;
+        }
+        return {
+            posterUrl,
+            seasonKey: season.key,
+            episodeCount: season.episodes.length,
+        };
+    });
     readonly watchedCounts = computed(() =>
         countBySeason(
             this.seasons(),
@@ -153,6 +181,10 @@ export class FullscreenEpisodePanelComponent {
 
     onStillError(item: FullscreenEpisodePanelItem): void {
         this.failedStills.update((failed) => new Set(failed).add(item.id));
+    }
+
+    onSeasonPosterError(url: string): void {
+        this.failedPosters.update((failed) => new Set(failed).add(url));
     }
 
     hasStill(item: FullscreenEpisodePanelItem): boolean {

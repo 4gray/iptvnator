@@ -116,6 +116,13 @@ export class PortalInlinePlayerComponent {
      */
     readonly seasonLoadStates = input<SeasonLoadStates | null>(null);
     /**
+     * Per season key, the season's own poster (TMDB season poster or the
+     * provider's season cover) for the fullscreen panel's season strip.
+     */
+    readonly seasonPosters = input<Readonly<Record<string, string>> | null>(
+        null
+    );
+    /**
      * Initial player volume. Only hosts that own a persisted volume pass it
      * (the M3U player shares one across its channels); the portals keep the
      * engines' own default, which is what this default preserves.
@@ -230,6 +237,7 @@ export class PortalInlinePlayerComponent {
         seriesEpisodes: this.seriesEpisodes,
         playbackPositions: this.episodePlaybackPositions,
         seasonLoadStates: this.seasonLoadStates,
+        seasonPosters: this.seasonPosters,
         seriesTitle: this.seriesTitle,
         fallbackTitle: this.title,
     });
