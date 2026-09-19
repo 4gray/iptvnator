@@ -493,11 +493,15 @@ both sides fold the same way. `query` is `cleanTitleForSearch`
 (`libs/shared/interfaces`): the same tag, bracket, season and trailing-year
 stripping, but the letters left as the provider wrote them. The search's
 identity is the query with only its case removed (`searchQueryIdentity`):
-variants are deduplicated by it and the cache row is keyed by it, never by
-the folded key — "Феик" and "Фейк" fold to one key but are different
-searches with different answers, so a verdict for one must not be read back
-for the other, and a misspelled original title must not swallow the display
-title that TMDB actually knows. The two must differ because folding is lossy outside Latin: NFD
+variants are deduplicated by it and every attempted variant is cached under
+its own key (`title:<identity>|year:<y>|v3`, in the language that variant
+was searched in), never by the folded key and never only under the first
+variant — "Феик" and "Фейк" fold to one key but are different searches with
+different answers, so a verdict for one must not be read back for the other;
+a misspelled original title must not swallow the display title that TMDB
+actually knows; and two items that share an original title but not a display
+title walk different variant lists, so a row keyed on the first variant alone
+would hand the second item the first one's answer, or its cached miss. The two must differ because folding is lossy outside Latin: NFD
 splits Cyrillic "й" into "и" + a combining breve and "ё" into "е" + a
 diaeresis, and Arabic hamza forms ("أ") into a bare alef + a combining hamza
 that the punctuation step then turns into a space inside the word. The key

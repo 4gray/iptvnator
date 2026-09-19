@@ -153,6 +153,42 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
             'Феик',
             'Фейк',
         ]);
+        // Each attempted variant records its own verdict
+        expect(
+            cacheSet.mock.calls.map(([row]) => [row.lookupKey, row.tmdbId])
+        ).toEqual([
+            ['title:феик|year:2026|v3', null],
+            ['title:фейк|year:2026|v3', 317869],
+        ]);
+    });
+
+    it("does not let one variant's cached verdict answer for another", async () => {
+        // Item A (original "Феик", display "Феик") cached a miss under
+        // "феик". Item B shares the original title but displays "Фейк":
+        // the cached miss must not suppress B's own second variant.
+        cacheGet.mockImplementation(async (_type: string, key: string) =>
+            key === 'title:феик|year:2026|v3' ? { tmdbId: null } : null
+        );
+        const service = createService();
+        const cacheService = (service as unknown as { cache: TmdbCacheService })
+            .cache;
+        jest.spyOn(cacheService, 'isFresh').mockImplementation(
+            (row) => row !== null && row !== undefined
+        );
+
+        const id = await service.resolveBySearch('tv', {
+            title: 'Фейк',
+            originalTitle: 'Феик',
+            year: 2026,
+        });
+
+        expect(id).toBe(317869);
+        expect(searchTv).toHaveBeenCalledTimes(1);
+        expect(searchTv).toHaveBeenCalledWith('Фейк', null, 'ru-RU', 'key');
+        expect(cacheGet.mock.calls.map(([, key]) => key)).toEqual([
+            'title:феик|year:2026|v3',
+            'title:фейк|year:2026|v3',
+        ]);
     });
 
     it('tries the language-prefix-stripped fallback with its own spelling', async () => {

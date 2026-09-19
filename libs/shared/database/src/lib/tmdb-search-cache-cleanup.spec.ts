@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
  * cleanup, from the previous release, on a fresh database, and on the next
  * startup after that.
  */
-it('drops only retired search rows across skipped, previous, fresh and repeated startups', () => {
+it('drops only retired search rows across skipped, previous, pre-person, fresh and repeated startups', () => {
     const electron = createRequire(__filename)('electron') as string;
     const connectionUrl = pathToFileURL(
         resolve(__dirname, 'connection.ts')
@@ -56,17 +56,29 @@ it('drops only retired search rows across skipped, previous, fresh and repeated 
             };
         }
         // Skipped every release since the unversioned keys: both cleanups run
+        // through the real initialization path
         const skipped = openDb([]);
-        hooks.cleanupLegacyTmdbSearchCache(skipped);
+        hooks.runMigrations(skipped);
         const skippedAfter = snapshot(skipped);
         // Next startup: a row written meanwhile under the current key survives
         skipped.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:гудовы|year:2026|v3', 'ru-RU', 318894)").run();
-        hooks.cleanupLegacyTmdbSearchCache(skipped);
+        hooks.runMigrations(skipped);
         const repeated = snapshot(skipped);
         // Previous release: the unversioned cleanup already ran; only v2 rows go
         const previous = openDb([V2_MARKER]);
-        hooks.cleanupLegacyTmdbSearchCache(previous);
+        hooks.runMigrations(previous);
         const previousAfter = snapshot(previous);
+        // Oldest historical schema: the pre-'person' CHECK. That migration
+        // rebuilds the pure-cache table empty by design; the cleanups must
+        // still record their markers on the rebuilt table and stay idempotent.
+        const prePerson = new Database(':memory:');
+        hooks.createTables(prePerson);
+        prePerson.exec("DROP TABLE tmdb_metadata; CREATE TABLE tmdb_metadata (id INTEGER PRIMARY KEY AUTOINCREMENT, media_type TEXT NOT NULL CHECK (media_type IN ('movie', 'tv')), lookup_key TEXT NOT NULL, language TEXT NOT NULL, tmdb_id INTEGER, payload TEXT, fetched_at TEXT DEFAULT (datetime('now'))); CREATE UNIQUE INDEX tmdb_metadata_lookup_unique ON tmdb_metadata(media_type, lookup_key, language)");
+        prePerson.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:феик|year:2026', 'ru-RU', NULL)").run();
+        hooks.runMigrations(prePerson);
+        const prePersonAfter = { ...snapshot(prePerson), check: prePerson.prepare("SELECT sql FROM sqlite_master WHERE name = 'tmdb_metadata'").get().sql.includes("'person'") };
+        hooks.runMigrations(prePerson);
+        const prePersonRepeated = snapshot(prePerson);
         // Fresh database through the real initialization path
         const fresh = new Database(':memory:');
         hooks.createTables(fresh);
@@ -74,7 +86,7 @@ it('drops only retired search rows across skipped, previous, fresh and repeated 
         const freshAfter = snapshot(fresh);
         hooks.runMigrations(fresh);
         const freshRepeated = snapshot(fresh);
-        process.stdout.write(JSON.stringify({ skippedAfter, repeated, previousAfter, freshAfter, freshRepeated }));
+        process.stdout.write(JSON.stringify({ skippedAfter, repeated, previousAfter, prePersonAfter, prePersonRepeated, freshAfter, freshRepeated }));
     `,
         ],
         {
@@ -115,6 +127,17 @@ it('drops only retired search rows across skipped, previous, fresh and repeated 
             // The unversioned row is that generation's business, already done
             keys: [...survivors, 'title:феик|year:2026'].sort(),
             payloads: detailsPayloads,
+            markers: [V2_MARKER, V3_MARKER],
+        },
+        prePersonAfter: {
+            keys: [],
+            payloads: [],
+            markers: [V2_MARKER, V3_MARKER],
+            check: true,
+        },
+        prePersonRepeated: {
+            keys: [],
+            payloads: [],
             markers: [V2_MARKER, V3_MARKER],
         },
         freshAfter: { keys: [], payloads: [], markers: [V2_MARKER, V3_MARKER] },
