@@ -166,10 +166,27 @@ jobs:
 
                       if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${release_id}" >/dev/null; then
                           echo "Deleted ${tag} (release ${release_id}) for closed PR #${pr_number}."
-                      elif ! gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" >/dev/null 2>&1; then
+                          continue
+                      fi
+
+                      # The delete failed. Only a release GitHub confirms is
+                      # gone (404) excuses that — the event job racing us to
+                      # the same draft. `gh api` exits 1 for every failure
+                      # alike, so a rate limit or outage hitting both calls
+                      # would otherwise read as "already deleted" and leave a
+                      # green sweep behind an undeleted draft. Read the status
+                      # line instead: `-i` prints it even on an error status,
+                      # and a request that never got a response leaves it
+                      # empty, which is not 404 and so stays a failure.
+                      recheck_status="$(
+                          gh api -i "repos/${GITHUB_REPOSITORY}/releases/${release_id}" 2>/dev/null |
+                              sed -n '1s#^HTTP/[0-9.]* \([0-9]\{3\}\).*#\1#p' || true
+                      )"
+
+                      if [ "${recheck_status}" = "404" ]; then
                           echo "Draft ${tag} (release ${release_id}) was already gone."
                       else
-                          echo "::error::Failed to delete draft ${tag} (release ${release_id})."
+                          echo "::error::Failed to delete draft ${tag} (release ${release_id}); re-check returned ${recheck_status:-no HTTP status}."
                           failed=1
                       fi
                   done <<< "${drafts}"
