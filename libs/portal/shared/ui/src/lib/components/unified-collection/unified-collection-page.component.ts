@@ -19,6 +19,7 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconButton } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -63,6 +64,7 @@ import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';
+import { createCollectionReloadIndicator } from './collection-reload-indicator';
 import {
     UnifiedCollectionDetailContext,
     UnifiedCollectionDetailDirective,
@@ -81,6 +83,7 @@ import {
         MatIconButton,
         MatIconModule,
         MatMenuModule,
+        MatProgressBar,
         MatTooltip,
         TranslatePipe,
         UnifiedGridTabComponent,
@@ -144,7 +147,19 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
             getCollectionViewState(window.history.state)
         );
 
+    /** First load with nothing on screen: the skeleton replaces the content. */
     readonly isLoading = signal(true);
+    private readonly reloadIndicator = createCollectionReloadIndicator(
+        this.destroyRef
+    );
+    /**
+     * A reload (scope switch, favorites reload) is in flight while the
+     * previous items stay mounted. Never swaps to the skeleton, so a playing
+     * channel and the focused toggle survive.
+     */
+    readonly isReloading = this.reloadIndicator.active;
+    /** `isReloading` past its grace period: progress bar + dimming render. */
+    readonly showReloadIndicator = this.reloadIndicator.visible;
     readonly allItems = signal<UnifiedCollectionItem[]>([]);
     readonly favoriteUidSet = signal<ReadonlySet<string>>(new Set<string>());
     readonly selectedContentType = signal<CollectionContentType>(
@@ -671,6 +686,8 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         const requestId = ++this.loadRequestId;
         if (this.allItems().length === 0) {
             this.isLoading.set(true);
+        } else {
+            this.reloadIndicator.begin();
         }
 
         try {
@@ -710,6 +727,7 @@ export class UnifiedCollectionPageComponent implements AfterContentInit {
         } finally {
             if (requestId === this.loadRequestId) {
                 this.isLoading.set(false);
+                this.reloadIndicator.settle();
             }
         }
     }

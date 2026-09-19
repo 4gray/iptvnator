@@ -531,6 +531,43 @@ The progress bar should clearly communicate:
 
 Avoid making the track too faint, especially in dark theme.
 
+## Loading States
+
+Two loading states exist, chosen by whether content is already on screen.
+
+### First load: skeleton
+
+Nothing is rendered yet, so the skeleton replaces the whole content area and
+mirrors the row/card geometry it precedes (see Channel List Item and Cover
+Grids). The unified Favorites/Recent page gates this on `isLoading`, set only
+while its item list is empty.
+
+### Reload with content on screen: non-destructive indicator
+
+A reload of a list that is already rendered (the collection page's
+"This playlist ↔ All playlists" scope switch, a favorites reload) must never
+swap back to the skeleton: that unmounts a playing channel, drops focus from
+the toggle the user just clicked, and flashes on fast IndexedDB/SQLite answers.
+Instead keep everything mounted and layer feedback on top:
+
+- an indeterminate `mat-progress-bar` (2 px track, `--app-selection-color`
+  fill) absolutely positioned over the header's bottom separator, so its
+  appearance never shifts content;
+- `aria-busy="true"` on the content region for the whole reload;
+- the list or grid dims to opacity `0.6` with a 160 ms transition (`0ms` under
+  `prefers-reduced-motion: reduce`). The player is never dimmed — the live tab
+  dims only its channel rail.
+
+**Grace period.** The bar and dimming render only once the reload has run for
+`COLLECTION_RELOAD_INDICATOR_DELAY_MS` (180 ms); a reload that settles sooner
+shows nothing. `aria-busy` is set immediately, since it does not paint. A
+superseded reload keeps the earliest deadline and never clears the indicator;
+only the latest request's completion does. Reference implementation:
+`createCollectionReloadIndicator` in
+`libs/portal/shared/ui/src/lib/components/unified-collection/collection-reload-indicator.ts`.
+Controls that triggered the reload stay enabled and reflect the requested
+value at once (`scope.set()` runs synchronously before the load starts).
+
 ## Navigation Lists
 
 Use the shared `nav-list.scss` treatment for sidebar and context-panel list items.
