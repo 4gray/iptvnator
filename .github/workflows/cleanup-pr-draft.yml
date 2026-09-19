@@ -3,12 +3,20 @@ name: Cleanup PR Draft Release
 on:
     pull_request:
         types: [closed]
+    # The event above is the fast path, not a guarantee: GitHub does not run a
+    # `pull_request: closed` workflow when the head ref is already gone at
+    # event time, which is exactly what Dependabot does when it supersedes one
+    # of its own PRs (closes it and deletes the branch in a single operation).
+    # Those drafts — and any the event path missed for other reasons — are
+    # collected by the scheduled sweep below.
+    schedule:
+        - cron: '17 4 * * *'
+    workflow_dispatch:
 
-# contents: write — delete the draft release; actions: write — cancel the
-# closed PR's still-running build workflow before deleting.
+# contents: write — delete the draft release. The `actions: write` needed to
+# cancel a closed PR's still-running build is scoped to the event job.
 permissions:
-    actions: write
-    contents: write
+    contents: read
 
 jobs:
     delete-draft:
@@ -16,8 +24,11 @@ jobs:
         # Fork PRs never get a draft (the release job skips them) and their
         # GITHUB_TOKEN is read-only regardless of the permissions block, so
         # there is nothing to cancel or delete.
-        if: github.event.pull_request.head.repo.full_name == github.repository
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         runs-on: ubuntu-latest
+        permissions:
+            actions: write
+            contents: write
         steps:
             # A closed PR can be reopened while this job is still queued or
             # waiting; a reopened PR's fresh build must not be cancelled and
@@ -90,3 +101,77 @@ jobs:
                   gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate \
                       --jq ".[] | select(.draft and .tag_name == \"test-pr-${PR_NUMBER}\") | .id" |
                       xargs -r -n1 -I{} gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/{}"
+
+    sweep-drafts:
+        name: Sweep orphaned PR draft releases
+        if: github.event_name != 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        permissions:
+            contents: write
+        # Two sweeps must not race each other into a double delete; a manual
+        # dispatch during the nightly cron would otherwise produce a spurious
+        # failure on an already-deleted draft.
+        concurrency:
+            group: cleanup-pr-draft-sweep
+            cancel-in-progress: false
+        steps:
+            # Unlike the event job this one does not cancel in-progress builds:
+            # the build's draft steps are themselves gated on the live PR state
+            # being `open` ("Check PR is still open" in build-and-make.yaml), so
+            # a run that outlives the close cannot recreate what was swept. A
+            # build that passed that check just before the PR closed is caught
+            # by the next sweep.
+            #
+            # Draft releases have no real git tag, so they are invisible to
+            # `gh release view <tag>` and to the tags API. Enumerate releases
+            # and match on the stored tag_name, exactly as the event job does.
+            # The `test-<branch>` drafts and every other release are left
+            # alone by the ^test-pr-<n>$ shape.
+            - name: Delete drafts whose PR is closed
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  set -euo pipefail
+
+                  # Assigned rather than piped: a failed or partially paginated
+                  # listing must fail the job instead of silently sweeping a
+                  # short list.
+                  drafts="$(
+                      gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate \
+                          --jq '.[] | select(.draft and (.tag_name | test("^test-pr-[0-9]+$"))) | "\(.id) \(.tag_name)"'
+                  )"
+
+                  if [ -z "${drafts}" ]; then
+                      echo "No test-pr-<n> drafts found."
+                      exit 0
+                  fi
+
+                  failed=0
+
+                  while IFS=' ' read -r release_id tag; do
+                      pr_number="${tag#test-pr-}"
+
+                      # Fail closed: a lookup error (404, rate limit, outage)
+                      # leaves `state` empty and the draft untouched. Only a
+                      # PR GitHub currently reports as closed loses its draft,
+                      # so a reopened PR and an open PR mid-build keep theirs.
+                      # gh's own stderr is left visible on purpose — a draft
+                      # kept as `unknown` should say why in the job log.
+                      state="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" --jq '.state' || true)"
+                      if [ "${state}" != "closed" ]; then
+                          echo "Keeping ${tag}: PR #${pr_number} is ${state:-unknown}."
+                          continue
+                      fi
+
+                      if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${release_id}" >/dev/null; then
+                          echo "Deleted ${tag} (release ${release_id}) for closed PR #${pr_number}."
+                      elif ! gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" >/dev/null 2>&1; then
+                          echo "Draft ${tag} (release ${release_id}) was already gone."
+                      else
+                          echo "::error::Failed to delete draft ${tag} (release ${release_id})."
+                          failed=1
+                      fi
+                  done <<< "${drafts}"
+
+                  exit "${failed}"
