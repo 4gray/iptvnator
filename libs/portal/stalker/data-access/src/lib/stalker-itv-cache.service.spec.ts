@@ -179,6 +179,30 @@ describe('StalkerItvCacheService', () => {
         expect(callsFor('get_ordered_list')).toBe(2);
     });
 
+    it('keeps crawled rows whose blank id sits beside a stream_id', async () => {
+        mockRequests({
+            allChannels: () => UNSUPPORTED_ACTION,
+            page: () =>
+                pageOf(
+                    [
+                        {
+                            ...channel('', 'Stream id only', '5'),
+                            stream_id: 30,
+                        },
+                        channel('2', 'Plain', '5'),
+                    ],
+                    2
+                ),
+        });
+
+        await service.ensureLoaded(PLAYLIST);
+
+        expect(service.isReady(PLAYLIST)).toBe(true);
+        expect(
+            service.getChannels(PLAYLIST)?.map((item) => String(item.id))
+        ).toEqual(['30', '2']);
+    });
+
     it('reports crawl progress while loading and clears it afterwards', async () => {
         let resolveSecondPage!: (value: unknown) => void;
         mockRequests({
