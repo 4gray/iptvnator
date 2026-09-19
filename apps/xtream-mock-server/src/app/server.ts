@@ -7,6 +7,7 @@ import express, {
     type Response,
 } from 'express';
 import { installLiveFormatFixture } from './live-format-fixture.js';
+import { resolveXtreamMockPortString } from './mock-port.js';
 import { resetAll } from './data-store.js';
 import { renderMarketingAssetSvg } from './generators/marketing.generator.js';
 import { installPerformanceControlRoutes } from './performance-control-routes.js';
@@ -50,7 +51,6 @@ https://example.channels/path-to-file/3.m3u8
 https://example.channels/path-to-file/4.m3u8
 `;
 const HLS_STUB = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
-const DEFAULT_PORT = 3211;
 // Loopback by default: the fixtures serve fabricated but unauthenticated
 // content, so they should not be reachable from other hosts unless a dev
 // explicitly opts in with HOST=0.0.0.0 (e.g. to point a phone or STB at them).
@@ -129,12 +129,7 @@ export function createXtreamMockApp(
 export function parseXtreamMockServerEnvironment(
     environment: NodeJS.ProcessEnv
 ): XtreamMockServerOptions {
-    // `XTREAM_MOCK_PORT` is the client-side alias Playwright and the specs
-    // read; honouring it here lets one variable relocate the whole E2E run.
-    const rawPort =
-        environment['PORT'] ??
-        environment['XTREAM_MOCK_PORT'] ??
-        String(DEFAULT_PORT);
+    const rawPort = resolveXtreamMockPortString(environment);
     if (!/^\d+$/.test(rawPort)) {
         throw new Error('Xtream mock port must be an integer');
     }
@@ -224,7 +219,7 @@ function dispatchProxyAction(request: Request, response: Response): void {
 /** XMLTV for the marketing live channels; see `demo-xmltv.ts`. */
 function installDemoGuideRoute(app: express.Express): void {
     app.get('/demo/guide.xml', (request, response) => {
-        const origin = `${request.protocol}://${request.get('host') ?? `localhost:${DEFAULT_PORT}`}`;
+        const origin = `${request.protocol}://${request.get('host') ?? `localhost:${resolveXtreamMockPortString(process.env)}`}`;
         response
             .type('application/xml')
             .set('Cache-Control', 'no-store')
