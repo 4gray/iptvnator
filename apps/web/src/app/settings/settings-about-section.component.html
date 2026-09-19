@@ -1,7 +1,4 @@
-<section
-    class="settings-group"
-    id="about"
->
+<section class="settings-group" id="about">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>info</mat-icon>
@@ -40,7 +37,19 @@
                 <p>{{ 'SETTINGS.APP_UPDATE_DESCRIPTION' | translate }}</p>
             </div>
             <div class="setting-item__control app-update-panel__control">
-                <div class="app-update-status" data-test-id="app-update-status">
+                <div
+                    class="app-update-status"
+                    [class.app-update-status--stale]="hasPendingChannelChange()"
+                    data-test-id="app-update-status"
+                >
+                    @if (appliedChannelLabelKey(); as channelLabelKey) {
+                        <span
+                            class="app-update-status__channel"
+                            data-test-id="app-update-status-channel"
+                        >
+                            {{ channelLabelKey | translate }}
+                        </span>
+                    }
                     <strong>
                         {{
                             appUpdateStatusLabelKey()
@@ -61,6 +70,41 @@
                             max="100"
                             data-test-id="app-update-progress"
                         ></progress>
+                    }
+                    @if (hasPendingChannelChange()) {
+                        <span data-test-id="app-update-channel-pending-hint">
+                            {{
+                                'SETTINGS.APP_UPDATE_CHANNEL_PENDING_HINT'
+                                    | translate
+                                        : {
+                                              current:
+                                                  (channelLabelKey(
+                                                      verdictChannel()
+                                                  ) | translate),
+                                              next:
+                                                  (channelLabelKey(
+                                                      draftUpdateChannel()
+                                                  ) | translate),
+                                          }
+                            }}
+                        </span>
+                    } @else if (hasRetainedOtherChannelVerdict()) {
+                        <span data-test-id="app-update-channel-retained-hint">
+                            {{
+                                'SETTINGS.APP_UPDATE_CHANNEL_RETAINED_HINT'
+                                    | translate
+                                        : {
+                                              current:
+                                                  (channelLabelKey(
+                                                      verdictChannel()
+                                                  ) | translate),
+                                              next:
+                                                  (channelLabelKey(
+                                                      updateStatus.channel
+                                                  ) | translate),
+                                          }
+                            }}
+                        </span>
                     }
                 </div>
                 @if (canSelectUpdateChannel()) {
@@ -98,7 +142,9 @@
                                     | translate
                             }}
                         </small>
-                        @if (form()!.get('updateChannel')?.value === 'nightly') {
+                        @if (
+                            form()!.get('updateChannel')?.value === 'nightly'
+                        ) {
                             <small
                                 class="app-update-channel__note"
                                 data-test-id="app-update-channel-nightly-warning"
@@ -123,16 +169,38 @@
                     </div>
                 }
                 <div class="app-update-actions">
-                    <button
-                        mat-stroked-button
-                        type="button"
-                        (click)="checkForAppUpdate.emit()"
-                        [disabled]="isAppUpdateBusy()"
-                        data-test-id="app-update-check"
-                    >
-                        <mat-icon>sync</mat-icon>
-                        {{ 'SETTINGS.APP_UPDATE_CHECK' | translate }}
-                    </button>
+                    @if (canSaveAndCheckForAppUpdate()) {
+                        <button
+                            mat-flat-button
+                            type="button"
+                            (click)="saveAndCheckForAppUpdate.emit()"
+                            [disabled]="isAppUpdateBusy() || form()!.invalid"
+                            data-test-id="app-update-save-and-check"
+                        >
+                            <mat-icon>save</mat-icon>
+                            {{
+                                'SETTINGS.APP_UPDATE_SAVE_AND_CHECK'
+                                    | translate
+                                        : {
+                                              channel:
+                                                  (channelLabelKey(
+                                                      draftUpdateChannel()
+                                                  ) | translate),
+                                          }
+                            }}
+                        </button>
+                    } @else {
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            (click)="checkForAppUpdate.emit()"
+                            [disabled]="isAppUpdateBusy()"
+                            data-test-id="app-update-check"
+                        >
+                            <mat-icon>sync</mat-icon>
+                            {{ 'SETTINGS.APP_UPDATE_CHECK' | translate }}
+                        </button>
+                    }
                     @if (canDownloadAppUpdate()) {
                         <button
                             mat-flat-button
@@ -153,8 +221,7 @@
                         >
                             <mat-icon>article</mat-icon>
                             {{
-                                'SETTINGS.APP_UPDATE_RELEASE_NOTES'
-                                    | translate
+                                'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate
                             }}
                         </button>
                     }

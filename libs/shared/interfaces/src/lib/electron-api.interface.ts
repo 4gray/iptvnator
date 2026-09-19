@@ -269,6 +269,14 @@ export interface ElectronBridgeAppUpdateStatus {
     manualDownloadUrl: string;
     /** Channel the updater checks (`Settings.updateChannel`, mirrored). */
     channel: AppUpdateChannel;
+    /**
+     * Channel the current verdict — `latestVersion`, `release`, a download
+     * in flight or finished — was produced on. Absent until the first
+     * check. Differs from `channel` after a channel change saved while a
+     * download was running or done: the download is kept, the new channel
+     * has not been checked yet.
+     */
+    verdictChannel?: AppUpdateChannel;
     /** Channel the running build came from, read off its version string. */
     installedChannel: AppUpdateChannel;
 }

@@ -21,12 +21,26 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
 import { marked } from 'marked';
 import {
+    appUpdateReleasesListUrl,
+    appVersionChannel,
     ElectronBridgeAppUpdateReleaseNotes,
     ElectronBridgeAppUpdateReleaseNotesDirection,
     ElectronBridgeAppUpdateReleaseNotesRequest,
+    isAppUpdateReleaseNotesNotFoundMessage,
 } from '@iptvnator/shared/interfaces';
 
 const RELEASE_NOTES_IMAGE_CLASS = 'release-notes-dialog__image';
+
+/** `ipcRenderer.invoke` wraps a main-process rejection; the wrapper is noise. */
+const IPC_REJECTION_PREFIX =
+    /^Error invoking remote method '[^']*': (?:Error: )?/;
+
+interface ReleaseNotesLoadError {
+    /** `not-found`: GitHub has no release for that version; `failed`: anything else. */
+    kind: 'not-found' | 'failed';
+    message: string;
+    version?: string;
+}
 
 export interface AppUpdateReleaseNotesDialogData {
     initialVersion?: string;
@@ -100,8 +114,31 @@ function decorateReleaseNotesHtml(html: string): string {
                 <div class="release-notes-dialog__loading">
                     <mat-spinner diameter="28" />
                 </div>
-            } @else if (error()) {
-                <p class="release-notes-dialog__error">{{ error() }}</p>
+            } @else if (error(); as loadError) {
+                <div
+                    class="release-notes-dialog__error"
+                    [class.release-notes-dialog__error--failed]="
+                        loadError.kind === 'failed'
+                    "
+                    data-test-id="release-notes-error"
+                >
+                    @if (loadError.kind === 'not-found') {
+                        <p>
+                            {{
+                                'SETTINGS.APP_UPDATE_RELEASE_NOTES_NOT_FOUND'
+                                    | translate: { version: loadError.version }
+                            }}
+                        </p>
+                    } @else {
+                        <p>
+                            {{
+                                'SETTINGS.APP_UPDATE_RELEASE_NOTES_LOAD_FAILED'
+                                    | translate
+                            }}
+                        </p>
+                        <small>{{ loadError.message }}</small>
+                    }
+                </div>
             } @else {
                 <article
                     class="release-notes-dialog__body"
@@ -112,8 +149,26 @@ function decorateReleaseNotesHtml(html: string): string {
         </mat-dialog-content>
 
         <mat-dialog-actions align="end">
-            @if (notes()?.htmlUrl; as htmlUrl) {
-                <button mat-button type="button" (click)="openRelease(htmlUrl)">
+            <!-- The error is checked first: a failed Previous/Next keeps the
+                 earlier notes for navigation, but the body shows the error,
+                 so the action must not open that earlier release. -->
+            @if (error()) {
+                <button
+                    mat-button
+                    type="button"
+                    (click)="openRelease(releasesPageUrl())"
+                    data-test-id="release-notes-open-releases"
+                >
+                    <mat-icon>open_in_new</mat-icon>
+                    {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASES_PAGE' | translate }}
+                </button>
+            } @else if (notes()?.htmlUrl; as htmlUrl) {
+                <button
+                    mat-button
+                    type="button"
+                    (click)="openRelease(htmlUrl)"
+                    data-test-id="release-notes-open-release"
+                >
                     <mat-icon>open_in_new</mat-icon>
                     {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
                 </button>
@@ -167,7 +222,23 @@ function decorateReleaseNotesHtml(html: string): string {
             }
 
             .release-notes-dialog__error {
+                padding: 16px 2px 0;
+                color: var(--app-body-color);
+            }
+
+            .release-notes-dialog__error--failed {
                 color: var(--app-error-color, #ef4444);
+            }
+
+            .release-notes-dialog__error p {
+                margin: 0;
+            }
+
+            .release-notes-dialog__error small {
+                display: block;
+                margin-top: 6px;
+                color: var(--app-muted-color);
+                overflow-wrap: anywhere;
             }
 
             .release-notes-dialog__body {
@@ -223,8 +294,18 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
     private readonly sanitizer = inject(DomSanitizer);
 
     readonly loading = signal(false);
-    readonly error = signal<string | null>(null);
+    readonly error = signal<ReleaseNotesLoadError | null>(null);
     readonly notes = signal<ElectronBridgeAppUpdateReleaseNotes | null>(null);
+    /** Release list of the channel the failed request was about. */
+    readonly releasesPageUrl = computed(() =>
+        appUpdateReleasesListUrl(
+            appVersionChannel(
+                this.error()?.version ??
+                    this.notes()?.version ??
+                    this.data.initialVersion
+            )
+        )
+    );
     readonly renderedMarkdown = computed(() => {
         const markdown = this.notes()?.bodyMarkdown ?? '';
         const html = marked.parse(markdown, { async: false }) as string;
@@ -242,7 +323,10 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
         direction?: ElectronBridgeAppUpdateReleaseNotesDirection
     ): Promise<void> {
         if (!window.electron?.getAppUpdateReleaseNotes) {
-            this.error.set('Release notes are not available in this build.');
+            this.error.set({
+                kind: 'failed',
+                message: 'Release notes are not available in this build.',
+            });
             return;
         }
 
@@ -275,9 +359,17 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
                 await window.electron.getAppUpdateReleaseNotes(request)
             );
         } catch (error) {
-            this.error.set(
+            const message = (
                 error instanceof Error ? error.message : String(error)
-            );
+            ).replace(IPC_REJECTION_PREFIX, '');
+
+            this.error.set({
+                kind: isAppUpdateReleaseNotesNotFoundMessage(message)
+                    ? 'not-found'
+                    : 'failed',
+                message,
+                version,
+            });
         } finally {
             this.loading.set(false);
         }
