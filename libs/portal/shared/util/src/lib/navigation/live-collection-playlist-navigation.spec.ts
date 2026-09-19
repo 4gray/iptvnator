@@ -121,6 +121,27 @@ describe('getLiveCollectionPlaylistNavigation', () => {
         ).toBe('9');
     });
 
+    it('hides the action for a stored Stalker row whose id is synthetic', () => {
+        // Collection services mint `<playlist>-<index>` for id-less rows;
+        // the ITV catalog cannot match it.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: 'pl-3-0',
+                stalkerItem: { name: 'Nameless', cmd: 'x' },
+            })
+        ).toBeNull();
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                stalkerItem: { stream_id: 30 },
+            })?.link
+        ).toEqual(['/workspace', 'stalker', 'pl-3', 'itv']);
+    });
+
     it('hides the action for Stalker radio stations and rows without a channel id', () => {
         expect(
             getLiveCollectionPlaylistNavigation({

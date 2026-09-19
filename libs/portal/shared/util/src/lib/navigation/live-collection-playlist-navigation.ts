@@ -99,7 +99,13 @@ export function getLiveCollectionPlaylistNavigation(
     }
 
     if (source.sourceType === 'stalker') {
-        if (source.radio === 'true') {
+        // A stored row without a provider id gets a synthetic list-only id
+        // (`<playlist>-<index>`) from the collection services; the ITV
+        // catalog can never match it, so there is nothing to open.
+        if (
+            source.radio === 'true' ||
+            !hasStalkerProviderId(source.stalkerItem)
+        ) {
             return null;
         }
 
@@ -136,6 +142,24 @@ export function resolveStalkerLiveGenreId(
 }
 
 const STALKER_SECTION_MARKERS = new Set(['itv', 'radio', 'vod', 'series']);
+
+/**
+ * Whether a stored Stalker row carries a real provider id. `undefined`
+ * (no row to check — a list row already vetted by the collection tab)
+ * counts as proven; a row present but id-less does not.
+ */
+export function hasStalkerProviderId(item: unknown): boolean {
+    if (item === undefined || item === null) {
+        return true;
+    }
+    if (typeof item !== 'object') {
+        return false;
+    }
+    const raw = item as Record<string, unknown>;
+    return ['id', 'stream_id', 'series_id', 'movie_id'].some(
+        (key) => String(raw[key] ?? '').trim() !== ''
+    );
+}
 
 /**
  * An authoritative stored row answers even without a genre: a genreless
