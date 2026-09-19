@@ -1243,6 +1243,8 @@
         "ABOUT": "简介",
         "SEASONS_AND_EPISODES": "季与集",
         "SEASON_TAB": "第 {{number}} 季",
+        "EPISODE_COUNT_ONE": "1 集",
+        "EPISODE_COUNT_OTHER": "{{count}} 集",
         "BACK_TO_PLAYING_EPISODE": "返回正在播放的剧集",
         "GRID_VIEW": "网格视图",
         "LIST_VIEW": "列表视图",

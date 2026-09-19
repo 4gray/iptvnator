@@ -42,7 +42,9 @@ When enabled, every `/__control/*` request requires the exact
 requests. The server refuses non-loopback binds and an empty token. The control
 routes do not exist when the flag is absent or is any value other than `1`.
 The Nx serve targets preserve an explicit shell `PORT`; when it is omitted, the
-server parser still defaults to `3211`.
+server parser falls back to `XTREAM_MOCK_PORT` — the client-side knob
+`apps/web-e2e/playwright.config.ts` and the specs read, so one variable moves
+the mock and the tests together — and then to `3211`.
 
 Prepare the fixed synthetic fixture before starting a capture:
 

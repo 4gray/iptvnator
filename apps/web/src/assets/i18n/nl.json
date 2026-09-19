@@ -1243,6 +1243,8 @@
         "ABOUT": "Over",
         "SEASONS_AND_EPISODES": "Seizoenen en afleveringen",
         "SEASON_TAB": "Seizoen {{number}}",
+        "EPISODE_COUNT_ONE": "1 aflevering",
+        "EPISODE_COUNT_OTHER": "{{count}} afleveringen",
         "BACK_TO_PLAYING_EPISODE": "Terug naar lopende aflevering",
         "GRID_VIEW": "Rasterweergave",
         "LIST_VIEW": "Lijstweergave",

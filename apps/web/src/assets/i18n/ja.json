@@ -1243,6 +1243,8 @@
         "ABOUT": "概要",
         "SEASONS_AND_EPISODES": "シーズンとエピソード",
         "SEASON_TAB": "シーズン{{number}}",
+        "EPISODE_COUNT_ONE": "1 エピソード",
+        "EPISODE_COUNT_OTHER": "{{count}} エピソード",
         "BACK_TO_PLAYING_EPISODE": "再生中のエピソードに戻る",
         "GRID_VIEW": "グリッド表示",
         "LIST_VIEW": "リスト表示",

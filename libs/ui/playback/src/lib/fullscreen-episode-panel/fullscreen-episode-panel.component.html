@@ -23,8 +23,8 @@
                     <span class="episode-panel__season-count">
                         {{
                             (strip.episodeCount === 1
-                                ? 'DOWNLOADS.EPISODE_COUNT_ONE'
-                                : 'DOWNLOADS.EPISODE_COUNT_OTHER'
+                                ? 'PORTALS.EPISODE_COUNT_ONE'
+                                : 'PORTALS.EPISODE_COUNT_OTHER'
                             ) | translate: { count: strip.episodeCount }
                         }}
                     </span>
@@ -36,6 +36,7 @@
             [selectedSeason]="selectedSeasonKey() ?? undefined"
             [episodeCounts]="episodeCounts()"
             [watchedCounts]="watchedCounts()"
+            [seasonPosters]="seasonPosters()"
             [playingSeasonKey]="playingSeasonKey()"
             (seasonSelected)="onSeasonSelected($event)"
             (backToPlayingRequested)="backToPlaying()"

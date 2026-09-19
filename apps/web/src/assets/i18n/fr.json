@@ -1243,6 +1243,8 @@
         "ABOUT": "À propos",
         "SEASONS_AND_EPISODES": "Saisons et épisodes",
         "SEASON_TAB": "Saison {{number}}",
+        "EPISODE_COUNT_ONE": "1 épisode",
+        "EPISODE_COUNT_OTHER": "{{count}} épisodes",
         "BACK_TO_PLAYING_EPISODE": "Retour à l'épisode en cours",
         "GRID_VIEW": "Vue en grille",
         "LIST_VIEW": "Vue en liste",

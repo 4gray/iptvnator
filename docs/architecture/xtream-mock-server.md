@@ -122,7 +122,9 @@ unauthenticated content, so it should not be reachable from other hosts by
 accident. Set `HOST=0.0.0.0` explicitly to expose it, which is what you need
 when driving the mock from a phone, an STB, a container, or another machine.
 Control mode additionally *rejects* an explicitly configured non-loopback host. The Nx serve targets do not pin `PORT`, so an explicit shell
-value reaches the parser; its no-value default remains `3211`.
+value reaches the parser; without one it falls back to `XTREAM_MOCK_PORT` (the
+client-side knob Playwright and the specs read, so one variable relocates the
+mock and the tests together) and then to `3211`.
 
 Use a dedicated port rather than the normal `3211` E2E server:
 

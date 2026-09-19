@@ -1243,6 +1243,8 @@
         "ABOUT": "About",
         "SEASONS_AND_EPISODES": "Seasons and Episodes",
         "SEASON_TAB": "Season {{number}}",
+        "EPISODE_COUNT_ONE": "1 episode",
+        "EPISODE_COUNT_OTHER": "{{count}} episodes",
         "BACK_TO_PLAYING_EPISODE": "Back to playing episode",
         "GRID_VIEW": "Grid view",
         "LIST_VIEW": "List view",

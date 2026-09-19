@@ -129,7 +129,12 @@ export function createXtreamMockApp(
 export function parseXtreamMockServerEnvironment(
     environment: NodeJS.ProcessEnv
 ): XtreamMockServerOptions {
-    const rawPort = environment['PORT'] ?? String(DEFAULT_PORT);
+    // `XTREAM_MOCK_PORT` is the client-side alias Playwright and the specs
+    // read; honouring it here lets one variable relocate the whole E2E run.
+    const rawPort =
+        environment['PORT'] ??
+        environment['XTREAM_MOCK_PORT'] ??
+        String(DEFAULT_PORT);
     if (!/^\d+$/.test(rawPort)) {
         throw new Error('Xtream mock port must be an integer');
     }

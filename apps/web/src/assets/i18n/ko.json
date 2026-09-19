@@ -1243,6 +1243,8 @@
         "ABOUT": "정보",
         "SEASONS_AND_EPISODES": "시즌 및 에피소드",
         "SEASON_TAB": "시즌 {{number}}",
+        "EPISODE_COUNT_ONE": "에피소드 1개",
+        "EPISODE_COUNT_OTHER": "에피소드 {{count}}개",
         "BACK_TO_PLAYING_EPISODE": "재생 중인 에피소드로 돌아가기",
         "GRID_VIEW": "그리드 보기",
         "LIST_VIEW": "목록 보기",

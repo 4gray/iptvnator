@@ -1243,6 +1243,8 @@
         "ABOUT": "Об этом",
         "SEASONS_AND_EPISODES": "Сезоны и эпизоды",
         "SEASON_TAB": "Сезон {{number}}",
+        "EPISODE_COUNT_ONE": "1 эпизод",
+        "EPISODE_COUNT_OTHER": "{{count}} эпизодов",
         "BACK_TO_PLAYING_EPISODE": "Вернуться к воспроизводимому эпизоду",
         "GRID_VIEW": "Вид сеткой",
         "LIST_VIEW": "Вид списком",

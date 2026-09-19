@@ -438,6 +438,21 @@ describe('Xtream mock environment parsing', () => {
         ).toEqual({ host: '127.0.0.1', port: 3211 });
     });
 
+    it('falls back to the Playwright-side XTREAM_MOCK_PORT alias when PORT is unset', () => {
+        expect(
+            parseXtreamMockServerEnvironment({ XTREAM_MOCK_PORT: '3311' })
+        ).toEqual({ host: '127.0.0.1', port: 3311 });
+        expect(
+            parseXtreamMockServerEnvironment({
+                PORT: '3221',
+                XTREAM_MOCK_PORT: '3311',
+            })
+        ).toEqual({ host: '127.0.0.1', port: 3221 });
+        expect(() =>
+            parseXtreamMockServerEnvironment({ XTREAM_MOCK_PORT: '12x' })
+        ).toThrow(/port/i);
+    });
+
     it.each([
         [{ PORT: '-1' }, /port/i],
         [{ PORT: '12x' }, /port/i],

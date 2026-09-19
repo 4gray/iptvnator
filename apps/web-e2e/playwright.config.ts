@@ -52,11 +52,12 @@ export default defineConfig({
     /* Run local dev servers before starting the tests.
      * Both the Angular app and the Stalker mock server start in parallel.
      *
-     * MOCK_PORT only moves where the CLIENT looks — this health check and the
-     * specs' MOCK_SERVER constants. The mock reads PORT, which
-     * stalker-mock-server's serve target pins to 3210, and nothing maps one to
-     * the other, so MOCK_PORT alone makes the wait below time out. Use it to
-     * point at a mock you started yourself on that port.
+     * MOCK_PORT / XTREAM_MOCK_PORT relocate a mock for the whole run: the
+     * health checks below and the specs' MOCK_SERVER constants read them, and
+     * both mock servers honour them as a fallback for PORT (their serve
+     * targets no longer pin PORT, so an explicit shell value reaches the
+     * process). That is what lets two worktrees run E2E side by side when one
+     * already holds 3210/3211.
      */
     webServer: [
         {

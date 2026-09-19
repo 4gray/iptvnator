@@ -191,8 +191,8 @@ describe('FullscreenEpisodePanelComponent', () => {
     it('shows the season strip with poster, name and count, follows the tab and folds on a dead image', () => {
         const translate = TestBed.inject(TranslateService);
         translate.setTranslation('en', {
-            PORTALS: { SEASON_TAB: 'Season {{number}}' },
-            DOWNLOADS: {
+            PORTALS: {
+                SEASON_TAB: 'Season {{number}}',
                 EPISODE_COUNT_ONE: '1 episode',
                 EPISODE_COUNT_OTHER: '{{count}} episodes',
             },
@@ -239,6 +239,51 @@ describe('FullscreenEpisodePanelComponent', () => {
             ?.dispatchEvent(new Event('error'));
         fixture.detectChanges();
         expect(strip()).toBeNull();
+    });
+
+    it('hands the season posters to the tabs dropdown of a long series', () => {
+        const many: FullscreenEpisodePanelSeason[] = Array.from(
+            { length: 7 },
+            (_, index) => ({
+                key: String(index + 1),
+                loadState: 'loaded',
+                episodes: [item(10 * (index + 1), String(index + 1), 1)],
+                ...(index % 2 === 0
+                    ? { posterUrl: `https://img.test/season-${index + 1}.jpg` }
+                    : {}),
+            })
+        );
+        fixture.componentRef.setInput('seasons', many);
+        fixture.detectChanges();
+
+        expect(component.seasonPosters()).toEqual({
+            '1': 'https://img.test/season-1.jpg',
+            '3': 'https://img.test/season-3.jpg',
+            '5': 'https://img.test/season-5.jpg',
+            '7': 'https://img.test/season-7.jpg',
+        });
+        expect(pills()).toHaveLength(0);
+        const trigger = fixture.nativeElement.querySelector(
+            '[data-testid="season-dropdown"]'
+        ) as HTMLButtonElement;
+        expect(
+            trigger.querySelector<HTMLImageElement>(
+                '[data-testid="season-dropdown-thumb"]'
+            )?.src
+        ).toBe('https://img.test/season-1.jpg');
+        trigger.click();
+        fixture.detectChanges();
+        const thumbs = Array.from(
+            document.querySelectorAll<HTMLImageElement>(
+                '.mat-mdc-menu-panel [data-testid="season-menu-thumb"]'
+            )
+        ).map((thumb) => thumb.src);
+        expect(thumbs).toEqual([
+            'https://img.test/season-1.jpg',
+            'https://img.test/season-3.jpg',
+            'https://img.test/season-5.jpg',
+            'https://img.test/season-7.jpg',
+        ]);
     });
 
     it('withholds the season strip for a one-season series', () => {
