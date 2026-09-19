@@ -406,11 +406,13 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
-    // M3U has no browse Back target, but the sticky watch control can close it.
+    // M3U has no browse Back target, so the shell shows no arrow in either
+    // state; the now-playing bar's own Close button returns to browse.
     const shell = detail(page).locator('app-portal-detail-shell');
+    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
     await shell
+        .locator('app-portal-inline-player')
         .getByRole('button', { name: 'Close player', exact: true })
-        .first()
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
     await expect(shell.locator('.shell__back-button')).toHaveCount(0);

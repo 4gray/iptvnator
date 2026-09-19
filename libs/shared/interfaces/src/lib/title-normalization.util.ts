@@ -302,13 +302,13 @@ const HAS_LETTER = /\p{L}/u;
  * "2023" and were offered to each other as alternative sources. A miss beats
  * a wrong match, so an unknown token keeps its title.
  */
-function normalizeAfterLeadingTag(value: string): string {
+function normalizeAfterLeadingTag(value: string, fold: boolean): string {
     const match = value.match(LANGUAGE_PREFIX);
     if (!match) {
-        return normalizeRest(value);
+        return normalizeRest(value, fold);
     }
 
-    const stripped = normalizeRest(value.replace(LANGUAGE_PREFIX, ''));
+    const stripped = normalizeRest(value.replace(LANGUAGE_PREFIX, ''), fold);
     // Deliberately not `stripSeason`: its "never return empty" fallback would
     // report a lone season marker as a surviving word.
     if (HAS_LETTER.test(stripped.replace(SEASON_SUFFIX_PATTERN, ''))) {
@@ -316,7 +316,7 @@ function normalizeAfterLeadingTag(value: string): string {
     }
 
     const token = match[0].replace(PREFIX_SEPARATOR_TAIL, '');
-    return isKnownPrefixTag(token) ? stripped : normalizeRest(value);
+    return isKnownPrefixTag(token) ? stripped : normalizeRest(value, fold);
 }
 
 const DOUBLE_DASH_SUFFIX = /[-–]{2}[A-Za-z]{2,5}\s*$/;
@@ -438,28 +438,49 @@ const SEASON_SUFFIX_PATTERN = new RegExp(
  * actually produce instead of predicting it. Cheap enough to run twice,
  * because the second run only happens for a title whose stripped form came
  * out with no word in it at all.
+ *
+ * `fold` selects the letter folding (diacritics, case, sigma). It is ON for
+ * every comparison key and OFF for the text sent to a remote search — see
+ * `cleanTitleForSearch`. Folding is lossy for scripts whose "diacritics" are
+ * distinct letters: NFD turns Cyrillic "й" into "и" + a combining breve, and
+ * dropping the breve rewrites "Фейк" as "феик", "ё" as "е". Two provider
+ * copies of a title still meet on that key, which is all a comparison needs,
+ * but TMDB's search does not fold Cyrillic the same way and answers a folded
+ * query with nothing at all.
  */
-function normalizeRest(value: string): string {
-    return (
-        stripTrailingTags(value)
-            .normalize('NFD')
-            .replace(/[̀-ͯ]/g, '')
-            .toLowerCase()
-            // Greek Σ has two lowercase forms and `toLowerCase` picks by
-            // position: "ΑΣ" becomes "ας" while an already-lowercase "ασ"
-            // stays medial, so the same word reaches this line spelled two
-            // ways. Both SQL tiers fold them together — SQLite's trigram
-            // tokenizer does it natively, and the scan's GLOB classes do it in
-            // `caseInsensitiveGlobPattern` — so without this the candidate is
-            // admitted by the query and then thrown away by the confirmation.
-            // Folding to the medial form is what Unicode case folding does.
-            .replace(/ς/g, 'σ')
-            .replace(/[^\p{L}\p{N}]+/gu, ' ')
-            .split(' ')
-            .filter((token) => token !== '' && !QUALITY_TAGS.has(token))
-            .join(' ')
-            .trim()
-    );
+function normalizeRest(value: string, fold: boolean): string {
+    const withoutTrailingTags = stripTrailingTags(value);
+    const folded = fold
+        ? withoutTrailingTags
+              .normalize('NFD')
+              .replace(/[̀-ͯ]/g, '')
+              .toLowerCase()
+              // Greek Σ has two lowercase forms and `toLowerCase` picks by
+              // position: "ΑΣ" becomes "ας" while an already-lowercase "ασ"
+              // stays medial, so the same word reaches this line spelled two
+              // ways. Both SQL tiers fold them together — SQLite's trigram
+              // tokenizer does it natively, and the scan's GLOB classes do
+              // it in `caseInsensitiveGlobPattern` — so without this the
+              // candidate is admitted by the query and then thrown away by
+              // the confirmation. Folding to the medial form is what Unicode
+              // case folding does.
+              .replace(/ς/g, 'σ')
+        : // Providers ship some titles decomposed ("o" + U+0308 for "ö").
+          // Recompose so the query reads as the provider meant it, and
+          // keep any mark that has no precomposed form ("ọ̀") attached to
+          // its letter instead of letting the word-splitting step below
+          // turn it into a space inside the word.
+          withoutTrailingTags.normalize('NFC');
+    const nonWord = fold ? /[^\p{L}\p{N}]+/gu : /[^\p{L}\p{N}\p{M}]+/gu;
+
+    return folded
+        .replace(nonWord, ' ')
+        .split(' ')
+        .filter(
+            (token) => token !== '' && !QUALITY_TAGS.has(token.toLowerCase())
+        )
+        .join(' ')
+        .trim();
 }
 
 /**
@@ -489,6 +510,27 @@ export interface NormalizedTitleKeys {
 export function normalizeTitleKeys(
     raw: string | null | undefined
 ): NormalizedTitleKeys {
+    return buildTitleKeys(raw, true);
+}
+
+/**
+ * The title to SEND to a remote search such as TMDB: the same tag, bracket,
+ * season and year stripping as `normalizeTitle`, but with the letters left
+ * exactly as the provider wrote them — no diacritic folding, no lowercasing.
+ *
+ * Comparison keys must fold so two spellings of one film meet; a search
+ * query must not, because the search engine folds by its own rules and a
+ * pre-folded Cyrillic query ("феик" for "Фейк") matches nothing there.
+ * Compare the results with `normalizeTitle`, never with this.
+ */
+export function cleanTitleForSearch(raw: string | null | undefined): string {
+    return buildTitleKeys(raw, false).base;
+}
+
+function buildTitleKeys(
+    raw: string | null | undefined,
+    fold: boolean
+): NormalizedTitleKeys {
     if (!raw) {
         return { exact: '', base: '', trailingYear: null };
     }
@@ -498,7 +540,8 @@ export function normalizeTitleKeys(
             .replace(WRAPPED_TAG_PREFIX, '')
             // Inner classes exclude the opening delimiter too, so runaway
             // inputs like "[[[[[..." backtrack linearly (CodeQL js/polynomial-redos)
-            .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' ')
+            .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' '),
+        fold
     );
 
     const exact = stripSeason(cleaned);

@@ -143,14 +143,21 @@ test('browser: the download CTA and the Detected row follow the visitor OS, phon
       await page.close();
     }
 
-    // Copy buttons write the command and confirm briefly.
+    // Copy buttons write the command and confirm briefly. The label flips
+    // only after the asynchronous `navigator.clipboard.writeText` resolves,
+    // which is after `click()` has already returned, so the check has to wait
+    // for the change instead of reading the label synchronously (a loaded CI
+    // runner otherwise still sees "Copy"). `launchBrowser()` succeeding proves
+    // `@playwright/test` is importable, so this import cannot break the local
+    // no-Chromium skip above.
+    const { expect } = await import('@playwright/test');
     const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
     const page = await context.newPage();
     await page.goto(`${origin}${BASE}/`, { waitUntil: 'networkidle' });
     const button = page.locator('.copy-btn').first();
     await button.scrollIntoViewIfNeeded();
     await button.click();
-    assert.equal(await button.textContent(), 'Copied');
+    await expect(button).toHaveText('Copied', { timeout: 5000 });
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), 'brew install --cask iptvnator');
     await context.close();
   } finally {

@@ -162,18 +162,20 @@ Contracts:
   player subtree, so shell state changes cannot recreate the `<video>`.
 - **External MPV/VLC sessions do not flip the layout to watch** — browse
   layout stays, and the primary CTA keeps its "Stop <player>" behavior.
-- The shell's sticky control and Escape close inline playback through
-  `closePlayerRequested`; hosts wire it to `closeInlinePlayer()`. From browse,
-  they emit the host-owned `backClicked` instead (unless `backAvailable=false`).
-  Escape respects fullscreen, menus/dialogs, editable fields and hidden/inert
-  surfaces, and consumes a handled key so one press performs only one action.
-  See [Portal Detail Navigation](./portal-detail-navigation.md).
-- The now-playing bar separates two exits: the back arrow emits
-  `backClicked`, which hosts wire to their route-level `goBack()` (straight
-  back to the list — everything browse offers is also visible in watch, so
-  a two-step unwind would be ceremony); the "Close player" button and
-  Escape emit `closed`/`closePlayerRequested` and return to browse without
-  navigating.
+- The shell's sticky arrow emits the host-owned `backClicked` in browse and
+  watch alike (unless `backAvailable=false`, when it is not rendered at all):
+  hosts wire it to their route-level `goBack()`, straight back to the list —
+  everything browse offers is also visible in watch, so a two-step unwind
+  would be ceremony. Escape alone unwinds one level: in watch it emits
+  `closePlayerRequested`, which hosts wire to `closeInlinePlayer()`; in browse
+  it emits `backClicked`. Escape respects fullscreen, menus/dialogs, editable
+  fields and hidden/inert surfaces, and consumes a handled key so one press
+  performs only one action. See
+  [Portal Detail Navigation](./portal-detail-navigation.md).
+- The now-playing bar has one exit of its own: the "Close player" button
+  emits `closed` and returns to browse without navigating. It carries no back
+  arrow — a second arrow beside the sticky one, with a different meaning,
+  was the duplicate this contract removes.
 - Entering watch scrolls the shell to the top; leaving keeps the scroll
   position.
 

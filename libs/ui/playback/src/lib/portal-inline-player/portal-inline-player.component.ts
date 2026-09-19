@@ -242,9 +242,9 @@ export class PortalInlinePlayerComponent {
         fallbackTitle: this.title,
     });
 
+    /** The now-playing bar's Close button: back to browse, no navigation.
+     * Leaving the page is the detail shell's sticky Back, not this bar's. */
     readonly closed = output<void>();
-    /** Back arrow in the now-playing bar: route-level back, not just close. */
-    readonly backClicked = output<void>();
     readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
@@ -300,10 +300,6 @@ export class PortalInlinePlayerComponent {
 
     onClose(): void {
         this.closed.emit();
-    }
-
-    onBack(): void {
-        this.backClicked.emit();
     }
 
     onTimeUpdate(event: { currentTime: number; duration: number }): void {
