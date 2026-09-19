@@ -129,7 +129,42 @@ Render rules:
        `dashboard-recent-live-rail`); there is no fallback from one to the
        other. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
        fallback order (`tvg-id` -> `tvg-name` -> channel name); EPG enrichment
-       must use that key before falling back to the card title.
+       must use that key before falling back to the card title. That XMLTV
+       lookup is one batched local query for every live card and re-runs on
+       the 30 s tick.
+       Xtream and Stalker cards have no XMLTV key of their own; their "now on
+       air" line comes from the portal, **lazily and per card**:
+        - `buildDashboardPortalLiveEpgEntry` (dashboard data-access) turns a
+          live `PortalActivityItem` into the `UnifiedCollectionItem` the
+          collection pages hand `StreamResolverService.loadEpgForItems`, keyed
+          by the collection uid — favourites and recent rows of one channel
+          share the answer. Radio rows and rows without a usable provider id
+          get no entry. Cards carry that key as `liveEpgSourceKey`.
+        - `lib-dashboard-rail` reports the cards inside its track viewport
+          (plus ~one card of `rootMargin`) through `visibleCardsChanged`, from
+          an `IntersectionObserver` rooted at the track; without the API every
+          card counts as visible. Cards that leave the list are reported gone
+          at once.
+        - `DashboardPortalLiveEpgPresenter` (component-provided) unions the
+          visible keys of both rails with the pinned hero key and calls
+          `DashboardPortalLiveEpgService.sync()` with exactly those entries —
+          on every change, on the 30 s tick, and on a display-offset change.
+        - `DashboardPortalLiveEpgService` (root) owns the queue: at most two
+          requests in flight, 200 ms between starts (the numbers
+          `EpgQueueService` proved against real panels), one card per request,
+          each answer published the moment it lands in `programs`, so the page
+          never waits and a slow portal delays no other card. Only wanted keys
+          are dequeued, so a card scrolled past before its turn is never
+          requested. Answers live 60 s; a failed portal is left alone for 30 s;
+          a programme that ended is asked again, but not within 30 s of the
+          last answer (a portal may keep returning the stale row). Every
+          answer is "at the provider clock", so a changed display offset or a
+          changed XMLTV source set drops them all.
+        - `enrichLiveCards` prefers the portal answer, falls back to the XMLTV
+          title match when the portal said "nothing on air", and marks a card
+          `nowPlayingState: 'pending'` only before its FIRST answer — the
+          channel layout then shows a shimmer placeholder in the programme
+          slot; a refresh keeps the previous answer on screen.
     4. `xtreamRecentlyAddedCards` — maps `xtreamRecentlyAddedItems()` to rail
        cards. Aggregates newly added VOD and series across *all* Xtream
        playlists via `DashboardDataService.reloadXtreamRecentlyAddedItems()`,

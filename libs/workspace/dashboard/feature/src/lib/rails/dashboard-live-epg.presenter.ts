@@ -17,11 +17,15 @@ import {
     switchMap,
 } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
-import type { EpgProgram } from '@iptvnator/shared/interfaces';
+import type {
+    EpgProgram,
+    PortalActivityItem,
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
 import type { DashboardRailCard } from './dashboard-rail.component';
+import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import {
     buildDashboardLiveEpgDetails,
     buildLiveEpgLookupGroups,
@@ -60,12 +64,19 @@ const emptyAnswer = (scopeKey: string): ScopeAnswer => ({
  * XMLTV, which is what the "See all" collection pages resolve against.
  * Without it a channel whose guide only exists in another playlist's XMLTV
  * showed no programme here while its "See all" row had one.
+ *
+ * It is also the one facade the rails talk to for live EPG: an Xtream or
+ * Stalker card has no XMLTV key of its own, so its programme comes from
+ * `DashboardPortalLiveEpgPresenter` and only falls back to the title match
+ * here.
  */
 @Injectable()
 export class DashboardLiveEpgPresenter {
     private readonly data = inject(DashboardDataService);
     private readonly epgService = inject(EpgService);
     private readonly settingsStore = inject(SettingsStore);
+    /** Xtream/Stalker cards are answered by their portal, not by XMLTV. */
+    private readonly portal = inject(DashboardPortalLiveEpgPresenter);
 
     private readonly cards = signal<Signal<
         readonly DashboardRailCard[]
@@ -118,25 +129,56 @@ export class DashboardLiveEpgPresenter {
         this.cards.set(cards);
     }
 
+    /** The Xtream/Stalker rows whose programmes come from their portal. */
+    connectPortalItems(items: Signal<readonly PortalActivityItem[]>): void {
+        this.portal.connect(items);
+    }
+
+    /** Portal keys wanted regardless of scrolling (the hero card). */
+    setPinnedPortalKeys(keys: readonly (string | null | undefined)[]): void {
+        this.portal.setPinnedKeys(keys);
+    }
+
+    /** A rail reported the cards inside its viewport. */
+    setVisibleCards(railId: string, cards: readonly DashboardRailCard[]): void {
+        this.portal.setVisibleCards(railId, cards);
+    }
+
     /** `null` when nothing is known about the card's current programme. */
     detailsFor(card: DashboardRailCard | null): DashboardLiveEpgDetails | null {
         if (!card) {
             return null;
         }
-        const program = getLiveEpgProgramForCard(
-            card,
-            this.programs(),
-            liveEpgScopeKey(
-                this.sourceUrlsForCard(card),
-                liveEpgAllowsAnySource(card)
-            )
-        );
+        // A portal answer wins. Its `null` ("asked, nothing on air") and
+        // "not asked yet" both fall back to the XMLTV lookup, which for a
+        // portal card can only ever be a title match.
+        const program =
+            this.portal.programFor(card.liveEpgSourceKey) ??
+            getLiveEpgProgramForCard(
+                card,
+                this.programs(),
+                liveEpgScopeKey(
+                    this.sourceUrlsForCard(card),
+                    liveEpgAllowsAnySource(card)
+                )
+            );
         // Recompute the now-window each tick so progress moves between
         // 30s ticks even if the program identity is unchanged.
         return buildDashboardLiveEpgDetails(
             program,
             Date.now(),
             this.settingsStore.resolvedEpgOffsetMinutes()
+        );
+    }
+
+    /**
+     * True only before a card's FIRST portal answer, so a refresh keeps the
+     * previous answer on screen instead of flashing a placeholder.
+     */
+    isAwaitingFirstAnswer(card: DashboardRailCard): boolean {
+        return (
+            this.portal.programFor(card.liveEpgSourceKey) === undefined &&
+            this.portal.isPending(card.liveEpgSourceKey)
         );
     }
 

@@ -42,6 +42,7 @@ import {
     DashboardDataService,
     DashboardFavoriteItem,
     DashboardRecentlyAddedItem,
+    buildDashboardPortalLiveEpgKey,
     DashboardRecommendationItem,
     DashboardRecommendationsService,
     DashboardSourceExpiryService,
@@ -58,8 +59,12 @@ import type {
     DashboardRailCard,
     DashboardRailActionSelection,
 } from './dashboard-rail.component';
-import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import type {
+    PlaylistMeta,
+    PortalActivityItem,
+} from '@iptvnator/shared/interfaces';
 import type { DashboardHeroModel } from './dashboard-hero.utils';
+import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
 import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
@@ -102,11 +107,12 @@ import type {
     host: {
         '[class.rails-page-host--empty]': 'ready() && !hasPlaylists()',
     },
-    providers: [DashboardLiveEpgPresenter],
+    providers: [DashboardLiveEpgPresenter, DashboardPortalLiveEpgPresenter],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
-    private readonly liveEpg = inject(DashboardLiveEpgPresenter);
+    /** One facade for both live-EPG sources: uploaded XMLTV and the portal. */
+    readonly liveEpg = inject(DashboardLiveEpgPresenter);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
@@ -271,6 +277,30 @@ export class WorkspaceDashboardRailsComponent {
         )
     );
 
+    // The Xtream/Stalker live rows behind the hero and the two live rails.
+    // Their programmes come from the portal, asked for lazily per visible
+    // card by DashboardPortalLiveEpgPresenter; M3U rows stay on the XMLTV
+    // batch above.
+    private readonly portalLiveItems = computed<readonly PortalActivityItem[]>(
+        () => {
+            const rails = this.dashboardRails();
+            const hero = this.heroRecentItem();
+            return [
+                ...(rails.hero && hero?.type === 'live' ? [hero] : []),
+                ...(rails.liveFavorites
+                    ? this.data
+                          .globalFavoriteLiveItems()
+                          .slice(0, RAIL_ITEM_LIMIT)
+                    : []),
+                ...(rails.recentlyWatchedLive
+                    ? this.data
+                          .globalRecentLiveItems()
+                          .slice(0, RAIL_ITEM_LIMIT)
+                    : []),
+            ];
+        }
+    );
+
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
     );
@@ -387,6 +417,17 @@ export class WorkspaceDashboardRailsComponent {
         void this.data.reloadGlobalFavorites();
 
         this.liveEpg.connect(this.enabledLiveCards);
+        // Portal EPG for the live cards: asked only for cards the rails
+        // report as visible; the hero sits at the top and is pinned so it
+        // never waits for a scroll.
+        this.liveEpg.connectPortalItems(this.portalLiveItems);
+        effect(() => {
+            this.liveEpg.setPinnedPortalKeys([
+                this.dashboardRails().hero
+                    ? this.heroLiveCard()?.liveEpgSourceKey
+                    : null,
+            ]);
+        });
 
         // Refresh when Xtream playlist count changes so a newly added provider
         // populates the rail without a manual dashboard reload. The Xtream
@@ -576,10 +617,17 @@ export class WorkspaceDashboardRailsComponent {
     ): DashboardRailCard[] {
         return cards.map((card) => {
             const details = this.liveEpg.detailsFor(card);
-            if (!details) {
+            // Placeholder only before the FIRST portal answer: a refresh
+            // keeps the previous answer on screen instead of flashing.
+            const pending = !details && this.liveEpg.isAwaitingFirstAnswer(card);
+            if (!details && !pending) {
                 return card;
             }
-            return { ...card, ...details };
+            return {
+                ...card,
+                ...(details ?? {}),
+                nowPlayingState: pending ? 'pending' : null,
+            };
         });
     }
 
@@ -626,6 +674,7 @@ export class WorkspaceDashboardRailsComponent {
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
             epgPlaylistId: item.playlist_id,
+            liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getRecentItemLink(item),
             // Default click is detail-only for every card — an in-progress
             // series no longer auto-plays on click (issue #1441); resuming
@@ -663,6 +712,7 @@ export class WorkspaceDashboardRailsComponent {
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
             epgPlaylistId: item.playlist_id,
+            liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
         };

@@ -523,8 +523,7 @@
 
 .rail__card--channel {
     background: var(--app-widget-bg, #1e2330);
-    border: 1px solid
-        var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
     border-radius: var(--rail-radius);
     padding: 10px 12px;
     transition:
@@ -534,10 +533,7 @@
 
     &:hover {
         transform: translateY(-1px);
-        border-color: var(
-            --app-selection-border,
-            rgba(47, 123, 255, 0.4)
-        );
+        border-color: var(--app-selection-border, rgba(47, 123, 255, 0.4));
         box-shadow:
             0 6px 16px -10px rgba(0, 0, 0, 0.45),
             0 0 0 1px var(--app-selection-border, rgba(47, 123, 255, 0.3));
@@ -626,6 +622,38 @@
     overflow: hidden;
     text-overflow: ellipsis;
     min-height: 1.35em;
+}
+
+// Shown while a portal card's first "now on air" answer is on its way: a
+// quiet shimmer bar in the programme slot, sized like one line of text.
+.rail__channel-now-placeholder {
+    display: inline-block;
+    width: 62%;
+    height: 0.66em;
+    margin-top: 0.3em;
+    border-radius: 4px;
+    vertical-align: top;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--app-muted-color, #8891a4) 18%, transparent) 25%,
+        color-mix(in srgb, var(--app-muted-color, #8891a4) 34%, transparent) 50%,
+        color-mix(in srgb, var(--app-muted-color, #8891a4) 18%, transparent) 75%
+    );
+    background-size: 200% 100%;
+    animation: rail-now-placeholder-shimmer 1.4s ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes rail-now-placeholder-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
 }
 
 .rail__channel-progress-row {
