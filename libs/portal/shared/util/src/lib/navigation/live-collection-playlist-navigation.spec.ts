@@ -50,7 +50,7 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 name: 'Stalker Live',
                 logo: 'stalker.png',
                 stalkerId: 30,
-                stalkerItem: { tv_genre_id: 7 },
+                stalkerItem: { id: 30, tv_genre_id: 7 },
             })
         ).toEqual({
             link: ['/workspace', 'stalker', 'pl-3', 'itv'],
@@ -70,7 +70,7 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 playlistId: 'pl-3',
                 stalkerId: '30',
                 categoryId: '5',
-                stalkerItem: { tv_genre_id: 7 },
+                stalkerItem: { id: 30, tv_genre_id: 7 },
             })?.state?.['openStalkerLiveCategoryId']
         ).toBe('7');
         expect(
@@ -89,7 +89,7 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 playlistId: 'pl-3',
                 stalkerId: '30',
                 categoryId: 'itv',
-                stalkerItem: { tv_genre_id: ' ' },
+                stalkerItem: { id: 30, tv_genre_id: ' ' },
             })?.state?.['openStalkerLiveCategoryId']
         ).toBe('*');
         expect(
@@ -107,7 +107,7 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 playlistId: 'pl-3',
                 stalkerId: '30',
                 categoryId: 'itv',
-                stalkerItem: { tv_genre_id: 'sports' },
+                stalkerItem: { id: 30, tv_genre_id: 'sports' },
             })?.state?.['openStalkerLiveCategoryId']
         ).toBe('sports');
         // List rows carry the genre already resolved by the collection tab.
