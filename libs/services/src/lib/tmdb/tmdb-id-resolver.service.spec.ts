@@ -87,7 +87,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(searchTv).toHaveBeenCalledWith('Фейк', null, 'ru-RU', 'key');
         expect(cacheSet).toHaveBeenCalledWith({
             mediaType: 'tv',
-            lookupKey: 'title:феик|year:2026|v3',
+            lookupKey: 'title:фейк|year:2026|v3',
             language: 'ru-RU',
             tmdbId: 317869,
             payload: null,
@@ -112,7 +112,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         );
         expect(cacheSet).toHaveBeenCalledWith(
             expect.objectContaining({
-                lookupKey: 'title:молодои шерлок|year:2026|v3',
+                lookupKey: 'title:молодой шерлок|year:2026|v3',
                 tmdbId: null,
             })
         );
@@ -133,10 +133,26 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(id).toBe(317869);
         expect(cacheGet).toHaveBeenCalledWith(
             'tv',
-            'title:феик|year:2026|v3',
+            'title:фейк|year:2026|v3',
             'ru-RU'
         );
         expect(searchTv).not.toHaveBeenCalled();
+    });
+
+    it('searches a display spelling that a misspelled original title folds onto', async () => {
+        const service = createService();
+
+        const id = await service.resolveBySearch('tv', {
+            title: 'Фейк',
+            originalTitle: 'Феик',
+            year: 2026,
+        });
+
+        expect(id).toBe(317869);
+        expect(searchTv.mock.calls.map(([query]) => query)).toEqual([
+            'Феик',
+            'Фейк',
+        ]);
     });
 
     it('tries the language-prefix-stripped fallback with its own spelling', async () => {

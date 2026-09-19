@@ -58,7 +58,7 @@ export class TmdbIdResolverService {
             variants[0].normalized,
             this.runtime.appLanguage()
         );
-        const lookupKey = buildSearchLookupKey(variants[0].normalized, year);
+        const lookupKey = buildSearchLookupKey(variants[0].query, year);
 
         const cached = await this.cache.get(
             mediaType,

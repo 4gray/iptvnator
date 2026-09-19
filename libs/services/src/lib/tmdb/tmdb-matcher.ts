@@ -51,12 +51,26 @@ export interface SearchTitleVariant {
 }
 
 /**
+ * The identity of one search on the wire: the query with only the case
+ * removed, since TMDB matches case-insensitively and nothing else about
+ * the spelling may be folded away — "Феик" and "Фейк" are different
+ * searches with different answers, however alike their comparison keys.
+ * Both the variant deduplication and the cache row use this, so a cached
+ * verdict can never be read back for a search that was never sent.
+ */
+export function searchQueryIdentity(query: string): string {
+    return query.toLowerCase();
+}
+
+/**
  * Ordered search-title candidates for one provider item: the original
  * title, the display title, then the same values with a leading
  * language-looking token dropped. The confidence gate still applies to
  * every variant, so extra candidates cannot produce wrong matches — only
- * extra searches on misses. Deduplicated by the normalized form, so two
- * spellings that fold to one key cost one search.
+ * extra searches on misses. Deduplicated by the wire identity, never by
+ * the folded comparison key: two spellings that fold to one key can still
+ * be different searches, and dropping the second would silently skip the
+ * one TMDB actually knows.
  */
 export function buildSearchTitleVariants(
     title: string | null | undefined,
@@ -65,11 +79,16 @@ export function buildSearchTitleVariants(
     const variants: SearchTitleVariant[] = [];
     const push = (raw: string | null | undefined) => {
         const normalized = normalizeTitle(raw);
+        const query = cleanTitleForSearch(raw);
+        const identity = searchQueryIdentity(query);
         if (
             normalized &&
-            !variants.some((variant) => variant.normalized === normalized)
+            query &&
+            !variants.some(
+                (variant) => searchQueryIdentity(variant.query) === identity
+            )
         ) {
-            variants.push({ query: cleanTitleForSearch(raw), normalized });
+            variants.push({ query, normalized });
         }
     };
 
@@ -84,8 +103,14 @@ export function buildSearchTitleVariants(
     return variants;
 }
 
+/**
+ * Cache row for one search verdict, keyed by the wire query's identity
+ * (`searchQueryIdentity`), not by the folded comparison key: the verdict
+ * depends on what was sent, and two spellings sharing a folded key ("Все"
+ * / "Всё") may get different answers.
+ */
 export function buildSearchLookupKey(
-    normalizedTitle: string,
+    query: string,
     year: number | null
 ): string {
     // v2: normalizeTitleKeys learned to strip appended language/quality
@@ -94,8 +119,9 @@ export function buildSearchLookupKey(
     // v3: the search query stopped being the folded key ("феик" for
     // "Фейк"), which TMDB answered with nothing; every negative row recorded
     // under v2 for a title with "й"/"ё" is that bug, not a missing title, and
-    // must not block the retry for its 7-day TTL.
-    return `title:${normalizedTitle}|year:${year ?? ''}|v3`;
+    // must not block the retry for its 7-day TTL. Rows are keyed by the
+    // query since then.
+    return `title:${searchQueryIdentity(query)}|year:${year ?? ''}|v3`;
 }
 
 export function buildDetailsLookupKey(tmdbId: number): string {

@@ -79,11 +79,26 @@ describe('extractYear', () => {
 
 describe('lookup keys', () => {
     it('builds stable search and details keys', () => {
-        expect(buildSearchLookupKey('the matrix', 1999)).toBe(
+        expect(buildSearchLookupKey('The Matrix', 1999)).toBe(
             'title:the matrix|year:1999|v3'
         );
-        expect(buildSearchLookupKey('the matrix', null)).toBe(
+        expect(buildSearchLookupKey('The Matrix', null)).toBe(
             'title:the matrix|year:|v3'
+        );
+    });
+
+    it('keys search rows by the wire spelling, not the folded key', () => {
+        // "Феик" and "Фейк" fold to one comparison key but are different
+        // searches with different answers; a verdict cached for one must
+        // never be read back for the other.
+        expect(buildSearchLookupKey('Фейк', 2026)).toBe(
+            'title:фейк|year:2026|v3'
+        );
+        expect(buildSearchLookupKey('Феик', 2026)).not.toBe(
+            buildSearchLookupKey('Фейк', 2026)
+        );
+        expect(buildSearchLookupKey('THE BOYS', 2019)).toBe(
+            buildSearchLookupKey('The Boys', 2019)
         );
         expect(buildDetailsLookupKey(603)).toBe('id:603|v2');
     });
@@ -133,14 +148,29 @@ describe('buildSearchTitleVariants', () => {
         ]);
     });
 
-    it('deduplicates by the folded key and drops empty values', () => {
+    it('deduplicates by the wire spelling and drops empty values', () => {
         expect(buildSearchTitleVariants('The Boys', 'The Boys')).toEqual([
             { query: 'The Boys', normalized: 'the boys' },
         ]);
-        expect(buildSearchTitleVariants('Amelie', 'Amélie')).toEqual([
-            { query: 'Amélie', normalized: 'amelie' },
+        // Case alone is not a different search
+        expect(buildSearchTitleVariants('the boys', 'The Boys')).toEqual([
+            { query: 'The Boys', normalized: 'the boys' },
         ]);
         expect(buildSearchTitleVariants('', null)).toEqual([]);
+    });
+
+    it('keeps spellings that fold to one key but differ on the wire', () => {
+        // A misspelled original title must not swallow the display title:
+        // TMDB knows "Фейк" and not "Феик", and only the second variant
+        // would find it.
+        expect(buildSearchTitleVariants('Фейк', 'Феик')).toEqual([
+            { query: 'Феик', normalized: 'феик' },
+            { query: 'Фейк', normalized: 'феик' },
+        ]);
+        expect(buildSearchTitleVariants('Amelie', 'Amélie')).toEqual([
+            { query: 'Amélie', normalized: 'amelie' },
+            { query: 'Amelie', normalized: 'amelie' },
+        ]);
     });
 });
 

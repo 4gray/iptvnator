@@ -456,7 +456,7 @@ tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>|v2'               -- details payload row
               'id:<tmdbId>|season:<n>'       -- season payload row
-              'title:<normalized>|year:<y>|v3' -- search resolution row
+              'title:<query lowercased>|year:<y>|v3' -- search resolution row
               'person:<personId>'            -- person payload row
               'trending:week'                -- trending list row
               'badProviderId:<tmdbId>'       -- id confirmed 404 by TMDB
@@ -488,11 +488,16 @@ and person cache rows are unaffected.
 ### Search query vs. comparison key
 
 `buildSearchTitleVariants` yields `{ query, normalized }` pairs. `normalized`
-is `normalizeTitle` — the folded key used for the cache row and for
-`pickConfidentMatch`, where both sides fold the same way. `query` is
-`cleanTitleForSearch` (`libs/shared/interfaces`): the same tag, bracket,
-season and trailing-year stripping, but the letters left as the provider
-wrote them. The two must differ because folding is lossy outside Latin: NFD
+is `normalizeTitle` — the folded key used for `pickConfidentMatch`, where
+both sides fold the same way. `query` is `cleanTitleForSearch`
+(`libs/shared/interfaces`): the same tag, bracket, season and trailing-year
+stripping, but the letters left as the provider wrote them. The search's
+identity is the query with only its case removed (`searchQueryIdentity`):
+variants are deduplicated by it and the cache row is keyed by it, never by
+the folded key — "Феик" and "Фейк" fold to one key but are different
+searches with different answers, so a verdict for one must not be read back
+for the other, and a misspelled original title must not swallow the display
+title that TMDB actually knows. The two must differ because folding is lossy outside Latin: NFD
 splits Cyrillic "й" into "и" + a combining breve and "ё" into "е" + a
 diaeresis, and Arabic hamza forms ("أ") into a bare alef + a combining hamza
 that the punctuation step then turns into a space inside the word. The key
