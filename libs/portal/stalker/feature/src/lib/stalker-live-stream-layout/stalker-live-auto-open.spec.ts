@@ -243,6 +243,48 @@ describe('StalkerLiveAutoOpen', () => {
         expect(window.history.state).toEqual({});
     });
 
+    it('retires the transient fallback when the layout is destroyed mid-load', async () => {
+        let settle!: () => void;
+        store.preloadItvChannels.mockImplementation(
+            () => new Promise<void>((resolve) => (settle = resolve))
+        );
+        let destroy: (() => void) | undefined;
+        const destroyRef = {
+            onDestroy: (callback: () => void) => {
+                destroy = callback;
+                return () => undefined;
+            },
+        } as unknown as DestroyRef;
+        window.history.replaceState(
+            {
+                openStalkerLiveItemId: '30',
+                openStalkerLivePlaylistId: 'pl-3',
+                openStalkerLiveCategoryId: '5',
+            },
+            ''
+        );
+        const mounted = TestBed.runInInjectionContext(
+            () =>
+                new StalkerLiveAutoOpen({
+                    ...options(),
+                    router: null,
+                    destroyRef,
+                })
+        );
+        TestBed.tick();
+        expect(mounted.pendingItemId()).toBe('30');
+
+        destroy?.();
+        settle();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(store.setSelectedCategory).not.toHaveBeenCalled();
+        expect(mounted.pendingItemId()).toBeNull();
+        // History belongs to the page the user navigated to: left untouched.
+        expect(window.history.state.openStalkerLiveItemId).toBe('30');
+    });
+
     it('lets a load that turns ready win over its own settled promise', async () => {
         let settle!: () => void;
         store.preloadItvChannels.mockImplementation(

@@ -110,6 +110,13 @@ export class StalkerLiveAutoOpen {
 
         effect(() => this.run());
         effect(() => this.runDeferredPlay());
+        // A preload promise can settle after the layout is gone; retire the
+        // handoff so its fallback cannot touch the store or history state of
+        // whatever page the user navigated to.
+        options.destroyRef.onDestroy(() => {
+            this.clearPendingItem();
+            this.deferredPlay.set(null);
+        });
     }
 
     captureFromHistoryState(): void {
