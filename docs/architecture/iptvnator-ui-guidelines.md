@@ -571,7 +571,8 @@ Because the rows on screen then belong to the PREVIOUS request, actions on
 them (Clear, drag reorder) must bind to the request that loaded those rows,
 never to the toggle's current value — "This playlist" applied to still-mounted
 global rows would delete other playlists' favorites or write foreign URLs
-into this playlist (`loadedRequest` on the collection page).
+into this playlist (`loadedRequest` on `UnifiedCollectionDataService`, which
+the collection page reads through its own `mutationRequest`).
 
 ## Navigation Lists
 
