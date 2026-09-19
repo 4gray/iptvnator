@@ -68,6 +68,8 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         const previous = openDb([V2_MARKER]);
         hooks.runMigrations(previous);
         const previousAfter = snapshot(previous);
+        hooks.runMigrations(previous);
+        const previousRepeated = snapshot(previous);
         // Oldest historical schema: the pre-'person' CHECK. That migration
         // rebuilds the pure-cache table empty by design; the cleanups must
         // still record their markers on the rebuilt table and stay idempotent.
@@ -86,7 +88,7 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         const freshAfter = snapshot(fresh);
         hooks.runMigrations(fresh);
         const freshRepeated = snapshot(fresh);
-        process.stdout.write(JSON.stringify({ skippedAfter, repeated, previousAfter, prePersonAfter, prePersonRepeated, freshAfter, freshRepeated }));
+        process.stdout.write(JSON.stringify({ skippedAfter, repeated, previousAfter, previousRepeated, prePersonAfter, prePersonRepeated, freshAfter, freshRepeated }));
     `,
         ],
         {
@@ -125,6 +127,11 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         },
         previousAfter: {
             // The unversioned row is that generation's business, already done
+            keys: [...survivors, 'title:феик|year:2026'].sort(),
+            payloads: detailsPayloads,
+            markers: [V2_MARKER, V3_MARKER],
+        },
+        previousRepeated: {
             keys: [...survivors, 'title:феик|year:2026'].sort(),
             payloads: detailsPayloads,
             markers: [V2_MARKER, V3_MARKER],
