@@ -534,6 +534,7 @@
         "APP_UPDATE_CHANNEL_NIGHTLY": "Nightly",
         "APP_UPDATE_SAVE_AND_CHECK": "Guardar y comprobar actualizaciones de {{channel}}",
         "APP_UPDATE_CHANNEL_PENDING_HINT": "Este resultado corresponde al canal {{current}}. Guarda para cambiar a {{next}} y comprobar de nuevo.",
+        "APP_UPDATE_CHANNEL_RETAINED_HINT": "Esta actualización se encontró en el canal {{current}}. El canal {{next}} aún no se ha comprobado.",
         "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "Las compilaciones nightly son instantáneas sin probar de master. Pueden fallar y sus cambios en la base de datos son permanentes: al volver a Stable, esta compilación se mantiene instalada hasta que haya una versión estable más reciente. Haz primero una copia de seguridad de tus listas.",
         "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "Estás usando una compilación nightly. El canal Stable ofrecerá la próxima versión estable en cuanto sea más reciente que esta compilación.",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: motor frame-copy (experimental)",

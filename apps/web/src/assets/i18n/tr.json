@@ -534,6 +534,7 @@
         "APP_UPDATE_CHANNEL_NIGHTLY": "Nightly",
         "APP_UPDATE_SAVE_AND_CHECK": "Kaydet ve {{channel}} güncellemelerini denetle",
         "APP_UPDATE_CHANNEL_PENDING_HINT": "Bu sonuç {{current}} kanalına aittir. {{next}} kanalına geçmek için kaydedin ve tekrar denetleyin.",
+        "APP_UPDATE_CHANNEL_RETAINED_HINT": "Bu güncelleme {{current}} kanalında bulundu. {{next}} kanalı henüz denetlenmedi.",
         "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "Nightly derlemeleri master’ın test edilmemiş anlık görüntüleridir. Bozuk olabilirler ve veritabanı değişiklikleri kalıcıdır: Stable’a geri dönüldüğünde bu derleme, daha yeni bir kararlı sürüm çıkana kadar kurulu kalır. Önce oynatma listelerinizi yedekleyin.",
         "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "Bir nightly derlemesi kullanıyorsunuz. Stable kanalı, bu derlemeden daha yeni olduğunda sonraki kararlı sürümü sunacaktır.",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: frame-copy motoru (deneysel)",

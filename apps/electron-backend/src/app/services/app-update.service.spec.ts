@@ -691,6 +691,7 @@ describe('AppUpdateService', () => {
 
     it('leaves a running download on the old channel but reports the new one', async () => {
         const { service, updater } = createService();
+        await service.checkForUpdates();
         service.handleUpdateAvailable({ version: '0.23.0' });
         updater.downloadUpdate.mockImplementationOnce(
             () => new Promise(() => undefined)
@@ -708,6 +709,26 @@ describe('AppUpdateService', () => {
             manualDownloadUrl:
                 'https://github.com/4gray/iptvnator-nightly/releases',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading,
+            // The retained download still belongs to the channel it was found on.
+            verdictChannel: 'stable',
+        });
+    });
+
+    it('stamps every verdict with the channel it was checked on', async () => {
+        const { service } = createService();
+
+        expect(service.getStatus().verdictChannel).toBeUndefined();
+
+        await service.checkForUpdates();
+        expect(service.getStatus().verdictChannel).toBe('stable');
+
+        service.handleUpdateNotAvailable({ version: '0.22.0' });
+        service.setChannel('nightly');
+        await Promise.resolve();
+
+        expect(service.getStatus()).toMatchObject({
+            channel: 'nightly',
+            verdictChannel: 'nightly',
         });
     });
 

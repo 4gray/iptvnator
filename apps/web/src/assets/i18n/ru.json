@@ -534,6 +534,7 @@
         "APP_UPDATE_CHANNEL_NIGHTLY": "Nightly",
         "APP_UPDATE_SAVE_AND_CHECK": "Сохранить и проверить обновления {{channel}}",
         "APP_UPDATE_CHANNEL_PENDING_HINT": "Этот результат относится к каналу {{current}}. Сохраните, чтобы переключиться на {{next}} и проверить снова.",
+        "APP_UPDATE_CHANNEL_RETAINED_HINT": "Это обновление найдено на канале {{current}}. Канал {{next}} ещё не проверялся.",
         "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "Nightly-сборки — непроверенные снимки master. Они могут работать нестабильно, а их изменения базы данных необратимы: после возврата на Stable эта сборка останется установленной, пока не выйдет более новый стабильный релиз. Сначала сделайте резервную копию плейлистов.",
         "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "Вы используете nightly-сборку. Канал Stable предложит следующий стабильный релиз, как только он станет новее этой сборки.",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: движок frame-copy (экспериментально)",

@@ -534,6 +534,7 @@
         "APP_UPDATE_CHANNEL_NIGHTLY": "Nightly",
         "APP_UPDATE_SAVE_AND_CHECK": "Speichern und auf {{channel}}-Updates prüfen",
         "APP_UPDATE_CHANNEL_PENDING_HINT": "Dieses Ergebnis gilt für den Kanal {{current}}. Speichern, um zu {{next}} zu wechseln und erneut zu prüfen.",
+        "APP_UPDATE_CHANNEL_RETAINED_HINT": "Dieses Update wurde im Kanal {{current}} gefunden. Der Kanal {{next}} wurde noch nicht geprüft.",
         "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "Nightly-Builds sind ungetestete Momentaufnahmen von master. Sie können fehlerhaft sein, und ihre Datenbankänderungen sind dauerhaft: Nach dem Wechsel zurück zu Stable bleibt dieser Build installiert, bis ein neueres stabiles Release erscheint. Sichern Sie zuerst Ihre Playlists.",
         "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "Sie verwenden einen Nightly-Build. Der Stable-Kanal bietet das nächste stabile Release an, sobald es neuer als dieser Build ist.",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: Frame-Copy-Engine (experimentell)",

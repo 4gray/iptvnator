@@ -79,11 +79,28 @@
                                         : {
                                               current:
                                                   (channelLabelKey(
-                                                      updateStatus.channel
+                                                      verdictChannel()
                                                   ) | translate),
                                               next:
                                                   (channelLabelKey(
                                                       draftUpdateChannel()
+                                                  ) | translate),
+                                          }
+                            }}
+                        </span>
+                    } @else if (hasRetainedOtherChannelVerdict()) {
+                        <span data-test-id="app-update-channel-retained-hint">
+                            {{
+                                'SETTINGS.APP_UPDATE_CHANNEL_RETAINED_HINT'
+                                    | translate
+                                        : {
+                                              current:
+                                                  (channelLabelKey(
+                                                      verdictChannel()
+                                                  ) | translate),
+                                              next:
+                                                  (channelLabelKey(
+                                                      updateStatus.channel
                                                   ) | translate),
                                           }
                             }}

@@ -534,6 +534,7 @@
         "APP_UPDATE_CHANNEL_NIGHTLY": "Nightly",
         "APP_UPDATE_SAVE_AND_CHECK": "حفظ وتحقق من تحديثات {{channel}}",
         "APP_UPDATE_CHANNEL_PENDING_HINT": "هاد النتيجة ديال قناة {{current}}. حفظ باش تبدل لـ {{next}} وعاود تحقق.",
+        "APP_UPDATE_CHANNEL_RETAINED_HINT": "هاد التحديث تلقا فقناة {{current}}. قناة {{next}} مازال ما تحققناش منها.",
         "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "إصدارات Nightly هي لقطات من master ما مجرّباش. يمكن يطيحو، والتغييرات ديالهم ف قاعدة البيانات دائمة: ملي ترجع ل Stable هاد الإصدار كيبقى مثبّت حتى يخرج إصدار مستقر جديد. دير نسخة احتياطية ديال قوائم التشغيل قبل.",
         "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "راك كتستعمل إصدار Nightly. قناة Stable غادي تقترح الإصدار المستقر الجاي ملي يولي جديد كثر من هاد الإصدار.",
         "EMBEDDED_MPV_FRAME_COPY": "MPV المدمج: محرك نسخ الإطارات (تجريبي)",

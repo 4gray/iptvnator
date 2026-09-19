@@ -534,6 +534,7 @@
         "APP_UPDATE_CHANNEL_NIGHTLY": "Nightly",
         "APP_UPDATE_SAVE_AND_CHECK": "儲存並檢查 {{channel}} 更新",
         "APP_UPDATE_CHANNEL_PENDING_HINT": "此結果針對 {{current}} 頻道。儲存以切換至 {{next}} 並再次檢查。",
+        "APP_UPDATE_CHANNEL_RETAINED_HINT": "此更新來自 {{current}} 頻道。{{next}} 頻道尚未檢查。",
         "APP_UPDATE_CHANNEL_NIGHTLY_WARNING": "Nightly 建置是 master 未經測試的快照。它們可能出錯，且其資料庫變更無法復原：切換回 Stable 後，此建置會一直保留，直到出現更新的穩定版本。請先備份您的播放清單。",
         "APP_UPDATE_NIGHTLY_ON_STABLE_HINT": "您正在使用 nightly 建置。Stable 頻道會在下一個穩定版本比此建置更新時提供該版本。",
         "EMBEDDED_MPV_FRAME_COPY": "內嵌 MPV：幀複製引擎（實驗性）",

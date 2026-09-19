@@ -142,8 +142,30 @@ export class SettingsAboutSectionComponent {
             : 'SETTINGS.APP_UPDATE_CHANNEL_STABLE';
     }
 
+    /**
+     * The channel the verdict on screen belongs to. `verdictChannel` is
+     * stamped by every check; a channel change saved while a download was
+     * running or done keeps that download, so the two can differ until
+     * the new channel is checked.
+     */
+    verdictChannel(): AppUpdateChannel | null {
+        const status = this.appUpdateStatus();
+
+        return status?.verdictChannel ?? status?.channel ?? null;
+    }
+
+    /** The kept download was found on another channel than the saved one. */
+    hasRetainedOtherChannelVerdict(): boolean {
+        const status = this.appUpdateStatus();
+
+        return (
+            status?.verdictChannel !== undefined &&
+            status.verdictChannel !== status.channel
+        );
+    }
+
     readonly appliedChannelLabelKey = computed(() => {
-        const channel = this.appUpdateStatus()?.channel;
+        const channel = this.verdictChannel();
 
         return channel ? this.channelLabelKey(channel) : null;
     });

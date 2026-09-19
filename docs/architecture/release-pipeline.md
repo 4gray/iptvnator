@@ -388,7 +388,11 @@ channel reaches `persistAppUpdateChannel`, whose change listener calls
 `AppUpdateService.setChannel`, which already re-checks an idle updater. A
 download in flight or finished belongs to the previous channel and is kept
 by `setChannel`, so in those states the plain check stays and only the hint
-is shown. Checking the unsaved channel without saving was rejected on
+is shown. Because that kept download outlives the channel it was found on,
+every check stamps `status.verdictChannel` with the channel it ran on and
+`setChannel` leaves it alone: the badge names `verdictChannel`, not
+`channel`, and while the two differ a hint says the shown update came from
+the other channel and the saved one has not been checked yet. Checking the unsaved channel without saving was rejected on
 purpose: the updater would then offer a download for a channel that is not
 persisted.
 

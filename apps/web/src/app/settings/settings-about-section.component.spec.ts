@@ -371,6 +371,43 @@ describe('SettingsAboutSectionComponent update channel', () => {
         }
     });
 
+    it('attributes a kept download to the channel it was found on, not the saved one', () => {
+        const form = new FormGroup({
+            updateChannel: new FormControl('nightly'),
+        });
+        configure(
+            {
+                channel: 'nightly',
+                latestVersion: '0.24.0',
+                status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+                verdictChannel: 'stable',
+            },
+            form
+        );
+
+        expect(query('app-update-status-channel')?.textContent?.trim()).toBe(
+            'SETTINGS.APP_UPDATE_CHANNEL_STABLE'
+        );
+        expect(query('app-update-channel-pending-hint')).toBeNull();
+        expect(query('app-update-channel-retained-hint')).not.toBeNull();
+        expect(query('app-update-save-and-check')).toBeNull();
+
+        // Once the new channel has been checked the badge follows it.
+        configure(
+            {
+                channel: 'nightly',
+                status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
+                verdictChannel: 'nightly',
+            },
+            form
+        );
+
+        expect(query('app-update-status-channel')?.textContent?.trim()).toBe(
+            'SETTINGS.APP_UPDATE_CHANNEL_NIGHTLY'
+        );
+        expect(query('app-update-channel-retained-hint')).toBeNull();
+    });
+
     it('disables Save and check while the form cannot be saved', () => {
         const form = new FormGroup({
             updateChannel: new FormControl('nightly'),

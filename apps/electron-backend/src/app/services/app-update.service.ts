@@ -239,6 +239,8 @@ export class AppUpdateService {
      * Follows a saved channel change. A download already running or
      * finished belongs to the previous channel and is left alone — the
      * user can still install it — so only an idle updater re-checks.
+     * `verdictChannel` keeps naming the channel that download came from
+     * until a check on the new channel replaces it.
      */
     setChannel(channel: AppUpdateChannel): void {
         if (channel === this.channel) {
@@ -288,6 +290,7 @@ export class AppUpdateService {
             latestVersion: undefined,
             release: undefined,
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking,
+            verdictChannel: this.channel,
         });
 
         try {
