@@ -42,6 +42,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    foldSearchText,
     buildStalkerEpgMappingKey,
     Channel,
     EpgItem,
@@ -132,9 +133,9 @@ function matchesStalkerChannelTerm(
     item: StalkerItvChannel,
     term: string
 ): boolean {
-    return `${item.o_name ?? ''} ${item.name ?? ''}`
-        .toLowerCase()
-        .includes(term);
+    return foldSearchText(`${item.o_name ?? ''} ${item.name ?? ''}`).includes(
+        term
+    );
 }
 
 import { StalkerLiveNavigation } from './stalker-live-navigation';
@@ -203,7 +204,7 @@ export class StalkerLiveStreamLayoutComponent
         this.isRadioMode() ? this.radioChannels() : this.itvChannels()
     );
     readonly searchTerm = computed(() =>
-        this.stalkerStore.searchPhrase().trim().toLowerCase()
+        foldSearchText(this.stalkerStore.searchPhrase().trim())
     );
     /** Full-list mode: the complete channel list is cached, so search covers everything. */
     readonly isFullListMode = computed(
@@ -1099,7 +1100,7 @@ export class StalkerLiveStreamLayoutComponent
      * instance shows the sidebar's windowed rows.
      */
     channelsForList(panelSearchTerm?: Signal<string>): StalkerItvChannel[] {
-        const term = panelSearchTerm?.().trim().toLowerCase() ?? '';
+        const term = foldSearchText(panelSearchTerm?.().trim() ?? '');
         if (!term) {
             if (!panelSearchTerm) {
                 return this.visibleChannels();
@@ -1776,7 +1777,7 @@ export class StalkerLiveStreamLayoutComponent
                       matchesStalkerChannelTerm(item, this.searchTerm())
                   )
                 : this.filteredChannels();
-        const query = term().trim().toLowerCase();
+        const query = foldSearchText(term().trim());
         return query
             ? this.searchableChannels().filter((item) =>
                   matchesStalkerChannelTerm(item, query)

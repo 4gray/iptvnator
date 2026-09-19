@@ -19,6 +19,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService, XCategoryFromDb } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export interface CategoryManagementDialogData {
     playlistId: string;
@@ -58,10 +59,10 @@ export class CategoryManagementDialogComponent implements OnInit {
     readonly searchTerm = signal('');
 
     readonly filteredCategories = computed(() => {
-        const term = this.searchTerm().toLowerCase();
+        const term = foldSearchText(this.searchTerm());
         if (!term) return this.categories();
         return this.categories().filter((c) =>
-            c.name.toLowerCase().includes(term)
+            foldSearchText(c.name).includes(term)
         );
     });
 

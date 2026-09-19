@@ -12,6 +12,7 @@ import {
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { ContentCardComponent } from '../content-card/content-card.component';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-unified-grid-tab',
@@ -30,7 +31,7 @@ export class UnifiedGridTabComponent {
     readonly itemSelected = output<UnifiedCollectionItem>();
 
     private readonly normalizedSearchTerm = computed(() =>
-        this.searchTerm().trim().toLowerCase()
+        foldSearchText(this.searchTerm().trim())
     );
     /**
      * Search results are identified by the name the user typed, so a
@@ -44,7 +45,7 @@ export class UnifiedGridTabComponent {
         const term = this.normalizedSearchTerm();
         const all = this.items();
         return term
-            ? all.filter((i) => i.name.toLowerCase().includes(term))
+            ? all.filter((i) => foldSearchText(i.name).includes(term))
             : all;
     });
 

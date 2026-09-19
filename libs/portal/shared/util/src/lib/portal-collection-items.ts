@@ -1,4 +1,4 @@
-import { XtreamCategory } from '@iptvnator/shared/interfaces';
+import { foldSearchText, XtreamCategory } from '@iptvnator/shared/interfaces';
 
 type StandardCollectionBucket = 'all' | 'movie' | 'live' | 'series';
 
@@ -12,7 +12,9 @@ interface BuildStandardCollectionCategoriesOptions {
 interface FilterCollectionBucketOptions<T> {
     selectedCategoryId: string | null | undefined;
     allItems: readonly T[] | null | undefined;
-    buckets: Partial<Record<'movie' | 'live' | 'series', readonly T[] | null | undefined>>;
+    buckets: Partial<
+        Record<'movie' | 'live' | 'series', readonly T[] | null | undefined>
+    >;
     searchTerm?: string | null | undefined;
     liveCategoryId?: string;
     textOf: (item: T) => string;
@@ -78,19 +80,19 @@ export function filterCollectionBucket<T>(
     } = options;
     const baseItems =
         selectedCategoryId === 'movie'
-            ? buckets.movie ?? []
+            ? (buckets.movie ?? [])
             : selectedCategoryId === liveCategoryId
-              ? buckets.live ?? []
+              ? (buckets.live ?? [])
               : selectedCategoryId === 'series'
-                ? buckets.series ?? []
-                : allItems ?? [];
-    const normalizedTerm = (searchTerm ?? '').trim().toLowerCase();
+                ? (buckets.series ?? [])
+                : (allItems ?? []);
+    const normalizedTerm = foldSearchText((searchTerm ?? '').trim());
 
     if (!normalizedTerm) {
         return [...baseItems];
     }
 
     return baseItems.filter((item) =>
-        String(textOf(item)).toLowerCase().includes(normalizedTerm)
+        foldSearchText(String(textOf(item))).includes(normalizedTerm)
     );
 }

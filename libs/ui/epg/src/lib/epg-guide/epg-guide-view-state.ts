@@ -1,5 +1,5 @@
 import { computed, effect, signal } from '@angular/core';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { foldSearchText, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
     getTodayEpgDateKey,
@@ -101,11 +101,11 @@ export class EpgGuideViewState {
         channels: readonly EpgGuideChannel[],
         isCovered: (channelId: string) => boolean
     ): EpgGuideChannel[] {
-        const needle = this.filter().trim().toLowerCase();
+        const needle = foldSearchText(this.filter().trim());
         const onlyWithEpg = this.onlyWithEpg();
         return channels.filter(
             (channel) =>
-                (!needle || channel.name.toLowerCase().includes(needle)) &&
+                (!needle || foldSearchText(channel.name).includes(needle)) &&
                 (!onlyWithEpg || isCovered(channel.id))
         );
     }

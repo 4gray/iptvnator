@@ -1,7 +1,7 @@
 import { Injector } from '@angular/core';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
-import { sourceHealthType } from '@iptvnator/shared/interfaces';
+import { foldSearchText, sourceHealthType } from '@iptvnator/shared/interfaces';
 import { SourceHealthIndicatorComponent } from '../source-health/source-health-indicator.component';
 import { DatePipe, DOCUMENT } from '@angular/common';
 import {
@@ -138,7 +138,7 @@ export class PlaylistSwitcherComponent {
     readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
     readonly activePlaylist = this.playlistContext.activePlaylist;
     readonly filteredPlaylists = computed(() => {
-        const query = this.searchQuery().toLowerCase().trim();
+        const query = foldSearchText(this.searchQuery()).trim();
         const filters = this.playlistTypeFilters();
         const allPlaylists = this.playlists();
         const filteredByType = allPlaylists.filter((playlist) => {
@@ -148,8 +148,8 @@ export class PlaylistSwitcherComponent {
         const filtered = query
             ? filteredByType.filter(
                   (playlist) =>
-                      playlist.title?.toLowerCase().includes(query) ||
-                      playlist.filename?.toLowerCase().includes(query)
+                      foldSearchText(playlist.title ?? '').includes(query) ||
+                      foldSearchText(playlist.filename ?? '').includes(query)
               )
             : filteredByType;
 

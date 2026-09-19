@@ -16,6 +16,35 @@ export function escapeLikePattern(term: string): string {
     return term.replace(/[%_\\]/g, '\\$&');
 }
 
+/**
+ * Case spellings a stored title may use for `value`, for LIKE/GLOB patterns:
+ * SQLite LIKE folds only ASCII and GLOB folds nothing, so every form has to
+ * be spelled out. Besides lower/upper/title case, a value containing "i"
+ * also gets the Turkish forms with the dotted capital İ (U+0130) — "inş"
+ * becomes "İNŞ" / "İnş" — because the locale-invariant `toUpperCase()`
+ * yields "INŞ", which never matches a title such as "İnşaat" (issue #609).
+ * The explicit `'tr'` locale is the point: it is fixed, not the OS locale.
+ */
+function getCaseVariants(value: string): string[] {
+    const lower = value.toLowerCase();
+    const folded = lower.replace(/[\u0300-\u036f]/g, '');
+    const variants = new Set<string>([
+        value,
+        lower,
+        value.toUpperCase(),
+        value.charAt(0).toUpperCase() + value.slice(1).toLowerCase(),
+    ]);
+
+    if (folded.includes('i')) {
+        variants.add(folded.toLocaleUpperCase('tr'));
+        variants.add(
+            folded.charAt(0).toLocaleUpperCase('tr') + folded.slice(1)
+        );
+    }
+
+    return [...variants];
+}
+
 // Search case folding is deliberately locale-invariant (toLowerCase, not
 // toLocaleLowerCase). Under a Turkish or Azeri locale toLocaleLowerCase maps
 // ASCII "I" to the dotless "ı" and folds the dotted "İ" its own way, so the
@@ -89,16 +118,9 @@ export function buildLikePatterns(
             continue;
         }
 
-        const titleCase =
-            trimmedValue.length > 0
-                ? trimmedValue.charAt(0).toUpperCase() +
-                  trimmedValue.slice(1).toLowerCase()
-                : trimmedValue;
-
-        variants.add(trimmedValue);
-        variants.add(trimmedValue.toLowerCase());
-        variants.add(trimmedValue.toUpperCase());
-        variants.add(titleCase);
+        for (const variant of getCaseVariants(trimmedValue)) {
+            variants.add(variant);
+        }
     }
 
     return [...variants].map((value) => {
@@ -111,13 +133,9 @@ export function buildGlobPrefixPatterns(token: string): string[] {
     const variants = new Set<string>();
 
     for (const value of [token, ...getSqlSearchTokenVariants(token)]) {
-        variants.add(value);
-        variants.add(value.toLowerCase());
-        variants.add(value.toUpperCase());
-        variants.add(
-            value.charAt(0).toUpperCase() +
-                value.slice(1).toLowerCase()
-        );
+        for (const variant of getCaseVariants(value)) {
+            variants.add(variant);
+        }
     }
 
     return [...variants].map((value) => `${value}*`);
@@ -250,13 +268,9 @@ export function buildCompoundLikePatterns(word: string): string[] {
     const variants = new Set<string>();
 
     for (const value of getCompoundWordVariants(word)) {
-        variants.add(value);
-        variants.add(value.toLowerCase());
-        variants.add(value.toUpperCase());
-        variants.add(
-            value.charAt(0).toUpperCase() +
-                value.slice(1).toLowerCase()
-        );
+        for (const variant of getCaseVariants(value)) {
+            variants.add(variant);
+        }
     }
 
     return [...variants].map((value) => `%${escapeLikePattern(value)}%`);

@@ -2,6 +2,8 @@ import {
     buildContentTitleFtsMatchQuery,
     buildCompoundFtsMatchQuery,
     buildCompoundLikePatterns,
+    buildGlobPrefixPatterns,
+    buildLikePatterns,
     buildM3uPayloadCompoundPatterns,
     getCompoundResidualTokenGroups,
     getSearchWordPlans,
@@ -164,6 +166,41 @@ describe('content-search.util', () => {
 
             expect(lower).not.toBeNull();
             expect(lower).toBe(upper);
+        });
+
+        it('spells the dotted capital İ forms in LIKE and GLOB patterns', () => {
+            // SQLite LIKE folds only ASCII and GLOB folds nothing, and the
+            // locale-invariant toUpperCase() turns "inş" into "INŞ", which
+            // never matches a stored "İnşaat". The Turkish forms are added
+            // with an explicit 'tr' locale so they do not depend on the OS.
+            expect(buildLikePatterns('inş')).toEqual(
+                expect.arrayContaining(['%İNŞ%', '%İnş%', '%INŞ%', '%inş%'])
+            );
+            expect(buildLikePatterns('İnş', 'prefix')).toEqual(
+                expect.arrayContaining(['İnş%', 'İNŞ%', 'inş%'])
+            );
+            expect(buildGlobPrefixPatterns('iş')).toEqual(
+                expect.arrayContaining(['İş*', 'İŞ*', 'iş*', 'IŞ*'])
+            );
+            expect(buildCompoundLikePatterns('iş-tv')).toEqual(
+                expect.arrayContaining(['%İş-tv%', '%İŞ-TV%'])
+            );
+        });
+
+        it('adds no Turkish forms to values without an i', () => {
+            expect(buildLikePatterns('çan')).toEqual([
+                '%çan%',
+                '%ÇAN%',
+                '%Çan%',
+                '%can%',
+                '%CAN%',
+                '%Can%',
+            ]);
+            expect(buildGlobPrefixPatterns('ма')).toEqual([
+                'ма*',
+                'МА*',
+                'Ма*',
+            ]);
         });
     });
 
