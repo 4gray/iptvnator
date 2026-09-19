@@ -2,7 +2,6 @@ import {
     APP_UPDATE_STATUS_CHANGED,
     AppUpdateChannel,
     appUpdateReleasesPageUrl,
-    buildAppUpdateReleaseNotesNotFoundMessage,
     appVersionChannel,
     compareAppVersions,
     DEFAULT_APP_UPDATE_CHANNEL,
@@ -14,12 +13,12 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { AppUpdateFeedTarget, applyAppUpdateChannel } from './app-update-feed';
 import {
-    AppUpdateReleaseCatalog,
     CachedGitHubRelease,
     normalizeVersion,
     ReleaseFetcher,
     ReleaseFetchResponse,
 } from './app-update-release-catalog';
+import { AppUpdateReleaseCatalogs } from './app-update-release-notes';
 
 export const APP_UPDATE_MANUAL_DOWNLOAD_URL = appUpdateReleasesPageUrl(
     DEFAULT_APP_UPDATE_CHANNEL
@@ -164,33 +163,11 @@ function toReleaseInfo(
     };
 }
 
-function toReleaseNotes(
-    release: CachedGitHubRelease,
-    index: number,
-    catalog: AppUpdateReleaseCatalog
-): ElectronBridgeAppUpdateReleaseNotes {
-    return {
-        version: release.version,
-        tagName: release.tagName,
-        releaseName: release.releaseName,
-        publishedAt: release.publishedAt,
-        bodyMarkdown: release.bodyMarkdown,
-        htmlUrl: release.htmlUrl,
-        hasNext: index > 0,
-        hasPrevious:
-            index < catalog.releases.length - 1 || !catalog.loadedAllReleases,
-    };
-}
-
 export class AppUpdateService {
     private readonly currentVersion: string;
     private readonly isPackaged: boolean;
     private readonly supportedSelfUpdate: boolean;
-    private readonly releaseFetcher: ReleaseFetcher;
-    private readonly catalogs = new Map<
-        AppUpdateChannel,
-        AppUpdateReleaseCatalog
-    >();
+    private readonly catalogs: AppUpdateReleaseCatalogs;
     private readonly updater: AppUpdaterAdapter | null = null;
     private channel: AppUpdateChannel;
     private checkForUpdatesPromise: Promise<ElectronBridgeAppUpdateStatus> | null =
@@ -211,9 +188,13 @@ export class AppUpdateService {
             options.platform ?? process.platform,
             options.processEnv ?? process.env
         );
-        this.releaseFetcher =
+        const releaseFetcher: ReleaseFetcher =
             options.releaseFetcher ??
             ((url, init) => fetch(url, init) as Promise<ReleaseFetchResponse>);
+        this.catalogs = new AppUpdateReleaseCatalogs(
+            releaseFetcher,
+            `iptvnator/${this.currentVersion}`
+        );
         this.status = {
             currentVersion: this.currentVersion,
             manualDownloadUrl: appUpdateReleasesPageUrl(this.channel),
@@ -315,70 +296,11 @@ export class AppUpdateService {
         return this.checkForUpdates();
     }
 
-    /**
-     * Release notes come from the catalog of the channel the requested
-     * version belongs to, not the configured one: a nightly build on the
-     * stable channel still reads its own notes, and paging from a nightly
-     * tag stays inside the nightly list.
-     */
-    async getReleaseNotes(
+    /** Release notes for a version; see `AppUpdateReleaseCatalogs`. */
+    getReleaseNotes(
         request: ElectronBridgeAppUpdateReleaseNotesRequest = {}
     ): Promise<ElectronBridgeAppUpdateReleaseNotes> {
-        const catalog = this.catalogFor(
-            request.version ? appVersionChannel(request.version) : this.channel
-        );
-
-        return catalog.runExclusive(() =>
-            this.readReleaseNotes(catalog, request)
-        );
-    }
-
-    /** The exclusive section of `getReleaseNotes`: one reader per catalog. */
-    private async readReleaseNotes(
-        catalog: AppUpdateReleaseCatalog,
-        request: ElectronBridgeAppUpdateReleaseNotesRequest
-    ): Promise<ElectronBridgeAppUpdateReleaseNotes> {
-        const canFallbackToLatest =
-            !request.direction &&
-            (!request.version || request.fallbackToLatest);
-
-        if (canFallbackToLatest) {
-            await catalog.ensureFirstReleaseLoaded();
-        } else {
-            await catalog.ensurePageLoaded(1);
-        }
-
-        let index = await catalog.findIndex(request.version);
-
-        if (index === -1 && canFallbackToLatest) {
-            index = 0;
-        }
-
-        if (index === -1) {
-            throw new Error(
-                buildAppUpdateReleaseNotesNotFoundMessage(request.version)
-            );
-        }
-
-        if (request.direction === 'previous') {
-            index += 1;
-            while (
-                index >= catalog.releases.length &&
-                !catalog.loadedAllReleases
-            ) {
-                await catalog.ensurePageLoaded(catalog.loadedReleasePages + 1);
-            }
-        } else if (request.direction === 'next') {
-            index -= 1;
-        }
-
-        const release = catalog.releases[index];
-
-        if (!release) {
-            throw new Error('No release notes are available in that direction');
-        }
-
-        return toReleaseNotes(release, index, catalog);
+        return this.catalogs.getReleaseNotes(this.channel, request);
     }
 
     async downloadUpdate(): Promise<ElectronBridgeAppUpdateStatus> {
@@ -436,10 +358,6 @@ export class AppUpdateService {
     handleUpdateAvailable(info: AppUpdateInfo): void {
         const release = toRelease(info);
 
-        // A release the updater just found is newer than anything the
-        // catalogs were loaded with, so their snapshots are stale by
-        // definition. Forgetting them keeps the "latest" fallback honest;
-        // a version lookup would reload on its own.
         this.catalogs.clear();
 
         this.setStatus({
@@ -495,21 +413,6 @@ export class AppUpdateService {
         });
     }
 
-    private catalogFor(channel: AppUpdateChannel): AppUpdateReleaseCatalog {
-        let catalog = this.catalogs.get(channel);
-
-        if (!catalog) {
-            catalog = new AppUpdateReleaseCatalog(
-                channel,
-                this.releaseFetcher,
-                `iptvnator/${this.currentVersion}`
-            );
-            this.catalogs.set(channel, catalog);
-        }
-
-        return catalog;
-    }
-
     private resolveUpdater(
         updater: AppUpdaterAdapterProvider
     ): AppUpdaterAdapter {
@@ -544,12 +447,7 @@ export class AppUpdateService {
      * the user at its release page.
      */
     private async checkGitHubReleaseForManualUpdate(): Promise<void> {
-        const catalog = this.catalogFor(this.channel);
-        const latestRelease = await catalog.runExclusive(async () => {
-            await catalog.ensureFirstReleaseLoaded();
-
-            return catalog.latest;
-        });
+        const latestRelease = await this.catalogs.latestRelease(this.channel);
 
         if (!latestRelease) {
             this.setStatus({

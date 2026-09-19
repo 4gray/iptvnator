@@ -358,8 +358,11 @@ silently enables downgrades and the constructor enables prereleases for any
 prerelease build. Release notes and the manual-install fallback (Linux
 without AppImage) read the channel's release list; notes for a nightly
 version always come from the nightly repository, so a nightly build on the
-stable channel still shows its own notes. Each catalog is a snapshot of the
-GitHub release list kept for the whole process, so `findIndex` reloads it
+stable channel still shows its own notes. `AppUpdateReleaseCatalogs`
+(`app-update-release-notes.ts`) owns one catalog per channel and both reads
+the updater performs on them (release notes with paging, newest release for
+the manual-install fallback); the service only delegates. Each catalog is a
+snapshot of the GitHub release list kept for the whole process, so `findIndex` reloads it
 once when a version is missing from a fully paged list — the updater had
 offered a nightly published after the catalog was first read, and "What's
 new" answered "not found" for it — and `handleUpdateAvailable` drops every
