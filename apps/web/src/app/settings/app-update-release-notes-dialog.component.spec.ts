@@ -170,6 +170,50 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
         ).not.toBeNull();
     });
 
+    it('offers the release list, not the earlier release, when paging fails', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="release-notes-open-release"]'
+            )
+        ).not.toBeNull();
+
+        (
+            window.electron.getAppUpdateReleaseNotes as jest.Mock
+        ).mockRejectedValueOnce(
+            new Error('No release notes are available in that direction')
+        );
+        (
+            fixture.nativeElement.querySelector(
+                '[data-test-id="release-notes-previous"]'
+            ) as HTMLButtonElement
+        ).click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        // The earlier notes stay for navigation, but the body is the error,
+        // so the action must match the body.
+        expect(fixture.componentInstance.notes()?.tagName).toBe('v0.23.0');
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="release-notes-error"]'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="release-notes-open-release"]'
+            )
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="release-notes-open-releases"]'
+            )
+        ).not.toBeNull();
+    });
+
     it('loads previous notes lazily without closing the dialog', async () => {
         fixture.detectChanges();
         await fixture.whenStable();

@@ -149,12 +149,10 @@ function decorateReleaseNotesHtml(html: string): string {
         </mat-dialog-content>
 
         <mat-dialog-actions align="end">
-            @if (notes()?.htmlUrl; as htmlUrl) {
-                <button mat-button type="button" (click)="openRelease(htmlUrl)">
-                    <mat-icon>open_in_new</mat-icon>
-                    {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
-                </button>
-            } @else if (error()) {
+            <!-- The error is checked first: a failed Previous/Next keeps the
+                 earlier notes for navigation, but the body shows the error,
+                 so the action must not open that earlier release. -->
+            @if (error()) {
                 <button
                     mat-button
                     type="button"
@@ -163,6 +161,16 @@ function decorateReleaseNotesHtml(html: string): string {
                 >
                     <mat-icon>open_in_new</mat-icon>
                     {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASES_PAGE' | translate }}
+                </button>
+            } @else if (notes()?.htmlUrl; as htmlUrl) {
+                <button
+                    mat-button
+                    type="button"
+                    (click)="openRelease(htmlUrl)"
+                    data-test-id="release-notes-open-release"
+                >
+                    <mat-icon>open_in_new</mat-icon>
+                    {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
                 </button>
             }
             <button mat-flat-button type="button" (click)="close()">
