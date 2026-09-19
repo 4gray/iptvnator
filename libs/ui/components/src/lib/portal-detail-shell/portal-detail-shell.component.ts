@@ -32,7 +32,9 @@ import {
  * About block below the episodes slot.
  *
  * The shell owns the page scroll, the browse↔watch animation, Escape
- * handling, and never conditionally wraps the `[detail-player]` slot — the
+ * handling, the one sticky Back control (route-level in both states; closing
+ * the player is the player's own Close button and Escape), and never
+ * conditionally wraps the `[detail-player]` slot — the
  * host's own `@if (inlinePlayback())` is the only thing that creates or
  * destroys the player, so shell state changes cannot recreate it.
  */
@@ -80,8 +82,9 @@ export class PortalDetailShellComponent {
     /** True while inline playback is active — flips the layout to watch state. */
     readonly playbackActive = input(false);
 
+    /** The sticky control in either state, or Escape in browse. */
     readonly backClicked = output<void>();
-    /** Emitted by the sticky control or Escape during inline playback. */
+    /** Emitted by Escape during inline playback. */
     readonly closePlayerRequested = output<void>();
 
     protected readonly tagsTemplate = contentChild(DetailTagsTemplateDirective);
@@ -198,10 +201,11 @@ export class PortalDetailShellComponent {
         )
             return;
         event.preventDefault();
-        this.onBack();
+        this.unwind();
     }
 
-    onBack(): void {
+    /** One level per Escape: watch closes the player, browse leaves the page. */
+    private unwind(): void {
         if (!this.playbackActive()) {
             if (this.backAvailable()) this.backClicked.emit();
             return;

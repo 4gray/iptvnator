@@ -338,9 +338,10 @@ row Enter/Space activation stays separate from focus movement. Portal Live TV
 uses ArrowRight from the selected category and ArrowLeft from the channels
 pane to move between columns. Shared live sidebars reserve scrollbar space
 beside the resize handle. `PortalDetailShellComponent` owns a visible native
-scrollbar and guarded initial page focus. Its sticky control and Escape close
-inline playback to browse, then invoke the host's existing Back action; the
-now-playing bar retains its separate direct route Back. Browse Escape requires
+scrollbar and guarded initial page focus. Its one sticky arrow is the host's
+Back action in browse and watch alike; only Escape unwinds one level (close
+inline playback to browse, then Back), and the now-playing bar's Close button
+is the pointer way back to browse. Browse Escape requires
 focus inside the shell; watch preserves the global close shortcut. Menus,
 dialogs, fullscreen, editable fields, repeats and hidden/inert surfaces retain
 their keys. M3U and collection bootstrap shells set `backAvailable=false` when
@@ -574,14 +575,20 @@ unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
   A confirmed frame-copy capability survives the unknown support probe during
   an engine remount, preserving panel search/scroll on channel changes; the
   first unknown probe and confirmed native/unsupported results withhold it.
-  A live host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
-  `panelTitle`) and the panel slides that list over the video: left-edge hover
-  dwell, a touch tap on that edge, or `C`. The hot zone stays mounted above the
-  scrim and below the panel during opening, so a delayed paint cannot turn
+  A host provides `FULLSCREEN_CHANNEL_PANEL` (`panelTemplate` + optional
+  `panelTitle`, `panelSearchEnabled` and `panelKind: 'channels' | 'episodes'`;
+  the template context carries `searchTerm`, `open` and `close`) and the
+  panel slides that list over the video: left-edge hover
+  dwell, a click or tap on that edge, or `C`. The hot zone stays mounted above
+  the scrim and below the panel during opening, so a delayed paint cannot turn
   stationary hover into a synthetic leave. Nothing is drawn while it is closed
-  (no handle), the hot zone stops above the controls bar, and scrim/Escape/
-  mouse-leave close it — while a CDK overlay opened from the list counts as
-  the panel, so hover keeps it open and Escape closes the overlay first. The
+  and the pointer rests — mouse movement over the stage reveals a slim edge
+  hint tab that fades after 2.5 s idle — the hot zone stops above the controls
+  bar, and scrim/Escape/mouse-leave close it, mouse-leave after 1 s and only
+  once the pointer has been inside the panel (a `C`-opened panel survives the
+  mouse roaming over the video) — while a CDK overlay opened from the list
+  counts as the panel, so hover keeps it open and Escape closes the overlay
+  first. The
   header is one row (search whose placeholder carries the host title, plus
   close) and the list stays mounted per fullscreen session.
   `Settings.fullscreenChannelPanel` (default on) gates it, offered only for the
@@ -621,9 +628,28 @@ unchanged. Contract: `docs/architecture/m3u-playlist-module.md`
   ignored. Windowed commands keep the
   complete catalog.
   Xtream's two `PortalChannelsListComponent` instances relay favorite toggles
-  through `XtreamFavoriteMarksService`. CDK overlays follow the
+  through `XtreamFavoriteMarksService`. Series playback gets the same panel
+  as an episode list: `PortalInlinePlayerComponent` (the component both
+  series hosts render around the view, and the Up Next rail's host) is the
+  nearest provider — `panelKind: 'episodes'`, no search field (a title row
+  instead, `C` focuses the panel) — and stamps `app-fullscreen-episode-panel`
+  (`libs/ui/playback/src/lib/fullscreen-episode-panel/`: `SeasonTabsComponent`
+  over the selected season's rows with TMDB still or numeral tile, `S01E03`
+  label, runtime, clamped overview, progress bar, watched check and
+  now-playing marker; the tab follows the playing season, the playing row is
+  centred on open) built by `buildFullscreenEpisodePanelSeasons` from the
+  hosts' `seriesEpisodes` / `episodePlaybackPositions` / `seasonLoadStates`
+  inputs. An episode click travels `upNextEpisodeSelected` (the rail's path,
+  so fullscreen survives the engine remount) and closes the panel; a season
+  tab click travels `episodePanelSeasonSelected` into the hosts'
+  `onSeasonSelected` (Xtream TMDB season enrichment, Stalker lazy VOD season
+  load — a spinner row while in flight, a Retry row after a failed request).
+  Movies never get it, external
+  MPV/VLC never mount the inline player, native-view Embedded MPV is
+  withheld by the view. CDK overlays follow the
   fullscreen element via `FullscreenOverlayContainer`. Contract:
-  `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel").
+  `docs/architecture/player-controls-contract.md` ("Fullscreen channel panel",
+  "Fullscreen episode panel").
 - Embedded MPV seek steps (arrow keys, ±10 s buttons, `PlayerController.seekBy`)
   go through the relative `seekEmbeddedMpvBy` IPC: every backend forwards the
   delta as mpv `seek <delta> relative+exact` (addon export `seekBy`, helper

@@ -124,6 +124,24 @@ describe('main preload DB IPC contract', () => {
         );
     });
 
+    it('steps the zoom shortcuts through webFrame without any IPC', () => {
+        // Same frame-bound temporary zoom as the restore: a main-process
+        // setZoomLevel would write the per-URL entry the app's file://
+        // routing resets (issue #1109).
+        mockWebFrame.getZoomLevel.mockReturnValue(1);
+        mockIpcRenderer.invoke.mockClear();
+        mockIpcRenderer.send.mockClear();
+
+        expect(mockExposedApi?.adjustZoomLevel('in')).toBe(1.5);
+        expect(mockWebFrame.setZoomLevel).toHaveBeenCalledWith(1.5);
+
+        expect(mockExposedApi?.adjustZoomLevel('reset')).toBe(0);
+        expect(mockWebFrame.setZoomLevel).toHaveBeenCalledWith(0);
+
+        expect(mockIpcRenderer.invoke).not.toHaveBeenCalled();
+        expect(mockIpcRenderer.send).not.toHaveBeenCalled();
+    });
+
     it('covers every worker-backed DB operation exposed by the preload bridge', () => {
         const workerChannels = dbPreloadCases
             .map((contractCase) => contractCase.channel)

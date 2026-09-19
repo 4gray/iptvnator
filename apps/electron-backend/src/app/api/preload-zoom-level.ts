@@ -20,6 +20,11 @@
  * the call is harmless, and it still lands before the first Angular paint.
  */
 
+import {
+    stepZoomLevel,
+    type ZoomLevelAction,
+} from '@iptvnator/shared/interfaces/zoom-level';
+
 export interface PreloadZoomLevelPorts {
     /** `ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL)` — the stored level or null. */
     requestPersistedZoomLevel(): unknown;
@@ -60,4 +65,31 @@ export function applyPersistedZoomLevel(
     } catch {
         return null;
     }
+}
+
+/**
+ * Bridge half of the zoom shortcuts (`window.electron.adjustZoomLevel`):
+ * steps the frame's temporary level in place. Same `webFrame` route as the
+ * restore above, so the result is URL-independent and `getZoomLevel()` in the
+ * main process reports it for the close/quit/reload persistence. Returns the
+ * level now applied; a refused write leaves the frame as it was and returns
+ * its current level, so the caller never learns a level that is not on
+ * screen.
+ */
+export function adjustFrameZoomLevel(
+    ports: Pick<PreloadZoomLevelPorts, 'getZoomLevel' | 'setZoomLevel'>,
+    action: ZoomLevelAction
+): number {
+    const current = ports.getZoomLevel();
+    const next = stepZoomLevel(current, action);
+
+    if (next !== current) {
+        try {
+            ports.setZoomLevel(next);
+        } catch {
+            return current;
+        }
+    }
+
+    return next;
 }

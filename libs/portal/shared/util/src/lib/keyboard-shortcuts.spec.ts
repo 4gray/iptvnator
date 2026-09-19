@@ -2,6 +2,7 @@ import {
     APP_KEYBOARD_SHORTCUTS,
     getKeyboardShortcutGroups,
     isKeyboardShortcutHelpTrigger,
+    resolveZoomShortcutAction,
 } from './keyboard-shortcuts';
 
 describe('keyboard shortcuts registry', () => {
@@ -25,6 +26,9 @@ describe('keyboard shortcuts registry', () => {
         expect(ids).not.toContain('close-player-popovers');
         // The browser owns F11 in the PWA.
         expect(ids).not.toContain('toggle-window-fullscreen');
+        // ...and its own zoom keys.
+        expect(ids).not.toContain('zoom-in-out');
+        expect(ids).not.toContain('reset-zoom');
         expect(ids).toContain('open-command-palette');
         // Playback shortcuts run in every runtime: the built-in web players
         // attach them through the legacy shortcut wiring in the PWA too.
@@ -48,6 +52,125 @@ describe('keyboard shortcuts registry', () => {
         expect(findChordLabels(groups, 'toggle-window-fullscreen')).toEqual([
             ['F11'],
         ]);
+    });
+
+    it('lists the zoom shortcuts in the global group for Electron with platform modifiers', () => {
+        const linuxGroups = getKeyboardShortcutGroups({
+            isMac: false,
+            isElectron: true,
+        });
+        const macGroups = getKeyboardShortcutGroups({
+            isMac: true,
+            isElectron: true,
+        });
+
+        expect(
+            linuxGroups
+                .find((group) => group.id === 'global')
+                ?.items.map((item) => item.id)
+        ).toEqual(expect.arrayContaining(['zoom-in-out', 'reset-zoom']));
+        expect(findChordLabels(linuxGroups, 'zoom-in-out')).toEqual([
+            ['Ctrl', '+'],
+            ['Ctrl', '−'],
+        ]);
+        expect(findChordLabels(linuxGroups, 'reset-zoom')).toEqual([
+            ['Ctrl', '0'],
+        ]);
+        expect(findChordLabels(macGroups, 'zoom-in-out')).toEqual([
+            ['Cmd', '+'],
+            ['Cmd', '−'],
+        ]);
+    });
+
+    describe('resolveZoomShortcutAction', () => {
+        const press = (init: KeyboardEventInit) =>
+            new KeyboardEvent('keydown', init);
+        const other = { isMac: false };
+        const mac = { isMac: true };
+
+        it('maps Ctrl and +/=/-/_/0 on Windows and Linux', () => {
+            expect(
+                resolveZoomShortcutAction(press({ key: '=', ctrlKey: true }), other)
+            ).toBe('in');
+            // Ctrl+Shift+= reports the shifted character.
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: '+', ctrlKey: true, shiftKey: true }),
+                    other
+                )
+            ).toBe('in');
+            expect(
+                resolveZoomShortcutAction(press({ key: '-', ctrlKey: true }), other)
+            ).toBe('out');
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: '_', ctrlKey: true, shiftKey: true }),
+                    other
+                )
+            ).toBe('out');
+            expect(
+                resolveZoomShortcutAction(press({ key: '0', ctrlKey: true }), other)
+            ).toBe('reset');
+        });
+
+        it('accepts the numpad keys, including NumLock-off 0', () => {
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: '+', code: 'NumpadAdd', ctrlKey: true }),
+                    other
+                )
+            ).toBe('in');
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: '-', code: 'NumpadSubtract', ctrlKey: true }),
+                    other
+                )
+            ).toBe('out');
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: 'Insert', code: 'Numpad0', ctrlKey: true }),
+                    other
+                )
+            ).toBe('reset');
+        });
+
+        it('uses Cmd on macOS and Ctrl elsewhere, never Alt', () => {
+            expect(
+                resolveZoomShortcutAction(press({ key: '=', metaKey: true }), mac)
+            ).toBe('in');
+            expect(
+                resolveZoomShortcutAction(press({ key: '=', ctrlKey: true }), mac)
+            ).toBeNull();
+            expect(
+                resolveZoomShortcutAction(press({ key: '=', metaKey: true }), other)
+            ).toBeNull();
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: '=', ctrlKey: true, altKey: true }),
+                    other
+                )
+            ).toBeNull();
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: '=', ctrlKey: true, metaKey: true }),
+                    other
+                )
+            ).toBeNull();
+        });
+
+        it('ignores unmodified keys and unrelated combinations', () => {
+            expect(resolveZoomShortcutAction(press({ key: '=' }), other)).toBeNull();
+            expect(
+                resolveZoomShortcutAction(press({ key: 'k', ctrlKey: true }), other)
+            ).toBeNull();
+            // Digit0 with Shift is ")" on US layouts — not a reset.
+            expect(
+                resolveZoomShortcutAction(
+                    press({ key: ')', code: 'Digit0', ctrlKey: true, shiftKey: true }),
+                    other
+                )
+            ).toBeNull();
+        });
     });
 
     it('uses platform-specific modifier labels', () => {

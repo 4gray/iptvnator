@@ -112,6 +112,26 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         electronOnly: true,
     },
     {
+        // Frame-bound app zoom (issue #1109); the PWA leaves these keys to
+        // the browser's own zoom.
+        id: 'zoom-in-out',
+        group: 'global',
+        labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.ZOOM_IN_OUT',
+        icon: 'zoom_in',
+        keys: [commandChord('Plus'), commandChord('Minus')],
+        order: 60,
+        electronOnly: true,
+    },
+    {
+        id: 'reset-zoom',
+        group: 'global',
+        labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.RESET_ZOOM',
+        icon: 'youtube_searched_for',
+        keys: [commandChord('0')],
+        order: 70,
+        electronOnly: true,
+    },
+    {
         id: 'toggle-sidebar',
         group: 'navigation',
         labelKey: 'WORKSPACE.SHORTCUTS.ITEMS.TOGGLE_SIDEBAR',

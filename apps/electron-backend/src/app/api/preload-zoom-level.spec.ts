@@ -1,4 +1,7 @@
-import { applyPersistedZoomLevel } from './preload-zoom-level';
+import {
+    adjustFrameZoomLevel,
+    applyPersistedZoomLevel,
+} from './preload-zoom-level';
 
 function createPorts(saved: unknown, current = 0) {
     const parsed: Array<() => void> = [];
@@ -68,5 +71,48 @@ describe('applyPersistedZoomLevel', () => {
         expect(() => ports.parse()).not.toThrow();
 
         expect(ports.notifyApplied).not.toHaveBeenCalled();
+    });
+});
+
+describe('adjustFrameZoomLevel', () => {
+    function createFrame(current: number) {
+        return {
+            getZoomLevel: jest.fn(() => current),
+            setZoomLevel: jest.fn(),
+        };
+    }
+
+    it('steps the frame level through webFrame and reports the applied level', () => {
+        const frame = createFrame(0);
+
+        expect(adjustFrameZoomLevel(frame, 'in')).toBe(0.5);
+        expect(frame.setZoomLevel).toHaveBeenCalledWith(0.5);
+
+        const zoomed = createFrame(0.5);
+        expect(adjustFrameZoomLevel(zoomed, 'out')).toBe(0);
+        expect(zoomed.setZoomLevel).toHaveBeenCalledWith(0);
+    });
+
+    it('resets to level 0', () => {
+        const frame = createFrame(2.5);
+
+        expect(adjustFrameZoomLevel(frame, 'reset')).toBe(0);
+        expect(frame.setZoomLevel).toHaveBeenCalledWith(0);
+    });
+
+    it('does not write when the level is already at the limit', () => {
+        const frame = createFrame(6);
+
+        expect(adjustFrameZoomLevel(frame, 'in')).toBe(6);
+        expect(frame.setZoomLevel).not.toHaveBeenCalled();
+    });
+
+    it('reports the unchanged level when webFrame refuses the write', () => {
+        const frame = createFrame(1);
+        frame.setZoomLevel.mockImplementation(() => {
+            throw new Error('frame gone');
+        });
+
+        expect(adjustFrameZoomLevel(frame, 'in')).toBe(1);
     });
 });
