@@ -324,6 +324,17 @@ export class AppUpdateService {
         const catalog = this.catalogFor(
             request.version ? appVersionChannel(request.version) : this.channel
         );
+
+        return catalog.runExclusive(() =>
+            this.readReleaseNotes(catalog, request)
+        );
+    }
+
+    /** The exclusive section of `getReleaseNotes`: one reader per catalog. */
+    private async readReleaseNotes(
+        catalog: AppUpdateReleaseCatalog,
+        request: ElectronBridgeAppUpdateReleaseNotesRequest
+    ): Promise<ElectronBridgeAppUpdateReleaseNotes> {
         const canFallbackToLatest =
             !request.direction &&
             (!request.version || request.fallbackToLatest);
@@ -531,8 +542,11 @@ export class AppUpdateService {
      */
     private async checkGitHubReleaseForManualUpdate(): Promise<void> {
         const catalog = this.catalogFor(this.channel);
-        await catalog.ensureFirstReleaseLoaded();
-        const latestRelease = catalog.latest;
+        const latestRelease = await catalog.runExclusive(async () => {
+            await catalog.ensureFirstReleaseLoaded();
+
+            return catalog.latest;
+        });
 
         if (!latestRelease) {
             this.setStatus({

@@ -70,6 +70,7 @@ export class AppUpdateReleaseCatalog {
     releases: CachedGitHubRelease[] = [];
     loadedReleasePages = 0;
     loadedAllReleases = false;
+    private queue: Promise<unknown> = Promise.resolve();
 
     constructor(
         readonly channel: AppUpdateChannel,
@@ -91,6 +92,20 @@ export class AppUpdateReleaseCatalog {
         while (!this.loadedAllReleases && this.loadedReleasePages < page) {
             await this.loadPage(this.loadedReleasePages + 1);
         }
+    }
+
+    /**
+     * Runs `work` after every earlier caller's work has settled. A read
+     * computes an index into `releases` and dereferences it after awaiting
+     * more pages, and `findIndex` may rebuild the whole list in between,
+     * so two overlapping readers of one catalog must never interleave.
+     */
+    runExclusive<T>(work: () => Promise<T>): Promise<T> {
+        const run = this.queue.then(work, work);
+
+        this.queue = run.catch(() => undefined);
+
+        return run;
     }
 
     /** Forgets every loaded page so the next read starts from GitHub again. */

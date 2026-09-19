@@ -363,7 +363,11 @@ GitHub release list kept for the whole process, so `findIndex` reloads it
 once when a version is missing from a fully paged list — the updater had
 offered a nightly published after the catalog was first read, and "What's
 new" answered "not found" for it — and `handleUpdateAvailable` drops every
-catalog, since a newly found release proves the snapshots stale. The
+catalog, since a newly found release proves the snapshots stale. Readers
+of one catalog are serialized through `runExclusive` (both
+`getReleaseNotes` and the manual-update check): a read dereferences an
+index into `releases` after awaiting further pages, and that reload
+rebuilds the array, so two overlapping readers must never interleave. The
 not-found rejection carries the shared
 `APP_UPDATE_RELEASE_NOTES_NOT_FOUND_MARKER` text: `ipcRenderer.invoke`
 strips custom properties off rejections, so the dialog recognises the case

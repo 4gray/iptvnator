@@ -4,6 +4,7 @@ import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
+import { AppUpdateReleaseCatalog } from './app-update-release-catalog';
 import { AppUpdateService } from './app-update.service';
 
 class FakeUpdater extends EventEmitter {
@@ -791,6 +792,96 @@ describe('AppUpdateService', () => {
             'Release notes were not found for 0.23.1-nightly.20260916.9'
         );
         expect(fetcher).toHaveBeenCalledTimes(3);
+    });
+
+    it('serializes overlapping readers so a reload cannot pull the list out from under a navigation', async () => {
+        // Page 1 answers only once the gate opens, so both readers are in
+        // flight together; it is a full page (per_page is 10), so the release
+        // the navigation needs sits on page 2.
+        const pageOne = Array.from({ length: 10 }, (_, offset) => ({
+            body: `release ${34 - offset}`,
+            draft: false,
+            html_url: `https://github.com/4gray/iptvnator/releases/tag/v0.${34 - offset}.0`,
+            name: `v0.${34 - offset}.0`,
+            prerelease: false,
+            published_at: '2026-07-01T00:00:00.000Z',
+            tag_name: `v0.${34 - offset}.0`,
+        }));
+        const pageTwo = githubReleases.slice(1);
+        let openGate: () => void = () => undefined;
+        const gate = new Promise<void>((resolve) => {
+            openGate = resolve;
+        });
+        const fetcher = jest.fn(async (url: string) => {
+            const page = Number(new URL(url).searchParams.get('page') ?? '1');
+
+            if (page === 1) {
+                await gate;
+            }
+
+            return {
+                json: jest
+                    .fn()
+                    .mockResolvedValue(
+                        page === 1 ? pageOne : page === 2 ? pageTwo : []
+                    ),
+                ok: true,
+                status: 200,
+                statusText: 'OK',
+            };
+        });
+        const { service } = createService({ fetcher });
+
+        // A version GitHub does not have: this reader resets the catalog.
+        const missing = service.getReleaseNotes({ version: '0.99.0' });
+        // A navigation that dereferences an index after paging further.
+        const navigation = service.getReleaseNotes({
+            direction: 'previous',
+            version: 'v0.23.0',
+        });
+        openGate();
+
+        await expect(missing).rejects.toThrow(
+            'Release notes were not found for 0.99.0'
+        );
+        await expect(navigation).resolves.toMatchObject({
+            tagName: 'v0.22.0',
+            hasNext: true,
+            hasPrevious: false,
+        });
+    });
+
+    it('runs catalog work one caller at a time and survives a rejected caller', async () => {
+        const catalog = new AppUpdateReleaseCatalog(
+            'stable',
+            createReleaseFetcher(),
+            'iptvnator/test'
+        );
+        const order: string[] = [];
+        let finishFirst: () => void = () => undefined;
+
+        const first = catalog.runExclusive(async () => {
+            order.push('first:start');
+            await new Promise<void>((resolve) => {
+                finishFirst = resolve;
+            });
+            order.push('first:end');
+            throw new Error('first failed');
+        });
+        const second = catalog.runExclusive(async () => {
+            order.push('second:start');
+
+            return 'second';
+        });
+        await Promise.resolve();
+
+        expect(order).toEqual(['first:start']);
+
+        finishFirst();
+
+        await expect(first).rejects.toThrow('first failed');
+        await expect(second).resolves.toBe('second');
+        expect(order).toEqual(['first:start', 'first:end', 'second:start']);
     });
 
     it('forgets loaded catalogs once the updater reports a newer release', async () => {
