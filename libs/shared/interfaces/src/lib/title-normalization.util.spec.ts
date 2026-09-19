@@ -1,4 +1,5 @@
 import {
+    cleanTitleForSearch,
     normalizeTitle,
     normalizeTitleKeys,
     titleYearsCompatible,
@@ -427,5 +428,82 @@ describe('titleYearsCompatible', () => {
 
     it('rejects contradicting years', () => {
         expect(titleYearsCompatible(1982, 2049)).toBe(false);
+    });
+});
+
+describe('cleanTitleForSearch', () => {
+    it('keeps Cyrillic letters that folding would rewrite', () => {
+        // NFD splits "й" into "и" + a breve and "ё" into "е" + a diaeresis;
+        // the comparison key drops both marks, and TMDB answers the folded
+        // spelling with nothing (issue: "Фейк (10 серий)" never matched).
+        expect(normalizeTitle('Фейк (10 серий)')).toBe('феик');
+        expect(cleanTitleForSearch('Фейк (10 серий)')).toBe('Фейк');
+        expect(cleanTitleForSearch('Ёлки 2010')).toBe('Ёлки');
+        expect(cleanTitleForSearch('Волшебный участок s02')).toBe(
+            'Волшебный участок'
+        );
+    });
+
+    it('keeps Arabic hamza forms that folding splits into two words', () => {
+        // "أ" decomposes into a bare alef + U+0654, which is outside the
+        // stripped mark range and so becomes a SPACE in the key. TMDB finds
+        // "أطرق بابي" and nothing for "ا طرق بابي".
+        expect(normalizeTitle('AR| أطرق بابي')).toBe('ا طرق بابي');
+        expect(cleanTitleForSearch('AR| أطرق بابي')).toBe('أطرق بابي');
+    });
+
+    it('keeps Latin diacritics and casing', () => {
+        expect(cleanTitleForSearch('Amélie (2001)')).toBe('Amélie');
+        expect(cleanTitleForSearch('THE LAST OF US')).toBe('THE LAST OF US');
+    });
+
+    it('recomposes decomposed input and keeps marks attached to their letter', () => {
+        // Providers ship "Dönüş" as "o" + U+0308; the key folds it away but
+        // the query must not split the word on the combining mark.
+        expect(
+            cleanTitleForSearch(
+                '1942\u2032ye Do\u0308nu\u0308s\u0327 (2012) TR'
+            )
+        ).toBe('1942 ye Dönüş');
+        expect(
+            normalizeTitle('1942\u2032ye Do\u0308nu\u0308s\u0327 (2012) TR')
+        ).toBe('1942 ye donus');
+        // No precomposed form exists for "ọ̀": the mark stays on the letter
+        expect(cleanTitleForSearch('AR - Ìjọ̀gbọ̀n (2023)')).toBe('Ìjọ̀gbọ̀n');
+        expect(normalizeTitle('AR - Ìjọ̀gbọ̀n (2023)')).toBe('ijogbon');
+    });
+
+    it('applies the same tag, bracket, season and year stripping as the key', () => {
+        expect(cleanTitleForSearch('EN - The Matrix (1999) 4K')).toBe(
+            'The Matrix'
+        );
+        expect(cleanTitleForSearch('|DE| Breaking Bad-DE')).toBe(
+            'Breaking Bad'
+        );
+        expect(cleanTitleForSearch('The Boys s05')).toBe('The Boys');
+        expect(cleanTitleForSearch('Пацаны 2 сезон')).toBe('Пацаны');
+        expect(cleanTitleForSearch('The Matrix 1999')).toBe('The Matrix');
+        // A leading token that is the film's own name survives on both tiers
+        expect(cleanTitleForSearch('AKA - 2023')).toBe('AKA');
+        expect(normalizeTitle('AKA - 2023')).toBe('aka');
+    });
+
+    it('normalizes to the same key as the text it was derived from', () => {
+        for (const raw of [
+            'Фейк (10 серий)',
+            'EN - The Matrix (1999) 4K',
+            'Ёлки 2010',
+            'Amélie (2001)',
+            '|FR|VO|Le dernier empereur',
+        ]) {
+            expect(normalizeTitle(cleanTitleForSearch(raw))).toBe(
+                normalizeTitle(raw)
+            );
+        }
+    });
+
+    it('returns an empty string for empty input', () => {
+        expect(cleanTitleForSearch('')).toBe('');
+        expect(cleanTitleForSearch(null)).toBe('');
     });
 });

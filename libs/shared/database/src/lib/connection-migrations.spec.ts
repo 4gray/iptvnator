@@ -139,8 +139,16 @@ describe('runMigrations error tolerance', () => {
     });
 });
 
-describe('TMDB search lookup v2 cache cleanup', () => {
-    it('deletes legacy search rows and records the migration atomically', () => {
+describe('TMDB search lookup cache cleanup', () => {
+    function deleteStatements(sqlite: SqliteHandle): string[] {
+        return (sqlite.prepare as jest.Mock).mock.calls
+            .map(([statement]) => compactSql(statement))
+            .filter((statement) =>
+                statement.includes('DELETE FROM tmdb_metadata')
+            );
+    }
+
+    it('deletes every retired key generation and records each migration atomically', () => {
         const deleteRun = jest.fn();
         const markerRun = jest.fn();
         const { sqlite, transaction } = createSqliteMock([
@@ -151,22 +159,51 @@ describe('TMDB search lookup v2 cache cleanup', () => {
 
         cleanupLegacyTmdbSearchCache(sqlite);
 
-        expect(transaction).toHaveBeenCalledTimes(1);
-        expect(deleteRun).toHaveBeenCalledTimes(1);
-        expect(markerRun).toHaveBeenCalledWith(
-            'migration:tmdb-search-lookup-v2-cache-cleanup:v1'
-        );
-        const deleteSql = compactSql(
-            (sqlite.prepare as jest.Mock).mock.calls.find(([statement]) =>
-                statement.includes('DELETE FROM tmdb_metadata')
-            )?.[0]
-        );
-        expect(deleteSql).toContain(
+        expect(transaction).toHaveBeenCalledTimes(2);
+        expect(deleteRun).toHaveBeenCalledTimes(2);
+        expect(markerRun.mock.calls.map(([key]) => key)).toEqual([
+            'migration:tmdb-search-lookup-v2-cache-cleanup:v1',
+            'migration:tmdb-search-lookup-v3-cache-cleanup:v1',
+        ]);
+        const [unversionedDelete, v2Delete] = deleteStatements(sqlite);
+        expect(unversionedDelete).toContain(
             "lookup_key LIKE 'title:%|year:%' AND lookup_key NOT LIKE 'title:%|year:%|v%'"
         );
+        // Only v2 search rows: the v3 rows the resolver writes now, and the
+        // `id:`/`person:`/`badProviderId:` rows, must survive.
+        expect(v2Delete).toContain("WHERE lookup_key LIKE 'title:%|year:%|v2'");
+        expect(v2Delete).not.toContain('v3');
     });
 
-    it('does nothing after the migration has completed', () => {
+    it('runs only the generations that have not completed yet', () => {
+        const markerRun = jest.fn();
+        const { sqlite, transaction } = createSqliteMock([
+            [
+                'SELECT value FROM app_state',
+                {
+                    get: (key: unknown) =>
+                        key ===
+                        'migration:tmdb-search-lookup-v2-cache-cleanup:v1'
+                            ? { value: 'done' }
+                            : undefined,
+                },
+            ],
+            ['INSERT INTO app_state', { run: markerRun }],
+        ]);
+
+        cleanupLegacyTmdbSearchCache(sqlite);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(markerRun).toHaveBeenCalledTimes(1);
+        expect(markerRun).toHaveBeenCalledWith(
+            'migration:tmdb-search-lookup-v3-cache-cleanup:v1'
+        );
+        expect(deleteStatements(sqlite)).toEqual([
+            expect.stringContaining("lookup_key LIKE 'title:%|year:%|v2'"),
+        ]);
+    });
+
+    it('does nothing after every migration has completed', () => {
         const { sqlite, prepare, transaction } = createSqliteMock([
             completedMigrationStateRule,
         ]);
@@ -174,7 +211,8 @@ describe('TMDB search lookup v2 cache cleanup', () => {
         cleanupLegacyTmdbSearchCache(sqlite);
 
         expect(transaction).not.toHaveBeenCalled();
-        expect(prepare).toHaveBeenCalledTimes(1);
+        // One marker read per retired generation, nothing else
+        expect(prepare).toHaveBeenCalledTimes(2);
     });
 });
 

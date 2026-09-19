@@ -79,11 +79,26 @@ describe('extractYear', () => {
 
 describe('lookup keys', () => {
     it('builds stable search and details keys', () => {
-        expect(buildSearchLookupKey('the matrix', 1999)).toBe(
-            'title:the matrix|year:1999|v2'
+        expect(buildSearchLookupKey('The Matrix', 1999)).toBe(
+            'title:the matrix|year:1999|v3'
         );
-        expect(buildSearchLookupKey('the matrix', null)).toBe(
-            'title:the matrix|year:|v2'
+        expect(buildSearchLookupKey('The Matrix', null)).toBe(
+            'title:the matrix|year:|v3'
+        );
+    });
+
+    it('keys search rows by the wire spelling, not the folded key', () => {
+        // "Феик" and "Фейк" fold to one comparison key but are different
+        // searches with different answers; a verdict cached for one must
+        // never be read back for the other.
+        expect(buildSearchLookupKey('Фейк', 2026)).toBe(
+            'title:фейк|year:2026|v3'
+        );
+        expect(buildSearchLookupKey('Феик', 2026)).not.toBe(
+            buildSearchLookupKey('Фейк', 2026)
+        );
+        expect(buildSearchLookupKey('THE BOYS', 2019)).toBe(
+            buildSearchLookupKey('The Boys', 2019)
         );
         expect(buildDetailsLookupKey(603)).toBe('id:603|v2');
     });
@@ -92,34 +107,70 @@ describe('lookup keys', () => {
 describe('buildSearchTitleVariants', () => {
     it('orders original title before display title', () => {
         expect(buildSearchTitleVariants('Пацаны', 'The Boys')).toEqual([
-            'the boys',
-            'пацаны',
+            { query: 'The Boys', normalized: 'the boys' },
+            { query: 'Пацаны', normalized: 'пацаны' },
         ]);
     });
 
     it('adds a language-prefix-stripped fallback variant', () => {
         expect(buildSearchTitleVariants('DE Batman', null)).toEqual([
-            'de batman',
-            'batman',
+            { query: 'DE Batman', normalized: 'de batman' },
+            { query: 'Batman', normalized: 'batman' },
         ]);
-        expect(
-            buildSearchTitleVariants('English The Godfather', null)
-        ).toEqual(['english the godfather', 'the godfather']);
+        expect(buildSearchTitleVariants('English The Godfather', null)).toEqual(
+            [
+                {
+                    query: 'English The Godfather',
+                    normalized: 'english the godfather',
+                },
+                { query: 'The Godfather', normalized: 'the godfather' },
+            ]
+        );
     });
 
     it('keeps titles that merely look like prefixed ones as the primary variant', () => {
         // "It Follows" must be searched as-is first; the stripped variant
         // is only a fallback
-        expect(buildSearchTitleVariants('It Follows', null)[0]).toBe(
-            'it follows'
-        );
+        expect(buildSearchTitleVariants('It Follows', null)[0]).toEqual({
+            query: 'It Follows',
+            normalized: 'it follows',
+        });
     });
 
-    it('deduplicates and drops empty values', () => {
+    it('sends the provider spelling to the search but compares on the folded key', () => {
+        // The folded key rewrites "й" as "и"; TMDB finds nothing for it.
+        expect(buildSearchTitleVariants('Фейк (10 серий)', null)).toEqual([
+            { query: 'Фейк', normalized: 'феик' },
+        ]);
+        // Arabic hamza forms fold into a space inside the word
+        expect(buildSearchTitleVariants('إيمان', null)).toEqual([
+            { query: 'إيمان', normalized: 'ا يمان' },
+        ]);
+    });
+
+    it('deduplicates by the wire spelling and drops empty values', () => {
         expect(buildSearchTitleVariants('The Boys', 'The Boys')).toEqual([
-            'the boys',
+            { query: 'The Boys', normalized: 'the boys' },
+        ]);
+        // Case alone is not a different search
+        expect(buildSearchTitleVariants('the boys', 'The Boys')).toEqual([
+            { query: 'The Boys', normalized: 'the boys' },
         ]);
         expect(buildSearchTitleVariants('', null)).toEqual([]);
+    });
+
+    it('keeps spellings that fold to one key but differ on the wire', () => {
+        // A misspelled original title must not swallow the display title:
+        // TMDB knows "Фейк" and not "Феик", and only the second variant
+        // would find it.
+        expect(buildSearchTitleVariants('Фейк', 'Феик')).toEqual([
+            { query: 'Феик', normalized: 'феик' },
+            { query: 'Фейк', normalized: 'феик' },
+        ]);
+        expect(buildSearchTitleVariants('Amelie', 'Amélie')).toEqual([
+            { query: 'Amélie', normalized: 'amelie' },
+            { query: 'Amelie', normalized: 'amelie' },
+        ]);
     });
 });
 
