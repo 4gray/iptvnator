@@ -18,6 +18,7 @@ import {
     OPEN_STALKER_LIVE_PLAYLIST_STATE_KEY,
     OPEN_STALKER_LIVE_POSTER_STATE_KEY,
     OPEN_STALKER_LIVE_TITLE_STATE_KEY,
+    resolveStalkerProviderId,
 } from '@iptvnator/portal/shared/util';
 
 /** The slice of `StalkerStore` the auto-open flow reads and drives. */
@@ -235,12 +236,13 @@ export class StalkerLiveAutoOpen {
             return;
         }
 
+        // Match on the same "first non-blank provider id" the handoff was
+        // built from: a cached row can carry a blank `id` beside `stream_id`.
         const item =
             store
                 .itvFullChannelList()
                 .find(
-                    (channel) =>
-                        normalizeStalkerEntityId(channel.id) === pendingId
+                    (channel) => resolveStalkerProviderId(channel) === pendingId
                 ) ?? null;
         untracked(() => this.settle(item));
     }

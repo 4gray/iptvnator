@@ -402,6 +402,23 @@ describe('StalkerLiveAutoOpen', () => {
         expect(store.setSelectedCategory).toHaveBeenCalledWith('7');
     });
 
+    it('matches a cached channel whose blank id sits beside its stream_id', () => {
+        const byStreamId = {
+            id: '',
+            stream_id: 30,
+            cmd: 'x',
+            name: 'Stream id only',
+            tv_genre_id: 7,
+        } as unknown as StalkerItvChannel;
+        store.itvFullListActive.set(true);
+        store.itvFullChannelList.set([byStreamId]);
+
+        arrive();
+        serveRows(byStreamId);
+
+        expect(play).toHaveBeenCalledWith(byStreamId);
+    });
+
     it('does nothing outside the ITV section', () => {
         store.selectedContentType.set('radio');
         store.itvFullListActive.set(true);
