@@ -60,15 +60,26 @@ export function guidanceAnchors(markdown) {
 }
 
 function isLiteralRepositoryPath(token) {
-    const local =
-        /^(?:apps|libs|docs|tools|patches|\.codex|\.claude|\.github|\.changes|\.plans)\//u.test(
+    // A typo in the directory or a new root filename must still be checked.
+    // Exclude recognizable prose/code forms instead of allowlisting paths.
+    if (/^(?:@|--|[a-z][a-z\d+.-]*:|\/\/)/iu.test(token)) return false;
+    if (/[^\p{L}\p{N}_./#-]/u.test(token)) return false;
+    if (token.includes('YYYY-MM-DD') || /(?:^|\/)\.\.\.(?:\/|$)/u.test(token))
+        return false;
+    // Recognized JavaScript globals are code-symbol exceptions, not a claim
+    // that every dotted code expression can be distinguished from a filename.
+    if (
+        /^(?:window|document|console|process|globalThis|this|Math|JSON|Object|Array|Promise|Reflect|Symbol)\.[\p{L}_][\p{L}\p{N}_]*$/u.test(
             token
-        ) ||
-        /^(?:AGENTS\.md|CLAUDE\.md|README\.md|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|nx\.json|tsconfig\.base\.json|eslint\.config\.mjs|\.nvmrc)$/u.test(
-            token
-        );
+        )
+    )
+        return false;
+    const path = token.split('#')[0];
     return (
-        local && !/[\s*?[\]{}<>|]/u.test(token) && !token.includes('YYYY-MM-DD')
+        path.includes('/') ||
+        /^(?:\.[\p{L}\p{N}_-]+|[\p{L}\p{N}_-][\p{L}\p{N}_.-]*\.[\p{L}][\p{L}\p{N}_-]*)$/u.test(
+            path
+        )
     );
 }
 

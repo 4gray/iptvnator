@@ -165,6 +165,80 @@ test('literal root paths validate without interpreting commands or globs', async
         /does not exist/
     );
 });
+for (const path of [
+    'lib/definitely-missing.ts',
+    'services/definitely-missing.ts',
+    'electron-builder.json',
+    'custom.config-format',
+    '.custom-config',
+    'arbitrary/directory',
+]) {
+    test(`checks generic literal repository path ${path}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { [map]: '`' + path + '`' })).join('\n'),
+            /does not exist/
+        );
+        assert.deepEqual(
+            await diagnostics(t, { [map]: '`' + path + '`', [path]: '' }),
+            []
+        );
+    });
+}
+test('AGENTS rejects the reported unlisted directory and root filename', async (t) => {
+    const errors = await diagnostics(t, {
+        'AGENTS.md':
+            '`services/definitely-missing.ts` and `electron-builder.json`',
+    });
+    assert.equal(errors.length, 2);
+    assert.match(
+        errors.join('\n'),
+        /does not exist: services\/definitely-missing\.ts/
+    );
+    assert.match(errors.join('\n'), /does not exist: electron-builder\.json/);
+});
+test('literal paths retain fragment checks', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, { [map]: '`docs/example.md#hello-world`' }),
+        []
+    );
+    assert.match(
+        (await diagnostics(t, { [map]: '`docs/example.md#missing`' })).join(
+            '\n'
+        ),
+        /missing anchor/
+    );
+});
+test('literal detection excludes commands, templates, URLs, aliases and code expressions', async (t) => {
+    const examples = [
+        'pnpm nx test web',
+        'node tools/example.mjs',
+        '--config=missing.json',
+        'docs/*.md',
+        'docs/{one,two}.md',
+        'docs/<topic>.md',
+        '.plans/YYYY-MM-DD-short-topic.md',
+        'docs/.../example.md',
+        'https://example.com/guide.md',
+        'file:///tmp/example.md',
+        '@iptvnator/services',
+        '@angular/core',
+        'node:fs/promises',
+        'window.electron',
+        'document.body',
+        'process.env',
+        'this.store',
+        'store.setState()',
+        'source?.id',
+        'a/b+c',
+        '$HOME/example.md',
+    ];
+    assert.deepEqual(
+        await diagnostics(t, {
+            [map]: examples.map((value) => '`' + value + '`').join(' '),
+        }),
+        []
+    );
+});
 test('rejects traversal and symlink escapes', async (t) => {
     const rootDir = await fixture(t, {
         'AGENTS.md': '[Escape](../outside.md) [Symlink](outside)',

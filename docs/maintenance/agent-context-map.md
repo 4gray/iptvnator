@@ -11,7 +11,7 @@ are not prerequisites for reading repository contracts.
 
 | Area / code ownership | Canonical documents | Repository skill |
 | --- | --- | --- |
-| Bootstrap, project placement, dependencies, aliases and lint configuration; root Nx config and `project.json` files | [Nx boundaries](../architecture/nx-workspace-boundaries.md), [security overrides](../architecture/dependency-security-overrides.md) | [Nx architecture](../../.codex/skills/iptvnator-nx-architecture/SKILL.md) |
+| Bootstrap, project placement, dependencies, aliases and lint configuration; root Nx config and project-local project.json files | [Nx boundaries](../architecture/nx-workspace-boundaries.md), [security overrides](../architecture/dependency-security-overrides.md) | [Nx architecture](../../.codex/skills/iptvnator-nx-architecture/SKILL.md) |
 | Angular conventions; docs and skills maintenance | [Agent workflow](../development/agent-workflow.md) | Use the area's skill below |
 | Unit, E2E, lint and coverage; `tools/coverage` | [Validation map](../architecture/validation-map.md) | Use the area's validation section |
 | Electron entry/events/preload and CDP; `apps/electron-backend` | [Debugging and trace flags](../development/electron-debugging.md), [Electron security](../architecture/electron-security.md) | Use the available global electron skill for automation |

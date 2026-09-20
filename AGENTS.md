@@ -108,7 +108,7 @@ use repository documentation and available CLI discovery.
 ## General Guidelines for working with Nx
 
 - For workspace exploration, use the `nx-workspace` skill when available;
-  otherwise inspect `project.json`, `pnpm nx show projects` and `pnpm nx graph`.
+  otherwise inspect project-local project.json files, `pnpm nx show projects` and `pnpm nx graph`.
 - Run project tasks through local `pnpm nx`, not a global Nx installation.
 - Use the Nx MCP server when available; otherwise use CLI discovery.
 - Check `node_modules/@nx/<plugin>/PLUGIN.md` for plugin guidance when present.
