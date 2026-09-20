@@ -23,7 +23,6 @@ export const maxLinesBaseline = [
     'apps/web/src/app/services/electron.service.ts',
     'apps/web/src/app/services/pwa.service.ts',
     'apps/xtream-mock-server/src/app/generators/marketing.generator.ts',
-    'libs/epg/data-access/src/lib/epg.service.ts',
     'libs/m3u-state/src/lib/effects.ts',
     'libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts',
     'libs/playlist/shared/ui/src/lib/playlist-switcher/playlist-switcher.component.ts',

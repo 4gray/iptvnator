@@ -978,7 +978,34 @@ These URLs are playlist-scoped by default:
   TTL expires.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
-  playlists are not treated as global fallback sources. Single-channel current
+  playlists are not treated as global fallback sources. The one opt-out is
+  `EpgLookupOptions.anySourceFallback` (renderer-only, never forwarded to the
+  bridge): after the scope — playlist sources, then the global ones — has
+  answered, the keys still without a programme are retried once against every
+  imported source through the source-less batch path and its cache. The
+  ladder has the same shape with or without the bridge's batch endpoint: on
+  an older preload the scoped pass runs as per-channel scoped lookups
+  (`getScopedCurrentProgramForChannel`, same scope -> fallback-scope walk,
+  same scoped cache key) and only the any-source retry is source-less.
+  Collapsing that preload straight into the source-less lookup would drop
+  the caller's scope, which is what the scopes exist to prevent. The
+  dashboard live
+  rails pass the option: without it a favourite whose guide only exists in
+  another playlist's XMLTV showed no programme on the dashboard while its
+  "See all" row — resolved by `StreamResolverService`, which never scopes by
+  source — had one. They still ask **per source scope**, one lookup per
+  distinct set of playlist-declared XMLTV URLs, and namespace the answers by
+  that scope: a `tvg-id` is unique inside a guide, not across imports, so a
+  single flat map keyed by lookup key alone would hand one playlist's card
+  the programme another playlist's guide resolved for the same id. Playlists
+  sharing a guide share one lookup. Only a card that carries a real XMLTV key
+  is widened: an Xtream or Stalker card has none, so its lookup key is just
+  its display title, and searching every guide by title would let a
+  same-named M3U channel answer for a portal channel. Those cards keep the
+  strict scope (their own programmes come from the portal), and the
+  any-source flag is part of the scope identity so the two never share an
+  answer. Wiring: `DashboardLiveEpgPresenter` in
+  `libs/workspace/dashboard/feature/src/lib/rails/`. The channel list keeps the strict scope. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped
