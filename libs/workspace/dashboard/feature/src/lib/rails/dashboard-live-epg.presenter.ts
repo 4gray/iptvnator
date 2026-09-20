@@ -19,12 +19,12 @@ import {
     switchMap,
 } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
-import type {
-    EpgProgram,
-    PortalActivityItem,
+import {
+    normalizeDashboardRailsSettings,
+    type EpgProgram,
+    type PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
-import { normalizeDashboardRailsSettings } from '@iptvnator/shared/interfaces';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import {
     buildDashboardPortalLiveEpgKey,
@@ -131,17 +131,25 @@ export class DashboardLiveEpgPresenter {
         { initialValue: new Map<string, EpgProgram | null>() }
     );
 
+    private readonly rails = computed(() =>
+        normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
+    );
+
+    /** The live row behind the hero panel, when that rail shows one. */
+    private readonly heroLiveItem = computed<PortalActivityItem | null>(() => {
+        const hero = this.data.globalRecentItems()[0] ?? null;
+        return this.rails().hero && hero?.type === 'live' ? hero : null;
+    });
+
     // The Xtream/Stalker live rows behind the hero and the two live rails.
     // Their programmes come from the portal, asked for lazily per visible
     // card; M3U rows stay on the XMLTV batch above.
     private readonly portalItems = computed<readonly PortalActivityItem[]>(
         () => {
-            const rails = normalizeDashboardRailsSettings(
-                this.settingsStore.dashboardRails?.()
-            );
-            const hero = this.data.globalRecentItems()[0] ?? null;
+            const rails = this.rails();
+            const hero = this.heroLiveItem();
             return [
-                ...(rails.hero && hero?.type === 'live' ? [hero] : []),
+                ...(hero ? [hero] : []),
                 ...(rails.liveFavorites
                     ? this.data
                           .globalFavoriteLiveItems()
@@ -160,12 +168,12 @@ export class DashboardLiveEpgPresenter {
         this.portal.connect(this.portalItems);
         // The hero sits at the top of the page and is never scrolled into
         // view, so its key is wanted regardless of what the rails report.
+        // Only the hero: the first entry of `portalItems` is a favourite
+        // when that rail is hidden, and pinning it would keep asking for a
+        // card nobody can see.
         effect(() => {
-            const [first] = this.portalItems();
-            const heroKey =
-                first?.type === 'live'
-                    ? buildDashboardPortalLiveEpgKey(first)
-                    : null;
+            const hero = this.heroLiveItem();
+            const heroKey = hero ? buildDashboardPortalLiveEpgKey(hero) : null;
             untracked(() => this.portal.setPinnedKeys([heroKey]));
         });
     }

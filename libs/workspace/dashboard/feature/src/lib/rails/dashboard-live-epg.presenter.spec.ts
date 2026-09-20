@@ -2,7 +2,12 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { EMPTY, of, throwError } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
-import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    DEFAULT_DASHBOARD_RAILS_SETTINGS,
+    type EpgProgram,
+    type PlaylistMeta,
+    type PortalActivityItem,
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
@@ -37,6 +42,10 @@ describe('DashboardLiveEpgPresenter', () => {
     let presenter: DashboardLiveEpgPresenter;
     let getCurrentProgramsForChannels: jest.Mock;
     let playlists: ReturnType<typeof signal<PlaylistMeta[]>>;
+    let recentItems: ReturnType<typeof signal<PortalActivityItem[]>>;
+    let dashboardRails: ReturnType<
+        typeof signal<typeof DEFAULT_DASHBOARD_RAILS_SETTINGS>
+    >;
     /** Portal answers are the sibling presenter's job; stub it out here. */
     let portal: {
         connect: jest.Mock;
@@ -64,6 +73,8 @@ describe('DashboardLiveEpgPresenter', () => {
             { _id: 'portal', serverUrl: 'http://portal' } as PlaylistMeta,
         ]);
 
+        recentItems = signal<PortalActivityItem[]>([]);
+        dashboardRails = signal({ ...DEFAULT_DASHBOARD_RAILS_SETTINGS });
         portal = {
             connect: jest.fn(),
             setPinnedKeys: jest.fn(),
@@ -84,7 +95,7 @@ describe('DashboardLiveEpgPresenter', () => {
                     useValue: {
                         playlists,
                         // The presenter also derives the portal source list.
-                        globalRecentItems: signal([]),
+                        globalRecentItems: recentItems,
                         globalFavoriteLiveItems: signal([]),
                         globalRecentLiveItems: signal([]),
                     },
@@ -97,7 +108,7 @@ describe('DashboardLiveEpgPresenter', () => {
                     provide: SettingsStore,
                     useValue: {
                         resolvedEpgOffsetMinutes: () => 0,
-                        dashboardRails: signal(undefined),
+                        dashboardRails,
                     },
                 },
             ],
@@ -164,6 +175,32 @@ describe('DashboardLiveEpgPresenter', () => {
         expect(presenter.detailsFor(portalCard)?.nowPlayingTitle).toBe(
             'From Settings only'
         );
+    });
+
+    it('pins the hero row only while the hero rail shows one', () => {
+        const heroLive = {
+            id: 'x-7',
+            title: 'Hero channel',
+            type: 'live',
+            source: 'xtream',
+            playlist_id: 'p',
+            category_id: '1',
+            xtream_id: 7,
+        } as PortalActivityItem;
+        recentItems.set([heroLive]);
+        TestBed.tick();
+
+        expect(portal.setPinnedKeys).toHaveBeenLastCalledWith(['xtream::p::7']);
+
+        // With the rail hidden nothing is pinned: the first portal row is
+        // then a favourite, and pinning it would keep asking for a card
+        // nobody can see.
+        dashboardRails.set({
+            ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+            hero: false,
+        });
+        TestBed.tick();
+        expect(portal.setPinnedKeys).toHaveBeenLastCalledWith([null]);
     });
 
     it('prefers the portal answer and forwards what the portal presenter owns', () => {
