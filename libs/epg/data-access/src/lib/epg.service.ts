@@ -19,6 +19,7 @@ import { EpgProgramCache } from './epg-program-cache';
 import { EpgChannelMetadataLookup } from './epg-channel-metadata.lookup';
 import { EpgCurrentProgramsLookup } from './epg-current-programs.lookup';
 import { EpgSingleProgramLookup } from './epg-single-program.lookup';
+import { EpgScopedBatchLookup } from './epg-scoped-batch.lookup';
 import type { EpgLookupContext } from './epg-lookup-context';
 import {
     normalizeLookupChannelIds,
@@ -76,7 +77,8 @@ export class EpgService {
     );
     private readonly currentPrograms = new EpgCurrentProgramsLookup(
         this.lookupContext,
-        this.singleProgram
+        this.singleProgram,
+        new EpgScopedBatchLookup(this.lookupContext)
     );
 
     /** Display offset every "currently airing" decision in here is made with. */
