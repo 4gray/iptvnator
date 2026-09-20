@@ -812,7 +812,15 @@ for (const filename of [
     });
 }
 
-for (const version of ['22.1.6', '^22.1.6', 'next']) {
+for (const version of [
+    '22.1.6',
+    '^22.1.6',
+    'next',
+    '>=22.0.0',
+    '<=22.0.0',
+    '>22.0.0',
+    '<22.0.0',
+]) {
     test(`declared package can include version ${version}`, async (t) => {
         assert.deepEqual(
             await diagnostics(t, {
@@ -1005,3 +1013,21 @@ for (const suffix of ["'s", '’s']) {
         );
     });
 }
+
+for (const suffix of ['', '.']) {
+    test(`existing extensionless inline import is rejected: ${suffix}`, async (t) => {
+        const result = await diagnostics(t, {
+            'CLAUDE.md': '@AGENTS.md\n\nRead @INSTRUCTIONS' + suffix,
+            INSTRUCTIONS: 'Additional guidance',
+        });
+        assert.ok(
+            result.some((message) => message.includes('additional or inline'))
+        );
+    });
+}
+test('ordinary unknown handle is not a file import', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, { 'AGENTS.md': 'Ask @maintainer' }),
+        []
+    );
+});

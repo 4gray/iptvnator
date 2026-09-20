@@ -1,5 +1,5 @@
 import ts from 'typescript';
-import { readFile, realpath } from 'node:fs/promises';
+import { readFile, realpath, stat } from 'node:fs/promises';
 import {
     dirname,
     extname,
@@ -117,7 +117,7 @@ async function packageMentions(rootDir) {
         let token = raw.replace(/[?!.,;:)"'\]}]+$/u, '');
         token = token.replace(/['’]s$/iu, '');
         token = token.replace(
-            /^([^/@]+(?:\/[^/@]+)?)@(?:[~^]?\d[\w.+-]*|[a-z][\w-]*)$/iu,
+            /^([^/@]+(?:\/[^/@]+)?)@(?:(?:[~^]|[<>]=?|=)?\d[\w.+-]*|[a-z][\w-]*)$/iu,
             '$1'
         );
         if (
@@ -170,18 +170,30 @@ export async function validateAgentGuidance({ rootDir }) {
             const unfenced = guidanceProse(markdown);
             const imports = guidanceStandaloneImports(markdown);
             const prose = unfenced.replace(/`[^`\n]+`/gu, '');
-            const inlineImports = [
-                ...prose.matchAll(/(?:^|[^\p{L}\p{N}_@])@([^\s]+)/gu),
-            ]
-                .map((match) => match[1])
-                .filter(
-                    (token) =>
-                        !isPackageMention(token) &&
-                        (/[./\\]/u.test(token) ||
-                            /^(?:LICENSE|Makefile|Dockerfile|AGENTS|CLAUDE)(?:$|[.,;)])/u.test(
-                                token
-                            ))
-                );
+            const inlineImports = [];
+            for (const match of prose.matchAll(
+                /(?:^|[^\p{L}\p{N}_@])@([^\s]+)/gu
+            )) {
+                const token = match[1];
+                if (isPackageMention(token)) continue;
+                if (
+                    /[./\\]/u.test(token) ||
+                    /^(?:LICENSE|Makefile|Dockerfile|AGENTS|CLAUDE)(?:$|[.,;)])/u.test(
+                        token
+                    )
+                ) {
+                    inlineImports.push(token);
+                    continue;
+                }
+                const candidate = token.replace(/[?!.,;:)"'\]}]+$/u, '');
+                try {
+                    if ((await stat(resolve(rootDir, candidate))).isFile())
+                        inlineImports.push(token);
+                } catch (error) {
+                    if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR')
+                        throw error;
+                }
+            }
             if (
                 inlineImports.some((token) => token !== 'AGENTS.md') ||
                 (source === 'AGENTS.md' && inlineImports.length) ||
