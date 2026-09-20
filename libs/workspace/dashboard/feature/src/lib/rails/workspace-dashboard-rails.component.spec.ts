@@ -12,10 +12,12 @@ import {
 import {
     buildDashboardLiveEpgDetails,
     buildLiveEpgCardsForEnabledRails,
-    buildLiveEpgLookupKeys,
+    buildLiveEpgLookupGroups,
     calcEpgProgress,
     formatEpgTimeRange,
     getLiveEpgProgramForCard,
+    liveEpgProgramKey,
+    liveEpgScopeKey,
 } from './dashboard-live-epg.utils';
 import {
     buildPlaybackPositionReloadKey,
@@ -311,9 +313,15 @@ describe('Live rail helpers', () => {
         ...overrides,
     });
 
+    const guideA = ['https://a.example/guide.xml'];
+    const guideB = ['https://b.example/guide.xml'];
+    const scopeFor =
+        (byPlaylist: Record<string, string[]>) => (card: DashboardRailCard) =>
+            byPlaylist[card.epgPlaylistId ?? ''] ?? [];
+
     it('uses explicit EPG lookup keys before falling back to card titles', () => {
-        expect(
-            buildLiveEpgLookupKeys([
+        const groups = buildLiveEpgLookupGroups(
+            [
                 channelCard({
                     title: 'Das Erste HD',
                     epgLookupKey: 'ard.de',
@@ -327,8 +335,48 @@ describe('Live rail helpers', () => {
                     id: 'card-3',
                     title: 'Fallback News',
                 }),
-            ])
-        ).toEqual(['ard.de', 'Fallback News']);
+            ],
+            () => []
+        );
+
+        expect(groups).toHaveLength(1);
+        expect(groups[0].lookupKeys).toEqual(['ard.de', 'Fallback News']);
+        expect(groups[0].sourceUrls).toEqual([]);
+        expect(groups[0].scopeKey).toBe('');
+    });
+
+    it('asks each XMLTV source scope separately and shares one lookup between playlists on the same guide', () => {
+        const groups = buildLiveEpgLookupGroups(
+            [
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'a' }),
+                channelCard({
+                    id: 'card-2',
+                    epgLookupKey: 'ard.de',
+                    epgPlaylistId: 'b',
+                }),
+                // Same guide as playlist a: one question, shared answer.
+                channelCard({
+                    id: 'card-3',
+                    epgLookupKey: 'zdf.de',
+                    epgPlaylistId: 'a2',
+                }),
+                // No guide of its own: answered from Settings.
+                channelCard({
+                    id: 'card-4',
+                    epgLookupKey: 'cnn.us',
+                    epgPlaylistId: 'portal',
+                }),
+            ],
+            scopeFor({ a: guideA, a2: guideA, b: guideB })
+        );
+
+        expect(
+            groups.map((group) => [group.sourceUrls, group.lookupKeys])
+        ).toEqual([
+            [guideA, ['ard.de', 'zdf.de']],
+            [guideB, ['ard.de']],
+            [[], ['cnn.us']],
+        ]);
     });
 
     it('reads EPG programs by explicit lookup key instead of display title', () => {
@@ -343,11 +391,52 @@ describe('Live rail helpers', () => {
             getLiveEpgProgramForCard(
                 card,
                 new Map<string, EpgProgram | null>([
-                    ['Das Erste HD', wrongProgram],
-                    ['ard.de', program],
-                ])
+                    [liveEpgProgramKey('', 'Das Erste HD'), wrongProgram],
+                    [liveEpgProgramKey('', 'ard.de'), program],
+                ]),
+                ''
             )
         ).toBe(program);
+    });
+
+    it('never hands a card the programme another playlist resolved for the same XMLTV id', () => {
+        // `ard.de` is unique inside a guide, not across imports.
+        const fromGuideA = { title: 'Guide A bulletin' } as EpgProgram;
+        const fromGuideB = { title: 'Guide B bulletin' } as EpgProgram;
+        const epgMap = new Map<string, EpgProgram | null>([
+            [liveEpgProgramKey(liveEpgScopeKey(guideA), 'ard.de'), fromGuideA],
+            [liveEpgProgramKey(liveEpgScopeKey(guideB), 'ard.de'), fromGuideB],
+        ]);
+
+        expect(
+            getLiveEpgProgramForCard(
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'a' }),
+                epgMap,
+                liveEpgScopeKey(guideA)
+            )
+        ).toBe(fromGuideA);
+        expect(
+            getLiveEpgProgramForCard(
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'b' }),
+                epgMap,
+                liveEpgScopeKey(guideB)
+            )
+        ).toBe(fromGuideB);
+        // A scope with no answer stays empty instead of borrowing one.
+        expect(
+            getLiveEpgProgramForCard(
+                channelCard({ epgLookupKey: 'ard.de' }),
+                epgMap,
+                ''
+            )
+        ).toBeNull();
+    });
+
+    it('treats the same URL set as one scope whatever its order or duplicates', () => {
+        expect(liveEpgScopeKey(['b', 'a'])).toBe(
+            liveEpgScopeKey(['a', 'b', 'a'])
+        );
+        expect(liveEpgScopeKey(['a'])).not.toBe(liveEpgScopeKey(['a', 'b']));
     });
 
     it('uses honest, semantically named title keys for favorite and recent live rails', () => {

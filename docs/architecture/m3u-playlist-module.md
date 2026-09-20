@@ -982,13 +982,19 @@ These URLs are playlist-scoped by default:
   `EpgLookupOptions.anySourceFallback` (renderer-only, never forwarded to the
   bridge): after the scope — playlist sources, then the global ones — has
   answered, the keys still without a programme are retried once against every
-  imported source through the source-less batch path and its cache. The
-  dashboard live rails pass it because they mix channels of every playlist
-  and have no playlist scope to offer; without it a favourite whose guide
-  only exists in another playlist's XMLTV showed no programme on the
-  dashboard while its "See all" row — resolved by `StreamResolverService`,
-  which never scopes by source — had one. The channel list keeps the strict
-  scope. Single-channel current
+  imported source through the source-less batch path and its cache. On a
+  preload without the batch endpoint that retry uses the unscoped
+  per-channel lookup; every other caller keeps the historical per-channel
+  behaviour there, which re-applies the Settings scope. The dashboard live
+  rails pass the option: without it a favourite whose guide only exists in
+  another playlist's XMLTV showed no programme on the dashboard while its
+  "See all" row — resolved by `StreamResolverService`, which never scopes by
+  source — had one. They still ask **per source scope**, one lookup per
+  distinct set of playlist-declared XMLTV URLs, and namespace the answers by
+  that scope: a `tvg-id` is unique inside a guide, not across imports, so a
+  single flat map keyed by lookup key alone would hand one playlist's card
+  the programme another playlist's guide resolved for the same id. Playlists
+  sharing a guide share one lookup. The channel list keeps the strict scope. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped

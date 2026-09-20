@@ -198,6 +198,20 @@ export class EpgService {
             );
         }
 
+        return this.getUnscopedCurrentProgramForChannel(channelId);
+    }
+
+    /**
+     * The lookup across every imported source, cached under the source-less
+     * key. Kept separate from `getCurrentProgramForChannel`, which re-applies
+     * the Settings-managed scope whenever global URLs exist: a caller that
+     * has already decided it wants the unscoped pool — the `anySourceFallback`
+     * retry on a preload without the batch endpoint — must not have that
+     * scope put back on.
+     */
+    private getUnscopedCurrentProgramForChannel(
+        channelId: string
+    ): Observable<EpgProgram | null> {
         // Check cache first
         const cacheKey = this.createProgramCacheKey(channelId);
 
@@ -254,7 +268,15 @@ export class EpgService {
             options
         );
         if (!scoped$) {
-            return this.getUnscopedCurrentProgramsForChannels(channelIds);
+            // No scope applies, or the bridge has no batch endpoint. The
+            // per-channel path below keeps its historical behaviour here
+            // (`getCurrentProgramForChannel`, which re-applies the global
+            // scope when Settings hold URLs); only the explicit any-source
+            // retry asks for a genuinely source-less lookup.
+            return this.getUnscopedCurrentProgramsForChannels(
+                channelIds,
+                Boolean(options?.anySourceFallback)
+            );
         }
         if (!options?.anySourceFallback) {
             return scoped$;
@@ -314,7 +336,10 @@ export class EpgService {
             return of(scopedMap);
         }
 
-        return this.getUnscopedCurrentProgramsForChannels(unresolvedIds).pipe(
+        return this.getUnscopedCurrentProgramsForChannels(
+            unresolvedIds,
+            true
+        ).pipe(
             map((anySourceMap) => {
                 const mergedMap = new Map(scopedMap);
                 anySourceMap.forEach((program, channelId) => {
@@ -329,7 +354,8 @@ export class EpgService {
 
     /** Lookup across every imported source, cached under the source-less key. */
     private getUnscopedCurrentProgramsForChannels(
-        channelIds: string[]
+        channelIds: string[],
+        perChannelUnscoped = false
     ): Observable<Map<string, EpgProgram | null>> {
         const resultMap = new Map<string, EpgProgram | null>();
         const channelsToFetch: string[] = [];
@@ -387,8 +413,15 @@ export class EpgService {
         }
 
         // Fallback for older preload bundles without the batch endpoint.
+        // An any-source retry must use the unscoped per-channel lookup: the
+        // public `getCurrentProgramForChannel` puts the Settings-managed
+        // scope back on, so the retry would re-ask the question the scoped
+        // pass already answered and the fallback would do nothing here.
         const fetchObservables = channelsToFetch.map((channelId) =>
-            this.getCurrentProgramForChannel(channelId).pipe(
+            (perChannelUnscoped
+                ? this.getUnscopedCurrentProgramForChannel(channelId)
+                : this.getCurrentProgramForChannel(channelId)
+            ).pipe(
                 this.sourceSettings.guard(),
                 timeout(5000),
                 map((program) => ({ channelId, program })),

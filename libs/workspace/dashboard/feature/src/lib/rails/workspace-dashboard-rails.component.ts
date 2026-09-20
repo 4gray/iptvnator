@@ -8,7 +8,7 @@ import {
     untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { interval, map, of, startWith, switchMap } from 'rxjs';
+import { forkJoin, interval, map, of, startWith, switchMap } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     type EpgProgram,
@@ -22,6 +22,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -66,8 +67,10 @@ import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
 import {
     buildDashboardLiveEpgDetails,
     buildLiveEpgCardsForEnabledRails,
-    buildLiveEpgLookupKeys,
+    buildLiveEpgLookupGroups,
     getLiveEpgProgramForCard,
+    liveEpgProgramKey,
+    liveEpgScopeKey,
     LIVE_EPG_TICK_MS,
 } from './dashboard-live-epg.utils';
 import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
@@ -267,25 +270,45 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
+    // The XMLTV sources each playlist declares. Same rule as
+    // `ChannelListContainerComponent`: only an M3U playlist carries its own
+    // guide; a portal playlist is answered from the Settings-managed URLs.
+    private readonly liveEpgSourceUrlsByPlaylist = computed(() => {
+        const byPlaylistId = new Map<string, string[]>();
+        for (const playlist of this.data.playlists()) {
+            byPlaylistId.set(
+                playlist._id,
+                playlist.serverUrl || playlist.macAddress
+                    ? []
+                    : normalizeEpgUrls(playlist.epgUrls ?? [])
+            );
+        }
+        return byPlaylistId;
+    });
+
     // Best-effort EPG lookup keyed by the app-wide M3U XMLTV chain
     // (tvg-id -> tvg-name -> name), with the card title as a final fallback.
     // Xtream/Stalker live items often have no XMLTV side-channel and will
     // simply return null — the card renders without the program row.
-    // The rails mix channels from every playlist and carry no playlist
-    // scope, so the lookup opts into the any-source retry: the Settings
-    // global sources first, then every imported XMLTV, which is what the
-    // "See all" collection pages resolve against. Without it a channel
-    // whose guide only exists in another playlist's XMLTV showed no
-    // programme here while its "See all" row had one.
-    private readonly liveChannelLookupKeys = computed(() => {
+    //
+    // One lookup per source scope, not one for the whole page: a `tvg-id` is
+    // unique inside a guide, not across imports, so a card is only ever
+    // handed the answer resolved in ITS playlist's scope. Each lookup then
+    // opts into the any-source retry — Settings global sources first, then
+    // every imported XMLTV, which is what the "See all" collection pages
+    // resolve against. Without it a channel whose guide only exists in
+    // another playlist's XMLTV showed no programme here while its "See all"
+    // row had one.
+    private readonly liveEpgLookupGroups = computed(() => {
         const heroLiveCard = this.heroLiveCard();
-        return buildLiveEpgLookupKeys(
+        return buildLiveEpgLookupGroups(
             buildLiveEpgCardsForEnabledRails(
                 this.dashboardRails(),
                 heroLiveCard,
                 this.liveFavoriteCards(),
                 this.recentLiveCards()
-            )
+            ),
+            (card) => this.liveEpgSourceUrlsForCard(card)
         );
     });
 
@@ -296,16 +319,52 @@ export class WorkspaceDashboardRailsComponent {
     // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
     // catches the boundary between programs without a full page revisit.
     private readonly liveEpgPrograms = toSignal(
-        toObservable(this.liveChannelLookupKeys).pipe(
-            switchMap((keys) =>
-                keys.length === 0
+        toObservable(this.liveEpgLookupGroups).pipe(
+            switchMap((groups) =>
+                groups.length === 0
                     ? of(new Map<string, EpgProgram | null>())
                     : interval(LIVE_EPG_TICK_MS).pipe(
                           startWith(0),
                           switchMap(() =>
-                              this.epgService.getCurrentProgramsForChannels(
-                                  keys,
-                                  { anySourceFallback: true }
+                              forkJoin(
+                                  groups.map((group) =>
+                                      this.epgService
+                                          .getCurrentProgramsForChannels(
+                                              group.lookupKeys,
+                                              {
+                                                  sourceUrls: group.sourceUrls,
+                                                  anySourceFallback: true,
+                                              }
+                                          )
+                                          .pipe(
+                                              map((programs) => ({
+                                                  scopeKey: group.scopeKey,
+                                                  programs,
+                                              }))
+                                          )
+                                  )
+                              ).pipe(
+                                  map((answers) => {
+                                      const merged = new Map<
+                                          string,
+                                          EpgProgram | null
+                                      >();
+                                      for (const answer of answers) {
+                                          for (const [
+                                              lookupKey,
+                                              program,
+                                          ] of answer.programs) {
+                                              merged.set(
+                                                  liveEpgProgramKey(
+                                                      answer.scopeKey,
+                                                      lookupKey
+                                                  ),
+                                                  program
+                                              );
+                                          }
+                                      }
+                                      return merged;
+                                  })
                               )
                           )
                       )
@@ -608,6 +667,16 @@ export class WorkspaceDashboardRailsComponent {
         });
     }
 
+    /** The XMLTV scope a live card's programme must be resolved in. */
+    private liveEpgSourceUrlsForCard(card: DashboardRailCard): string[] {
+        const byPlaylistId = this.liveEpgSourceUrlsByPlaylist();
+        return (
+            (card.epgPlaylistId
+                ? byPlaylistId.get(card.epgPlaylistId)
+                : undefined) ?? []
+        );
+    }
+
     private enrichLiveCards(
         cards: readonly DashboardRailCard[]
     ): DashboardRailCard[] {
@@ -626,7 +695,11 @@ export class WorkspaceDashboardRailsComponent {
         if (!card) {
             return null;
         }
-        const program = getLiveEpgProgramForCard(card, this.liveEpgPrograms());
+        const program = getLiveEpgProgramForCard(
+            card,
+            this.liveEpgPrograms(),
+            liveEpgScopeKey(this.liveEpgSourceUrlsForCard(card))
+        );
         // Recompute the now-window each tick so progress moves between
         // 30s ticks even if the program identity is unchanged.
         return buildDashboardLiveEpgDetails(
@@ -678,6 +751,7 @@ export class WorkspaceDashboardRailsComponent {
             icon: this.typeIcon(item.type),
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
+            epgPlaylistId: item.playlist_id,
             link: this.data.getRecentItemLink(item),
             // Default click is detail-only for every card — an in-progress
             // series no longer auto-plays on click (issue #1441); resuming
@@ -714,6 +788,7 @@ export class WorkspaceDashboardRailsComponent {
             icon: this.typeIcon(item.type),
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
+            epgPlaylistId: item.playlist_id,
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
         };

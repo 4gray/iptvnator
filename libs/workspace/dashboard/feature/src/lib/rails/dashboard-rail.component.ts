@@ -40,6 +40,12 @@ export interface DashboardRailCard {
     state?: Record<string, unknown>;
     actions?: DashboardRailAction[];
     epgLookupKey?: string;
+    /**
+     * Playlist the live card belongs to. An XMLTV key is only unique inside
+     * the guide its playlist declares, so the dashboard's EPG lookup is
+     * grouped and namespaced by that playlist's source scope.
+     */
+    epgPlaylistId?: string;
 
     /**
      * Optional EPG enrichment shown by the 'channel' rail layout. Populated
