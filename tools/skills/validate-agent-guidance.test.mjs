@@ -537,3 +537,24 @@ test('non-rendered HTML navigation is ignored', async (t) => {
         []
     );
 });
+
+test('GitHub heading slugs remove non-ASCII whitespace', async (t) => {
+    for (const heading of ['A&nbsp;B', 'A\u00a0B', 'A\u2003B']) {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': '[Heading](docs/example.md#ab)',
+                'docs/example.md': '# ' + heading,
+            }),
+            []
+        );
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': '[Heading](docs/example.md#a-b)',
+                    'docs/example.md': '# ' + heading,
+                })
+            ).join('\n'),
+            /missing anchor/
+        );
+    }
+});

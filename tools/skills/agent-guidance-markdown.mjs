@@ -1,3 +1,4 @@
+import GithubSlugger from 'github-slugger';
 import { Marked, Tokenizer } from 'marked';
 import { parseFragment } from 'parse5';
 
@@ -83,18 +84,12 @@ export function guidanceProse(markdown) {
 }
 
 export function guidanceAnchors(markdown) {
+    const slugger = new GithubSlugger();
     const found = new Set();
     const html = [];
     markdownLexer.walkTokens(markdownLexer.lexer(markdown), (token) => {
         if (token.type === 'heading') {
-            const slug = inlineText(token.tokens)
-                .toLowerCase()
-                .replace(/[^\p{L}\p{M}\p{N}_\-\s]/gu, '')
-                .replace(/\s/gu, '-');
-            let unique = slug;
-            let suffix = 0;
-            while (found.has(unique)) unique = `${slug}-${++suffix}`;
-            found.add(unique);
+            found.add(slugger.slug(inlineText(token.tokens)));
         }
         if (token.type === 'html') html.push(token.raw);
     });

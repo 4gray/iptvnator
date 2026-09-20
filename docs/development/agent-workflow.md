@@ -40,11 +40,12 @@ prefix or Markdown link for other ambiguous filenames that resemble code symbols
 Multi-part dotfiles are path candidates too. Link paths and fragments are decoded
 separately so encoded filename delimiters stay in the filename. Fenced and indented examples
 do not count as root guidance imports or satisfy the required Claude import.
-Heading anchors decode HTML character references in text. Explicit HTML anchors
+Heading anchors decode HTML character references in text and use `github-slugger`
+for GitHub-compatible character filtering and duplicate suffixes. Explicit HTML anchors
 use `parse5`, excluding comments, scripts, styles and template contents.
 Rendered HTML anchor hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
-The Nx test hash includes `marked` and `parse5` so dependency changes invalidate parser coverage.
+The Nx test hash includes `marked`, `parse5` and `github-slugger` so dependency changes invalidate parser coverage.
 It cannot prove semantic equivalence; review changed contracts as well.
 
 ## Protected Markdown edits

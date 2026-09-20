@@ -215,6 +215,7 @@
         "eslint-plugin-import": "2.32.0",
         "eslint-plugin-playwright": "^1.6.2",
         "express": "5.2.1",
+        "github-slugger": "2.0.0",
         "globals": "15.9.0",
         "html-escaper": "3.0.3",
         "istanbul-lib-coverage": "3.2.2",

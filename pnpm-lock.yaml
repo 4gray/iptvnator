@@ -404,6 +404,9 @@ importers:
       express:
         specifier: 5.2.1
         version: 5.2.1
+      github-slugger:
+        specifier: 2.0.0
+        version: 2.0.0
       globals:
         specifier: 15.9.0
         version: 15.9.0
