@@ -25,11 +25,27 @@ describe('foldSearchText', () => {
         }
     );
 
-    it('treats decomposed input like its precomposed form', () => {
-        // "é" typed as e + combining acute must still find a precomposed "é"
-        // only through the same fold; both sides drop the mark consistently.
-        expect(foldSearchText('Amélie')).toBe('amelie');
-        expect(foldSearchText('Здравствуйте')).toBe('здравствуите');
+    it.each([
+        ['Amélie', 'Amélie'],
+        ['İnşaat', 'İnşaat'],
+        ['Ёлки', 'Ёлки'],
+        ['Йога', 'Йога'],
+        ['Ünlü', 'Ünlü'],
+        ['Ά', 'Ά'],
+    ])(
+        'folds canonically equivalent spellings of %s to one string',
+        (precomposed, decomposed) => {
+            expect(foldSearchText(decomposed)).toBe(
+                foldSearchText(precomposed)
+            );
+        }
+    );
+
+    it('stays accent-sensitive, unlike the diacritic-folding SQL index', () => {
+        // The renderer filters were accent-sensitive before this helper and
+        // stay so: only marks that cannot compose are dropped. Accent-blind
+        // matching is the FTS index's own behaviour, not this fold's.
+        expect(foldSearchText('Amélie')).not.toBe(foldSearchText('Amelie'));
     });
 
     it('does not fold the dotless ı onto i', () => {

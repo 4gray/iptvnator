@@ -67,6 +67,11 @@ function normalizeSqlSearchText(value: unknown): string {
     return typeof value === 'string'
         ? value
               .toLowerCase()
+              // Re-compose first so canonically equivalent spellings of the
+              // query produce one token: a decomposed "e" + U+0301 would
+              // otherwise lose its accent below and stop matching a stored
+              // precomposed "é". Same rule as `foldSearchText`.
+              .normalize('NFC')
               // Drop the combining marks case folding leaves behind, before the
               // split below can read them as word separators: "İ" (U+0130)
               // lower-cases to "i" plus a combining dot above (U+0307), which

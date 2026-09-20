@@ -177,6 +177,13 @@ describe('content-search.util against SQLite', () => {
         }
     );
 
+    it('matches a decomposed query against the precomposed stored title', () => {
+        // The query normalizer composes first, so "Ame" + U+0301 + "lie"
+        // produces the same tokens as the precomposed spelling.
+        expect(run('Ame\u0301lie').like).toEqual(run('Amélie').like);
+        expect(run('Ame\u0301lie').score).toEqual(['Amélie']);
+    });
+
     it('keeps the diacritic-stripped fallback for Latin accents', () => {
         expect(run('Amélie').fts).toEqual(['Amélie']);
         expect(run('amelie').fts).toEqual(['Amélie']);

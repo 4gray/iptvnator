@@ -50,6 +50,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    foldSearchText,
     Channel,
     EpgProgram,
     isM3uRecentlyViewedItem,
@@ -217,12 +218,12 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly routeSearchTerm = queryParamSignal(
         this.route,
         'q',
-        (value) => (value ?? '').trim().toLowerCase()
+        (value) => foldSearchText((value ?? '').trim())
     );
     readonly workspaceSearchTerm = computed(() => {
         const hostTerm = this.searchTerm();
         if (hostTerm !== null) {
-            return hostTerm.trim().toLowerCase();
+            return foldSearchText(hostTerm.trim());
         }
         return this.isWorkspaceLayout ? this.routeSearchTerm() : '';
     });
