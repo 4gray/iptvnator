@@ -689,6 +689,51 @@ describe('PortalChannelsListComponent', () => {
         );
     });
 
+    it('refreshes nothing while a search shows no results', async () => {
+        // A search with no matches destroys the viewport, so there is no
+        // rendered range at all; naming the rows it used to hold would keep
+        // fetching channels that are off screen.
+        await renderSingleChannel(fixture, '2026-04-05T06:03:00.000Z');
+        epgQueueService.getCached.mockReturnValue(null);
+
+        fixture.componentRef.setInput('searchTermInput', 'no-such-channel');
+        fixture.detectChanges();
+        epgQueueService.enqueue.mockClear();
+
+        jest.advanceTimersByTime(5 * 60 * 1000);
+
+        expect(epgQueueService.enqueue).not.toHaveBeenCalled();
+        expect(epgQueueService.invalidate).not.toHaveBeenCalled();
+    });
+
+    it('does not walk a row back when the selected channel guide has run out', async () => {
+        // Selecting a row loads the provider's full guide. When that guide
+        // holds only finished programmes, the first-paint fallback would pick
+        // the earliest of them and undo what the refresh advanced to.
+        await renderSingleChannel(fixture, '2026-04-05T06:03:00.000Z');
+
+        const early = buildProgram(
+            'Early Show',
+            '2026-04-05T05:30:00.000Z',
+            '2026-04-05T06:00:00.000Z'
+        );
+        const short = buildProgram(
+            'Short Show',
+            '2026-04-05T06:00:00.000Z',
+            '2026-04-05T06:02:00.000Z'
+        );
+        epgResults$.next({ streamId: 50, items: [short] });
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        expect(component.epgPrograms.get(50)?.title).toBe('Short Show');
+
+        selectedItem.set({ xtream_id: 50 });
+        epgItems.set([early, short]);
+        fixture.detectChanges();
+
+        expect(component.epgPrograms.get(50)?.title).toBe('Short Show');
+    });
+
     it('leaves a channel the provider has no EPG for alone', async () => {
         // An empty answer is cached deliberately; re-requesting it would put
         // one call per EPG-less visible row on the wire every minute.

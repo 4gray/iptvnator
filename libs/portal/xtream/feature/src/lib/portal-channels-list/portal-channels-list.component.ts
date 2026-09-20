@@ -179,9 +179,6 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
 
-    /** Last viewport slice, reused to refresh previews after a mapping change. */
-    private lastVisibleChannels: XtreamChannelListItem[] = [];
-
     /** Leaves the shared refresh tick; called from `ngOnDestroy`. */
     private leaveEpgRefresh?: () => void;
 
@@ -302,7 +299,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 return;
             }
 
-            const program = pickEpgPreviewItem(epgItems, this.epgClockMs());
+            // Same rule as a queue result: selecting a row must not walk it
+            // back when the provider's guide holds only finished programmes.
+            const program = this.pickProgramFor(
+                selectedItem.xtream_id,
+                epgItems
+            );
             if (!program) return;
 
             this.applyProgram(selectedItem.xtream_id, program);
@@ -361,10 +363,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                         // answered with the same finished window would
                         // otherwise walk the row back to an older programme,
                         // the very thing the refresh exists to prevent (#767).
-                        const now = this.epgClockMs();
-                        const program = this.epgPrograms.has(streamId)
-                            ? pickAiringOrUpcomingEpgItem(items, now)
-                            : pickEpgPreviewItem(items, now);
+                        const program = this.pickProgramFor(streamId, items);
                         if (program) this.applyProgram(streamId, program);
                     }
                 )
@@ -396,7 +395,6 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                             range.start,
                             range.end
                         );
-                        this.lastVisibleChannels = visibleChannels;
                         this.loadEpgForVisibleChannels(visibleChannels);
                     })
             );
@@ -404,18 +402,37 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     }
 
     /**
-     * The rows actually on screen now. `renderedRangeStream` only emits when
-     * the index RANGE changes, so a new category, search term or sort order
-     * can leave `lastVisibleChannels` holding the previous list's rows: the
-     * indices are still right, the data behind them is not.
+     * The rows actually on screen now, read from the viewport rather than
+     * remembered. `renderedRangeStream` only emits when the index RANGE
+     * changes, so a new category, search term or sort order leaves a snapshot
+     * holding the previous list's rows; and a search with no results destroys
+     * the viewport altogether, where a snapshot would keep naming rows that
+     * are gone. Empty means nothing is on screen, which is the honest answer.
      */
     private visibleChannelsNow(): XtreamChannelListItem[] {
         const range = this.viewport()?.getRenderedRange();
-        if (!range || range.end <= range.start) {
-            return this.lastVisibleChannels;
-        }
+        return range
+            ? this.filteredChannels().slice(range.start, range.end)
+            : [];
+    }
 
-        return this.filteredChannels().slice(range.start, range.end);
+    /** Rows on screen, or a head of the list while nothing is rendered. */
+    private channelsToPreview(): XtreamChannelListItem[] {
+        const visible = this.visibleChannelsNow();
+        return visible.length ? visible : this.filteredChannels().slice(0, 50);
+    }
+
+    /**
+     * The programme to show for `streamId`. A row with nothing yet may take
+     * the earliest known item so it is not blank; a row that already holds one
+     * accepts only an airing or upcoming programme, or a guide that has run
+     * out would walk it backwards (#767).
+     */
+    private pickProgramFor(streamId: number, items: EpgItem[]): EpgItem | null {
+        const now = this.epgClockMs();
+        return this.epgPrograms.has(streamId)
+            ? pickAiringOrUpcomingEpgItem(items, now)
+            : pickEpgPreviewItem(items, now);
     }
 
     /** Wall-clock now in the provider's EPG clock (`epg-display-offset.util.ts`). */
@@ -429,10 +446,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private repickPreviewsForOffsetChange(): void {
         this.epgPrograms.clear();
         this.currentProgramsProgress.clear();
-        const visible = this.visibleChannelsNow();
-        this.loadEpgForVisibleChannels(
-            visible.length ? visible : this.filteredChannels().slice(0, 50)
-        );
+        this.loadEpgForVisibleChannels(this.channelsToPreview());
         this.cdr.markForCheck();
     }
 
@@ -757,10 +771,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 this.epgQueueService.invalidate(streamId);
                 this.epgPrograms.delete(streamId);
                 this.currentProgramsProgress.delete(streamId);
-                const visible = this.lastVisibleChannels.length
-                    ? this.lastVisibleChannels
-                    : this.filteredChannels().slice(0, 50);
-                this.loadEpgForVisibleChannels(visible);
+                this.loadEpgForVisibleChannels(this.channelsToPreview());
             });
     }
 
