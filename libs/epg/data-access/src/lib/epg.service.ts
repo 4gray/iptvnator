@@ -1,16 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { BehaviorSubject, forkJoin, from, Observable, of } from 'rxjs';
-import {
-    catchError,
-    finalize,
-    map,
-    shareReplay,
-    switchMap,
-    tap,
-    timeout,
-} from 'rxjs/operators';
+import { BehaviorSubject, from, Observable, of } from 'rxjs';
+import { catchError, map, tap, timeout } from 'rxjs/operators';
 import {
     createDevLogger,
     EpgChannelMetadata,
@@ -25,6 +17,13 @@ import {
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 import { EpgProgramCache } from './epg-program-cache';
 import { EpgChannelMetadataLookup } from './epg-channel-metadata.lookup';
+import { EpgCurrentProgramsLookup } from './epg-current-programs.lookup';
+import { EpgSingleProgramLookup } from './epg-single-program.lookup';
+import type { EpgLookupContext } from './epg-lookup-context';
+import {
+    normalizeLookupChannelIds,
+    normalizeLookupSourceUrls,
+} from './epg-lookup-normalization.util';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 
 const debugEpgService = createDevLogger('EpgService');
@@ -61,6 +60,23 @@ export class EpgService {
     private readonly programCache = new EpgProgramCache(
         () => this.epgOffsetMinutes(),
         () => this.sourceSettings.guard()
+    );
+
+    /** The whole "what is on air" scope ladder, single channel or batch. */
+    private readonly lookupContext: EpgLookupContext = {
+        bridge: this.epgBridge,
+        cache: this.programCache,
+        guard: () => this.sourceSettings.guard(),
+        offsetMinutes: () => this.epgOffsetMinutes(),
+        clockMs: () => this.epgClockMs(),
+        globalSourceUrls: (excluding) => this.getGlobalEpgSourceUrls(excluding),
+    };
+    private readonly singleProgram = new EpgSingleProgramLookup(
+        this.lookupContext
+    );
+    private readonly currentPrograms = new EpgCurrentProgramsLookup(
+        this.lookupContext,
+        this.singleProgram
     );
 
     /** Display offset every "currently airing" decision in here is made with. */
@@ -175,71 +191,7 @@ export class EpgService {
         if (!this.epgBridge.supportsProgramLookup || !channelId) {
             return of(null);
         }
-
-        const sourceUrls = this.normalizeSourceUrls(options);
-        if (sourceUrls.length > 0) {
-            return this.getScopedCurrentProgramForChannel(
-                channelId,
-                sourceUrls,
-                this.getGlobalEpgSourceUrls(sourceUrls)
-            );
-        }
-
-        const globalSourceUrls = this.getGlobalEpgSourceUrls();
-        if (globalSourceUrls.length > 0) {
-            return this.getScopedCurrentProgramForChannel(
-                channelId,
-                globalSourceUrls,
-                []
-            );
-        }
-
-        return this.getUnscopedCurrentProgramForChannel(channelId);
-    }
-
-    /**
-     * The lookup across every imported source, cached under the source-less
-     * key. Kept separate from `getCurrentProgramForChannel`, which re-applies
-     * the Settings-managed scope whenever global URLs exist: a caller that
-     * has already decided it wants the unscoped pool — the `anySourceFallback`
-     * retry on a preload without the batch endpoint — must not have that
-     * scope put back on.
-     */
-    private getUnscopedCurrentProgramForChannel(
-        channelId: string
-    ): Observable<EpgProgram | null> {
-        // Check cache first
-        const cacheKey = this.programCache.keyFor(channelId);
-
-        // Fetch from backend
-        return this.programCache.getOrFetch(cacheKey, () =>
-            from(this.epgBridge.getChannelPrograms(channelId)).pipe(
-                this.sourceSettings.guard(),
-                map((programs) => normalizeEpgPrograms(programs ?? [])),
-                map((programs: EpgProgram[]) =>
-                    this.findCurrentProgram(programs)
-                ),
-                catchError((err) => {
-                    console.error('EPG get current program error:', err);
-                    return of(null);
-                })
-            )
-        );
-    }
-
-    /**
-     * Finds the current program from a list of programs
-     */
-    private findCurrentProgram(programs: EpgProgram[]): EpgProgram | null {
-        const now = this.epgClockMs();
-
-        return (
-            programs.find((program) => {
-                const start = new Date(program.start).getTime();
-                const stop = new Date(program.stop).getTime();
-                return start <= now && now <= stop;
-            }) || null
-        );
+        return this.singleProgram.forChannel(channelId, options);
     }
 
     /**
@@ -254,371 +206,10 @@ export class EpgService {
         if (!this.epgBridge.supportsProgramLookup) {
             return of(new Map());
         }
-
         if (!channelIds || channelIds.length === 0) {
             return of(new Map());
         }
-
-        const scoped$ = this.getSourceScopedCurrentProgramsForChannels(
-            channelIds,
-            options
-        );
-        if (!scoped$) {
-            // Nothing declares a scope — neither the caller nor Settings — so
-            // the pool of every imported source is the only answer there is.
-            return this.getUnscopedCurrentProgramsForChannels(channelIds);
-        }
-        if (!options?.anySourceFallback) {
-            return scoped$;
-        }
-
-        return scoped$.pipe(
-            switchMap((scopedMap) => this.fillFromAnySource(scopedMap))
-        );
-    }
-
-    /**
-     * The scoped lookup: the caller's playlist sources first (with the global
-     * sources as fallback), else the Settings-managed global sources alone.
-     * `null` when no scope applies and the unscoped pool is the only answer.
-     *
-     * The ladder is the same whether or not the bridge has the batch
-     * endpoint. Collapsing a legacy preload straight into the source-less
-     * lookup would drop the caller's scope entirely, which is exactly what
-     * the scopes exist to prevent: two imported guides reusing one XMLTV id
-     * would answer each other's channels.
-     */
-    private getSourceScopedCurrentProgramsForChannels(
-        channelIds: string[],
-        options?: EpgLookupOptions
-    ): Observable<Map<string, EpgProgram | null>> | null {
-        const sourceUrls = this.normalizeSourceUrls(options);
-        if (sourceUrls.length > 0) {
-            return this.scopedCurrentProgramsForChannels(
-                channelIds,
-                sourceUrls,
-                this.getGlobalEpgSourceUrls(sourceUrls)
-            );
-        }
-
-        const globalSourceUrls = this.getGlobalEpgSourceUrls();
-        if (globalSourceUrls.length > 0) {
-            return this.scopedCurrentProgramsForChannels(
-                channelIds,
-                globalSourceUrls,
-                []
-            );
-        }
-
-        return null;
-    }
-
-    /** One scoped batch, or its per-channel equivalent on an older preload. */
-    private scopedCurrentProgramsForChannels(
-        channelIds: string[],
-        sourceUrls: string[],
-        fallbackSourceUrls: string[]
-    ): Observable<Map<string, EpgProgram | null>> {
-        if (this.epgBridge.supportsCurrentProgramBatch) {
-            return this.getScopedCurrentProgramsForChannels(
-                channelIds,
-                sourceUrls,
-                fallbackSourceUrls
-            );
-        }
-
-        const normalizedChannelIds = this.normalizeChannelIds(channelIds);
-        if (normalizedChannelIds.length === 0) {
-            return of(new Map());
-        }
-
-        // `getScopedCurrentProgramForChannel` walks the same scope ->
-        // fallback-scope ladder the batch query does, and caches under the
-        // same scoped key.
-        return forkJoin(
-            normalizedChannelIds.map((channelId) =>
-                this.getScopedCurrentProgramForChannel(
-                    channelId,
-                    sourceUrls,
-                    fallbackSourceUrls
-                ).pipe(
-                    this.sourceSettings.guard(),
-                    timeout(5000),
-                    map((program) => ({ channelId, program })),
-                    catchError(() => of({ channelId, program: null }))
-                )
-            )
-        ).pipe(
-            this.sourceSettings.guard(),
-            map(
-                (results) =>
-                    new Map(
-                        results.map((result) => [
-                            result.channelId,
-                            result.program,
-                        ])
-                    )
-            )
-        );
-    }
-
-    /**
-     * `anySourceFallback`: keys the scope answered with `null` are retried
-     * against every imported source. A scoped miss is kept as the answer
-     * when the pool has nothing either, so the merged map still names every
-     * requested key.
-     */
-    private fillFromAnySource(
-        scopedMap: Map<string, EpgProgram | null>
-    ): Observable<Map<string, EpgProgram | null>> {
-        const unresolvedIds = Array.from(scopedMap.entries())
-            .filter(([, program]) => !program)
-            .map(([channelId]) => channelId);
-        if (unresolvedIds.length === 0) {
-            return of(scopedMap);
-        }
-
-        return this.getUnscopedCurrentProgramsForChannels(unresolvedIds).pipe(
-            map((anySourceMap) => {
-                const mergedMap = new Map(scopedMap);
-                anySourceMap.forEach((program, channelId) => {
-                    if (program) {
-                        mergedMap.set(channelId, program);
-                    }
-                });
-                return mergedMap;
-            })
-        );
-    }
-
-    /** Lookup across every imported source, cached under the source-less key. */
-    private getUnscopedCurrentProgramsForChannels(
-        channelIds: string[]
-    ): Observable<Map<string, EpgProgram | null>> {
-        const resultMap = new Map<string, EpgProgram | null>();
-        const channelsToFetch: string[] = [];
-        const now = Date.now();
-        const offsetMinutes = this.epgOffsetMinutes();
-
-        // Check cache for each channel
-        channelIds.forEach((channelId) => {
-            const cached = this.programCache.getFresh(channelId, now);
-            if (cached && cached.offsetMinutes === offsetMinutes) {
-                resultMap.set(channelId, cached.program);
-            } else {
-                channelsToFetch.push(channelId);
-            }
-        });
-
-        // If all channels were cached, return immediately
-        if (channelsToFetch.length === 0) {
-            return of(resultMap);
-        }
-
-        // Single batched IPC + SQL query when the backend supports it.
-        // Replaces the legacy N+1 forkJoin where each channel fired its own
-        // GET_CHANNEL_PROGRAMS round-trip.
-        if (this.epgBridge.supportsCurrentProgramBatch) {
-            return from(
-                this.epgBridge.getCurrentProgramsBatch(channelsToFetch, {
-                    nowMs: this.epgClockMs(),
-                })
-            ).pipe(
-                this.sourceSettings.guard(),
-                timeout(5000),
-                map((batchResult) => {
-                    const cacheTimestamp = Date.now();
-                    channelsToFetch.forEach((channelId) => {
-                        const program = batchResult?.[channelId] ?? null;
-                        resultMap.set(channelId, program);
-                        this.programCache.set(
-                            channelId,
-                            program,
-                            offsetMinutes,
-                            cacheTimestamp
-                        );
-                    });
-                    return resultMap;
-                }),
-                catchError((err) => {
-                    console.error('EPG batch current programs error:', err);
-                    return of(resultMap);
-                })
-            );
-        }
-
-        // Fallback for older preload bundles without the batch endpoint.
-        // Deliberately the unscoped per-channel lookup: everything reaching
-        // here wants the source-less pool — either nothing declared a scope,
-        // or this is the any-source retry after the scoped pass. The public
-        // `getCurrentProgramForChannel` would put the Settings scope back on
-        // and make the retry re-ask the question the scoped pass answered.
-        const fetchObservables = channelsToFetch.map((channelId) =>
-            this.getUnscopedCurrentProgramForChannel(channelId).pipe(
-                this.sourceSettings.guard(),
-                timeout(5000),
-                map((program) => ({ channelId, program })),
-                catchError(() => of({ channelId, program: null }))
-            )
-        );
-
-        return forkJoin(fetchObservables).pipe(
-            this.sourceSettings.guard(),
-            map((results) => {
-                results.forEach((result) => {
-                    resultMap.set(result.channelId, result.program);
-                });
-                return resultMap;
-            })
-        );
-    }
-
-    private getScopedCurrentProgramsForChannels(
-        channelIds: string[],
-        sourceUrls: string[],
-        fallbackSourceUrls = this.getGlobalEpgSourceUrls(sourceUrls)
-    ): Observable<Map<string, EpgProgram | null>> {
-        const normalizedChannelIds = this.normalizeChannelIds(channelIds);
-        if (normalizedChannelIds.length === 0) {
-            return of(new Map());
-        }
-
-        const resultMap = new Map<string, EpgProgram | null>();
-        const channelsToFetch: string[] = [];
-
-        normalizedChannelIds.forEach((channelId) => {
-            const cached = this.programCache.get(
-                this.programCache.keyFor(channelId, sourceUrls)
-            );
-            if (cached) {
-                resultMap.set(channelId, cached.program);
-            } else {
-                channelsToFetch.push(channelId);
-            }
-        });
-
-        if (channelsToFetch.length === 0) {
-            return of(resultMap);
-        }
-
-        const batchCacheKey = this.programCache.batchKeyFor(
-            channelsToFetch,
-            sourceUrls,
-            fallbackSourceUrls
-        );
-        const existingRequest = this.programCache.batchInFlight(batchCacheKey);
-        // Tag entries with the offset the verdict was computed with, not the
-        // one current when the response lands.
-        const offsetMinutes = this.epgOffsetMinutes();
-        const request$ =
-            existingRequest ??
-            this.fetchScopedCurrentProgramsBatch(
-                channelsToFetch,
-                sourceUrls,
-                fallbackSourceUrls
-            ).pipe(
-                this.sourceSettings.guard(),
-                tap((fetchedMap) => {
-                    const cacheTimestamp = Date.now();
-                    channelsToFetch.forEach((channelId) => {
-                        this.programCache.set(
-                            this.programCache.keyFor(channelId, sourceUrls),
-                            fetchedMap.get(channelId) ?? null,
-                            offsetMinutes,
-                            cacheTimestamp
-                        );
-                    });
-                }),
-                finalize(() =>
-                    this.programCache.releaseBatch(batchCacheKey, request$)
-                ),
-                shareReplay({ bufferSize: 1, refCount: false })
-            );
-
-        if (!existingRequest) {
-            this.programCache.registerBatch(batchCacheKey, request$);
-        }
-
-        return request$.pipe(
-            this.sourceSettings.guard(),
-            map((fetchedMap) => {
-                const mergedResultMap = new Map(resultMap);
-                channelsToFetch.forEach((channelId) => {
-                    mergedResultMap.set(
-                        channelId,
-                        fetchedMap.get(channelId) ?? null
-                    );
-                });
-                return mergedResultMap;
-            })
-        );
-    }
-
-    private fetchScopedCurrentProgramsBatch(
-        channelIds: string[],
-        sourceUrls: string[],
-        fallbackSourceUrls: string[]
-    ): Observable<Map<string, EpgProgram | null>> {
-        const nowMs = this.epgClockMs();
-        return from(
-            this.epgBridge.getCurrentProgramsBatch(channelIds, {
-                sourceUrls,
-                nowMs,
-            })
-        ).pipe(
-            this.sourceSettings.guard(),
-            timeout(5000),
-            switchMap((scopedResult) => {
-                const resultMap = new Map<string, EpgProgram | null>();
-                const fallbackChannelIds: string[] = [];
-
-                channelIds.forEach((channelId) => {
-                    const program = scopedResult?.[channelId] ?? null;
-                    resultMap.set(channelId, program);
-                    if (!program) {
-                        fallbackChannelIds.push(channelId);
-                    }
-                });
-
-                if (fallbackChannelIds.length === 0) {
-                    return of(resultMap);
-                }
-
-                if (fallbackSourceUrls.length === 0) {
-                    return of(resultMap);
-                }
-
-                return from(
-                    this.epgBridge.getCurrentProgramsBatch(fallbackChannelIds, {
-                        sourceUrls: fallbackSourceUrls,
-                        nowMs,
-                    })
-                ).pipe(
-                    this.sourceSettings.guard(),
-                    timeout(5000),
-                    map((globalResult) => {
-                        fallbackChannelIds.forEach((channelId) => {
-                            resultMap.set(
-                                channelId,
-                                globalResult?.[channelId] ?? null
-                            );
-                        });
-                        return resultMap;
-                    }),
-                    catchError((err) => {
-                        console.error(
-                            'EPG global fallback current programs error:',
-                            err
-                        );
-                        return of(resultMap);
-                    })
-                );
-            }),
-            catchError((err) => {
-                console.error('EPG scoped batch current programs error:', err);
-                return of(this.createNullProgramMap(channelIds));
-            })
-        );
+        return this.currentPrograms.forChannels(channelIds, options);
     }
 
     getChannelMetadataForChannels(
@@ -629,86 +220,15 @@ export class EpgService {
             return of(new Map());
         }
 
-        const normalizedChannelIds = this.normalizeChannelIds(channelIds);
+        const normalizedChannelIds = normalizeLookupChannelIds(channelIds);
         if (normalizedChannelIds.length === 0) {
             return of(new Map());
         }
 
         return this.channelMetadata.forChannels(
             normalizedChannelIds,
-            this.normalizeSourceUrls(options)
+            normalizeLookupSourceUrls(options)
         );
-    }
-
-    private normalizeChannelIds(channelIds: string[]): string[] {
-        return Array.from(
-            new Set(
-                channelIds
-                    .map((channelId) => channelId.trim())
-                    .filter((channelId) => channelId.length > 0)
-            )
-        );
-    }
-
-    private normalizeSourceUrls(options?: EpgLookupOptions): string[] {
-        return normalizeEpgUrls(options?.sourceUrls ?? []);
-    }
-
-    private getScopedCurrentProgramForChannel(
-        channelId: string,
-        sourceUrls: string[],
-        fallbackSourceUrls: string[]
-    ): Observable<EpgProgram | null> {
-        const cacheKey = this.programCache.keyFor(channelId, sourceUrls);
-
-        return this.programCache.getOrFetch(cacheKey, () =>
-            from(
-                this.epgBridge.getChannelPrograms(channelId, { sourceUrls })
-            ).pipe(
-                this.sourceSettings.guard(),
-                timeout(3000),
-                map((programs) => normalizeEpgPrograms(programs ?? [])),
-                switchMap((programs) => {
-                    const currentProgram = this.findCurrentProgram(programs);
-                    if (currentProgram) {
-                        return of(currentProgram);
-                    }
-
-                    return this.getFallbackCurrentProgramForChannel(
-                        channelId,
-                        fallbackSourceUrls
-                    );
-                }),
-                catchError((err) => {
-                    console.error('EPG scoped current program error:', err);
-                    return this.getFallbackCurrentProgramForChannel(
-                        channelId,
-                        fallbackSourceUrls
-                    );
-                })
-            )
-        );
-    }
-
-    private getFallbackCurrentProgramForChannel(
-        channelId: string,
-        sourceUrls: string[]
-    ): Observable<EpgProgram | null> {
-        if (sourceUrls.length === 0) {
-            return of(null);
-        }
-
-        return this.getScopedCurrentProgramForChannel(
-            channelId,
-            sourceUrls,
-            []
-        );
-    }
-
-    private createNullProgramMap(
-        channelIds: string[]
-    ): Map<string, EpgProgram | null> {
-        return new Map(channelIds.map((channelId) => [channelId, null]));
     }
 
     private getGlobalEpgSourceUrls(excluding: string[] = []): string[] {
