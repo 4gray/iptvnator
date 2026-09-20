@@ -268,15 +268,9 @@ export class EpgService {
             options
         );
         if (!scoped$) {
-            // No scope applies, or the bridge has no batch endpoint. The
-            // per-channel path below keeps its historical behaviour here
-            // (`getCurrentProgramForChannel`, which re-applies the global
-            // scope when Settings hold URLs); only the explicit any-source
-            // retry asks for a genuinely source-less lookup.
-            return this.getUnscopedCurrentProgramsForChannels(
-                channelIds,
-                Boolean(options?.anySourceFallback)
-            );
+            // Nothing declares a scope — neither the caller nor Settings — so
+            // the pool of every imported source is the only answer there is.
+            return this.getUnscopedCurrentProgramsForChannels(channelIds);
         }
         if (!options?.anySourceFallback) {
             return scoped$;
@@ -291,26 +285,29 @@ export class EpgService {
      * The scoped lookup: the caller's playlist sources first (with the global
      * sources as fallback), else the Settings-managed global sources alone.
      * `null` when no scope applies and the unscoped pool is the only answer.
+     *
+     * The ladder is the same whether or not the bridge has the batch
+     * endpoint. Collapsing a legacy preload straight into the source-less
+     * lookup would drop the caller's scope entirely, which is exactly what
+     * the scopes exist to prevent: two imported guides reusing one XMLTV id
+     * would answer each other's channels.
      */
     private getSourceScopedCurrentProgramsForChannels(
         channelIds: string[],
         options?: EpgLookupOptions
     ): Observable<Map<string, EpgProgram | null>> | null {
-        if (!this.epgBridge.supportsCurrentProgramBatch) {
-            return null;
-        }
-
         const sourceUrls = this.normalizeSourceUrls(options);
         if (sourceUrls.length > 0) {
-            return this.getScopedCurrentProgramsForChannels(
+            return this.scopedCurrentProgramsForChannels(
                 channelIds,
-                sourceUrls
+                sourceUrls,
+                this.getGlobalEpgSourceUrls(sourceUrls)
             );
         }
 
         const globalSourceUrls = this.getGlobalEpgSourceUrls();
         if (globalSourceUrls.length > 0) {
-            return this.getScopedCurrentProgramsForChannels(
+            return this.scopedCurrentProgramsForChannels(
                 channelIds,
                 globalSourceUrls,
                 []
@@ -318,6 +315,55 @@ export class EpgService {
         }
 
         return null;
+    }
+
+    /** One scoped batch, or its per-channel equivalent on an older preload. */
+    private scopedCurrentProgramsForChannels(
+        channelIds: string[],
+        sourceUrls: string[],
+        fallbackSourceUrls: string[]
+    ): Observable<Map<string, EpgProgram | null>> {
+        if (this.epgBridge.supportsCurrentProgramBatch) {
+            return this.getScopedCurrentProgramsForChannels(
+                channelIds,
+                sourceUrls,
+                fallbackSourceUrls
+            );
+        }
+
+        const normalizedChannelIds = this.normalizeChannelIds(channelIds);
+        if (normalizedChannelIds.length === 0) {
+            return of(new Map());
+        }
+
+        // `getScopedCurrentProgramForChannel` walks the same scope ->
+        // fallback-scope ladder the batch query does, and caches under the
+        // same scoped key.
+        return forkJoin(
+            normalizedChannelIds.map((channelId) =>
+                this.getScopedCurrentProgramForChannel(
+                    channelId,
+                    sourceUrls,
+                    fallbackSourceUrls
+                ).pipe(
+                    this.sourceSettings.guard(),
+                    timeout(5000),
+                    map((program) => ({ channelId, program })),
+                    catchError(() => of({ channelId, program: null }))
+                )
+            )
+        ).pipe(
+            this.sourceSettings.guard(),
+            map(
+                (results) =>
+                    new Map(
+                        results.map((result) => [
+                            result.channelId,
+                            result.program,
+                        ])
+                    )
+            )
+        );
     }
 
     /**
@@ -336,10 +382,7 @@ export class EpgService {
             return of(scopedMap);
         }
 
-        return this.getUnscopedCurrentProgramsForChannels(
-            unresolvedIds,
-            true
-        ).pipe(
+        return this.getUnscopedCurrentProgramsForChannels(unresolvedIds).pipe(
             map((anySourceMap) => {
                 const mergedMap = new Map(scopedMap);
                 anySourceMap.forEach((program, channelId) => {
@@ -354,8 +397,7 @@ export class EpgService {
 
     /** Lookup across every imported source, cached under the source-less key. */
     private getUnscopedCurrentProgramsForChannels(
-        channelIds: string[],
-        perChannelUnscoped = false
+        channelIds: string[]
     ): Observable<Map<string, EpgProgram | null>> {
         const resultMap = new Map<string, EpgProgram | null>();
         const channelsToFetch: string[] = [];
@@ -413,15 +455,13 @@ export class EpgService {
         }
 
         // Fallback for older preload bundles without the batch endpoint.
-        // An any-source retry must use the unscoped per-channel lookup: the
-        // public `getCurrentProgramForChannel` puts the Settings-managed
-        // scope back on, so the retry would re-ask the question the scoped
-        // pass already answered and the fallback would do nothing here.
+        // Deliberately the unscoped per-channel lookup: everything reaching
+        // here wants the source-less pool — either nothing declared a scope,
+        // or this is the any-source retry after the scoped pass. The public
+        // `getCurrentProgramForChannel` would put the Settings scope back on
+        // and make the retry re-ask the question the scoped pass answered.
         const fetchObservables = channelsToFetch.map((channelId) =>
-            (perChannelUnscoped
-                ? this.getUnscopedCurrentProgramForChannel(channelId)
-                : this.getCurrentProgramForChannel(channelId)
-            ).pipe(
+            this.getUnscopedCurrentProgramForChannel(channelId).pipe(
                 this.sourceSettings.guard(),
                 timeout(5000),
                 map((program) => ({ channelId, program })),

@@ -982,10 +982,14 @@ These URLs are playlist-scoped by default:
   `EpgLookupOptions.anySourceFallback` (renderer-only, never forwarded to the
   bridge): after the scope — playlist sources, then the global ones — has
   answered, the keys still without a programme are retried once against every
-  imported source through the source-less batch path and its cache. On a
-  preload without the batch endpoint that retry uses the unscoped
-  per-channel lookup; every other caller keeps the historical per-channel
-  behaviour there, which re-applies the Settings scope. The dashboard live
+  imported source through the source-less batch path and its cache. The
+  ladder has the same shape with or without the bridge's batch endpoint: on
+  an older preload the scoped pass runs as per-channel scoped lookups
+  (`getScopedCurrentProgramForChannel`, same scope -> fallback-scope walk,
+  same scoped cache key) and only the any-source retry is source-less.
+  Collapsing that preload straight into the source-less lookup would drop
+  the caller's scope, which is what the scopes exist to prevent. The
+  dashboard live
   rails pass the option: without it a favourite whose guide only exists in
   another playlist's XMLTV showed no programme on the dashboard while its
   "See all" row — resolved by `StreamResolverService`, which never scopes by

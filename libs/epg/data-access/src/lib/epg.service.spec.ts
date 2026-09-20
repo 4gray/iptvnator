@@ -651,10 +651,9 @@ describe('EpgService', () => {
         expect(retryOptions).not.toHaveProperty('sourceUrls');
     });
 
-    it('asks the unscoped pool per channel when the any-source retry runs on a preload without the batch endpoint', async () => {
-        // The legacy per-channel path used to answer through
-        // `getCurrentProgramForChannel`, which re-applies the Settings scope,
-        // so the retry re-asked the question the scoped pass had answered.
+    it('walks scope then any-source per channel on a preload without the batch endpoint', async () => {
+        // The ladder must not change shape with the capability: the scoped
+        // pass runs first and only its misses reach the source-less pool.
         settingsStore.getSettings.mockReturnValue({
             epgUrl: ['https://global.example.com/guide.xml'],
             trustedPrivateNetworkEpgUrls: [],
@@ -662,20 +661,25 @@ describe('EpgService', () => {
         });
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = false;
-        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([
-            {
-                channel: 'guide-sports',
-                start: '2026-05-23T10:00:00.000Z',
-                stop: '2026-05-23T11:00:00.000Z',
-                title: 'Other Playlist Sports',
-            },
-        ]);
+        epgBridge.getChannelPrograms = jest
+            .fn()
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([
+                {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Other Playlist Sports',
+                },
+            ]);
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
 
         try {
             const result = await firstValueFrom(
                 service.getCurrentProgramsForChannels(['guide-sports'], {
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
                     anySourceFallback: true,
                 })
             );
@@ -683,13 +687,42 @@ describe('EpgService', () => {
             expect(result.get('guide-sports')?.title).toBe(
                 'Other Playlist Sports'
             );
-            // No source scope reaches the bridge on this path.
-            expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith(
-                'guide-sports'
-            );
+            const calls = (epgBridge.getChannelPrograms as jest.Mock).mock
+                .calls;
+            expect(calls.map(([, options]) => options?.sourceUrls)).toEqual([
+                ['https://playlist.example.com/guide.xml'],
+                ['https://global.example.com/guide.xml'],
+                undefined,
+            ]);
         } finally {
             jest.useRealTimers();
         }
+    });
+
+    it('keeps the playlist scope on a preload without the batch endpoint when no any-source retry was asked for', async () => {
+        // Jumping straight to the source-less lookup here would defeat the
+        // scopes: two guides reusing one XMLTV id would answer each other.
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = false;
+        epgBridge.getChannelPrograms = jest.fn().mockResolvedValue([]);
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+
+        expect(result.get('guide-sports')).toBeNull();
+        const calls = (epgBridge.getChannelPrograms as jest.Mock).mock.calls;
+        expect(calls.map(([, options]) => options?.sourceUrls)).toEqual([
+            ['https://playlist.example.com/guide.xml'],
+            ['https://global.example.com/guide.xml'],
+        ]);
     });
 
     it('keeps the Settings scope on the legacy per-channel path when no any-source retry was asked for', async () => {
