@@ -129,9 +129,12 @@ Render rules:
        `dashboard-recent-live-rail`); there is no fallback from one to the
        other. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
        fallback order (`tvg-id` -> `tvg-name` -> channel name); EPG enrichment
-       must use that key before falling back to the card title. That XMLTV
-       lookup is one batched local query for every live card and re-runs on
-       the 30 s tick.
+       must use that key before falling back to the card title. Both rails are
+       enriched by `DashboardLiveEpgPresenter`, the one component-provided
+       facade for live EPG: it owns the XMLTV lookup described under "Scoped
+       lookups" in `m3u-playlist-module.md`, forwards everything portal-shaped
+       to `DashboardPortalLiveEpgPresenter`, and `enrich()` returns the cards
+       with their "now on air" row filled in.
        Xtream and Stalker cards have no XMLTV key of their own; their "now on
        air" line comes from the portal, **lazily and per card**:
         - `buildDashboardPortalLiveEpgEntry` (dashboard data-access) turns a
@@ -149,9 +152,12 @@ Render rules:
           visible keys of both rails with the pinned hero key and calls
           `DashboardPortalLiveEpgService.sync()` with exactly those entries —
           on every change, on the 30 s tick, and on a display-offset change.
-          The queue lives in the root service, so leaving the dashboard hands
-          the wanted set back (`sync([])` on destroy); otherwise the queue
-          would keep asking for cards on a page that is gone.
+          It is reached through `DashboardLiveEpgPresenter`, which derives the
+          portal rows itself from the enabled rails and pins the hero, so the
+          page component only forwards what a rail can see. The queue lives in
+          the root service, so leaving the dashboard hands the wanted set back
+          (`sync([])` on destroy); otherwise the queue would keep asking for
+          cards on a page that is gone.
         - `DashboardPortalLiveEpgService` (root) owns the queue: at most two
           requests in flight, 200 ms between starts (the numbers
           `EpgQueueService` proved against real panels), one card per request,
@@ -180,8 +186,9 @@ Render rules:
           filing an empty answer for every card. Lifting that gate for portal
           lookups would change the collection pages too and is deliberately
           out of scope here.
-        - `enrichLiveCards` prefers the portal answer, falls back to the XMLTV
-          title match when the portal said "nothing on air", and marks a card
+        - `DashboardLiveEpgPresenter.enrich()` prefers the portal answer, falls
+          back to the XMLTV title match when the portal said "nothing on air",
+          and marks a card
           `nowPlayingState: 'pending'` only before its FIRST answer — the
           channel layout then shows a shimmer placeholder in the programme
           slot; a refresh keeps the previous answer on screen.

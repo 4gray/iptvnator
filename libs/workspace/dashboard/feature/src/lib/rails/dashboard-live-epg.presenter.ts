@@ -1,8 +1,10 @@
 import {
     computed,
+    effect,
     inject,
     Injectable,
     signal,
+    untracked,
     type Signal,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
@@ -22,8 +24,12 @@ import type {
     PortalActivityItem,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
+import { normalizeDashboardRailsSettings } from '@iptvnator/shared/interfaces';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
-import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
+import {
+    buildDashboardPortalLiveEpgKey,
+    DashboardDataService,
+} from '@iptvnator/workspace/dashboard/data-access';
 import type { DashboardRailCard } from './dashboard-rail.component';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import {
@@ -37,6 +43,7 @@ import {
     type DashboardLiveEpgDetails,
     type DashboardLiveEpgLookupGroup,
 } from './dashboard-live-epg.utils';
+import { RAIL_ITEM_LIMIT } from './dashboard-rail.utils';
 
 type ScopeAnswer = {
     readonly scopeKey: string;
@@ -124,24 +131,71 @@ export class DashboardLiveEpgPresenter {
         { initialValue: new Map<string, EpgProgram | null>() }
     );
 
+    // The Xtream/Stalker live rows behind the hero and the two live rails.
+    // Their programmes come from the portal, asked for lazily per visible
+    // card; M3U rows stay on the XMLTV batch above.
+    private readonly portalItems = computed<readonly PortalActivityItem[]>(
+        () => {
+            const rails = normalizeDashboardRailsSettings(
+                this.settingsStore.dashboardRails?.()
+            );
+            const hero = this.data.globalRecentItems()[0] ?? null;
+            return [
+                ...(rails.hero && hero?.type === 'live' ? [hero] : []),
+                ...(rails.liveFavorites
+                    ? this.data
+                          .globalFavoriteLiveItems()
+                          .slice(0, RAIL_ITEM_LIMIT)
+                    : []),
+                ...(rails.recentlyWatchedLive
+                    ? this.data
+                          .globalRecentLiveItems()
+                          .slice(0, RAIL_ITEM_LIMIT)
+                    : []),
+            ];
+        }
+    );
+
+    constructor() {
+        this.portal.connect(this.portalItems);
+        // The hero sits at the top of the page and is never scrolled into
+        // view, so its key is wanted regardless of what the rails report.
+        effect(() => {
+            const [first] = this.portalItems();
+            const heroKey =
+                first?.type === 'live'
+                    ? buildDashboardPortalLiveEpgKey(first)
+                    : null;
+            untracked(() => this.portal.setPinnedKeys([heroKey]));
+        });
+    }
+
     /** The live cards whose rails are enabled, hero included. */
     connect(cards: Signal<readonly DashboardRailCard[]>): void {
         this.cards.set(cards);
     }
 
-    /** The Xtream/Stalker rows whose programmes come from their portal. */
-    connectPortalItems(items: Signal<readonly PortalActivityItem[]>): void {
-        this.portal.connect(items);
-    }
-
-    /** Portal keys wanted regardless of scrolling (the hero card). */
-    setPinnedPortalKeys(keys: readonly (string | null | undefined)[]): void {
-        this.portal.setPinnedKeys(keys);
-    }
-
     /** A rail reported the cards inside its viewport. */
     setVisibleCards(railId: string, cards: readonly DashboardRailCard[]): void {
         this.portal.setVisibleCards(railId, cards);
+    }
+
+    /** The rails' cards with their "now on air" row filled in. */
+    enrich(cards: readonly DashboardRailCard[]): DashboardRailCard[] {
+        return cards.map((card) => {
+            const details = this.detailsFor(card);
+            // Placeholder only before the FIRST portal answer: a refresh
+            // keeps the previous answer on screen instead of flashing.
+            const pending = !details && this.isAwaitingFirstAnswer(card);
+            if (!details && !pending) {
+                return card;
+            }
+            return {
+                ...card,
+                ...(details ?? {}),
+                nowPlayingState: pending ? 'pending' : null,
+            };
+        });
     }
 
     /** `null` when nothing is known about the card's current programme. */
@@ -175,7 +229,7 @@ export class DashboardLiveEpgPresenter {
      * True only before a card's FIRST portal answer, so a refresh keeps the
      * previous answer on screen instead of flashing a placeholder.
      */
-    isAwaitingFirstAnswer(card: DashboardRailCard): boolean {
+    private isAwaitingFirstAnswer(card: DashboardRailCard): boolean {
         return (
             this.portal.programFor(card.liveEpgSourceKey) === undefined &&
             this.portal.isPending(card.liveEpgSourceKey)

@@ -59,10 +59,7 @@ import type {
     DashboardRailCard,
     DashboardRailActionSelection,
 } from './dashboard-rail.component';
-import type {
-    PlaylistMeta,
-    PortalActivityItem,
-} from '@iptvnator/shared/interfaces';
+import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import type { DashboardHeroModel } from './dashboard-hero.utils';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
@@ -277,40 +274,16 @@ export class WorkspaceDashboardRailsComponent {
         )
     );
 
-    // The Xtream/Stalker live rows behind the hero and the two live rails.
-    // Their programmes come from the portal, asked for lazily per visible
-    // card by DashboardPortalLiveEpgPresenter; M3U rows stay on the XMLTV
-    // batch above.
-    private readonly portalLiveItems = computed<readonly PortalActivityItem[]>(
-        () => {
-            const rails = this.dashboardRails();
-            const hero = this.heroRecentItem();
-            return [
-                ...(rails.hero && hero?.type === 'live' ? [hero] : []),
-                ...(rails.liveFavorites
-                    ? this.data
-                          .globalFavoriteLiveItems()
-                          .slice(0, RAIL_ITEM_LIMIT)
-                    : []),
-                ...(rails.recentlyWatchedLive
-                    ? this.data
-                          .globalRecentLiveItems()
-                          .slice(0, RAIL_ITEM_LIMIT)
-                    : []),
-            ];
-        }
-    );
-
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
     );
 
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
-        this.enrichLiveCards(this.liveFavoriteCards())
+        this.liveEpg.enrich(this.liveFavoriteCards())
     );
 
     readonly recentLiveCardsEnriched = computed<DashboardRailCard[]>(() =>
-        this.enrichLiveCards(this.recentLiveCards())
+        this.liveEpg.enrich(this.recentLiveCards())
     );
 
     readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() =>
@@ -417,17 +390,6 @@ export class WorkspaceDashboardRailsComponent {
         void this.data.reloadGlobalFavorites();
 
         this.liveEpg.connect(this.enabledLiveCards);
-        // Portal EPG for the live cards: asked only for cards the rails
-        // report as visible; the hero sits at the top and is pinned so it
-        // never waits for a scroll.
-        this.liveEpg.connectPortalItems(this.portalLiveItems);
-        effect(() => {
-            this.liveEpg.setPinnedPortalKeys([
-                this.dashboardRails().hero
-                    ? this.heroLiveCard()?.liveEpgSourceKey
-                    : null,
-            ]);
-        });
 
         // Refresh when Xtream playlist count changes so a newly added provider
         // populates the rail without a manual dashboard reload. The Xtream
@@ -609,25 +571,6 @@ export class WorkspaceDashboardRailsComponent {
                 undefined,
                 { duration: 5000 }
             );
-        });
-    }
-
-    private enrichLiveCards(
-        cards: readonly DashboardRailCard[]
-    ): DashboardRailCard[] {
-        return cards.map((card) => {
-            const details = this.liveEpg.detailsFor(card);
-            // Placeholder only before the FIRST portal answer: a refresh
-            // keeps the previous answer on screen instead of flashing.
-            const pending = !details && this.liveEpg.isAwaitingFirstAnswer(card);
-            if (!details && !pending) {
-                return card;
-            }
-            return {
-                ...card,
-                ...(details ?? {}),
-                nowPlayingState: pending ? 'pending' : null,
-            };
         });
     }
 
