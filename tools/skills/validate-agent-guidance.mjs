@@ -188,7 +188,9 @@ export async function validateAgentGuidance({ rootDir }) {
                     inlineImports.push(token);
                     continue;
                 }
-                const candidate = token.replace(/[?!.,;:)"'\]}]+$/u, '');
+                const candidate = token
+                    .split(/(?=[^\x00-\x7f])\p{P}/u, 1)[0]
+                    .replace(/[?!.,;:)"'\]}]+$/u, '');
                 try {
                     if ((await stat(resolve(rootDir, candidate))).isFile())
                         inlineImports.push(token);

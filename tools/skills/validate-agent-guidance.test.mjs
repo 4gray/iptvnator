@@ -1123,3 +1123,16 @@ for (const punctuation of ['—its', '–its', '…', '，next', '。next', '”
         );
     });
 }
+
+for (const suffix of ['—then', '，next', '”']) {
+    test(`extensionless imports stop at Unicode punctuation: ${suffix}`, async (t) => {
+        const result = await diagnostics(t, {
+            'CLAUDE.md':
+                '@AGENTS.md\n\nRead @INSTRUCTIONS' + suffix + ' continue',
+            INSTRUCTIONS: 'Additional guidance',
+        });
+        assert.ok(
+            result.some((message) => message.includes('additional or inline'))
+        );
+    });
+}
