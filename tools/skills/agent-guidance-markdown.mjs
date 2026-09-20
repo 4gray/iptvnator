@@ -83,6 +83,16 @@ export function guidanceProse(markdown) {
     return markdownLexer.lexer(markdown).map(prose).join('\n');
 }
 
+export function guidanceStandaloneImports(markdown) {
+    return markdownLexer
+        .lexer(markdown)
+        .filter((token) => token.type === 'paragraph')
+        .flatMap((token) => [
+            ...token.raw.matchAll(/^ {0,3}@([^\s]+)[\t ]*$/gmu),
+        ])
+        .map((match) => match[1]);
+}
+
 export function guidanceAnchors(markdown) {
     const slugger = new GithubSlugger();
     const found = new Set();

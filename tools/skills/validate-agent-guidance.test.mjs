@@ -558,3 +558,17 @@ test('GitHub heading slugs remove non-ASCII whitespace', async (t) => {
         );
     }
 });
+
+for (const body of [
+    '> @AGENTS.md',
+    '- @AGENTS.md',
+    '# @AGENTS.md',
+    '**@AGENTS.md**',
+]) {
+    test(`structured Markdown cannot satisfy Claude import: ${body}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { 'CLAUDE.md': body })).join('\n'),
+            /standalone @AGENTS.md/
+        );
+    });
+}

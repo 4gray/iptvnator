@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import {
     guidanceAnchors as anchors,
     guidanceProse,
+    guidanceStandaloneImports,
     guidanceReferences as references,
 } from './agent-guidance-markdown.mjs';
 
@@ -90,9 +91,7 @@ export async function validateAgentGuidance({ rootDir }) {
                     `${source}: at most ${maxBytes} UTF-8 bytes allowed (received ${bytes})`
                 );
             const unfenced = guidanceProse(markdown);
-            const imports = [...unfenced.matchAll(/^\s*@([^\s]+)\s*$/gmu)].map(
-                (match) => match[1]
-            );
+            const imports = guidanceStandaloneImports(markdown);
             const prose = unfenced.replace(/`[^`\n]+`/gu, '');
             const inlineImports = [...prose.matchAll(/(?:^|[\s(])@([^\s]+)/gu)]
                 .map((match) => match[1])
