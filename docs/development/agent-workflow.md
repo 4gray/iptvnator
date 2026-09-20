@@ -37,7 +37,8 @@ Write generic filenames as prose; commands, templates, globs, URLs, package
 aliases and dotted code symbols are excluded. Bare dotted names with conventional
 file suffixes (such as .md, .json or .ts) are treated as filenames. Use a `./`
 prefix or Markdown link for other ambiguous filenames that resemble code symbols.
-Explicit relative literal paths may contain spaces; command-option snippets are excluded.
+Explicit relative literals denote paths, including spaces and hyphenated words.
+Put executable command examples in fenced code when their syntax also looks like a path.
 Multi-part dotfiles are path candidates too.
 Conventional extensionless filenames such as Dockerfile, Makefile and LICENSE
 are also path candidates; use an explicit `./` prefix for other extensionless files.
@@ -57,6 +58,7 @@ Rendered HTML anchor hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
+HTML video, audio and source `src` assets use the same existence checks as images.
 Inline guidance imports are rejected after punctuation as well as whitespace.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are

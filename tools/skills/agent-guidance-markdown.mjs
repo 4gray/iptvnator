@@ -66,11 +66,12 @@ function htmlNavigation(html, inspect = () => {}) {
                 anchors.push(attribute.value);
             if (
                 (node.tagName === 'a' && attribute.name === 'href') ||
-                (node.tagName === 'img' && attribute.name === 'src')
+                (['img', 'video', 'audio', 'source'].includes(node.tagName) &&
+                    attribute.name === 'src')
             )
                 references.push({
                     target: attribute.value,
-                    image: node.tagName === 'img',
+                    image: node.tagName !== 'a',
                 });
             if (
                 ['img', 'source'].includes(node.tagName) &&
@@ -178,7 +179,6 @@ function isLiteralRepositoryPath(token) {
         ).test(token)
     )
         return false;
-    if (/\s+-{1,2}[\p{L}]/u.test(token)) return false;
     if (token.includes('YYYY-MM-DD') || /(?:^|\/)\.\.\.(?:\/|$)/u.test(token))
         return false;
     const path = token.split('#')[0];

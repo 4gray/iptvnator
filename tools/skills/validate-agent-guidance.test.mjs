@@ -921,3 +921,37 @@ test('explicit relative literal paths support spaces', async (t) => {
         []
     );
 });
+
+for (const filename of ['./docs/Design - Copy.md', './docs/Design -Copy.md']) {
+    test(`explicit spaced filename is checked: ${filename}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { 'AGENTS.md': '`' + filename + '`' })).join(
+                '\n'
+            ),
+            /does not exist/
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': '`' + filename + '`',
+                [filename]: '',
+            }),
+            []
+        );
+    });
+}
+for (const html of [
+    '<video><source src="docs/demo.mp4"></video>',
+    '<video src="docs/demo.mp4"></video>',
+    '<audio src="docs/demo.mp4"></audio>',
+]) {
+    test(`rendered media source is checked: ${html}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { 'AGENTS.md': html })).join('\n'),
+            /does not exist/
+        );
+        assert.deepEqual(
+            await diagnostics(t, { 'AGENTS.md': html, 'docs/demo.mp4': '' }),
+            []
+        );
+    });
+}
