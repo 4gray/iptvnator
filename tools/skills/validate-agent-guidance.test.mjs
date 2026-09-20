@@ -1060,3 +1060,24 @@ for (const filename of [
         assert.ok((await diagnostics(t, { 'AGENTS.md': guidance })).length > 0);
     });
 }
+
+for (const target of ['docs/missing.md', 'docs/example.md#missing']) {
+    test(`image-map navigation is validated: ${target}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': `<map><area href="${target}"></map>`,
+                })
+            ).length > 0
+        );
+    });
+}
+test('valid image-map navigation and inert areas pass', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '<map><area href="docs/example.md#repeat"></map>\n<template><map><area href="missing.md"></map></template>',
+        }),
+        []
+    );
+});

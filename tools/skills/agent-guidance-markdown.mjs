@@ -69,7 +69,8 @@ function htmlNavigation(html, inspect = () => {}) {
             )
                 anchors.push(attribute.value);
             if (
-                (node.tagName === 'a' && attribute.name === 'href') ||
+                (['a', 'area'].includes(node.tagName) &&
+                    attribute.name === 'href') ||
                 (['img', 'video', 'audio', 'source', 'track'].includes(
                     node.tagName
                 ) &&
@@ -78,7 +79,7 @@ function htmlNavigation(html, inspect = () => {}) {
             )
                 references.push({
                     target: attribute.value,
-                    image: node.tagName !== 'a',
+                    image: !['a', 'area'].includes(node.tagName),
                 });
             if (
                 ['img', 'source'].includes(node.tagName) &&

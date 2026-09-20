@@ -54,7 +54,7 @@ Heading anchors decode HTML character references in text and use `github-slugger
 for GitHub-compatible character filtering and duplicate suffixes.
 Only headings present outside inert HTML containers contribute slugs or duplicate counters.
 Explicit HTML anchors use `parse5`, excluding comments, scripts, styles and template contents.
-Rendered HTML anchor hrefs and image sources use the same local-reference checks
+Rendered HTML anchor and image-map area hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
