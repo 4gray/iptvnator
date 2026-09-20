@@ -42,13 +42,13 @@ import {
     EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
+    createLogger,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
     PortalChannelSortMode,
     sortPortalChannelItems,
 } from '@iptvnator/portal/shared/util';
 import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
-import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -64,10 +64,13 @@ import {
     toSharedEpgProgram,
 } from './epg-preview-program';
 import { EpgRefillLimiter } from './epg-refill-limiter.service';
+import {
+    epgQueueEntryFor,
+    EpgRefreshContribution,
+    EpgRefreshCoordinator,
+    xtreamCredentialsOf,
+} from './epg-refresh-coordinator.service';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
-
-/** How often the rows on screen re-check the programme they are showing. */
-const EPG_REFRESH_INTERVAL_MS = 60_000;
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -179,8 +182,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     /** Last viewport slice, reused to refresh previews after a mapping change. */
     private lastVisibleChannels: XtreamChannelListItem[] = [];
 
-    /** Periodic re-pick of the visible rows' current program, cleared in `ngOnDestroy`. */
-    private epgRefreshIntervalId?: number;
+    /** Leaves the shared refresh tick; called from `ngOnDestroy`. */
+    private leaveEpgRefresh?: () => void;
+
+    private readonly epgRefreshCoordinator = inject(EpgRefreshCoordinator);
+    private readonly logger = createLogger('XtreamPortalChannelsList');
 
     /**
      * Shared, not per-instance: a live layout mounts this list more than once
@@ -372,12 +378,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
             // Nothing else re-evaluates the shown "current program" as
             // wall-clock time passes (#767): applyProgram() only runs on
-            // scroll-into-view, a new EPG result, or an offset change.
-            // Mirrors the EPG refresh interval in the M3U sibling
-            // `channel-list-container.component.ts`.
-            this.epgRefreshIntervalId = window.setInterval(
-                () => this.refreshVisiblePrograms(),
-                EPG_REFRESH_INTERVAL_MS
+            // scroll-into-view, a new EPG result, or an offset change. The
+            // tick is shared with every other mounted list so their requests
+            // merge instead of cancelling one another.
+            this.leaveEpgRefresh = this.epgRefreshCoordinator.register(() =>
+                this.collectEpgRefresh()
             );
         }
     }
@@ -468,15 +473,19 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
      * earliest-item fallback used for a first paint could even move the row
      * backwards. What is on screen stays there until a replacement arrives,
      * so a refreshing row never blanks out.
+     *
+     * Deciding all this costs nothing but local state, so every mounted list
+     * does it for itself; what it cannot do alone is ASK, which is why the
+     * rows to fetch are handed back to the coordinator to merge.
      */
-    private refreshVisiblePrograms(): void {
+    private collectEpgRefresh(): EpgRefreshContribution | null {
         const channels = this.lastVisibleChannels;
         if (!this.supportsEpg || channels.length === 0) {
-            return;
+            return null;
         }
 
         const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) return;
+        if (!playlist) return null;
 
         const now = this.epgClockMs();
         const wallClockNow = Date.now();
@@ -484,14 +493,15 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         let movedProgress = false;
 
         for (const channel of channels) {
-            const shown = this.epgPrograms.get(channel.xtream_id);
+            const streamId = channel.xtream_id;
+            const shown = this.epgPrograms.get(streamId);
             if (shown && !hasEpgProgramEnded(shown, now)) {
-                this.updateProgramProgress(channel.xtream_id, shown);
+                this.updateProgramProgress(streamId, shown);
                 movedProgress = true;
                 continue;
             }
 
-            const cached = this.epgQueueService.getCached(channel.xtream_id);
+            const cached = this.epgQueueService.getCached(streamId);
             if (cached === null) {
                 staleChannels.push(channel);
                 continue;
@@ -499,7 +509,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
             const replacement = pickAiringOrUpcomingEpgItem(cached, now);
             if (replacement) {
-                this.applyProgram(channel.xtream_id, replacement);
+                this.applyProgram(streamId, replacement);
                 continue;
             }
 
@@ -511,27 +521,36 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 continue;
             }
 
-            const mayRefill = this.epgRefill.claim(
-                playlist.id,
-                channel.xtream_id,
-                wallClockNow
-            );
-            if (!mayRefill) continue;
+            if (!this.epgRefill.claim(playlist.id, streamId, wallClockNow)) {
+                continue;
+            }
 
             // Every cached programme has ended. The entry stays valid for
             // minutes and the queue skips a stream that still has one, so it
             // has to go before the refill below can reach the provider.
-            this.epgQueueService.invalidate(channel.xtream_id);
+            this.epgQueueService.invalidate(streamId);
             staleChannels.push(channel);
         }
 
-        this.requestEpgFor(staleChannels, channels);
         this.epgRefill.forgetExpired(wallClockNow);
-        if (movedProgress) {
-            // A replaced row already rendered through applyProgram(); this is
-            // for the progress bars that advanced without one.
-            this.cdr.markForCheck();
+        // A replaced row already rendered through applyProgram(); this is for
+        // the progress bars that advanced without one.
+        if (movedProgress) this.cdr.markForCheck();
+
+        if (staleChannels.length === 0) {
+            return null;
         }
+
+        return {
+            playlistId: playlist.id,
+            credentials: xtreamCredentialsOf(playlist),
+            // The whole slice, not just what is being fetched: the queue drops
+            // anything outside the visible set it was last handed.
+            visibleStreamIds: channels.map((channel) => channel.xtream_id),
+            staleEntries: staleChannels.map((channel) =>
+                epgQueueEntryFor(channel, playlist.id)
+            ),
+        };
     }
 
     /**
@@ -547,25 +566,18 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist || channels.length === 0) return;
 
-        const credentials: XtreamCredentials = {
-            serverUrl: playlist.serverUrl,
-            username: playlist.username,
-            password: playlist.password,
-            serverTimezone: playlist.serverTimezone,
-        };
-
         this.epgQueueService
             .enqueue(
-                channels.map((channel) => ({
-                    streamId: channel.xtream_id,
-                    epgChannelId: channel.epg_channel_id ?? null,
-                    playlistId: playlist.id ?? null,
-                })),
+                channels.map((channel) =>
+                    epgQueueEntryFor(channel, playlist.id)
+                ),
                 new Set(visibleChannels.map((channel) => channel.xtream_id)),
-                credentials
+                xtreamCredentialsOf(playlist)
             )
             .catch((error) => {
-                console.warn('EPG enqueue failed', error);
+                // An Xtream failure carries the stream URL, which is built out
+                // of the username and password.
+                this.logger.warn('EPG enqueue failed', error);
             });
     }
 
@@ -650,9 +662,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.subscriptions.unsubscribe();
-        if (this.epgRefreshIntervalId !== undefined) {
-            clearInterval(this.epgRefreshIntervalId);
-        }
+        this.leaveEpgRefresh?.();
     }
 
     private applyProgram(streamId: number, program: EpgItem): void {
