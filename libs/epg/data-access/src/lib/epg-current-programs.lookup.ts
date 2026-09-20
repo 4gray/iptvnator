@@ -18,13 +18,13 @@ import type { EpgLookupContext } from './epg-lookup-context';
 import { EpgSingleProgramLookup } from './epg-single-program.lookup';
 
 /**
- * "What is on air right now", for one channel or a batch of them.
+ * "What is on air right now" for a batch of channels.
  *
- * The whole source-scope ladder lives here: the caller's playlist sources
- * first, then the Settings-managed global ones, and — only when the caller
- * opts in with `anySourceFallback` — a final retry across every imported
- * guide. Extracted from `EpgService` to keep both files inside the
- * repository's production size limit.
+ * The source-scope ladder lives here: the caller's playlist sources first,
+ * then the Settings-managed global ones, and — only when the caller opts in
+ * with `anySourceFallback` — a final retry across every imported guide. A
+ * bridge without the batch endpoint walks the same ladder one channel at a
+ * time through `EpgSingleProgramLookup`, so both shapes answer identically.
  */
 export class EpgCurrentProgramsLookup {
     constructor(
