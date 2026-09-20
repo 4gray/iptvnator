@@ -787,3 +787,27 @@ test('declared packages allow safe subpaths', async (t) => {
         []
     );
 });
+
+for (const filename of [
+    'Dockerfile',
+    'Makefile',
+    'LICENSE',
+    'NOTICE',
+    'Procfile',
+]) {
+    test(`conventional extensionless filename is validated: ${filename}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { 'AGENTS.md': '`' + filename + '`' })).join(
+                '\n'
+            ),
+            /does not exist/
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': '`' + filename + '`',
+                [filename]: '',
+            }),
+            []
+        );
+    });
+}

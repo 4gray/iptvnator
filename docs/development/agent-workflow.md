@@ -37,8 +37,11 @@ Write generic filenames as prose; commands, templates, globs, URLs, package
 aliases and dotted code symbols are excluded. Bare dotted names with conventional
 file suffixes (such as .md, .json or .ts) are treated as filenames. Use a `./`
 prefix or Markdown link for other ambiguous filenames that resemble code symbols.
-Multi-part dotfiles are path candidates too. Link paths and fragments are decoded
-separately so encoded filename delimiters stay in the filename. Fenced and indented examples
+Multi-part dotfiles are path candidates too.
+Conventional extensionless filenames such as Dockerfile, Makefile and LICENSE
+are also path candidates; use an explicit `./` prefix for other extensionless files.
+Link paths and fragments are decoded separately so encoded filename delimiters
+stay in the filename. Fenced and indented examples
 do not count as root guidance imports or satisfy the required Claude import.
 The required Claude import must be an unformatted standalone line in a top-level
 paragraph; headings, quotes and list items do not satisfy it.

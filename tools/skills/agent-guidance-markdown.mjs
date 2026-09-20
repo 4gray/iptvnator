@@ -176,6 +176,9 @@ function isLiteralRepositoryPath(token) {
         return false;
     return (
         path.includes('/') ||
+        /^(?:Dockerfile|Containerfile|Makefile|GNUmakefile|Justfile|Procfile|Gemfile|Rakefile|Vagrantfile|LICENSE|LICENCE|NOTICE|COPYING|AUTHORS|CONTRIBUTORS|README|CHANGELOG)$/u.test(
+            path
+        ) ||
         /^(?:\.[\p{L}\p{N}_-][\p{L}\p{N}_.-]*|[\p{L}\p{N}_-][\p{L}\p{N}_.-]*\.[\p{L}][\p{L}\p{N}_-]*)$/u.test(
             path
         )

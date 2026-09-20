@@ -88,7 +88,7 @@ contracts below before changing a subsystem; do not load every document.
 | Angular conventions, docs and skills maintenance | [Agent workflow](docs/development/agent-workflow.md) |
 | Electron debugging, CDP, trace flags | [Electron debugging](docs/development/electron-debugging.md) |
 | SQLite, worker IPC, persistence migrations | [DB worker](docs/architecture/sqlite-db-worker.md), [database migrations](libs/shared/database/README.md) |
-| M3U, XMLTV, startup, source health, OS playlist opening | [M3U contracts](docs/architecture/m3u-playlist-module.md) |
+| M3U, XMLTV, startup, source health, OS playlist opening | [M3U contracts](docs/architecture/m3u-playlist-module.md), [adding sources across layers](docs/development/agent-workflow.md#adding-behavior-across-layers) |
 | Xtream / Stalker | [Xtream compatibility](docs/architecture/xtream-portal-compatibility.md), [Stalker contracts](docs/architecture/stalker-portal.md) (affected provider only) |
 | Player controls, diagnostics, radio, keep-awake | [Controls contract](docs/architecture/player-controls-contract.md) |
 | Embedded MPV, native runtime and packaging | [Embedded MPV](docs/architecture/embedded-mpv-native.md) |
