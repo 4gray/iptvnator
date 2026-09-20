@@ -1066,6 +1066,103 @@ describe('DashboardDataService', () => {
         );
     });
 
+    it('resolves episode progress for a Stalker embedded-VOD show stored without is_series', async () => {
+        // Real stored shape (RUcolor-style portal): the recent entry keeps
+        // the `series[]` episode array and a numeric VOD category, but no
+        // `is_series` flag. It must keep routing as a movie while its
+        // progress, badge, and resume handoff come from the episode rows
+        // saved under the parent id.
+        playlistsSignal.set([
+            ...createDefaultPlaylists(),
+            {
+                _id: 'stalker-embedded',
+                title: 'RUcolor.tv',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                macAddress: '00:11:22:33:44:55',
+                recentlyViewed: [
+                    {
+                        id: '17572',
+                        title: 'Fake (10 episodes)',
+                        category_id: '7',
+                        cmd: '/media/17572.mpg',
+                        series: [1, 2, 3, 4, 5, 6, 7, 8],
+                        added_at: '2026-09-19T16:13:50.000Z',
+                    },
+                ],
+            },
+        ]);
+        playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+            async (playlistId: string) =>
+                playlistId === 'stalker-embedded'
+                    ? [
+                          {
+                              playlistId,
+                              contentXtreamId: 1750797719,
+                              contentType: 'episode',
+                              seriesXtreamId: 17572,
+                              seasonNumber: 1,
+                              episodeNumber: 2,
+                              positionSeconds: 2673,
+                              durationSeconds: 2761,
+                              updatedAt: '2026-09-17T10:55:35.000Z',
+                          },
+                          {
+                              playlistId,
+                              contentXtreamId: 1750797722,
+                              contentType: 'episode',
+                              seriesXtreamId: 17572,
+                              seasonNumber: 1,
+                              episodeNumber: 5,
+                              positionSeconds: 2306,
+                              durationSeconds: 2920,
+                              updatedAt: '2026-09-18T21:45:56.000Z',
+                          },
+                      ]
+                    : []
+        );
+
+        await service.reloadPlaybackPositions();
+
+        const item = service
+            .globalRecentItems()
+            .find((recent) => recent.playlist_id === 'stalker-embedded');
+        if (!item) {
+            throw new Error('expected the Stalker embedded-series recent item');
+        }
+
+        expect(item.type).toBe('movie');
+        expect(item.watch_kind).toBe('series');
+        expect(service.getPlaybackPositionForItem(item)).toEqual(
+            expect.objectContaining({
+                contentType: 'episode',
+                seasonNumber: 1,
+                episodeNumber: 5,
+                positionSeconds: 2306,
+            })
+        );
+        expect(service.getRecentItemResumeNavigation(item)).toEqual(
+            expect.objectContaining({
+                link: ['/workspace', 'global-recent'],
+                state: {
+                    openCollectionDetailItem: expect.objectContaining({
+                        item: expect.objectContaining({
+                            sourceType: 'stalker',
+                            contentType: 'movie',
+                        }),
+                        seriesResume: {
+                            seriesXtreamId: 17572,
+                            contentXtreamId: 1750797722,
+                            seasonNumber: 1,
+                            episodeNumber: 5,
+                        },
+                    }),
+                },
+            })
+        );
+    });
+
     it('keeps legacy episode-keyed recents detail-only when the position row lacks the parent series id', async () => {
         dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
             {

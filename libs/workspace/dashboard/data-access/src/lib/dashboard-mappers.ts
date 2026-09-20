@@ -16,6 +16,7 @@ import {
     extractStalkerItemTitle,
     extractStalkerItemTmdbHints,
     extractStalkerItemType,
+    isStalkerSeriesItem,
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
 
@@ -23,12 +24,6 @@ import {
 
 export function normalizeActivityType(value: string): PortalActivityType {
     return value === 'live' || value === 'series' ? value : 'movie';
-}
-
-export function getActivityTypeLabelKey(type: PortalActivityType): string {
-    if (type === 'live') return 'WORKSPACE.DASHBOARD.TYPE_LIVE';
-    if (type === 'series') return 'WORKSPACE.DASHBOARD.TYPE_SERIES';
-    return 'WORKSPACE.DASHBOARD.TYPE_MOVIE';
 }
 
 // ────── Xtream DB → ViewModel ──────
@@ -146,6 +141,11 @@ export function buildStalkerFavoriteItems(
                     backdrop_url: extractStalkerItemTmdbHints(raw).backdropUrl,
                     source: 'stalker' as const,
                     stalker_item: item,
+                    // Same split as the recent-items mapper: routing type
+                    // vs. per-episode progress model.
+                    ...(isStalkerSeriesItem(raw)
+                        ? { watch_kind: 'series' as const }
+                        : {}),
                 } as PortalFavoriteItem;
             });
 

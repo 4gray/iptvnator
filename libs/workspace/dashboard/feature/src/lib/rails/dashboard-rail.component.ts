@@ -18,6 +18,7 @@ import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import type { DashboardRemainingLabel } from './dashboard-playback.utils';
 
 export interface DashboardRailAction {
     id: string;
@@ -72,6 +73,13 @@ export interface DashboardRailCard {
      * user can see which episode they were on without opening the show.
      */
     episodeBadge?: string | null;
+
+    /**
+     * Localised "12 min left" for Continue Watching cards with a known
+     * duration. Sits beside the episode chip in the meta row; absent when
+     * the position carries no duration.
+     */
+    remainingLabel?: DashboardRemainingLabel | null;
 
     /**
      * Subscription-expiry warning for portal source cards: a quiet amber

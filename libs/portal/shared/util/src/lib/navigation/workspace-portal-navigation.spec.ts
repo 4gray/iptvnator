@@ -258,6 +258,33 @@ describe('workspace-portal-navigation', () => {
                 xtreamId: 55,
             })
         ).toBeUndefined();
+
+        // …except for a Stalker VOD row, which may be an embedded-VOD or
+        // lazy is_series show that routes as a movie; the detail decides.
+        expect(
+            readResume(validResume, {
+                uid: 'stalker::stalker-1::17572',
+                name: 'Fake (10 episodes)',
+                contentType: 'movie',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Portal',
+                stalkerId: '17572',
+                categoryId: '7',
+            })
+        ).toEqual(validResume);
+        expect(
+            readResume(validResume, {
+                uid: 'stalker::stalker-1::712',
+                name: 'Channel',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Portal',
+                stalkerId: '712',
+                categoryId: 'itv',
+            })
+        ).toBeUndefined();
     });
 
     it('omits the resume key when building detail state without a valid target', () => {

@@ -113,17 +113,29 @@ Render rules:
     2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
        cover cards. Portal playback positions are bulk-loaded per playlist so
        hero and cards can show progress, remaining time, and series season/
-       episode badges. This includes Stalker VOD activity normalized to series
-       through `is_series`. Series lookup uses keyed maps for both direct
-       episode ids and parent series ids; card renders must not scan the full
-       playback-position map. The badge uses saved `seasonNumber` /
+       episode badges. Whether an item is looked up as a movie (one `vod`
+       row) or a series (episode rows under the parent id) is its WATCH
+       kind, `resolvePortalActivityWatchKind`, not its routing `type`. The
+       shape that needs the distinction is a Stalker embedded-VOD row: its
+       stored entry carries a `series[]` episode array but no `is_series`
+       flag, so `extractStalkerItemType` reports `movie` (deliberately — the
+       item belongs in the VOD catalog) while its progress lives in episode
+       rows. The mappers give both it and a lazy Ministra `is_series` row
+       (already typed `series`) `watch_kind: 'series'`. Series lookup uses
+       keyed maps for both direct episode ids and parent series ids; card
+       renders must not scan the full playback-position map. The badge uses saved `seasonNumber` /
        `episodeNumber` metadata and does not infer it from provider payloads;
        legacy rows without that metadata remain badge-less until replay.
-       Dashboard-originated Xtream series clicks also carry that exact episode
-       target through the global-recent inline-detail handoff. Once the series
-       metadata and playback positions load, the detail player consumes the
-       target once and resumes the saved episode. Opening the same item normally
-       from the global recent grid remains a detail-only action.
+       Dashboard-originated Xtream and Stalker series clicks also carry that
+       exact episode target through the global-recent inline-detail handoff.
+       Once the series metadata and playback positions load, the detail player
+       consumes the target once and resumes the saved episode. Opening the same
+       item normally from the global recent grid remains a detail-only action.
+       Continue Watching cards carry no provider/content-kind subtitle: their
+       meta row is the S·E chip plus a "N min left" label (`remainingLabel`,
+       from `formatRemainingLabel`), and the row is not rendered when both are
+       absent. The hero subtitle is the source name alone, through
+       `playlistDisplayLabel`.
     3. `liveFavoriteCardsEnriched` and `recentLiveCardsEnriched` — two
        independent rails (`dashboard-live-favorites-rail` and
        `dashboard-recent-live-rail`); there is no fallback from one to the
@@ -136,8 +148,9 @@ Render rules:
        which calls `getGlobalRecentlyAdded('all', limit, 'xtream')` with the
        DB-level `playlists.type = 'xtream'` filter. The rail is Electron-only
        (PWA returns `[]`) and auto-hides when empty, so users without Xtream
-       playlists never see it. Cards carry a `playlist_name · type` subtitle
-       so users can tell which provider each item came from. Driven by an
+       playlists never see it. Cards carry the source name as their subtitle
+       (`playlistDisplayLabel`) so users can tell where each item was added;
+       the content kind is not repeated on every card. Driven by an
        effect that re-runs whenever the Xtream playlist count changes, but the
        first run waits for `globalFavoritesLoaded()` so the slower
        recently-added DB query does not block the live favorites rail on
@@ -217,9 +230,10 @@ The welcome state is rendered via the existing
    rails have data.
 5. Navigation from a rail card must deep-link into the appropriate workspace
    route without switching the active playlist in the header switcher.
-6. Xtream series hero/Continue Watching clicks with a saved episode position
-   must resume that exact episode while preserving the collection-owned detail
-   and Back behavior. Do not apply autoplay to ordinary collection-grid clicks.
+6. Xtream and Stalker series hero/Continue Watching clicks with a saved episode
+   position must resume that exact episode while preserving the
+   collection-owned detail and Back behavior. Do not apply autoplay to
+   ordinary collection-grid clicks.
 7. `Recently Used Sources` reflects recent source usage across all provider
    types, not just recent imports.
 8. The live rail title key must match the rendered source: favorites use
