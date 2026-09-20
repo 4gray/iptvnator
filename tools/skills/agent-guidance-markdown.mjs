@@ -65,7 +65,10 @@ function htmlNavigation(html) {
                 (node.tagName === 'a' && attribute.name === 'href') ||
                 (node.tagName === 'img' && attribute.name === 'src')
             )
-                references.push(attribute.value);
+                references.push({
+                    target: attribute.value,
+                    image: node.tagName === 'img',
+                });
         }
         for (const child of node.childNodes ?? []) visit(child);
     }
@@ -157,15 +160,20 @@ export function guidanceReferences(markdown, includeLiterals) {
     const result = [];
     const destinations = new Set();
     const html = [];
-    function add(target, literal = false) {
-        const key = `${literal}:${target}`;
+    const definitions = [];
+    const usedTargets = new Set();
+    function add(target, literal = false, image = false) {
+        const key = `${literal}:${image}:${target}`;
+        usedTargets.add(target);
         if (!destinations.has(key)) {
             destinations.add(key);
-            result.push({ target, literal });
+            result.push({ target, literal, image });
         }
     }
     markdownLexer.walkTokens(markdownLexer.lexer(markdown), (token) => {
-        if (['link', 'image', 'def'].includes(token.type)) add(token.href);
+        if (['link', 'image'].includes(token.type))
+            add(token.href, false, token.type === 'image');
+        if (token.type === 'def') definitions.push(token.href);
         if (token.type === 'html') html.push(token.raw);
         if (token.type === 'unresolved-reference')
             result.push({ unresolvedReference: token.label });
@@ -176,7 +184,8 @@ export function guidanceReferences(markdown, includeLiterals) {
         )
             add(token.text, true);
     });
-    for (const target of htmlNavigation(html.join('\n')).references)
-        add(target);
+    for (const reference of htmlNavigation(html.join('\n')).references)
+        add(reference.target, false, reference.image);
+    for (const target of definitions) if (!usedTargets.has(target)) add(target);
     return result;
 }

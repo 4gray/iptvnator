@@ -591,3 +591,50 @@ for (const tag of ['template', 'div']) {
         );
     });
 }
+
+for (const punctuation of ['"', "'", '[', '{', ':']) {
+    test(`rejects inline imports after ${punctuation}`, async (t) => {
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead ' +
+                        punctuation +
+                        '@docs/example.md',
+                })
+            ).join('\n'),
+            /imports are not allowed/
+        );
+    });
+}
+for (const image of [
+    '![Diagram](docs/diagram.png#gh-dark-mode-only)',
+    '<img src="docs/diagram.png#gh-light-mode-only">',
+    '![Diagram][image]\n\n[image]: docs/diagram.png#gh-dark-mode-only',
+]) {
+    test(`image fragments are not Markdown headings: ${image}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': image,
+                'docs/diagram.png': 'image fixture',
+            }),
+            []
+        );
+        assert.match(
+            (await diagnostics(t, { 'AGENTS.md': image })).join('\n'),
+            /does not exist/
+        );
+    });
+}
+
+test('sharing an image reference does not suppress document anchor checks', async (t) => {
+    assert.match(
+        (
+            await diagnostics(t, {
+                'AGENTS.md':
+                    '![Preview][target] [Read][target]\n\n[target]: docs/example.md#missing',
+            })
+        ).join('\n'),
+        /missing anchor/
+    );
+});

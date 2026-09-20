@@ -50,6 +50,9 @@ for GitHub-compatible character filtering and duplicate suffixes. Explicit HTML 
 use `parse5`, excluding comments, scripts, styles and template contents.
 Rendered HTML anchor hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
+Image references check file existence without interpreting image fragments as
+Markdown headings; document links keep anchor checks even when sharing a target.
+Inline guidance imports are rejected after punctuation as well as whitespace.
 The Nx test hash includes `marked`, `parse5` and `github-slugger` so dependency changes invalidate parser coverage.
 It cannot prove semantic equivalence; review changed contracts as well.
 

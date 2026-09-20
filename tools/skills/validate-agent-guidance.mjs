@@ -26,7 +26,7 @@ function within(root, path) {
 async function validateReference(
     rootDir,
     source,
-    { target, literal, unresolvedReference }
+    { target, literal, image, unresolvedReference }
 ) {
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
@@ -51,7 +51,11 @@ async function validateReference(
         const actual = await realpath(absolute);
         if (!within(rootDir, actual))
             return `${source}: referenced path escapes repository root: ${target}`;
-        if (anchor && !anchors(await readFile(actual, 'utf8')).has(anchor)) {
+        if (
+            anchor &&
+            !image &&
+            !anchors(await readFile(actual, 'utf8')).has(anchor)
+        ) {
             return `${source}: missing anchor "${anchor}" in ${target}`;
         }
     } catch (error) {
@@ -93,7 +97,9 @@ export async function validateAgentGuidance({ rootDir }) {
             const unfenced = guidanceProse(markdown);
             const imports = guidanceStandaloneImports(markdown);
             const prose = unfenced.replace(/`[^`\n]+`/gu, '');
-            const inlineImports = [...prose.matchAll(/(?:^|[\s(])@([^\s]+)/gu)]
+            const inlineImports = [
+                ...prose.matchAll(/(?:^|[^\p{L}\p{N}_@])@([^\s]+)/gu),
+            ]
                 .map((match) => match[1])
                 .filter(
                     (token) =>
