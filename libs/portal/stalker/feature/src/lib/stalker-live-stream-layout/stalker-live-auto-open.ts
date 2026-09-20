@@ -12,14 +12,8 @@ import {
     normalizeStalkerEntityId,
     StalkerItvChannel,
 } from '@iptvnator/portal/stalker/data-access';
-import {
-    OPEN_STALKER_LIVE_CATEGORY_STATE_KEY,
-    OPEN_STALKER_LIVE_ITEM_STATE_KEY,
-    OPEN_STALKER_LIVE_PLAYLIST_STATE_KEY,
-    OPEN_STALKER_LIVE_POSTER_STATE_KEY,
-    OPEN_STALKER_LIVE_TITLE_STATE_KEY,
-    resolveStalkerProviderId,
-} from '@iptvnator/portal/shared/util';
+import { resolveStalkerProviderId } from '@iptvnator/portal/shared/util';
+import { StalkerLiveAutoOpenState } from './stalker-live-auto-open-state';
 
 /** The slice of `StalkerStore` the auto-open flow reads and drives. */
 export interface StalkerLiveAutoOpenStore {
@@ -109,12 +103,11 @@ interface DeferredPlay {
  * actionable, so the session's own resets never read as a user action.
  */
 export class StalkerLiveAutoOpen {
-    readonly pendingItemId = signal<string | null>(null);
-    readonly pendingPlaylistId = signal<string | null>(null);
-    readonly pendingCategoryId = signal<string | null>(null);
+    private readonly state = new StalkerLiveAutoOpenState();
+    readonly pendingItemId = this.state.pendingItemId;
+    readonly pendingPlaylistId = this.state.pendingPlaylistId;
+    readonly pendingCategoryId = this.state.pendingCategoryId;
     private readonly deferredPlay = signal<DeferredPlay | null>(null);
-    /** Bumped whenever the pending item changes, to retire a stale preload. */
-    private generation = 0;
     /** The list state when the handoff became actionable (see the class). */
     private pendingBaseline: {
         category: string | null;
@@ -142,63 +135,21 @@ export class StalkerLiveAutoOpen {
     }
 
     captureFromHistoryState(): void {
-        const state = (window.history.state ?? null) as Record<
-            string,
-            unknown
-        > | null;
-        const itemId = normalizeStalkerEntityId(
-            state?.[OPEN_STALKER_LIVE_ITEM_STATE_KEY]
-        );
-        if (!itemId) {
-            this.clearPendingItem();
-            return;
-        }
-
-        this.pendingPlaylistId.set(
-            normalizeStalkerEntityId(
-                state?.[OPEN_STALKER_LIVE_PLAYLIST_STATE_KEY]
-            ) || null
-        );
-        this.pendingCategoryId.set(
-            normalizeStalkerEntityId(
-                state?.[OPEN_STALKER_LIVE_CATEGORY_STATE_KEY]
-            ) || null
-        );
-        this.generation += 1;
-        // A newer handoff supersedes a channel still waiting for its genre's
-        // rows; otherwise the old one would play once they settle.
+        this.state.captureFromHistoryState();
+        // Whatever the previous handoff started is retired either way: a
+        // newer one supersedes a channel still waiting for its genre's rows,
+        // and an arrival without a handoff has nothing to continue.
         this.deferredPlay.set(null);
-        this.pendingItemId.set(itemId);
+        this.pendingBaseline = null;
     }
 
     clearPendingItem(): void {
-        this.generation += 1;
         this.pendingBaseline = null;
-        this.pendingItemId.set(null);
-        this.pendingPlaylistId.set(null);
-        this.pendingCategoryId.set(null);
+        this.state.clearPendingItem();
     }
 
     clearHistoryState(): void {
-        try {
-            const state = (window.history.state ?? {}) as Record<
-                string,
-                unknown
-            >;
-            if (!(OPEN_STALKER_LIVE_ITEM_STATE_KEY in state)) {
-                return;
-            }
-
-            const nextState = { ...state };
-            delete nextState[OPEN_STALKER_LIVE_ITEM_STATE_KEY];
-            delete nextState[OPEN_STALKER_LIVE_PLAYLIST_STATE_KEY];
-            delete nextState[OPEN_STALKER_LIVE_CATEGORY_STATE_KEY];
-            delete nextState[OPEN_STALKER_LIVE_TITLE_STATE_KEY];
-            delete nextState[OPEN_STALKER_LIVE_POSTER_STATE_KEY];
-            window.history.replaceState(nextState, document.title);
-        } catch {
-            // Browser history state can be unavailable in restricted contexts.
-        }
+        this.state.clearHistoryState();
     }
 
     private run(): void {
@@ -260,11 +211,11 @@ export class StalkerLiveAutoOpen {
             // the load settles without the list turning ready or unsupported
             // it failed transiently — fall back to the genre rather than wait
             // for a retry nothing schedules.
-            const generation = this.generation;
+            const generation = this.state.generation;
             untracked(() => {
                 void Promise.resolve(store.preloadItvChannels()).then(() => {
                     if (
-                        generation !== this.generation ||
+                        generation !== this.state.generation ||
                         !this.pendingItemId() ||
                         store.itvFullListActive() ||
                         store.itvFullListUnsupported()

@@ -1689,7 +1689,9 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
   toolbars through their `[epgToolbarAction]` slot beside the channel name
   (visible collapsed too; absent for radio and without EPG support), and an
   "Open in <playlist>" row in `app-global-favorites-list`'s context menu
-  (`openInPlaylistRequested`), which also covers radio rows. Both label with
+  (`openInPlaylistRequested`), which also reaches rows that are not playing
+  and M3U radio stations (Stalker radio resolves to null, so no surface
+  offers it). Both label with
   `playlistDisplayLabel` and reuse `PORTALS.VIEW_IN_PORTAL_TOOLTIP`; the tab
   navigates. Contract: `docs/architecture/portal-detail-navigation.md`.
 

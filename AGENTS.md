@@ -309,7 +309,7 @@ via `openXtreamLiveItemId`, M3U via `openM3uChannelUrl`, Stalker via
 locates the channel in the full ITV list cache, selects its genre, defers
 playback until that genre's rows are on screen; a portal without a full list,
 a transient list failure or a censored channel falls back to the remembered
-genre; radio stays hidden). Surfaces: `app-open-in-playlist-chip` in the EPG
+genre; Stalker radio stays hidden, M3U radio keeps the row menu). Surfaces: `app-open-in-playlist-chip` in the EPG
 toolbar (`[epgToolbarAction]` slot) and the row context menu. Contract:
 `docs/architecture/portal-detail-navigation.md`.
 
