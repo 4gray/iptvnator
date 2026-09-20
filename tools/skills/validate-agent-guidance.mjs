@@ -1,6 +1,13 @@
 import ts from 'typescript';
 import { readFile, realpath } from 'node:fs/promises';
-import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import {
+    dirname,
+    extname,
+    isAbsolute,
+    relative,
+    resolve,
+    sep,
+} from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
     guidanceAnchors as anchors,
@@ -55,6 +62,9 @@ async function validateReference(
         if (
             anchor &&
             !image &&
+            /^(?:\.md|\.markdown|\.mdown|\.mkd|\.mdx)$/iu.test(
+                extname(actual)
+            ) &&
             !anchors(await readFile(actual, 'utf8')).has(anchor)
         ) {
             return `${source}: missing anchor "${anchor}" in ${target}`;
@@ -104,7 +114,11 @@ async function packageMentions(rootDir) {
         .map((name) => name.slice(1));
     const scopes = new Set(declared.map((name) => name.split('/')[0]));
     return (raw) => {
-        const token = raw.replace(/[.,;:)"'\]}]+$/u, '');
+        let token = raw.replace(/[.,;:)"'\]}]+$/u, '');
+        token = token.replace(
+            /^([^/]+\/[^/@]+)@(?:[~^]?\d[\w.+-]*|[a-z][\w-]*)$/iu,
+            '$1'
+        );
         if (
             token.split(/[\/\\]/u).some((part) => part === '.' || part === '..')
         )

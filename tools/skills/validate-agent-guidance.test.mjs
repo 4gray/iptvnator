@@ -811,3 +811,39 @@ for (const filename of [
         );
     });
 }
+
+for (const version of ['22.1.6', '^22.1.6', 'next']) {
+    test(`declared package can include version ${version}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+                'AGENTS.md': 'Use @angular/core@' + version,
+            }),
+            []
+        );
+    });
+}
+for (const [path, fragment] of [
+    ['apps/example.ts', 'L20'],
+    ['docs/guide.pdf', 'page=3'],
+]) {
+    test(`non-Markdown fragments are not headings: ${path}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': `[Target](${path}#${fragment})`,
+                [path]: 'fixture',
+            }),
+            []
+        );
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': `[Target](${path}#${fragment})`,
+                })
+            ).join('\n'),
+            /does not exist/
+        );
+    });
+}

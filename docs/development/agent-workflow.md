@@ -60,7 +60,10 @@ Declared scoped dependencies, scope wildcards and matching TypeScript path alias
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
+Declared package mentions may include a version or dist-tag qualifier.
 Markdown destinations decode HTML entities before URI parsing, matching rendered links.
+Heading-anchor lookup is limited to Markdown targets. Source-file line fragments,
+PDF page fragments and other non-Markdown fragments retain file-existence checks.
 The import scan includes visible HTML text and excludes code and non-rendered containers.
 Image source sets use `parse-srcset` to check each candidate URL. Root-relative
 literals never suppress source-relative definition checks.
