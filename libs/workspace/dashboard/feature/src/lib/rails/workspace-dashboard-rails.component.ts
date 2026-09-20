@@ -8,7 +8,16 @@ import {
     untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { forkJoin, interval, map, of, startWith, switchMap } from 'rxjs';
+import {
+    catchError,
+    defaultIfEmpty,
+    forkJoin,
+    interval,
+    map,
+    of,
+    startWith,
+    switchMap,
+} from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     type EpgProgram,
@@ -340,7 +349,30 @@ export class WorkspaceDashboardRailsComponent {
                                               map((programs) => ({
                                                   scopeKey: group.scopeKey,
                                                   programs,
-                                              }))
+                                              })),
+                                              // One scope retired by an EPG
+                                              // source change, or failing,
+                                              // must not blank every other
+                                              // scope's answer for the tick:
+                                              // `forkJoin` emits nothing at
+                                              // all when one input completes
+                                              // empty.
+                                              defaultIfEmpty({
+                                                  scopeKey: group.scopeKey,
+                                                  programs: new Map<
+                                                      string,
+                                                      EpgProgram | null
+                                                  >(),
+                                              }),
+                                              catchError(() =>
+                                                  of({
+                                                      scopeKey: group.scopeKey,
+                                                      programs: new Map<
+                                                          string,
+                                                          EpgProgram | null
+                                                      >(),
+                                                  })
+                                              )
                                           )
                                   )
                               ).pipe(
