@@ -67,6 +67,9 @@ Markdown destinations decode HTML entities before URI parsing, matching rendered
 Heading-anchor lookup is limited to Markdown targets. Source-file line fragments,
 PDF page fragments and other non-Markdown fragments retain file-existence checks.
 The import scan includes visible HTML text and excludes code and non-rendered containers.
+Navigation uses the parsed rendered tree too. Temporary in-memory markers retain
+definition, unresolved-reference and literal-path metadata, so Markdown inside
+inert templates is excluded consistently with raw HTML navigation.
 Image source sets use `parse-srcset` to check each candidate URL. Root-relative
 literals never suppress source-relative definition checks.
 The Nx test hash includes `marked`, `parse5`, `github-slugger`, `parse-srcset` and `typescript`

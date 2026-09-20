@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import parseSrcset from 'parse-srcset';
 import GithubSlugger from 'github-slugger';
 import { Marked, Tokenizer } from 'marked';
@@ -51,11 +52,12 @@ function decodeEntities(text) {
     );
 }
 
-function htmlNavigation(html) {
+function htmlNavigation(html, inspect = () => {}) {
     const anchors = [];
     const references = [];
     function visit(node) {
         if (['script', 'style', 'template'].includes(node.tagName)) return;
+        inspect(node);
         for (const attribute of node.attrs ?? []) {
             if (
                 attribute.name === 'id' ||
@@ -186,35 +188,55 @@ function isLiteralRepositoryPath(token) {
 }
 
 export function guidanceReferences(markdown, includeLiterals) {
-    const result = [];
-    const destinations = new Set();
-    const html = [];
-    const definitions = [];
-    const usedTargets = new Set();
-    function add(target, literal = false, image = false) {
-        const key = `${literal}:${image}:${target}`;
-        if (!literal) usedTargets.add(target);
-        if (!destinations.has(key)) {
-            destinations.add(key);
-            result.push({ target, literal, image });
-        }
+    const tokens = markdownLexer.lexer(markdown);
+    const markerTag = `guidance-reference-${randomUUID()}`;
+    const metadata = [];
+    function mark(token, reference) {
+        const index = metadata.push(reference) - 1;
+        token.type = 'html';
+        token.raw = `<${markerTag} data-index="${index}"></${markerTag}>`;
+        token.text = token.raw;
     }
-    markdownLexer.walkTokens(markdownLexer.lexer(markdown), (token) => {
-        if (['link', 'image'].includes(token.type))
-            add(decodeEntities(token.href), false, token.type === 'image');
-        if (token.type === 'def') definitions.push(decodeEntities(token.href));
-        if (token.type === 'html') html.push(token.raw);
-        if (token.type === 'unresolved-reference')
-            result.push({ unresolvedReference: token.label });
-        if (
+    markdownLexer.walkTokens(tokens, (token) => {
+        if (token.type === 'def')
+            mark(token, {
+                target: decodeEntities(token.href),
+                definition: true,
+            });
+        else if (token.type === 'unresolved-reference')
+            mark(token, { unresolvedReference: token.label });
+        else if (
             includeLiterals &&
             token.type === 'codespan' &&
             isLiteralRepositoryPath(token.text)
         )
-            add(token.text, true);
+            mark(token, { target: token.text, literal: true });
     });
-    for (const reference of htmlNavigation(html.join('\n')).references)
-        add(reference.target, false, reference.image);
-    for (const target of definitions) if (!usedTargets.has(target)) add(target);
+    // Let Markdown rendering and HTML tree construction retain container context
+    // for ordinary links and for metadata that has no rendered navigation node.
+    const visible = [];
+    const navigation = htmlNavigation(new Marked().parser(tokens), (node) => {
+        if (node.tagName !== markerTag) return;
+        const index = Number(
+            node.attrs.find((attr) => attr.name === 'data-index')?.value
+        );
+        if (metadata[index]) visible.push(metadata[index]);
+    });
+    const result = [];
+    const seen = new Set();
+    function add(reference) {
+        const key = JSON.stringify(reference);
+        if (!seen.has(key)) {
+            seen.add(key);
+            result.push(reference);
+        }
+    }
+    for (const reference of navigation.references) add(reference);
+    const usedTargets = new Set(
+        navigation.references.map((reference) => reference.target)
+    );
+    for (const { definition, ...reference } of visible) {
+        if (!definition || !usedTargets.has(reference.target)) add(reference);
+    }
     return result;
 }

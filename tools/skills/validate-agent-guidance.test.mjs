@@ -866,3 +866,20 @@ for (const mention of [
         );
     });
 }
+
+for (const content of [
+    '[example](docs/missing.md)',
+    '[example][ref]\n\n[ref]: docs/missing.md',
+    '[unused]: docs/missing.md',
+    '`docs/missing.md`',
+    '[example][undefined]',
+]) {
+    test(`template Markdown is inert: ${content}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': '<template>\n\n' + content + '\n\n</template>',
+            }),
+            []
+        );
+    });
+}
