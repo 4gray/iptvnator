@@ -572,3 +572,22 @@ for (const body of [
         );
     });
 }
+
+for (const tag of ['template', 'div']) {
+    test(`HTML container cannot supply Claude import: ${tag}`, async (t) => {
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md': `<${tag}>\n\n@AGENTS.md\n\n</${tag}>`,
+                })
+            ).join('\n'),
+            /standalone @AGENTS.md/
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'CLAUDE.md': `<${tag}>\n\nExample\n\n</${tag}>\n\n@AGENTS.md`,
+            }),
+            []
+        );
+    });
+}

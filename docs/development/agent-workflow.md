@@ -42,6 +42,9 @@ separately so encoded filename delimiters stay in the filename. Fenced and inden
 do not count as root guidance imports or satisfy the required Claude import.
 The required Claude import must be an unformatted standalone line in a top-level
 paragraph; headings, quotes and list items do not satisfy it.
+The parsed HTML tree also verifies that this paragraph is outside HTML containers,
+including templates split across Markdown tokens. Generated HTML is inspected
+in memory only; it is never executed or emitted.
 Heading anchors decode HTML character references in text and use `github-slugger`
 for GitHub-compatible character filtering and duplicate suffixes. Explicit HTML anchors
 use `parse5`, excluding comments, scripts, styles and template contents.

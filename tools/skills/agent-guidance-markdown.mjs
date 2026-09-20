@@ -2,7 +2,7 @@ import GithubSlugger from 'github-slugger';
 import { Marked, Tokenizer } from 'marked';
 import { parseFragment } from 'parse5';
 
-// Lex only: no Markdown is rendered and no HTML is sanitized or re-emitted.
+// Inspection only: generated HTML is parsed in memory, never executed or emitted.
 const markdownLexer = new Marked({
     tokenizer: {
         reflink(source, links) {
@@ -84,13 +84,34 @@ export function guidanceProse(markdown) {
 }
 
 export function guidanceStandaloneImports(markdown) {
-    return markdownLexer
+    const candidates = markdownLexer
         .lexer(markdown)
         .filter((token) => token.type === 'paragraph')
         .flatMap((token) => [
             ...token.raw.matchAll(/^ {0,3}@([^\s]+)[\t ]*$/gmu),
         ])
         .map((match) => match[1]);
+    // Markdown can split an HTML container across several top-level tokens.
+    // Check the parsed output tree as well as raw source formatting. Only text
+    // directly inside a root paragraph can supply the standalone directive.
+    const document = parseFragment(new Marked().parse(markdown));
+    const visible = new Map();
+    for (const node of document.childNodes) {
+        if (node.tagName !== 'p') continue;
+        const text = node.childNodes
+            .map((child) =>
+                child.nodeName === '#text' ? child.value : '\uFFFC'
+            )
+            .join('');
+        for (const match of text.matchAll(/^ {0,3}@([^\s]+)[\t ]*$/gmu))
+            visible.set(match[1], (visible.get(match[1]) ?? 0) + 1);
+    }
+    return candidates.filter((candidate) => {
+        const count = visible.get(candidate) ?? 0;
+        if (!count) return false;
+        visible.set(candidate, count - 1);
+        return true;
+    });
 }
 
 export function guidanceAnchors(markdown) {
