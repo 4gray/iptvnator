@@ -1136,3 +1136,37 @@ for (const suffix of ['—then', '，next', '”']) {
         );
     });
 }
+
+for (const name of ['INSTRUCTIONS—v2', 'INSTRUCTIONS,extra']) {
+    test(`full punctuation filename remains an import: ${name}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md': '@AGENTS.md\n\nRead @' + name,
+                    [name]: 'Guidance',
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}
+for (const suffix of [',then', ';then', ':then', '!then', '?then']) {
+    test(`ASCII prose boundary handles imports and packages: ${suffix}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md': '@AGENTS.md\n\nRead @INSTRUCTIONS' + suffix,
+                    INSTRUCTIONS: 'Guidance',
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': 'Use @angular/core' + suffix + ' continue',
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+            }),
+            []
+        );
+    });
+}

@@ -64,7 +64,7 @@ existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
 Extensionless inline candidates are also imports when they resolve to repository files,
-after removing prose punctuation, including Unicode separators.
+checking the full filename before prefixes at ASCII/Unicode prose separators.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions. TypeScript configuration is parsed as JSONC.
@@ -72,7 +72,8 @@ Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version (including semver comparators) or dist-tag qualifier.
 Qualifier handling includes unscoped names; terminal sentence punctuation is
 removed before matching a declared package, as are straight/curly apostrophe possessives.
-Non-ASCII punctuation separates package mentions from adjacent prose.
+Unicode punctuation and ASCII commas, semicolons, colons, question/exclamation marks
+separate package mentions from adjacent prose.
 Markdown destinations decode HTML entities before URI parsing, matching rendered links.
 Heading-anchor lookup is limited to Markdown targets. Source-file line fragments,
 PDF page fragments and other non-Markdown fragments retain file-existence checks.
