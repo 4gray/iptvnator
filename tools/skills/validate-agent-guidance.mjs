@@ -119,7 +119,7 @@ async function packageMentions(rootDir) {
         token = token.replace(/[?!.,;:)"'\]}]+$/u, '');
         token = token.replace(/['’]s$/iu, '');
         token = token.replace(
-            /^([^/@]+(?:\/[^/@]+)?)@(?:(?:[~^]|[<>]=?|=)?\d[\w.+-]*|[a-z][\w-]*)$/iu,
+            /^([^/@]+(?:\/[^/@]+)?)@(?:(?:[~^]|[<>]=?|=)?\d[\w.*+-]*|\*|[a-z][\w-]*)$/iu,
             '$1'
         );
         if (
@@ -130,7 +130,7 @@ async function packageMentions(rootDir) {
         if (
             /%[\da-f]{2}/iu.test(token) ||
             MARKDOWN_EXTENSION.test(path) ||
-            /\.(?:txt|json|ya?ml|html?)$/iu.test(path)
+            /\.(?:txt|json|ya?ml|html?|rst|rest|adoc|asciidoc)$/iu.test(path)
         )
             return false;
         if (packages.includes(token)) return true;

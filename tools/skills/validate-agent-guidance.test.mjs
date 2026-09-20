@@ -1236,3 +1236,33 @@ for (const suffix of [
         );
     });
 }
+
+for (const version of ['*', '22.*', '22.1.*']) {
+    test(`wildcard package version is prose: ${version}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+                'AGENTS.md': 'Use @angular/core@' + version,
+            }),
+            []
+        );
+    });
+}
+for (const extension of ['rst', 'rest', 'adoc', 'asciidoc']) {
+    test(`non-Markdown document is not a package exemption: ${extension}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @angular/core/docs/guide.' +
+                        extension,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}
