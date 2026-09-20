@@ -207,7 +207,16 @@ with a return handler keep Back available.
   passes too early and the selection would be wiped a tick later), and the
   user — the handoff is abandoned when the genre or search changes away from
   what it captured once it became actionable, which is measured after the
-  session's own resets so they never read as a user action. Stalker radio stations resolve to `null`: they live in the separate
+  session's own resets so they never read as a user action. Readiness is
+  published by the NEWEST sync only, and never before the store holds that
+  portal's row: the session applies arrivals one at a time and claims the
+  playlist id only after `setCurrentPlaylist()` resolves. The constructor
+  starts a sync before the first `NavigationEnd` starts another, so two run
+  at once — the second used to find the id already claimed, skip the
+  bootstrap and report ready while the first was still awaiting that write,
+  which let a revisited same-id portal whose endpoint or credentials had
+  changed play against the PREVIOUS row. A failed bootstrap leaves readiness
+  false rather than handing the arrival a stale row. Stalker radio stations resolve to `null`: they live in the separate
   `radio` section, whose station list is legacy-paged with no
   open-on-arrival contract, so the action stays hidden for them.
   Two surfaces render the one verdict: `app-open-in-playlist-chip`
