@@ -339,10 +339,14 @@ describe('Live rail helpers', () => {
             () => []
         );
 
-        expect(groups).toHaveLength(1);
-        expect(groups[0].lookupKeys).toEqual(['ard.de', 'Fallback News']);
+        expect(groups).toHaveLength(2);
+        // 'ard.de' carries an explicit key, 'Fallback News' falls back to its
+        // title — different any-source eligibility, so different groups.
+        expect(groups[0].lookupKeys).toEqual(['ard.de']);
+        expect(groups[0].anySourceFallback).toBe(true);
+        expect(groups[1].lookupKeys).toEqual(['Fallback News']);
+        expect(groups[1].anySourceFallback).toBe(false);
         expect(groups[0].sourceUrls).toEqual([]);
-        expect(groups[0].scopeKey).toBe('');
     });
 
     it('asks each XMLTV source scope separately and shares one lookup between playlists on the same guide', () => {
@@ -379,6 +383,29 @@ describe('Live rail helpers', () => {
         ]);
     });
 
+    it('never widens a portal card to every guide: its key is only a title', () => {
+        const groups = buildLiveEpgLookupGroups(
+            [
+                // M3U: a real XMLTV key from the playlist.
+                channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'm3u' }),
+                // Xtream/Stalker: no key at all, so the title stands in.
+                channelCard({
+                    id: 'card-2',
+                    title: 'Das Erste HD',
+                    epgPlaylistId: 'portal',
+                }),
+            ],
+            () => []
+        );
+
+        expect(
+            groups.map((group) => [group.lookupKeys, group.anySourceFallback])
+        ).toEqual([
+            [['ard.de'], true],
+            [['Das Erste HD'], false],
+        ]);
+    });
+
     it('reads EPG programs by explicit lookup key instead of display title', () => {
         const program = { title: 'Tagesschau' } as EpgProgram;
         const wrongProgram = { title: 'Wrong channel' } as EpgProgram;
@@ -404,22 +431,28 @@ describe('Live rail helpers', () => {
         const fromGuideA = { title: 'Guide A bulletin' } as EpgProgram;
         const fromGuideB = { title: 'Guide B bulletin' } as EpgProgram;
         const epgMap = new Map<string, EpgProgram | null>([
-            [liveEpgProgramKey(liveEpgScopeKey(guideA), 'ard.de'), fromGuideA],
-            [liveEpgProgramKey(liveEpgScopeKey(guideB), 'ard.de'), fromGuideB],
+            [
+                liveEpgProgramKey(liveEpgScopeKey(guideA, true), 'ard.de'),
+                fromGuideA,
+            ],
+            [
+                liveEpgProgramKey(liveEpgScopeKey(guideB, true), 'ard.de'),
+                fromGuideB,
+            ],
         ]);
 
         expect(
             getLiveEpgProgramForCard(
                 channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'a' }),
                 epgMap,
-                liveEpgScopeKey(guideA)
+                liveEpgScopeKey(guideA, true)
             )
         ).toBe(fromGuideA);
         expect(
             getLiveEpgProgramForCard(
                 channelCard({ epgLookupKey: 'ard.de', epgPlaylistId: 'b' }),
                 epgMap,
-                liveEpgScopeKey(guideB)
+                liveEpgScopeKey(guideB, true)
             )
         ).toBe(fromGuideB);
         // A scope with no answer stays empty instead of borrowing one.
@@ -433,10 +466,15 @@ describe('Live rail helpers', () => {
     });
 
     it('treats the same URL set as one scope whatever its order or duplicates', () => {
-        expect(liveEpgScopeKey(['b', 'a'])).toBe(
-            liveEpgScopeKey(['a', 'b', 'a'])
+        expect(liveEpgScopeKey(['b', 'a'], true)).toBe(
+            liveEpgScopeKey(['a', 'b', 'a'], true)
         );
-        expect(liveEpgScopeKey(['a'])).not.toBe(liveEpgScopeKey(['a', 'b']));
+        expect(liveEpgScopeKey(['a'], true)).not.toBe(
+            liveEpgScopeKey(['a', 'b'], true)
+        );
+        // A portal card and a guide-less M3U card both resolve against
+        // Settings, but their answers must not be interchangeable.
+        expect(liveEpgScopeKey([], true)).not.toBe(liveEpgScopeKey([], false));
     });
 
     it('uses honest, semantically named title keys for favorite and recent live rails', () => {

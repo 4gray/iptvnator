@@ -998,7 +998,14 @@ These URLs are playlist-scoped by default:
   that scope: a `tvg-id` is unique inside a guide, not across imports, so a
   single flat map keyed by lookup key alone would hand one playlist's card
   the programme another playlist's guide resolved for the same id. Playlists
-  sharing a guide share one lookup. The channel list keeps the strict scope. Single-channel current
+  sharing a guide share one lookup. Only a card that carries a real XMLTV key
+  is widened: an Xtream or Stalker card has none, so its lookup key is just
+  its display title, and searching every guide by title would let a
+  same-named M3U channel answer for a portal channel. Those cards keep the
+  strict scope (their own programmes come from the portal), and the
+  any-source flag is part of the scope identity so the two never share an
+  answer. Wiring: `DashboardLiveEpgPresenter` in
+  `libs/workspace/dashboard/feature/src/lib/rails/`. The channel list keeps the strict scope. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped

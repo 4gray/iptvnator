@@ -7,20 +7,9 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { interval, map, startWith } from 'rxjs';
 import {
-    catchError,
-    defaultIfEmpty,
-    forkJoin,
-    interval,
-    map,
-    of,
-    startWith,
-    switchMap,
-} from 'rxjs';
-import { EpgService } from '@iptvnator/epg/data-access';
-import {
-    type EpgProgram,
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
@@ -31,7 +20,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
-import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -73,16 +61,8 @@ import type {
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import type { DashboardHeroModel } from './dashboard-hero.utils';
 import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
-import {
-    buildDashboardLiveEpgDetails,
-    buildLiveEpgCardsForEnabledRails,
-    buildLiveEpgLookupGroups,
-    getLiveEpgProgramForCard,
-    liveEpgProgramKey,
-    liveEpgScopeKey,
-    LIVE_EPG_TICK_MS,
-} from './dashboard-live-epg.utils';
-import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
+import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
+import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
 import {
     buildPlaybackPositionReloadKey,
     formatRemainingLabel,
@@ -122,9 +102,11 @@ import type {
     host: {
         '[class.rails-page-host--empty]': 'ready() && !hasPlaylists()',
     },
+    providers: [DashboardLiveEpgPresenter],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
+    private readonly liveEpg = inject(DashboardLiveEpgPresenter);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
@@ -140,7 +122,6 @@ export class WorkspaceDashboardRailsComponent {
         { initialValue: null }
     );
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
-    private readonly epgService = inject(EpgService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly heroTmdb = inject(DashboardHeroTmdbService);
@@ -202,7 +183,7 @@ export class WorkspaceDashboardRailsComponent {
         const position = this.data.getPlaybackPositionForItem(item);
         const liveEpgDetails =
             item.type === 'live'
-                ? this.getLiveEpgDetailsForCard(this.heroLiveCard())
+                ? this.liveEpg.detailsFor(this.heroLiveCard())
                 : null;
         const episodeBadge =
             item.type === 'series' &&
@@ -279,130 +260,19 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
-    // The XMLTV sources each playlist declares. Same rule as
-    // `ChannelListContainerComponent`: only an M3U playlist carries its own
-    // guide; a portal playlist is answered from the Settings-managed URLs.
-    private readonly liveEpgSourceUrlsByPlaylist = computed(() => {
-        const byPlaylistId = new Map<string, string[]>();
-        for (const playlist of this.data.playlists()) {
-            byPlaylistId.set(
-                playlist._id,
-                playlist.serverUrl || playlist.macAddress
-                    ? []
-                    : normalizeEpgUrls(playlist.epgUrls ?? [])
-            );
-        }
-        return byPlaylistId;
-    });
-
-    // Best-effort EPG lookup keyed by the app-wide M3U XMLTV chain
-    // (tvg-id -> tvg-name -> name), with the card title as a final fallback.
-    // Xtream/Stalker live items often have no XMLTV side-channel and will
-    // simply return null — the card renders without the program row.
-    //
-    // One lookup per source scope, not one for the whole page: a `tvg-id` is
-    // unique inside a guide, not across imports, so a card is only ever
-    // handed the answer resolved in ITS playlist's scope. Each lookup then
-    // opts into the any-source retry — Settings global sources first, then
-    // every imported XMLTV, which is what the "See all" collection pages
-    // resolve against. Without it a channel whose guide only exists in
-    // another playlist's XMLTV showed no programme here while its "See all"
-    // row had one.
-    private readonly liveEpgLookupGroups = computed(() => {
-        const heroLiveCard = this.heroLiveCard();
-        return buildLiveEpgLookupGroups(
-            buildLiveEpgCardsForEnabledRails(
-                this.dashboardRails(),
-                heroLiveCard,
-                this.liveFavoriteCards(),
-                this.recentLiveCards()
-            ),
-            (card) => this.liveEpgSourceUrlsForCard(card)
-        );
-    });
+    // The live cards whose rails are enabled; the presenter looks their
+    // programmes up per XMLTV source scope.
+    private readonly enabledLiveCards = computed(() =>
+        buildLiveEpgCardsForEnabledRails(
+            this.dashboardRails(),
+            this.heroLiveCard(),
+            this.liveFavoriteCards(),
+            this.recentLiveCards()
+        )
+    );
 
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
-    );
-
-    // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
-    // catches the boundary between programs without a full page revisit.
-    private readonly liveEpgPrograms = toSignal(
-        toObservable(this.liveEpgLookupGroups).pipe(
-            switchMap((groups) =>
-                groups.length === 0
-                    ? of(new Map<string, EpgProgram | null>())
-                    : interval(LIVE_EPG_TICK_MS).pipe(
-                          startWith(0),
-                          switchMap(() =>
-                              forkJoin(
-                                  groups.map((group) =>
-                                      this.epgService
-                                          .getCurrentProgramsForChannels(
-                                              group.lookupKeys,
-                                              {
-                                                  sourceUrls: group.sourceUrls,
-                                                  anySourceFallback: true,
-                                              }
-                                          )
-                                          .pipe(
-                                              map((programs) => ({
-                                                  scopeKey: group.scopeKey,
-                                                  programs,
-                                              })),
-                                              // One scope retired by an EPG
-                                              // source change, or failing,
-                                              // must not blank every other
-                                              // scope's answer for the tick:
-                                              // `forkJoin` emits nothing at
-                                              // all when one input completes
-                                              // empty.
-                                              defaultIfEmpty({
-                                                  scopeKey: group.scopeKey,
-                                                  programs: new Map<
-                                                      string,
-                                                      EpgProgram | null
-                                                  >(),
-                                              }),
-                                              catchError(() =>
-                                                  of({
-                                                      scopeKey: group.scopeKey,
-                                                      programs: new Map<
-                                                          string,
-                                                          EpgProgram | null
-                                                      >(),
-                                                  })
-                                              )
-                                          )
-                                  )
-                              ).pipe(
-                                  map((answers) => {
-                                      const merged = new Map<
-                                          string,
-                                          EpgProgram | null
-                                      >();
-                                      for (const answer of answers) {
-                                          for (const [
-                                              lookupKey,
-                                              program,
-                                          ] of answer.programs) {
-                                              merged.set(
-                                                  liveEpgProgramKey(
-                                                      answer.scopeKey,
-                                                      lookupKey
-                                                  ),
-                                                  program
-                                              );
-                                          }
-                                      }
-                                      return merged;
-                                  })
-                              )
-                          )
-                      )
-            )
-        ),
-        { initialValue: new Map<string, EpgProgram | null>() }
     );
 
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
@@ -515,6 +385,8 @@ export class WorkspaceDashboardRailsComponent {
         // backdrops that do not change recency ordering.
         void this.data.reloadGlobalRecentItems();
         void this.data.reloadGlobalFavorites();
+
+        this.liveEpg.connect(this.enabledLiveCards);
 
         // Refresh when Xtream playlist count changes so a newly added provider
         // populates the rail without a manual dashboard reload. The Xtream
@@ -699,46 +571,16 @@ export class WorkspaceDashboardRailsComponent {
         });
     }
 
-    /** The XMLTV scope a live card's programme must be resolved in. */
-    private liveEpgSourceUrlsForCard(card: DashboardRailCard): string[] {
-        const byPlaylistId = this.liveEpgSourceUrlsByPlaylist();
-        return (
-            (card.epgPlaylistId
-                ? byPlaylistId.get(card.epgPlaylistId)
-                : undefined) ?? []
-        );
-    }
-
     private enrichLiveCards(
         cards: readonly DashboardRailCard[]
     ): DashboardRailCard[] {
         return cards.map((card) => {
-            const details = this.getLiveEpgDetailsForCard(card);
+            const details = this.liveEpg.detailsFor(card);
             if (!details) {
                 return card;
             }
             return { ...card, ...details };
         });
-    }
-
-    private getLiveEpgDetailsForCard(
-        card: DashboardRailCard | null
-    ): DashboardLiveEpgDetails | null {
-        if (!card) {
-            return null;
-        }
-        const program = getLiveEpgProgramForCard(
-            card,
-            this.liveEpgPrograms(),
-            liveEpgScopeKey(this.liveEpgSourceUrlsForCard(card))
-        );
-        // Recompute the now-window each tick so progress moves between
-        // 30s ticks even if the program identity is unchanged.
-        return buildDashboardLiveEpgDetails(
-            program,
-            Date.now(),
-            this.settingsStore.resolvedEpgOffsetMinutes()
-        );
     }
 
     private buildNonLiveSeeAllState(

@@ -23,14 +23,9 @@ import {
     EpgRuntimeBridgeService,
 } from './epg-runtime-bridge.service';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
+import { EpgProgramCache } from './epg-program-cache';
+import { EpgChannelMetadataLookup } from './epg-channel-metadata.lookup';
 import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
-
-interface CachedProgram {
-    program: EpgProgram | null;
-    timestamp: number;
-    /** Display offset the "now" verdict was computed with; a changed setting invalidates the entry. */
-    offsetMinutes: number;
-}
 
 const debugEpgService = createDevLogger('EpgService');
 
@@ -55,17 +50,18 @@ export class EpgService {
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
 
-    // Cache for channel programs with 60-second TTL
-    private programCache = new Map<string, CachedProgram>();
-    private fetchingCurrentPrograms = new Map<
-        string,
-        Observable<EpgProgram | null>
-    >();
-    private fetchingCurrentProgramBatches = new Map<
-        string,
-        Observable<Map<string, EpgProgram | null>>
-    >();
-    private readonly CACHE_TTL = 60000; // 60 seconds
+    /** Channel icons/display names; same scope ladder as the programmes. */
+    private readonly channelMetadata = new EpgChannelMetadataLookup(
+        this.epgBridge,
+        () => this.sourceSettings.guard(),
+        (excluding) => this.getGlobalEpgSourceUrls(excluding)
+    );
+
+    /** 60 s "currently airing" memory, keyed by scope + display offset. */
+    private readonly programCache = new EpgProgramCache(
+        () => this.epgOffsetMinutes(),
+        () => this.sourceSettings.guard()
+    );
 
     /** Display offset every "currently airing" decision in here is made with. */
     private epgOffsetMinutes(): number {
@@ -213,10 +209,10 @@ export class EpgService {
         channelId: string
     ): Observable<EpgProgram | null> {
         // Check cache first
-        const cacheKey = this.createProgramCacheKey(channelId);
+        const cacheKey = this.programCache.keyFor(channelId);
 
         // Fetch from backend
-        return this.getCachedOrFetchCurrentProgram(cacheKey, () =>
+        return this.programCache.getOrFetch(cacheKey, () =>
             from(this.epgBridge.getChannelPrograms(channelId)).pipe(
                 this.sourceSettings.guard(),
                 map((programs) => normalizeEpgPrograms(programs ?? [])),
@@ -406,12 +402,8 @@ export class EpgService {
 
         // Check cache for each channel
         channelIds.forEach((channelId) => {
-            const cached = this.programCache.get(channelId);
-            if (
-                cached &&
-                now - cached.timestamp < this.CACHE_TTL &&
-                cached.offsetMinutes === offsetMinutes
-            ) {
+            const cached = this.programCache.getFresh(channelId, now);
+            if (cached && cached.offsetMinutes === offsetMinutes) {
                 resultMap.set(channelId, cached.program);
             } else {
                 channelsToFetch.push(channelId);
@@ -439,11 +431,12 @@ export class EpgService {
                     channelsToFetch.forEach((channelId) => {
                         const program = batchResult?.[channelId] ?? null;
                         resultMap.set(channelId, program);
-                        this.programCache.set(channelId, {
+                        this.programCache.set(
+                            channelId,
                             program,
-                            timestamp: cacheTimestamp,
                             offsetMinutes,
-                        });
+                            cacheTimestamp
+                        );
                     });
                     return resultMap;
                 }),
@@ -494,8 +487,8 @@ export class EpgService {
         const channelsToFetch: string[] = [];
 
         normalizedChannelIds.forEach((channelId) => {
-            const cached = this.getCachedProgram(
-                this.createProgramCacheKey(channelId, sourceUrls)
+            const cached = this.programCache.get(
+                this.programCache.keyFor(channelId, sourceUrls)
             );
             if (cached) {
                 resultMap.set(channelId, cached.program);
@@ -508,13 +501,12 @@ export class EpgService {
             return of(resultMap);
         }
 
-        const batchCacheKey = this.createProgramBatchCacheKey(
+        const batchCacheKey = this.programCache.batchKeyFor(
             channelsToFetch,
             sourceUrls,
             fallbackSourceUrls
         );
-        const existingRequest =
-            this.fetchingCurrentProgramBatches.get(batchCacheKey);
+        const existingRequest = this.programCache.batchInFlight(batchCacheKey);
         // Tag entries with the offset the verdict was computed with, not the
         // one current when the response lands.
         const offsetMinutes = this.epgOffsetMinutes();
@@ -530,30 +522,21 @@ export class EpgService {
                     const cacheTimestamp = Date.now();
                     channelsToFetch.forEach((channelId) => {
                         this.programCache.set(
-                            this.createProgramCacheKey(channelId, sourceUrls),
-                            {
-                                program: fetchedMap.get(channelId) ?? null,
-                                timestamp: cacheTimestamp,
-                                offsetMinutes,
-                            }
+                            this.programCache.keyFor(channelId, sourceUrls),
+                            fetchedMap.get(channelId) ?? null,
+                            offsetMinutes,
+                            cacheTimestamp
                         );
                     });
                 }),
-                finalize(() => {
-                    if (
-                        this.fetchingCurrentProgramBatches.get(
-                            batchCacheKey
-                        ) === request$
-                    )
-                        this.fetchingCurrentProgramBatches.delete(
-                            batchCacheKey
-                        );
-                }),
+                finalize(() =>
+                    this.programCache.releaseBatch(batchCacheKey, request$)
+                ),
                 shareReplay({ bufferSize: 1, refCount: false })
             );
 
         if (!existingRequest) {
-            this.fetchingCurrentProgramBatches.set(batchCacheKey, request$);
+            this.programCache.registerBatch(batchCacheKey, request$);
         }
 
         return request$.pipe(
@@ -647,59 +630,13 @@ export class EpgService {
         }
 
         const normalizedChannelIds = this.normalizeChannelIds(channelIds);
-
         if (normalizedChannelIds.length === 0) {
             return of(new Map());
         }
 
-        const sourceUrls = this.normalizeSourceUrls(options);
-        const globalSourceUrls =
-            sourceUrls.length > 0
-                ? this.getGlobalEpgSourceUrls(sourceUrls)
-                : this.getGlobalEpgSourceUrls();
-        const effectiveSourceUrls =
-            sourceUrls.length > 0 ? sourceUrls : globalSourceUrls;
-
-        return this.getChannelMetadataMapForSourceUrls(
+        return this.channelMetadata.forChannels(
             normalizedChannelIds,
-            effectiveSourceUrls
-        ).pipe(
-            this.sourceSettings.guard(),
-            switchMap((metadataMap) => {
-                const fallbackChannelIds =
-                    sourceUrls.length > 0 && globalSourceUrls.length > 0
-                        ? normalizedChannelIds.filter(
-                              (channelId) => !metadataMap.get(channelId)
-                          )
-                        : [];
-
-                if (fallbackChannelIds.length === 0) {
-                    return of(metadataMap);
-                }
-
-                return this.getChannelMetadataMapForSourceUrls(
-                    fallbackChannelIds,
-                    globalSourceUrls
-                ).pipe(
-                    this.sourceSettings.guard(),
-                    map((globalMetadataMap) => {
-                        fallbackChannelIds.forEach((channelId) => {
-                            metadataMap.set(
-                                channelId,
-                                globalMetadataMap.get(channelId) ?? null
-                            );
-                        });
-                        return metadataMap;
-                    }),
-                    catchError((err) => {
-                        console.error(
-                            'EPG global fallback channel metadata error:',
-                            err
-                        );
-                        return of(metadataMap);
-                    })
-                );
-            })
+            this.normalizeSourceUrls(options)
         );
     }
 
@@ -717,123 +654,14 @@ export class EpgService {
         return normalizeEpgUrls(options?.sourceUrls ?? []);
     }
 
-    private getChannelMetadataMapForSourceUrls(
-        channelIds: string[],
-        sourceUrls: string[]
-    ): Observable<Map<string, EpgChannelMetadata | null>> {
-        return from(
-            this.epgBridge.getChannelMetadata(
-                channelIds,
-                sourceUrls.length > 0 ? { sourceUrls } : undefined
-            )
-        ).pipe(
-            this.sourceSettings.guard(),
-            map((metadataByChannelId) => {
-                return new Map<string, EpgChannelMetadata | null>(
-                    channelIds.map((channelId) => [
-                        channelId,
-                        metadataByChannelId?.[channelId] ?? null,
-                    ])
-                );
-            }),
-            catchError((err) => {
-                console.error('EPG get channel metadata error:', err);
-                return of(new Map<string, EpgChannelMetadata | null>());
-            })
-        );
-    }
-
-    /**
-     * Cache and in-flight identity of a lookup. The display offset is part of
-     * it: a request evaluated at another provider clock answers a different
-     * question, so a lookup issued after the setting changed must neither
-     * read the previous entry nor join a batch still in flight for it.
-     */
-    private createProgramCacheKey(
-        channelId: string,
-        sourceUrls: string[] = []
-    ): string {
-        const normalizedSourceUrls = normalizeEpgUrls(sourceUrls);
-        const key =
-            normalizedSourceUrls.length === 0
-                ? channelId
-                : `source:${channelId}:${JSON.stringify(normalizedSourceUrls)}`;
-        const offsetMinutes = this.epgOffsetMinutes();
-        return offsetMinutes === 0 ? key : `${key}|offset:${offsetMinutes}`;
-    }
-
-    private createProgramBatchCacheKey(
-        channelIds: string[],
-        sourceUrls: string[],
-        fallbackSourceUrls: string[]
-    ): string {
-        return JSON.stringify({
-            channelIds: [...channelIds].sort(),
-            sourceUrls: normalizeEpgUrls(sourceUrls),
-            fallbackSourceUrls: normalizeEpgUrls(fallbackSourceUrls),
-            offsetMinutes: this.epgOffsetMinutes(),
-        });
-    }
-
-    private getCachedProgram(cacheKey: string): CachedProgram | undefined {
-        const cached = this.programCache.get(cacheKey);
-        if (!cached) {
-            return undefined;
-        }
-
-        if (
-            Date.now() - cached.timestamp >= this.CACHE_TTL ||
-            cached.offsetMinutes !== this.epgOffsetMinutes()
-        ) {
-            this.programCache.delete(cacheKey);
-            return undefined;
-        }
-
-        return cached;
-    }
-
-    private getCachedOrFetchCurrentProgram(
-        cacheKey: string,
-        fetchProgram: () => Observable<EpgProgram | null>
-    ): Observable<EpgProgram | null> {
-        const cached = this.getCachedProgram(cacheKey);
-        if (cached) {
-            return of(cached.program);
-        }
-
-        const existingRequest = this.fetchingCurrentPrograms.get(cacheKey);
-        if (existingRequest) {
-            return existingRequest;
-        }
-
-        const offsetMinutes = this.epgOffsetMinutes();
-        const request$ = fetchProgram().pipe(
-            this.sourceSettings.guard(),
-            tap((program) => {
-                this.programCache.set(cacheKey, {
-                    program,
-                    timestamp: Date.now(),
-                    offsetMinutes,
-                });
-            }),
-            finalize(() => {
-                if (this.fetchingCurrentPrograms.get(cacheKey) === request$)
-                    this.fetchingCurrentPrograms.delete(cacheKey);
-            }),
-            shareReplay({ bufferSize: 1, refCount: false })
-        );
-        this.fetchingCurrentPrograms.set(cacheKey, request$);
-        return request$;
-    }
-
     private getScopedCurrentProgramForChannel(
         channelId: string,
         sourceUrls: string[],
         fallbackSourceUrls: string[]
     ): Observable<EpgProgram | null> {
-        const cacheKey = this.createProgramCacheKey(channelId, sourceUrls);
+        const cacheKey = this.programCache.keyFor(channelId, sourceUrls);
 
-        return this.getCachedOrFetchCurrentProgram(cacheKey, () =>
+        return this.programCache.getOrFetch(cacheKey, () =>
             from(
                 this.epgBridge.getChannelPrograms(channelId, { sourceUrls })
             ).pipe(
@@ -895,7 +723,5 @@ export class EpgService {
      */
     clearCache(): void {
         this.programCache.clear();
-        this.fetchingCurrentPrograms.clear();
-        this.fetchingCurrentProgramBatches.clear();
     }
 }
