@@ -1090,6 +1090,62 @@ These URLs are playlist-scoped by default:
 
 ## EPG Integration
 
+### Xtream channel-row programme refresh
+
+The "current programme" line under each Xtream Live TV channel used to be
+written only when a row scrolled into view, when an EPG result arrived, or
+when the display offset changed. Nothing re-evaluated it as wall-clock time
+passed, so once a programme ended the row stayed on it until the category was
+left and re-entered (#767).
+
+`PortalChannelsListComponent` re-checks the rows on screen once a minute. The
+rules, each of which exists to avoid a specific failure:
+
+- A programme still on air only has its **progress bar** advanced. No cache
+  read, no request: a row with nothing to learn must not cost traffic.
+- Once it ends the row is re-picked from the queue's cache, and only a
+  programme that is **on air or upcoming** may replace it. A finished
+  programme is never re-applied — it would keep presenting itself as current,
+  and the earliest-item fallback that fills a blank row on first paint would
+  move an advanced row *backwards*.
+- A cached guide whose programmes have **all** ended is dropped
+  (`EpgQueueService.invalidate`) and refetched, because the queue skips any
+  stream that still holds a cached answer. An **empty** answer means the
+  provider has no guide for that channel and is left alone; re-asking would
+  put one call per EPG-less visible row on the wire every minute.
+- What is on screen stays there until a replacement arrives, so a refreshing
+  row never blanks out.
+
+A programme occupies `[start, stop)` in every one of these comparisons, so
+"has it ended" and "what is on air" cannot disagree on the boundary instant.
+The selection rules are pure functions in
+`libs/portal/xtream/feature/src/lib/portal-channels-list/epg-preview-program.ts`
+and take an explicit `nowMs` in the PROVIDER's clock (`epgProviderClockMs`),
+never `Date.now()`.
+
+Two root-provided services exist because a live layout mounts the channel list
+more than once — the sidebar and the fullscreen channel panel render side by
+side — over one shared `EpgQueueService`:
+
+- `EpgRefillLimiter` is the floor on dropping an exhausted cache, the one
+  place that overrides the queue's own throttling. A provider whose guide has
+  genuinely run out answers the refill with the same finished programmes, so
+  without a floor the row would ask again on the very next tick. Records carry
+  the owning playlist, since a stream id is provider-local and the service
+  outlives a playlist switch, and they expire by age rather than by viewport
+  membership — a claim dropped when its row scrolled away would be handed back
+  the moment the user scrolled to it again.
+- `EpgRefreshCoordinator` owns the single timer and merges what every mounted
+  list needs into one queue request. `EpgQueueService.enqueue` is latest-wins:
+  it bumps one generation, replaces the queue and the visible set, and drops an
+  earlier caller's entries after its XMLTV await. Separate timers would cancel
+  each other whenever both lists had rows to fill, which is exactly what
+  happens on a programme boundary. Each list still decides for itself what is
+  stale (that reads only its own state) and contributes its whole visible
+  slice, since the queue drops anything outside the visible set it was last
+  handed; a channel both lists show is fetched once, and playlists stay apart
+  because their credentials differ.
+
 ### XMLTV response compression
 
 The Electron EPG worker decodes HTTP `Content-Encoding` layers in reverse
