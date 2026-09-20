@@ -475,7 +475,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
-        if (!this.xtreamStore.currentPlaylist()) return;
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) return;
 
         const now = this.epgClockMs();
         const wallClockNow = Date.now();
@@ -510,9 +511,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 continue;
             }
 
-            if (!this.epgRefill.claim(channel.xtream_id, wallClockNow)) {
-                continue;
-            }
+            const mayRefill = this.epgRefill.claim(
+                playlist.id,
+                channel.xtream_id,
+                wallClockNow
+            );
+            if (!mayRefill) continue;
 
             // Every cached programme has ended. The entry stays valid for
             // minutes and the queue skips a stream that still has one, so it
@@ -658,7 +662,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         if (!hasEpgProgramEnded(shownProgram, this.epgClockMs())) {
             // A programme that has not run out proves the guide is flowing,
             // so the next gap on this row may be refilled straight away.
-            this.epgRefill.release(streamId);
+            const { id } = this.xtreamStore.currentPlaylist() ?? {};
+            this.epgRefill.release(id, streamId);
         }
         this.cdr.detectChanges();
     }
