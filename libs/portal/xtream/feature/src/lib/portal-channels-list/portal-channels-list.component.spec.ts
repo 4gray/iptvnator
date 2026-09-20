@@ -668,6 +668,27 @@ describe('PortalChannelsListComponent', () => {
         expect(epgQueueService.invalidate).toHaveBeenCalledTimes(1);
     });
 
+    it('refreshes the rows on screen now, not the ones a stale snapshot holds', async () => {
+        // The viewport's rendered range only emits when the INDEX range
+        // changes, so swapping a one-channel category for another leaves the
+        // snapshot pointing at the previous list while the indices still
+        // describe what is rendered.
+        await renderSingleChannel(fixture, '2026-04-05T06:03:00.000Z');
+
+        selectedChannels.set([{ title: 'Boomerang', xtream_id: 77 }]);
+        fixture.detectChanges();
+        epgQueueService.getCached.mockReturnValue(null);
+        epgQueueService.enqueue.mockClear();
+
+        jest.advanceTimersByTime(60_000);
+
+        expect(epgQueueService.enqueue).toHaveBeenCalledWith(
+            [expect.objectContaining({ streamId: 77 })],
+            new Set([77]),
+            expect.objectContaining({ serverUrl: 'http://demo.example' })
+        );
+    });
+
     it('leaves a channel the provider has no EPG for alone', async () => {
         // An empty answer is cached deliberately; re-requesting it would put
         // one call per EPG-less visible row on the wire every minute.

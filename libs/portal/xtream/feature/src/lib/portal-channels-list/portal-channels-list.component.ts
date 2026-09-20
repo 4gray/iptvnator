@@ -302,12 +302,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 return;
             }
 
-            const previewProgram = this.pickPreviewProgram(epgItems);
-            if (!previewProgram) {
-                return;
-            }
+            const program = pickEpgPreviewItem(epgItems, this.epgClockMs());
+            if (!program) return;
 
-            this.applyProgram(selectedItem.xtream_id, previewProgram);
+            this.applyProgram(selectedItem.xtream_id, program);
         });
     }
 
@@ -363,15 +361,11 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                         // answered with the same finished window would
                         // otherwise walk the row back to an older programme,
                         // the very thing the refresh exists to prevent (#767).
-                        const previewProgram = this.epgPrograms.has(streamId)
-                            ? pickAiringOrUpcomingEpgItem(
-                                  items,
-                                  this.epgClockMs()
-                              )
-                            : this.pickPreviewProgram(items);
-                        if (previewProgram) {
-                            this.applyProgram(streamId, previewProgram);
-                        }
+                        const now = this.epgClockMs();
+                        const program = this.epgPrograms.has(streamId)
+                            ? pickAiringOrUpcomingEpgItem(items, now)
+                            : pickEpgPreviewItem(items, now);
+                        if (program) this.applyProgram(streamId, program);
                     }
                 )
             );
@@ -409,6 +403,21 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
     }
 
+    /**
+     * The rows actually on screen now. `renderedRangeStream` only emits when
+     * the index RANGE changes, so a new category, search term or sort order
+     * can leave `lastVisibleChannels` holding the previous list's rows: the
+     * indices are still right, the data behind them is not.
+     */
+    private visibleChannelsNow(): XtreamChannelListItem[] {
+        const range = this.viewport()?.getRenderedRange();
+        if (!range || range.end <= range.start) {
+            return this.lastVisibleChannels;
+        }
+
+        return this.filteredChannels().slice(range.start, range.end);
+    }
+
     /** Wall-clock now in the provider's EPG clock (`epg-display-offset.util.ts`). */
     private epgClockMs(): number {
         return epgProviderClockMs(
@@ -420,10 +429,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private repickPreviewsForOffsetChange(): void {
         this.epgPrograms.clear();
         this.currentProgramsProgress.clear();
-        const visible = this.lastVisibleChannels.length
-            ? this.lastVisibleChannels
-            : this.filteredChannels().slice(0, 50);
-        this.loadEpgForVisibleChannels(visible);
+        const visible = this.visibleChannelsNow();
+        this.loadEpgForVisibleChannels(
+            visible.length ? visible : this.filteredChannels().slice(0, 50)
+        );
         this.cdr.markForCheck();
     }
 
@@ -440,7 +449,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         for (const channel of channels) {
             const cached = this.epgQueueService.getCached(channel.xtream_id);
             if (cached !== null) {
-                const previewProgram = this.pickPreviewProgram(cached);
+                const previewProgram = pickEpgPreviewItem(
+                    cached,
+                    this.epgClockMs()
+                );
                 if (
                     previewProgram &&
                     !this.epgPrograms.has(channel.xtream_id)
@@ -479,10 +491,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
      * rows to fetch are handed back to the coordinator to merge.
      */
     private collectEpgRefresh(): EpgRefreshContribution | null {
-        const channels = this.lastVisibleChannels;
-        if (!this.supportsEpg || channels.length === 0) {
-            return null;
-        }
+        const channels = this.visibleChannelsNow();
+        if (!this.supportsEpg || channels.length === 0) return null;
 
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return null;
@@ -676,10 +686,6 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             this.epgRefill.release(id, streamId);
         }
         this.cdr.detectChanges();
-    }
-
-    private pickPreviewProgram(items: EpgItem[]): EpgItem | null {
-        return pickEpgPreviewItem(items, this.epgClockMs());
     }
 
     // ── Context menu ────────────────────────────────────────────
