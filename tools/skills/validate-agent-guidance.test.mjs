@@ -752,3 +752,38 @@ for (const target of [
         );
     });
 }
+
+test('Markdown destination entities resolve rendered filenames', async (t) => {
+    for (const reference of [
+        '[Guide](docs/a&amp;b.md)',
+        '[Guide][ref]\n\n[ref]: docs/a&amp;b.md',
+    ]) {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': reference,
+                'docs/a&b.md': '# Guide',
+            }),
+            []
+        );
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': reference,
+                    'docs/a&amp;b.md': '# Wrong name',
+                })
+            ).join('\n'),
+            /does not exist/
+        );
+    }
+});
+test('declared packages allow safe subpaths', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'package.json': JSON.stringify({
+                dependencies: { '@angular/core': '*' },
+            }),
+            'AGENTS.md': 'Use @angular/core/testing.',
+        }),
+        []
+    );
+});

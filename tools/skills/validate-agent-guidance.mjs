@@ -89,11 +89,14 @@ async function packageMentions(rootDir) {
     }
     const manifest = await readJson('package.json');
     const config = await readJson('tsconfig.base.json');
-    const names = [
+    const packages = [
         ...Object.keys(manifest.dependencies ?? {}),
         ...Object.keys(manifest.devDependencies ?? {}),
         ...Object.keys(manifest.optionalDependencies ?? {}),
         ...Object.keys(manifest.peerDependencies ?? {}),
+    ];
+    const names = [
+        ...packages,
         ...Object.keys(config.compilerOptions?.paths ?? {}),
     ];
     const declared = names
@@ -111,7 +114,9 @@ async function packageMentions(rootDir) {
         return declared.some((name) => {
             const star = name.indexOf('*');
             return star < 0
-                ? token === name
+                ? token === name ||
+                      (packages.includes(`@${name}`) &&
+                          token.startsWith(`${name}/`))
                 : token.startsWith(name.slice(0, star)) &&
                       token.endsWith(name.slice(star + 1));
         });

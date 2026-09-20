@@ -56,6 +56,8 @@ Inline guidance imports are rejected after punctuation as well as whitespace.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions. TypeScript configuration is parsed as JSONC.
+Declared packages also permit safe subpaths; exact aliases stay exact.
+Markdown destinations decode HTML entities before URI parsing, matching rendered links.
 The import scan includes visible HTML text and excludes code and non-rendered containers.
 Image source sets use `parse-srcset` to check each candidate URL. Root-relative
 literals never suppress source-relative definition checks.

@@ -198,8 +198,8 @@ export function guidanceReferences(markdown, includeLiterals) {
     }
     markdownLexer.walkTokens(markdownLexer.lexer(markdown), (token) => {
         if (['link', 'image'].includes(token.type))
-            add(token.href, false, token.type === 'image');
-        if (token.type === 'def') definitions.push(token.href);
+            add(decodeEntities(token.href), false, token.type === 'image');
+        if (token.type === 'def') definitions.push(decodeEntities(token.href));
         if (token.type === 'html') html.push(token.raw);
         if (token.type === 'unresolved-reference')
             result.push({ unresolvedReference: token.label });
