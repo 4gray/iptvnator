@@ -883,3 +883,41 @@ for (const content of [
         );
     });
 }
+
+test('inert headings do not define or consume anchor slugs', async (t) => {
+    const body =
+        '<template>\n\n# Hidden\n\n# Visible\n\n</template>\n\n# Visible';
+    assert.match(
+        (
+            await diagnostics(t, {
+                'AGENTS.md': '[Hidden](docs/example.md#hidden)',
+                'docs/example.md': body,
+            })
+        ).join('\n'),
+        /missing anchor/
+    );
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md': '[Visible](docs/example.md#visible)',
+            'docs/example.md': body,
+        }),
+        []
+    );
+});
+test('explicit relative literal paths support spaces', async (t) => {
+    assert.match(
+        (
+            await diagnostics(t, {
+                'AGENTS.md': '`./docs/My Guide.md`',
+            })
+        ).join('\n'),
+        /does not exist/
+    );
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md': '`./docs/My Guide.md`',
+            'docs/My Guide.md': '',
+        }),
+        []
+    );
+});

@@ -148,21 +148,37 @@ export function guidanceStandaloneImports(markdown) {
 export function guidanceAnchors(markdown) {
     const slugger = new GithubSlugger();
     const found = new Set();
-    const html = [];
-    markdownLexer.walkTokens(markdownLexer.lexer(markdown), (token) => {
-        if (token.type === 'heading') {
-            found.add(slugger.slug(inlineText(token.tokens)));
-        }
-        if (token.type === 'html') html.push(token.raw);
+    const headings = [];
+    const marker = `data-guidance-${randomUUID()}`;
+    const renderer = new Marked({
+        renderer: {
+            heading(token) {
+                const index = headings.push(inlineText(token.tokens)) - 1;
+                return `<h${token.depth} ${marker}="${index}">${this.parser.parseInline(token.tokens)}</h${token.depth}>\n`;
+            },
+        },
     });
-    return new Set([...found, ...htmlNavigation(html.join('\n')).anchors]);
+    const navigation = htmlNavigation(renderer.parse(markdown), (node) => {
+        const attribute = node.attrs?.find((attr) => attr.name === marker);
+        if (attribute)
+            found.add(slugger.slug(headings[Number(attribute.value)]));
+    });
+    return new Set([...found, ...navigation.anchors]);
 }
 
 function isLiteralRepositoryPath(token) {
     // A typo in the directory or a new root filename must still be checked.
     // Exclude recognizable prose/code forms instead of allowlisting paths.
     if (/^(?:@|--|[a-z][a-z\d+.-]*:|\/\/)/iu.test(token)) return false;
-    if (/[^\p{L}\p{N}_./#-]/u.test(token)) return false;
+    const explicitRelative = /^(?:\.\/|\.\.\/)/u.test(token);
+    if (
+        (explicitRelative
+            ? /[^\p{L}\p{N}_./# -]/u
+            : /[^\p{L}\p{N}_./#-]/u
+        ).test(token)
+    )
+        return false;
+    if (/\s+-{1,2}[\p{L}]/u.test(token)) return false;
     if (token.includes('YYYY-MM-DD') || /(?:^|\/)\.\.\.(?:\/|$)/u.test(token))
         return false;
     const path = token.split('#')[0];
