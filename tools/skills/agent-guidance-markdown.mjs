@@ -49,8 +49,9 @@ function decodeEntities(text) {
     );
 }
 
-function htmlAnchors(html) {
-    const found = [];
+function htmlNavigation(html) {
+    const anchors = [];
+    const references = [];
     function visit(node) {
         if (['script', 'style', 'template'].includes(node.tagName)) return;
         for (const attribute of node.attrs ?? []) {
@@ -58,12 +59,17 @@ function htmlAnchors(html) {
                 attribute.name === 'id' ||
                 (node.tagName === 'a' && attribute.name === 'name')
             )
-                found.push(attribute.value);
+                anchors.push(attribute.value);
+            if (
+                (node.tagName === 'a' && attribute.name === 'href') ||
+                (node.tagName === 'img' && attribute.name === 'src')
+            )
+                references.push(attribute.value);
         }
         for (const child of node.childNodes ?? []) visit(child);
     }
     visit(parseFragment(html));
-    return found;
+    return { anchors, references };
 }
 
 export function guidanceProse(markdown) {
@@ -92,7 +98,7 @@ export function guidanceAnchors(markdown) {
         }
         if (token.type === 'html') html.push(token.raw);
     });
-    return new Set([...found, ...htmlAnchors(html.join('\n'))]);
+    return new Set([...found, ...htmlNavigation(html.join('\n')).anchors]);
 }
 
 function isLiteralRepositoryPath(token) {
@@ -124,6 +130,7 @@ function isLiteralRepositoryPath(token) {
 export function guidanceReferences(markdown, includeLiterals) {
     const result = [];
     const destinations = new Set();
+    const html = [];
     function add(target, literal = false) {
         const key = `${literal}:${target}`;
         if (!destinations.has(key)) {
@@ -133,6 +140,7 @@ export function guidanceReferences(markdown, includeLiterals) {
     }
     markdownLexer.walkTokens(markdownLexer.lexer(markdown), (token) => {
         if (['link', 'image', 'def'].includes(token.type)) add(token.href);
+        if (token.type === 'html') html.push(token.raw);
         if (token.type === 'unresolved-reference')
             result.push({ unresolvedReference: token.label });
         if (
@@ -142,5 +150,7 @@ export function guidanceReferences(markdown, includeLiterals) {
         )
             add(token.text, true);
     });
+    for (const target of htmlNavigation(html.join('\n')).references)
+        add(target);
     return result;
 }

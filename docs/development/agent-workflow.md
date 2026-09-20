@@ -42,6 +42,8 @@ separately so encoded filename delimiters stay in the filename. Fenced and inden
 do not count as root guidance imports or satisfy the required Claude import.
 Heading anchors decode HTML character references in text. Explicit HTML anchors
 use `parse5`, excluding comments, scripts, styles and template contents.
+Rendered HTML anchor hrefs and image sources use the same local-reference checks
+as Markdown links, including decoded attributes and fragment validation.
 The Nx test hash includes `marked` and `parse5` so dependency changes invalidate parser coverage.
 It cannot prove semantic equivalence; review changed contracts as well.
 

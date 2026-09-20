@@ -498,3 +498,42 @@ for (const [heading, anchor] of [
         );
     });
 }
+
+for (const html of [
+    '<a href="docs/missing.md#section">Guide</a>',
+    '<img src="docs/missing.png">',
+]) {
+    test(`validates rendered HTML navigation: ${html}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { 'AGENTS.md': html })).join('\n'),
+            /does not exist/
+        );
+    });
+}
+test('HTML navigation supports valid anchors and decoded attributes', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '<a href="docs/example.md#hello-world">Guide</a> <img src="docs/a&amp;b.png">',
+            'docs/a&b.png': '',
+        }),
+        []
+    );
+    assert.match(
+        (
+            await diagnostics(t, {
+                'AGENTS.md': '<a href="docs/example.md#missing">Guide</a>',
+            })
+        ).join('\n'),
+        /missing anchor/
+    );
+});
+test('non-rendered HTML navigation is ignored', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '<!-- <a href="missing.md"> -->\n<script>const a = \'<img src="missing.png">\';</script>\n\n<template><a href="missing.md">Hidden</a></template>',
+        }),
+        []
+    );
+});
