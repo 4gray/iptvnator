@@ -67,9 +67,35 @@ async function validateReference(
     }
 }
 
+async function packageScopes(rootDir) {
+    async function readJson(path) {
+        try {
+            return JSON.parse(await readFile(resolve(rootDir, path), 'utf8'));
+        } catch (error) {
+            if (error.code === 'ENOENT') return {};
+            throw error;
+        }
+    }
+    const manifest = await readJson('package.json');
+    const config = await readJson('tsconfig.base.json');
+    const names = [
+        ...Object.keys(manifest.dependencies ?? {}),
+        ...Object.keys(manifest.devDependencies ?? {}),
+        ...Object.keys(manifest.optionalDependencies ?? {}),
+        ...Object.keys(manifest.peerDependencies ?? {}),
+        ...Object.keys(config.compilerOptions?.paths ?? {}),
+    ];
+    return new Set(
+        names
+            .filter((name) => /^@[^/]+\//u.test(name))
+            .map((name) => name.slice(1, name.indexOf('/')))
+    );
+}
+
 export async function validateAgentGuidance({ rootDir }) {
     rootDir = await realpath(rootDir);
     const diagnostics = [];
+    const scopes = await packageScopes(rootDir);
     for (const source of SURFACES) {
         let markdown;
         try {
@@ -103,7 +129,7 @@ export async function validateAgentGuidance({ rootDir }) {
                 .map((match) => match[1])
                 .filter(
                     (token) =>
-                        !token.startsWith('iptvnator/') &&
+                        !scopes.has(token.split('/')[0]) &&
                         (/[./\\]/u.test(token) ||
                             /^(?:LICENSE|Makefile|Dockerfile|AGENTS|CLAUDE)(?:$|[.,;)])/u.test(
                                 token

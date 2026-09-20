@@ -53,6 +53,8 @@ as Markdown links, including decoded attributes and fragment validation.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
 Inline guidance imports are rejected after punctuation as well as whitespace.
+Scopes declared by package dependencies or TypeScript path aliases are recognized
+as package/alias mentions rather than additional file imports.
 The import scan includes visible HTML text and excludes code and non-rendered containers.
 Image source sets use `parse-srcset` to check each candidate URL. Root-relative
 literals never suppress source-relative definition checks.

@@ -12,6 +12,9 @@ async function fixture(t, overrides = {}) {
     t.after(() => rm(rootDir, { recursive: true, force: true }));
     for (const [path, body] of Object.entries({
         'AGENTS.md': '# Guidance\n',
+        'tsconfig.base.json': JSON.stringify({
+            compilerOptions: { paths: { '@iptvnator/*': ['libs/*'] } },
+        }),
         'CLAUDE.md': '@AGENTS.md\n',
         [map]: '# Context\n',
         [migration]: '# Migration\n',
@@ -700,6 +703,21 @@ test('non-rendered HTML text and code do not introduce imports', async (t) => {
         await diagnostics(t, {
             'CLAUDE.md':
                 '@AGENTS.md\n\n<!-- @docs/missing.md -->\n<script>@docs/missing.md</script>\n<style>@docs/missing.md</style>\n<template>@docs/missing.md</template>\n<code>@docs/missing.md</code>',
+        }),
+        []
+    );
+});
+
+test('declared scoped dependencies and aliases are not inline imports', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'package.json': JSON.stringify({
+                dependencies: { '@angular/core': '*', '@nx/devkit': '*' },
+            }),
+            'tsconfig.base.json': JSON.stringify({
+                compilerOptions: { paths: { '@custom/*': ['libs/*'] } },
+            }),
+            'AGENTS.md': 'Use @angular/core, @nx/* and @custom/services.',
         }),
         []
     );
