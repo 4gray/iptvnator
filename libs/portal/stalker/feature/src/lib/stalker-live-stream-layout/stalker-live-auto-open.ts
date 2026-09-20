@@ -241,14 +241,18 @@ export class StalkerLiveAutoOpen {
 
     private settle(item: StalkerItvChannel | null): void {
         const { store } = this.options;
-        // Same order the live navigation reads a row's genre by, and a
-        // blank genre (`''`, whitespace) is as absent as a missing one.
+        // A located row is played FROM THE CACHE, and the cached list is
+        // filtered by `tv_genre_id` alone — `filterItvChannelsByGenre`
+        // deliberately mirrors the portal's own `genre=` filter. Selecting a
+        // genre that filter cannot serve (a row carrying only `category_id`)
+        // would strand the channel behind a paged request that may not
+        // answer, so the All list, which always holds it, is the honest
+        // destination. A blank genre (`''`, whitespace) is as absent as a
+        // missing one. The remembered genre for a row that could NOT be
+        // located is a different case: it is served by the portal, so it
+        // does read `category_id` (`resolveStalkerLiveGenreId`).
         const category = item
-            ? normalizeStalkerEntityId(item.tv_genre_id) ||
-              normalizeStalkerEntityId(
-                  (item as { category_id?: unknown }).category_id
-              ) ||
-              '*'
+            ? normalizeStalkerEntityId(item.tv_genre_id) || '*'
             : this.pendingCategoryId();
 
         if (category) {

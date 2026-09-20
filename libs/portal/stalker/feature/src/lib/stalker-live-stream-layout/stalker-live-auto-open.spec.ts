@@ -475,9 +475,11 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
-    it("reads a row's category_id when it carries no tv_genre_id", () => {
-        // `StalkerLiveNavigation.categoryFor()` accepts either field; the
-        // handoff must not drop such a row into the portal-wide All queue.
+    it('opens the All list for a cached row whose genre the cache cannot filter', () => {
+        // `filterItvChannelsByGenre` mirrors the portal's `genre=` filter,
+        // i.e. `tv_genre_id`: a row carrying only `category_id` is absent
+        // from that genre's cached slice, so selecting it would strand the
+        // channel behind a paged request. The All list always holds it.
         const byCategoryId = {
             id: '30',
             cmd: 'x',
@@ -488,9 +490,9 @@ describe('StalkerLiveAutoOpen', () => {
         store.itvFullChannelList.set([byCategoryId]);
 
         arrive();
-        serveCategory('8');
+        serveCategory('*');
 
-        expect(store.setSelectedCategory).toHaveBeenCalledWith('8');
+        expect(store.setSelectedCategory).toHaveBeenCalledWith('*');
         expect(play).toHaveBeenCalledWith(byCategoryId);
     });
 
