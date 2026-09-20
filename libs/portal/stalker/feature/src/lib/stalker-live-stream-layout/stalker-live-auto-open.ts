@@ -181,17 +181,12 @@ export class StalkerLiveAutoOpen {
         // The user owns the list once the handoff is actionable: picking
         // another genre or starting a search means they moved on, and the
         // channel must not hijack the view when the full list finally lands.
-        const listState = {
-            category: store.selectedCategoryId() ?? null,
-            search: store.searchPhrase().trim(),
-        };
-        const baseline = this.pendingBaseline;
-        if (!baseline) {
-            this.pendingBaseline = listState;
-        } else if (
-            baseline.category !== listState.category ||
-            baseline.search !== listState.search
-        ) {
+        if (!this.pendingBaseline) {
+            this.pendingBaseline = {
+                category: store.selectedCategoryId() ?? null,
+                search: store.searchPhrase().trim(),
+            };
+        } else if (!this.handoffStillOwnsTheList()) {
             untracked(() => {
                 this.clearPendingItem();
                 this.clearHistoryState();
@@ -213,11 +208,15 @@ export class StalkerLiveAutoOpen {
             const generation = this.state.generation;
             untracked(() => {
                 void Promise.resolve(store.preloadItvChannels()).then(() => {
+                    // The promise can settle before the effect that would
+                    // abandon a handoff the user walked away from, so the
+                    // user's own state is rechecked here too.
                     if (
                         generation !== this.state.generation ||
                         !this.pendingItemId() ||
                         store.itvFullListActive() ||
-                        store.itvFullListUnsupported()
+                        store.itvFullListUnsupported() ||
+                        !this.handoffStillOwnsTheList()
                     ) {
                         return;
                     }
@@ -286,6 +285,35 @@ export class StalkerLiveAutoOpen {
 
         this.clearPendingItem();
         this.clearHistoryState();
+    }
+
+    /**
+     * Whether the handoff still describes what the user is looking at: the
+     * requested portal, the ITV section, and the genre and search it
+     * captured once it became actionable.
+     */
+    private handoffStillOwnsTheList(): boolean {
+        const { store } = this.options;
+        if (store.selectedContentType() !== 'itv') {
+            return false;
+        }
+
+        const playlist = store.currentPlaylist();
+        const pendingPlaylistId = this.pendingPlaylistId();
+        if (
+            !playlist ||
+            (pendingPlaylistId &&
+                normalizeStalkerEntityId(playlist._id) !== pendingPlaylistId)
+        ) {
+            return false;
+        }
+
+        const baseline = this.pendingBaseline;
+        return (
+            !baseline ||
+            (baseline.category === (store.selectedCategoryId() ?? null) &&
+                baseline.search === store.searchPhrase().trim())
+        );
     }
 
     private runDeferredPlay(): void {

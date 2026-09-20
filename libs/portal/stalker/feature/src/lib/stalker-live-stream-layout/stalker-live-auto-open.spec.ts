@@ -443,6 +443,32 @@ describe('StalkerLiveAutoOpen', () => {
         expect(store.setSelectedCategory).not.toHaveBeenCalledWith('7');
     });
 
+    it('does not fall back over a genre the user chose while the preload was pending', async () => {
+        // The promise can settle before the effect that abandons the handoff
+        // runs, so the continuation rechecks the user's own state.
+        let settle!: () => void;
+        store.preloadItvChannels.mockImplementation(
+            () => new Promise<void>((resolve) => (settle = resolve))
+        );
+
+        arrive({
+            openStalkerLiveItemId: '30',
+            openStalkerLivePlaylistId: 'pl-3',
+            openStalkerLiveCategoryId: '5',
+        });
+        expect(autoOpen.pendingItemId()).toBe('30');
+
+        // The user picks another genre; the preload settles before the
+        // effect pass that would retire the handoff.
+        store.selectedCategoryId.set('2');
+        settle();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(store.setSelectedCategory).not.toHaveBeenCalledWith('5');
+        expect(play).not.toHaveBeenCalled();
+    });
+
     it('drops the handoff when the user starts searching while the list loads', () => {
         store.preloadItvChannels.mockImplementation(
             () => new Promise(() => undefined)
