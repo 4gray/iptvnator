@@ -115,6 +115,7 @@ async function packageMentions(rootDir) {
     const scopes = new Set(declared.map((name) => name.split('/')[0]));
     return (raw) => {
         let token = raw.replace(/[?!.,;:)"'\]}]+$/u, '');
+        token = token.replace(/['’]s$/iu, '');
         token = token.replace(
             /^([^/@]+(?:\/[^/@]+)?)@(?:[~^]?\d[\w.+-]*|[a-z][\w-]*)$/iu,
             '$1'

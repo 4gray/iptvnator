@@ -991,3 +991,17 @@ for (const html of [
         );
     });
 }
+
+for (const suffix of ["'s", '’s']) {
+    test(`declared package may be possessive: ${suffix}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+                'AGENTS.md': '@angular/core' + suffix + ' API',
+            }),
+            []
+        );
+    });
+}
