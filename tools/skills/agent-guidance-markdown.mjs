@@ -45,11 +45,15 @@ function inlineText(tokens) {
         .join('');
 }
 
-function decodeEntities(text) {
-    return text.replace(
-        /&(?:#(?:x[0-9a-f]+|[0-9]+)|[a-z][a-z0-9]+);/giu,
-        (entity) => parseFragment(entity).childNodes[0]?.value ?? entity
-    );
+function decodeEntities(text, attribute = false) {
+    if (attribute) {
+        const html = `<a href="${text.replace(/"/gu, '&quot;')}"></a>`;
+        return parseFragment(html).childNodes[0].attrs[0].value;
+    }
+    // RCDATA decodes the full HTML character-reference grammar without
+    // interpreting literal tags. The prefix preserves an initial newline.
+    const html = `<textarea>x${text.replace(/</gu, '&lt;')}</textarea>`;
+    return parseFragment(html).childNodes[0].childNodes[0].value.slice(1);
 }
 
 function htmlNavigation(html, inspect = () => {}) {
@@ -66,8 +70,11 @@ function htmlNavigation(html, inspect = () => {}) {
                 anchors.push(attribute.value);
             if (
                 (node.tagName === 'a' && attribute.name === 'href') ||
-                (['img', 'video', 'audio', 'source'].includes(node.tagName) &&
-                    attribute.name === 'src')
+                (['img', 'video', 'audio', 'source', 'track'].includes(
+                    node.tagName
+                ) &&
+                    attribute.name === 'src') ||
+                (node.tagName === 'video' && attribute.name === 'poster')
             )
                 references.push({
                     target: attribute.value,
@@ -216,7 +223,7 @@ export function guidanceReferences(markdown, includeLiterals) {
     markdownLexer.walkTokens(tokens, (token) => {
         if (token.type === 'def')
             mark(token, {
-                target: decodeEntities(token.href),
+                target: decodeEntities(token.href, true),
                 definition: true,
             });
         else if (token.type === 'unresolved-reference')

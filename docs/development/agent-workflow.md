@@ -58,7 +58,9 @@ Rendered HTML anchor hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
-HTML video, audio and source `src` assets use the same existence checks as images.
+HTML video, audio, source and track `src` assets and video posters use the same
+existence checks as images. Entity decoding uses full HTML text/attribute rules,
+including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are

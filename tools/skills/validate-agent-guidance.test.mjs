@@ -955,3 +955,39 @@ for (const html of [
         );
     });
 }
+
+for (const heading of ['A&copy B', 'A&#169 B', 'A&#xA9 B']) {
+    test(`semicolonless heading entities decode: ${heading}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': '[Heading](docs/example.md#a-b)',
+                'docs/example.md': '# ' + heading,
+            }),
+            []
+        );
+    });
+}
+test('semicolonless definition entities match rendered destinations', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md': '[ref]: docs/a&copy.md',
+            'docs/a©.md': '',
+        }),
+        []
+    );
+});
+for (const html of [
+    '<video poster="docs/asset.png"></video>',
+    '<video><track src="docs/asset.png"></video>',
+]) {
+    test(`remaining media assets are checked: ${html}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { 'AGENTS.md': html })).join('\n'),
+            /does not exist/
+        );
+        assert.deepEqual(
+            await diagnostics(t, { 'AGENTS.md': html, 'docs/asset.png': '' }),
+            []
+        );
+    });
+}
