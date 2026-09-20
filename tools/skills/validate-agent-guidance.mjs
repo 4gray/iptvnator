@@ -157,7 +157,9 @@ export async function validateAgentGuidance({ rootDir }) {
             const lines =
                 markdown === ''
                     ? 0
-                    : markdown.replace(/\r?\n$/u, '').split(/\r?\n/u).length;
+                    : markdown
+                          .replace(/(?:\r\n|[\r\n])$/u, '')
+                          .split(/\r\n|[\r\n]/u).length;
             const bytes = Buffer.byteLength(markdown, 'utf8');
             if (lines > maxLines)
                 diagnostics.push(

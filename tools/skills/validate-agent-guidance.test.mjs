@@ -1081,3 +1081,31 @@ test('valid image-map navigation and inert areas pass', async (t) => {
         []
     );
 });
+
+for (const ending of ['\n', '\r\n', '\r']) {
+    for (const [source, limit] of [
+        ['AGENTS.md', 200],
+        ['CLAUDE.md', 30],
+    ]) {
+        test(`line budget handles ${JSON.stringify(ending)} in ${source}`, async (t) => {
+            const lines = [
+                source === 'CLAUDE.md' ? '@AGENTS.md' : '# Guidance',
+                ...Array(limit - 1).fill('# Section'),
+            ];
+            assert.deepEqual(
+                await diagnostics(t, { [source]: lines.join(ending) + ending }),
+                []
+            );
+            const result = await diagnostics(t, {
+                [source]: [...lines, '# Extra'].join(ending) + ending,
+            });
+            assert.ok(
+                result.some((message) =>
+                    message.includes(
+                        `at most ${limit} lines allowed (received ${limit + 1})`
+                    )
+                )
+            );
+        });
+    }
+}

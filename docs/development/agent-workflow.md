@@ -29,6 +29,7 @@ Later normal edits maintain the canonical docs, not duplicate historical prose.
 
 Run `pnpm run agents:validate` after guidance changes. It checks line/byte budgets,
 root imports and local navigation links/anchors, including migration destinations.
+Line budgets count LF, CRLF and standalone CR endings consistently.
 Markdown navigation is parsed with the already-declared `marked` dependency;
 undefined explicit references (including shortcut images) are errors, and code examples are excluded.
 Backticked concrete paths in root guidance and the context map are checked from
