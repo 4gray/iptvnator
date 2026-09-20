@@ -230,21 +230,22 @@ export class StalkerLiveAutoOpen {
         // Either provider id can be the one that was persisted: a favorite
         // stores `stream_id ?? id` (`with-stalker-favorites.feature.ts`)
         // while a cached channel keeps `id ?? stream_id`, so a row carrying
-        // two different non-blank ids is reachable under either. `id` wins
-        // across the whole list before `stream_id` is considered, so the
-        // match stays deterministic when one channel's id is another's
-        // stream id.
-        const channels = store.itvFullChannelList();
-        const item =
-            channels.find(
-                (channel) => normalizeStalkerEntityId(channel.id) === pendingId
-            ) ??
-            channels.find(
+        // two different non-blank ids is reachable only by accepting both.
+        // The handoff carries a bare value, so it cannot say WHICH field it
+        // came from: when one channel claims it as its id and another as its
+        // stream id, the identity is ambiguous and neither is played —
+        // guessing an order would open the wrong channel half the time. The
+        // genre fallback still runs, so the user lands in the right list.
+        const candidates = store
+            .itvFullChannelList()
+            .filter(
                 (channel) =>
+                    normalizeStalkerEntityId(channel.id) === pendingId ||
                     normalizeStalkerEntityId(channel.stream_id) === pendingId
-            ) ??
-            null;
-        untracked(() => this.settle(item));
+            );
+        untracked(() =>
+            this.settle(candidates.length === 1 ? candidates[0] : null)
+        );
     }
 
     private settle(item: StalkerItvChannel | null): void {

@@ -519,7 +519,10 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(twoIds);
     });
 
-    it("prefers an id match over another channel's stream_id", () => {
+    it('plays nothing when two channels claim the handoff id under different fields', () => {
+        // The handoff carries a bare value and cannot say which field it came
+        // from, so an ambiguous identity must not gamble on playback; the
+        // remembered genre still opens.
         const byId = {
             id: '99',
             cmd: 'x',
@@ -539,10 +542,12 @@ describe('StalkerLiveAutoOpen', () => {
         arrive({
             openStalkerLiveItemId: '99',
             openStalkerLivePlaylistId: 'pl-3',
+            openStalkerLiveCategoryId: '4',
         });
-        serveCategory('7');
 
-        expect(play).toHaveBeenCalledWith(byId);
+        expect(play).not.toHaveBeenCalled();
+        expect(store.setSelectedCategory).toHaveBeenCalledWith('4');
+        expect(autoOpen.pendingItemId()).toBeNull();
     });
 
     it('does nothing outside the ITV section', () => {
