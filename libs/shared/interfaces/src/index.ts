@@ -60,6 +60,7 @@ export * from './lib/stream-format.enum';
 export * from './lib/catalog-title-match.interface';
 export * from './lib/theme.enum';
 export * from './lib/season-marker.util';
+export * from './lib/search-text-fold.util';
 export * from './lib/stalker-account-info-dialog-data.interface';
 export * from './lib/title-normalization.util';
 export * from './lib/tmdb.interface';

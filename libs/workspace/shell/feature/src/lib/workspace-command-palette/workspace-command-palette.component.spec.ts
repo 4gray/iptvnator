@@ -164,6 +164,78 @@ describe('WorkspaceCommandPaletteComponent', () => {
     });
 });
 
+describe('WorkspaceCommandPaletteComponent - Turkish case folding', () => {
+    const turkishCommands: WorkspaceResolvedCommandItem[] = [
+        {
+            id: 'open-downloads',
+            label: 'İndirilenleri aç',
+            description: '',
+            group: 'global',
+            icon: 'download',
+            keywords: [],
+            priority: 50,
+            visible: true,
+            enabled: true,
+            run: () => undefined,
+        },
+        {
+            id: 'open-settings',
+            label: 'Ayarlar',
+            description: '',
+            group: 'global',
+            icon: 'settings',
+            keywords: [],
+            priority: 40,
+            visible: true,
+            enabled: true,
+            run: () => undefined,
+        },
+    ];
+
+    function setup(query: string): WorkspaceCommandPaletteComponent {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            imports: [WorkspaceCommandPaletteComponent],
+            providers: [
+                { provide: MatDialogRef, useValue: { close: jest.fn() } },
+                {
+                    provide: MAT_DIALOG_DATA,
+                    useValue: { query, commands: turkishCommands },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: of(null),
+                        onTranslationChange: of(null),
+                        onDefaultLangChange: of(null),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
+        });
+        const fixture = TestBed.createComponent(
+            WorkspaceCommandPaletteComponent
+        );
+        fixture.detectChanges();
+        return fixture.componentInstance;
+    }
+
+    it.each(['indir', 'İndir', 'İNDİR'])(
+        'finds a command whose label carries the dotted capital İ for the query %s (issue #609)',
+        (query) => {
+            expect(
+                setup(query)
+                    .flatCommands()
+                    .map((command) => command.id)
+            ).toEqual(['open-downloads']);
+        }
+    );
+});
+
 describe('WorkspaceCommandPaletteComponent - recent section', () => {
     function setupComponent(options: {
         query: string;

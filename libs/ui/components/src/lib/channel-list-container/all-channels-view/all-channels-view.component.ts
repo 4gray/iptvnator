@@ -21,6 +21,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { SettingsStore } from '@iptvnator/services';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
+    foldSearchText,
     Channel,
     EpgProgram,
     epgProviderClockMs,
@@ -127,10 +128,12 @@ export class AllChannelsViewComponent {
      * reference when there is no search term, so large lists avoid cloning.
      */
     readonly filteredChannels = computed(() => {
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
         const channels = this.channels();
         const filteredChannels = term
-            ? channels.filter((ch) => ch.name?.toLowerCase().includes(term))
+            ? channels.filter((ch) =>
+                  foldSearchText(ch.name ?? '').includes(term)
+              )
             : channels;
 
         return sortPlaylistChannelItems(

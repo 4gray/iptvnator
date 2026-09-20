@@ -28,6 +28,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import {
+    foldSearchText,
     buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
@@ -146,7 +147,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         );
     });
     readonly filteredChannels = computed(() => {
-        const term = this.searchTermInput().trim().toLowerCase();
+        const term = foldSearchText(this.searchTermInput().trim());
         const channels = this.sortedChannels();
 
         if (!term) {
@@ -154,9 +155,9 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
 
         return channels.filter((item) =>
-            `${item.title ?? ''} ${item.name ?? ''}`
-                .toLowerCase()
-                .includes(term)
+            foldSearchText(`${item.title ?? ''} ${item.name ?? ''}`).includes(
+                term
+            )
         );
     });
 

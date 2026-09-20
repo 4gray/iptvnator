@@ -1,10 +1,14 @@
 import {
+    buildContentTitleFtsMatchQuery,
     buildCompoundFtsMatchQuery,
     buildCompoundLikePatterns,
+    buildGlobPrefixPatterns,
+    buildLikePatterns,
     buildM3uPayloadCompoundPatterns,
     getCompoundResidualTokenGroups,
-    getCompoundSearchWords,
     getSearchWordPlans,
+    getSqlSearchTokenGroups,
+    getCompoundSearchWords,
     scoreSearchTextMatch,
     shouldUseContentTitlePrefixIndex,
 } from './content-search.util';
@@ -119,6 +123,84 @@ describe('content-search.util', () => {
             // replacing it, so titles starting with "A & E" keep matching.
             expect(shouldUseContentTitlePrefixIndex('A&E')).toBe(true);
             expect(shouldUseContentTitlePrefixIndex('Spider-Man')).toBe(false);
+        });
+    });
+
+    describe('Turkish case folding (issue #609)', () => {
+        // Upper and lower case forms of the same query must build the same
+        // search and match the same titles. The folding is locale-invariant,
+        // so these hold under a Turkish OS locale too, where toLocaleLowerCase
+        // would otherwise send "İ" and "I" to different letters.
+        const pairs: ReadonlyArray<readonly [string, string]> = [
+            ['İnş', 'inş'],
+            ['Ünlü', 'ünlü'],
+            ['Çan', 'çan'],
+            ['Şan', 'şan'],
+        ];
+
+        it.each(pairs)(
+            'builds the same search for %s and %s',
+            (upper, lower) => {
+                expect(getSqlSearchTokenGroups(upper)).toEqual(
+                    getSqlSearchTokenGroups(lower)
+                );
+                expect(buildContentTitleFtsMatchQuery(upper)).toBe(
+                    buildContentTitleFtsMatchQuery(lower)
+                );
+                expect(shouldUseContentTitlePrefixIndex(upper)).toBe(
+                    shouldUseContentTitlePrefixIndex(lower)
+                );
+            }
+        );
+
+        it('keeps the dotted capital I as one word, not "i" + "nş"', () => {
+            // The combining dot from lower-casing "İ" must not split the word,
+            // which used to flip it onto the short-token prefix index.
+            expect(getSqlSearchTokenGroups('İnş')).toEqual([['inş', 'ins']]);
+            expect(shouldUseContentTitlePrefixIndex('İnş')).toBe(false);
+        });
+
+        it('scores the same title for the upper and lower case query', () => {
+            const upper = scoreSearchTextMatch('İnşaat', 'İnş');
+            const lower = scoreSearchTextMatch('İnşaat', 'inş');
+
+            expect(lower).not.toBeNull();
+            expect(lower).toBe(upper);
+        });
+
+        it('spells the dotted capital İ forms in LIKE and GLOB patterns', () => {
+            // SQLite LIKE folds only ASCII and GLOB folds nothing, and the
+            // locale-invariant toUpperCase() turns "inş" into "INŞ", which
+            // never matches a stored "İnşaat". The Turkish forms are added
+            // with an explicit 'tr' locale so they do not depend on the OS.
+            expect(buildLikePatterns('inş')).toEqual(
+                expect.arrayContaining(['%İNŞ%', '%İnş%', '%INŞ%', '%inş%'])
+            );
+            expect(buildLikePatterns('İnş', 'prefix')).toEqual(
+                expect.arrayContaining(['İnş%', 'İNŞ%', 'inş%'])
+            );
+            expect(buildGlobPrefixPatterns('iş')).toEqual(
+                expect.arrayContaining(['İş*', 'İŞ*', 'iş*', 'IŞ*'])
+            );
+            expect(buildCompoundLikePatterns('iş-tv')).toEqual(
+                expect.arrayContaining(['%İş-tv%', '%İŞ-TV%'])
+            );
+        });
+
+        it('adds no Turkish forms to values without an i', () => {
+            expect(buildLikePatterns('çan')).toEqual([
+                '%çan%',
+                '%ÇAN%',
+                '%Çan%',
+                '%can%',
+                '%CAN%',
+                '%Can%',
+            ]);
+            expect(buildGlobPrefixPatterns('ма')).toEqual([
+                'ма*',
+                'МА*',
+                'Ма*',
+            ]);
         });
     });
 

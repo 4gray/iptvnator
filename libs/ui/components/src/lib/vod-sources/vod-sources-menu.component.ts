@@ -14,6 +14,7 @@ import {
 } from '@angular/material/slide-toggle';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
+    foldSearchText,
     playlistDisplayLabel,
     VodSourceDescriptor,
     VodSourceMatchKind,
@@ -111,16 +112,16 @@ export class VodSourcesMenuComponent {
 
     /** Sources surviving the search box; what "check all" acts on. */
     private readonly searchedSources = computed(() => {
-        const query = this.filter().trim().toLowerCase();
+        const query = foldSearchText(this.filter().trim());
         const sources = this.sources();
         if (!query || !this.showFilter()) {
             return sources;
         }
 
         return sources.filter((source) =>
-            playlistDisplayLabel(source.playlistName, source.playlistId)
-                .toLowerCase()
-                .includes(query)
+            foldSearchText(
+                playlistDisplayLabel(source.playlistName, source.playlistId)
+            ).includes(query)
         );
     });
 

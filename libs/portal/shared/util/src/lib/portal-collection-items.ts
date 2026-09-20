@@ -1,4 +1,4 @@
-import { XtreamCategory } from '@iptvnator/shared/interfaces';
+import { foldSearchText, XtreamCategory } from '@iptvnator/shared/interfaces';
 
 type StandardCollectionBucket = 'all' | 'movie' | 'live' | 'series';
 
@@ -84,13 +84,13 @@ export function filterCollectionBucket<T>(
               : selectedCategoryId === 'series'
                 ? buckets.series ?? []
                 : allItems ?? [];
-    const normalizedTerm = (searchTerm ?? '').trim().toLowerCase();
+    const normalizedTerm = foldSearchText((searchTerm ?? '').trim());
 
     if (!normalizedTerm) {
         return [...baseItems];
     }
 
     return baseItems.filter((item) =>
-        String(textOf(item)).toLowerCase().includes(normalizedTerm)
+        foldSearchText(String(textOf(item))).includes(normalizedTerm)
     );
 }

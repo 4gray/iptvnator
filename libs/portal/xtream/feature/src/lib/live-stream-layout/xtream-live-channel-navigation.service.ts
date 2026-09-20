@@ -17,6 +17,7 @@ import {
     sortPortalChannelItems,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export interface XtreamLiveChannelItem {
     readonly added?: string;
@@ -59,7 +60,7 @@ export class XtreamLiveChannelNavigationService {
         return playing?.owner === this.owner() ? playing.item : null;
     });
     readonly displayedChannels = computed(() => {
-        const term = this.query().trim().toLowerCase();
+        const term = foldSearchText(this.query().trim());
         const channels = sortPortalChannelItems(
             this.store.selectItemsFromSelectedCategory() as XtreamLiveChannelItem[],
             this.sortMode(),
@@ -67,9 +68,9 @@ export class XtreamLiveChannelNavigationService {
         );
         return term
             ? channels.filter((item) =>
-                  `${item.title ?? ''} ${item.name ?? ''}`
-                      .toLowerCase()
-                      .includes(term)
+                  foldSearchText(
+                      `${item.title ?? ''} ${item.name ?? ''}`
+                  ).includes(term)
               )
             : channels;
     });
