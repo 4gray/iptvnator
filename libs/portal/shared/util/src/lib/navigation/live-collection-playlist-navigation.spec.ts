@@ -41,7 +41,157 @@ describe('getLiveCollectionPlaylistNavigation', () => {
         });
     });
 
-    it('hides the action for Stalker rows until their ITV layout can open a channel', () => {
+    it('opens a Stalker channel inside its portal ITV section, remembering its genre', () => {
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                contentType: 'live',
+                name: 'Stalker Live',
+                logo: 'stalker.png',
+                stalkerId: 30,
+                stalkerItem: { id: 30, tv_genre_id: 7 },
+            })
+        ).toEqual({
+            link: ['/workspace', 'stalker', 'pl-3', 'itv'],
+            state: {
+                openStalkerLiveItemId: '30',
+                openStalkerLivePlaylistId: 'pl-3',
+                openStalkerLiveCategoryId: '7',
+                openStalkerLiveTitle: 'Stalker Live',
+                openStalkerLivePoster: 'stalker.png',
+            },
+        });
+        // The stored row's genre wins; `categoryId` is the section marker
+        // on app-written favorites and counts only when it is not one.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: '5',
+                stalkerItem: { id: 30, tv_genre_id: 7 },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('7');
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: '5',
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('5');
+        // A stored row without a genre still falls back to the All list;
+        // the section marker alone (no stored row) yields no fallback.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
+                stalkerItem: { id: 30, tv_genre_id: ' ' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('*');
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
+            })?.state
+        ).not.toHaveProperty('openStalkerLiveCategoryId');
+        // A stored row's own `category_id` is a genre when it is not the
+        // section marker.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
+                stalkerItem: { id: 30, category_id: '8' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('8');
+        // ...and the row's section marker does not shadow the collection
+        // row's own genre.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: '4',
+                stalkerItem: { id: 30, category_id: 'itv' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('4');
+        // Genre ids are opaque portal strings, not necessarily numeric.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
+                stalkerItem: { id: 30, tv_genre_id: 'sports' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('sports');
+        // List rows carry the genre already resolved by the collection tab.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                stalkerGenreId: '9',
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('9');
+    });
+
+    it('hides the action for a stored Stalker row whose id is synthetic', () => {
+        // Collection services mint `<playlist>-<index>` for id-less rows;
+        // the ITV catalog cannot match it.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: 'pl-3-0',
+                stalkerItem: { name: 'Nameless', cmd: 'x' },
+            })
+        ).toBeNull();
+        // VOD identities are not channel ids: the ITV list cannot match them.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '77',
+                stalkerItem: { series_id: 77, cmd: 'x' },
+            })
+        ).toBeNull();
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                stalkerItem: { stream_id: 30 },
+            })?.link
+        ).toEqual(['/workspace', 'stalker', 'pl-3', 'itv']);
+        // The stored row's own id wins over a synthetic list id minted from
+        // a blank `id` beside a valid `stream_id`.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '-',
+                stalkerItem: { id: '', stream_id: 30 },
+            })?.state?.['openStalkerLiveItemId']
+        ).toBe('30');
+    });
+
+    it('hides the action for Stalker radio stations and rows without a channel id', () => {
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: 30,
+                radio: 'true',
+            })
+        ).toBeNull();
         expect(
             getLiveCollectionPlaylistNavigation({
                 sourceType: 'stalker',

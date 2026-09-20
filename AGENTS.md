@@ -298,6 +298,21 @@ header action clears search, returns to the accessible playing category and
 focuses its row without changing playback. Contract:
 `docs/architecture/remote-control.md` (Live channel return and playback order).
 
+## Live Channel Open In Playlist
+
+Live rows in the unified favorites/recent tab carry the live counterpart of
+the VOD "View in portal" handoff: `getLiveCollectionPlaylistNavigation()`
+(`libs/portal/shared/util`) lands on the channel INSIDE its playlist — Xtream
+via `openXtreamLiveItemId`, M3U via `openM3uChannelUrl`, Stalker via
+`buildStalkerLiveNavigationTarget` + `openStalkerLiveItemId`, consumed by
+`StalkerLiveAutoOpen` in the ITV layout (waits for the requested portal,
+locates the channel in the full ITV list cache, selects its genre, defers
+playback until that genre's rows are on screen; a portal without a full list,
+a transient list failure or a censored channel falls back to the remembered
+genre; Stalker radio stays hidden, M3U radio keeps the row menu). Surfaces: `app-open-in-playlist-chip` in the EPG
+toolbar (`[epgToolbarAction]` slot) and the row context menu. Contract:
+`docs/architecture/portal-detail-navigation.md`.
+
 ## Stalker Live Search
 
 ITV sidebar and fullscreen searches independently filter the complete selected

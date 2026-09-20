@@ -3,6 +3,7 @@ import {
     StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
 import { StalkerItvChannel } from './models';
+import { firstNonBlankStalkerIdText } from './stalker-vod.utils';
 import {
     StalkerRequestDeps,
     executeStalkerRequest,
@@ -21,9 +22,7 @@ export interface StalkerItvLoadProgress {
  * timeout, a page that failed both attempts) that is worth retrying later.
  */
 export type StalkerItvLoadOutcome =
-    | StalkerItvChannel[]
-    | 'unsupported'
-    | 'error';
+    StalkerItvChannel[] | 'unsupported' | 'error';
 
 export interface StalkerItvLoadLogger {
     info(...args: unknown[]): void;
@@ -112,7 +111,12 @@ async function crawlOrderedPages(
     onProgress: (loaded: number, total: number) => void,
     logger: StalkerItvLoadLogger
 ): Promise<StalkerItvLoadOutcome> {
-    const firstResponse = await fetchOrderedPageWithRetry(deps, playlist, 1, logger);
+    const firstResponse = await fetchOrderedPageWithRetry(
+        deps,
+        playlist,
+        1,
+        logger
+    );
     if (firstResponse === null) {
         return 'error';
     }
@@ -208,13 +212,17 @@ function collectUnique(
     return added;
 }
 
+/**
+ * First NON-BLANK of `id`/`stream_id`, matching `toStalkerItvChannel`: a
+ * blank `id` beside a valid `stream_id` must not make the row look id-less
+ * and get dropped by the de-duplication.
+ */
 function rawChannelId(item: unknown): string | null {
     if (!item || typeof item !== 'object') {
         return null;
     }
     const source = item as { id?: unknown; stream_id?: unknown };
-    const raw = source.id ?? source.stream_id;
-    return raw === undefined || raw === null || raw === '' ? null : String(raw);
+    return firstNonBlankStalkerIdText(source.id, source.stream_id) || null;
 }
 
 async function fetchOrderedPageWithRetry(

@@ -5,6 +5,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta, StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { firstNonBlankStalkerId } from '../../stalker-vod.utils';
 import { StalkerSelectionStoreContract } from '../stalker-store.contracts';
 import {
     dispatchStalkerPlaylistMetaUpdate,
@@ -53,7 +54,16 @@ export function withStalkerFavorites() {
                                     storeContext.selectedContentType()
                                 ),
                                 added_at: Date.now(),
-                                id: item.stream_id ?? item.id,
+                                // First NON-BLANK: `??` keeps a blank
+                                // `stream_id`, which would overwrite a valid
+                                // `id` and leave the stored row with no
+                                // provider identity at all — unremovable by
+                                // id, and invisible to anything that looks
+                                // the channel up again.
+                                id: firstNonBlankStalkerId(
+                                    item.stream_id,
+                                    item.id
+                                ),
                             })
                             .subscribe((updatedPlaylist) => {
                                 dispatchStalkerPlaylistMetaUpdate(

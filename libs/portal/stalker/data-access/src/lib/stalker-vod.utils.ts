@@ -1,7 +1,4 @@
-import {
-    signal,
-    WritableSignal,
-} from '@angular/core';
+import { signal, WritableSignal } from '@angular/core';
 import { rxResource } from '@angular/core/rxjs-interop';
 import { Observable } from 'rxjs';
 import { PlaylistsService } from '@iptvnator/services';
@@ -42,10 +39,7 @@ export interface StalkerFavoriteToggleOptions {
         item: Record<string, unknown>,
         onComplete?: () => void
     ) => void;
-    removeFromFavorites: (
-        favoriteId: string,
-        onComplete?: () => void
-    ) => void;
+    removeFromFavorites: (favoriteId: string, onComplete?: () => void) => void;
     onComplete?: () => void;
 }
 
@@ -95,6 +89,44 @@ export function normalizeStalkerEntityId(value: unknown): string {
         return '';
     }
     return String(value).trim();
+}
+
+/**
+ * The first candidate that actually carries an identity.
+ *
+ * Portals send `id` and `stream_id` inconsistently, and a BLANK one is not
+ * an absent one: `a ?? b` keeps `''` and would store a row with no provider
+ * identity, which then cannot be selected, played or found again. Every
+ * reader normalizes with {@link normalizeStalkerEntityId}, so blank and
+ * whitespace-only values are equivalent to missing here too.
+ *
+ * Numbers keep their type so a numeric provider id survives round-trips;
+ * non-finite ones are not identities and are skipped rather than stringified
+ * into `"NaN"`. Callers own the PREFERENCE order — favorites read
+ * `stream_id` first, the channel cache reads `id` first — this only skips the
+ * empty ones.
+ */
+export function firstNonBlankStalkerId(
+    ...values: unknown[]
+): string | number | undefined {
+    for (const value of values) {
+        if (typeof value === 'number') {
+            if (Number.isFinite(value)) {
+                return value;
+            }
+            continue;
+        }
+        const text = normalizeStalkerEntityId(value);
+        if (text) {
+            return text;
+        }
+    }
+    return undefined;
+}
+
+/** {@link firstNonBlankStalkerId} as the normalized text every reader compares. */
+export function firstNonBlankStalkerIdText(...values: unknown[]): string {
+    return normalizeStalkerEntityId(firstNonBlankStalkerId(...values));
 }
 
 export function normalizeStalkerEntityIdAsNumber(
@@ -148,9 +180,7 @@ export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
         // views normalize the selected item on every render
         ...(info.tmdb_id ? { tmdb_id: info.tmdb_id } : {}),
         ...(info.tmdb_cast ? { tmdb_cast: info.tmdb_cast } : {}),
-        ...(info.tmdb_directors
-            ? { tmdb_directors: info.tmdb_directors }
-            : {}),
+        ...(info.tmdb_directors ? { tmdb_directors: info.tmdb_directors } : {}),
         ...(info.tmdb_status ? { tmdb_status: info.tmdb_status } : {}),
         ...(info.tmdb_backdrop ? { tmdb_backdrop: info.tmdb_backdrop } : {}),
         ...(info.tmdb_trailer ? { tmdb_trailer: info.tmdb_trailer } : {}),
@@ -175,7 +205,7 @@ export function buildStalkerSelectedVodItem(
     forceSeries = false
 ): StalkerSelectedVodItem {
     return {
-        id: toStringOrFallback(item.id ?? item.stream_id),
+        id: firstNonBlankStalkerIdText(item.id, item.stream_id),
         cmd: toStringOrFallback(item.cmd),
         series: item.series,
         has_files: item.has_files,
@@ -187,9 +217,7 @@ export function buildStalkerSelectedVodItem(
                 : undefined,
         video_id: item.video_id,
         category_id:
-            typeof item.category_id === 'string'
-                ? item.category_id
-                : undefined,
+            typeof item.category_id === 'string' ? item.category_id : undefined,
         info: createStalkerInfo(item),
     };
 }
@@ -222,11 +250,10 @@ export function normalizeStalkerFavoriteItem(
             cmd: toStringOrFallback(
                 (item as StalkerVodSource).cmd ?? source.cmd
             ),
-            id: toStringOrFallback(item.stream_id ?? item.id ?? source.id),
+            id: firstNonBlankStalkerIdText(item.stream_id, item.id, source.id),
             series: (item as StalkerVodSource).series ?? source.series,
             is_series: normalizedIsSeries ? true : undefined,
-            video_id:
-                (item as StalkerVodSource).video_id ?? source.video_id,
+            video_id: (item as StalkerVodSource).video_id ?? source.video_id,
             category_id:
                 typeof (item as StalkerVodSource).category_id === 'string'
                     ? (item as StalkerVodSource).category_id
@@ -356,8 +383,7 @@ export function createPortalCollectionResource<T>(
                 refreshVersion: getRefreshVersion(),
             };
         },
-        stream: ({ params }) =>
-            streamFactory(playlistService, params.portalId),
+        stream: ({ params }) => streamFactory(playlistService, params.portalId),
     });
 }
 

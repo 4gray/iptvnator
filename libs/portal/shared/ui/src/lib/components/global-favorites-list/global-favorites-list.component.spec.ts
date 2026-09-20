@@ -284,11 +284,13 @@ describe('GlobalFavoritesListComponent', () => {
         );
     });
 
-    it('hides "open in playlist" for Stalker rows and never emits for them', async () => {
+    it('hides "open in playlist" for Stalker radio rows and never emits for them', async () => {
         const row = buildChannel('s', 'Stalker', {
             sourceType: 'stalker',
             streamUrl: undefined,
+            stalkerId: '30',
             stalkerCmd: 'ffmpeg http://stalker/30',
+            radio: 'true',
         });
         const requested = jest.fn();
         fixture.componentInstance.openInPlaylistRequested.subscribe(requested);

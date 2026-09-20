@@ -176,9 +176,63 @@ with a return handler keep Back available.
   effect re-runs as the store switches and loads;
   M3U navigates to `/workspace/playlists/:id/all` with `openM3uChannelUrl`
   (`OPEN_M3U_CHANNEL_URL_STATE_KEY`), the same key global search writes and
-  the M3U player selects by URL. Stalker resolves to `null` — its ITV layout
-  has no open-on-arrival contract yet, and a jump that only reached `/itv`
-  would not be the affordance promised — so the action is hidden there.
+  the M3U player selects by URL; Stalker navigates to `/workspace/stalker/:id/itv`
+  with `openStalkerLiveItemId` + `openStalkerLivePlaylistId` (+ the row's
+  genre as `openStalkerLiveCategoryId` when known) from
+  `buildStalkerLiveNavigationTarget`, which `StalkerLiveAutoOpen`
+  (`stalker-live-stream-layout/stalker-live-auto-open.ts`, the Stalker
+  counterpart of the Xtream service + effect) consumes: it reads the state at
+  construction and on every `NavigationEnd`, waits until `currentPlaylist` is
+  the requested portal (channel ids are provider-local, so a colliding id in
+  the previous portal's list must never match), then locates the channel in
+  the full ITV channel list cache — `get_ordered_list` is server-paged, so
+  the row may sit on any page of its genre — selects that genre (`'*'` for a
+  channel without one), expands the rail and plays it. While the list loads it
+  waits (the cache turning ready re-runs the effect); a portal that cannot
+  serve a full list (`itvFullListUnsupported`, the cache's reactive
+  unsupported set), a load that fails transiently (the cache only arms a
+  retry cooldown and changes no signal, so the flow awaits the preload
+  promise and treats "settled, neither ready nor unsupported" as the same
+  outcome) or a channel missing from the list (censored genres are excluded
+  from `get_all_channels`) falls back to selecting the remembered genre, so
+  the user still lands in the right list, and the handoff is consumed either
+  way. That remembered genre is the stored row's `tv_genre_id` (an opaque
+  portal id, numeric on most panels but not all); the row's `categoryId`
+  counts only when it is not a section marker, because app-written
+  favorites/recent rows carry `'itv'` there. Playback is deferred whenever
+  selecting the genre changes the list scope (another genre, the All Items
+  grid — `null`, a different row source from the `'*'` All list — or an
+  active search): `playChannel` → `navigation.prepare` captures the
+  displayed rows as the remote/numeric channel order, and the store serves a
+  category a tick after `setSelectedCategory` — even from the full-list
+  cache — so playing right away would capture the previous scope's queue.
+  The store answers "whose channels are on screen?" with
+  `itvChannelsCategory` (set wherever `itvChannels` is served, cleared by
+  `setItvChannels`), which is what the deferred play waits for. Array
+  identity cannot answer it: filtering by `'*'` hands back the cache by
+  reference, and clearing a search replaces the rendered list without the
+  source moving. Clearing the search IS synchronous, so a genre already on
+  screen plays at once. A pending play is dropped when a newer handoff
+  arrives, when the user switches portal, genre or section or starts a
+  search, and when the layout is destroyed. Two things settle before any of
+  that: `StalkerWorkspaceRouteSession.isReady` (its sync resets the selected
+  category and item for the arrival, and the store keeps the previous
+  portal's playlist and cache across a revisit, so the playlist check alone
+  passes too early and the selection would be wiped a tick later), and the
+  user — the handoff is abandoned when the genre or search changes away from
+  what it captured once it became actionable, which is measured after the
+  session's own resets so they never read as a user action. Readiness is
+  published by the NEWEST sync only, and never before the store holds that
+  portal's row: the session applies arrivals one at a time and claims the
+  playlist id only after `setCurrentPlaylist()` resolves. The constructor
+  starts a sync before the first `NavigationEnd` starts another, so two run
+  at once — the second used to find the id already claimed, skip the
+  bootstrap and report ready while the first was still awaiting that write,
+  which let a revisited same-id portal whose endpoint or credentials had
+  changed play against the PREVIOUS row. A failed bootstrap leaves readiness
+  false rather than handing the arrival a stale row. Stalker radio stations resolve to `null`: they live in the separate
+  `radio` section, whose station list is legacy-paged with no
+  open-on-arrival contract, so the action stays hidden for them.
   Two surfaces render the one verdict: `app-open-in-playlist-chip`
   (`libs/portal/shared/ui`), projected into the EPG timeline / list-view
   toolbar through the panels' `[epgToolbarAction]` content slot beside the

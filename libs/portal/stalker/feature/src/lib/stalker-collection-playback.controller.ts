@@ -8,7 +8,7 @@ import type {
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import {
-    normalizeStalkerEntityId,
+    firstNonBlankStalkerIdText,
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -223,11 +223,13 @@ function captureStalkerCollectionPlaybackOwner(
     const providerItem = item.stalkerItem as
         { id?: unknown; stream_id?: unknown } | undefined;
     const uidParts = item.uid.split('::');
-    const contentId = normalizeStalkerEntityId(
-        providerItem?.id ??
-            providerItem?.stream_id ??
-            item.stalkerId ??
-            uidParts[uidParts.length - 1]
+    // A blank provider id is not an absent one: `??` would keep it and leave
+    // the session without an identity instead of falling through.
+    const contentId = firstNonBlankStalkerIdText(
+        providerItem?.id,
+        providerItem?.stream_id,
+        item.stalkerId,
+        uidParts[uidParts.length - 1]
     );
     if (!sourceId || !contentId) return null;
 

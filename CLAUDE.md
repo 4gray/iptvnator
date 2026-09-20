@@ -1679,15 +1679,21 @@ stream_id`); it drops `series_id`/`movie_id`, so the builder pins the
   (`libs/portal/shared/util`) resolves the channel INSIDE its playlist —
   Xtream via `buildXtreamNavigationTarget` + `openXtreamLiveItemId` (the live
   layout's auto-open service plays it), M3U via `/workspace/playlists/:id/all`
-  + `openM3uChannelUrl` (the player selects it by URL); Stalker resolves to
-  `null` until its ITV layout gets an open-on-arrival contract, so the
-  affordance is hidden there rather than landing on the section root. Two
+  + `openM3uChannelUrl` (the player selects it by URL); Stalker via
+  `buildStalkerLiveNavigationTarget` + `openStalkerLiveItemId`, consumed by
+  `StalkerLiveAutoOpen` in the ITV layout, which waits for the requested
+  portal, locates the channel in the full ITV channel list cache, selects its
+  genre and plays it (a portal without a full list, or a censored channel
+  missing from it, falls back to the remembered genre); Stalker radio stays
+  hidden (separate legacy-paged section). Two
   surfaces share that verdict: `app-open-in-playlist-chip`
   (`libs/portal/shared/ui`), projected into the EPG timeline/list-view
   toolbars through their `[epgToolbarAction]` slot beside the channel name
   (visible collapsed too; absent for radio and without EPG support), and an
   "Open in <playlist>" row in `app-global-favorites-list`'s context menu
-  (`openInPlaylistRequested`), which also covers radio rows. Both label with
+  (`openInPlaylistRequested`), which also reaches rows that are not playing
+  and M3U radio stations (Stalker radio resolves to null, so no surface
+  offers it). Both label with
   `playlistDisplayLabel` and reuse `PORTALS.VIEW_IN_PORTAL_TOOLTIP`; the tab
   navigates. Contract: `docs/architecture/portal-detail-navigation.md`.
 

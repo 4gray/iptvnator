@@ -73,6 +73,11 @@ export interface UnifiedFavoriteChannel {
     /** Stalker portal credentials needed to resolve the live stream */
     stalkerPortalUrl?: string;
     stalkerMacAddress?: string;
+
+    /** Stalker channel id — lets a row be opened inside its portal's ITV list */
+    stalkerId?: string | number;
+    /** Stalker ITV genre id (numeric), the fallback list when the channel cannot be located */
+    stalkerGenreId?: string | null;
 }
 
 /**
