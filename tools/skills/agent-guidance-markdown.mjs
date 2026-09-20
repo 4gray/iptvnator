@@ -71,15 +71,20 @@ function htmlNavigation(html, inspect = () => {}) {
             if (
                 (['a', 'area'].includes(node.tagName) &&
                     attribute.name === 'href') ||
-                (['img', 'video', 'audio', 'source', 'track'].includes(
-                    node.tagName
-                ) &&
+                ([
+                    'img',
+                    'video',
+                    'audio',
+                    'source',
+                    'track',
+                    'iframe',
+                ].includes(node.tagName) &&
                     attribute.name === 'src') ||
                 (node.tagName === 'video' && attribute.name === 'poster')
             )
                 references.push({
                     target: attribute.value,
-                    image: !['a', 'area'].includes(node.tagName),
+                    image: !['a', 'area', 'iframe'].includes(node.tagName),
                 });
             if (
                 ['img', 'source'].includes(node.tagName) &&

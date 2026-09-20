@@ -1170,3 +1170,24 @@ for (const suffix of [',then', ';then', ':then', '!then', '?then']) {
         );
     });
 }
+
+for (const target of ['docs/missing.html', 'docs/example.md#missing']) {
+    test(`iframe document target is validated: ${target}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': `<iframe src="${target}"></iframe>`,
+                })
+            ).length > 0
+        );
+    });
+}
+test('valid iframe and inert iframe targets pass', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '<iframe src="docs/example.md#repeat"></iframe>\n<template><iframe src="missing.html"></iframe></template>',
+        }),
+        []
+    );
+});
