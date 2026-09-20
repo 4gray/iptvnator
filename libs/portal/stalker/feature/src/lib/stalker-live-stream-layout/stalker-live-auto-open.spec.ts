@@ -475,6 +475,25 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
+    it("reads a row's category_id when it carries no tv_genre_id", () => {
+        // `StalkerLiveNavigation.categoryFor()` accepts either field; the
+        // handoff must not drop such a row into the portal-wide All queue.
+        const byCategoryId = {
+            id: '30',
+            cmd: 'x',
+            name: 'Category id only',
+            category_id: '8',
+        } as unknown as StalkerItvChannel;
+        store.itvFullListActive.set(true);
+        store.itvFullChannelList.set([byCategoryId]);
+
+        arrive();
+        serveCategory('8');
+
+        expect(store.setSelectedCategory).toHaveBeenCalledWith('8');
+        expect(play).toHaveBeenCalledWith(byCategoryId);
+    });
+
     it('does nothing outside the ITV section', () => {
         store.selectedContentType.set('radio');
         store.itvFullListActive.set(true);
