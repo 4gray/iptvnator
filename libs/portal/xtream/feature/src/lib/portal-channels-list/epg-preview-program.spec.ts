@@ -1,6 +1,5 @@
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
-    EpgRefillLimiter,
     epgProgramProgressPercent,
     hasEpgProgramEnded,
     pickAiringOrUpcomingEpgItem,
@@ -150,55 +149,5 @@ describe('epgProgramProgressPercent', () => {
         expect(
             epgProgramProgressPercent(instant, at('2026-04-05T06:00:00Z'))
         ).toBeNull();
-    });
-});
-
-describe('EpgRefillLimiter', () => {
-    it('allows one claim per interval and then blocks', () => {
-        const limiter = new EpgRefillLimiter(5000);
-
-        expect(limiter.claim(1, 0)).toBe(true);
-        expect(limiter.claim(1, 4999)).toBe(false);
-        expect(limiter.claim(1, 5000)).toBe(true);
-    });
-
-    it('tracks each stream separately', () => {
-        const limiter = new EpgRefillLimiter(5000);
-
-        expect(limiter.claim(1, 0)).toBe(true);
-        expect(limiter.claim(2, 0)).toBe(true);
-    });
-
-    it('lets a released stream claim again straight away', () => {
-        const limiter = new EpgRefillLimiter(5000);
-
-        limiter.claim(1, 0);
-        limiter.release(1);
-
-        expect(limiter.claim(1, 1)).toBe(true);
-    });
-
-    it('forgets records only once they have expired', () => {
-        const limiter = new EpgRefillLimiter(5000);
-        limiter.claim(1, 0);
-
-        limiter.forgetExpired(4999);
-        expect(limiter.claim(1, 4999)).toBe(false);
-
-        limiter.forgetExpired(5000);
-        expect(limiter.claim(1, 5000)).toBe(true);
-    });
-
-    it('holds a claim across a row scrolling out of view and back', () => {
-        // Housekeeping runs on every tick while the row is off screen; the
-        // floor must survive it, or scrolling up and down the list would
-        // hand out a fresh request each pass.
-        const limiter = new EpgRefillLimiter(5000);
-        limiter.claim(1, 0);
-
-        limiter.forgetExpired(1000);
-        limiter.forgetExpired(2000);
-
-        expect(limiter.claim(1, 3000)).toBe(false);
     });
 });

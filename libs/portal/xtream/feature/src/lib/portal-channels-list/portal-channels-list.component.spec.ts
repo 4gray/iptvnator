@@ -485,12 +485,21 @@ describe('PortalChannelsListComponent', () => {
         expect(epgQueueService.enqueue).not.toHaveBeenCalled();
     });
 
-    /** One channel on screen, the clock parked at `nowIso`. */
+    /**
+     * One channel on screen, the clock parked at `nowIso`.
+     *
+     * `keepTimers` is for a second list mounted beside the first: re-installing
+     * the fake clock would drop the intervals the first one had registered, and
+     * the test would silently observe a single component.
+     */
     async function renderSingleChannel(
         fixture: ComponentFixture<PortalChannelsListComponent>,
-        nowIso: string
+        nowIso: string,
+        options: { keepTimers?: boolean } = {}
     ) {
-        jest.useFakeTimers();
+        if (!options.keepTimers) {
+            jest.useFakeTimers();
+        }
         jest.setSystemTime(new Date(nowIso));
         selectedTypeContentLoading.set(false);
         selectedChannels.set([{ title: 'Cartoon Network', xtream_id: 50 }]);
@@ -627,6 +636,36 @@ describe('PortalChannelsListComponent', () => {
 
         jest.advanceTimersByTime(2 * 60 * 1000);
         expect(epgQueueService.invalidate).toHaveBeenCalledTimes(2);
+    });
+
+    it('shares the refill floor between the sidebar list and its fullscreen copy', async () => {
+        // A live layout mounts this component more than once over one EPG
+        // queue. A refill record per component would hand each copy its own
+        // allowance, so the same exhausted guide would be dropped and
+        // refetched once per mounted list every minute.
+        await renderSingleChannel(fixture, '2026-04-05T06:03:00.000Z');
+        const fullscreenCopy = TestBed.createComponent(
+            PortalChannelsListComponent
+        );
+        await renderSingleChannel(fullscreenCopy, '2026-04-05T06:03:00.000Z', {
+            keepTimers: true,
+        });
+
+        const finished = buildProgram(
+            'Finished Show',
+            '2026-04-05T05:30:00.000Z',
+            '2026-04-05T06:00:00.000Z'
+        );
+        epgQueueService.getCached.mockImplementation((streamId: number) =>
+            streamId === 50 ? [finished] : null
+        );
+        epgResults$.next({ streamId: 50, items: [finished] });
+        fixture.detectChanges();
+        fullscreenCopy.detectChanges();
+
+        jest.advanceTimersByTime(4 * 60 * 1000);
+
+        expect(epgQueueService.invalidate).toHaveBeenCalledTimes(1);
     });
 
     it('leaves a channel the provider has no EPG for alone', async () => {

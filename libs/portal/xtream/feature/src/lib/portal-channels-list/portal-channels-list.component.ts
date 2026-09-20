@@ -57,24 +57,17 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
-    EpgRefillLimiter,
     epgProgramProgressPercent,
     hasEpgProgramEnded,
     pickAiringOrUpcomingEpgItem,
     pickEpgPreviewItem,
     toSharedEpgProgram,
 } from './epg-preview-program';
+import { EpgRefillLimiter } from './epg-refill-limiter.service';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
 
 /** How often the rows on screen re-check the programme they are showing. */
 const EPG_REFRESH_INTERVAL_MS = 60_000;
-
-/**
- * Floor between two refills of the same channel's exhausted guide. Matches
- * the queue's own cache lifetime, so a provider with no fresh data is asked
- * no more often than its cached answer would have expired anyway.
- */
-const EPG_REFILL_MIN_INTERVAL_MS = 5 * 60_000;
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -189,9 +182,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     /** Periodic re-pick of the visible rows' current program, cleared in `ngOnDestroy`. */
     private epgRefreshIntervalId?: number;
 
-    private readonly epgRefill = new EpgRefillLimiter(
-        EPG_REFILL_MIN_INTERVAL_MS
-    );
+    /**
+     * Shared, not per-instance: a live layout mounts this list more than once
+     * (sidebar plus the fullscreen channel panel) over one EPG queue, so a
+     * local record would give each copy its own refill allowance.
+     */
+    private readonly epgRefill = inject(EpgRefillLimiter);
 
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
