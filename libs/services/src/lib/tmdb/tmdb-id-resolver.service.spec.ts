@@ -87,14 +87,14 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(searchTv).toHaveBeenCalledWith('Фейк', null, 'ru-RU', 'key');
         expect(cacheSet).toHaveBeenCalledWith({
             mediaType: 'tv',
-            lookupKey: 'title:фейк|year:2026|v3',
+            lookupKey: 'title:фейк|year:2026|v4',
             language: 'ru-RU',
             tmdbId: 317869,
             payload: null,
         });
     });
 
-    it('caches the miss under the folded v3 key', async () => {
+    it('caches the miss under the current key, not the folded one', async () => {
         searchTv.mockResolvedValue([]);
         const service = createService();
 
@@ -112,7 +112,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         );
         expect(cacheSet).toHaveBeenCalledWith(
             expect.objectContaining({
-                lookupKey: 'title:молодой шерлок|year:2026|v3',
+                lookupKey: 'title:молодой шерлок|year:2026|v4',
                 tmdbId: null,
             })
         );
@@ -133,7 +133,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(id).toBe(317869);
         expect(cacheGet).toHaveBeenCalledWith(
             'tv',
-            'title:фейк|year:2026|v3',
+            'title:фейк|year:2026|v4',
             'ru-RU'
         );
         expect(searchTv).not.toHaveBeenCalled();
@@ -157,8 +157,8 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(
             cacheSet.mock.calls.map(([row]) => [row.lookupKey, row.tmdbId])
         ).toEqual([
-            ['title:феик|year:2026|v3', null],
-            ['title:фейк|year:2026|v3', 317869],
+            ['title:феик|year:2026|v4', null],
+            ['title:фейк|year:2026|v4', 317869],
         ]);
     });
 
@@ -167,7 +167,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         // "феик". Item B shares the original title but displays "Фейк":
         // the cached miss must not suppress B's own second variant.
         cacheGet.mockImplementation(async (_type: string, key: string) =>
-            key === 'title:феик|year:2026|v3' ? { tmdbId: null } : null
+            key === 'title:феик|year:2026|v4' ? { tmdbId: null } : null
         );
         const service = createService();
         const cacheService = (service as unknown as { cache: TmdbCacheService })
@@ -186,8 +186,8 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         expect(searchTv).toHaveBeenCalledTimes(1);
         expect(searchTv).toHaveBeenCalledWith('Фейк', null, 'ru-RU', 'key');
         expect(cacheGet.mock.calls.map(([, key]) => key)).toEqual([
-            'title:феик|year:2026|v3',
-            'title:фейк|year:2026|v3',
+            'title:феик|year:2026|v4',
+            'title:фейк|year:2026|v4',
         ]);
     });
 

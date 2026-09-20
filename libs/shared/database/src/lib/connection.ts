@@ -45,6 +45,8 @@ const TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY =
     'migration:tmdb-search-lookup-v2-cache-cleanup:v1';
 const TMDB_SEARCH_LOOKUP_V3_CACHE_CLEANUP_MIGRATION_KEY =
     'migration:tmdb-search-lookup-v3-cache-cleanup:v1';
+const TMDB_SEARCH_LOOKUP_V4_CACHE_CLEANUP_MIGRATION_KEY =
+    'migration:tmdb-search-lookup-v4-cache-cleanup:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_BATCH_SIZE = 50_000;
 
 function readTraceFlag(name: string): boolean {
@@ -977,6 +979,10 @@ function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
  *   v2 every title with a Cyrillic "й"/"ё" was searched folded ("феик" for
  *   "Фейк", "елки" for "Ёлки"), got no answer, and was cached as missing for
  *   7 days.
+ * - v3 → v4: year evidence became tiered. Under v3 a series admitted only by
+ *   the "premiered earlier" tolerance competed with an exact-year match on
+ *   popularity alone, so a new series resolved to its older, better-known
+ *   namesake — and that positive row stays fresh for 30 days.
  */
 const LEGACY_TMDB_SEARCH_CACHE_CLEANUPS: ReadonlyArray<{
     migrationKey: string;
@@ -990,6 +996,10 @@ const LEGACY_TMDB_SEARCH_CACHE_CLEANUPS: ReadonlyArray<{
     {
         migrationKey: TMDB_SEARCH_LOOKUP_V3_CACHE_CLEANUP_MIGRATION_KEY,
         rowPredicate: `lookup_key LIKE 'title:%|year:%|v2'`,
+    },
+    {
+        migrationKey: TMDB_SEARCH_LOOKUP_V4_CACHE_CLEANUP_MIGRATION_KEY,
+        rowPredicate: `lookup_key LIKE 'title:%|year:%|v3'`,
     },
 ];
 
