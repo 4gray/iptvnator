@@ -114,9 +114,9 @@ async function packageMentions(rootDir) {
         .map((name) => name.slice(1));
     const scopes = new Set(declared.map((name) => name.split('/')[0]));
     return (raw) => {
-        let token = raw.replace(/[.,;:)"'\]}]+$/u, '');
+        let token = raw.replace(/[?!.,;:)"'\]}]+$/u, '');
         token = token.replace(
-            /^([^/]+\/[^/@]+)@(?:[~^]?\d[\w.+-]*|[a-z][\w-]*)$/iu,
+            /^([^/@]+(?:\/[^/@]+)?)@(?:[~^]?\d[\w.+-]*|[a-z][\w-]*)$/iu,
             '$1'
         );
         if (
@@ -124,6 +124,7 @@ async function packageMentions(rootDir) {
         )
             return false;
         if (/\.(?:md|mdx|txt|json|ya?ml|html?)$/iu.test(token)) return false;
+        if (packages.includes(token)) return true;
         if (token.endsWith('/*') && scopes.has(token.slice(0, -2))) return true;
         return declared.some((name) => {
             const star = name.indexOf('*');

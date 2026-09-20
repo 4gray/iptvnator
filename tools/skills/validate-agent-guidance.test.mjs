@@ -847,3 +847,22 @@ for (const [path, fragment] of [
         );
     });
 }
+
+for (const mention of [
+    '@marked@17.0.0',
+    '@marked@^17.0.0',
+    '@angular/core?',
+    '@angular/core!',
+]) {
+    test(`package mention accepts qualifier or punctuation: ${mention}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'package.json': JSON.stringify({
+                    dependencies: { marked: '*', '@angular/core': '*' },
+                }),
+                'AGENTS.md': 'Use ' + mention,
+            }),
+            []
+        );
+    });
+}

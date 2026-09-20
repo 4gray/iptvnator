@@ -61,6 +61,8 @@ are recognized as package/alias mentions. Traversal and document-file imports ar
 rejected before those exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version or dist-tag qualifier.
+Qualifier handling includes unscoped names; terminal sentence punctuation is
+removed before matching a declared package.
 Markdown destinations decode HTML entities before URI parsing, matching rendered links.
 Heading-anchor lookup is limited to Markdown targets. Source-file line fragments,
 PDF page fragments and other non-Markdown fragments retain file-existence checks.
