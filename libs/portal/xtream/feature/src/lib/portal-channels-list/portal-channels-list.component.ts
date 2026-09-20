@@ -56,7 +56,25 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
+import {
+    EpgRefillLimiter,
+    epgProgramProgressPercent,
+    hasEpgProgramEnded,
+    pickAiringOrUpcomingEpgItem,
+    pickEpgPreviewItem,
+    toSharedEpgProgram,
+} from './epg-preview-program';
 import { XtreamFavoriteMarksService } from './xtream-favorite-marks.service';
+
+/** How often the rows on screen re-check the programme they are showing. */
+const EPG_REFRESH_INTERVAL_MS = 60_000;
+
+/**
+ * Floor between two refills of the same channel's exhausted guide. Matches
+ * the queue's own cache lifetime, so a provider with no fresh data is asked
+ * no more often than its cached answer would have expired anyway.
+ */
+const EPG_REFILL_MIN_INTERVAL_MS = 5 * 60_000;
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -170,6 +188,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     /** Periodic re-pick of the visible rows' current program, cleared in `ngOnDestroy`. */
     private epgRefreshIntervalId?: number;
+
+    private readonly epgRefill = new EpgRefillLimiter(
+        EPG_REFILL_MIN_INTERVAL_MS
+    );
 
     readonly viewport = viewChild(CdkVirtualScrollViewport);
 
@@ -343,18 +365,13 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
             // Nothing else re-evaluates the shown "current program" as
             // wall-clock time passes (#767): applyProgram() only runs on
-            // scroll-into-view, a new EPG result, or an offset change. Only
-            // touches rows already known to be on screen, in place (no
-            // clear-and-refill, so a still-warm row never blanks out).
+            // scroll-into-view, a new EPG result, or an offset change.
             // Mirrors the EPG refresh interval in the M3U sibling
             // `channel-list-container.component.ts`.
-            this.epgRefreshIntervalId = window.setInterval(() => {
-                if (this.lastVisibleChannels.length > 0) {
-                    this.loadEpgForVisibleChannels(this.lastVisibleChannels, {
-                        force: true,
-                    });
-                }
-            }, 60_000);
+            this.epgRefreshIntervalId = window.setInterval(
+                () => this.refreshVisiblePrograms(),
+                EPG_REFRESH_INTERVAL_MS
+            );
         }
     }
 
@@ -398,23 +415,128 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         this.cdr.markForCheck();
     }
 
-    /**
-     * `force` re-applies a cached preview, or re-fetches a missing one, even
-     * for a channel already tracked in `epgPrograms` -- otherwise both
-     * branches below skip it. Used by the periodic EPG refresh (#767) so an
-     * already-shown row's current program still advances once it ends,
-     * without clearing the map first (a still-warm row is never blanked).
-     */
-    private loadEpgForVisibleChannels(
-        channels: XtreamChannelListItem[],
-        options: { force?: boolean } = {}
-    ): void {
+    private loadEpgForVisibleChannels(channels: XtreamChannelListItem[]): void {
         if (!this.supportsEpg) {
             return;
         }
 
+        if (!this.xtreamStore.currentPlaylist()) return;
+
+        const uncachedChannels: XtreamChannelListItem[] = [];
+
+        // Apply cached results immediately
+        for (const channel of channels) {
+            const cached = this.epgQueueService.getCached(channel.xtream_id);
+            if (cached !== null) {
+                const previewProgram = this.pickPreviewProgram(cached);
+                if (
+                    previewProgram &&
+                    !this.epgPrograms.has(channel.xtream_id)
+                ) {
+                    this.applyProgram(channel.xtream_id, previewProgram);
+                }
+
+                continue;
+            }
+
+            if (!this.epgPrograms.has(channel.xtream_id)) {
+                uncachedChannels.push(channel);
+            }
+        }
+
+        this.requestEpgFor(uncachedChannels, channels);
+    }
+
+    /**
+     * Advances the programme shown under the rows on screen as wall-clock
+     * time passes (#767) — nothing else re-evaluates it, so a row stayed
+     * pinned to a finished programme until the category was left and
+     * re-entered.
+     *
+     * A programme that is still on air only has its progress bar moved: no
+     * cache read, no request. Once it ends the row is re-picked from the
+     * queue's cache, and a cache holding nothing on air or upcoming is
+     * dropped so the next fetch can refill it. A finished programme is never
+     * re-applied — it would keep presenting itself as current, and the
+     * earliest-item fallback used for a first paint could even move the row
+     * backwards. What is on screen stays there until a replacement arrives,
+     * so a refreshing row never blanks out.
+     */
+    private refreshVisiblePrograms(): void {
+        const channels = this.lastVisibleChannels;
+        if (!this.supportsEpg || channels.length === 0) {
+            return;
+        }
+
+        if (!this.xtreamStore.currentPlaylist()) return;
+
+        const now = this.epgClockMs();
+        const wallClockNow = Date.now();
+        const staleChannels: XtreamChannelListItem[] = [];
+        let movedProgress = false;
+
+        for (const channel of channels) {
+            const shown = this.epgPrograms.get(channel.xtream_id);
+            if (shown && !hasEpgProgramEnded(shown, now)) {
+                this.updateProgramProgress(channel.xtream_id, shown);
+                movedProgress = true;
+                continue;
+            }
+
+            const cached = this.epgQueueService.getCached(channel.xtream_id);
+            if (cached === null) {
+                staleChannels.push(channel);
+                continue;
+            }
+
+            const replacement = pickAiringOrUpcomingEpgItem(cached, now);
+            if (replacement) {
+                this.applyProgram(channel.xtream_id, replacement);
+                continue;
+            }
+
+            if (cached.length === 0) {
+                // The provider has nothing for this channel and said so; that
+                // empty answer is cached on purpose, and asking again before
+                // it expires would put one request per EPG-less visible row
+                // on the wire every minute.
+                continue;
+            }
+
+            if (!this.epgRefill.claim(channel.xtream_id, wallClockNow)) {
+                continue;
+            }
+
+            // Every cached programme has ended. The entry stays valid for
+            // minutes and the queue skips a stream that still has one, so it
+            // has to go before the refill below can reach the provider.
+            this.epgQueueService.invalidate(channel.xtream_id);
+            staleChannels.push(channel);
+        }
+
+        this.requestEpgFor(staleChannels, channels);
+        this.epgRefill.retainOnly(
+            new Set(channels.map((channel) => channel.xtream_id))
+        );
+        if (movedProgress) {
+            // A replaced row already rendered through applyProgram(); this is
+            // for the progress bars that advanced without one.
+            this.cdr.markForCheck();
+        }
+    }
+
+    /**
+     * Queues EPG for `channels`. `visibleChannels` is the full viewport slice:
+     * the queue drops anything outside the visible set it was last handed, so
+     * passing only the subset being fetched would strand entries queued for
+     * the other rows on screen.
+     */
+    private requestEpgFor(
+        channels: XtreamChannelListItem[],
+        visibleChannels: XtreamChannelListItem[]
+    ): void {
         const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) return;
+        if (!playlist || channels.length === 0) return;
 
         const credentials: XtreamCredentials = {
             serverUrl: playlist.serverUrl,
@@ -423,69 +545,29 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             serverTimezone: playlist.serverTimezone,
         };
 
-        const visibleIds = new Set<number>(channels.map((ch) => ch.xtream_id));
-        const uncachedEntries: {
-            streamId: number;
-            epgChannelId?: string | null;
-            playlistId?: string | null;
-        }[] = [];
-
-        // Apply cached results immediately
-        for (const channel of channels) {
-            const cached = this.epgQueueService.getCached(channel.xtream_id);
-            if (cached !== null) {
-                const previewProgram = this.pickPreviewProgram(cached);
-                if (previewProgram) {
-                    if (
-                        options.force ||
-                        !this.epgPrograms.has(channel.xtream_id)
-                    ) {
-                        this.applyProgram(channel.xtream_id, previewProgram);
-                    }
-                }
-
-                continue;
-            }
-
-            if (options.force || !this.epgPrograms.has(channel.xtream_id)) {
-                uncachedEntries.push({
+        this.epgQueueService
+            .enqueue(
+                channels.map((channel) => ({
                     streamId: channel.xtream_id,
                     epgChannelId: channel.epg_channel_id ?? null,
                     playlistId: playlist.id ?? null,
-                });
-            }
-        }
-
-        if (uncachedEntries.length > 0) {
-            this.epgQueueService
-                .enqueue(uncachedEntries, visibleIds, credentials)
-                .catch((error) => {
-                    console.warn('EPG enqueue failed', error);
-                });
-        }
+                })),
+                new Set(visibleChannels.map((channel) => channel.xtream_id)),
+                credentials
+            )
+            .catch((error) => {
+                console.warn('EPG enqueue failed', error);
+            });
     }
 
-    private updateProgramProgress(streamId: number, program: EpgItem) {
-        const now = this.epgClockMs();
-        const start = this.getProgramTimestampMs(
-            program.start,
-            program.start_timestamp
-        );
-        const end = this.getProgramTimestampMs(
-            program.stop ?? program.end,
-            program.stop_timestamp
-        );
-
-        if (now >= start && now <= end) {
-            const duration = end - start;
-            const elapsed = now - start;
-            const progress = (elapsed / duration) * 100;
-
-            this.currentProgramsProgress.set(streamId, progress);
+    private updateProgramProgress(streamId: number, program: EpgProgram) {
+        const progress = epgProgramProgressPercent(program, this.epgClockMs());
+        if (progress === null) {
+            this.currentProgramsProgress.delete(streamId);
             return;
         }
 
-        this.currentProgramsProgress.delete(streamId);
+        this.currentProgramsProgress.set(streamId, progress);
     }
 
     isSelected(item: XtreamCategory | XtreamCategoryLike): boolean {
@@ -565,93 +647,19 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     }
 
     private applyProgram(streamId: number, program: EpgItem): void {
-        this.epgPrograms.set(streamId, this.toSharedEpgProgram(program));
-        this.updateProgramProgress(streamId, program);
+        const shownProgram = toSharedEpgProgram(program);
+        this.epgPrograms.set(streamId, shownProgram);
+        this.updateProgramProgress(streamId, shownProgram);
+        if (!hasEpgProgramEnded(shownProgram, this.epgClockMs())) {
+            // A programme that has not run out proves the guide is flowing,
+            // so the next gap on this row may be refilled straight away.
+            this.epgRefill.release(streamId);
+        }
         this.cdr.detectChanges();
     }
 
     private pickPreviewProgram(items: EpgItem[]): EpgItem | null {
-        if (!items.length) {
-            return null;
-        }
-
-        const now = this.epgClockMs();
-        const normalizedItems = [...items].sort(
-            (a, b) =>
-                this.getProgramTimestampMs(a.start, a.start_timestamp) -
-                this.getProgramTimestampMs(b.start, b.start_timestamp)
-        );
-
-        const currentProgram = normalizedItems.find((item) => {
-            const start = this.getProgramTimestampMs(
-                item.start,
-                item.start_timestamp
-            );
-            const end = this.getProgramTimestampMs(
-                item.stop ?? item.end,
-                item.stop_timestamp
-            );
-            return now >= start && now <= end;
-        });
-
-        if (currentProgram) {
-            return currentProgram;
-        }
-
-        const nextProgram = normalizedItems.find((item) => {
-            return (
-                this.getProgramTimestampMs(item.start, item.start_timestamp) >
-                now
-            );
-        });
-
-        return nextProgram ?? normalizedItems[0];
-    }
-
-    private getProgramTimestampMs(
-        dateValue: string | undefined,
-        unixTimestampValue: string | undefined
-    ): number {
-        const unixTimestamp = Number(unixTimestampValue);
-        if (Number.isFinite(unixTimestamp) && unixTimestamp > 0) {
-            return unixTimestamp * 1000;
-        }
-
-        return new Date(dateValue ?? '').getTime();
-    }
-
-    private toSharedEpgProgram(program: EpgItem): EpgProgram {
-        return {
-            start: program.start,
-            stop: program.stop ?? program.end,
-            channel: program.channel_id ?? program.id,
-            title: program.title,
-            desc: program.description ?? null,
-            category: null,
-            startTimestamp: this.getProgramTimestampSeconds(
-                program.start,
-                program.start_timestamp
-            ),
-            stopTimestamp: this.getProgramTimestampSeconds(
-                program.stop ?? program.end,
-                program.stop_timestamp
-            ),
-        };
-    }
-
-    private getProgramTimestampSeconds(
-        dateValue: string | undefined,
-        unixTimestampValue: string | undefined
-    ): number | null {
-        const unixTimestamp = Number(unixTimestampValue);
-        if (Number.isFinite(unixTimestamp) && unixTimestamp > 0) {
-            return unixTimestamp;
-        }
-
-        const parsedDate = new Date(dateValue ?? '').getTime();
-        return Number.isFinite(parsedDate)
-            ? Math.floor(parsedDate / 1000)
-            : null;
+        return pickEpgPreviewItem(items, this.epgClockMs());
     }
 
     // ── Context menu ────────────────────────────────────────────
