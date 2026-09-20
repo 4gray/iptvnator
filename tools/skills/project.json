@@ -8,21 +8,24 @@
         "test": {
             "executor": "nx:run-commands",
             "cache": true,
-            "inputs": [
-                "{workspaceRoot}/tools/skills/validate-repository-skills.mjs",
-                "{workspaceRoot}/tools/skills/validate-repository-skills.test.mjs"
-            ],
+            "inputs": ["{projectRoot}/*.mjs", "{projectRoot}/project.json"],
             "options": {
-                "command": "node --test tools/skills/validate-repository-skills.test.mjs",
+                "command": "node --test tools/skills/validate-repository-skills.test.mjs tools/skills/validate-agent-guidance.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },
         "lint": {
             "executor": "nx:run-commands",
             "options": {
-                "command": "node --check tools/skills/validate-repository-skills.mjs",
+                "commands": [
+                    "node --check tools/skills/validate-repository-skills.mjs",
+                    "node --check tools/skills/validate-repository-skills.test.mjs",
+                    "node --check tools/skills/validate-agent-guidance.mjs",
+                    "node --check tools/skills/validate-agent-guidance.test.mjs"
+                ],
                 "cwd": "{workspaceRoot}"
-            }
+            },
+            "inputs": ["{projectRoot}/*.mjs", "{projectRoot}/project.json"]
         }
     }
 }

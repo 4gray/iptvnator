@@ -147,6 +147,9 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Validate agent guidance
+              run: pnpm run agents:validate
+
             - name: Validate Nx dependency version policy
               run: pnpm run deps:nx:validate
 

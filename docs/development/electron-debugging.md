@@ -1,0 +1,79 @@
+# Electron debugging and tracing
+
+Use this procedure for Electron/CDP tasks. Read the available `electron` skill
+when automating the desktop app. These commands assume a bootstrapped worktree.
+
+## Start and attach
+
+- Start the Electron development app with: `pnpm nx serve electron-backend`
+- Package-script equivalent: `pnpm run serve:backend`
+- Electron is configured to start with: `--remote-debugging-port=9222`
+- Connect Chrome DevTools Protocol tools to: `127.0.0.1:9222`
+- For Electron automation/debugging tasks, use the `electron` skill
+- Do not auto-open DevTools during normal CDP automation. In development, DevTools is opt-in via `ELECTRON_OPEN_DEVTOOLS=1`.
+- If DevTools is open, `agent-browser --cdp 9222 ...` may attach to the DevTools page instead of the IPTVnator window. Symptoms: `tab list` shows `about:blank`, snapshots are empty, and screenshots are black.
+- If that happens, inspect targets with `curl http://127.0.0.1:9222/json/list` and connect directly to the IPTVnator page websocket from the `webSocketDebuggerUrl` field.
+- The app holds a single-instance lock (`acquireSingleInstanceLock` in `apps/electron-backend/src/app/services/single-instance.ts`): a second launch against the same `userData` quits immediately and focuses the running window. To attach a second CDP-enabled instance to the same profile, set `IPTVNATOR_ALLOW_MULTIPLE_INSTANCES=1` — knowing that only one of the two processes will own the renderer's IndexedDB, so settings written by the other are lost. Before focusing, the guard forwards the second launch's argv to `onSecondInstance`, which is how a playlist path handed to an already-running app reaches the open queue.
+
+### Trace / Debug Startup
+
+- Full startup tracing:
+
+```bash
+IPTVNATOR_TRACE_STARTUP=1 pnpm nx serve electron-backend
+```
+
+- Narrower trace flags:
+    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls
+    - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
+    - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
+    - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
+    - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
+    - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
+    - `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted M3U and Xtream preload IPC request/completion markers plus count-only M3U acquire/parse/normalize, Xtream main network/JSON-transform/success-response-ready/cancel-dispatch, and renderer store phase capture; renderer wrappers emit only while the benchmark installs its Symbol hook, benchmark tooling sets the flag explicitly, and production launches must leave it unset
+    - `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker receive/work/response-post timestamps, thread CPU, event-loop utilization/delay, count-only playlist serialization/SQLite write/read/deserialization plus Xtream category/content/cache-clear/delete/in-source-search phase events, profiling-only worker cancel-receipt acknowledgements, valid-sample-counted isolate peak memory, and the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
+
+- Settings, portal request/response, and trace payloads must use
+  `@iptvnator/shared/logging` or the redacting portal logger before reaching
+  `console.*`; never log raw credentials while debugging.
+
+- If local Nx state gets weird before a rerun:
+
+```bash
+pnpm nx reset
+```
+
+### agent-browser (global install)
+
+```bash
+agent-browser --cdp 9222 tab list
+agent-browser --cdp 9222 tab 1
+agent-browser --cdp 9222 snapshot -i -c -d 4
+agent-browser --cdp 9222 screenshot /tmp/iptvnator-cdp.png
+```
+
+### Fallback
+
+```bash
+npx --yes agent-browser --cdp 9222 tab list
+```
+
+### DevTools Workaround
+
+```bash
+ELECTRON_OPEN_DEVTOOLS=1 pnpm nx serve electron-backend
+curl http://127.0.0.1:9222/json/list
+agent-browser connect ws://127.0.0.1:9222/devtools/page/<iptvnator-page-id>
+agent-browser screenshot /tmp/iptvnator-cdp.png
+```
+
+## Main-process ownership
+
+The entry point is `apps/electron-backend/src/main.ts`; it bootstraps the database,
+registers events and creates the main window. The preload is
+`apps/electron-backend/src/app/api/main.preload.ts`, with handlers under
+`apps/electron-backend/src/app/events/`. The window follows the saved startup mode
+(normal/maximized/fullscreen); `--fullscreen` overrides a single launch. Use
+[workspace shell](../architecture/workspace-shell.md) for window behavior,
+[DB worker](../architecture/sqlite-db-worker.md) for worker ownership and
+[Electron security](../architecture/electron-security.md) for bridge boundaries.

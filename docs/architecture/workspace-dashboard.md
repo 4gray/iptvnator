@@ -251,3 +251,13 @@ Intentionally out of scope:
 2. Freeform widget grid with collision management.
 3. External data rails such as RSS, sports, or news adapters.
 4. Per-user A/B variants of rail ordering.
+
+## Source subscription expiry
+
+Source cards show a passive subscription-expiry chip: amber within seven days,
+error-toned once expired. Account details stay behind the Account info menu.
+`DashboardSourceExpiryService` in `libs/workspace/dashboard/data-access` reads
+Xtream expiry from cached `PortalStatusService.checkPortalStatusDetails()`
+(`exp_date`). Stalker uses the persisted `stalkerAccountInfo` snapshot from the
+playlist payload, not the metadata row; each source therefore needs one memoized
+full-playlist read. The chip is not a separate account-refresh request.

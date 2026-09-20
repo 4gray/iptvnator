@@ -277,3 +277,25 @@ For manual Docker smoke testing, run the Xtream and Stalker mock servers plus a
 small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker can
 add sources, play an item, toggle favorites, populate global favorites,
 populate recently viewed, and appear on the dashboard rails.
+
+## Service factory and build bases
+
+`DataService` in `libs/services/src/lib/data.service.ts` is the renderer service
+contract. `DataFactory()` in `apps/web/src/app/app.config.ts` chooses
+`ElectronService` for the desktop bridge and `PwaService` for browser HTTP and
+IndexedDB work. This environment-level selection is not evidence for an
+individual capability: Xtream data-source selection requires its complete
+SQLite bridge, and feature visibility follows `RuntimeCapabilitiesService`.
+The same workspace route tree is used in both runtimes.
+
+Desktop relational data uses the canonical schema/connection in
+`libs/shared/database`; the SQLite path is `~/.iptvnator/databases/iptvnator.db`.
+Desktop Chromium settings/storage still exist alongside SQLite. PWA data uses
+browser IndexedDB (with browser quotas); its structure is not the SQL schema.
+Browser-selected file uploads remain possible even though native filesystem
+access is Electron-only.
+
+Web development and PWA use `baseHref="/"`; packaged Electron frontend uses
+`baseHref="./"` so file URLs resolve. In `apps/web/project.json`, `production`
+is the Electron frontend build, `pwa` is the web build, and `development` uses
+the index base. Do not ship the Electron frontend build as a PWA deployment.
