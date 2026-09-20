@@ -83,7 +83,10 @@ function htmlNavigation(html, inspect = () => {}) {
                 (node.tagName === 'video' && attribute.name === 'poster')
             )
                 references.push({
-                    target: attribute.value,
+                    target: attribute.value.replace(
+                        /^[\u0000-\u0020]+|[\u0000-\u0020]+$/gu,
+                        ''
+                    ),
                     image: !['a', 'area', 'iframe'].includes(node.tagName),
                 });
             if (

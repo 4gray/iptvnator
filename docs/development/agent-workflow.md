@@ -57,6 +57,7 @@ Only headings present outside inert HTML containers contribute slugs or duplicat
 Explicit HTML anchors use `parse5`, excluding comments, scripts, styles and template contents.
 Rendered HTML anchor and image-map area hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
+URL attributes discard surrounding ASCII control/space characters before resolution.
 Iframe sources are document references and retain Markdown-target anchor checks.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
@@ -70,7 +71,8 @@ Declared scoped dependencies, scope wildcards and matching TypeScript path alias
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions, including document paths with fragments or queries.
 All recognized Markdown extensions share the document-import guard; reStructuredText
-and AsciiDoc documents are also excluded from package exemptions. URL-encoded
+and AsciiDoc, PDF, Word, OpenDocument, RTF, Org and TeX documents are also excluded
+from package exemptions. URL-encoded
 paths do not receive package exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version (including semver comparators and wildcard ranges) or dist-tag qualifier.

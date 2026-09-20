@@ -1266,3 +1266,29 @@ for (const extension of ['rst', 'rest', 'adoc', 'asciidoc']) {
         );
     });
 }
+
+for (const extension of ['pdf', 'doc', 'docx', 'odt', 'rtf', 'org', 'tex']) {
+    test(`document format is not a package exemption: ${extension}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @angular/core/docs/guide.' +
+                        extension,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}
+for (const html of [
+    '<a href=" docs/example.md#repeat ">Guide</a>',
+    '<iframe src="&#9;docs/example.md&#10;"></iframe>',
+    '<img src=" docs/example.md ">',
+]) {
+    test(`HTML URL edge whitespace is ignored: ${html}`, async (t) => {
+        assert.deepEqual(await diagnostics(t, { 'AGENTS.md': html }), []);
+    });
+}
