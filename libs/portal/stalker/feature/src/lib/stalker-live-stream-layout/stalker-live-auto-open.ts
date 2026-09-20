@@ -12,7 +12,6 @@ import {
     normalizeStalkerEntityId,
     StalkerItvChannel,
 } from '@iptvnator/portal/stalker/data-access';
-import { resolveStalkerProviderId } from '@iptvnator/portal/shared/util';
 import { StalkerLiveAutoOpenState } from './stalker-live-auto-open-state';
 
 /** The slice of `StalkerStore` the auto-open flow reads and drives. */
@@ -228,14 +227,23 @@ export class StalkerLiveAutoOpen {
             return;
         }
 
-        // Match on the same "first non-blank provider id" the handoff was
-        // built from: a cached row can carry a blank `id` beside `stream_id`.
+        // Either provider id can be the one that was persisted: a favorite
+        // stores `stream_id ?? id` (`with-stalker-favorites.feature.ts`)
+        // while a cached channel keeps `id ?? stream_id`, so a row carrying
+        // two different non-blank ids is reachable under either. `id` wins
+        // across the whole list before `stream_id` is considered, so the
+        // match stays deterministic when one channel's id is another's
+        // stream id.
+        const channels = store.itvFullChannelList();
         const item =
-            store
-                .itvFullChannelList()
-                .find(
-                    (channel) => resolveStalkerProviderId(channel) === pendingId
-                ) ?? null;
+            channels.find(
+                (channel) => normalizeStalkerEntityId(channel.id) === pendingId
+            ) ??
+            channels.find(
+                (channel) =>
+                    normalizeStalkerEntityId(channel.stream_id) === pendingId
+            ) ??
+            null;
         untracked(() => this.settle(item));
     }
 

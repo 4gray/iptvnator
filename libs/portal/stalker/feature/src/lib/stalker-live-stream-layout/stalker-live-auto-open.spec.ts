@@ -496,6 +496,55 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).toHaveBeenCalledWith(byCategoryId);
     });
 
+    it('finds a channel persisted under its stream_id while the cache keys it by id', () => {
+        // A favorite stores `stream_id ?? id`, a cached channel keeps
+        // `id ?? stream_id` — a row with two different ids must still match.
+        const twoIds = {
+            id: '5',
+            stream_id: '99',
+            cmd: 'x',
+            name: 'Two ids',
+            tv_genre_id: 7,
+        } as unknown as StalkerItvChannel;
+        const other = channel('7', 7);
+        store.itvFullListActive.set(true);
+        store.itvFullChannelList.set([other, twoIds]);
+
+        arrive({
+            openStalkerLiveItemId: '99',
+            openStalkerLivePlaylistId: 'pl-3',
+        });
+        serveCategory('7');
+
+        expect(play).toHaveBeenCalledWith(twoIds);
+    });
+
+    it("prefers an id match over another channel's stream_id", () => {
+        const byId = {
+            id: '99',
+            cmd: 'x',
+            name: 'By id',
+            tv_genre_id: 7,
+        } as unknown as StalkerItvChannel;
+        const byStreamId = {
+            id: '5',
+            stream_id: '99',
+            cmd: 'x',
+            name: 'By stream id',
+            tv_genre_id: 7,
+        } as unknown as StalkerItvChannel;
+        store.itvFullListActive.set(true);
+        store.itvFullChannelList.set([byStreamId, byId]);
+
+        arrive({
+            openStalkerLiveItemId: '99',
+            openStalkerLivePlaylistId: 'pl-3',
+        });
+        serveCategory('7');
+
+        expect(play).toHaveBeenCalledWith(byId);
+    });
+
     it('does nothing outside the ITV section', () => {
         store.selectedContentType.set('radio');
         store.itvFullListActive.set(true);
