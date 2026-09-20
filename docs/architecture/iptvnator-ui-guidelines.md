@@ -564,14 +564,15 @@ shows nothing. `aria-busy` is set immediately, since it does not paint. A
 superseded reload keeps the earliest deadline and never clears the indicator;
 only the latest request's completion does. Reference implementation:
 `createCollectionReloadIndicator` in
-`libs/portal/shared/ui/src/lib/components/unified-collection/collection-reload-indicator.ts`.
+`libs/portal/shared/data-access/src/lib/collection/collection-reload-indicator.ts`.
 Controls that triggered the reload stay enabled and reflect the requested
 value at once (`scope.set()` runs synchronously before the load starts).
 Because the rows on screen then belong to the PREVIOUS request, actions on
 them (Clear, drag reorder) must bind to the request that loaded those rows,
 never to the toggle's current value — "This playlist" applied to still-mounted
 global rows would delete other playlists' favorites or write foreign URLs
-into this playlist (`loadedRequest` on the collection page).
+into this playlist (`loadedRequest` on `UnifiedCollectionDataService`, which
+the collection page reads through its own `mutationRequest`).
 
 ## Navigation Lists
 

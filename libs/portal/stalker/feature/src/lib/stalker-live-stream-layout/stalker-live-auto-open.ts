@@ -26,6 +26,8 @@ export interface StalkerLiveAutoOpenStore {
     currentPlaylist: Signal<{ _id?: string } | null | undefined>;
     selectedContentType: Signal<string | null | undefined>;
     selectedCategoryId: Signal<string | null | undefined>;
+    /** The category the channels on screen were served for (see the store). */
+    itvChannelsCategory: Signal<string | null>;
     searchPhrase: Signal<string>;
     itvFullChannelList: Signal<StalkerItvChannel[]>;
     itvFullListActive: Signal<boolean>;
@@ -42,10 +44,6 @@ export interface StalkerLiveAutoOpenOptions {
     router: Router | null;
     destroyRef: DestroyRef;
     sidebar?: { expand(surface: 'portal'): void };
-    /** The channel rows currently on screen for the selected category. */
-    rows: () => readonly StalkerItvChannel[];
-    /** True while no category page or full-list load is in flight. */
-    rowsSettled: () => boolean;
     play: (item: StalkerItvChannel) => void;
 }
 
@@ -53,15 +51,8 @@ interface DeferredPlay {
     item: StalkerItvChannel;
     /** The portal the channel belongs to; a portal switch drops the request. */
     playlistId: string;
+    /** The genre whose channels must be on screen before playback starts. */
     category: string;
-    /** The rows on screen when the category was switched — the OLD list. */
-    staleRows: readonly StalkerItvChannel[];
-    /**
-     * Set once a load was observed after the switch. The re-served list may
-     * be the very same array (`'*'` serves the full cache by reference), so
-     * identity alone cannot prove a re-serve; a completed load can.
-     */
-    sawLoading: boolean;
 }
 
 /**
@@ -91,14 +82,17 @@ interface DeferredPlay {
  * neither ready nor unsupported, and the genre fallback runs instead of
  * leaving the handoff pending forever.
  *
- * Playback is deferred whenever selecting the genre changes the list scope
- * (another genre, All Items, or an active search): `playChannel` →
- * `navigation.prepare` captures the displayed rows as the remote/numeric
- * channel order, and right after `setSelectedCategory` those are still the
- * previous scope's — even when they happen to contain the channel. The
- * deferred play fires once the rows were re-served for the genre and either
- * hold the channel or loading settled (a legacy-paged genre whose first page
- * lacks it). Selecting another genre or section, or a newer handoff, drops it.
+ * Playback waits until the channels on screen are the genre's: `playChannel`
+ * → `navigation.prepare` captures the displayed rows as the remote/numeric
+ * channel order, and the store serves a category a tick after
+ * `setSelectedCategory` — even from the full-list cache — so playing right
+ * away would capture the previous scope's queue. The store answers "whose
+ * channels are these?" with `itvChannelsCategory`; array identity cannot,
+ * because filtering by `'*'` hands back the cache by reference and clearing
+ * a search replaces the rendered list without the source moving. Clearing
+ * the search IS synchronous, so a genre already on screen plays at once. A
+ * newer handoff, a portal/section/genre switch or a fresh search drops a
+ * pending play.
  */
 export class StalkerLiveAutoOpen {
     readonly pendingItemId = signal<string | null>(null);
@@ -254,32 +248,23 @@ export class StalkerLiveAutoOpen {
             ? normalizeStalkerEntityId(item.tv_genre_id) || '*'
             : this.pendingCategoryId();
 
-        const staleRows = this.options.rows();
-        // Exact comparison: `null` (the All Items grid) and `'*'` (the All
-        // category list) are different row sources.
-        const scopeChanged =
-            !!category &&
-            (store.selectedCategoryId() !== category ||
-                store.searchPhrase().trim() !== '');
         if (category) {
             store.setSearchPhrase('');
             store.setSelectedCategory(category);
             store.setPage(0);
             this.options.sidebar?.expand('portal');
         }
-        if (item) {
-            if (scopeChanged) {
+        if (item && category) {
+            if (store.itvChannelsCategory() === category) {
+                this.options.play(item);
+            } else {
                 this.deferredPlay.set({
                     item,
                     playlistId: normalizeStalkerEntityId(
                         store.currentPlaylist()?._id
                     ),
                     category,
-                    staleRows,
-                    sawLoading: false,
                 });
-            } else {
-                this.options.play(item);
             }
         }
 
@@ -307,19 +292,7 @@ export class StalkerLiveAutoOpen {
             return;
         }
 
-        // The old scope's rows may already contain the channel; only a
-        // re-served list belongs to the genre. A re-serve shows either as a
-        // new array or as a load that ran after the switch and settled.
-        const rows = this.options.rows();
-        const settled = this.options.rowsSettled();
-        if (!settled) {
-            deferred.sawLoading = true;
-        }
-        const reserved = rows !== deferred.staleRows;
-        const ready =
-            (reserved && this.containsChannel(rows, deferred.item)) ||
-            (settled && (reserved || deferred.sawLoading));
-        if (!ready) {
+        if (store.itvChannelsCategory() !== deferred.category) {
             return;
         }
 
@@ -327,13 +300,5 @@ export class StalkerLiveAutoOpen {
             this.deferredPlay.set(null);
             this.options.play(deferred.item);
         });
-    }
-
-    private containsChannel(
-        rows: readonly StalkerItvChannel[],
-        item: StalkerItvChannel
-    ): boolean {
-        const id = normalizeStalkerEntityId(item.id);
-        return rows.some((row) => normalizeStalkerEntityId(row.id) === id);
     }
 }

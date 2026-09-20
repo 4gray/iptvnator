@@ -44,6 +44,16 @@ export interface StalkerContentState {
     radioCategories: StalkerCategoryItem[];
     hasMoreChannels: boolean;
     itvChannels: StalkerItvChannel[];
+    /**
+     * The category `itvChannels` were served for (`'*'` for All), or `null`
+     * while none are. Rows lag `selectedCategoryId` — the resource resolves
+     * a tick later even when it serves from the full-list cache — so this is
+     * the only honest answer to "whose channels are on screen?". Array
+     * identity cannot answer it: filtering by `'*'` hands back the cache by
+     * reference, and clearing a search replaces the RENDERED list without
+     * the source changing at all.
+     */
+    itvChannelsCategory: string | null;
     radioChannels: StalkerItvChannel[];
     paginatedContent: StalkerContentItem[];
     categoryError: unknown;
@@ -64,6 +74,7 @@ const initialContentState: StalkerContentState = {
     radioCategories: [],
     hasMoreChannels: false,
     itvChannels: [],
+    itvChannelsCategory: null,
     radioChannels: [],
     paginatedContent: [],
     categoryError: null,
@@ -458,6 +469,8 @@ export function withStalkerContent() {
                                         totalCount: channels.length,
                                         paginatedContent: channels,
                                         itvChannels: channels,
+                                        itvChannelsCategory:
+                                            String(categoryParam),
                                         hasMoreChannels: false,
                                         contentError: null,
                                     });
@@ -624,7 +637,12 @@ export function withStalkerContent() {
                                         paginatedContent: newItems,
                                         contentError: null,
                                         ...(params.contentType === 'itv'
-                                            ? { itvChannels: nextChannels }
+                                            ? {
+                                                  itvChannels: nextChannels,
+                                                  itvChannelsCategory: String(
+                                                      params.category ?? '*'
+                                                  ),
+                                              }
                                             : { radioChannels: nextChannels }),
                                         hasMoreChannels:
                                             channels.length > 0 &&
@@ -928,7 +946,13 @@ export function withStalkerContent() {
                     });
                 },
                 setItvChannels(channels: StalkerItvChannel[]) {
-                    patchState(store, { itvChannels: channels });
+                    patchState(store, {
+                        itvChannels: channels,
+                        // The only caller clears the list for a category the
+                        // resource has not served yet, so nothing on screen
+                        // belongs to a category until it does.
+                        itvChannelsCategory: null,
+                    });
                 },
                 setRadioChannels(channels: StalkerItvChannel[]) {
                     patchState(store, { radioChannels: channels });

@@ -189,15 +189,18 @@ with a return handler keep Back available.
   selecting the genre changes the list scope (another genre, the All Items
   grid — `null`, a different row source from the `'*'` All list — or an
   active search): `playChannel` → `navigation.prepare` captures the
-  displayed rows as the remote/numeric channel order, and right after
-  `setSelectedCategory` those are still the previous scope's even when they
-  contain the channel. The deferred play fires once the list was re-served —
-  a new array holding the channel, or a load observed after the switch that
-  settled (the `'*'` list is the full cache by reference, so identity alone
-  cannot prove a re-serve; a legacy-paged genre whose first page lacks the
-  row plays with that page) — and is dropped if a newer handoff arrives or
-  the user switches portal, genre or section or starts a search first, or
-  the layout is destroyed. Stalker radio stations resolve to `null`: they live in the separate
+  displayed rows as the remote/numeric channel order, and the store serves a
+  category a tick after `setSelectedCategory` — even from the full-list
+  cache — so playing right away would capture the previous scope's queue.
+  The store answers "whose channels are on screen?" with
+  `itvChannelsCategory` (set wherever `itvChannels` is served, cleared by
+  `setItvChannels`), which is what the deferred play waits for. Array
+  identity cannot answer it: filtering by `'*'` hands back the cache by
+  reference, and clearing a search replaces the rendered list without the
+  source moving. Clearing the search IS synchronous, so a genre already on
+  screen plays at once. A pending play is dropped when a newer handoff
+  arrives, when the user switches portal, genre or section or starts a
+  search, and when the layout is destroyed. Stalker radio stations resolve to `null`: they live in the separate
   `radio` section, whose station list is legacy-paged with no
   open-on-arrival contract, so the action stays hidden for them.
   Two surfaces render the one verdict: `app-open-in-playlist-chip`

@@ -22,6 +22,7 @@ describe('StalkerLiveAutoOpen', () => {
         currentPlaylist: signal<{ _id?: string } | null>({ _id: 'pl-3' }),
         selectedContentType: signal<string | null>('itv'),
         selectedCategoryId: signal<string | null>(null),
+        itvChannelsCategory: signal<string | null>(null),
         searchPhrase: signal(''),
         itvFullChannelList: signal<StalkerItvChannel[]>([]),
         itvFullListActive: signal(false),
@@ -37,16 +38,11 @@ describe('StalkerLiveAutoOpen', () => {
     };
     const sidebar = { expand: jest.fn() };
     const play = jest.fn();
-    /** Rows on screen for the selected category; a NEW array marks a re-serve. */
-    const rows = signal<StalkerItvChannel[]>([]);
-    const rowsSettled = signal(true);
     const options = () => ({
         store,
         router: { events } as unknown as Router,
         destroyRef: TestBed.inject(DestroyRef),
         sidebar,
-        rows: () => rows(),
-        rowsSettled: () => rowsSettled(),
         play,
     });
 
@@ -67,13 +63,12 @@ describe('StalkerLiveAutoOpen', () => {
         store.currentPlaylist.set({ _id: 'pl-3' });
         store.selectedContentType.set('itv');
         store.selectedCategoryId.set(null);
+        store.itvChannelsCategory.set(null);
         store.searchPhrase.set('');
         store.itvFullChannelList.set([]);
         store.itvFullListActive.set(false);
         store.itvFullListUnsupported.set(false);
         store.preloadItvChannels.mockImplementation(() => Promise.resolve());
-        rows.set([]);
-        rowsSettled.set(true);
         events = new Subject();
         TestBed.configureTestingModule({});
         autoOpen = TestBed.runInInjectionContext(
@@ -82,9 +77,9 @@ describe('StalkerLiveAutoOpen', () => {
         TestBed.tick();
     });
 
-    /** The genre's rows arrive: a fresh array holding the channel. */
-    function serveRows(...channels: StalkerItvChannel[]): void {
-        rows.set([...channels]);
+    /** The store serves the selected genre's channels (a tick later). */
+    function serveCategory(category: string): void {
+        store.itvChannelsCategory.set(category);
         TestBed.tick();
     }
 
@@ -100,14 +95,14 @@ describe('StalkerLiveAutoOpen', () => {
         store.itvFullListActive.set(true);
         store.itvFullChannelList.set([channel('30')]);
         store.selectedCategoryId.set('7');
-        rows.set([channel('30')]);
+        store.itvChannelsCategory.set('7');
 
         const mounted = TestBed.runInInjectionContext(
             () => new StalkerLiveAutoOpen({ ...options(), router: null })
         );
         TestBed.tick();
 
-        // Genre 7 was already the list on screen: no scope change, play now.
+        // Genre 7's channels were already on screen: play at once.
         expect(play).toHaveBeenCalledWith(channel('30'));
         expect(mounted.pendingItemId()).toBeNull();
         expect(window.history.state).toEqual({});
@@ -130,20 +125,21 @@ describe('StalkerLiveAutoOpen', () => {
         expect(sidebar.expand).toHaveBeenCalledWith('portal');
         expect(autoOpen.pendingItemId()).toBeNull();
         expect(window.history.state).toEqual({});
-        // Playback waits for genre 7's rows: `navigation.prepare` would
-        // otherwise capture the previous genre's rows as the channel order.
+        // Playback waits for genre 7's channels: `navigation.prepare` would
+        // otherwise capture the previous scope's rows as the channel order.
         expect(play).not.toHaveBeenCalled();
 
-        serveRows(channel('30', 7), channel('31', 7));
+        serveCategory('7');
 
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
-    it('defers even when the old scope (All Items / search) already shows the channel', () => {
-        // All Items on screen holds the channel, but those rows are not the
-        // genre's list: prepare() would capture the wrong channel order.
+    it('defers while another genre is still on screen, even when it shows the channel', () => {
+        // The All list on screen holds the channel, but those rows are not
+        // genre 7's: prepare() would capture the wrong channel order.
         const allItems = [channel('1', 2), channel('30', 7)];
-        rows.set(allItems);
+        store.selectedCategoryId.set('*');
+        store.itvChannelsCategory.set('*');
         store.itvFullChannelList.set(allItems);
         store.itvFullListActive.set(true);
 
@@ -151,70 +147,48 @@ describe('StalkerLiveAutoOpen', () => {
         expect(store.setSelectedCategory).toHaveBeenCalledWith('7');
         expect(play).not.toHaveBeenCalled();
 
-        serveRows(channel('30', 7));
+        serveCategory('7');
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
-    it('defers when the genre is already selected but a search narrows it', () => {
+    it('plays at once when a search narrows the genre already on screen', () => {
+        // Clearing the search re-derives the rendered rows synchronously,
+        // and the source list is already genre 7's.
         store.selectedCategoryId.set('7');
+        store.itvChannelsCategory.set('7');
         store.searchPhrase.set('news');
-        rows.set([channel('30', 7)]);
         store.itvFullChannelList.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
+
         expect(store.setSearchPhrase).toHaveBeenCalledWith('');
-        expect(play).not.toHaveBeenCalled();
-
-        serveRows(channel('30', 7), channel('31', 7));
         expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
-    it('plays with the first page once a legacy-paged genre settles without the row', () => {
-        const previous = [channel('9', 2)];
-        rows.set(previous);
-        store.itvFullChannelList.set([channel('30', 7)]);
-        store.itvFullListActive.set(true);
-
-        arrive();
-        expect(play).not.toHaveBeenCalled();
-
-        // Rows replaced (page 1 of the genre, row on a later page) and settled.
-        serveRows(channel('40', 7));
-        expect(play).toHaveBeenCalledWith(channel('30', 7));
-    });
-
-    it('keeps waiting on the previous scope rows while nothing has reloaded', () => {
-        rows.set([channel('9', 2), channel('30', 7)]);
+    it('plays once a legacy-paged genre is served, even without the row on page 1', () => {
         store.selectedCategoryId.set('2');
+        store.itvChannelsCategory.set('2');
+        store.itvFullChannelList.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        expect(play).not.toHaveBeenCalled();
+
+        serveCategory('7');
+        expect(play).toHaveBeenCalledWith(channel('30', 7));
+    });
+
+    it('keeps waiting while the previous genre is still the served list', () => {
+        store.selectedCategoryId.set('2');
+        store.itvChannelsCategory.set('2');
         store.itvFullChannelList.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
 
         arrive();
         TestBed.tick();
 
-        // Same array, no load observed: those rows still belong to genre 2.
         expect(play).not.toHaveBeenCalled();
-    });
-
-    it('plays after a load that re-serves the identical array', () => {
-        // '*' serves the full cache by reference: a previously opened All
-        // list comes back as the same array, so identity never changes.
-        const all = [channel('1', 2), { id: '30', cmd: 'x', name: 'No genre' }];
-        rows.set(all);
-        store.selectedCategoryId.set(null);
-        store.itvFullChannelList.set(all);
-        store.itvFullListActive.set(true);
-
-        arrive();
-        expect(play).not.toHaveBeenCalled();
-
-        rowsSettled.set(false);
-        TestBed.tick();
-        rowsSettled.set(true);
-        TestBed.tick();
-
-        expect(play).toHaveBeenCalledWith(all[1]);
     });
 
     it('lets a newer handoff supersede a channel still waiting for its rows', () => {
@@ -226,17 +200,16 @@ describe('StalkerLiveAutoOpen', () => {
             openStalkerLiveItemId: '31',
             openStalkerLivePlaylistId: 'pl-3',
         });
-        serveRows(channel('30', 7), channel('31', 7));
+        serveCategory('7');
 
         expect(play).toHaveBeenCalledTimes(1);
         expect(play).toHaveBeenCalledWith(channel('31', 7));
     });
 
     it('defers the jump from the All Items grid into the All category list', () => {
-        // `null` (All Items grid) and '*' (All category) read different rows,
-        // so even a genre-less channel must wait for the re-served list.
+        // The grid (`selectedCategoryId` null) is not a served category, so
+        // even a genre-less channel waits for the '*' list.
         const noGenre = { id: '30', cmd: 'x', name: 'No genre' };
-        rows.set([noGenre]);
         store.selectedCategoryId.set(null);
         store.itvFullChannelList.set([noGenre]);
         store.itvFullListActive.set(true);
@@ -245,7 +218,7 @@ describe('StalkerLiveAutoOpen', () => {
         expect(store.setSelectedCategory).toHaveBeenCalledWith('*');
         expect(play).not.toHaveBeenCalled();
 
-        serveRows(noGenre);
+        serveCategory('*');
         expect(play).toHaveBeenCalledWith(noGenre);
     });
 
@@ -253,8 +226,8 @@ describe('StalkerLiveAutoOpen', () => {
         // A genre-less channel targets '*', which a fresh portal's reset
         // (selectedCategoryId null) would otherwise look identical to.
         const noGenre = { id: '30', cmd: 'x', name: 'No genre' };
-        rows.set([channel('1', 2)]);
         store.selectedCategoryId.set('2');
+        store.itvChannelsCategory.set('2');
         store.itvFullChannelList.set([noGenre]);
         store.itvFullListActive.set(true);
 
@@ -262,9 +235,9 @@ describe('StalkerLiveAutoOpen', () => {
         expect(play).not.toHaveBeenCalled();
 
         store.currentPlaylist.set({ _id: 'pl-9' });
-        store.selectedCategoryId.set(null);
+        store.selectedCategoryId.set('*');
         TestBed.tick();
-        serveRows(noGenre);
+        serveCategory('*');
 
         expect(play).not.toHaveBeenCalled();
     });
@@ -276,7 +249,7 @@ describe('StalkerLiveAutoOpen', () => {
         arrive();
         store.setSearchPhrase('sport');
         TestBed.tick();
-        serveRows(channel('30', 7));
+        serveCategory('7');
 
         expect(play).not.toHaveBeenCalled();
     });
@@ -288,7 +261,7 @@ describe('StalkerLiveAutoOpen', () => {
         arrive();
         store.setSelectedCategory('2');
         TestBed.tick();
-        serveRows(channel('30', 7));
+        serveCategory('7');
 
         expect(play).not.toHaveBeenCalled();
     });
@@ -371,7 +344,7 @@ describe('StalkerLiveAutoOpen', () => {
         store.itvFullChannelList.set([channel('30', 7)]);
         store.itvFullListActive.set(true);
         TestBed.tick();
-        serveRows(channel('30', 7));
+        serveCategory('7');
         expect(play).toHaveBeenCalledTimes(1);
 
         settle();
@@ -396,7 +369,7 @@ describe('StalkerLiveAutoOpen', () => {
         store.currentPlaylist.set({ _id: 'pl-3' });
         store.itvFullChannelList.set([channel('30', 7)]);
         TestBed.tick();
-        serveRows(channel('30', 7));
+        serveCategory('7');
 
         expect(play).toHaveBeenCalledWith(channel('30', 7));
         expect(store.setSelectedCategory).toHaveBeenCalledWith('7');
@@ -414,7 +387,7 @@ describe('StalkerLiveAutoOpen', () => {
         store.itvFullChannelList.set([byStreamId]);
 
         arrive();
-        serveRows(byStreamId);
+        serveCategory('7');
 
         expect(play).toHaveBeenCalledWith(byStreamId);
     });
@@ -473,7 +446,7 @@ describe('StalkerLiveAutoOpen', () => {
             store.itvFullChannelList.set([noGenre]);
 
             arrive();
-            serveRows(noGenre);
+            serveCategory('*');
 
             expect(store.setSelectedCategory).toHaveBeenCalledWith('*');
             expect(play).toHaveBeenCalledWith(noGenre);

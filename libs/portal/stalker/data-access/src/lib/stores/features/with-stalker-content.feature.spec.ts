@@ -397,6 +397,42 @@ describe('withStalkerContent failure states', () => {
         expect(store.hasMoreChannels()).toBe(false);
     });
 
+    it('reports which category the ITV channels on screen were served for', async () => {
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.resolve({
+                js: {
+                    data: [{ id: 'channel-1', name: 'One', category_id: '5' }],
+                    total_items: 1,
+                },
+            })
+        );
+
+        store.setSelectedContentType('itv');
+        store.setCategories('itv', [
+            { category_id: '5', category_name: 'News' },
+            { category_id: '9', category_name: 'Sports' },
+        ]);
+        store.setCurrentPlaylist(PLAYLIST);
+        expect(store.itvChannelsCategory()).toBeNull();
+
+        store.setSelectedCategory('5');
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.itvChannels().length === 1);
+
+        expect(store.itvChannelsCategory()).toBe('5');
+
+        // Selecting another genre does not retroactively re-label the rows
+        // still on screen: they belong to '5' until the new page arrives.
+        store.setSelectedCategory('9');
+        expect(store.itvChannelsCategory()).toBe('5');
+
+        await waitForCondition(() => store.itvChannelsCategory() === '9');
+
+        // Clearing the list leaves no category on screen.
+        store.setItvChannels([]);
+        expect(store.itvChannelsCategory()).toBeNull();
+    });
+
     it('appends later VOD pages into one continuous deduplicated list', async () => {
         dataService.sendIpcEvent.mockImplementation(
             (_event: unknown, payload: { params?: { p?: number } }) => {

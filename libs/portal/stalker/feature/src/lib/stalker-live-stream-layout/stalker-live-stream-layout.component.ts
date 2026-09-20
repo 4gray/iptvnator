@@ -614,11 +614,6 @@ export class StalkerLiveStreamLayoutComponent
         router: inject(Router, { optional: true }),
         destroyRef: inject(DestroyRef),
         sidebar: this.liveSidebarStateService,
-        rows: () => this.filteredChannels(),
-        rowsSettled: () =>
-            !this.isInitialChannelsLoading() &&
-            !this.isLoadingMore() &&
-            !this.stalkerStore.isPaginatedContentLoading(),
         play: (item) => {
             void this.playChannel(item, true);
         },
