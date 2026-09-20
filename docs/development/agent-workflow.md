@@ -37,7 +37,7 @@ Write generic filenames as prose; commands, templates, globs, URLs, package
 aliases and dotted code symbols are excluded. Bare dotted names with conventional
 file suffixes (such as .md, .json or .ts) are treated as filenames. Use a `./`
 prefix or Markdown link for other ambiguous filenames that resemble code symbols.
-Explicit relative literals denote paths, including spaces and hyphenated words.
+Explicit relative literals denote paths, including spaces, filesystem punctuation and hyphenated words.
 Put executable command examples in fenced code when their syntax also looks like a path.
 Multi-part dotfiles are path candidates too.
 Conventional extensionless filenames such as Dockerfile, Makefile and LICENSE
@@ -73,7 +73,7 @@ removed before matching a declared package, as are straight/curly apostrophe pos
 Markdown destinations decode HTML entities before URI parsing, matching rendered links.
 Heading-anchor lookup is limited to Markdown targets. Source-file line fragments,
 PDF page fragments and other non-Markdown fragments retain file-existence checks.
-The import scan includes visible HTML text and excludes code and non-rendered containers.
+The import scan includes visible HTML text and literal backticks; it excludes parsed code nodes and non-rendered containers.
 Navigation uses the parsed rendered tree too. Temporary in-memory markers retain
 definition, unresolved-reference and literal-path metadata, so Markdown inside
 inert templates is excluded consistently with raw HTML navigation.

@@ -179,13 +179,7 @@ function isLiteralRepositoryPath(token) {
     // Exclude recognizable prose/code forms instead of allowlisting paths.
     if (/^(?:@|--|[a-z][a-z\d+.-]*:|\/\/)/iu.test(token)) return false;
     const explicitRelative = /^(?:\.\/|\.\.\/)/u.test(token);
-    if (
-        (explicitRelative
-            ? /[^\p{L}\p{N}_./# -]/u
-            : /[^\p{L}\p{N}_./#-]/u
-        ).test(token)
-    )
-        return false;
+    if (!explicitRelative && /[^\p{L}\p{N}_./#-]/u.test(token)) return false;
     if (token.includes('YYYY-MM-DD') || /(?:^|\/)\.\.\.(?:\/|$)/u.test(token))
         return false;
     const path = token.split('#')[0];

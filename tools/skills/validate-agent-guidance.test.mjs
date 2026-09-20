@@ -1031,3 +1031,32 @@ test('ordinary unknown handle is not a file import', async (t) => {
         []
     );
 });
+
+for (const wrapper of ['\\`', '&#96;']) {
+    test(`visible literal backticks preserve imports: ${wrapper}`, async (t) => {
+        const result = await diagnostics(t, {
+            'CLAUDE.md':
+                '@AGENTS.md\n\nRead ' + wrapper + '@docs/example.md' + wrapper,
+        });
+        assert.ok(
+            result.some((message) => message.includes('additional or inline'))
+        );
+    });
+}
+for (const filename of [
+    'Guide (old).md',
+    "Author's guide.md",
+    'Guide [draft].md',
+]) {
+    test(`explicit path punctuation is validated: ${filename}`, async (t) => {
+        const guidance = '`./docs/' + filename + '`';
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': guidance,
+                ['docs/' + filename]: '# Guide',
+            }),
+            []
+        );
+        assert.ok((await diagnostics(t, { 'AGENTS.md': guidance })).length > 0);
+    });
+}

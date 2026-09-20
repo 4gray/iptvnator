@@ -167,9 +167,8 @@ export async function validateAgentGuidance({ rootDir }) {
                 diagnostics.push(
                     `${source}: at most ${maxBytes} UTF-8 bytes allowed (received ${bytes})`
                 );
-            const unfenced = guidanceProse(markdown);
+            const prose = guidanceProse(markdown);
             const imports = guidanceStandaloneImports(markdown);
-            const prose = unfenced.replace(/`[^`\n]+`/gu, '');
             const inlineImports = [];
             for (const match of prose.matchAll(
                 /(?:^|[^\p{L}\p{N}_@])@([^\s]+)/gu
