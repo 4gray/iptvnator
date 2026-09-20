@@ -22,15 +22,23 @@ export function escapeLikePattern(term: string): string {
  * be spelled out. Besides lower/upper/title case, a value containing "i"
  * also gets the Turkish forms with the dotted capital İ (U+0130) — "inş"
  * becomes "İNŞ" / "İnş" — because the locale-invariant `toUpperCase()`
- * yields "INŞ", which never matches a title such as "İnşaat" (issue #609).
+ * yields "INŞ", which never matches a title such as "İnşaat" (issue #609),
+ * and conversely the mark-free lower-case form, which `toLowerCase()` alone
+ * does not produce for a value already spelled with "İ".
  * The explicit `'tr'` locale is the point: it is fixed, not the OS locale.
  */
 function getCaseVariants(value: string): string[] {
     const lower = value.toLowerCase();
+    // Lower-casing "İ" leaves "i" + U+0307, so `lower` is not the spelling a
+    // stored lower-case title uses; `folded` is. Without it a query typed as
+    // "İş-TV" carries no pattern that matches a stored "US: iş-tv" — the
+    // token arm is prefix-anchored on the short first token, and the
+    // compound arm would only offer the diacritic-stripped "is-tv".
     const folded = lower.replace(/[\u0300-\u036f]/g, '');
     const variants = new Set<string>([
         value,
         lower,
+        folded,
         value.toUpperCase(),
         value.charAt(0).toUpperCase() + value.slice(1).toLowerCase(),
     ]);

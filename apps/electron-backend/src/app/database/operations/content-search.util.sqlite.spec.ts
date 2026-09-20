@@ -8,10 +8,12 @@
  */
 import Database from 'better-sqlite3';
 import {
+    buildCompoundLikePatterns,
     buildContentTitleFtsMatchQuery,
     buildGlobPrefixPatterns,
     buildLikePatterns,
     buildM3uPayloadTextFieldPatterns,
+    getCompoundSearchWords,
     getSqlSearchTokenGroups,
     isShortSearchTokenGroup,
     scoreSearchTextMatch,
@@ -33,9 +35,10 @@ const TITLES = [
     'Матч ТВ',
     'Ελλάδα Σήμερα',
     'Amélie',
+    'US: iş-tv',
 ];
 
-type Arm = 'fts' | 'glob' | 'like' | 'm3u' | 'score';
+type Arm = 'fts' | 'glob' | 'like' | 'm3u' | 'compound' | 'score';
 
 function likeClauses(
     column: string,
@@ -131,6 +134,22 @@ describe('content-search.util against SQLite', () => {
         );
         out.m3u = titles(`SELECT title FROM p WHERE ${m3u.where}`, m3u.params);
 
+        // The compound arm of the prefix path: a punctuation-joined word is
+        // looked up as an intact substring, because the prefix index only
+        // sees titles starting with the short first token (issue #1161).
+        const compoundWords = getCompoundSearchWords(query);
+        if (compoundWords.length > 0) {
+            const patterns = compoundWords.flatMap((word) =>
+                buildCompoundLikePatterns(word)
+            );
+            out.compound = titles(
+                `SELECT title FROM c WHERE ${patterns
+                    .map(() => `title LIKE ? ESCAPE '\\'`)
+                    .join(' OR ')}`,
+                patterns
+            );
+        }
+
         out.score = TITLES.filter(
             (title) => scoreSearchTextMatch(title, query) !== null
         ).sort();
@@ -176,6 +195,16 @@ describe('content-search.util against SQLite', () => {
             }
         }
     );
+
+    it('reaches a lower-case compound title from the dotted capital İ spelling', () => {
+        // "İş-TV" lower-cases to "i" + U+0307, which is not how the stored
+        // "US: iş-tv" is spelled, and its short first token keeps the token
+        // arm prefix-anchored — so the compound arm has to carry the
+        // mark-free lower-case form.
+        expect(run('İş-TV').compound).toEqual(['US: iş-tv']);
+        expect(run('iş-tv').compound).toEqual(['US: iş-tv']);
+        expect(run('İş-TV')).toEqual(run('iş-tv'));
+    });
 
     it('matches a decomposed query against the precomposed stored title', () => {
         // The query normalizer composes first, so "Ame" + U+0301 + "lie"
