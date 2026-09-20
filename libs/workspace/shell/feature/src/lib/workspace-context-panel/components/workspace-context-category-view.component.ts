@@ -61,7 +61,7 @@ export class WorkspaceContextCategoryViewComponent {
         }
     }
 
-    private readonly hostEl = inject(ElementRef<HTMLElement>);
+    private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
 
     readonly categoryClicked = output<WorkspaceCategoryViewItem>();
 
@@ -74,12 +74,11 @@ export class WorkspaceContextCategoryViewComponent {
 
             queueMicrotask(() => {
                 const container = this.hostEl.nativeElement;
-                const candidates = Array.from(
-                    container.querySelectorAll('[data-category-id]')
-                ) as HTMLElement[];
-                const selected = candidates.find(
-                    (el) =>
-                        el.dataset['categoryId'] === String(selectedCategory)
+                // Follow the rendered selection: Electron selects by SQLite
+                // ID, while data-category-id can contain a provider ID that
+                // coincides with a different row's SQLite ID.
+                const selected = container.querySelector<HTMLElement>(
+                    '.category-item[aria-current="true"]'
                 );
                 if (!selected) {
                     return;

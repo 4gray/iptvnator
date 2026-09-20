@@ -84,6 +84,15 @@ function generatePortalData(username: string, password: string): PortalData {
         };
     }
     let liveCategories = generateCategories('live', categoryCount.live);
+    if (scenario.categoryFixture === 'scroll') {
+        liveCategories = liveCategories.map((category, index) => ({
+            ...category,
+            // Coprime step permutes names independently of provider/SQLite IDs.
+            category_name: `${index % 4 === 0 ? 'Visible' : 'Hidden'} ${String(
+                (index * 137) % categoryCount.live
+            ).padStart(3, '0')}`,
+        }));
+    }
     const vodCategories = generateCategories('vod', categoryCount.vod);
     const seriesCategories = generateCategories('series', categoryCount.series);
     const epgListingsByStreamId = new Map<number, RawEpgListing[]>();

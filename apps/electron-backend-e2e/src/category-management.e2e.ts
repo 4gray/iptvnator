@@ -1,4 +1,6 @@
 import { Locator, Page } from '@playwright/test';
+import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
+import { ok as assert } from 'node:assert';
 import {
     addXtreamPortal,
     closeElectronApp,
@@ -14,8 +16,96 @@ import {
     waitForSourceRowIdle,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import { applyTheme } from './theme-contrast';
 
 test.describe('Electron Xtream Category Management', () => {
+    test('keeps the selected category in view with 800 categories, 600 hidden and A-Z sorting', async ({
+        dataDir,
+        request,
+    }) => {
+        test.slow();
+        await resetMockServers(request, ['xtream']);
+        const app = await launchElectronApp(dataDir);
+        try {
+            await addXtreamPortal(app.mainWindow, {
+                username: 'category-scroll',
+                password: 'category-scroll',
+            });
+            await openWorkspaceSection(app.mainWindow, 'Live TV');
+            await waitForXtreamWorkspaceReady(app.mainWindow);
+            const panel = app.mainWindow.locator('app-workspace-context-panel');
+            const rows = panel.locator('.category-item');
+            await expect(rows).toHaveCount(800);
+            const dialog = await openManageCategoriesDialog(app.mainWindow);
+            await dialog
+                .getByRole('button', { name: 'Deselect All', exact: true })
+                .click();
+            await dialog.locator('input[type="search"]').fill('Visible');
+            await dialog
+                .getByRole('button', { name: 'Select Filtered', exact: true })
+                .click();
+            await expect(dialog.locator('.selection-info')).toHaveText(
+                'Total selected: 200 / 800'
+            );
+            await dialog
+                .getByRole('button', { name: 'Save', exact: true })
+                .click();
+            await expect(dialog).toBeHidden();
+            await expect(rows).toHaveCount(200);
+            await panel
+                .getByRole('button', { name: 'Sort categories', exact: true })
+                .click();
+            await app.mainWindow
+                .getByRole('menuitem', { name: 'Name A-Z' })
+                .click();
+
+            const categories = await app.mainWindow.evaluate(async () => {
+                const playlistId = location.pathname.match(
+                    /\/workspace\/xtreams\/([^/]+)/
+                )?.[1];
+                if (!playlistId)
+                    throw new Error('Xtream playlist route is missing');
+                const api = (
+                    window as unknown as { electron: ElectronBridgeApi }
+                ).electron;
+                return api.dbGetCategories(playlistId, 'live');
+            });
+            categories.sort((left, right) =>
+                left.name.localeCompare(right.name)
+            );
+            await expect(rows.locator('.nav-item-label')).toHaveText(
+                categories.map((category) => category.name)
+            );
+
+            // Exercise collisions above and below the clicked row. Reading the
+            // imported IDs avoids relying on SQLite allocation/import order.
+            for (const [theme, direction] of [
+                ['dark', -1],
+                ['light', 1],
+            ] as const) {
+                await applyTheme(app.mainWindow, theme);
+                const category = categories.find((candidate, index) => {
+                    const wrongIndex = categories.findIndex(
+                        (other) => other.xtream_id === candidate.id
+                    );
+                    return (
+                        wrongIndex >= 0 && (wrongIndex - index) * direction > 15
+                    );
+                });
+                assert(
+                    category,
+                    `Missing fixture collision in direction ${direction}`
+                );
+                const row = rows.filter({ hasText: category.name });
+                await row.click();
+                await expect(row).toHaveAttribute('aria-current', 'true');
+                await expectCategoryCentered(row);
+            }
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     for (const section of ['Live TV', 'Movies', 'Series']) {
         test(`bulk edits only filtered ${section} categories and saves or discards the draft`, async ({
             dataDir,
@@ -405,6 +495,44 @@ async function openManageCategoriesDialog(page: Page) {
         timeout: 15000,
     });
     return dialog;
+}
+
+/** Wait for the real smooth scroll to finish with the selected row centered. */
+async function expectCategoryCentered(row: Locator): Promise<void> {
+    let previousTop = -1;
+    let stableSamples = 0;
+    await expect
+        .poll(
+            async () => {
+                const position = await row.evaluate((element) => {
+                    const container = element.closest(
+                        'app-workspace-context-category-view'
+                    ) as HTMLElement;
+                    const bounds = container.getBoundingClientRect();
+                    const rowBounds = element.getBoundingClientRect();
+                    const target =
+                        container.scrollTop +
+                        rowBounds.top -
+                        bounds.top -
+                        container.clientHeight / 2 +
+                        rowBounds.height / 2;
+                    const clamped = Math.min(
+                        container.scrollHeight - container.clientHeight,
+                        Math.max(0, target)
+                    );
+                    return {
+                        top: container.scrollTop,
+                        centered: Math.abs(container.scrollTop - clamped) < 2,
+                    };
+                });
+                stableSamples =
+                    position.top === previousTop ? stableSamples + 1 : 0;
+                previousTop = position.top;
+                return position.centered && stableSamples >= 3;
+            },
+            { intervals: [100] }
+        )
+        .toBe(true);
 }
 
 async function refreshFromWorkspaceHeader(page: Page): Promise<void> {
