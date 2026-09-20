@@ -100,6 +100,28 @@ describe('getLiveCollectionPlaylistNavigation', () => {
                 categoryId: 'itv',
             })?.state
         ).not.toHaveProperty('openStalkerLiveCategoryId');
+        // A stored row's own `category_id` is a genre when it is not the
+        // section marker.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: 'itv',
+                stalkerItem: { id: 30, category_id: '8' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('8');
+        // ...and the row's section marker does not shadow the collection
+        // row's own genre.
+        expect(
+            getLiveCollectionPlaylistNavigation({
+                sourceType: 'stalker',
+                playlistId: 'pl-3',
+                stalkerId: '30',
+                categoryId: '4',
+                stalkerItem: { id: 30, category_id: 'itv' },
+            })?.state?.['openStalkerLiveCategoryId']
+        ).toBe('4');
         // Genre ids are opaque portal strings, not necessarily numeric.
         expect(
             getLiveCollectionPlaylistNavigation({
