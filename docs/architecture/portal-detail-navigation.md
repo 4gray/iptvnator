@@ -200,7 +200,14 @@ with a return handler keep Back available.
   source moving. Clearing the search IS synchronous, so a genre already on
   screen plays at once. A pending play is dropped when a newer handoff
   arrives, when the user switches portal, genre or section or starts a
-  search, and when the layout is destroyed. Stalker radio stations resolve to `null`: they live in the separate
+  search, and when the layout is destroyed. Two things settle before any of
+  that: `StalkerWorkspaceRouteSession.isReady` (its sync resets the selected
+  category and item for the arrival, and the store keeps the previous
+  portal's playlist and cache across a revisit, so the playlist check alone
+  passes too early and the selection would be wiped a tick later), and the
+  user — the handoff is abandoned when the genre or search changes away from
+  what it captured once it became actionable, which is measured after the
+  session's own resets so they never read as a user action. Stalker radio stations resolve to `null`: they live in the separate
   `radio` section, whose station list is legacy-paged with no
   open-on-arrival contract, so the action stays hidden for them.
   Two surfaces render the one verdict: `app-open-in-playlist-chip`

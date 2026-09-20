@@ -28,6 +28,16 @@ export class StalkerWorkspaceRouteSession {
 
     private currentPlaylistId: string | null = null;
     private readonly currentSection = signal<PortalRailSection | null>(null);
+    private readonly synced = signal(false);
+    /**
+     * False while this session is applying the route to the store. Its sync
+     * resets the selected category and item (and, on a section change, the
+     * search) before awaiting the playlist, and the store keeps the previous
+     * portal's playlist and cache across a revisit — so anything that acts on
+     * store state for an arrival (the live auto-open handoff) must wait, or
+     * its selection is wiped a tick later.
+     */
+    readonly isReady = this.synced.asReadonly();
 
     constructor() {
         this.router.events
@@ -39,6 +49,11 @@ export class StalkerWorkspaceRouteSession {
                 takeUntilDestroyed(this.destroyRef)
             )
             .subscribe(() => {
+                // Synchronous, and before the async sync: this session's
+                // subscription is registered from an ENVIRONMENT_INITIALIZER
+                // when the route injector is created, so it runs ahead of the
+                // components that read `isReady`.
+                this.synced.set(false);
                 void this.syncRouteContext();
             });
 
@@ -70,6 +85,7 @@ export class StalkerWorkspaceRouteSession {
         }
 
         this.syncRouteState(routeContext.section);
+        this.synced.set(true);
     }
 
     private syncRouteState(section: PortalRailSection | null): void {

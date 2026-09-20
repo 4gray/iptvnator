@@ -140,6 +140,7 @@ function matchesStalkerChannelTerm(
 
 import { StalkerLiveNavigation } from './stalker-live-navigation';
 import { StalkerLiveAutoOpen } from './stalker-live-auto-open';
+import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session.service';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -189,6 +190,9 @@ export class StalkerLiveStreamLayoutComponent
     private readonly streamHeaders = inject(ElectronStreamHeadersService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
+    private readonly routeSession = inject(StalkerWorkspaceRouteSession, {
+        optional: true,
+    });
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
@@ -614,6 +618,7 @@ export class StalkerLiveStreamLayoutComponent
         router: inject(Router, { optional: true }),
         destroyRef: inject(DestroyRef),
         sidebar: this.liveSidebarStateService,
+        routeReady: () => this.routeSession?.isReady() ?? true,
         play: (item) => {
             void this.playChannel(item, true);
         },

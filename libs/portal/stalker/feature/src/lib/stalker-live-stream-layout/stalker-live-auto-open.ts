@@ -44,6 +44,12 @@ export interface StalkerLiveAutoOpenOptions {
     router: Router | null;
     destroyRef: DestroyRef;
     sidebar?: { expand(surface: 'portal'): void };
+    /**
+     * False while the route session is still applying the route to the store
+     * (`StalkerWorkspaceRouteSession.isReady`). Defaults to ready when no
+     * session is provided.
+     */
+    routeReady?: () => boolean;
     play: (item: StalkerItvChannel) => void;
 }
 
@@ -93,6 +99,14 @@ interface DeferredPlay {
  * the search IS synchronous, so a genre already on screen plays at once. A
  * newer handoff, a portal/section/genre switch or a fresh search drops a
  * pending play.
+ *
+ * Two things must settle before any of that: the route session, which resets
+ * the selected category and item on arrival and would wipe a selection made
+ * ahead of it (the store keeps the previous portal's playlist and cache
+ * across a revisit, so the playlist check alone passes too early), and the
+ * user, who may pick another genre or start searching while the full list
+ * loads — measured against the list state captured once the handoff became
+ * actionable, so the session's own resets never read as a user action.
  */
 export class StalkerLiveAutoOpen {
     readonly pendingItemId = signal<string | null>(null);
@@ -101,6 +115,11 @@ export class StalkerLiveAutoOpen {
     private readonly deferredPlay = signal<DeferredPlay | null>(null);
     /** Bumped whenever the pending item changes, to retire a stale preload. */
     private generation = 0;
+    /** The list state when the handoff became actionable (see the class). */
+    private pendingBaseline: {
+        category: string | null;
+        search: string;
+    } | null = null;
 
     constructor(private readonly options: StalkerLiveAutoOpenOptions) {
         this.captureFromHistoryState();
@@ -154,6 +173,7 @@ export class StalkerLiveAutoOpen {
 
     clearPendingItem(): void {
         this.generation += 1;
+        this.pendingBaseline = null;
         this.pendingItemId.set(null);
         this.pendingPlaylistId.set(null);
         this.pendingCategoryId.set(null);
@@ -192,6 +212,12 @@ export class StalkerLiveAutoOpen {
             return;
         }
 
+        // The route session resets the selected category and item for this
+        // arrival; settling first would be undone a tick later.
+        if (!(this.options.routeReady?.() ?? true)) {
+            return;
+        }
+
         const playlist = store.currentPlaylist();
         const pendingPlaylistId = this.pendingPlaylistId();
         if (
@@ -199,6 +225,27 @@ export class StalkerLiveAutoOpen {
             (pendingPlaylistId &&
                 normalizeStalkerEntityId(playlist._id) !== pendingPlaylistId)
         ) {
+            return;
+        }
+
+        // The user owns the list once the handoff is actionable: picking
+        // another genre or starting a search means they moved on, and the
+        // channel must not hijack the view when the full list finally lands.
+        const listState = {
+            category: store.selectedCategoryId() ?? null,
+            search: store.searchPhrase().trim(),
+        };
+        const baseline = this.pendingBaseline;
+        if (!baseline) {
+            this.pendingBaseline = listState;
+        } else if (
+            baseline.category !== listState.category ||
+            baseline.search !== listState.search
+        ) {
+            untracked(() => {
+                this.clearPendingItem();
+                this.clearHistoryState();
+            });
             return;
         }
 

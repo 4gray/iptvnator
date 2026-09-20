@@ -38,11 +38,13 @@ describe('StalkerLiveAutoOpen', () => {
     };
     const sidebar = { expand: jest.fn() };
     const play = jest.fn();
+    const routeReady = signal(true);
     const options = () => ({
         store,
         router: { events } as unknown as Router,
         destroyRef: TestBed.inject(DestroyRef),
         sidebar,
+        routeReady: () => routeReady(),
         play,
     });
 
@@ -69,6 +71,7 @@ describe('StalkerLiveAutoOpen', () => {
         store.itvFullListActive.set(false);
         store.itvFullListUnsupported.set(false);
         store.preloadItvChannels.mockImplementation(() => Promise.resolve());
+        routeReady.set(true);
         events = new Subject();
         TestBed.configureTestingModule({});
         autoOpen = TestBed.runInInjectionContext(
@@ -390,6 +393,86 @@ describe('StalkerLiveAutoOpen', () => {
         serveCategory('7');
 
         expect(play).toHaveBeenCalledWith(byStreamId);
+    });
+
+    it('waits for the route session before touching the store', () => {
+        // Revisiting a portal keeps its playlist and cache, so the playlist
+        // check passes at once — but the session's own reset would wipe the
+        // selection a tick later.
+        routeReady.set(false);
+        store.itvFullListActive.set(true);
+        store.itvFullChannelList.set([channel('30', 7)]);
+
+        arrive();
+
+        expect(store.setSelectedCategory).not.toHaveBeenCalled();
+        expect(store.preloadItvChannels).not.toHaveBeenCalled();
+        expect(play).not.toHaveBeenCalled();
+        expect(autoOpen.pendingItemId()).toBe('30');
+
+        routeReady.set(true);
+        TestBed.tick();
+        serveCategory('7');
+
+        expect(store.setSelectedCategory).toHaveBeenCalledWith('7');
+        expect(play).toHaveBeenCalledWith(channel('30', 7));
+    });
+
+    it('drops the handoff when the user picks another genre while the list loads', () => {
+        let settle!: () => void;
+        store.preloadItvChannels.mockImplementation(
+            () => new Promise<void>((resolve) => (settle = resolve))
+        );
+
+        arrive();
+        expect(autoOpen.pendingItemId()).toBe('30');
+
+        // The user moved on before the full list arrived.
+        store.selectedCategoryId.set('2');
+        TestBed.tick();
+
+        expect(autoOpen.pendingItemId()).toBeNull();
+        expect(window.history.state).toEqual({});
+
+        settle();
+        store.itvFullChannelList.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+        TestBed.tick();
+
+        expect(play).not.toHaveBeenCalled();
+        expect(store.setSelectedCategory).not.toHaveBeenCalledWith('7');
+    });
+
+    it('drops the handoff when the user starts searching while the list loads', () => {
+        store.preloadItvChannels.mockImplementation(
+            () => new Promise(() => undefined)
+        );
+
+        arrive();
+        expect(autoOpen.pendingItemId()).toBe('30');
+
+        store.searchPhrase.set('sport');
+        TestBed.tick();
+
+        expect(autoOpen.pendingItemId()).toBeNull();
+        expect(window.history.state).toEqual({});
+    });
+
+    it("does not read the route session's own reset as the user moving on", () => {
+        // The session clears the category for the arrival; that is not a
+        // user action and must not drop the handoff.
+        routeReady.set(false);
+        store.selectedCategoryId.set('4');
+        store.itvFullChannelList.set([channel('30', 7)]);
+        store.itvFullListActive.set(true);
+
+        arrive();
+        store.selectedCategoryId.set(null);
+        routeReady.set(true);
+        TestBed.tick();
+        serveCategory('7');
+
+        expect(play).toHaveBeenCalledWith(channel('30', 7));
     });
 
     it('does nothing outside the ITV section', () => {
