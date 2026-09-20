@@ -114,7 +114,9 @@ async function packageMentions(rootDir) {
         .map((name) => name.slice(1));
     const scopes = new Set(declared.map((name) => name.split('/')[0]));
     return (raw) => {
-        let token = raw.replace(/[?!.,;:)"'\]}]+$/u, '');
+        // ASCII punctuation also belongs to package names and version ranges.
+        let token = raw.split(/(?=[^\x00-\x7f])\p{P}/u, 1)[0];
+        token = token.replace(/[?!.,;:)"'\]}]+$/u, '');
         token = token.replace(/['’]s$/iu, '');
         token = token.replace(
             /^([^/@]+(?:\/[^/@]+)?)@(?:(?:[~^]|[<>]=?|=)?\d[\w.+-]*|[a-z][\w-]*)$/iu,

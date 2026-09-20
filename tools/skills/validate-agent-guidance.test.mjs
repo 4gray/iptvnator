@@ -1109,3 +1109,17 @@ for (const ending of ['\n', '\r\n', '\r']) {
         });
     }
 }
+
+for (const punctuation of ['—its', '–its', '…', '，next', '。next', '”']) {
+    test(`package mention stops at Unicode punctuation: ${punctuation}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+                'AGENTS.md': 'Use @angular/core' + punctuation + ' APIs',
+            }),
+            []
+        );
+    });
+}
