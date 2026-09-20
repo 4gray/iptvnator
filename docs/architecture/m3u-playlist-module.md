@@ -1827,7 +1827,7 @@ and playback positions; no deletion happens on merely opening the dialog.
 Electron only: a `.m3u`/`.m3u8` path passed
 on the command line, opened through a file association, or delivered by macOS'
 `open-file` event is normalized to an absolute path in the main process
-(`services/playlist-open-request.ts`) and queued there. The renderer
+(`apps/electron-backend/src/app/services/playlist-open-request.ts`) and queued there. The renderer
 (`apps/web/src/app/services/playlist-open-request.service.ts`) subscribes to the
 `OPEN_FILE` push **before** calling `announcePlaylistOpenListener`, which is
 what makes the main process flush. `OPEN_FILE` is the only way out of the

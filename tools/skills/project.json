@@ -8,7 +8,13 @@
         "test": {
             "executor": "nx:run-commands",
             "cache": true,
-            "inputs": ["{projectRoot}/*.mjs", "{projectRoot}/project.json"],
+            "inputs": [
+                "{projectRoot}/*.mjs",
+                "{projectRoot}/project.json",
+                {
+                    "externalDependencies": ["marked"]
+                }
+            ],
             "options": {
                 "command": "node --test tools/skills/validate-repository-skills.test.mjs tools/skills/validate-agent-guidance.test.mjs",
                 "cwd": "{workspaceRoot}"
@@ -21,7 +27,8 @@
                     "node --check tools/skills/validate-repository-skills.mjs",
                     "node --check tools/skills/validate-repository-skills.test.mjs",
                     "node --check tools/skills/validate-agent-guidance.mjs",
-                    "node --check tools/skills/validate-agent-guidance.test.mjs"
+                    "node --check tools/skills/validate-agent-guidance.test.mjs",
+                    "node --check tools/skills/agent-guidance-markdown.mjs"
                 ],
                 "cwd": "{workspaceRoot}"
             },

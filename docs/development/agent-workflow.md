@@ -29,6 +29,10 @@ Later normal edits maintain the canonical docs, not duplicate historical prose.
 
 Run `pnpm run agents:validate` after guidance changes. It checks line/byte budgets,
 root imports and local navigation links/anchors, including migration destinations.
+Markdown navigation is parsed with the already-declared `marked` dependency;
+undefined explicit reference links are errors, and code examples are excluded.
+Heading anchors are derived from parsed text, not HTML sanitization. The Nx test
+hash includes `marked` so dependency changes invalidate parser coverage.
 It cannot prove semantic equivalence; review changed contracts as well.
 
 ## Protected Markdown edits

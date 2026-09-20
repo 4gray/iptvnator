@@ -1,6 +1,10 @@
 import { readFile, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+    guidanceAnchors as anchors,
+    guidanceReferences as references,
+} from './agent-guidance-markdown.mjs';
 
 const SURFACES = [
     'AGENTS.md',
@@ -38,67 +42,13 @@ function withoutFences(markdown) {
         .join('\n');
 }
 
-function anchors(markdown) {
-    const found = new Set();
-    for (const match of withoutFences(markdown).matchAll(
-        /^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/gmu
-    )) {
-        const slug = match[1]
-            .replace(/\[([^\]]+)\]\([^)]*\)/gu, '$1')
-            .replace(/<[^>]*>/gu, '')
-            .toLowerCase()
-            .replace(/[^\p{L}\p{M}\p{N}_\-\s]/gu, '')
-            .replace(/\s/gu, '-');
-        let unique = slug;
-        let suffix = 0;
-        while (found.has(unique)) unique = `${slug}-${++suffix}`;
-        found.add(unique);
-    }
-    for (const match of markdown.matchAll(
-        /<(?:a|[a-z][\w-]*)\b[^>]*\b(?:id|name)=["']([^"']+)["']/giu
-    )) {
-        found.add(match[1]);
-    }
-    return found;
-}
-
-function references(markdown, includeLiterals) {
-    const text = withoutFences(markdown);
-    const result = [];
-    // Inline destinations may use angle brackets or an optional quoted title.
-    const prose = text.replace(/`[^`\n]+`/gu, '');
-    for (const match of prose.matchAll(
-        /\[[^\]\n]*\]\(\s*(?:<([^>]+)>|([^\s)]+))(?:\s+["'][^\n]*?["'])?\s*\)/gu
-    )) {
-        result.push({ target: match[1] ?? match[2], literal: false });
-    }
-    for (const match of prose.matchAll(
-        /^\s{0,3}\[[^\]]+\]:\s*(?:<([^>]+)>|(\S+))/gmu
-    )) {
-        result.push({ target: match[1] ?? match[2], literal: false });
-    }
-    if (includeLiterals) {
-        for (const match of text.matchAll(/`([^`\r\n]+)`/gu)) {
-            const token = match[1];
-            const local =
-                /^(?:apps|libs|docs|tools|patches|\.codex|\.claude|\.github|\.changes|\.plans)\//u.test(
-                    token
-                ) ||
-                /^(?:AGENTS\.md|CLAUDE\.md|README\.md|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|nx\.json|tsconfig\.base\.json|eslint\.config\.mjs|\.nvmrc)$/u.test(
-                    token
-                );
-            if (
-                local &&
-                !/[\s*?[\]{}<>|]/u.test(token) &&
-                !token.includes('YYYY-MM-DD')
-            )
-                result.push({ target: token, literal: true });
-        }
-    }
-    return result;
-}
-
-async function validateReference(rootDir, source, { target, literal }) {
+async function validateReference(
+    rootDir,
+    source,
+    { target, literal, unresolvedReference }
+) {
+    if (unresolvedReference !== undefined)
+        return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
     if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(target)) return;
     let decoded;
     try {

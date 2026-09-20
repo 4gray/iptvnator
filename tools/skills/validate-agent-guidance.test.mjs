@@ -181,3 +181,132 @@ test('requires all four guidance surfaces', async (t) => {
         /agent-context-map.md.*missing/
     );
 });
+
+test('balanced parentheses and formatted labels retain complete destinations', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '[Read **[the guide]**](docs/example(1).md#hello-world)\n',
+            'docs/example(1).md': '# Hello, `World`!\n',
+        }),
+        []
+    );
+    const errors = await diagnostics(t, {
+        'AGENTS.md': '[Read **[the guide]**](docs/missing(1).md)\n',
+    });
+    assert.match(errors.join('\n'), /does not exist: docs\/missing\(1\)\.md/);
+});
+
+test('angle and escaped Markdown destinations resolve literal filenames', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '[Angle](<docs/guide (one).md>)\n[Escaped](docs/example\\(1\\).md)\n',
+            'docs/guide (one).md': '# Guide\n',
+            'docs/example(1).md': '# Example\n',
+        }),
+        []
+    );
+});
+
+test('reference definitions resolve full, collapsed and shortcut links', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '[Read **guide**][GUIDE]\n[Guide][]\n[Guide]\n\n[guide]: <docs/example(1).md#hello-world> "Title"\n',
+            'docs/example(1).md': '# Hello, `World`!\n',
+        }),
+        []
+    );
+    const errors = await diagnostics(t, {
+        'AGENTS.md': '[Read guide][guide]\n\n[guide]: docs/missing(1).md\n',
+    });
+    assert.match(errors.join('\n'), /does not exist: docs\/missing\(1\)\.md/);
+});
+
+for (const reference of [
+    '[Guide][missing]',
+    '[Guide][]',
+    '[**Guide**][missing]',
+    '[Guide `code`][missing]',
+    '![Guide][missing]',
+]) {
+    test(`diagnoses unresolved explicit reference ${reference}`, async (t) => {
+        assert.match(
+            (await diagnostics(t, { 'AGENTS.md': reference + '\n' })).join(
+                '\n'
+            ),
+            /unresolved.*reference/i
+        );
+    });
+}
+
+test('lexer visits navigation inside tables, lists, and blockquotes', async (t) => {
+    const errors = await diagnostics(t, {
+        'AGENTS.md':
+            '| Guide |\n| --- |\n| [Table](docs/table(1).md) |\n\n- [List](docs/list(1).md)\n\n> [Quote][missing]\n',
+    });
+    assert.equal(errors.length, 3);
+    assert.match(errors.join('\n'), /docs\/table\(1\)\.md/);
+    assert.match(errors.join('\n'), /docs\/list\(1\)\.md/);
+    assert.match(errors.join('\n'), /unresolved.*reference/i);
+});
+
+test('fenced, indented, inline and escaped examples are not navigation', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md': [
+                '```md',
+                '[Code](missing.md)',
+                '[Code][missing]',
+                '```',
+                '',
+                '    [Indented](missing.md)',
+                '    [Indented][]',
+                '',
+                '`[Inline](missing.md)` and ``[Code `label`][missing]``.',
+                '\\[Escaped][missing]',
+            ].join('\n'),
+        }),
+        []
+    );
+});
+
+test('heading anchors use nested token text, link labels and code spans', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '[Heading](docs/example.md#a-bold-emphasis-label-code-hi)\n[Duplicate](docs/example.md#a-bold-emphasis-label-code-hi-1)',
+            'docs/example.md':
+                '# A **bold *emphasis*** [Label `code`](one(two).md) <em>Hi</em>\n\n# A **bold *emphasis*** [Label `code`](one(two).md) <em>Hi</em>\n',
+        }),
+        []
+    );
+});
+
+test('HTML heading tokens are ignored without rendering or tag stripping', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '[HTML](docs/example.md#safe-heading)\n[Nested](docs/example.md#unsafe-scriptalert1script)',
+            'docs/example.md':
+                '# Safe <span title="a > b">Heading</span>\n\n# Unsafe <scr<script>ipt>alert(1)</scr</script>ipt>\n',
+        }),
+        []
+    );
+});
+
+test('explicit HTML anchors work but anchors in code examples do not', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md': '[Anchor](docs/example.md#explicit)',
+            'docs/example.md': '<a id="explicit"></a>\n',
+        }),
+        []
+    );
+    const errors = await diagnostics(t, {
+        'AGENTS.md': '[Fake](docs/example.md#fake)',
+        'docs/example.md': '```html\n<a id="fake"></a>\n```\n',
+    });
+    assert.match(errors.join('\n'), /missing anchor/);
+});
