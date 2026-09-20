@@ -233,6 +233,7 @@
         "node-gyp": "12.4.0",
         "nx": "23.2.1",
         "nx-electron": "22.0.0",
+        "parse-srcset": "1.0.2",
         "parse5": "8.0.1",
         "prettier": "^3.9.6",
         "sharp": "0.35.4",

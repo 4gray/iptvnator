@@ -12,7 +12,12 @@
                 "{projectRoot}/*.mjs",
                 "{projectRoot}/project.json",
                 {
-                    "externalDependencies": ["marked", "parse5", "github-slugger"]
+                    "externalDependencies": [
+                        "marked",
+                        "parse5",
+                        "github-slugger",
+                        "parse-srcset"
+                    ]
                 }
             ],
             "options": {

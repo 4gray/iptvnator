@@ -1,3 +1,4 @@
+import parseSrcset from 'parse-srcset';
 import GithubSlugger from 'github-slugger';
 import { Marked, Tokenizer } from 'marked';
 import { parseFragment } from 'parse5';
@@ -69,6 +70,12 @@ function htmlNavigation(html) {
                     target: attribute.value,
                     image: node.tagName === 'img',
                 });
+            if (
+                ['img', 'source'].includes(node.tagName) &&
+                attribute.name === 'srcset'
+            )
+                for (const candidate of parseSrcset(attribute.value))
+                    references.push({ target: candidate.url, image: true });
         }
         for (const child of node.childNodes ?? []) visit(child);
     }
@@ -77,13 +84,32 @@ function htmlNavigation(html) {
 }
 
 export function guidanceProse(markdown) {
-    function prose(token) {
-        if (['code', 'codespan', 'html'].includes(token.type)) return '';
-        if (token.items) return token.items.map(prose).join('\n');
-        if (token.tokens) return token.tokens.map(prose).join('');
-        return token.text ?? '';
+    function text(node) {
+        if (
+            ['script', 'style', 'template', 'pre', 'code'].includes(
+                node.tagName
+            )
+        )
+            return ' ';
+        if (node.nodeName === '#text') return node.value;
+        const content = (node.childNodes ?? []).map(text).join('');
+        return [
+            'p',
+            'li',
+            'blockquote',
+            'div',
+            'br',
+            'h1',
+            'h2',
+            'h3',
+            'h4',
+            'h5',
+            'h6',
+        ].includes(node.tagName)
+            ? content + '\n'
+            : content;
     }
-    return markdownLexer.lexer(markdown).map(prose).join('\n');
+    return text(parseFragment(new Marked().parse(markdown)));
 }
 
 export function guidanceStandaloneImports(markdown) {
@@ -164,7 +190,7 @@ export function guidanceReferences(markdown, includeLiterals) {
     const usedTargets = new Set();
     function add(target, literal = false, image = false) {
         const key = `${literal}:${image}:${target}`;
-        usedTargets.add(target);
+        if (!literal) usedTargets.add(target);
         if (!destinations.has(key)) {
             destinations.add(key);
             result.push({ target, literal, image });

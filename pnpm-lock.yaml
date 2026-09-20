@@ -458,6 +458,9 @@ importers:
       nx-electron:
         specifier: 22.0.0
         version: 22.0.0(patch_hash=4d5ac9c5b10268dcc40998d7a2b166d004105ae7875fa182130d6810871a1e84)(@nx/devkit@23.2.1(nx@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23))))(@nx/workspace@23.2.1(@swc-node/register@1.12.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(@swc/core@1.16.1(@swc/helpers@0.5.23))(@swc/types@0.1.28)(typescript@6.0.3))(@swc/core@1.16.1(@swc/helpers@0.5.23)))(@swc/core@1.16.1(@swc/helpers@0.5.23))(electron-builder-squirrel-windows@26.15.7)(electron@43.3.0)(esbuild@0.28.2)(rxjs@7.8.2)(typescript@6.0.3)
+      parse-srcset:
+        specifier: 1.0.2
+        version: 1.0.2
       parse5:
         specifier: 8.0.1
         version: 8.0.1
@@ -8029,6 +8032,9 @@ packages:
   parse-node-version@1.0.1:
     resolution: {integrity: sha512-3YHlOa/JgH6Mnpr05jP9eDG254US9ek25LyIxZlDItp2iJtwyaXQb57lBYLdT3MowkUFYEV2XXNAYIPlESvJlA==}
     engines: {node: '>= 0.10'}
+
+  parse-srcset@1.0.2:
+    resolution: {integrity: sha512-/2qh0lav6CmI15FzA3i/2Bzk2zCgQhGMkvhOhKNcBVQ1ldgpbfiNTVslmooUmWJcADi1f1kIeynbDRVzNlfR6Q==}
 
   parse5-html-rewriting-stream@8.0.1:
     resolution: {integrity: sha512-NaRku2aMpUN1Sh1Gyk1KWUh2A7EJx2c6qYzvwsPtqhoHoaURshdrceYK3LunVCm3WHhm6FS7Vcczbvdh3/UIVw==}
@@ -18620,6 +18626,8 @@ snapshots:
 
   parse-node-version@1.0.1:
     optional: true
+
+  parse-srcset@1.0.2: {}
 
   parse5-html-rewriting-stream@8.0.1:
     dependencies:

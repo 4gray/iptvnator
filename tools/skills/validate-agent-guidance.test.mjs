@@ -638,3 +638,69 @@ test('sharing an image reference does not suppress document anchor checks', asyn
         /missing anchor/
     );
 });
+
+test('root literals cannot suppress source-relative definitions', async (t) => {
+    assert.match(
+        (
+            await diagnostics(t, {
+                [map]: '`README.md`\n\n[unused]: README.md',
+                'README.md': '# Root',
+            })
+        ).join('\n'),
+        /does not exist: README.md/
+    );
+});
+test('visible HTML text cannot hide inline imports', async (t) => {
+    assert.match(
+        (
+            await diagnostics(t, {
+                'CLAUDE.md': '@AGENTS.md\n\n<p>Read @docs/example.md</p>',
+            })
+        ).join('\n'),
+        /imports are not allowed/
+    );
+});
+for (const html of [
+    '<picture><source srcset="docs/dark.png"><img src="docs/light.png"></picture>',
+    '<img src="docs/light.png" srcset="docs/light.png 1x, docs/dark.png 2x">',
+]) {
+    test(`validates every srcset asset: ${html}`, async (t) => {
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': html,
+                    'docs/light.png': '',
+                })
+            ).join('\n'),
+            /does not exist: docs\/dark.png/
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': html,
+                'docs/light.png': '',
+                'docs/dark.png': '',
+            }),
+            []
+        );
+    });
+}
+
+test('srcset data URLs do not become local filenames', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '<img srcset="data:image/png;base64,AAAA 1x, docs/image.png 2x">',
+            'docs/image.png': '',
+        }),
+        []
+    );
+});
+test('non-rendered HTML text and code do not introduce imports', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'CLAUDE.md':
+                '@AGENTS.md\n\n<!-- @docs/missing.md -->\n<script>@docs/missing.md</script>\n<style>@docs/missing.md</style>\n<template>@docs/missing.md</template>\n<code>@docs/missing.md</code>',
+        }),
+        []
+    );
+});
