@@ -227,9 +227,10 @@ export class StalkerLiveAutoOpen {
         }
 
         // Either provider id can be the one that was persisted: a favorite
-        // stores `stream_id ?? id` (`with-stalker-favorites.feature.ts`)
-        // while a cached channel keeps `id ?? stream_id`, so a row carrying
-        // two different non-blank ids is reachable only by accepting both.
+        // prefers `stream_id` (`with-stalker-favorites.feature.ts`) while a
+        // cached channel prefers `id`, both skipping blanks, so a row
+        // carrying two different non-blank ids is reachable only by
+        // accepting both.
         // The handoff carries a bare value, so it cannot say WHICH field it
         // came from: when one channel claims it as its id and another as its
         // stream id, the identity is ambiguous and neither is played —

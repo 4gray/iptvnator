@@ -5,6 +5,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistsService } from '@iptvnator/services';
 import { PlaylistMeta, StalkerPortalItem } from '@iptvnator/shared/interfaces';
+import { firstNonBlankStalkerId } from '../../stalker-vod.utils';
 import { StalkerSelectionStoreContract } from '../stalker-store.contracts';
 import {
     dispatchStalkerPlaylistMetaUpdate,
@@ -26,21 +27,6 @@ type FavoritePayload = StalkerPortalItem & {
 /**
  * Favorites concern methods.
  */
-/** The first id that is actually set; a blank one is as absent as a missing one. */
-function firstNonBlankStalkerId(
-    ...values: (string | number | undefined)[]
-): string | number | undefined {
-    for (const value of values) {
-        if (typeof value === 'number') {
-            return value;
-        }
-        if (String(value ?? '').trim()) {
-            return value;
-        }
-    }
-    return undefined;
-}
-
 export function withStalkerFavorites() {
     return signalStoreFeature(
         withMethods(

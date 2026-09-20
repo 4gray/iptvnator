@@ -2,6 +2,8 @@ import { VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { StalkerFavoriteItem } from './models';
 import {
     buildStalkerFavoritePayload,
+    firstNonBlankStalkerId,
+    firstNonBlankStalkerIdText,
     buildStalkerSelectedVodItem,
     createStalkerInfo,
     createStalkerInlineDetailState,
@@ -335,5 +337,30 @@ describe('stalker-vod.utils regressions', () => {
             expect(selected.use_http_tmp_link).toBeUndefined();
             expect(selected.use_load_balancing).toBeUndefined();
         });
+    });
+});
+
+describe('firstNonBlankStalkerId', () => {
+    it('skips a blank candidate instead of treating it as set', () => {
+        expect(firstNonBlankStalkerId('', '  ', '77')).toBe('77');
+        expect(firstNonBlankStalkerId(null, undefined, 42)).toBe(42);
+    });
+
+    it('keeps a numeric id as a number so round-trips do not stringify it', () => {
+        expect(firstNonBlankStalkerId(12, '99')).toBe(12);
+    });
+
+    it('accepts zero, which is a set id and not a blank one', () => {
+        expect(firstNonBlankStalkerId(0, '99')).toBe(0);
+    });
+
+    it('skips a non-finite number rather than yielding "NaN"', () => {
+        expect(firstNonBlankStalkerId(Number.NaN, '5')).toBe('5');
+    });
+
+    it('trims the text form and reports nothing when every candidate is blank', () => {
+        expect(firstNonBlankStalkerIdText(' 21 ')).toBe('21');
+        expect(firstNonBlankStalkerIdText('', null, undefined)).toBe('');
+        expect(firstNonBlankStalkerId('', null)).toBeUndefined();
     });
 });

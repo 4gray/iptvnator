@@ -3,6 +3,7 @@ import {
     StalkerPortalActions,
 } from '@iptvnator/shared/interfaces';
 import { StalkerItvChannel } from './models';
+import { firstNonBlankStalkerIdText } from './stalker-vod.utils';
 import {
     StalkerRequestDeps,
     executeStalkerRequest,
@@ -221,13 +222,7 @@ function rawChannelId(item: unknown): string | null {
         return null;
     }
     const source = item as { id?: unknown; stream_id?: unknown };
-    for (const raw of [source.id, source.stream_id]) {
-        const text = String(raw ?? '').trim();
-        if (text) {
-            return text;
-        }
-    }
-    return null;
+    return firstNonBlankStalkerIdText(source.id, source.stream_id) || null;
 }
 
 async function fetchOrderedPageWithRetry(
