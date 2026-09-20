@@ -355,7 +355,18 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             this.subscriptions.add(
                 this.epgQueueService.epgResult$.subscribe(
                     ({ streamId, items }) => {
-                        const previewProgram = this.pickPreviewProgram(items);
+                        // The earliest-item fallback belongs to a row that has
+                        // nothing to show yet. Once a row holds a programme,
+                        // only one on air or upcoming may replace it: a refill
+                        // answered with the same finished window would
+                        // otherwise walk the row back to an older programme,
+                        // the very thing the refresh exists to prevent (#767).
+                        const previewProgram = this.epgPrograms.has(streamId)
+                            ? pickAiringOrUpcomingEpgItem(
+                                  items,
+                                  this.epgClockMs()
+                              )
+                            : this.pickPreviewProgram(items);
                         if (previewProgram) {
                             this.applyProgram(streamId, previewProgram);
                         }
@@ -515,9 +526,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         }
 
         this.requestEpgFor(staleChannels, channels);
-        this.epgRefill.retainOnly(
-            new Set(channels.map((channel) => channel.xtream_id))
-        );
+        this.epgRefill.forgetExpired(wallClockNow);
         if (movedProgress) {
             // A replaced row already rendered through applyProgram(); this is
             // for the progress bars that advanced without one.

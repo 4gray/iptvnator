@@ -573,6 +573,38 @@ describe('PortalChannelsListComponent', () => {
         expect(component.epgPrograms.get(50)?.title).toBe('Live Show');
     });
 
+    it('keeps the last program when a refill answers with the same stale guide', async () => {
+        // The provider has simply stopped publishing for this channel, so the
+        // refill returns the window that is already over. Feeding that through
+        // the first-paint fallback would walk the row back to the oldest entry.
+        await renderSingleChannel(fixture, '2026-04-05T05:45:00.000Z');
+
+        const early = buildProgram(
+            'Early Show',
+            '2026-04-05T05:30:00.000Z',
+            '2026-04-05T06:00:00.000Z'
+        );
+        const short = buildProgram(
+            'Short Show',
+            '2026-04-05T06:00:00.000Z',
+            '2026-04-05T06:02:00.000Z'
+        );
+        epgQueueService.getCached.mockImplementation((streamId: number) =>
+            streamId === 50 ? [early, short] : null
+        );
+        epgResults$.next({ streamId: 50, items: [early, short] });
+        fixture.detectChanges();
+
+        jest.advanceTimersByTime(18 * 60 * 1000);
+        const component = fixture.componentInstance;
+        expect(component.epgPrograms.get(50)?.title).toBe('Short Show');
+
+        epgResults$.next({ streamId: 50, items: [early, short] });
+        fixture.detectChanges();
+
+        expect(component.epgPrograms.get(50)?.title).toBe('Short Show');
+    });
+
     it('refills an exhausted guide at most once per cache lifetime', async () => {
         // A provider whose guide has genuinely run out answers the refill with
         // the same finished program, so without a floor the row would drop and

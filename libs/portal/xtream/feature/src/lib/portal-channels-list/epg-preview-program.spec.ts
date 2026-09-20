@@ -61,6 +61,18 @@ describe('pickAiringOrUpcomingEpgItem', () => {
             pickAiringOrUpcomingEpgItem([], at('2026-04-05T07:00:00Z'))
         ).toBeNull();
     });
+
+    it('hands the boundary instant to the program that starts on it', () => {
+        // A program occupies [start, stop), the same rule hasEpgProgramEnded
+        // applies -- otherwise the two disagree at the boundary and the row
+        // re-applies the finished program for another minute.
+        expect(
+            pickAiringOrUpcomingEpgItem(
+                [early, late],
+                at('2026-04-05T06:00:00Z')
+            )
+        ).toBe(late);
+    });
 });
 
 describe('pickEpgPreviewItem', () => {
@@ -166,15 +178,27 @@ describe('EpgRefillLimiter', () => {
         expect(limiter.claim(1, 1)).toBe(true);
     });
 
-    it('forgets streams outside the viewport it was given', () => {
+    it('forgets records only once they have expired', () => {
         const limiter = new EpgRefillLimiter(5000);
         limiter.claim(1, 0);
-        limiter.claim(2, 0);
 
-        limiter.retainOnly(new Set([2]));
+        limiter.forgetExpired(4999);
+        expect(limiter.claim(1, 4999)).toBe(false);
 
-        // Scrolled away: its record is gone, so it starts fresh.
-        expect(limiter.claim(1, 1)).toBe(true);
-        expect(limiter.claim(2, 1)).toBe(false);
+        limiter.forgetExpired(5000);
+        expect(limiter.claim(1, 5000)).toBe(true);
+    });
+
+    it('holds a claim across a row scrolling out of view and back', () => {
+        // Housekeeping runs on every tick while the row is off screen; the
+        // floor must survive it, or scrolling up and down the list would
+        // hand out a fresh request each pass.
+        const limiter = new EpgRefillLimiter(5000);
+        limiter.claim(1, 0);
+
+        limiter.forgetExpired(1000);
+        limiter.forgetExpired(2000);
+
+        expect(limiter.claim(1, 3000)).toBe(false);
     });
 });

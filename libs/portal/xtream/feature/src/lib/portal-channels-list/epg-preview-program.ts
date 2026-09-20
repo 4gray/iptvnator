@@ -8,6 +8,11 @@ import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
  * Every comparison here takes an explicit `nowMs` in the PROVIDER's clock
  * (`epgProviderClockMs`), never `Date.now()` — the EPG display offset moves
  * "now", not the programmes.
+ *
+ * A programme occupies `[start, stop)`: at exactly its stop time it is over
+ * and its successor has begun. One rule for every function below, so the
+ * "has it ended" and "what is on air" answers cannot disagree on the
+ * boundary and leave the row a minute behind the rest of the EPG surfaces.
  */
 
 /**
@@ -65,7 +70,7 @@ export function pickAiringOrUpcomingEpgItem(
     );
 
     const airing = byStart.find(
-        (item) => nowMs >= epgItemStartMs(item) && nowMs <= epgItemEndMs(item)
+        (item) => nowMs >= epgItemStartMs(item) && nowMs < epgItemEndMs(item)
     );
 
     return (
@@ -135,7 +140,7 @@ export function epgProgramProgressPercent(
         return null;
     }
 
-    if (nowMs < startMs || nowMs > endMs || endMs === startMs) {
+    if (nowMs < startMs || nowMs >= endMs) {
         return null;
     }
 
@@ -198,10 +203,18 @@ export class EpgRefillLimiter {
         this.requestedAt.delete(streamId);
     }
 
-    /** Keeps the record bounded by the viewport it describes. */
-    retainOnly(streamIds: ReadonlySet<number>): void {
-        for (const streamId of this.requestedAt.keys()) {
-            if (!streamIds.has(streamId)) {
+    /**
+     * Drops records that have outlived the interval and so no longer hold
+     * anything back, which is what keeps the map bounded.
+     *
+     * Deliberately not keyed on the viewport: a claim dropped when its row
+     * scrolls out of sight would be handed back the moment the user scrolled
+     * to it again, and a few passes up and down the list would bypass the
+     * floor entirely.
+     */
+    forgetExpired(wallClockMs: number): void {
+        for (const [streamId, requestedAt] of this.requestedAt) {
+            if (wallClockMs - requestedAt >= this.minIntervalMs) {
                 this.requestedAt.delete(streamId);
             }
         }
