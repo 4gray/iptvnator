@@ -115,9 +115,13 @@ Render rules:
        hero and cards can show progress, remaining time, and series season/
        episode badges. Whether an item is looked up as a movie (one `vod`
        row) or a series (episode rows under the parent id) is its WATCH
-       kind, `resolvePortalActivityWatchKind`, not its routing `type`: a
-       Stalker embedded-VOD `series[]` or lazy `is_series` row routes as a
-       movie but is mapped with `watch_kind: 'series'`. Series lookup uses
+       kind, `resolvePortalActivityWatchKind`, not its routing `type`. The
+       shape that needs the distinction is a Stalker embedded-VOD row: its
+       stored entry carries a `series[]` episode array but no `is_series`
+       flag, so `extractStalkerItemType` reports `movie` (deliberately — the
+       item belongs in the VOD catalog) while its progress lives in episode
+       rows. The mappers give both it and a lazy Ministra `is_series` row
+       (already typed `series`) `watch_kind: 'series'`. Series lookup uses
        keyed maps for both direct episode ids and parent series ids; card
        renders must not scan the full playback-position map. The badge uses saved `seasonNumber` /
        `episodeNumber` metadata and does not infer it from provider payloads;

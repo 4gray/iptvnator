@@ -128,9 +128,9 @@ function buildRecentSeriesIdentityTarget(
     item: PortalRecentItem,
     playbackPosition?: PlaybackPositionData | null
 ): SeriesResumeTarget | null {
-    // Watch kind, not `type`: a Stalker embedded-VOD / lazy `is_series` row
-    // routes as a movie yet resumes an episode (the detail decides the mode
-    // from the stored item, so the collection item keeps its routing type).
+    // Watch kind, not `type`: a Stalker embedded-VOD row routes as a movie
+    // yet resumes an episode (the detail decides the mode from the stored
+    // item, so the collection item keeps its routing type).
     if (
         resolvePortalActivityWatchKind(item) !== 'series' ||
         (item.source !== 'xtream' && item.source !== 'stalker') ||

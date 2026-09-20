@@ -294,8 +294,8 @@ export class DashboardDataService {
         item: PortalActivityItem
     ): PlaybackPositionData | null {
         // The progress model, not the routing type: a Stalker embedded-VOD
-        // or lazy `is_series` row routes as a movie but tracks episodes
-        // under its parent id, and a `vod` lookup for it finds nothing.
+        // row routes as a movie but tracks episodes under its parent id,
+        // and a `vod` lookup for it finds nothing.
         const watchKind = resolvePortalActivityWatchKind(item);
         if (!watchKind) {
             return null;

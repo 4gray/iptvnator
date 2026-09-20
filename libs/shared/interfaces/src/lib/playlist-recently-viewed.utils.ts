@@ -60,9 +60,9 @@ function mapStalkerPlaylistRecentItems(
                 backdrop_url: extractStalkerItemTmdbHints(item).backdropUrl,
                 source: 'stalker',
                 stalker_item: rawItem,
-                // `type` stays the routing verdict (embedded-VOD and lazy
-                // `is_series` rows route as movies); progress for those rows
-                // is still per episode, keyed by this parent id.
+                // `type` stays the routing verdict: an embedded-VOD row
+                // (a `series[]` array, no flag) routes as a movie. Either
+                // shape tracks progress per episode, keyed by this parent id.
                 ...(isStalkerSeriesItem(item) ? { watch_kind: 'series' } : {}),
             });
 

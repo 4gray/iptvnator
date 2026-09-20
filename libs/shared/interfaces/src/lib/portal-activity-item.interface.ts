@@ -49,13 +49,19 @@ export interface PortalActivityItem {
     stalker_item?: StalkerPortalItem;
     /**
      * How the item's watch progress is tracked, when that differs from the
-     * catalog section `type` routes it to. A Stalker embedded-VOD (`series[]`)
-     * or lazy Ministra `is_series` row lives in the VOD catalog and must keep
-     * routing there (`type: 'movie'`), yet its progress is a set of EPISODE
-     * positions keyed by the parent id. Readers that decide between a movie
-     * position and a series position go through
-     * `resolvePortalActivityWatchKind`, never `type` alone. Absent means
-     * "same as `type`".
+     * catalog section `type` routes it to.
+     *
+     * The case that needs it is a Stalker embedded-VOD row: its stored entry
+     * announces episodes through a `series[]` array, but `extractStalkerItemType`
+     * is deliberately blind to that array so the item keeps routing to the VOD
+     * catalog, and it therefore reports `type: 'movie'` while its progress is a
+     * set of EPISODE positions keyed by the parent id. (A lazy Ministra
+     * `is_series` row already reports `series` — the flag is read — so there
+     * this field only restates the type.)
+     *
+     * Readers that decide between a movie position and a series position go
+     * through `resolvePortalActivityWatchKind`, never `type` alone. Absent
+     * means "same as `type`".
      */
     watch_kind?: PortalActivityWatchKind;
 }
