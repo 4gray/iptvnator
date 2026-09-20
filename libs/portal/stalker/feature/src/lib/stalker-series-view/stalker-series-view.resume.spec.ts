@@ -251,6 +251,111 @@ describe('StalkerSeriesViewComponent dashboard resume handoff', () => {
         expect(resolveVodPlayback).not.toHaveBeenCalled();
     });
 
+    it('retries the lazy season once after a transient portal failure', async () => {
+        // A failed fetch leaves the season unloaded, so the handoff would
+        // otherwise be stranded for the lifetime of this detail host.
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: { name: 'VOD Flagged Series', movie_image: 'vod.jpg' },
+        });
+        serialSeasons.set([]);
+        vodSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+        ]);
+        fetchVodSeriesEpisodes
+            .mockRejectedValueOnce(new Error('portal down'))
+            .mockResolvedValue([
+                { id: 'episode-1', series_number: 1, name: 'Pilot' },
+                { id: 'episode-2', series_number: 2, name: 'Second' },
+            ]);
+        getSeriesPlaybackPositions.mockResolvedValue([
+            {
+                playlistId: 'stalker-1',
+                contentXtreamId: 123_456,
+                contentType: 'episode',
+                seriesXtreamId: 50001,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                positionSeconds: 90,
+                durationSeconds: 1500,
+            } satisfies PlaybackPositionData,
+        ]);
+        seriesResumeTarget.set({
+            seriesXtreamId: 50001,
+            contentXtreamId: 123_456,
+            seasonNumber: 1,
+            episodeNumber: 2,
+        });
+
+        await settle();
+        await settle();
+        await settle();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(2);
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(1);
+        expect(resolveVodPlayback).toHaveBeenCalledWith(
+            '/media/file_episode-2.mpg',
+            'VOD Flagged Series - Second',
+            'vod.jpg',
+            2,
+            trackingIdOf('1', 2),
+            90
+        );
+    });
+
+    it('stops asking the portal after the bounded retry also fails', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: { name: 'VOD Flagged Series', movie_image: 'vod.jpg' },
+        });
+        serialSeasons.set([]);
+        vodSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockRejectedValue(new Error('portal down'));
+        getSeriesPlaybackPositions.mockResolvedValue([
+            {
+                playlistId: 'stalker-1',
+                contentXtreamId: 123_456,
+                contentType: 'episode',
+                seriesXtreamId: 50001,
+                seasonNumber: 1,
+                episodeNumber: 2,
+                positionSeconds: 90,
+                durationSeconds: 1500,
+            } satisfies PlaybackPositionData,
+        ]);
+        seriesResumeTarget.set({
+            seriesXtreamId: 50001,
+            contentXtreamId: 123_456,
+            seasonNumber: 1,
+            episodeNumber: 2,
+        });
+
+        await settle();
+        await settle();
+        await settle();
+        await settle();
+
+        // Bounded: a portal that is simply down is asked twice, not forever.
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledTimes(2);
+        expect(resolveVodPlayback).not.toHaveBeenCalled();
+    });
+
     it('hydrates the lazy VOD season the handoff lives in, then resumes its episode', async () => {
         selectedContentType.set('vod');
         selectedItem.set({

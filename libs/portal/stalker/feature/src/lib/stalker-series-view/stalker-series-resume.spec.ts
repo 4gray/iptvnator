@@ -5,7 +5,9 @@ import type {
 } from '@iptvnator/portal/stalker/data-access';
 import {
     findStalkerResumeLazySeason,
+    MAX_RESUME_SEASON_HYDRATION_ATTEMPTS,
     resolveStalkerResumeEpisode,
+    StalkerResumeSeasonHydration,
     stalkerSeriesResumeKey,
 } from './stalker-series-resume';
 
@@ -148,6 +150,59 @@ describe('findStalkerResumeLazySeason', () => {
                 seasons: [season({})],
             })
         ).toBeNull();
+    });
+});
+
+describe('StalkerResumeSeasonHydration', () => {
+    it('holds the claim while a request is in flight', () => {
+        const hydration = new StalkerResumeSeasonHydration();
+
+        expect(hydration.canRequest('a')).toBe(true);
+        hydration.begin('a');
+        expect(hydration.canRequest('a')).toBe(false);
+    });
+
+    it('allows a bounded retry after a failed fetch, then gives up', () => {
+        // A failed fetch leaves the season unloaded and re-runs the effect,
+        // so an unbounded release would loop against a dead portal.
+        const hydration = new StalkerResumeSeasonHydration();
+
+        for (
+            let attempt = 1;
+            attempt < MAX_RESUME_SEASON_HYDRATION_ATTEMPTS;
+            attempt++
+        ) {
+            hydration.begin('a');
+            hydration.settle('a', false);
+            expect(hydration.canRequest('a')).toBe(true);
+        }
+
+        hydration.begin('a');
+        hydration.settle('a', false);
+        expect(hydration.canRequest('a')).toBe(false);
+    });
+
+    it('stops asking once the portal answered', () => {
+        const hydration = new StalkerResumeSeasonHydration();
+
+        hydration.begin('a');
+        hydration.settle('a', true);
+
+        expect(hydration.canRequest('a')).toBe(false);
+    });
+
+    it('starts a different target fresh and ignores a late settlement', () => {
+        const hydration = new StalkerResumeSeasonHydration();
+
+        hydration.begin('a');
+        hydration.begin('b');
+        // 'a' settling late must not hand 'b' an extra attempt.
+        hydration.settle('a', false);
+        expect(hydration.canRequest('b')).toBe(false);
+
+        hydration.settle('b', false);
+        expect(hydration.canRequest('b')).toBe(true);
+        expect(hydration.canRequest('a')).toBe(true);
     });
 });
 

@@ -21,6 +21,7 @@ import {
     findStalkerResumeLazySeason,
     resolveStalkerResumeEpisode,
     STALKER_SERIES_RESUME_TARGET,
+    StalkerResumeSeasonHydration,
     stalkerSeriesResumeKey,
 } from './stalker-series-resume';
 import {
@@ -235,7 +236,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly seriesPositionsLoadedKey = signal<string | null>(null);
     private readonly seriesResumeTarget = inject(STALKER_SERIES_RESUME_TARGET);
     private consumedSeriesResumeKey: string | null = null;
-    private seriesResumeSeasonLoadKey: string | null = null;
+    private readonly seriesResumeSeasonHydration =
+        new StalkerResumeSeasonHydration();
     private readonly legacyPositionByTrackingId = signal<
         Map<number, PlaybackPositionData>
     >(new Map());
@@ -505,11 +507,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             const lazySeason = this.isVodSeries()
                 ? findStalkerResumeLazySeason({ target, seasons })
                 : null;
-            if (!lazySeason || this.seriesResumeSeasonLoadKey === resumeKey) {
+            if (
+                !lazySeason ||
+                !this.seriesResumeSeasonHydration.canRequest(resumeKey)
+            ) {
                 return;
             }
-            this.seriesResumeSeasonLoadKey = resumeKey;
-            untracked(() => void this.loadEpisodesForSeason(lazySeason));
+            this.seriesResumeSeasonHydration.begin(resumeKey);
+            untracked(
+                () =>
+                    void this.loadEpisodesForSeason(lazySeason).then(
+                        (answered) =>
+                            this.seriesResumeSeasonHydration.settle(
+                                resumeKey,
+                                answered
+                            )
+                    )
+            );
         });
 
         effect(() => {
