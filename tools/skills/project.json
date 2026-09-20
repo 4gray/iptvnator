@@ -16,7 +16,8 @@
                         "marked",
                         "parse5",
                         "github-slugger",
-                        "parse-srcset"
+                        "parse-srcset",
+                        "typescript"
                     ]
                 }
             ],

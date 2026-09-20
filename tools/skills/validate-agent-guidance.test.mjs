@@ -722,3 +722,33 @@ test('declared scoped dependencies and aliases are not inline imports', async (t
         []
     );
 });
+
+test('TypeScript scope discovery supports JSONC', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'tsconfig.base.json':
+                '{ // comment\n "compilerOptions": { "paths": { "@custom/*": ["libs/*"], }, }, }',
+            'AGENTS.md': 'Use @custom/services.',
+        }),
+        []
+    );
+});
+for (const target of [
+    'angular/../docs/example.md',
+    'angular/missing.md',
+    'angular/undeclared',
+]) {
+    test(`declared scopes do not exempt undeclared imports: ${target}`, async (t) => {
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md': '@AGENTS.md\n\nRead @' + target,
+                })
+            ).join('\n'),
+            /imports are not allowed/
+        );
+    });
+}

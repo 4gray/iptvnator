@@ -1,3 +1,4 @@
+import ts from 'typescript';
 import { readFile, realpath } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,10 +68,20 @@ async function validateReference(
     }
 }
 
-async function packageScopes(rootDir) {
+async function packageMentions(rootDir) {
     async function readJson(path) {
         try {
-            return JSON.parse(await readFile(resolve(rootDir, path), 'utf8'));
+            const text = await readFile(resolve(rootDir, path), 'utf8');
+            if (path !== 'tsconfig.base.json') return JSON.parse(text);
+            const parsed = ts.parseConfigFileTextToJson(path, text);
+            if (parsed.error)
+                throw new Error(
+                    ts.flattenDiagnosticMessageText(
+                        parsed.error.messageText,
+                        '\n'
+                    )
+                );
+            return parsed.config;
         } catch (error) {
             if (error.code === 'ENOENT') return {};
             throw error;
@@ -85,17 +96,32 @@ async function packageScopes(rootDir) {
         ...Object.keys(manifest.peerDependencies ?? {}),
         ...Object.keys(config.compilerOptions?.paths ?? {}),
     ];
-    return new Set(
-        names
-            .filter((name) => /^@[^/]+\//u.test(name))
-            .map((name) => name.slice(1, name.indexOf('/')))
-    );
+    const declared = names
+        .filter((name) => /^@[^/]+\//u.test(name))
+        .map((name) => name.slice(1));
+    const scopes = new Set(declared.map((name) => name.split('/')[0]));
+    return (raw) => {
+        const token = raw.replace(/[.,;:)"'\]}]+$/u, '');
+        if (
+            token.split(/[\/\\]/u).some((part) => part === '.' || part === '..')
+        )
+            return false;
+        if (/\.(?:md|mdx|txt|json|ya?ml|html?)$/iu.test(token)) return false;
+        if (token.endsWith('/*') && scopes.has(token.slice(0, -2))) return true;
+        return declared.some((name) => {
+            const star = name.indexOf('*');
+            return star < 0
+                ? token === name
+                : token.startsWith(name.slice(0, star)) &&
+                      token.endsWith(name.slice(star + 1));
+        });
+    };
 }
 
 export async function validateAgentGuidance({ rootDir }) {
     rootDir = await realpath(rootDir);
     const diagnostics = [];
-    const scopes = await packageScopes(rootDir);
+    const isPackageMention = await packageMentions(rootDir);
     for (const source of SURFACES) {
         let markdown;
         try {
@@ -129,7 +155,7 @@ export async function validateAgentGuidance({ rootDir }) {
                 .map((match) => match[1])
                 .filter(
                     (token) =>
-                        !scopes.has(token.split('/')[0]) &&
+                        !isPackageMention(token) &&
                         (/[./\\]/u.test(token) ||
                             /^(?:LICENSE|Makefile|Dockerfile|AGENTS|CLAUDE)(?:$|[.,;)])/u.test(
                                 token
