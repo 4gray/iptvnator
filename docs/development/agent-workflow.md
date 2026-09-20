@@ -69,7 +69,8 @@ checking the full filename before prefixes at ASCII/Unicode prose separators.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions, including document paths with fragments or queries.
-TypeScript configuration is parsed as JSONC.
+All recognized Markdown extensions share the document-import guard. URL-encoded
+paths do not receive package exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version (including semver comparators) or dist-tag qualifier.
 Qualifier handling includes unscoped names; terminal sentence punctuation is

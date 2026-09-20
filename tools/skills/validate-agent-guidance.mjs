@@ -16,6 +16,8 @@ import {
     guidanceReferences as references,
 } from './agent-guidance-markdown.mjs';
 
+const MARKDOWN_EXTENSION = /\.(?:md|markdown|mdown|mkd|mdx)$/iu;
+
 const SURFACES = [
     'AGENTS.md',
     'CLAUDE.md',
@@ -62,9 +64,7 @@ async function validateReference(
         if (
             anchor &&
             !image &&
-            /^(?:\.md|\.markdown|\.mdown|\.mkd|\.mdx)$/iu.test(
-                extname(actual)
-            ) &&
+            MARKDOWN_EXTENSION.test(extname(actual)) &&
             !anchors(await readFile(actual, 'utf8')).has(anchor)
         ) {
             return `${source}: missing anchor "${anchor}" in ${target}`;
@@ -126,10 +126,11 @@ async function packageMentions(rootDir) {
             token.split(/[\/\\]/u).some((part) => part === '.' || part === '..')
         )
             return false;
+        const path = token.split(/[?#]/u, 1)[0];
         if (
-            /\.(?:md|mdx|txt|json|ya?ml|html?)$/iu.test(
-                token.split(/[?#]/u, 1)[0]
-            )
+            /%[\da-f]{2}/iu.test(token) ||
+            MARKDOWN_EXTENSION.test(path) ||
+            /\.(?:txt|json|ya?ml|html?)$/iu.test(path)
         )
             return false;
         if (packages.includes(token)) return true;

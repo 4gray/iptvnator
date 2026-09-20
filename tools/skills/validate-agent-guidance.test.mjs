@@ -1212,3 +1212,27 @@ for (const suffix of [
         );
     });
 }
+
+for (const suffix of [
+    '.markdown',
+    '.mdown',
+    '.mkd',
+    '.md%23rules',
+    '.md%3Fraw',
+    '%2Emd',
+    '/%2e%2e/extra.md',
+]) {
+    test(`document package exemptions reject alternate and encoded paths: ${suffix}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @angular/core/docs/extra' + suffix,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}
