@@ -83,7 +83,7 @@ function isLiteralRepositoryPath(token) {
         return false;
     return (
         path.includes('/') ||
-        /^(?:\.[\p{L}\p{N}_-]+|[\p{L}\p{N}_-][\p{L}\p{N}_.-]*\.[\p{L}][\p{L}\p{N}_-]*)$/u.test(
+        /^(?:\.[\p{L}\p{N}_-][\p{L}\p{N}_.-]*|[\p{L}\p{N}_-][\p{L}\p{N}_.-]*\.[\p{L}][\p{L}\p{N}_-]*)$/u.test(
             path
         )
     );

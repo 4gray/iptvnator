@@ -50,14 +50,17 @@ async function validateReference(
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
     if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(target)) return;
-    let decoded;
+    let path;
+    let anchor;
     try {
-        decoded = decodeURIComponent(target);
+        const hash = target.indexOf('#');
+        const pathAndQuery = hash < 0 ? target : target.slice(0, hash);
+        path = decodeURIComponent(pathAndQuery.split('?')[0]);
+        anchor =
+            hash < 0 ? undefined : decodeURIComponent(target.slice(hash + 1));
     } catch {
         return `${source}: malformed local link: ${target}`;
     }
-    const [pathAndQuery, anchor] = decoded.split('#');
-    const path = pathAndQuery.split('?')[0];
     const absolute = path
         ? resolve(literal ? rootDir : dirname(resolve(rootDir, source)), path)
         : resolve(rootDir, source);
@@ -106,10 +109,11 @@ export async function validateAgentGuidance({ rootDir }) {
                 diagnostics.push(
                     `${source}: at most ${maxBytes} UTF-8 bytes allowed (received ${bytes})`
                 );
-            const imports = [...markdown.matchAll(/^\s*@([^\s]+)\s*$/gmu)].map(
+            const unfenced = withoutFences(markdown);
+            const imports = [...unfenced.matchAll(/^\s*@([^\s]+)\s*$/gmu)].map(
                 (match) => match[1]
             );
-            const prose = withoutFences(markdown).replace(/`[^`\n]+`/gu, '');
+            const prose = unfenced.replace(/`[^`\n]+`/gu, '');
             const inlineImports = [...prose.matchAll(/(?:^|[\s(])@([^\s]+)/gu)]
                 .map((match) => match[1])
                 .filter(

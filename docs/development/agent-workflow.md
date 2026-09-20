@@ -37,6 +37,9 @@ Write generic filenames as prose; commands, templates, globs, URLs, package
 aliases and dotted code symbols are excluded. Bare dotted names with conventional
 file suffixes (such as .md, .json or .ts) are treated as filenames. Use a `./`
 prefix or Markdown link for other ambiguous filenames that resemble code symbols.
+Multi-part dotfiles are path candidates too. Link paths and fragments are decoded
+separately so encoded filename delimiters stay in the filename. Fenced examples
+do not count as root guidance imports or satisfy the required Claude import.
 Heading anchors are derived from parsed text, not HTML sanitization. The Nx test
 hash includes `marked` so dependency changes invalidate parser coverage.
 It cannot prove semantic equivalence; review changed contracts as well.

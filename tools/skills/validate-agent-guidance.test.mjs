@@ -172,6 +172,8 @@ for (const path of [
     'missing.scss',
     'custom.config-format',
     '.custom-config',
+    '.env.local',
+    '.eslintrc.json',
     'arbitrary/directory',
 ]) {
     test(`checks generic literal repository path ${path}`, async (t) => {
@@ -406,3 +408,49 @@ test('explicit HTML anchors work but anchors in code examples do not', async (t)
     });
     assert.match(errors.join('\n'), /missing anchor/);
 });
+
+for (const source of ['AGENTS.md', 'CLAUDE.md']) {
+    test(`${source}: fenced decorators are not root imports`, async (t) => {
+        const prefix = source === 'CLAUDE.md' ? '@AGENTS.md\n' : '';
+        assert.deepEqual(
+            await diagnostics(t, {
+                [source]:
+                    prefix + '```ts\n@Injectable()\n@docs/missing.md\n```\n',
+            }),
+            []
+        );
+    });
+}
+test('a fenced import cannot satisfy the required CLAUDE import', async (t) => {
+    assert.match(
+        (
+            await diagnostics(t, {
+                'CLAUDE.md': '```text\n@AGENTS.md\n```\n',
+            })
+        ).join('\n'),
+        /standalone @AGENTS.md/
+    );
+});
+for (const [encoded, filename] of [
+    ['guide%23one.md', 'guide#one.md'],
+    ['guide%3Fone.md', 'guide?one.md'],
+]) {
+    test(`encoded filename delimiters stay in path: ${encoded}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': `[Doc](docs/${encoded}?view=1#hello%2Dworld)`,
+                [`docs/${filename}`]: '# Hello World\n',
+            }),
+            []
+        );
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': `[Doc](docs/${encoded}#missing)`,
+                    [`docs/${filename}`]: '# Hello World\n',
+                })
+            ).join('\n'),
+            /missing anchor/
+        );
+    });
+}
