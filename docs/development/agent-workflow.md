@@ -72,7 +72,8 @@ are recognized as package/alias mentions. Traversal and document-file imports ar
 rejected before those exemptions, including document paths with fragments or queries.
 All recognized Markdown extensions share the document-import guard; reStructuredText
 and AsciiDoc, PDF, Word, OpenDocument, RTF, Org and TeX documents are also excluded
-from package exemptions. URL-encoded
+from package exemptions. Recognized extensionless guidance names (including AGENTS,
+CLAUDE, INSTRUCTIONS and README) are excluded in package subpaths too. URL-encoded
 paths do not receive package exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version (including semver comparators and wildcard ranges) or dist-tag qualifier.

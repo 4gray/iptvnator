@@ -1292,3 +1292,30 @@ for (const html of [
         assert.deepEqual(await diagnostics(t, { 'AGENTS.md': html }), []);
     });
 }
+
+for (const name of [
+    'guide.ods',
+    'guide.odp',
+    'guide.docm',
+    'guide.dotx',
+    'guide.latex',
+    'AGENTS',
+    'CLAUDE',
+    'README',
+    'INSTRUCTIONS',
+    'LICENSE',
+]) {
+    test(`package subpath cannot import guidance document ${name}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @angular/core/docs/' + name,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}

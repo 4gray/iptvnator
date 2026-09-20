@@ -130,7 +130,10 @@ async function packageMentions(rootDir) {
         if (
             /%[\da-f]{2}/iu.test(token) ||
             MARKDOWN_EXTENSION.test(path) ||
-            /\.(?:txt|json|ya?ml|html?|rst|rest|adoc|asciidoc|pdf|docx?|odt|rtf|org|tex)$/iu.test(
+            /(?:^|\/)(?:AGENTS|CLAUDE|INSTRUCTIONS|README|LICENSE|LICENCE|NOTICE|COPYING|AUTHORS|CONTRIBUTORS|CHANGELOG)$/u.test(
+                path
+            ) ||
+            /\.(?:txt|json|ya?ml|html?|rst|rest|adoc|asciidoc|pdf|doc[xm]?|dot[xm]?|od[tspgfbm]|ot[tspg]|fod[tspg]|rtf|org|tex|latex)$/iu.test(
                 path
             )
         )
