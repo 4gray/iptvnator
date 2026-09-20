@@ -193,32 +193,45 @@
                                 <span class="rail__card-title">{{
                                     cardTitle(card)
                                 }}</span>
-                                <span class="rail__card-meta-row">
-                                    @if (card.episodeBadge) {
-                                        <span class="rail__card-episode">{{
-                                            card.episodeBadge
-                                        }}</span>
-                                    }
-                                    @if (card.subtitle) {
-                                        <span class="rail__card-subtitle">{{
-                                            card.subtitle
-                                        }}</span>
-                                    }
-                                    @if (card.expiryBadge; as expiry) {
-                                        <span
-                                            class="rail__card-expiry"
-                                            [class.rail__card-expiry--expired]="
-                                                expiry.kind === 'expired'
-                                            "
-                                            [attr.data-test-id]="
-                                                testId()
-                                                    ? testId() + '-card-expiry'
-                                                    : null
-                                            "
-                                            >{{ expiry.label }}</span
-                                        >
-                                    }
-                                </span>
+                                @if (
+                                    card.episodeBadge ||
+                                    card.remainingLabel ||
+                                    card.subtitle ||
+                                    card.expiryBadge
+                                ) {
+                                    <span class="rail__card-meta-row">
+                                        @if (card.episodeBadge) {
+                                            <span class="rail__card-episode">{{
+                                                card.episodeBadge
+                                            }}</span>
+                                        }
+                                        @if (card.remainingLabel; as remaining) {
+                                            <span class="rail__card-remaining">{{
+                                                remaining.key
+                                                    | translate: remaining.params
+                                            }}</span>
+                                        }
+                                        @if (card.subtitle) {
+                                            <span class="rail__card-subtitle">{{
+                                                card.subtitle
+                                            }}</span>
+                                        }
+                                        @if (card.expiryBadge; as expiry) {
+                                            <span
+                                                class="rail__card-expiry"
+                                                [class.rail__card-expiry--expired]="
+                                                    expiry.kind === 'expired'
+                                                "
+                                                [attr.data-test-id]="
+                                                    testId()
+                                                        ? testId() + '-card-expiry'
+                                                        : null
+                                                "
+                                                >{{ expiry.label }}</span
+                                            >
+                                        }
+                                    </span>
+                                }
                             </div>
                         </a>
 

@@ -88,12 +88,13 @@ export function getRecentItemNavigation(
                       xtreamId: seriesResume.seriesXtreamId,
                   }
                 : collectionItem;
+        // The caller builds `seriesResume` only for items whose progress is
+        // per episode (see `resolvePortalActivityWatchKind`); a Stalker
+        // embedded-VOD series arrives here with the routing type `movie`.
         return buildGlobalCollectionDetailNavigationTarget(
             'recent',
             detailItem,
-            item.type === 'series' && !options?.resumeIdentityOnly
-                ? seriesResume
-                : null
+            !options?.resumeIdentityOnly ? seriesResume : null
         );
     }
 
@@ -287,12 +288,17 @@ export function getOpenCollectionDetailItemState(
         candidate?.['seriesResume']
     );
 
+    // An Xtream series, or any Stalker VOD detail: a Stalker item whose
+    // routing type is `movie` may still be an embedded-VOD / lazy
+    // `is_series` show, and only the detail (reading the stored row) can
+    // tell — a plain movie detail simply never mounts the series view.
+    const canResume =
+        item?.contentType === 'series' ||
+        (item?.sourceType === 'stalker' && item.contentType !== 'live');
     return item
         ? {
               item,
-              ...(item.contentType === 'series' && seriesResume
-                  ? { seriesResume }
-                  : {}),
+              ...(canResume && seriesResume ? { seriesResume } : {}),
           }
         : null;
 }

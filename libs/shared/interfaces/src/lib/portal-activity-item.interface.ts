@@ -47,6 +47,37 @@ export interface PortalActivityItem {
     source?: 'xtream' | 'stalker' | 'm3u';
     /** Original stalker item for navigation state; undefined for xtream. */
     stalker_item?: StalkerPortalItem;
+    /**
+     * How the item's watch progress is tracked, when that differs from the
+     * catalog section `type` routes it to. A Stalker embedded-VOD (`series[]`)
+     * or lazy Ministra `is_series` row lives in the VOD catalog and must keep
+     * routing there (`type: 'movie'`), yet its progress is a set of EPISODE
+     * positions keyed by the parent id. Readers that decide between a movie
+     * position and a series position go through
+     * `resolvePortalActivityWatchKind`, never `type` alone. Absent means
+     * "same as `type`".
+     */
+    watch_kind?: PortalActivityWatchKind;
+}
+
+/** Progress model of a VOD activity item: one position, or per-episode positions. */
+export type PortalActivityWatchKind = 'movie' | 'series';
+
+/**
+ * The progress model a dashboard/collection reader should use for an item:
+ * the explicit `watch_kind` when a mapper recorded one, else the catalog
+ * `type`. Live items have no progress and resolve to `null`.
+ */
+export function resolvePortalActivityWatchKind(
+    item: Pick<PortalActivityItem, 'type' | 'watch_kind'>
+): PortalActivityWatchKind | null {
+    if (item.watch_kind === 'movie' || item.watch_kind === 'series') {
+        return item.watch_kind;
+    }
+    if (item.type === 'movie' || item.type === 'series') {
+        return item.type;
+    }
+    return null;
 }
 
 /** A recently-viewed item with a `viewed_at` timestamp. */

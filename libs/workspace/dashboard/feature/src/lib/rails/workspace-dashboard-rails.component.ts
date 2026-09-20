@@ -15,6 +15,9 @@ import {
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
+    type PlaybackPositionData,
+    playlistDisplayLabel,
+    resolvePortalActivityWatchKind,
 } from '@iptvnator/shared/interfaces';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -192,18 +195,7 @@ export class WorkspaceDashboardRailsComponent {
             item.type === 'live'
                 ? this.getLiveEpgDetailsForCard(this.heroLiveCard())
                 : null;
-        const episodeBadge =
-            item.type === 'series' &&
-            position?.seasonNumber != null &&
-            position?.episodeNumber != null
-                ? this.translate.instant(
-                      'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
-                      {
-                          season: position.seasonNumber,
-                          episode: position.episodeNumber,
-                      }
-                  )
-                : null;
+        const episodeBadge = this.buildEpisodeBadge(item, position);
 
         return {
             ...artwork,
@@ -639,34 +631,49 @@ export class WorkspaceDashboardRailsComponent {
         );
     }
 
+    /**
+     * Only the source name under the hero title. Provider kind (Xtream /
+     * Stalker / M3U) and content kind (movie / series) are the app's own
+     * taxonomy, not a property of the title, and the badges row already
+     * says "S1·E5"; a stored playlist name can be a pasted URL with
+     * credentials or a MAC, so it goes through `playlistDisplayLabel`.
+     */
     private buildHeroSubtitle(item: GlobalRecentItem): string {
-        const parts = [
+        return playlistDisplayLabel(
             item.playlist_name,
-            this.data.getRecentItemProviderLabel(item),
-            this.data.getRecentItemTypeLabel(item),
-        ].filter((value): value is string => Boolean(value));
-        return parts.join(' · ');
+            this.data.getRecentItemProviderLabel(item)
+        );
+    }
+
+    /**
+     * "S1·E5" for an item whose progress is tracked per episode. Keyed on
+     * the WATCH kind: a Stalker embedded-VOD / lazy `is_series` show routes
+     * as a movie but still names the episode it is on.
+     */
+    private buildEpisodeBadge(
+        item: GlobalRecentItem,
+        position: PlaybackPositionData | null
+    ): string | null {
+        return resolvePortalActivityWatchKind(item) === 'series' &&
+            position?.seasonNumber != null &&
+            position?.episodeNumber != null
+            ? this.translate.instant(
+                  'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
+                  {
+                      season: position.seasonNumber,
+                      episode: position.episodeNumber,
+                  }
+              )
+            : null;
     }
 
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
         const position = this.data.getPlaybackPositionForItem(item);
         const watchProgress = playbackProgressPercent(position);
-        const episodeBadge =
-            item.type === 'series' &&
-            position?.seasonNumber != null &&
-            position?.episodeNumber != null
-                ? this.translate.instant(
-                      'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
-                      {
-                          season: position.seasonNumber,
-                          episode: position.episodeNumber,
-                      }
-                  )
-                : null;
+        const episodeBadge = this.buildEpisodeBadge(item, position);
         return {
             id: this.recentCardId(item),
             title: item.title,
-            subtitle: `${this.data.getRecentItemProviderLabel(item)} · ${this.data.getRecentItemTypeLabel(item)}`,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
@@ -678,6 +685,9 @@ export class WorkspaceDashboardRailsComponent {
             state: this.data.getRecentItemDetailNavigationState(item),
             watchProgress,
             episodeBadge,
+            // What still separates one card from the next: where in the
+            // show, and how much is left — not which provider it came from.
+            remainingLabel: formatRemainingLabel(position),
             ...(item.type === 'movie' || item.type === 'series'
                 ? {
                       actions: buildDashboardContinueWatchingActions({
@@ -702,7 +712,6 @@ export class WorkspaceDashboardRailsComponent {
         return {
             id: `fav-${item.id}-${item.playlist_id}-${item.added_at}`,
             title: item.title,
-            subtitle: `${this.data.getFavoriteItemProviderLabel(item)} · ${this.data.getFavoriteItemTypeLabel(item)}`,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
@@ -715,14 +724,11 @@ export class WorkspaceDashboardRailsComponent {
     private toRecentlyAddedCard(
         item: DashboardRecentlyAddedItem
     ): DashboardRailCard {
-        const typeLabel = this.data.getRecentlyAddedItemTypeLabel(item);
-        const subtitleParts = [item.playlist_name, typeLabel].filter(
-            (value): value is string => Boolean(value)
-        );
         return {
             id: `added-${item.id}-${item.playlist_id}-${item.added_at}`,
             title: item.title,
-            subtitle: subtitleParts.join(' · '),
+            // "Where was it added" is the one fact that varies per card here.
+            subtitle: playlistDisplayLabel(item.playlist_name),
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,

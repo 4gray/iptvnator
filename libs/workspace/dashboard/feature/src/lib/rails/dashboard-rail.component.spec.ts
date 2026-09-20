@@ -133,5 +133,34 @@ describe('DashboardRailComponent', () => {
                 chips[1].classList.contains('rail__card-expiry--expired')
             ).toBe(true);
         });
+
+        it('renders the episode chip and remaining time, and drops an empty meta row', async () => {
+            const element = await renderCards([
+                card({
+                    id: 'show',
+                    title: 'Fake',
+                    contentType: 'movie',
+                    episodeBadge: 'S1·E5',
+                    remainingLabel: {
+                        key: 'WORKSPACE.DASHBOARD.REMAINING_MINUTES',
+                        params: { minutes: 12 },
+                    },
+                }),
+                card({ id: 'bare', title: 'Bare', contentType: 'movie' }),
+            ]);
+
+            const cards = element.querySelectorAll('.rail__card');
+            expect(cards).toHaveLength(2);
+            expect(
+                cards[0].querySelector('.rail__card-episode')?.textContent
+            ).toBe('S1·E5');
+            expect(
+                cards[0]
+                    .querySelector('.rail__card-remaining')
+                    ?.textContent?.trim()
+            ).toBe('WORKSPACE.DASHBOARD.REMAINING_MINUTES');
+            expect(cards[0].querySelector('.rail__card-subtitle')).toBeNull();
+            expect(cards[1].querySelector('.rail__card-meta-row')).toBeNull();
+        });
     });
 });

@@ -404,6 +404,21 @@
     color: var(--app-expiry-expired-text, #b3261e);
 }
 
+// "12 min left" beside the episode chip: same tone as the subtitle, but it
+// keeps its digits whole instead of truncating when the row runs short.
+.rail__card-remaining {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--app-muted-color, #8891a4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-variant-numeric: tabular-nums;
+}
+
 .rail__card-subtitle {
     flex: 1 1 auto;
     min-width: 0;

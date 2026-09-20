@@ -113,9 +113,9 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
             environmentInjector: this.environmentInjector,
         });
         componentRef.setInput('item', item);
-        if (item.sourceType === 'xtream') {
-            componentRef.setInput('seriesResume', seriesResume);
-        }
+        // Both portal details accept the one-shot resume handoff (Xtream
+        // series, Stalker embedded-VOD / lazy is_series shows).
+        componentRef.setInput('seriesResume', seriesResume);
         this.subscribeToClose(componentRef.instance);
     }
 
@@ -196,6 +196,7 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
                     } @else if (item.sourceType === 'stalker') {
                         <app-global-collection-detail-host
                             [item]="item"
+                            [seriesResume]="seriesResume"
                             (closeRequested)="close()"
                         />
                     }

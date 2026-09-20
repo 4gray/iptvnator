@@ -74,13 +74,21 @@ with a return handler keep Back available.
   Stalker movies/series into the matching global collection route with detail
   pre-opened.
 - The dashboard hero CTA and the Continue Watching cards' explicit "Resume
-  episode" ⋮ action for Xtream series carry a one-shot season/episode resume
-  target. The collection-owned Xtream detail consumes it after its episode
-  positions load and starts that exact episode; the cards' default click is
-  detail-only (movie-like), as is opening the series from the collection grid
-  itself. If the positions load fails, the target stays unconsumed and the
-  handoff degrades to detail-only rather than starting the episode at offset
-  zero. Continue Watching cards also expose "Mark as Watched" (maxes out the
+  episode" ⋮ action for Xtream and Stalker series carry a one-shot
+  season/episode resume target. The collection-owned detail consumes it after
+  its episode positions load and starts that exact episode; the cards' default
+  click is detail-only (movie-like), as is opening the series from the
+  collection grid itself. If the positions load fails, the target stays
+  unconsumed and the handoff degrades to detail-only rather than starting the
+  episode at offset zero. Xtream reads it from `XTREAM_SERIES_RESUME_TARGET`;
+  Stalker from `STALKER_SERIES_RESUME_TARGET`, provided by
+  `StalkerCollectionDetailComponent` and consumed by
+  `StalkerSeriesViewComponent` (`stalker-series-resume.ts`), which first
+  hydrates the lazy Ministra season the target lives in. A Stalker
+  embedded-VOD `series[]` or lazy `is_series` row keeps its routing
+  `contentType: 'movie'` in the handoff state — the detail resolves the mode
+  from the stored row — so `getOpenCollectionDetailItemState` keeps a resume
+  target for any non-live Stalker item, not only `contentType: 'series'`. Continue Watching cards also expose "Mark as Watched" (maxes out the
   tracked position row) and "Remove from history" in the same ⋮ menu.
 - Ready Download Manager cards open one of the three focused
   `downloads/:downloadId` routes. These local details hide the workspace
@@ -227,9 +235,10 @@ Dashboard behavior to preserve:
   Xtream movie/series items into `/workspace/global-favorites` or
   `/workspace/global-recent` with collection detail pre-opened from navigation
   state.
-- When an Xtream series recent has a saved episode position, the dashboard hero
-  and Continue Watching card should include that exact series/episode target in
-  the navigation state. It is a one-shot playback request and must not leak into
+- When a series recent (Xtream, or a Stalker row whose `watch_kind` is
+  `series`) has a saved episode position, the dashboard hero and Continue
+  Watching card should include that exact series/episode target in the
+  navigation state. It is a one-shot playback request and must not leak into
   normal favorites, search, category, or collection-grid navigation. Only
   position rows that name their parent `seriesXtreamId` produce a target:
   episode-keyed recents make `item.xtream_id` an episode id, so legacy rows

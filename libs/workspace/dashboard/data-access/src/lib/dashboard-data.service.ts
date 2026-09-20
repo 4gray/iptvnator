@@ -36,11 +36,11 @@ import {
     PortalActivityType,
     PortalFavoriteItem,
     PortalRecentItem,
+    resolvePortalActivityWatchKind,
     stalkerItemMatchesId,
 } from '@iptvnator/shared/interfaces';
 import {
     buildStalkerFavoriteItems,
-    getActivityTypeLabelKey,
     mapDbFavoriteToItem,
     mapDbRecentlyAddedToItem,
     mapDbRecentToItem,
@@ -293,7 +293,11 @@ export class DashboardDataService {
     getPlaybackPositionForItem(
         item: PortalActivityItem
     ): PlaybackPositionData | null {
-        if (item.type !== 'movie' && item.type !== 'series') {
+        // The progress model, not the routing type: a Stalker embedded-VOD
+        // or lazy `is_series` row routes as a movie but tracks episodes
+        // under its parent id, and a `vod` lookup for it finds nothing.
+        const watchKind = resolvePortalActivityWatchKind(item);
+        if (!watchKind) {
             return null;
         }
         const xtreamId =
@@ -304,7 +308,7 @@ export class DashboardDataService {
             return null;
         }
 
-        if (item.type === 'movie') {
+        if (watchKind === 'movie') {
             const key = playbackPositionMapKey(
                 item.playlist_id,
                 xtreamId,
@@ -883,11 +887,6 @@ export class DashboardDataService {
         return this.translateText('WORKSPACE.DASHBOARD.PROVIDER');
     }
 
-    getRecentItemTypeLabel(item: GlobalRecentItem): string {
-        this.languageTick();
-        return this.translateText(getActivityTypeLabelKey(item.type));
-    }
-
     getRecentItemLink(item: GlobalRecentItem): string[] {
         return getRecentItemLinkUtil(item);
     }
@@ -1000,48 +999,6 @@ export class DashboardDataService {
                 }) as any
             );
         }
-    }
-
-    getFavoriteItemProviderLabel(item: DashboardFavoriteItem): string {
-        return this.getActivityItemProviderLabel(item);
-    }
-
-    getRecentlyAddedItemProviderLabel(
-        item: DashboardRecentlyAddedItem
-    ): string {
-        return this.getActivityItemProviderLabel(item);
-    }
-
-    private getActivityItemProviderLabel(
-        item: Pick<PortalActivityItem, 'source'>
-    ): string {
-        this.languageTick();
-
-        if (item.source === 'stalker') {
-            return this.translateText('WORKSPACE.DASHBOARD.STALKER');
-        }
-        if (item.source === 'xtream') {
-            return this.translateText('WORKSPACE.DASHBOARD.XTREAM');
-        }
-        if (item.source === 'm3u') {
-            return this.translateText('WORKSPACE.DASHBOARD.M3U');
-        }
-        return this.translateText('WORKSPACE.DASHBOARD.PROVIDER');
-    }
-
-    getFavoriteItemTypeLabel(item: DashboardFavoriteItem): string {
-        return this.getActivityItemTypeLabel(item);
-    }
-
-    getRecentlyAddedItemTypeLabel(item: DashboardRecentlyAddedItem): string {
-        return this.getActivityItemTypeLabel(item);
-    }
-
-    private getActivityItemTypeLabel(
-        item: Pick<PortalActivityItem, 'type'>
-    ): string {
-        this.languageTick();
-        return this.translateText(getActivityTypeLabelKey(item.type));
     }
 
     getGlobalFavoriteLink(item: DashboardFavoriteItem): string[] {
