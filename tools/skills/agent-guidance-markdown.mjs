@@ -1,4 +1,5 @@
 import { Marked, Tokenizer } from 'marked';
+import { parseFragment } from 'parse5';
 
 // Lex only: no Markdown is rendered and no HTML is sanitized or re-emitted.
 const markdownLexer = new Marked({
@@ -34,14 +35,50 @@ function inlineText(tokens) {
         .map((token) => {
             if (token.type === 'html') return '';
             if (token.tokens) return inlineText(token.tokens);
-            return token.text ?? '';
+            return token.type === 'text'
+                ? decodeEntities(token.text ?? '')
+                : (token.text ?? '');
         })
         .join('');
 }
 
+function decodeEntities(text) {
+    return text.replace(
+        /&(?:#(?:x[0-9a-f]+|[0-9]+)|[a-z][a-z0-9]+);/giu,
+        (entity) => parseFragment(entity).childNodes[0]?.value ?? entity
+    );
+}
+
+function htmlAnchors(html) {
+    const found = [];
+    function visit(node) {
+        if (['script', 'style', 'template'].includes(node.tagName)) return;
+        for (const attribute of node.attrs ?? []) {
+            if (
+                attribute.name === 'id' ||
+                (node.tagName === 'a' && attribute.name === 'name')
+            )
+                found.push(attribute.value);
+        }
+        for (const child of node.childNodes ?? []) visit(child);
+    }
+    visit(parseFragment(html));
+    return found;
+}
+
+export function guidanceProse(markdown) {
+    function prose(token) {
+        if (['code', 'codespan', 'html'].includes(token.type)) return '';
+        if (token.items) return token.items.map(prose).join('\n');
+        if (token.tokens) return token.tokens.map(prose).join('');
+        return token.text ?? '';
+    }
+    return markdownLexer.lexer(markdown).map(prose).join('\n');
+}
+
 export function guidanceAnchors(markdown) {
     const found = new Set();
-    const explicit = new Set();
+    const html = [];
     markdownLexer.walkTokens(markdownLexer.lexer(markdown), (token) => {
         if (token.type === 'heading') {
             const slug = inlineText(token.tokens)
@@ -53,14 +90,9 @@ export function guidanceAnchors(markdown) {
             while (found.has(unique)) unique = `${slug}-${++suffix}`;
             found.add(unique);
         }
-        if (token.type === 'html') {
-            for (const match of token.raw.matchAll(
-                /<(?:a|[a-z][\w-]*)\b[^>]*\b(?:id|name)=["']([^"']+)["']/giu
-            ))
-                explicit.add(match[1]);
-        }
+        if (token.type === 'html') html.push(token.raw);
     });
-    return new Set([...found, ...explicit]);
+    return new Set([...found, ...htmlAnchors(html.join('\n'))]);
 }
 
 function isLiteralRepositoryPath(token) {

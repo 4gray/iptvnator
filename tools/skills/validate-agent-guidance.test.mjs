@@ -454,3 +454,47 @@ for (const [encoded, filename] of [
         );
     });
 }
+
+for (const source of ['AGENTS.md', 'CLAUDE.md']) {
+    test(`${source}: indented decorators are not imports`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                [source]:
+                    (source === 'CLAUDE.md' ? '@AGENTS.md\n\n' : '') +
+                    '    @Injectable()\n    @docs/missing.md\n',
+            }),
+            []
+        );
+    });
+}
+for (const body of [
+    '<!-- <a id="old"></a> -->',
+    `<script>const s = '<a id="old"></a>';</script>`,
+    '<template><a id="old"></a></template>',
+]) {
+    test(`non-rendered HTML does not define anchors: ${body}`, async (t) => {
+        assert.match(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': '[Old](docs/example.md#old)',
+                    'docs/example.md': body,
+                })
+            ).join('\n'),
+            /missing anchor/
+        );
+    });
+}
+for (const [heading, anchor] of [
+    ['A &amp; B', 'a--b'],
+    ['Caf&eacute; &#x41; &#66;', 'café-a-b'],
+]) {
+    test(`heading entities produce rendered anchors: ${heading}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': `[Heading](docs/example.md#${anchor})`,
+                'docs/example.md': '# ' + heading,
+            }),
+            []
+        );
+    });
+}

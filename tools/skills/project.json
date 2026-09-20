@@ -12,7 +12,7 @@
                 "{projectRoot}/*.mjs",
                 "{projectRoot}/project.json",
                 {
-                    "externalDependencies": ["marked"]
+                    "externalDependencies": ["marked", "parse5"]
                 }
             ],
             "options": {

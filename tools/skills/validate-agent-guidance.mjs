@@ -3,6 +3,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
     guidanceAnchors as anchors,
+    guidanceProse,
     guidanceReferences as references,
 } from './agent-guidance-markdown.mjs';
 
@@ -19,27 +20,6 @@ function within(root, path) {
     return (
         !isAbsolute(local) && local !== '..' && !local.startsWith(`..${sep}`)
     );
-}
-
-// Deliberately scoped to authored guidance, not a general Markdown crawler.
-function withoutFences(markdown) {
-    let fence;
-    return markdown
-        .split(/\r?\n/u)
-        .map((line) => {
-            const match = /^\s{0,3}(`{3,}|~{3,})/u.exec(line);
-            if (match) {
-                if (!fence) fence = match[1];
-                else if (
-                    match[1][0] === fence[0] &&
-                    match[1].length >= fence.length
-                )
-                    fence = undefined;
-                return '';
-            }
-            return fence ? '' : line;
-        })
-        .join('\n');
 }
 
 async function validateReference(
@@ -109,7 +89,7 @@ export async function validateAgentGuidance({ rootDir }) {
                 diagnostics.push(
                     `${source}: at most ${maxBytes} UTF-8 bytes allowed (received ${bytes})`
                 );
-            const unfenced = withoutFences(markdown);
+            const unfenced = guidanceProse(markdown);
             const imports = [...unfenced.matchAll(/^\s*@([^\s]+)\s*$/gmu)].map(
                 (match) => match[1]
             );
