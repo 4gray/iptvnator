@@ -26,6 +26,21 @@ type FavoritePayload = StalkerPortalItem & {
 /**
  * Favorites concern methods.
  */
+/** The first id that is actually set; a blank one is as absent as a missing one. */
+function firstNonBlankStalkerId(
+    ...values: (string | number | undefined)[]
+): string | number | undefined {
+    for (const value of values) {
+        if (typeof value === 'number') {
+            return value;
+        }
+        if (String(value ?? '').trim()) {
+            return value;
+        }
+    }
+    return undefined;
+}
+
 export function withStalkerFavorites() {
     return signalStoreFeature(
         withMethods(
@@ -53,7 +68,16 @@ export function withStalkerFavorites() {
                                     storeContext.selectedContentType()
                                 ),
                                 added_at: Date.now(),
-                                id: item.stream_id ?? item.id,
+                                // First NON-BLANK: `??` keeps a blank
+                                // `stream_id`, which would overwrite a valid
+                                // `id` and leave the stored row with no
+                                // provider identity at all — unremovable by
+                                // id, and invisible to anything that looks
+                                // the channel up again.
+                                id: firstNonBlankStalkerId(
+                                    item.stream_id,
+                                    item.id
+                                ),
                             })
                             .subscribe((updatedPlaylist) => {
                                 dispatchStalkerPlaylistMetaUpdate(
