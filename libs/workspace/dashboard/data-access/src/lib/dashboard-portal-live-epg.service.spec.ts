@@ -1,7 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { Subject } from 'rxjs';
 import type { EpgProgram } from '@iptvnator/shared/interfaces';
-import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgSourceSettingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { StreamResolverService } from '@iptvnator/portal/shared/data-access';
 import {
     DASHBOARD_PORTAL_LIVE_EPG_TIMING,
@@ -43,9 +47,17 @@ describe('DashboardPortalLiveEpgService', () => {
     let deferred: Deferred[];
     let offsetMinutes: number;
     let sourceChanged: Subject<void>;
+    let sourceRevision: number;
+    let supportsEpgProgramLookup: boolean;
 
-    const { delayMs, ttlMs, failureCooldownMs, endedRefetchFloorMs } =
+    const { delayMs, ttlMs, emptyTtlMs, endedRefetchFloorMs } =
         DASHBOARD_PORTAL_LIVE_EPG_TIMING;
+
+    /** What a reconciliation does: bump the fence, then announce it. */
+    const changeEpgSources = () => {
+        sourceRevision++;
+        sourceChanged.next();
+    };
 
     /** Let the queue loop take its next step (one inter-request delay). */
     const step = async (rounds = 1): Promise<void> => {
@@ -69,6 +81,8 @@ describe('DashboardPortalLiveEpgService', () => {
         jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
         deferred = [];
         offsetMinutes = 0;
+        sourceRevision = 0;
+        supportsEpgProgramLookup = true;
         sourceChanged = new Subject<void>();
         loadEpgForItems = jest.fn((items: { tvgId?: string }[]) => {
             const key = `xtream::p::${items[0].tvgId}`;
@@ -99,7 +113,18 @@ describe('DashboardPortalLiveEpgService', () => {
                 },
                 {
                     provide: EpgSourceSettingsService,
-                    useValue: { changed$: sourceChanged },
+                    useValue: {
+                        changed$: sourceChanged,
+                        revision: () => sourceRevision,
+                    },
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        get supportsEpgProgramLookup() {
+                            return supportsEpgProgramLookup;
+                        },
+                    },
                 },
             ],
         });
@@ -199,19 +224,42 @@ describe('DashboardPortalLiveEpgService', () => {
         expect(loadEpgForItems).toHaveBeenCalledTimes(2);
     });
 
-    it('leaves a failed portal alone for the cooldown and keeps the card unanswered', async () => {
+    it('expires an answer with no programme sooner than one with a programme', async () => {
+        // The resolver reports a failed portal and a guide-less channel the
+        // same way, so the short TTL is what lets an outage recover.
         service.sync([entry(1)]);
-        deferred[0].reject(new Error('portal down'));
-        await jest.advanceTimersByTimeAsync(0);
-        expect(service.programs().has('xtream::p::1')).toBe(false);
-        expect(service.pending().size).toBe(0);
+        await settle('xtream::p::1', null);
+        await step();
+        expect(service.programs().get('xtream::p::1')).toBeNull();
 
-        jest.setSystemTime(Date.now() + failureCooldownMs / 2);
+        jest.setSystemTime(Date.now() + emptyTtlMs / 2);
         service.sync([entry(1)]);
         await step();
         expect(loadEpgForItems).toHaveBeenCalledTimes(1);
 
-        jest.setSystemTime(Date.now() + failureCooldownMs);
+        jest.setSystemTime(Date.now() + emptyTtlMs / 2);
+        service.sync([entry(1)]);
+        await step();
+        expect(loadEpgForItems).toHaveBeenCalledTimes(2);
+
+        // A programme keeps the full TTL, which outlives the empty one.
+        await settle('xtream::p::1', program('On air'));
+        await step();
+        jest.setSystemTime(Date.now() + emptyTtlMs);
+        service.sync([entry(1)]);
+        await step();
+        expect(loadEpgForItems).toHaveBeenCalledTimes(2);
+    });
+
+    it('treats a rejected resolver call as an answer with no programme', async () => {
+        service.sync([entry(1)]);
+        deferred[0].reject(new Error('portal down'));
+        await jest.advanceTimersByTimeAsync(0);
+
+        expect(service.programs().get('xtream::p::1')).toBeNull();
+        expect(service.pending().size).toBe(0);
+
+        jest.setSystemTime(Date.now() + emptyTtlMs);
         service.sync([entry(1)]);
         await step();
         expect(loadEpgForItems).toHaveBeenCalledTimes(2);
@@ -235,9 +283,42 @@ describe('DashboardPortalLiveEpgService', () => {
         await settle('xtream::p::1', program('Before import'));
         await step();
 
-        sourceChanged.next();
+        changeEpgSources();
         expect(service.programs().size).toBe(0);
         await step();
         expect(loadEpgForItems).toHaveBeenCalledTimes(2);
+    });
+
+    it('discards an answer computed before an EPG source change and asks again', async () => {
+        // The key is in flight when the sources change, so the retire pass
+        // cannot requeue it; the completion must not publish the old guide's
+        // answer and must ask again itself.
+        service.sync([entry(1)]);
+        await step();
+        expect(loadEpgForItems).toHaveBeenCalledTimes(1);
+
+        changeEpgSources();
+        await settle('xtream::p::1', program('Removed guide'));
+        expect(service.programs().has('xtream::p::1')).toBe(false);
+
+        await step();
+        expect(loadEpgForItems).toHaveBeenCalledTimes(2);
+        await settle('xtream::p::1', program('Current guide'));
+        expect(service.programs().get('xtream::p::1')?.title).toBe(
+            'Current guide'
+        );
+    });
+
+    it('does nothing at all without the local EPG program-lookup capability', async () => {
+        // PWA: the collection resolver is gated on the desktop XMLTV bridge
+        // and answers nothing, so no request is worth queuing.
+        supportsEpgProgramLookup = false;
+
+        service.sync([entry(1), entry(2)]);
+        await step(3);
+
+        expect(loadEpgForItems).not.toHaveBeenCalled();
+        expect(service.pending().size).toBe(0);
+        expect(service.programs().size).toBe(0);
     });
 });

@@ -130,6 +130,20 @@ describe('DashboardPortalLiveEpgPresenter', () => {
         expect(wantedKeys().at(-1)).toEqual(['xtream::p::1']);
     });
 
+    it('hands its wanted set back to the root service when the dashboard is destroyed', () => {
+        presenter.connect(
+            signal<readonly PortalActivityItem[]>([xtreamLive(1)])
+        );
+        presenter.setPinnedKeys(['xtream::p::1']);
+        TestBed.tick();
+        expect(wantedKeys().at(-1)).toEqual(['xtream::p::1']);
+
+        // The queue lives in the root service and would otherwise keep
+        // asking for cards on a page the user has left.
+        TestBed.resetTestingModule();
+        expect(wantedKeys().at(-1)).toEqual([]);
+    });
+
     it('answers a card from the service: undefined until asked, null when nothing is on air', () => {
         const program = { title: 'Now' } as EpgProgram;
         expect(presenter.programFor('xtream::p::1')).toBeUndefined();

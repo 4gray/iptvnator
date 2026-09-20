@@ -1,5 +1,6 @@
 import {
     computed,
+    DestroyRef,
     effect,
     inject,
     Injectable,
@@ -88,6 +89,11 @@ export class DashboardPortalLiveEpgPresenter {
             this.settingsStore.resolvedEpgOffsetMinutes();
             untracked(() => this.service.sync(wanted));
         });
+        // The queue lives in the root service; this presenter owns what it
+        // wants. Leaving the dashboard must hand that back, or the queue
+        // would keep asking for cards on a page that is gone — and a later
+        // source change would ask for them again.
+        inject(DestroyRef).onDestroy(() => this.service.sync([]));
     }
 
     /** The live rows every portal card on the dashboard is built from. */

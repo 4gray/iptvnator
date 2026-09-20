@@ -149,17 +149,37 @@ Render rules:
           visible keys of both rails with the pinned hero key and calls
           `DashboardPortalLiveEpgService.sync()` with exactly those entries —
           on every change, on the 30 s tick, and on a display-offset change.
+          The queue lives in the root service, so leaving the dashboard hands
+          the wanted set back (`sync([])` on destroy); otherwise the queue
+          would keep asking for cards on a page that is gone.
         - `DashboardPortalLiveEpgService` (root) owns the queue: at most two
           requests in flight, 200 ms between starts (the numbers
           `EpgQueueService` proved against real panels), one card per request,
           each answer published the moment it lands in `programs`, so the page
           never waits and a slow portal delays no other card. Only wanted keys
           are dequeued, so a card scrolled past before its turn is never
-          requested. Answers live 60 s; a failed portal is left alone for 30 s;
-          a programme that ended is asked again, but not within 30 s of the
-          last answer (a portal may keep returning the stale row). Every
-          answer is "at the provider clock", so a changed display offset or a
-          changed XMLTV source set drops them all.
+          requested. A programme lives 60 s; a programme that ended is asked
+          again, but not within 30 s of the last answer (a portal may keep
+          returning the stale row). An answer with **no** programme lives only
+          30 s, because the resolver reports a failed portal and a guide-less
+          channel identically (it files per-channel failures as `null`), so
+          there is no failure cooldown to keep and the short TTL is what lets
+          an outage recover on the next tick.
+        - Every answer is "at the provider clock" and against one XMLTV source
+          set. A request captures both the display offset and
+          `EpgSourceSettingsService.revision()` — the same fence
+          `EpgService.guard()` uses — and a completion whose either fact moved
+          is discarded and requeued instead of published. That requeue has to
+          happen in the completion: while the key is in flight the retire pass
+          cannot queue a replacement, and without it the pre-change answer
+          would be trusted for a full TTL (the repo's late-result
+          invalidation contract).
+        - Desktop only in practice: the shared collection resolver is gated on
+          the local XMLTV bridge (`supportsProgramLookup`) and answers nothing
+          without it, so `sync()` returns immediately in the PWA rather than
+          filing an empty answer for every card. Lifting that gate for portal
+          lookups would change the collection pages too and is deliberately
+          out of scope here.
         - `enrichLiveCards` prefers the portal answer, falls back to the XMLTV
           title match when the portal said "nothing on air", and marks a card
           `nowPlayingState: 'pending'` only before its FIRST answer — the

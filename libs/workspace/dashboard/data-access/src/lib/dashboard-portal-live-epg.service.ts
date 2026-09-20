@@ -3,7 +3,11 @@ import {
     epgProviderClockMs,
     type EpgProgram,
 } from '@iptvnator/shared/interfaces';
-import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
+import {
+    EpgSourceSettingsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { StreamResolverService } from '@iptvnator/portal/shared/data-access';
 import {
     dashboardPortalLiveEpgProgramStopMs,
@@ -18,16 +22,22 @@ interface CachedProgram {
 
 /**
  * Same numbers `EpgQueueService` uses against real Xtream panels: two
- * requests in flight, 200 ms between starts. A card's answer is trusted for
- * a minute; a portal that failed is left alone for 30 s; a programme that
- * ended is asked again, but never more often than every 30 s in case the
- * portal keeps returning the stale row.
+ * requests in flight, 200 ms between starts. A programme is trusted for a
+ * minute; a programme that ended is asked again, but never more often than
+ * every 30 s in case the portal keeps returning the stale row.
+ *
+ * An answer with no programme expires sooner (`emptyTtlMs`) because the
+ * collection resolver reports a failed portal and a channel with no guide
+ * identically — it catches per-channel failures and files them as `null`.
+ * There is therefore no failure cooldown to keep: the short TTL is what lets
+ * a transient outage recover on the next tick, at the price of re-asking a
+ * genuinely guide-less channel while its card stays on screen.
  */
 export const DASHBOARD_PORTAL_LIVE_EPG_TIMING = Object.freeze({
     maxConcurrency: 2,
     delayMs: 200,
     ttlMs: 60_000,
-    failureCooldownMs: 30_000,
+    emptyTtlMs: 30_000,
     endedRefetchFloorMs: 30_000,
 });
 
@@ -45,12 +55,12 @@ export const DASHBOARD_PORTAL_LIVE_EPG_TIMING = Object.freeze({
 export class DashboardPortalLiveEpgService implements OnDestroy {
     private readonly streamResolver = inject(StreamResolverService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly sourceSubscription = inject(
-        EpgSourceSettingsService
-    ).changed$.subscribe(() => this.retireAnswers());
+    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly sourceSettings = inject(EpgSourceSettingsService);
+    private readonly sourceSubscription =
+        this.sourceSettings.changed$.subscribe(() => this.retireAnswers());
 
     private readonly cache = new Map<string, CachedProgram>();
-    private readonly failureAt = new Map<string, number>();
     private wanted = new Map<string, DashboardPortalLiveEpgEntry>();
     private queue: string[] = [];
     private readonly inFlight = new Set<string>();
@@ -74,6 +84,13 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
      * allowed to finish and is cached for when the card scrolls back).
      */
     sync(entries: readonly DashboardPortalLiveEpgEntry[]): void {
+        // The collection resolver this queue asks through is gated on the
+        // local XMLTV bridge (`supportsProgramLookup`, desktop only) and
+        // answers nothing without it, so the PWA never queues at all rather
+        // than filing an empty answer for every card.
+        if (!this.runtime.supportsEpgProgramLookup) {
+            return;
+        }
         this.retireStateOfPreviousOffset();
         this.wanted = new Map(entries.map((entry) => [entry.key, entry]));
         this.queue = this.queue.filter((key) => this.wanted.has(key));
@@ -101,14 +118,17 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
     }
 
     private needsFetch(key: string, now: number): boolean {
-        if (this.inFlight.has(key) || this.isCoolingDown(key, now)) {
+        if (this.inFlight.has(key)) {
             return false;
         }
         const cached = this.cache.get(key);
         if (!cached) {
             return true;
         }
-        if (now - cached.fetchedAt >= DASHBOARD_PORTAL_LIVE_EPG_TIMING.ttlMs) {
+        const ttlMs = cached.program
+            ? DASHBOARD_PORTAL_LIVE_EPG_TIMING.ttlMs
+            : DASHBOARD_PORTAL_LIVE_EPG_TIMING.emptyTtlMs;
+        if (now - cached.fetchedAt >= ttlMs) {
             return true;
         }
         const stopMs = dashboardPortalLiveEpgProgramStopMs(cached.program);
@@ -118,21 +138,6 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
             now - cached.fetchedAt >=
                 DASHBOARD_PORTAL_LIVE_EPG_TIMING.endedRefetchFloorMs
         );
-    }
-
-    private isCoolingDown(key: string, now: number): boolean {
-        const failedAt = this.failureAt.get(key);
-        if (failedAt == null) {
-            return false;
-        }
-        if (
-            now - failedAt >=
-            DASHBOARD_PORTAL_LIVE_EPG_TIMING.failureCooldownMs
-        ) {
-            this.failureAt.delete(key);
-            return false;
-        }
-        return true;
     }
 
     private async processQueue(): Promise<void> {
@@ -171,38 +176,46 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
             this.publishPending();
             return;
         }
+        // Both facts this answer is evaluated against. The revision is the
+        // same fence `EpgService.guard()` uses: a reconciliation bumps it, so
+        // a result computed against the previous XMLTV source set can be told
+        // apart from one computed against the current one.
         const offsetMinutes = this.offsetMinutes();
+        const revision = this.sourceSettings.revision();
         let program: EpgProgram | null = null;
-        let failed = false;
         try {
             const epgMap = await this.streamResolver.loadEpgForItems([
                 entry.item,
             ]);
             program = resolveDashboardPortalLiveEpgProgram(epgMap, entry);
         } catch {
-            failed = true;
+            // The resolver files a failed portal as `null` itself, so this
+            // only catches a resolver-level throw. Same answer either way,
+            // and `emptyTtlMs` is what makes it recoverable.
+            program = null;
         }
         this.inFlight.delete(key);
 
-        // The setting changed while the request was on the wire: this answer
-        // belongs to the previous provider clock. Retire it and ask again if
-        // the card is still wanted.
-        if (offsetMinutes !== this.offsetMinutes()) {
+        // A setting or the source set changed while the request was on the
+        // wire: this answer belongs to the previous provider clock or the
+        // previous guide. `retireAnswers()` could not requeue the key while
+        // it was in flight, so the requeue happens here — otherwise the stale
+        // answer would be published and trusted for a full TTL.
+        if (
+            offsetMinutes !== this.offsetMinutes() ||
+            revision !== this.sourceSettings.revision()
+        ) {
             this.retireStateOfPreviousOffset();
             this.requeueIfWanted(key);
             return;
         }
 
-        if (failed) {
-            this.failureAt.set(key, Date.now());
-        } else {
-            this.cache.set(key, { program, fetchedAt: Date.now() });
-            this.programsState.update((programs) => {
-                const next = new Map(programs);
-                next.set(key, program);
-                return next;
-            });
-        }
+        this.cache.set(key, { program, fetchedAt: Date.now() });
+        this.programsState.update((programs) => {
+            const next = new Map(programs);
+            next.set(key, program);
+            return next;
+        });
         this.publishPending();
     }
 
@@ -240,7 +253,6 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
 
     private dropAnswers(): void {
         this.cache.clear();
-        this.failureAt.clear();
         this.programsState.set(new Map());
     }
 
