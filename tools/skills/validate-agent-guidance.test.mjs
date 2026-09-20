@@ -1191,3 +1191,24 @@ test('valid iframe and inert iframe targets pass', async (t) => {
         []
     );
 });
+
+for (const suffix of [
+    '.md#rules',
+    '.md?view=raw#rules',
+    '.txt#rules',
+    '.json#rules',
+]) {
+    test(`package document imports retain suffix guards: ${suffix}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @angular/core/docs/extra' + suffix,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}

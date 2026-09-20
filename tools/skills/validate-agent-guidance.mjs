@@ -126,7 +126,12 @@ async function packageMentions(rootDir) {
             token.split(/[\/\\]/u).some((part) => part === '.' || part === '..')
         )
             return false;
-        if (/\.(?:md|mdx|txt|json|ya?ml|html?)$/iu.test(token)) return false;
+        if (
+            /\.(?:md|mdx|txt|json|ya?ml|html?)$/iu.test(
+                token.split(/[?#]/u, 1)[0]
+            )
+        )
+            return false;
         if (packages.includes(token)) return true;
         if (token.endsWith('/*') && scopes.has(token.slice(0, -2))) return true;
         return declared.some((name) => {
