@@ -196,6 +196,11 @@ function buildEmptyContentPatch(
         patch.hasMoreChannels = false;
         if (contentType === 'itv') {
             patch.itvChannels = [];
+            // `itvChannelsCategory` describes the rows: cleared rows belong
+            // to no category, or an auto-open handoff for the category these
+            // rows CAME from would read the stale marker as proof that its
+            // genre is on screen and prepare playback from an empty queue.
+            patch.itvChannelsCategory = null;
         } else {
             patch.radioChannels = [];
         }

@@ -433,6 +433,39 @@ describe('withStalkerContent failure states', () => {
         expect(store.itvChannelsCategory()).toBeNull();
     });
 
+    it('forgets the served category when a failed ITV page clears the rows', async () => {
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.resolve({
+                js: {
+                    data: [{ id: 'channel-1', name: 'One', category_id: '5' }],
+                    total_items: 1,
+                },
+            })
+        );
+
+        store.setSelectedContentType('itv');
+        store.setCategories('itv', [
+            { category_id: '5', category_name: 'News' },
+            { category_id: '9', category_name: 'Sports' },
+        ]);
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setSelectedCategory('5');
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.itvChannelsCategory() === '5');
+
+        // The next category's first page fails: the rows are cleared, so no
+        // category is on screen — a stale marker would tell an auto-open
+        // handoff for genre 5 that its channels are still rendered.
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.reject(new Error('portal down'))
+        );
+        store.setSelectedCategory('9');
+
+        await waitForCondition(() => store.contentError() !== null);
+        expect(store.itvChannels()).toEqual([]);
+        expect(store.itvChannelsCategory()).toBeNull();
+    });
+
     it('appends later VOD pages into one continuous deduplicated list', async () => {
         dataService.sendIpcEvent.mockImplementation(
             (_event: unknown, payload: { params?: { p?: number } }) => {
