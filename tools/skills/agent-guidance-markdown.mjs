@@ -8,12 +8,16 @@ const markdownLexer = new Marked({
             if (token?.type !== 'text') return token;
 
             // Marked otherwise turns unresolved references into ordinary text.
-            // Reuse its grammar, retaining only explicit full/collapsed forms;
+            // Retain explicit full/collapsed forms and shortcut images;
             // a bare [word] without a definition remains ordinary prose.
             const full = this.rules.inline.reflink.exec(source);
             const collapsed = this.rules.inline.nolink.exec(source);
             const match =
-                full ?? (collapsed?.[0].endsWith('[]') ? collapsed : undefined);
+                full ??
+                (collapsed?.[0].endsWith('[]') ||
+                collapsed?.[0].startsWith('![')
+                    ? collapsed
+                    : undefined);
             if (!match) return token;
             return {
                 type: 'unresolved-reference',
@@ -66,15 +70,17 @@ function isLiteralRepositoryPath(token) {
     if (/[^\p{L}\p{N}_./#-]/u.test(token)) return false;
     if (token.includes('YYYY-MM-DD') || /(?:^|\/)\.\.\.(?:\/|$)/u.test(token))
         return false;
-    // Recognized JavaScript globals are code-symbol exceptions, not a claim
-    // that every dotted code expression can be distinguished from a filename.
+    const path = token.split('#')[0];
+    // Bare dotted identifiers are ambiguous. Recognize conventional file
+    // suffixes; other filenames can be made explicit with ./ or a Markdown link.
+    // This applies to user-defined symbols as well as JavaScript globals.
     if (
-        /^(?:window|document|console|process|globalThis|this|Math|JSON|Object|Array|Promise|Reflect|Symbol)\.[\p{L}_][\p{L}\p{N}_]*$/u.test(
-            token
+        /^[\p{L}_][\p{L}\p{N}_]*(?:\.[\p{L}_][\p{L}\p{N}_]*)+$/u.test(path) &&
+        !/\.(?:md|mdx|json|jsonc|ya?ml|[cm]?[jt]sx?|html?|[sc]ss|sass|less|toml|xml|txt|sh|py|sql|svg|png|jpe?g|webp|gif|m3u8?|conf|ini|lock)$/iu.test(
+            path
         )
     )
         return false;
-    const path = token.split('#')[0];
     return (
         path.includes('/') ||
         /^(?:\.[\p{L}\p{N}_-]+|[\p{L}\p{N}_-][\p{L}\p{N}_.-]*\.[\p{L}][\p{L}\p{N}_-]*)$/u.test(

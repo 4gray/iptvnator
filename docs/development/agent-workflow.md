@@ -30,12 +30,13 @@ Later normal edits maintain the canonical docs, not duplicate historical prose.
 Run `pnpm run agents:validate` after guidance changes. It checks line/byte budgets,
 root imports and local navigation links/anchors, including migration destinations.
 Markdown navigation is parsed with the already-declared `marked` dependency;
-undefined explicit reference links are errors, and code examples are excluded.
+undefined explicit references (including shortcut images) are errors, and code examples are excluded.
 Backticked concrete paths in root guidance and the context map are checked from
 the repository root, including unknown top-level directories and filenames.
 Write generic filenames as prose; commands, templates, globs, URLs, package
-aliases and recognized JavaScript globals are excluded. Use Markdown links for
-ambiguous filenames that resemble code symbols.
+aliases and dotted code symbols are excluded. Bare dotted names with conventional
+file suffixes (such as .md, .json or .ts) are treated as filenames. Use a `./`
+prefix or Markdown link for other ambiguous filenames that resemble code symbols.
 Heading anchors are derived from parsed text, not HTML sanitization. The Nx test
 hash includes `marked` so dependency changes invalidate parser coverage.
 It cannot prove semantic equivalence; review changed contracts as well.

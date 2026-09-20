@@ -196,6 +196,21 @@ test('AGENTS rejects the reported unlisted directory and root filename', async (
     );
     assert.match(errors.join('\n'), /does not exist: electron-builder\.json/);
 });
+test('ambiguous dotted filenames can be explicitly marked as paths', async (t) => {
+    for (const reference of ['`./custom.symbol`', '[File](custom.symbol)']) {
+        assert.match(
+            (await diagnostics(t, { [map]: reference })).join('\n'),
+            /does not exist/
+        );
+    }
+    assert.deepEqual(
+        await diagnostics(t, {
+            [map]: '`./custom.symbol`',
+            'custom.symbol': '',
+        }),
+        []
+    );
+});
 test('literal paths retain fragment checks', async (t) => {
     assert.deepEqual(
         await diagnostics(t, { [map]: '`docs/example.md#hello-world`' }),
@@ -224,6 +239,11 @@ test('literal detection excludes commands, templates, URLs, aliases and code exp
         '@angular/core',
         'node:fs/promises',
         'window.electron',
+        'Date.now',
+        'String.raw',
+        'Buffer.from',
+        'customStore.selectedItem',
+        'process.env.NODE_ENV',
         'document.body',
         'process.env',
         'this.store',
@@ -304,6 +324,7 @@ for (const reference of [
     '[**Guide**][missing]',
     '[Guide `code`][missing]',
     '![Guide][missing]',
+    '![Diagram]',
 ]) {
     test(`diagnoses unresolved explicit reference ${reference}`, async (t) => {
         assert.match(
