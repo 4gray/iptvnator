@@ -6,12 +6,16 @@ const FAVORITES_SORT_COLLATOR = new Intl.Collator(undefined, {
 });
 
 export type FavoritesChannelSortMode =
-    'custom' | 'name-asc' | 'name-desc' | 'date-desc';
+    | 'custom'
+    | 'name-asc'
+    | 'name-desc'
+    | 'date-desc';
 
 export const DEFAULT_FAVORITES_CHANNEL_SORT_MODE: FavoritesChannelSortMode =
     'custom';
 
-export const FAVORITES_CHANNEL_SORT_STORAGE_KEY = 'favorites-channel-sort-mode';
+export const FAVORITES_CHANNEL_SORT_STORAGE_KEY =
+    'favorites-channel-sort-mode';
 
 export function isFavoritesChannelSortMode(
     value: unknown
