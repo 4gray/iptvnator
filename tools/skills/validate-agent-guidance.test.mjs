@@ -169,6 +169,7 @@ for (const path of [
     'lib/definitely-missing.ts',
     'services/definitely-missing.ts',
     'electron-builder.json',
+    'missing.scss',
     'custom.config-format',
     '.custom-config',
     'arbitrary/directory',

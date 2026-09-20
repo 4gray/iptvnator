@@ -76,7 +76,7 @@ function isLiteralRepositoryPath(token) {
     // This applies to user-defined symbols as well as JavaScript globals.
     if (
         /^[\p{L}_][\p{L}\p{N}_]*(?:\.[\p{L}_][\p{L}\p{N}_]*)+$/u.test(path) &&
-        !/\.(?:md|mdx|json|jsonc|ya?ml|[cm]?[jt]sx?|html?|[sc]ss|sass|less|toml|xml|txt|sh|py|sql|svg|png|jpe?g|webp|gif|m3u8?|conf|ini|lock)$/iu.test(
+        !/\.(?:md|mdx|json|jsonc|ya?ml|[cm]?[jt]sx?|html?|css|scss|sass|less|toml|xml|txt|sh|py|sql|svg|png|jpe?g|webp|gif|m3u8?|conf|ini|lock)$/iu.test(
             path
         )
     )
