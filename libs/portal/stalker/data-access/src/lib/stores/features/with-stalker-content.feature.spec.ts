@@ -433,6 +433,33 @@ describe('withStalkerContent failure states', () => {
         expect(store.itvChannelsCategory()).toBeNull();
     });
 
+    it("does not report another portal's served category as its own", async () => {
+        dataService.sendIpcEvent.mockImplementation(() =>
+            Promise.resolve({
+                js: {
+                    data: [{ id: 'channel-1', name: 'One', category_id: '5' }],
+                    total_items: 1,
+                },
+            })
+        );
+
+        store.setSelectedContentType('itv');
+        store.setCategories('itv', [
+            { category_id: '5', category_name: 'News' },
+        ]);
+        store.setCurrentPlaylist(PLAYLIST);
+        store.setSelectedCategory('5');
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.itvChannelsCategory() === '5');
+
+        // Switching portal keeps the previous rows until the new portal's
+        // own load lands; genre ids are provider-local, so the marker must
+        // not answer for a portal that did not serve them.
+        store.setCurrentPlaylist({ ...PLAYLIST, _id: 'other-portal' });
+
+        expect(store.itvChannelsCategory()).toBeNull();
+    });
+
     it('forgets the served category when a failed ITV page clears the rows', async () => {
         dataService.sendIpcEvent.mockImplementation(() =>
             Promise.resolve({
