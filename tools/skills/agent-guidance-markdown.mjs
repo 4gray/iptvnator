@@ -92,12 +92,29 @@ function htmlNavigation(html, inspect = () => {}) {
                         node.tagName
                     ),
                 });
+            if (node.tagName === 'iframe' && attribute.name === 'srcdoc') {
+                const embedded = htmlNavigation(attribute.value);
+                for (const reference of embedded.references)
+                    references.push(
+                        reference.target.startsWith('#') &&
+                            !reference.embeddedAnchors
+                            ? {
+                                  ...reference,
+                                  embeddedAnchors: embedded.anchors,
+                              }
+                            : reference
+                    );
+            }
             if (
                 ['img', 'source'].includes(node.tagName) &&
                 attribute.name === 'srcset'
-            )
-                for (const candidate of parseSrcset(attribute.value))
+            ) {
+                const candidates = parseSrcset(attribute.value);
+                if (!candidates.length)
+                    references.push({ target: '', image: true });
+                for (const candidate of candidates)
                     references.push({ target: candidate.url, image: true });
+            }
         }
         for (const child of node.childNodes ?? []) visit(child);
     }

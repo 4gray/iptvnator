@@ -36,7 +36,7 @@ function within(root, path) {
 async function validateReference(
     rootDir,
     source,
-    { target, literal, image, unresolvedReference }
+    { target, literal, image, unresolvedReference, embeddedAnchors }
 ) {
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
@@ -53,6 +53,10 @@ async function validateReference(
     } catch {
         return `${source}: malformed local link: ${target}`;
     }
+    if (embeddedAnchors && !path && !image)
+        return !anchor || embeddedAnchors.includes(anchor)
+            ? undefined
+            : `${source}: missing anchor "${anchor}" in iframe srcdoc`;
     const absolute = path
         ? resolve(literal ? rootDir : dirname(resolve(rootDir, source)), path)
         : resolve(rootDir, source);

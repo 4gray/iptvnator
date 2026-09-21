@@ -1399,3 +1399,36 @@ for (const url of [
         );
     });
 }
+
+for (const value of ['', '   ']) {
+    test(`empty srcset is rejected: ${JSON.stringify(value)}`, async (t) => {
+        assert.ok(
+            (await diagnostics(t, { 'AGENTS.md': `<img srcset="${value}">` }))
+                .length > 0
+        );
+    });
+}
+for (const content of [
+    "<a href='docs/missing.md'>Guide</a>",
+    "<img src='missing.png'>",
+    "<a href='#missing'>Guide</a>",
+]) {
+    test(`srcdoc references are validated: ${content}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': `<iframe srcdoc="${content}"></iframe>`,
+                })
+            ).length > 0
+        );
+    });
+}
+test('srcdoc anchors are scoped and templates inert', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                "<iframe srcdoc=\"<p id=local>Hi</p><a href='#local'>Go</a><template><img src='missing.png'></template>\"></iframe>",
+        }),
+        []
+    );
+});

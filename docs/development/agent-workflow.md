@@ -60,6 +60,8 @@ as Markdown links, including decoded attributes and fragment validation.
 URL attributes remove ASCII tabs/newlines throughout and discard surrounding
 ASCII control/space characters before resolution.
 Iframe/embed sources and object data attributes are document references and retain Markdown-target anchor checks.
+Inline iframe srcdoc documents are traversed too, with their own fragment anchors.
+Explicit srcset attributes must contain at least one parsed candidate.
 Image and media references require nonempty targets that resolve to files, not directories.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
