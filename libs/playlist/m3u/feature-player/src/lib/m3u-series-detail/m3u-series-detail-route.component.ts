@@ -2,13 +2,16 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
     signal,
+    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
+import { tmdbBackdropUrl, tmdbPosterUrl } from '@iptvnator/services';
 import {
     M3uCatalogIndexService,
     selectActivePlaylist,
@@ -18,6 +21,8 @@ import {
     DetailMetaTemplateDirective,
     PortalDetailShellComponent,
     SeasonContainerComponent,
+    SeasonContainerPlaybackToggleRequest,
+    SeasonContainerSeriesPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import {
@@ -28,6 +33,8 @@ import {
 import { M3uSeries } from '@iptvnator/shared/m3u-utils';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { toSeasonRecord } from './m3u-series-episode.adapter';
+import { M3uSeriesMetadataService } from './m3u-series-metadata.service';
+import { M3uSeriesPositionsService } from './m3u-series-positions.service';
 
 /**
  * The detail page for one aggregated M3U series.
@@ -52,6 +59,7 @@ import { toSeasonRecord } from './m3u-series-episode.adapter';
         TranslatePipe,
     ],
     templateUrl: './m3u-series-detail-route.component.html',
+    providers: [M3uSeriesMetadataService, M3uSeriesPositionsService],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class M3uSeriesDetailRouteComponent {
@@ -59,6 +67,8 @@ export class M3uSeriesDetailRouteComponent {
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly catalog = inject(M3uCatalogIndexService);
+    private readonly positions = inject(M3uSeriesPositionsService);
+    private readonly metadata = inject(M3uSeriesMetadataService);
 
     private readonly playlist = this.store.selectSignal(selectActivePlaylist);
 
@@ -126,10 +136,98 @@ export class M3uSeriesDetailRouteComponent {
             `m3u-series:${this.seriesId()}:${this.playingEpisodeId() ?? 'none'}`
     );
 
-    protected readonly seriesTitle = computed(() => this.series()?.title ?? '');
+    private readonly tmdb = computed(() => this.metadata.state().details);
+
+    /**
+     * Provider data renders immediately and TMDB patches the same view when
+     * it lands, so a missing or failed match simply leaves the thin
+     * provider presentation in place — no layout jump, no spinner over
+     * content that is already correct.
+     */
+    protected readonly seriesTitle = computed(
+        () => this.tmdb()?.name?.trim() || this.series()?.title || ''
+    );
+
+    protected readonly overview = computed(
+        () => this.tmdb()?.overview?.trim() ?? ''
+    );
+
+    protected readonly backdropUrl = computed(
+        () => tmdbBackdropUrl(this.tmdb()?.backdrop_path) ?? undefined
+    );
+
+    /** Watch progress the shared season grid renders as badges and bars. */
+    protected readonly playbackPositions = this.positions.byEpisodeId;
+
+    constructor() {
+        effect(() => {
+            const playlistId = this.playlistId();
+            const seriesId = this.seriesId();
+            const series = this.series();
+            untracked(() => {
+                void this.positions.load(playlistId, seriesId);
+                if (series) {
+                    this.metadata.load(series);
+                } else {
+                    this.metadata.reset();
+                }
+            });
+        });
+    }
+
+    protected onEpisodeWatchToggled(
+        request: SeasonContainerPlaybackToggleRequest
+    ): void {
+        void this.positions.applyToggle(
+            this.playlistId(),
+            this.seriesId(),
+            request
+        );
+    }
+
+    protected onBulkWatchToggled(
+        request: SeasonContainerSeriesPlaybackToggleRequest
+    ): void {
+        void this.positions.applyToggle(
+            this.playlistId(),
+            this.seriesId(),
+            request
+        );
+    }
+
+    /**
+     * Progress ticks from the inline player. The episode currently mounted
+     * is the one they belong to; a tick that arrives after the viewer moved
+     * on would otherwise be filed against the wrong episode.
+     */
+    protected onTimeUpdate(update: {
+        currentTime: number;
+        duration: number;
+    }): void {
+        const episode = this.playing();
+        if (!episode || !Number.isFinite(update.currentTime)) {
+            return;
+        }
+
+        void this.positions.recordProgress(this.playlistId(), {
+            contentXtreamId: Number(episode.id),
+            contentType: 'episode',
+            seriesXtreamId: this.seriesId(),
+            seasonNumber: episode.season,
+            episodeNumber: episode.episode_num,
+            positionSeconds: Math.floor(update.currentTime),
+            durationSeconds: Number.isFinite(update.duration)
+                ? Math.floor(update.duration)
+                : undefined,
+            playlistId: this.playlistId(),
+        });
+    }
 
     protected readonly posterUrl = computed(
-        () => this.series()?.posterUrl ?? undefined
+        () =>
+            tmdbPosterUrl(this.tmdb()?.poster_path) ??
+            this.series()?.posterUrl ??
+            undefined
     );
 
     protected onEpisodeClicked(episode: XtreamSerieEpisode): void {

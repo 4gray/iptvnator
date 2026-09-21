@@ -123,3 +123,23 @@ export function classifyM3uEntry(
 
     return 'live';
 }
+
+/**
+ * The collection surfaces model content as live / movie / series, with no
+ * separate episode kind, so an episode row is filed under the show it
+ * belongs to. Radio is live audio and the collection item carries its own
+ * `radio` flag, so it stays live here rather than inventing a fourth kind
+ * those surfaces would have to learn.
+ */
+export function m3uCollectionContentType(
+    channel: M3uClassifiableEntry | null | undefined
+): 'live' | 'movie' | 'series' {
+    switch (classifyM3uEntry(channel)) {
+        case 'movie':
+            return 'movie';
+        case 'episode':
+            return 'series';
+        default:
+            return 'live';
+    }
+}
