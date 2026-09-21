@@ -40,8 +40,8 @@ function stripLeadingLanguageToken(raw: string): string | null {
 /**
  * One search candidate: what to SEND to TMDB and what to COMPARE its
  * answers against. The two differ on purpose — see `cleanTitleForSearch`:
- * a folded query ("леика") finds nothing on TMDB while the folded key is
- * exactly what the confidence gate and the cache need.
+ * folding rewrites letters TMDB matches on, so the folded form finds nothing
+ * there, while it is exactly what the confidence gate and the cache need.
  */
 export interface SearchTitleVariant {
     /** Provider spelling with tags/brackets/season/year stripped */

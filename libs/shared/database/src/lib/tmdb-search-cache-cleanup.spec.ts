@@ -63,7 +63,7 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         hooks.runMigrations(skipped);
         const skippedAfter = snapshot(skipped);
         // Next startup: a row written meanwhile under the current key survives
-        skipped.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:гудовы|year:2026|v4', 'ru-RU', 101103)").run();
+        skipped.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:сосенка|year:2026|v4', 'ru-RU', 101103)").run();
         hooks.runMigrations(skipped);
         const repeated = snapshot(skipped);
         // Previous release: the earlier cleanups already ran; only v3 rows go
@@ -124,7 +124,7 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
             markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
         repeated: {
-            keys: [...survivors, 'title:гудовы|year:2026|v4'].sort(),
+            keys: [...survivors, 'title:сосенка|year:2026|v4'].sort(),
             payloads: detailsPayloads,
             markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
