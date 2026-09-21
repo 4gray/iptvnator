@@ -1597,3 +1597,36 @@ for (const markup of [
         assert.ok((await diagnostics(t, { 'AGENTS.md': markup })).length > 0);
     });
 }
+
+for (const quote of ['"', "'", '”']) {
+    test(`quoted URL preserves adjacent import: ${quote}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nVisit ' +
+                        quote +
+                        'https://example.com/path' +
+                        quote +
+                        '.@docs/guide.md',
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}
+for (const embedded of [false, true]) {
+    test(`file URL base is rejected: embedded=${embedded}`, async (t) => {
+        const rootDir = await fixture(t);
+        const { pathToFileURL } = await import('node:url');
+        const { realpath } = await import('node:fs/promises');
+        const base = pathToFileURL((await realpath(rootDir)) + '/').href;
+        const html = `<base href='${base}'><a href='docs/example.md'>Guide</a>`;
+        await writeFile(
+            join(rootDir, 'AGENTS.md'),
+            embedded ? `<iframe srcdoc="${html}"></iframe>` : html
+        );
+        assert.ok(
+            (await validateAgentGuidance({ rootDir })).diagnostics.length > 0
+        );
+    });
+}

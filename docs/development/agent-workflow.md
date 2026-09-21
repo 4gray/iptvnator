@@ -66,7 +66,7 @@ The first active HTML base href sets reference resolution, including nested srcd
 Resolved file URLs use native filesystem conversion, including Windows drive paths.
 Explicit srcset attributes must contain at least one parsed candidate.
 Image and media references require a nonempty path that resolves to a file, not a directory.
-Direct file URLs are rejected; use portable repository-relative paths.
+Direct file URLs and file-scheme HTML bases are rejected; use portable repository-relative paths.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
 HTML video, audio, source and track `src` assets and video posters use the same
@@ -77,7 +77,7 @@ At-signs inside external URIs (including explicit opaque autolinks such as mailt
 per HTML text node, preserving adjacent imports. A colon directly before an import
 does not make that import a URI. Opaque schemes are excluded only in parsed links
 whose visible text equals their URI, so colon-labeled prose remains checked.
-A closing bracket followed by punctuation and an at-sign terminates a bare URL exclusion.
+A closing bracket or quote followed by punctuation and an at-sign terminates a bare URL exclusion.
 Extensionless inline candidates are also imports when they resolve to repository files,
 checking the full filename before prefixes at ASCII/Unicode prose separators,
 including opening parentheses, brackets and braces. Each at-sign candidate is

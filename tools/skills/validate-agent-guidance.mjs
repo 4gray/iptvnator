@@ -48,7 +48,11 @@ async function validateReference(
     if (bases?.length) {
         try {
             let base = pathToFileURL(resolve(rootDir, source));
-            for (const href of bases) base = new URL(href, base);
+            for (const href of bases) {
+                if (/^file:/iu.test(href.replace(/[\t\n\r]/gu, '').trimStart()))
+                    return `${source}: use a repository-relative HTML base instead of a file URL`;
+                base = new URL(href, base);
+            }
             const url = new URL(target, base);
             if (url.protocol !== 'file:') return;
             resolvedBasePath = fileURLToPath(url);

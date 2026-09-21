@@ -163,7 +163,7 @@ export function guidanceProse(markdown) {
         }
         if (node.nodeName === '#text')
             return node.value.replace(
-                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
+                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]*?(?=[)\]}>"'”’][.,;:!?]*@|\s|$)/giu,
                 ' '
             );
         const content = (node.childNodes ?? []).map(text).join('');
