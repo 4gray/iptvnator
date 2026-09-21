@@ -795,3 +795,8 @@ was retained and the new upstream knowledge was checked against canonical docs:
   [workspace dashboard](../architecture/workspace-dashboard.md).
 
 The original 716-entry inventory above remains tied to its immutable source.
+
+A subsequent master integration on 2026-09-21 also preserved TMDB year-evidence
+ranking, its accepted older-season ambiguity, and v4 lookup-cache migration in
+the updated [TMDB contract](../architecture/tmdb-metadata-enrichment.md). These
+upstream additions stay in that canonical document rather than CLAUDE.md.
