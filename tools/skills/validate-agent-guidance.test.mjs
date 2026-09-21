@@ -1790,3 +1790,25 @@ for (const suffix of ["'s", '’s']) {
         );
     });
 }
+
+for (const suffix of ['(admin)', '[admin]', '{admin}']) {
+    test(`federated handle permits parenthetical prose: ${suffix}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': 'Contact @alice@example.social' + suffix,
+            }),
+            []
+        );
+    });
+}
+test('federated handle cannot hide a nested import', async (t) => {
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'CLAUDE.md':
+                    '@AGENTS.md\n\n@alice@example.social(@INSTRUCTIONS)',
+                INSTRUCTIONS: 'Guidance',
+            })
+        ).some((message) => message.includes('additional or inline'))
+    );
+});

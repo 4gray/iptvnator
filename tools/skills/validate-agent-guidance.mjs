@@ -228,7 +228,10 @@ export async function validateAgentGuidance({ rootDir }) {
                 if (isPackageMention(token)) continue;
                 if (
                     /^[\w.-]+@(?:[a-z\d](?:[a-z\d-]*[a-z\d])?\.)+[a-z]{2,}$/iu.test(
-                        token.replace(/\p{P}+$/gu, '').replace(/['’]s$/iu, '')
+                        token
+                            .split(/[([{]/u, 1)[0]
+                            .replace(/\p{P}+$/gu, '')
+                            .replace(/['’]s$/iu, '')
                     )
                 )
                     continue;
