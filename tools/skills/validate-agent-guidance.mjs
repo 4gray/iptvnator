@@ -41,6 +41,7 @@ async function validateReference(
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
     if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(target)) return;
+    if (image && !target) return `${source}: empty media target`;
     let path;
     let anchor;
     try {
@@ -184,7 +185,10 @@ export async function validateAgentGuidance({ rootDir }) {
                 diagnostics.push(
                     `${source}: at most ${maxBytes} UTF-8 bytes allowed (received ${bytes})`
                 );
-            const prose = guidanceProse(markdown);
+            const prose = guidanceProse(markdown).replace(
+                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]+/giu,
+                ' '
+            );
             const imports = guidanceStandaloneImports(markdown);
             const inlineImports = [];
             for (const match of prose.matchAll(

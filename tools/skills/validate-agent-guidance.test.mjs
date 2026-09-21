@@ -1381,3 +1381,21 @@ for (const entity of ['&#9;', '&#10;', '&#13;']) {
         );
     });
 }
+
+for (const markup of ['![logo]()', '<img src="">', '<video src=" "></video>']) {
+    test(`empty media references are rejected: ${markup}`, async (t) => {
+        assert.ok((await diagnostics(t, { 'AGENTS.md': markup })).length > 0);
+    });
+}
+for (const url of [
+    'https://example.com/@docs/guide',
+    'https://example.com/user?next=@docs/guide',
+    '//example.com/@docs/guide',
+]) {
+    test(`external URL at-sign is not an import: ${url}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, { 'AGENTS.md': 'Visit ' + url }),
+            []
+        );
+    });
+}

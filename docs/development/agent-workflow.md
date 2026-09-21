@@ -60,13 +60,14 @@ as Markdown links, including decoded attributes and fragment validation.
 URL attributes remove ASCII tabs/newlines throughout and discard surrounding
 ASCII control/space characters before resolution.
 Iframe/embed sources and object data attributes are document references and retain Markdown-target anchor checks.
-Image and media references must resolve to files, not directories.
+Image and media references require nonempty targets that resolve to files, not directories.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
 HTML video, audio, source and track `src` assets and video posters use the same
 existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
+At-signs inside external URLs are excluded from the import scan.
 Extensionless inline candidates are also imports when they resolve to repository files,
 checking the full filename before prefixes at ASCII/Unicode prose separators.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
