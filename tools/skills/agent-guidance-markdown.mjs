@@ -181,7 +181,7 @@ export function guidanceProse(markdown) {
         }
         if (node.nodeName === '#text')
             return node.value.replace(
-                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
+                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/|\bwww\.)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
                 (url, offset) => {
                     const opening = (
                         preceding + node.value.slice(0, offset)

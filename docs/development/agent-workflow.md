@@ -73,7 +73,7 @@ SVG image/use hrefs (including xlink), HTML image-input, video, audio, source an
 existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
-At-signs inside external URIs (including explicit opaque autolinks such as mailto) are excluded
+At-signs inside external URIs (including www autolinks and explicit opaque autolinks such as mailto) are excluded
 per HTML text node, preserving adjacent imports. A colon directly before an import
 does not make that import a URI. Opaque schemes are excluded only in parsed links
 whose visible text equals their URI, so colon-labeled prose remains checked.
@@ -82,6 +82,8 @@ Extensionless inline candidates are also imports when they resolve to repository
 checking the full filename before prefixes at ASCII/Unicode prose separators,
 including opening parentheses, brackets and braces. Each at-sign candidate is
 checked independently, including imports nested next to a package mention.
+An at-sign inside a word (for example, foo@INSTRUCTIONS or an email address)
+is not an import boundary, including within parenthetical prose.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions, including document paths with fragments or queries.

@@ -1812,3 +1812,41 @@ test('federated handle cannot hide a nested import', async (t) => {
         ).some((message) => message.includes('additional or inline'))
     );
 });
+
+test('www autolinks do not introduce guidance imports', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md': 'See www.example.com/@docs/guide',
+        }),
+        []
+    );
+});
+for (const prose of [
+    'www.example.com/path).@docs/guide.md',
+    '"www.example.com/path".@docs/guide.md',
+]) {
+    test(`www URL preserves adjacent import: ${prose}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md': '@AGENTS.md\n\n' + prose,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}
+for (const prose of [
+    'foo@INSTRUCTIONS',
+    '@alice@example.social(foo@INSTRUCTIONS)',
+    '@alice@example.social(email@example.com)',
+]) {
+    test(`embedded at-sign is not an import boundary: ${prose}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': prose,
+                INSTRUCTIONS: 'Guidance',
+            }),
+            []
+        );
+    });
+}
