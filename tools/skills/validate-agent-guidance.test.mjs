@@ -1778,3 +1778,15 @@ for (const suffix of ['…', '。', '！', '—']) {
         );
     });
 }
+
+for (const suffix of ["'s", '’s']) {
+    test(`federated handle may be possessive: ${suffix}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md':
+                    'Contact @alice@example.social' + suffix + ' administrator',
+            }),
+            []
+        );
+    });
+}

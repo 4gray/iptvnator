@@ -92,7 +92,7 @@ CLAUDE, INSTRUCTIONS, README, CONTRIBUTING and SECURITY, case-insensitively) are
 paths do not receive package exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
 Federated handles in the @user@host form are prose, not imports; trailing closing
-ASCII/Unicode punctuation is ignored, but extra at-signs do not qualify for that exemption.
+ASCII/Unicode punctuation and possessive apostrophe-s suffixes are ignored, but extra at-signs do not qualify for that exemption.
 Exact declared packages remain exempt after version normalization.
 Declared package mentions may include a version (including semver comparators and wildcard ranges) or dist-tag qualifier.
 Qualifier handling includes unscoped names; terminal sentence punctuation is
