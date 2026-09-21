@@ -86,12 +86,32 @@ function mergeParts<T extends M3uArtworkBearing>(
     const merged: M3uSeriesAccumulator<T> = {
         ...parts[0],
         key: baseKey,
+        // Fresh containers rather than the ones spread in from `parts[0]`:
+        // every part contributes to them below, and mutating the first
+        // part's own array and maps would rewrite an input.
+        groups: [],
+        groupCounts: new Map(),
         seasons: new Map(),
     };
 
     for (const part of parts) {
         merged.yearHint ??= part.yearHint;
         merged.posterUrl ??= part.posterUrl;
+        // Group membership has to merge too. `finalize` picks the primary
+        // group by episode count, so keeping only the first part's tally
+        // files a series under whichever spelling of its title happened to
+        // be read first — which is not necessarily where most of its
+        // episodes live.
+        for (const group of part.groups) {
+            if (!merged.groupCounts.has(group)) {
+                merged.groups.push(group);
+            }
+            merged.groupCounts.set(
+                group,
+                (merged.groupCounts.get(group) ?? 0) +
+                    (part.groupCounts.get(group) ?? 0)
+            );
+        }
         for (const [number, episodes] of part.seasons) {
             for (const [episodeNumber, episode] of episodes) {
                 addMergedEpisode(merged, number, episodeNumber, episode);

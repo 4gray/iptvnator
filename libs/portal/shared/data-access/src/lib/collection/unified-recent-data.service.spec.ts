@@ -207,6 +207,60 @@ describe('UnifiedRecentDataService', () => {
         });
     });
 
+    it('carries M3U artwork to the field each collection tab reads', async () => {
+        // The live tab renders `logo`, the movie and series tabs render
+        // `posterUrl`. An M3U row has one artwork field, so a recently
+        // watched film showed the missing-artwork placeholder once these
+        // rows stopped being labelled live.
+        const movie: Channel = {
+            ...channels[0],
+            id: 'channel-3',
+            name: 'Some Film',
+            url: 'https://example.com/movie/u/p/3.mkv',
+            tvg: { ...channels[0].tvg, logo: 'film.png' },
+        };
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'm3u-1',
+                    title: 'M3U List',
+                    recentlyViewed: [
+                        {
+                            source: 'm3u',
+                            id: movie.url,
+                            url: movie.url,
+                            title: 'Some Film',
+                            channel_id: 'channel-3',
+                            category_id: 'vod',
+                            added_at: '2026-03-26T11:00:00.000Z',
+                        },
+                    ],
+                },
+            ] satisfies PlaylistMeta[])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                playlist: { items: [...channels, movie] },
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
+
+        expect(items).toHaveLength(1);
+        expect(items[0].contentType).toBe('movie');
+        expect(items[0].posterUrl).toBe('film.png');
+        expect(items[0].logo).toBe('film.png');
+    });
+
+    it('leaves a live row with artwork only in the field the live tab reads', async () => {
+        const items = await service.getRecentItems('playlist', 'm3u-1', 'm3u');
+
+        expect(items[0].contentType).toBe('live');
+        expect(items[0].logo).toBe('two.png');
+        expect(items[0].posterUrl).toBeNull();
+    });
+
     it('records M3U live playback through playlist recently viewed storage', async () => {
         const item = {
             uid: 'm3u::m3u-1::https://example.com/1.m3u8',

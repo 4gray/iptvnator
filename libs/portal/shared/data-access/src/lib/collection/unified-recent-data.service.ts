@@ -587,6 +587,10 @@ export class UnifiedRecentDataService {
 
                 seenUrls.add(channel.url);
 
+                const contentType = m3uCollectionContentType(channel);
+                const artwork =
+                    channel.tvg?.logo ?? recentItem.poster_url ?? null;
+
                 return {
                     uid: buildCollectionUid(
                         'm3u',
@@ -598,11 +602,17 @@ export class UnifiedRecentDataService {
                         channel.name ||
                         recentItem.tvg_name?.trim() ||
                         recentItem.url,
-                    contentType: m3uCollectionContentType(channel),
+                    contentType,
                     sourceType: 'm3u' as const,
                     playlistId: meta._id,
                     playlistName: meta.title || meta.filename || 'M3U',
-                    logo: channel.tvg?.logo ?? recentItem.poster_url ?? null,
+                    logo: artwork,
+                    // The live tab reads `logo`, the movie and series tabs
+                    // read `posterUrl`. An M3U row has one artwork field,
+                    // so now that these rows can be typed as films or
+                    // episodes it has to reach both — otherwise a recently
+                    // watched film renders as missing artwork.
+                    posterUrl: contentType === 'live' ? null : artwork,
                     streamUrl: channel.url,
                     channelId: channel.id,
                     radio: channel.radio,

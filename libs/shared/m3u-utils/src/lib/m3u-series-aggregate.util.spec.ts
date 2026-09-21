@@ -117,6 +117,29 @@ describe('buildM3uSeriesCatalog', () => {
         expect(series[0].primaryGroup).toBe('Pazartesi Dizileri');
     });
 
+    it('keeps group membership when a yeared title merges with a bare one', () => {
+        // The bare and yeared spellings of one show are merged into a
+        // single series, so the merge has to carry BOTH parts' groups.
+        // Keeping only the first part's tally files the show under
+        // whichever spelling happened to be read first, which is not
+        // necessarily where most of its episodes live.
+        const series = buildM3uSeriesCatalog(
+            [
+                row('SHOW 2024 S1 E1', 'Yeni Diziler'),
+                row('SHOW S1 E2', 'Pazartesi Dizileri'),
+                row('SHOW S1 E3', 'Pazartesi Dizileri'),
+            ],
+            'pl-1'
+        );
+
+        expect(series).toHaveLength(1);
+        expect(series[0].groups).toEqual([
+            'Yeni Diziler',
+            'Pazartesi Dizileri',
+        ]);
+        expect(series[0].primaryGroup).toBe('Pazartesi Dizileri');
+    });
+
     it('parks a duplicate season/episode as an alternative', () => {
         // Same episode at another quality. It must not become a second
         // episode, and it must not vanish.

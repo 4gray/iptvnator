@@ -146,6 +146,7 @@ import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
+import { isM3uCollectionView } from './m3u-collection-view.util';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
@@ -311,8 +312,22 @@ export class VideoPlayerComponent
      * With external MPV/VLC configured, only DASH rows remain inline; a
      * non-DASH selection would replace this host with the external-player UI.
      */
+    /**
+     * Rows the fullscreen panel's Favorites and Recently viewed views
+     * resolve against: everything that can play without replacing the
+     * fullscreen host.
+     */
     readonly fullscreenPanelChannels = computed(() =>
         this.channels().filter((channel) => this.keepsInlinePlayer(channel))
+    );
+    /**
+     * Rows its All and Groups views list — the same split the sidebar
+     * applies, so the panel is not a way back to the unsplit catalog.
+     */
+    readonly fullscreenPanelLiveChannels = computed(() =>
+        (this.catalogIndex.liveChannels() as Channel[]).filter((channel) =>
+            this.keepsInlinePlayer(channel)
+        )
     );
     readonly archiveContextKey = computed(() =>
         JSON.stringify([
@@ -543,6 +558,22 @@ export class VideoPlayerComponent
         // with `take(1)`. An operator that waited for a second source would
         // leave that path with nothing to read.
         map(() => this.catalogIndex.liveChannels() as Channel[])
+    );
+
+    /**
+     * What the sidebar's channel list is handed.
+     *
+     * Only the live views get the split list. Favorites and Recently
+     * viewed resolve their stored rows AGAINST this array — a row the
+     * array does not contain is dropped rather than shown — so handing
+     * them the live list makes a film someone deliberately favourited
+     * disappear from the one place they put it, while it stays persisted
+     * and still counts as a favourite everywhere else.
+     */
+    readonly sidebarChannels = computed<Channel[]>(() =>
+        isM3uCollectionView(this.activeView())
+            ? this.channels()
+            : (this.catalogIndex.liveChannels() as Channel[])
     );
 
     /** Current epg program */
