@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Weggevallen streams automatisch opnieuw verbinden",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Wanneer een stream tijdens het afspelen wegvalt, laadt de ingebedde speler deze opnieuw met steeds langere tussenpozen, tot maximaal 6 pogingen, voordat hij het opgeeft. Voor een stream die nooit is gestart, blijft handmatig Opnieuw proberen nodig.",
         "VOD_AUTO_FAILOVER": "Automatisch van bron wisselen bij een afspeelfout",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Als een film niet kan worden afgespeeld en dezelfde film in een andere afspeellijst staat, wordt daar automatisch naar overgeschakeld met behoud van de afspeelpositie. Standaard uitgeschakeld; de wissel wordt altijd gemeld, omdat een andere bron een andere nasynchronisatie kan hebben."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Als een film niet kan worden afgespeeld en dezelfde film in een andere afspeellijst staat, wordt daar automatisch naar overgeschakeld met behoud van de afspeelpositie. Standaard uitgeschakeld; de wissel wordt altijd gemeld, omdat een andere bron een andere nasynchronisatie kan hebben.",
+        "M3U_CATALOG_TABS": "Secties voor films en series",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Toon aparte secties voor films en series bij afspeellijsten met films of afleveringen, in plaats van elke vermelding als live kanaal te tonen."
     },
     "THEMES": {
         "DARK_THEME": "Donker",
@@ -829,6 +831,11 @@
             "SEARCH_PLACEHOLDER": "Zoek groepen...",
             "NO_RESULTS": "Geen overeenkomende groepen gevonden",
             "SAVE": "Opslaan"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Geen films in deze afspeellijst",
+            "NO_SERIES": "Geen series in deze afspeellijst",
+            "EMPTY_HINT": "Deze afspeellijst bevat alleen live kanalen."
         }
     },
     "TOP_MENU": {

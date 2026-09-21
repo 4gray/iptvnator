@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Unterbrochene Streams automatisch neu verbinden",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Wenn ein laufender Stream unterbrochen wird, lädt der eingebettete Player ihn in bis zu 6 Versuchen mit immer längeren Wartezeiten neu, bevor er aufgibt. Ein Stream, der gar nicht erst gestartet ist, erfordert weiterhin ein manuelles „Erneut versuchen“.",
         "VOD_AUTO_FAILOVER": "Quelle bei Wiedergabefehler automatisch wechseln",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Wenn sich ein Film nicht abspielen lässt und derselbe Film in einer anderen Playlist vorhanden ist, wird automatisch dorthin gewechselt und die Wiedergabeposition beibehalten. Standardmäßig deaktiviert; der Wechsel wird immer angekündigt, da eine andere Quelle eine andere Synchronfassung enthalten kann."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Wenn sich ein Film nicht abspielen lässt und derselbe Film in einer anderen Playlist vorhanden ist, wird automatisch dorthin gewechselt und die Wiedergabeposition beibehalten. Standardmäßig deaktiviert; der Wechsel wird immer angekündigt, da eine andere Quelle eine andere Synchronfassung enthalten kann.",
+        "M3U_CATALOG_TABS": "Bereiche für Filme und Serien",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Zeigt eigene Bereiche für Filme und Serien bei Playlists, die Filme oder Episoden enthalten, statt jeden Eintrag als Live-Kanal zu listen."
     },
     "THEMES": {
         "DARK_THEME": "Dunkel",
@@ -829,6 +831,11 @@
             "SEARCH_PLACEHOLDER": "Gruppen suchen...",
             "NO_RESULTS": "Keine passenden Gruppen gefunden",
             "SAVE": "Speichern"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Keine Filme in dieser Playlist",
+            "NO_SERIES": "Keine Serien in dieser Playlist",
+            "EMPTY_HINT": "Diese Playlist enthält nur Live-Kanäle."
         }
     },
     "TOP_MENU": {

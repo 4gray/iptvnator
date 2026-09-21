@@ -15,8 +15,11 @@ import {
     buildPortalRailLinks,
     PortalRailLink,
 } from '@iptvnator/portal/shared/util';
-import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    M3uCatalogIndexService,
+    selectAllPlaylistsMeta,
+} from '@iptvnator/m3u-state';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     parseWorkspaceShellRoute,
     WorkspacePortalContext,
@@ -36,6 +39,24 @@ export class WorkspaceShellRouteStateService {
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly catalogIndex = inject(M3uCatalogIndexService);
+
+    /**
+     * Whether the M3U rail should offer Movies and Series.
+     *
+     * Two conditions, both necessary. The setting is the user's opt-out, and
+     * the index is what proves this particular playlist has anything to put
+     * there — most M3U playlists are live-only, and a rail with two
+     * permanently empty sections is a regression rather than a feature.
+     * Reading the index costs nothing here: it is the same memo the catalog
+     * routes read, so the build is shared rather than repeated.
+     */
+    private readonly m3uCatalogSections = computed(
+        () =>
+            this.settingsStore.m3uCatalogTabs() !== false &&
+            this.catalogIndex.hasNonLiveContent()
+    );
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -210,8 +231,7 @@ export class WorkspaceShellRouteStateService {
             case 'settings':
                 return {
                     aria: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOGGLE',
-                    tooltip:
-                        'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
+                    tooltip: 'WORKSPACE.SHELL.CONTEXT_DRAWER_SETTINGS_TOOLTIP',
                 };
             case 'sources':
             case 'collection':
@@ -249,6 +269,7 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
+                m3uCatalogSections: this.m3uCatalogSections(),
             }).primary,
             context.provider,
             (key, params) => this.translateText(key, params)
@@ -268,6 +289,7 @@ export class WorkspaceShellRouteStateService {
                 playlistId: context.playlistId,
                 supportsDownloads: this.runtime.supportsDownloads,
                 workspace: true,
+                m3uCatalogSections: this.m3uCatalogSections(),
             }).secondary.filter((link) => link.section !== 'downloads'),
             context.provider,
             (key, params) => this.translateText(key, params)

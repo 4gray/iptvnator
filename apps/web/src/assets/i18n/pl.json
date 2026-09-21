@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Automatycznie wznawiaj przerwane strumienie",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Gdy odtwarzany strumień zostanie przerwany, wbudowany odtwarzacz wczytuje go ponownie z rosnącymi odstępami, maksymalnie 6 prób, zanim się podda. Strumień, który w ogóle się nie uruchomił, nadal wymaga ręcznego użycia „Spróbuj ponownie”.",
         "VOD_AUTO_FAILOVER": "Automatyczna zmiana źródła przy błędzie odtwarzania",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Gdy filmu nie da się odtworzyć, a ten sam tytuł jest dostępny na innej liście odtwarzania, przełącz się na nią automatycznie i zachowaj pozycję odtwarzania. Domyślnie wyłączone; zmiana jest zawsze sygnalizowana, ponieważ inne źródło może mieć inną wersję językową."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Gdy filmu nie da się odtworzyć, a ten sam tytuł jest dostępny na innej liście odtwarzania, przełącz się na nią automatycznie i zachowaj pozycję odtwarzania. Domyślnie wyłączone; zmiana jest zawsze sygnalizowana, ponieważ inne źródło może mieć inną wersję językową.",
+        "M3U_CATALOG_TABS": "Sekcje Filmy i Seriale",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Pokazuj osobne sekcje Filmy i Seriale dla list zawierających filmy lub odcinki, zamiast wyświetlać każdy wpis jako kanał na żywo."
     },
     "THEMES": {
         "DARK_THEME": "Ciemny",
@@ -829,6 +831,11 @@
             "SEARCH_PLACEHOLDER": "Szukaj grup...",
             "NO_RESULTS": "Nie znaleziono pasujących grup",
             "SAVE": "Zapisz"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Brak filmów na tej liście",
+            "NO_SERIES": "Brak seriali na tej liście",
+            "EMPTY_HINT": "Ta lista zawiera tylko kanały na żywo."
         }
     },
     "TOP_MENU": {

@@ -1,0 +1,33 @@
+@if (isEmpty()) {
+    <app-portal-empty-state
+        icon="movie"
+        [message]="emptyTitleKey() | translate"
+        [hint]="'CHANNELS.CATALOG.EMPTY_HINT' | translate"
+    />
+} @else {
+    <div class="catalog">
+        <aside class="catalog__groups">
+            <app-category-view
+                [items]="categoryItems()"
+                [selectedCategoryId]="selectedGroup()"
+                [showCounts]="true"
+                (categoryClicked)="onGroupSelected($event)"
+            />
+        </aside>
+
+        <section
+            class="catalog__content"
+            appInfiniteScroll
+            [infiniteHasMore]="hasMore()"
+            [infiniteItemCount]="cards().length"
+            (infiniteLoadMore)="onLoadMore()"
+        >
+            <app-grid-list
+                [items]="cards()"
+                [searchTerm]="searchTerm()"
+                [type]="kind() === 'movie' ? 'vod' : 'series'"
+                (itemClicked)="onCardActivated($event)"
+            />
+        </section>
+    </div>
+}

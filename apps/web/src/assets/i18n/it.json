@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Riconnetti automaticamente gli stream interrotti",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Quando uno stream in riproduzione si interrompe, il lettore integrato lo ricarica a intervalli crescenti, fino a 6 tentativi, prima di rinunciare. Per uno stream che non è mai partito è comunque necessario premere Riprova manualmente.",
         "VOD_AUTO_FAILOVER": "Cambia sorgente automaticamente in caso di errore di riproduzione",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Quando la riproduzione di un film non riesce e lo stesso film è presente in un'altra playlist, l'app passa automaticamente a quella sorgente mantenendo la posizione di riproduzione. Disattivo per impostazione predefinita; il cambio viene sempre segnalato perché un'altra sorgente può avere un doppiaggio diverso."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Quando la riproduzione di un film non riesce e lo stesso film è presente in un'altra playlist, l'app passa automaticamente a quella sorgente mantenendo la posizione di riproduzione. Disattivo per impostazione predefinita; il cambio viene sempre segnalato perché un'altra sorgente può avere un doppiaggio diverso.",
+        "M3U_CATALOG_TABS": "Sezioni Film e Serie",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Mostra sezioni separate per Film e Serie nelle playlist che contengono film o episodi, invece di elencare ogni voce come canale live."
     },
     "THEMES": {
         "DARK_THEME": "Scuro",
@@ -829,6 +831,11 @@
             "SEARCH_PLACEHOLDER": "Cerca gruppi...",
             "NO_RESULTS": "Nessun gruppo corrispondente",
             "SAVE": "Salva"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Nessun film in questa playlist",
+            "NO_SERIES": "Nessuna serie in questa playlist",
+            "EMPTY_HINT": "Questa playlist contiene solo canali live."
         }
     },
     "TOP_MENU": {
