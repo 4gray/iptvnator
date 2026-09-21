@@ -69,7 +69,7 @@ Image and media references require a nonempty path that resolves to a file, not 
 Direct file URLs and file-scheme HTML bases are rejected; use portable repository-relative paths.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
-HTML image-input, video, audio, source and track `src` assets and video posters use the same
+SVG image hrefs (including xlink), HTML image-input, video, audio, source and track `src` assets and video posters use the same
 existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
@@ -88,7 +88,7 @@ rejected before those exemptions, including document paths with fragments or que
 All recognized Markdown extensions share the document-import guard; reStructuredText
 and AsciiDoc, PDF, Word, OpenDocument, RTF, Org and TeX documents are also excluded
 from package exemptions. Recognized extensionless guidance names (including AGENTS,
-CLAUDE, INSTRUCTIONS and README, case-insensitively) are excluded in package subpaths too. URL-encoded
+CLAUDE, INSTRUCTIONS, README, CONTRIBUTING and SECURITY, case-insensitively) are excluded in package subpaths too. URL-encoded
 paths do not receive package exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version (including semver comparators and wildcard ranges) or dist-tag qualifier.

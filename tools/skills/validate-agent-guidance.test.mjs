@@ -1669,3 +1669,36 @@ test('image input source is validated', async (t) => {
         []
     );
 });
+
+for (const attribute of ['href', 'xlink:href']) {
+    test(`SVG image reference is checked: ${attribute}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': `<svg><image ${attribute}="missing.png"/></svg>`,
+                })
+            ).length > 0
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': `<svg><image ${attribute}="docs/example.md"/></svg>`,
+            }),
+            []
+        );
+    });
+}
+for (const name of ['CONTRIBUTING', 'SECURITY', 'code_of_conduct', 'SUPPORT']) {
+    test(`conventional guidance basename is not a package: ${name}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @angular/core/docs/' + name,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}

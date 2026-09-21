@@ -77,7 +77,7 @@ function htmlNavigation(html, inspect = () => {}) {
             )
                 anchors.push(attribute.value);
             if (
-                (['a', 'area'].includes(node.tagName) &&
+                (['a', 'area', 'image'].includes(node.tagName) &&
                     attribute.name === 'href') ||
                 ([
                     'img',
