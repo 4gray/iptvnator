@@ -53,9 +53,7 @@ describe('withStalkerFavorites', () => {
             addPortalFavorite: jest.fn(() =>
                 of({ favorites: [{ id: '42', title: 'Movie Title' }] })
             ),
-            removeFromPortalFavorites: jest.fn(() =>
-                of({ favorites: [] })
-            ),
+            removeFromPortalFavorites: jest.fn(() => of({ favorites: [] })),
         };
         snackBar = { open: jest.fn() };
         ngrxStore = { dispatch: jest.fn() };
@@ -77,6 +75,22 @@ describe('withStalkerFavorites', () => {
     });
 
     describe('addToFavorites', () => {
+        it('keeps a valid id when the provider sends a blank stream_id', () => {
+            // `??` would keep the blank value and leave the stored row with
+            // no provider identity at all.
+            store.addToFavorites({
+                stream_id: '',
+                id: 'channel-7',
+                name: 'Blank stream id',
+                category_id: '17',
+            });
+
+            expect(playlistService.addPortalFavorite).toHaveBeenCalledWith(
+                'portal-1',
+                expect.objectContaining({ id: 'channel-7' })
+            );
+        });
+
         it('persists the favorite with a normalized payload and syncs playlist meta', () => {
             const onDone = jest.fn();
 

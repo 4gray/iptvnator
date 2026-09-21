@@ -113,31 +113,106 @@ Render rules:
     2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
        cover cards. Portal playback positions are bulk-loaded per playlist so
        hero and cards can show progress, remaining time, and series season/
-       episode badges. This includes Stalker VOD activity normalized to series
-       through `is_series`. Series lookup uses keyed maps for both direct
-       episode ids and parent series ids; card renders must not scan the full
-       playback-position map. The badge uses saved `seasonNumber` /
+       episode badges. Whether an item is looked up as a movie (one `vod`
+       row) or a series (episode rows under the parent id) is its WATCH
+       kind, `resolvePortalActivityWatchKind`, not its routing `type`. The
+       shape that needs the distinction is a Stalker embedded-VOD row: its
+       stored entry carries a `series[]` episode array but no `is_series`
+       flag, so `extractStalkerItemType` reports `movie` (deliberately — the
+       item belongs in the VOD catalog) while its progress lives in episode
+       rows. The mappers give both it and a lazy Ministra `is_series` row
+       (already typed `series`) `watch_kind: 'series'`. Series lookup uses
+       keyed maps for both direct episode ids and parent series ids; card
+       renders must not scan the full playback-position map. The badge uses saved `seasonNumber` /
        `episodeNumber` metadata and does not infer it from provider payloads;
        legacy rows without that metadata remain badge-less until replay.
-       Dashboard-originated Xtream series clicks also carry that exact episode
-       target through the global-recent inline-detail handoff. Once the series
-       metadata and playback positions load, the detail player consumes the
-       target once and resumes the saved episode. Opening the same item normally
-       from the global recent grid remains a detail-only action.
+       Dashboard-originated Xtream and Stalker series clicks also carry that
+       exact episode target through the global-recent inline-detail handoff.
+       Once the series metadata and playback positions load, the detail player
+       consumes the target once and resumes the saved episode. Opening the same
+       item normally from the global recent grid remains a detail-only action.
+       Continue Watching cards carry no provider/content-kind subtitle: their
+       meta row is the S·E chip plus a "N min left" label (`remainingLabel`,
+       from `formatRemainingLabel`), and the row is not rendered when both are
+       absent. The hero subtitle is the source name alone, through
+       `playlistDisplayLabel`.
     3. `liveFavoriteCardsEnriched` and `recentLiveCardsEnriched` — two
        independent rails (`dashboard-live-favorites-rail` and
        `dashboard-recent-live-rail`); there is no fallback from one to the
        other. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
        fallback order (`tvg-id` -> `tvg-name` -> channel name); EPG enrichment
-       must use that key before falling back to the card title.
+       must use that key before falling back to the card title. Both rails are
+       enriched by `DashboardLiveEpgPresenter`, the one component-provided
+       facade for live EPG: it owns the XMLTV lookup described under "Scoped
+       lookups" in `m3u-playlist-module.md`, forwards everything portal-shaped
+       to `DashboardPortalLiveEpgPresenter`, and `enrich()` returns the cards
+       with their "now on air" row filled in.
+       Xtream and Stalker cards have no XMLTV key of their own; their "now on
+       air" line comes from the portal, **lazily and per card**:
+        - `buildDashboardPortalLiveEpgEntry` (dashboard data-access) turns a
+          live `PortalActivityItem` into the `UnifiedCollectionItem` the
+          collection pages hand `StreamResolverService.loadEpgForItems`, keyed
+          by the collection uid — favourites and recent rows of one channel
+          share the answer. Radio rows and rows without a usable provider id
+          get no entry. Cards carry that key as `liveEpgSourceKey`.
+        - `lib-dashboard-rail` reports the cards inside its track viewport
+          (plus ~one card of `rootMargin`) through `visibleCardsChanged`, from
+          an `IntersectionObserver` rooted at the track; without the API every
+          card counts as visible. Cards that leave the list are reported gone
+          at once.
+        - `DashboardPortalLiveEpgPresenter` (component-provided) unions the
+          visible keys of both rails with the pinned hero key and calls
+          `DashboardPortalLiveEpgService.sync()` with exactly those entries —
+          on every change, on the 30 s tick, and on a display-offset change.
+          It is reached through `DashboardLiveEpgPresenter`, which derives the
+          portal rows itself from the enabled rails and pins the hero, so the
+          page component only forwards what a rail can see. The queue lives in
+          the root service, so leaving the dashboard hands the wanted set back
+          (`sync([])` on destroy); otherwise the queue would keep asking for
+          cards on a page that is gone.
+        - `DashboardPortalLiveEpgService` (root) owns the queue: at most two
+          requests in flight, 200 ms between starts (the numbers
+          `EpgQueueService` proved against real panels), one card per request,
+          each answer published the moment it lands in `programs`, so the page
+          never waits and a slow portal delays no other card. Only wanted keys
+          are dequeued, so a card scrolled past before its turn is never
+          requested. A programme lives 60 s; a programme that ended is asked
+          again, but not within 30 s of the last answer (a portal may keep
+          returning the stale row). An answer with **no** programme lives only
+          30 s, because the resolver reports a failed portal and a guide-less
+          channel identically (it files per-channel failures as `null`), so
+          there is no failure cooldown to keep and the short TTL is what lets
+          an outage recover on the next tick.
+        - Every answer is "at the provider clock" and against one XMLTV source
+          set. A request captures both the display offset and
+          `EpgSourceSettingsService.revision()` — the same fence
+          `EpgService.guard()` uses — and a completion whose either fact moved
+          is discarded and requeued instead of published. That requeue has to
+          happen in the completion: while the key is in flight the retire pass
+          cannot queue a replacement, and without it the pre-change answer
+          would be trusted for a full TTL (the repo's late-result
+          invalidation contract).
+        - Desktop only in practice: the shared collection resolver is gated on
+          the local XMLTV bridge (`supportsProgramLookup`) and answers nothing
+          without it, so `sync()` returns immediately in the PWA rather than
+          filing an empty answer for every card. Lifting that gate for portal
+          lookups would change the collection pages too and is deliberately
+          out of scope here.
+        - `DashboardLiveEpgPresenter.enrich()` prefers the portal answer, falls
+          back to the XMLTV title match when the portal said "nothing on air",
+          and marks a card
+          `nowPlayingState: 'pending'` only before its FIRST answer — the
+          channel layout then shows a shimmer placeholder in the programme
+          slot; a refresh keeps the previous answer on screen.
     4. `xtreamRecentlyAddedCards` — maps `xtreamRecentlyAddedItems()` to rail
        cards. Aggregates newly added VOD and series across *all* Xtream
        playlists via `DashboardDataService.reloadXtreamRecentlyAddedItems()`,
        which calls `getGlobalRecentlyAdded('all', limit, 'xtream')` with the
        DB-level `playlists.type = 'xtream'` filter. The rail is Electron-only
        (PWA returns `[]`) and auto-hides when empty, so users without Xtream
-       playlists never see it. Cards carry a `playlist_name · type` subtitle
-       so users can tell which provider each item came from. Driven by an
+       playlists never see it. Cards carry the source name as their subtitle
+       (`playlistDisplayLabel`) so users can tell where each item was added;
+       the content kind is not repeated on every card. Driven by an
        effect that re-runs whenever the Xtream playlist count changes, but the
        first run waits for `globalFavoritesLoaded()` so the slower
        recently-added DB query does not block the live favorites rail on
@@ -217,9 +292,10 @@ The welcome state is rendered via the existing
    rails have data.
 5. Navigation from a rail card must deep-link into the appropriate workspace
    route without switching the active playlist in the header switcher.
-6. Xtream series hero/Continue Watching clicks with a saved episode position
-   must resume that exact episode while preserving the collection-owned detail
-   and Back behavior. Do not apply autoplay to ordinary collection-grid clicks.
+6. Xtream and Stalker series hero/Continue Watching clicks with a saved episode
+   position must resume that exact episode while preserving the
+   collection-owned detail and Back behavior. Do not apply autoplay to
+   ordinary collection-grid clicks.
 7. `Recently Used Sources` reflects recent source usage across all provider
    types, not just recent imports.
 8. The live rail title key must match the rendered source: favorites use

@@ -1,6 +1,7 @@
 import { ChannelScrollFocusDirective } from '@iptvnator/ui/components';
 import { NgTemplateOutlet } from '@angular/common';
 import {
+    DestroyRef,
     ChangeDetectionStrategy,
     ChangeDetectorRef,
     Component,
@@ -42,6 +43,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    foldSearchText,
     buildStalkerEpgMappingKey,
     Channel,
     EpgItem,
@@ -132,12 +134,14 @@ function matchesStalkerChannelTerm(
     item: StalkerItvChannel,
     term: string
 ): boolean {
-    return `${item.o_name ?? ''} ${item.name ?? ''}`
-        .toLowerCase()
-        .includes(term);
+    return foldSearchText(`${item.o_name ?? ''} ${item.name ?? ''}`).includes(
+        term
+    );
 }
 
 import { StalkerLiveNavigation } from './stalker-live-navigation';
+import { StalkerLiveAutoOpen } from './stalker-live-auto-open';
+import { StalkerWorkspaceRouteSession } from '../stalker-workspace-route-session.service';
 
 @Component({
     selector: 'app-stalker-live-stream-layout',
@@ -187,6 +191,9 @@ export class StalkerLiveStreamLayoutComponent
     private readonly streamHeaders = inject(ElectronStreamHeadersService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
+    private readonly routeSession = inject(StalkerWorkspaceRouteSession, {
+        optional: true,
+    });
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
@@ -203,7 +210,7 @@ export class StalkerLiveStreamLayoutComponent
         this.isRadioMode() ? this.radioChannels() : this.itvChannels()
     );
     readonly searchTerm = computed(() =>
-        this.stalkerStore.searchPhrase().trim().toLowerCase()
+        foldSearchText(this.stalkerStore.searchPhrase().trim())
     );
     /** Full-list mode: the complete channel list is cached, so search covers everything. */
     readonly isFullListMode = computed(
@@ -605,6 +612,17 @@ export class StalkerLiveStreamLayoutComponent
         loading: () =>
             this.isLoadingMore() ||
             this.stalkerStore.isPaginatedContentLoading(),
+    });
+    /** Arrival handoff: select and play `openStalkerLiveItemId` (see the class). */
+    readonly autoOpen = new StalkerLiveAutoOpen({
+        store: this.stalkerStore,
+        router: inject(Router, { optional: true }),
+        destroyRef: inject(DestroyRef),
+        sidebar: this.liveSidebarStateService,
+        routeReady: () => this.routeSession?.isReady() ?? true,
+        play: (item) => {
+            void this.playChannel(item, true);
+        },
     });
     private epgPreviewRefreshTimer: ReturnType<typeof setTimeout> | null = null;
     private unsubscribeRemoteChannelChange?: () => void;
@@ -1099,7 +1117,7 @@ export class StalkerLiveStreamLayoutComponent
      * instance shows the sidebar's windowed rows.
      */
     channelsForList(panelSearchTerm?: Signal<string>): StalkerItvChannel[] {
-        const term = panelSearchTerm?.().trim().toLowerCase() ?? '';
+        const term = foldSearchText(panelSearchTerm?.().trim() ?? '');
         if (!term) {
             if (!panelSearchTerm) {
                 return this.visibleChannels();
@@ -1776,7 +1794,7 @@ export class StalkerLiveStreamLayoutComponent
                       matchesStalkerChannelTerm(item, this.searchTerm())
                   )
                 : this.filteredChannels();
-        const query = term().trim().toLowerCase();
+        const query = foldSearchText(term().trim());
         return query
             ? this.searchableChannels().filter((item) =>
                   matchesStalkerChannelTerm(item, query)

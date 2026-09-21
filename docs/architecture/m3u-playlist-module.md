@@ -978,7 +978,34 @@ These URLs are playlist-scoped by default:
   TTL expires.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
-  playlists are not treated as global fallback sources. Single-channel current
+  playlists are not treated as global fallback sources. The one opt-out is
+  `EpgLookupOptions.anySourceFallback` (renderer-only, never forwarded to the
+  bridge): after the scope — playlist sources, then the global ones — has
+  answered, the keys still without a programme are retried once against every
+  imported source through the source-less batch path and its cache. The
+  ladder has the same shape with or without the bridge's batch endpoint: on
+  an older preload the scoped pass runs as per-channel scoped lookups
+  (`getScopedCurrentProgramForChannel`, same scope -> fallback-scope walk,
+  same scoped cache key) and only the any-source retry is source-less.
+  Collapsing that preload straight into the source-less lookup would drop
+  the caller's scope, which is what the scopes exist to prevent. The
+  dashboard live
+  rails pass the option: without it a favourite whose guide only exists in
+  another playlist's XMLTV showed no programme on the dashboard while its
+  "See all" row — resolved by `StreamResolverService`, which never scopes by
+  source — had one. They still ask **per source scope**, one lookup per
+  distinct set of playlist-declared XMLTV URLs, and namespace the answers by
+  that scope: a `tvg-id` is unique inside a guide, not across imports, so a
+  single flat map keyed by lookup key alone would hand one playlist's card
+  the programme another playlist's guide resolved for the same id. Playlists
+  sharing a guide share one lookup. Only a card that carries a real XMLTV key
+  is widened: an Xtream or Stalker card has none, so its lookup key is just
+  its display title, and searching every guide by title would let a
+  same-named M3U channel answer for a portal channel. Those cards keep the
+  strict scope (their own programmes come from the portal), and the
+  any-source flag is part of the scope identity so the two never share an
+  answer. Wiring: `DashboardLiveEpgPresenter` in
+  `libs/workspace/dashboard/feature/src/lib/rails/`. The channel list keeps the strict scope. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped
@@ -1062,6 +1089,62 @@ These URLs are playlist-scoped by default:
 - **Features**: Read-only channel details context menu, row-level and context-menu removal
 
 ## EPG Integration
+
+### Xtream channel-row programme refresh
+
+The "current programme" line under each Xtream Live TV channel used to be
+written only when a row scrolled into view, when an EPG result arrived, or
+when the display offset changed. Nothing re-evaluated it as wall-clock time
+passed, so once a programme ended the row stayed on it until the category was
+left and re-entered (#767).
+
+`PortalChannelsListComponent` re-checks the rows on screen once a minute. The
+rules, each of which exists to avoid a specific failure:
+
+- A programme still on air only has its **progress bar** advanced. No cache
+  read, no request: a row with nothing to learn must not cost traffic.
+- Once it ends the row is re-picked from the queue's cache, and only a
+  programme that is **on air or upcoming** may replace it. A finished
+  programme is never re-applied — it would keep presenting itself as current,
+  and the earliest-item fallback that fills a blank row on first paint would
+  move an advanced row *backwards*.
+- A cached guide whose programmes have **all** ended is dropped
+  (`EpgQueueService.invalidate`) and refetched, because the queue skips any
+  stream that still holds a cached answer. An **empty** answer means the
+  provider has no guide for that channel and is left alone; re-asking would
+  put one call per EPG-less visible row on the wire every minute.
+- What is on screen stays there until a replacement arrives, so a refreshing
+  row never blanks out.
+
+A programme occupies `[start, stop)` in every one of these comparisons, so
+"has it ended" and "what is on air" cannot disagree on the boundary instant.
+The selection rules are pure functions in
+`libs/portal/xtream/feature/src/lib/portal-channels-list/epg-preview-program.ts`
+and take an explicit `nowMs` in the PROVIDER's clock (`epgProviderClockMs`),
+never `Date.now()`.
+
+Two root-provided services exist because a live layout mounts the channel list
+more than once — the sidebar and the fullscreen channel panel render side by
+side — over one shared `EpgQueueService`:
+
+- `EpgRefillLimiter` is the floor on dropping an exhausted cache, the one
+  place that overrides the queue's own throttling. A provider whose guide has
+  genuinely run out answers the refill with the same finished programmes, so
+  without a floor the row would ask again on the very next tick. Records carry
+  the owning playlist, since a stream id is provider-local and the service
+  outlives a playlist switch, and they expire by age rather than by viewport
+  membership — a claim dropped when its row scrolled away would be handed back
+  the moment the user scrolled to it again.
+- `EpgRefreshCoordinator` owns the single timer and merges what every mounted
+  list needs into one queue request. `EpgQueueService.enqueue` is latest-wins:
+  it bumps one generation, replaces the queue and the visible set, and drops an
+  earlier caller's entries after its XMLTV await. Separate timers would cancel
+  each other whenever both lists had rows to fill, which is exactly what
+  happens on a programme boundary. Each list still decides for itself what is
+  stale (that reads only its own state) and contributes its whole visible
+  slice, since the queue drops anything outside the visible set it was last
+  handed; a channel both lists show is fetched once, and playlists stay apart
+  because their credentials differ.
 
 ### XMLTV response compression
 
@@ -1227,9 +1310,11 @@ class EpgService {
 - The unified favorites/recent live tab
   (`libs/portal/shared/ui/.../unified-collection/unified-live-tab.component.ts`)
   hosts the same timeline but does not use the NgRx playlist state; it keeps
-  its own `activeTimeshift` signal, resolves the replay URL with
-  `resolveM3uCatchupUrl`, and swaps the inline player's playback target (or
-  hands the URL to the configured external player). Selecting another channel,
+  its own `activeTimeshift` signal and hands it to
+  `createUnifiedLiveCatchup` (`unified-live-catchup.ts`), which resolves the
+  replay URL with `resolveM3uCatchupUrl` and swaps the inline player's
+  playback target (or hands the URL to the configured external player).
+  Selecting another channel,
   closing the player, or "Return to live" clears the override.
 - Catch-up activation is never silent: if the replay URL cannot be resolved
   for a programme the user clicked, both hosts surface a

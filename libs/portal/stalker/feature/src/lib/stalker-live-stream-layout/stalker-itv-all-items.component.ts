@@ -16,6 +16,7 @@ import {
     StalkerItvChannel,
     StalkerItvLoadProgress,
 } from '@iptvnator/portal/stalker/data-access';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 /** Initial render window and per-`loadMore` growth over the cached list. */
 const RENDER_CHUNK = 50;
@@ -101,16 +102,16 @@ export class StalkerItvAllItemsComponent {
     });
 
     readonly filteredChannels = computed(() => {
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
         const channels = this.channels();
         if (!term) {
             return channels;
         }
 
         return channels.filter((channel) =>
-            `${channel.o_name ?? ''} ${channel.name ?? ''}`
-                .toLowerCase()
-                .includes(term)
+            foldSearchText(
+                `${channel.o_name ?? ''} ${channel.name ?? ''}`
+            ).includes(term)
         );
     });
 

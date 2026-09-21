@@ -40,6 +40,7 @@ import {
     SortService,
 } from '@iptvnator/services';
 import {
+    foldSearchText,
     PLAYLIST_UPDATE,
     PlaylistMeta,
     PlaylistRefreshEvent,
@@ -169,9 +170,9 @@ export class RecentPlaylistsComponent {
                     );
                 })
                 .filter((item) =>
-                    (item.title || '')
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
+                    foldSearchText(item.title || '').includes(
+                        foldSearchText(searchQuery)
+                    )
                 );
 
             // Apply sorting using the SortService

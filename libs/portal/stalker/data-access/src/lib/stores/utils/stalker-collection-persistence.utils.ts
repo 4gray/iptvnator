@@ -1,7 +1,7 @@
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { PlaylistMeta, StalkerPortalItem } from '@iptvnator/shared/interfaces';
-import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
+import { firstNonBlankStalkerIdText } from '../../stalker-vod.utils';
 import {
     StalkerContentType,
     StalkerRecentlyViewedItem,
@@ -49,7 +49,7 @@ export function buildStalkerRecentlyViewedPayload(
         ),
         ...getStalkerSeriesRecentMetadata(selectedContentType),
         added_at: Date.now(),
-        id: normalizeStalkerEntityId(item.id ?? item.stream_id ?? ''),
+        id: firstNonBlankStalkerIdText(item.id, item.stream_id),
         title: item.title ?? item.name ?? item.o_name ?? '',
     };
 }

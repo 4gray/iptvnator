@@ -21,6 +21,7 @@ import {
     WorkspaceCommandSelection,
     WorkspaceResolvedCommandItem,
 } from '@iptvnator/portal/shared/util';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 interface WorkspaceCommandPaletteData {
     commands: WorkspaceResolvedCommandItem[];
@@ -63,7 +64,7 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
     );
 
     readonly filteredCommands = computed(() => {
-        const term = this.query().trim().toLowerCase();
+        const term = foldSearchText(this.query().trim());
         const commands = this.visibleCommands();
 
         if (!term) {
@@ -75,11 +76,9 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
                 command.label,
                 command.description,
                 ...(command.keywords ?? []),
-            ]
-                .join(' ')
-                .toLowerCase();
+            ].join(' ');
 
-            return haystack.includes(term);
+            return foldSearchText(haystack).includes(term);
         });
     });
 

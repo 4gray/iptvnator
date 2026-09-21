@@ -1278,6 +1278,12 @@ The Stalker live route and radio route intentionally share
   in the channel header. Remote up/down, numeric selection and status retain
   the captured playback order while browsing. See the
   [queue and reveal contract](./remote-control.md#live-channel-return-and-playback-order).
+- Arrival with `openStalkerLiveItemId` in history state (a collection's
+  "open in playlist") is served by `StalkerLiveAutoOpen`
+  (`stalker-live-auto-open.ts`): once the store serves the requested portal
+  and the full ITV list (below) is ready, the channel is located there, its
+  genre selected and playback started; see
+  [Portal Detail Navigation](./portal-detail-navigation.md).
 
 ## Full ITV Channel List Cache
 

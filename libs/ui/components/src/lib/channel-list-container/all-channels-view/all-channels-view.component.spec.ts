@@ -91,6 +91,30 @@ describe('AllChannelsViewComponent', () => {
         localStorage.removeItem(ALL_CHANNELS_SORT_STORAGE_KEY);
     });
 
+    it('filters the Turkish dotted capital İ case-insensitively (issue #609)', () => {
+        const turkishChannel = createChannel(
+            'channel-2',
+            'İnşaat Kanalı',
+            'https://example.com/insaat.m3u8'
+        );
+        fixture.componentRef.setInput('channels', [
+            primaryChannel,
+            turkishChannel,
+        ]);
+
+        fixture.componentRef.setInput('searchTerm', 'inş');
+        fixture.detectChanges();
+        expect(component.filteredChannels()).toEqual([turkishChannel]);
+
+        fixture.componentRef.setInput('searchTerm', 'İNŞ');
+        fixture.detectChanges();
+        expect(component.filteredChannels()).toEqual([turkishChannel]);
+
+        fixture.componentRef.setInput('searchTerm', 'news');
+        fixture.detectChanges();
+        expect(component.filteredChannels()).toEqual([primaryChannel]);
+    });
+
     it('defaults to playlist order when no saved sort mode exists', () => {
         expect(component.allChannelsSortMode()).toBe('server');
         expect(component.allChannelsSortLabel()).toBe('Playlist Order');

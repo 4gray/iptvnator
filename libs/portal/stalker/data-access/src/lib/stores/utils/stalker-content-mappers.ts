@@ -1,3 +1,4 @@
+import { firstNonBlankStalkerId } from '../../stalker-vod.utils';
 import {
     StalkerContentItem,
     StalkerItvChannel,
@@ -79,17 +80,17 @@ export function filterItvChannelsByGenre(
     );
 }
 
-export function toStalkerItvChannel(item: StalkerContentItem): StalkerItvChannel {
+export function toStalkerItvChannel(
+    item: StalkerContentItem
+): StalkerItvChannel {
     return {
         ...item,
-        id: item.id ?? item.stream_id ?? '',
+        // First NON-BLANK id: a blank `id` beside a valid `stream_id` must
+        // not shadow it, or the row is unselectable and unplayable.
+        id: firstNonBlankStalkerId(item.id, item.stream_id) ?? '',
         cmd: String(item.cmd ?? ''),
-        name:
-            typeof item.name === 'string' ? item.name : undefined,
-        o_name:
-            typeof item.o_name === 'string' ? item.o_name : undefined,
-        logo:
-            typeof item.logo === 'string' ? item.logo : undefined,
+        name: typeof item.name === 'string' ? item.name : undefined,
+        o_name: typeof item.o_name === 'string' ? item.o_name : undefined,
+        logo: typeof item.logo === 'string' ? item.logo : undefined,
     };
 }
-

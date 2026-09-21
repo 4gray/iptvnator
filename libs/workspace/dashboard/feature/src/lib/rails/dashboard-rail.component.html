@@ -21,8 +21,7 @@
                             'WORKSPACE.DASHBOARD.SEE_ALL_COUNT'
                                 | translate
                                     : {
-                                          count:
-                                              totalCount() ?? items().length,
+                                          count: totalCount() ?? items().length,
                                       }
                         }}
                     } @else {
@@ -56,8 +55,10 @@
             @for (card of items(); track card.id) {
                 @if (layout() === 'channel') {
                     <div
+                        #cardEl
                         class="rail__card rail__card--channel"
                         role="listitem"
+                        [attr.data-card-id]="card.id"
                         [attr.title]="cardTitle(card)"
                         [attr.data-test-id]="
                             testId() ? testId() + '-card' : null
@@ -99,6 +100,14 @@
                                     <span class="rail__channel-now">
                                         @if (card.nowPlayingTitle) {
                                             {{ card.nowPlayingTitle }}
+                                        } @else if (
+                                            card.nowPlayingState === 'pending'
+                                        ) {
+                                            <span
+                                                class="rail__channel-now-placeholder"
+                                                aria-hidden="true"
+                                                data-test-id="rail-now-placeholder"
+                                            ></span>
                                         } @else if (card.subtitle) {
                                             {{ card.subtitle }}
                                         }
@@ -132,8 +141,10 @@
                     </div>
                 } @else {
                     <div
+                        #cardEl
                         class="rail__card"
                         role="listitem"
+                        [attr.data-card-id]="card.id"
                         [attr.title]="cardTitle(card)"
                         [attr.data-test-id]="
                             testId() ? testId() + '-card' : null
@@ -177,7 +188,10 @@
                                     </div>
                                 }
 
-                                @if (card.watchProgress !== null && card.watchProgress !== undefined) {
+                                @if (
+                                    card.watchProgress !== null &&
+                                    card.watchProgress !== undefined
+                                ) {
                                     <span
                                         class="rail__art-progress"
                                         aria-hidden="true"
@@ -193,32 +207,45 @@
                                 <span class="rail__card-title">{{
                                     cardTitle(card)
                                 }}</span>
-                                <span class="rail__card-meta-row">
-                                    @if (card.episodeBadge) {
-                                        <span class="rail__card-episode">{{
-                                            card.episodeBadge
-                                        }}</span>
-                                    }
-                                    @if (card.subtitle) {
-                                        <span class="rail__card-subtitle">{{
-                                            card.subtitle
-                                        }}</span>
-                                    }
-                                    @if (card.expiryBadge; as expiry) {
-                                        <span
-                                            class="rail__card-expiry"
-                                            [class.rail__card-expiry--expired]="
-                                                expiry.kind === 'expired'
-                                            "
-                                            [attr.data-test-id]="
-                                                testId()
-                                                    ? testId() + '-card-expiry'
-                                                    : null
-                                            "
-                                            >{{ expiry.label }}</span
-                                        >
-                                    }
-                                </span>
+                                @if (
+                                    card.episodeBadge ||
+                                    card.remainingLabel ||
+                                    card.subtitle ||
+                                    card.expiryBadge
+                                ) {
+                                    <span class="rail__card-meta-row">
+                                        @if (card.episodeBadge) {
+                                            <span class="rail__card-episode">{{
+                                                card.episodeBadge
+                                            }}</span>
+                                        }
+                                        @if (card.remainingLabel; as remaining) {
+                                            <span class="rail__card-remaining">{{
+                                                remaining.key
+                                                    | translate: remaining.params
+                                            }}</span>
+                                        }
+                                        @if (card.subtitle) {
+                                            <span class="rail__card-subtitle">{{
+                                                card.subtitle
+                                            }}</span>
+                                        }
+                                        @if (card.expiryBadge; as expiry) {
+                                            <span
+                                                class="rail__card-expiry"
+                                                [class.rail__card-expiry--expired]="
+                                                    expiry.kind === 'expired'
+                                                "
+                                                [attr.data-test-id]="
+                                                    testId()
+                                                        ? testId() + '-card-expiry'
+                                                        : null
+                                                "
+                                                >{{ expiry.label }}</span
+                                            >
+                                        }
+                                    </span>
+                                }
                             </div>
                         </a>
 

@@ -110,18 +110,96 @@ function liveEpgLookupKeyForCard(card: DashboardRailCard): string {
     return card.epgLookupKey?.trim() || card.title.trim();
 }
 
-export function buildLiveEpgLookupKeys(
-    cards: readonly DashboardRailCard[]
-): string[] {
-    const seen = new Set<string>();
-    const keys: string[] = [];
+/** One XMLTV lookup: the scope it is answered in and the keys asked for. */
+export interface DashboardLiveEpgLookupGroup {
+    /** Identity of the scope, as `liveEpgScopeKey` builds it. */
+    readonly scopeKey: string;
+    readonly sourceUrls: string[];
+    readonly lookupKeys: string[];
+    /** Whether unresolved keys may be retried against every imported guide. */
+    readonly anySourceFallback: boolean;
+}
+
+/**
+ * Only a card whose playlist gave it a real XMLTV key may be retried against
+ * every imported guide. An Xtream or Stalker card carries no such key, so the
+ * lookup falls back to its display title, and searching every playlist's
+ * guide by title would let a same-named M3U channel answer for a portal
+ * channel. Those cards keep the strict scope; their own programmes come from
+ * the portal instead.
+ */
+export function liveEpgAllowsAnySource(card: DashboardRailCard): boolean {
+    return Boolean(card.epgLookupKey?.trim());
+}
+
+/**
+ * Cards are grouped by the XMLTV sources their playlist declares, not by the
+ * playlist itself: two playlists pointing at the same guide ask one question
+ * and share the answer, while two playlists with DIFFERENT guides never do.
+ * That separation is the point — a bare `tvg-id` like `ard.de` is not unique
+ * across imports, so one flat map keyed by lookup key alone would hand one
+ * playlist's card the other playlist's programme. The any-source flag is part
+ * of that identity too: a guide-less M3U playlist and a portal playlist both
+ * resolve against Settings, but only the first may widen the search, so their
+ * answers for one title are not interchangeable.
+ */
+export function liveEpgScopeKey(
+    sourceUrls: readonly string[],
+    anySourceFallback: boolean
+): string {
+    // JSON, not a separator character: a URL may contain anything, and
+    // a raw control byte would classify this source file as binary.
+    return JSON.stringify([
+        Array.from(new Set(sourceUrls)).sort(),
+        anySourceFallback,
+    ]);
+}
+
+/** Namespaces an answer by the scope it was resolved in. */
+export function liveEpgProgramKey(scopeKey: string, lookupKey: string): string {
+    return JSON.stringify([scopeKey, lookupKey]);
+}
+
+export function buildLiveEpgLookupGroups(
+    cards: readonly DashboardRailCard[],
+    sourceUrlsForCard: (card: DashboardRailCard) => string[]
+): DashboardLiveEpgLookupGroup[] {
+    const groups = new Map<
+        string,
+        {
+            sourceUrls: string[];
+            lookupKeys: string[];
+            anySourceFallback: boolean;
+            seen: Set<string>;
+        }
+    >();
+
     for (const card of cards) {
-        const key = liveEpgLookupKeyForCard(card);
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        keys.push(key);
+        const lookupKey = liveEpgLookupKeyForCard(card);
+        if (!lookupKey) continue;
+
+        const sourceUrls = sourceUrlsForCard(card);
+        const anySourceFallback = liveEpgAllowsAnySource(card);
+        const scopeKey = liveEpgScopeKey(sourceUrls, anySourceFallback);
+        const group = groups.get(scopeKey) ?? {
+            sourceUrls: Array.from(new Set(sourceUrls)),
+            lookupKeys: [],
+            anySourceFallback,
+            seen: new Set<string>(),
+        };
+        if (!group.seen.has(lookupKey)) {
+            group.seen.add(lookupKey);
+            group.lookupKeys.push(lookupKey);
+        }
+        groups.set(scopeKey, group);
     }
-    return keys;
+
+    return Array.from(groups.entries(), ([scopeKey, group]) => ({
+        scopeKey,
+        sourceUrls: group.sourceUrls,
+        lookupKeys: group.lookupKeys,
+        anySourceFallback: group.anySourceFallback,
+    }));
 }
 
 type DashboardLiveEpgRailSettings = Pick<
@@ -142,16 +220,23 @@ export function buildLiveEpgCardsForEnabledRails(
     ];
 }
 
+/**
+ * `epgMap` is keyed by `liveEpgProgramKey`, so a card only ever reads the
+ * answer resolved in its own source scope.
+ */
 export function getLiveEpgProgramForCard(
     card: DashboardRailCard,
-    epgMap: ReadonlyMap<string, EpgProgram | null>
+    epgMap: ReadonlyMap<string, EpgProgram | null>,
+    scopeKey: string
 ): EpgProgram | null {
     const key = liveEpgLookupKeyForCard(card);
-    const program = epgMap.get(key);
+    const program = epgMap.get(liveEpgProgramKey(scopeKey, key));
     if (program) {
         return program;
     }
 
     const titleKey = card.title.trim();
-    return key !== titleKey ? (epgMap.get(titleKey) ?? null) : null;
+    return key !== titleKey
+        ? (epgMap.get(liveEpgProgramKey(scopeKey, titleKey)) ?? null)
+        : null;
 }

@@ -776,3 +776,22 @@ navigation surface; this ledger records the one-time relocation.
 | CLAUDE.md:2005–2010 | Desktop Source Health — Electron switcher/source rows share bounded, cached Xtream/Stalker/M3U URL checks through… | [Desktop source health](../architecture/m3u-playlist-module.md#desktop-source-health) | Existing contract |
 | CLAUDE.md:2012–2018 | Desktop Source Health — Desktop Sources also offers library-wide selective cleanup through dialog-scoped SourceCleanupService.… | [Desktop source health](../architecture/m3u-playlist-module.md#desktop-source-health) | Existing contract |
 | CLAUDE.md:2020–2022 | Desktop Source Health — Startup source auto-refresh uses SourceActivityService to protect busy IDs from cleanup. Late batch… | [Desktop source health](../architecture/m3u-playlist-module.md#desktop-source-health) | Existing contract |
+
+## Master integration follow-up
+
+During conflict resolution with master on 2026-09-21, the compact root guidance
+was retained and the new upstream knowledge was checked against canonical docs:
+
+- Live channel playlist handoff, including Stalker arrival and fallback behavior:
+  [portal navigation](../architecture/portal-detail-navigation.md).
+- Shared locale-independent search folding and SQLite search variants:
+  [agent workflow](../development/agent-workflow.md#shared-search-text-folding).
+- Stalker series resume, watch kind versus routing kind, and dashboard labels:
+  [portal navigation](../architecture/portal-detail-navigation.md) and
+  [workspace dashboard](../architecture/workspace-dashboard.md).
+- Scoped XMLTV fallback and Xtream programme refresh helpers:
+  [M3U contracts](../architecture/m3u-playlist-module.md).
+- Lazy portal EPG queues, revision handling and dashboard fallback:
+  [workspace dashboard](../architecture/workspace-dashboard.md).
+
+The original 716-entry inventory above remains tied to its immutable source.

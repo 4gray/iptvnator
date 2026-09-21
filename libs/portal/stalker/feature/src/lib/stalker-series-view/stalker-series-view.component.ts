@@ -18,6 +18,13 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import {
+    findStalkerResumeLazySeason,
+    resolveStalkerResumeEpisode,
+    STALKER_SERIES_RESUME_TARGET,
+    StalkerResumeSeasonHydration,
+    stalkerSeriesResumeKey,
+} from './stalker-series-resume';
+import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
@@ -220,6 +227,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly rawSeriesPositions = signal<
         readonly PlaybackPositionData[]
     >([]);
+    /**
+     * `playlistId:seriesId` once the persisted positions for the shown
+     * series have been READ (a failed read leaves it null): the dashboard
+     * resume handoff must not start an episode from the beginning because
+     * the offsets have not arrived yet.
+     */
+    private readonly seriesPositionsLoadedKey = signal<string | null>(null);
+    private readonly seriesResumeTarget = inject(STALKER_SERIES_RESUME_TARGET);
+    private consumedSeriesResumeKey: string | null = null;
+    private readonly seriesResumeSeasonHydration =
+        new StalkerResumeSeasonHydration();
     private readonly legacyPositionByTrackingId = signal<
         Map<number, PlaybackPositionData>
     >(new Map());
@@ -417,6 +435,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     isSeries: item.is_series,
                 });
                 this.rawSeriesPositions.set([]);
+                this.seriesPositionsLoadedKey.set(null);
                 this.episodePlaybackPositions.set(new Map());
                 this.legacyPositionByTrackingId.set(new Map());
                 const context = this.activateSeriesPositionContext(
@@ -433,6 +452,78 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         effect(() => {
             this.applyReconciledSeriesPositions();
+        });
+
+        // Dashboard "Continue watching" handoff: once the persisted
+        // positions for THIS series are in (so the episode resumes at its
+        // saved offset, not from zero) and the target episode is on the
+        // page, play it exactly once. A lazy Ministra season the target
+        // lives in is hydrated first; the effect re-runs when its episodes
+        // land. Mirrors the Xtream serial-details resume effect.
+        effect(() => {
+            const target = this.seriesResumeTarget();
+            const item = this.displayItem();
+            const playlistId = this.stalkerStore.currentPlaylist()?._id;
+            const seriesXtreamId = this.toSeriesId(item?.id ?? 0);
+            const episodesBySeason = this.mappedSeasons();
+            const seasons = this.vodSeriesSeasons();
+            // Read so the effect re-runs after reconciliation, which is
+            // what `onEpisodeClicked` takes the start offset from.
+            this.episodePlaybackPositions();
+            if (
+                !target ||
+                !item ||
+                !playlistId ||
+                seriesXtreamId <= 0 ||
+                target.seriesXtreamId !== seriesXtreamId ||
+                this.seriesPositionsLoadedKey() !==
+                    this.seriesPositionsKey(playlistId, seriesXtreamId)
+            ) {
+                return;
+            }
+
+            const resumeKey = stalkerSeriesResumeKey(playlistId, target);
+            if (this.consumedSeriesResumeKey === resumeKey) {
+                return;
+            }
+
+            const episode = resolveStalkerResumeEpisode({
+                target,
+                episodesBySeason,
+            });
+            if (episode) {
+                this.consumedSeriesResumeKey = resumeKey;
+                // Reconciliation attaches positions by exact or legacy
+                // tracking id only; an episode found by coordinates still
+                // resumes at the offset the dashboard card displayed.
+                const savedOffset = this.rawSeriesPositions().find(
+                    (position) =>
+                        position.contentXtreamId === target.contentXtreamId
+                )?.positionSeconds;
+                untracked(() => this.onEpisodeClicked(episode, savedOffset));
+                return;
+            }
+
+            const lazySeason = this.isVodSeries()
+                ? findStalkerResumeLazySeason({ target, seasons })
+                : null;
+            if (
+                !lazySeason ||
+                !this.seriesResumeSeasonHydration.canRequest(resumeKey)
+            ) {
+                return;
+            }
+            this.seriesResumeSeasonHydration.begin(resumeKey);
+            untracked(
+                () =>
+                    void this.loadEpisodesForSeason(lazySeason).then(
+                        (answered) =>
+                            this.seriesResumeSeasonHydration.settle(
+                                resumeKey,
+                                answered
+                            )
+                    )
+            );
         });
 
         effect(() => {
@@ -857,7 +948,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     /**
      * Handles episode click from the container
      */
-    onEpisodeClicked(episode: XtreamSerieEpisode) {
+    /**
+     * `startTimeOverride` lets the dashboard resume handoff carry the saved
+     * offset for an episode whose position row the page could not attach
+     * (matched by coordinates only), so it resumes where the card said.
+     */
+    onEpisodeClicked(episode: XtreamSerieEpisode, startTimeOverride?: number) {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
             episodesBySeason: this.mappedSeasons(),
@@ -876,7 +972,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             : item.info.name;
         const trackingId = Number(mappedEpisode.id);
         const startTime =
-            this.episodePlaybackPositions().get(trackingId)?.positionSeconds;
+            this.episodePlaybackPositions().get(trackingId)?.positionSeconds ??
+            startTimeOverride;
 
         void this.startPlayback(
             command,
@@ -1552,9 +1649,22 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.rawSeriesPositions.set(positions);
+            this.seriesPositionsLoadedKey.set(
+                this.seriesPositionsKey(
+                    context.playlistId,
+                    context.seriesXtreamId
+                )
+            );
         } finally {
             this.untrackPendingSeriesPositionLoad(context, generation);
         }
+    }
+
+    private seriesPositionsKey(
+        playlistId: string,
+        seriesXtreamId: number
+    ): string {
+        return `${playlistId}:${seriesXtreamId}`;
     }
 
     private activateSeriesPositionContext(

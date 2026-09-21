@@ -209,3 +209,15 @@ Electron backend build depends on the web build; outputs live under
 `dist/apps/electron-backend` and `dist/apps/web` and packaging combines them.
 Use [the validation map](../architecture/validation-map.md) for test/lint tasks
 and [the release pipeline](../architecture/release-pipeline.md) for packaging.
+
+## Shared search text folding
+
+Use `foldSearchText` from `libs/shared/interfaces/src/lib/search-text-fold.util.ts`
+on both sides of every in-memory search comparison. Channel lists, catalog and
+category filters, command palette, sources and downloads must share this fold;
+row filtering and count/queue sources must not diverge. It lowercases without a
+locale, normalizes to NFC, then strips remaining combining marks. Composing first
+keeps canonical spellings equivalent while preserving accents; the leftover dot
+in Turkish dotted İ is stripped so it matches plain i. Do not substitute
+`toLocaleLowerCase`. Electron content search uses the same fold and adds explicit
+Turkish-locale İ variants to LIKE/GLOB queries because SQLite LIKE folds only ASCII.

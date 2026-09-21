@@ -7,14 +7,15 @@ import {
     signal,
     untracked,
 } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { interval, map, of, startWith, switchMap } from 'rxjs';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { interval, map, startWith } from 'rxjs';
 import {
-    type EpgProgram,
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
+    type PlaybackPositionData,
+    playlistDisplayLabel,
+    resolvePortalActivityWatchKind,
 } from '@iptvnator/shared/interfaces';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -44,6 +45,7 @@ import {
     DashboardDataService,
     DashboardFavoriteItem,
     DashboardRecentlyAddedItem,
+    buildDashboardPortalLiveEpgKey,
     DashboardRecommendationItem,
     DashboardRecommendationsService,
     DashboardSourceExpiryService,
@@ -62,15 +64,10 @@ import type {
 } from './dashboard-rail.component';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import type { DashboardHeroModel } from './dashboard-hero.utils';
+import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
-import {
-    buildDashboardLiveEpgDetails,
-    buildLiveEpgCardsForEnabledRails,
-    buildLiveEpgLookupKeys,
-    getLiveEpgProgramForCard,
-    LIVE_EPG_TICK_MS,
-} from './dashboard-live-epg.utils';
-import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
+import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
+import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
 import {
     buildPlaybackPositionReloadKey,
     formatRemainingLabel,
@@ -110,9 +107,12 @@ import type {
     host: {
         '[class.rails-page-host--empty]': 'ready() && !hasPlaylists()',
     },
+    providers: [DashboardLiveEpgPresenter, DashboardPortalLiveEpgPresenter],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
+    /** One facade for both live-EPG sources: uploaded XMLTV and the portal. */
+    readonly liveEpg = inject(DashboardLiveEpgPresenter);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
@@ -128,7 +128,6 @@ export class WorkspaceDashboardRailsComponent {
         { initialValue: null }
     );
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
-    private readonly epgService = inject(EpgService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly heroTmdb = inject(DashboardHeroTmdbService);
@@ -190,20 +189,9 @@ export class WorkspaceDashboardRailsComponent {
         const position = this.data.getPlaybackPositionForItem(item);
         const liveEpgDetails =
             item.type === 'live'
-                ? this.getLiveEpgDetailsForCard(this.heroLiveCard())
+                ? this.liveEpg.detailsFor(this.heroLiveCard())
                 : null;
-        const episodeBadge =
-            item.type === 'series' &&
-            position?.seasonNumber != null &&
-            position?.episodeNumber != null
-                ? this.translate.instant(
-                      'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
-                      {
-                          season: position.seasonNumber,
-                          episode: position.episodeNumber,
-                      }
-                  )
-                : null;
+        const episodeBadge = this.buildEpisodeBadge(item, position);
 
         return {
             ...artwork,
@@ -267,52 +255,27 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
-    // Best-effort EPG lookup keyed by the app-wide M3U XMLTV chain
-    // (tvg-id -> tvg-name -> name), with the card title as a final fallback.
-    // Xtream/Stalker live items often have no XMLTV side-channel and will
-    // simply return null — the card renders without the program row.
-    private readonly liveChannelLookupKeys = computed(() => {
-        const heroLiveCard = this.heroLiveCard();
-        return buildLiveEpgLookupKeys(
-            buildLiveEpgCardsForEnabledRails(
-                this.dashboardRails(),
-                heroLiveCard,
-                this.liveFavoriteCards(),
-                this.recentLiveCards()
-            )
-        );
-    });
+    // The live cards whose rails are enabled; the presenter looks their
+    // programmes up per XMLTV source scope.
+    private readonly enabledLiveCards = computed(() =>
+        buildLiveEpgCardsForEnabledRails(
+            this.dashboardRails(),
+            this.heroLiveCard(),
+            this.liveFavoriteCards(),
+            this.recentLiveCards()
+        )
+    );
 
     private readonly playbackPositionReloadKey = computed(() =>
         buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
     );
 
-    // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
-    // catches the boundary between programs without a full page revisit.
-    private readonly liveEpgPrograms = toSignal(
-        toObservable(this.liveChannelLookupKeys).pipe(
-            switchMap((keys) =>
-                keys.length === 0
-                    ? of(new Map<string, EpgProgram | null>())
-                    : interval(LIVE_EPG_TICK_MS).pipe(
-                          startWith(0),
-                          switchMap(() =>
-                              this.epgService.getCurrentProgramsForChannels(
-                                  keys
-                              )
-                          )
-                      )
-            )
-        ),
-        { initialValue: new Map<string, EpgProgram | null>() }
-    );
-
     readonly liveFavoriteCardsEnriched = computed<DashboardRailCard[]>(() =>
-        this.enrichLiveCards(this.liveFavoriteCards())
+        this.liveEpg.enrich(this.liveFavoriteCards())
     );
 
     readonly recentLiveCardsEnriched = computed<DashboardRailCard[]>(() =>
-        this.enrichLiveCards(this.recentLiveCards())
+        this.liveEpg.enrich(this.recentLiveCards())
     );
 
     readonly favoriteMoviesAndSeriesCards = computed<DashboardRailCard[]>(() =>
@@ -417,6 +380,8 @@ export class WorkspaceDashboardRailsComponent {
         // backdrops that do not change recency ordering.
         void this.data.reloadGlobalRecentItems();
         void this.data.reloadGlobalFavorites();
+
+        this.liveEpg.connect(this.enabledLiveCards);
 
         // Refresh when Xtream playlist count changes so a newly added provider
         // populates the rail without a manual dashboard reload. The Xtream
@@ -601,34 +566,6 @@ export class WorkspaceDashboardRailsComponent {
         });
     }
 
-    private enrichLiveCards(
-        cards: readonly DashboardRailCard[]
-    ): DashboardRailCard[] {
-        return cards.map((card) => {
-            const details = this.getLiveEpgDetailsForCard(card);
-            if (!details) {
-                return card;
-            }
-            return { ...card, ...details };
-        });
-    }
-
-    private getLiveEpgDetailsForCard(
-        card: DashboardRailCard | null
-    ): DashboardLiveEpgDetails | null {
-        if (!card) {
-            return null;
-        }
-        const program = getLiveEpgProgramForCard(card, this.liveEpgPrograms());
-        // Recompute the now-window each tick so progress moves between
-        // 30s ticks even if the program identity is unchanged.
-        return buildDashboardLiveEpgDetails(
-            program,
-            Date.now(),
-            this.settingsStore.resolvedEpgOffsetMinutes()
-        );
-    }
-
     private buildNonLiveSeeAllState(
         cards: readonly DashboardRailCard[]
     ): Record<string, unknown> {
@@ -639,38 +576,55 @@ export class WorkspaceDashboardRailsComponent {
         );
     }
 
+    /**
+     * Only the source name under the hero title. Provider kind (Xtream /
+     * Stalker / M3U) and content kind (movie / series) are the app's own
+     * taxonomy, not a property of the title, and the badges row already
+     * says "S1·E5"; a stored playlist name can be a pasted URL with
+     * credentials or a MAC, so it goes through `playlistDisplayLabel`.
+     */
     private buildHeroSubtitle(item: GlobalRecentItem): string {
-        const parts = [
+        return playlistDisplayLabel(
             item.playlist_name,
-            this.data.getRecentItemProviderLabel(item),
-            this.data.getRecentItemTypeLabel(item),
-        ].filter((value): value is string => Boolean(value));
-        return parts.join(' · ');
+            this.data.getRecentItemProviderLabel(item)
+        );
+    }
+
+    /**
+     * "S1·E5" for an item whose progress is tracked per episode. Keyed on
+     * the WATCH kind: a Stalker embedded-VOD / lazy `is_series` show routes
+     * as a movie but still names the episode it is on.
+     */
+    private buildEpisodeBadge(
+        item: GlobalRecentItem,
+        position: PlaybackPositionData | null
+    ): string | null {
+        return resolvePortalActivityWatchKind(item) === 'series' &&
+            position?.seasonNumber != null &&
+            position?.episodeNumber != null
+            ? this.translate.instant(
+                  'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
+                  {
+                      season: position.seasonNumber,
+                      episode: position.episodeNumber,
+                  }
+              )
+            : null;
     }
 
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
         const position = this.data.getPlaybackPositionForItem(item);
         const watchProgress = playbackProgressPercent(position);
-        const episodeBadge =
-            item.type === 'series' &&
-            position?.seasonNumber != null &&
-            position?.episodeNumber != null
-                ? this.translate.instant(
-                      'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
-                      {
-                          season: position.seasonNumber,
-                          episode: position.episodeNumber,
-                      }
-                  )
-                : null;
+        const episodeBadge = this.buildEpisodeBadge(item, position);
         return {
             id: this.recentCardId(item),
             title: item.title,
-            subtitle: `${this.data.getRecentItemProviderLabel(item)} · ${this.data.getRecentItemTypeLabel(item)}`,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
+            epgPlaylistId: item.playlist_id,
+            liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getRecentItemLink(item),
             // Default click is detail-only for every card — an in-progress
             // series no longer auto-plays on click (issue #1441); resuming
@@ -678,6 +632,9 @@ export class WorkspaceDashboardRailsComponent {
             state: this.data.getRecentItemDetailNavigationState(item),
             watchProgress,
             episodeBadge,
+            // What still separates one card from the next: where in the
+            // show, and how much is left — not which provider it came from.
+            remainingLabel: formatRemainingLabel(position),
             ...(item.type === 'movie' || item.type === 'series'
                 ? {
                       actions: buildDashboardContinueWatchingActions({
@@ -702,11 +659,12 @@ export class WorkspaceDashboardRailsComponent {
         return {
             id: `fav-${item.id}-${item.playlist_id}-${item.added_at}`,
             title: item.title,
-            subtitle: `${this.data.getFavoriteItemProviderLabel(item)} · ${this.data.getFavoriteItemTypeLabel(item)}`,
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
             epgLookupKey: item.epg_lookup_key,
+            epgPlaylistId: item.playlist_id,
+            liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
         };
@@ -715,14 +673,11 @@ export class WorkspaceDashboardRailsComponent {
     private toRecentlyAddedCard(
         item: DashboardRecentlyAddedItem
     ): DashboardRailCard {
-        const typeLabel = this.data.getRecentlyAddedItemTypeLabel(item);
-        const subtitleParts = [item.playlist_name, typeLabel].filter(
-            (value): value is string => Boolean(value)
-        );
         return {
             id: `added-${item.id}-${item.playlist_id}-${item.added_at}`,
             title: item.title,
-            subtitle: subtitleParts.join(' · '),
+            // "Where was it added" is the one fact that varies per card here.
+            subtitle: playlistDisplayLabel(item.playlist_name),
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,

@@ -801,6 +801,135 @@ test.describe('Electron EPG', () => {
         }
     });
 
+    test("@epg @electron dashboard live rails find a programme that only another playlist's XMLTV carries", async ({
+        dataDir,
+    }) => {
+        test.setTimeout(120000);
+        // The reported case: the favourited channel's own playlist declares
+        // no guide, Settings hold a global XMLTV that does not know it, and
+        // the programme exists only in the guide a DIFFERENT playlist
+        // imported. The rails searched the global scope alone and showed
+        // nothing, while the "See all" row — resolved unscoped — had it.
+        const otherPlaylistEpgServer = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'playlist-guide-news',
+                'Playlist Guide News',
+                'Other Playlist Bulletin'
+            ),
+            {
+                contentType: 'application/xml; charset=utf-8',
+                resourcePath: '/guides/other-playlist.xml',
+            }
+        );
+        const globalEpgServer = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'global-other',
+                'Global Other',
+                'Global Other Bulletin'
+            ),
+            {
+                contentType: 'application/xml; charset=utf-8',
+                resourcePath: '/guides/global-guide.xml',
+            }
+        );
+        // Declares the guide, so importing it is what puts those programmes
+        // in the database under that source.
+        const guideOwnerServer = await createMutableTextServer(
+            buildM3uContent([
+                {
+                    name: 'Playlist Guide News',
+                    tvgId: 'playlist-guide-news',
+                    url: 'https://example.com/live/guide-owner.m3u8',
+                },
+            ]).replace(
+                '#EXTM3U',
+                `#EXTM3U x-tvg-url="${otherPlaylistEpgServer.resourceUrl}"`
+            ),
+            {
+                contentType: 'application/x-mpegurl; charset=utf-8',
+                resourcePath: '/guide-owner.m3u',
+            }
+        );
+        // Carries the same XMLTV id under its own display name and declares
+        // no guide at all — the playlist the dashboard card comes from.
+        const guidelessServer = await createMutableTextServer(
+            buildM3uContent([
+                {
+                    name: 'Mirror News',
+                    tvgId: 'playlist-guide-news',
+                    url: 'https://example.com/live/mirror-news.m3u8',
+                },
+            ]),
+            {
+                contentType: 'application/x-mpegurl; charset=utf-8',
+                resourcePath: '/guideless.m3u',
+            }
+        );
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                guideOwnerServer.resourceUrl
+            );
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1, { timeout: 30000 });
+
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .first()
+                .fill(globalEpgServer.resourceUrl);
+            await saveSettings(app.mainWindow);
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBe(2);
+
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                guidelessServer.resourceUrl
+            );
+
+            await openWorkspaceSection(app.mainWindow, 'All channels');
+            const channelItem = channelItemByTitle(
+                app.mainWindow,
+                'Mirror News'
+            );
+            await expect(channelItem).toBeVisible({ timeout: 20000 });
+            await channelItem.hover();
+            await channelItem.locator('.favorite-button').first().click();
+            await expect(
+                channelItem.locator('.favorite-button mat-icon').first()
+            ).toHaveText(/star/);
+
+            await goToDashboard(app.mainWindow);
+            const card = app.mainWindow
+                .locator('[data-test-id="dashboard-live-favorites-rail-card"]')
+                .filter({ hasText: 'Mirror News' })
+                .first();
+            await expect(card).toBeVisible({ timeout: 20000 });
+            await expect(card.locator('.rail__channel-now')).toContainText(
+                'Other Playlist Bulletin',
+                { timeout: 30000 }
+            );
+        } finally {
+            await closeElectronApp(app);
+            await guidelessServer.close();
+            await guideOwnerServer.close();
+            await otherPlaylistEpgServer.close();
+            await globalEpgServer.close();
+        }
+    });
+
     test('@epg @electron uses the XMLTV channel icon as a fallback when the playlist has no tvg-logo', async ({
         dataDir,
     }) => {

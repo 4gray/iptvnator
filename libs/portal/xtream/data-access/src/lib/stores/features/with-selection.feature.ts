@@ -7,6 +7,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { ContentType, XtreamContentLoadState } from '../../xtream-state';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 /**
  * Module-level collator — allocating Intl.Collator is expensive;
@@ -295,14 +296,14 @@ export function withSelection() {
                 items: XtreamSelectionItem[],
                 searchTerm: string
             ): XtreamSelectionItem[] => {
-                const normalized = searchTerm.trim().toLocaleLowerCase();
+                const normalized = foldSearchText(searchTerm.trim());
                 if (!normalized) {
                     return items;
                 }
 
                 return items.filter((item) => {
                     const title = (item.title ?? item.name ?? '').toString();
-                    return title.toLocaleLowerCase().includes(normalized);
+                    return foldSearchText(title).includes(normalized);
                 });
             };
 

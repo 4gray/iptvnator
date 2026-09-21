@@ -17,6 +17,7 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
 import {
+    foldSearchText,
     Channel,
     EpgProgram,
     epgProviderClockMs,
@@ -78,16 +79,16 @@ export class RecentViewComponent {
 
     readonly filteredRecentItems = computed(() => {
         const recentItems = this.recentItems();
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
 
         if (!term) {
             return recentItems;
         }
 
         return recentItems.filter(({ channel }) =>
-            `${channel.name ?? ''} ${channel.group?.title ?? ''}`
-                .toLowerCase()
-                .includes(term)
+            foldSearchText(
+                `${channel.name ?? ''} ${channel.group?.title ?? ''}`
+            ).includes(term)
         );
     });
 

@@ -15,6 +15,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    foldSearchText,
     sourceHealthType,
     PlaylistUpdateState,
 } from '@iptvnator/shared/interfaces';
@@ -195,7 +196,7 @@ export class WorkspaceSourcesComponent {
     });
 
     readonly visibleSourcesCount = computed(() => {
-        const query = this.searchQuery().trim().toLowerCase();
+        const query = foldSearchText(this.searchQuery().trim());
         const filters = this.activeTypeFilters();
         const allPlaylists = this.playlists();
 
@@ -217,7 +218,7 @@ export class WorkspaceSourcesComponent {
 
                 return isStalkerFilter || isXtreamFilter || isM3uFilter;
             })
-            .filter((item) => (item.title || '').toLowerCase().includes(query))
+            .filter((item) => foldSearchText(item.title || '').includes(query))
             .length;
     });
 
