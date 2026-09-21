@@ -1767,3 +1767,14 @@ test('multiple at-signs cannot disguise an adjacent document import', async (t) 
         ).some((message) => message.includes('additional or inline'))
     );
 });
+
+for (const suffix of ['…', '。', '！', '—']) {
+    test(`federated handle accepts Unicode sentence ending: ${suffix}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': 'Contact @alice@example.social' + suffix,
+            }),
+            []
+        );
+    });
+}
