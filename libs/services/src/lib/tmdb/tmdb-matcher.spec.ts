@@ -80,10 +80,10 @@ describe('extractYear', () => {
 describe('lookup keys', () => {
     it('builds stable search and details keys', () => {
         expect(buildSearchLookupKey('The Matrix', 1999)).toBe(
-            'title:the matrix|year:1999|v3'
+            'title:the matrix|year:1999|v4'
         );
         expect(buildSearchLookupKey('The Matrix', null)).toBe(
-            'title:the matrix|year:|v3'
+            'title:the matrix|year:|v4'
         );
     });
 
@@ -92,7 +92,7 @@ describe('lookup keys', () => {
         // searches with different answers; a verdict cached for one must
         // never be read back for the other.
         expect(buildSearchLookupKey('Фейк', 2026)).toBe(
-            'title:фейк|year:2026|v3'
+            'title:фейк|year:2026|v4'
         );
         expect(buildSearchLookupKey('Феик', 2026)).not.toBe(
             buildSearchLookupKey('Фейк', 2026)
@@ -327,6 +327,84 @@ describe('pickConfidentMatch', () => {
                 'tv'
             )
         ).toBe(theBoys);
+    });
+
+    it('prefers an exact-year series over an older, more popular namesake', () => {
+        // Regression: TMDB returns titles in the REQUEST language, so an
+        // unrelated older foreign series (2018, 26 votes) came back under the
+        // same localized name as the catalog's own 2026 series (4 votes). The
+        // older row is admitted only by the running-season tolerance and used
+        // to win the popularity tiebreak. Titles here are stand-ins.
+        const translatedNamesake: TmdbSearchResult = {
+            id: 1,
+            name: 'Nightfall',
+            original_name: 'Yoru no Tobari',
+            first_air_date: '2018-12-14',
+            vote_count: 26,
+            popularity: 3.4,
+        };
+        const localSeries: TmdbSearchResult = {
+            id: 2,
+            name: 'Nightfall',
+            original_name: 'Nightfall',
+            first_air_date: '2026-07-24',
+            vote_count: 4,
+            popularity: 2.4,
+        };
+
+        expect(
+            pickConfidentMatch(
+                [localSeries, translatedNamesake],
+                { title: 'Nightfall (12 episodes)', year: 2026 },
+                'tv'
+            )
+        ).toBe(localSeries);
+    });
+
+    it('still falls back to an older series when nothing matches the year', () => {
+        const theBoys: TmdbSearchResult = {
+            id: 76479,
+            name: 'The Boys',
+            first_air_date: '2019-07-26',
+            vote_count: 12000,
+        };
+        const unrelatedOlder: TmdbSearchResult = {
+            id: 999,
+            name: 'The Boys',
+            first_air_date: '2010-01-01',
+            vote_count: 5,
+        };
+
+        expect(
+            pickConfidentMatch(
+                [unrelatedOlder, theBoys],
+                { title: 'The Boys s05', year: 2026 },
+                'tv'
+            )
+        ).toBe(theBoys);
+    });
+
+    it('prefers the exact release year over one off by one', () => {
+        const exact: TmdbSearchResult = {
+            id: 1,
+            title: 'The Matrix',
+            release_date: '1999-03-31',
+            vote_count: 10,
+        };
+        const adjacent: TmdbSearchResult = {
+            id: 2,
+            title: 'The Matrix',
+            release_date: '1998-03-31',
+            vote_count: 9000,
+        };
+
+        expect(
+            pickConfidentMatch(
+                [adjacent, exact],
+                { title: 'The Matrix', year: 1999 },
+                'movie'
+            )
+        ).toBe(exact);
     });
 
     it('still rejects movies with a year that differs by more than one', () => {

@@ -28,11 +28,13 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         console.log = () => undefined;
         const V2_MARKER = 'migration:tmdb-search-lookup-v2-cache-cleanup:v1';
         const V3_MARKER = 'migration:tmdb-search-lookup-v3-cache-cleanup:v1';
+        const V4_MARKER = 'migration:tmdb-search-lookup-v4-cache-cleanup:v1';
         const ROWS = [
             ['tv', 'title:феик|year:2026', 'ru-RU', null],
             ['tv', 'title:феик|year:2026|v2', 'ru-RU', null],
             ['tv', 'title:the boys|year:2019|v2', 'en-US', 76479],
             ['tv', 'title:фейк|year:2026|v3', 'ru-RU', 317869],
+            ['tv', 'title:nightfall|year:2026|v4', 'ru-RU', 424242],
             ['tv', 'id:317869|v2', 'ru-RU', 317869],
             ['tv', 'id:317869|season:1', 'ru-RU', 317869],
             ['person', 'person:287', 'en-US', 287],
@@ -61,11 +63,11 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         hooks.runMigrations(skipped);
         const skippedAfter = snapshot(skipped);
         // Next startup: a row written meanwhile under the current key survives
-        skipped.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:гудовы|year:2026|v3', 'ru-RU', 318894)").run();
+        skipped.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:гудовы|year:2026|v4', 'ru-RU', 318894)").run();
         hooks.runMigrations(skipped);
         const repeated = snapshot(skipped);
-        // Previous release: the unversioned cleanup already ran; only v2 rows go
-        const previous = openDb([V2_MARKER]);
+        // Previous release: the earlier cleanups already ran; only v3 rows go
+        const previous = openDb([V2_MARKER, V3_MARKER]);
         hooks.runMigrations(previous);
         const previousAfter = snapshot(previous);
         hooks.runMigrations(previous);
@@ -104,12 +106,13 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
 
     const V2_MARKER = 'migration:tmdb-search-lookup-v2-cache-cleanup:v1';
     const V3_MARKER = 'migration:tmdb-search-lookup-v3-cache-cleanup:v1';
+    const V4_MARKER = 'migration:tmdb-search-lookup-v4-cache-cleanup:v1';
     const survivors = [
         'badProviderId:999',
         'id:317869|season:1',
         'id:317869|v2',
         'person:287',
-        'title:фейк|year:2026|v3',
+        'title:nightfall|year:2026|v4',
         'trending:week',
     ];
     const detailsPayloads = ['{"id":317869}', '{"id":317869}'];
@@ -118,40 +121,54 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         skippedAfter: {
             keys: survivors,
             payloads: detailsPayloads,
-            markers: [V2_MARKER, V3_MARKER],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
         repeated: {
-            keys: [...survivors, 'title:гудовы|year:2026|v3'].sort(),
+            keys: [...survivors, 'title:гудовы|year:2026|v4'].sort(),
             payloads: detailsPayloads,
-            markers: [V2_MARKER, V3_MARKER],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
         previousAfter: {
-            // The unversioned row is that generation's business, already done
-            keys: [...survivors, 'title:феик|year:2026'].sort(),
+            // The older generations' rows are their business, already done
+            keys: [
+                ...survivors,
+                'title:феик|year:2026',
+                'title:феик|year:2026|v2',
+                'title:the boys|year:2019|v2',
+            ].sort(),
             payloads: detailsPayloads,
-            markers: [V2_MARKER, V3_MARKER],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
         previousRepeated: {
-            keys: [...survivors, 'title:феик|year:2026'].sort(),
+            keys: [
+                ...survivors,
+                'title:феик|year:2026',
+                'title:феик|year:2026|v2',
+                'title:the boys|year:2019|v2',
+            ].sort(),
             payloads: detailsPayloads,
-            markers: [V2_MARKER, V3_MARKER],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
         prePersonAfter: {
             keys: [],
             payloads: [],
-            markers: [V2_MARKER, V3_MARKER],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
             check: true,
         },
         prePersonRepeated: {
             keys: [],
             payloads: [],
-            markers: [V2_MARKER, V3_MARKER],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
-        freshAfter: { keys: [], payloads: [], markers: [V2_MARKER, V3_MARKER] },
+        freshAfter: {
+            keys: [],
+            payloads: [],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
+        },
         freshRepeated: {
             keys: [],
             payloads: [],
-            markers: [V2_MARKER, V3_MARKER],
+            markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
     });
 });

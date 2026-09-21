@@ -159,20 +159,24 @@ describe('TMDB search lookup cache cleanup', () => {
 
         cleanupLegacyTmdbSearchCache(sqlite);
 
-        expect(transaction).toHaveBeenCalledTimes(2);
-        expect(deleteRun).toHaveBeenCalledTimes(2);
+        expect(transaction).toHaveBeenCalledTimes(3);
+        expect(deleteRun).toHaveBeenCalledTimes(3);
         expect(markerRun.mock.calls.map(([key]) => key)).toEqual([
             'migration:tmdb-search-lookup-v2-cache-cleanup:v1',
             'migration:tmdb-search-lookup-v3-cache-cleanup:v1',
+            'migration:tmdb-search-lookup-v4-cache-cleanup:v1',
         ]);
-        const [unversionedDelete, v2Delete] = deleteStatements(sqlite);
+        const [unversionedDelete, v2Delete, v3Delete] =
+            deleteStatements(sqlite);
         expect(unversionedDelete).toContain(
             "lookup_key LIKE 'title:%|year:%' AND lookup_key NOT LIKE 'title:%|year:%|v%'"
         );
-        // Only v2 search rows: the v3 rows the resolver writes now, and the
-        // `id:`/`person:`/`badProviderId:` rows, must survive.
+        // Each generation deletes only its own rows: the v4 rows the resolver
+        // writes now, and the `id:`/`person:`/`badProviderId:` rows, survive.
         expect(v2Delete).toContain("WHERE lookup_key LIKE 'title:%|year:%|v2'");
         expect(v2Delete).not.toContain('v3');
+        expect(v3Delete).toContain("WHERE lookup_key LIKE 'title:%|year:%|v3'");
+        expect(v3Delete).not.toContain('v4');
     });
 
     it('runs only the generations that have not completed yet', () => {
@@ -193,13 +197,14 @@ describe('TMDB search lookup cache cleanup', () => {
 
         cleanupLegacyTmdbSearchCache(sqlite);
 
-        expect(transaction).toHaveBeenCalledTimes(1);
-        expect(markerRun).toHaveBeenCalledTimes(1);
-        expect(markerRun).toHaveBeenCalledWith(
-            'migration:tmdb-search-lookup-v3-cache-cleanup:v1'
-        );
+        expect(transaction).toHaveBeenCalledTimes(2);
+        expect(markerRun.mock.calls.map(([key]) => key)).toEqual([
+            'migration:tmdb-search-lookup-v3-cache-cleanup:v1',
+            'migration:tmdb-search-lookup-v4-cache-cleanup:v1',
+        ]);
         expect(deleteStatements(sqlite)).toEqual([
             expect.stringContaining("lookup_key LIKE 'title:%|year:%|v2'"),
+            expect.stringContaining("lookup_key LIKE 'title:%|year:%|v3'"),
         ]);
     });
 
@@ -212,7 +217,7 @@ describe('TMDB search lookup cache cleanup', () => {
 
         expect(transaction).not.toHaveBeenCalled();
         // One marker read per retired generation, nothing else
-        expect(prepare).toHaveBeenCalledTimes(2);
+        expect(prepare).toHaveBeenCalledTimes(3);
     });
 });
 
