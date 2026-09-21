@@ -66,7 +66,7 @@ The first active HTML base href sets reference resolution, including nested srcd
 Resolved file URLs use native filesystem conversion, including Windows drive paths.
 Explicit srcset attributes must contain at least one parsed candidate.
 Image and media references require a nonempty path that resolves to a file, not a directory.
-Direct file URLs and file-scheme HTML bases are rejected; use portable repository-relative paths.
+Direct file URLs, Windows drive paths and HTML bases using either form are rejected; use portable repository-relative paths.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
 SVG image/use hrefs (including xlink), HTML image-input, video, audio, source and track `src` assets and video posters use the same

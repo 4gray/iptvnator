@@ -1850,3 +1850,19 @@ for (const prose of [
         );
     });
 }
+
+for (const reference of [
+    '[Guide](C:/workspace/docs/missing.md)',
+    '<a href="c:\\workspace\\docs\\missing.md">Guide</a>',
+    '<base href="https://example.com/"><a href="D:/docs/guide.md">Guide</a>',
+    '<base href="C:/workspace/"><a href="docs/example.md">Guide</a>',
+    '<base href="c:\\workspace\\"><a href="docs/example.md">Guide</a>',
+]) {
+    test(`Windows drive paths require portable references: ${reference}`, async (t) => {
+        assert.ok(
+            (await diagnostics(t, { 'AGENTS.md': reference })).some((message) =>
+                message.includes('repository-relative')
+            )
+        );
+    });
+}

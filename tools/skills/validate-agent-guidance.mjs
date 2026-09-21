@@ -41,6 +41,8 @@ async function validateReference(
 ) {
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
+    if (/^[a-z]:[\\/]/iu.test(target))
+        return `${source}: use a repository-relative path instead of a Windows drive path: ${target}`;
     if (/^file:/iu.test(target))
         return `${source}: use a repository-relative path instead of a file URL: ${target}`;
     if (image && !target) return `${source}: empty media target`;
@@ -49,8 +51,12 @@ async function validateReference(
         try {
             let base = pathToFileURL(resolve(rootDir, source));
             for (const href of bases) {
-                if (/^file:/iu.test(href.replace(/[\t\n\r]/gu, '').trimStart()))
-                    return `${source}: use a repository-relative HTML base instead of a file URL`;
+                if (
+                    /^(?:file:|[a-z]:[\\/])/iu.test(
+                        href.replace(/[\t\n\r]/gu, '').trimStart()
+                    )
+                )
+                    return `${source}: use a repository-relative HTML base instead of a file URL or Windows drive path`;
                 base = new URL(href, base);
             }
             const url = new URL(target, base);
