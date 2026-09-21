@@ -41,12 +41,14 @@ async function validateReference(
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
     if (image && !target) return `${source}: empty media target`;
+    let resolvedBasePath;
     if (bases?.length) {
         try {
             let base = pathToFileURL(resolve(rootDir, source));
             for (const href of bases) base = new URL(href, base);
             const url = new URL(target, base);
             if (url.protocol !== 'file:') return;
+            resolvedBasePath = fileURLToPath(url);
             target = url.pathname + url.search + url.hash;
             embeddedAnchors = undefined;
         } catch {
@@ -69,9 +71,14 @@ async function validateReference(
         return !anchor || embeddedAnchors.includes(anchor)
             ? undefined
             : `${source}: missing anchor "${anchor}" in iframe srcdoc`;
-    const absolute = path
-        ? resolve(literal ? rootDir : dirname(resolve(rootDir, source)), path)
-        : resolve(rootDir, source);
+    const absolute =
+        resolvedBasePath ??
+        (path
+            ? resolve(
+                  literal ? rootDir : dirname(resolve(rootDir, source)),
+                  path
+              )
+            : resolve(rootDir, source));
     if (!within(rootDir, absolute))
         return `${source}: referenced path escapes repository root: ${target}`;
     try {

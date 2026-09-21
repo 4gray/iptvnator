@@ -1478,3 +1478,14 @@ test('srcdoc bases retain remote and repository containment rules', async (t) =>
         ).some((message) => message.includes('escapes repository'))
     );
 });
+
+test('local HTML base uses native filesystem paths', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '<base href="docs/"><a href="native%20%23%25.md#heading">Guide</a>',
+            'docs/native #%.md': '# Heading',
+        }),
+        []
+    );
+});
