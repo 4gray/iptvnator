@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "自动重连中断的流",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "正在播放的流中断时，嵌入式播放器会以逐渐增加的间隔重新加载，最多尝试 6 次后放弃。从未成功启动的流仍需手动重试。",
         "VOD_AUTO_FAILOVER": "播放出错时自动切换播放源",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "当某部电影无法播放，而其他播放列表中也有同一部影片时，自动切换过去并保留播放进度。默认关闭；由于其他播放源的配音可能不同，每次切换都会给出提示。"
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "当某部电影无法播放，而其他播放列表中也有同一部影片时，自动切换过去并保留播放进度。默认关闭；由于其他播放源的配音可能不同，每次切换都会给出提示。",
+        "M3U_CATALOG_TABS": "Movies and series sections",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel."
     },
     "THEMES": {
         "DARK_THEME": "深色",
@@ -829,6 +831,11 @@
             "SEARCH_PLACEHOLDER": "搜索分组…",
             "NO_RESULTS": "未找到匹配的分组",
             "SAVE": "保存"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "No movies in this playlist",
+            "NO_SERIES": "No series in this playlist",
+            "EMPTY_HINT": "This playlist only contains live channels."
         }
     },
     "TOP_MENU": {

@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: Settings = {
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
+    m3uCatalogTabs: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
@@ -281,6 +282,9 @@ export const SettingsStore = signalStore(
                     m3uVodDetails:
                         store.m3uVodDetails?.() ??
                         DEFAULT_SETTINGS.m3uVodDetails,
+                    m3uCatalogTabs:
+                        store.m3uCatalogTabs?.() ??
+                        DEFAULT_SETTINGS.m3uCatalogTabs,
                     streamFormat: store.streamFormat(),
                     openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
                     language: store.language(),

@@ -1,0 +1,42 @@
+import { Channel } from '@iptvnator/shared/interfaces';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+
+/**
+ * The shape the shared grid renders. Kept structural rather than imported:
+ * the grid's own item interface is not exported, and it carries an index
+ * signature precisely so callers can supply their own row shape.
+ */
+export interface M3uCatalogCard {
+    readonly id: string;
+    readonly name: string;
+    readonly title: string;
+    readonly poster_url?: string;
+    readonly channelUrl: string;
+}
+
+/**
+ * An M3U row has no artwork field of its own — the grid reads `poster_url`,
+ * the playlist provides `tvg-logo`. For a film that logo IS the poster; when
+ * it is missing the grid falls back to its own placeholder, which is why
+ * nothing is invented here.
+ *
+ * The displayed title honours the country-prefix setting, so a catalog
+ * built from a playlist that writes `TR:DUNE - 2021` reads as the film
+ * rather than as a tagged channel.
+ */
+export function toM3uCatalogCard(
+    channel: Channel,
+    stripPrefix: boolean
+): M3uCatalogCard {
+    const name = applyChannelNameStrip(channel.name, stripPrefix);
+
+    return {
+        // The parser mints a fresh random id on every import, so the URL is
+        // the only stable identity a card can carry across a refresh.
+        id: channel.url,
+        name,
+        title: name,
+        poster_url: channel.tvg?.logo || undefined,
+        channelUrl: channel.url,
+    };
+}

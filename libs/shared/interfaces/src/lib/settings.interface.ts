@@ -177,6 +177,14 @@ export interface Settings {
      * show, so recognition never runs.
      */
     m3uVodDetails?: boolean;
+    /**
+     * Offer Movies and Series sections for M3U playlists that hold films or
+     * episodes, instead of listing every row as a live channel. On by
+     * default; missing values mean enabled, and only an explicit false opts
+     * out. Independent of TMDB: the sections work with enrichment off, where
+     * they fall back to the playlist's own logos and titles.
+     */
+    m3uCatalogTabs?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;

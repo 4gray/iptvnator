@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Reconectar streams interrompidos automaticamente",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Quando um stream em reprodução é interrompido, o reprodutor integrado o recarrega com intervalos crescentes, em até 6 tentativas, antes de desistir. Um stream que nunca chegou a iniciar ainda precisa de um \"Tentar novamente\" manual.",
         "VOD_AUTO_FAILOVER": "Trocar de fonte automaticamente ao falhar a reprodução",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Quando um filme não consegue ser reproduzido e o mesmo filme existe em outra playlist, troca para ela automaticamente e mantém a posição de reprodução. Desativado por padrão; a troca é sempre avisada, porque outra fonte pode ter uma dublagem diferente."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Quando um filme não consegue ser reproduzido e o mesmo filme existe em outra playlist, troca para ela automaticamente e mantém a posição de reprodução. Desativado por padrão; a troca é sempre avisada, porque outra fonte pode ter uma dublagem diferente.",
+        "M3U_CATALOG_TABS": "Secções de filmes e séries",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Mostra secções separadas de Filmes e Séries para listas que contêm filmes ou episódios, em vez de listar cada entrada como um canal ao vivo."
     },
     "THEMES": {
         "DARK_THEME": "Escuro",
@@ -829,6 +831,11 @@
             "SEARCH_PLACEHOLDER": "Pesquisar grupos...",
             "NO_RESULTS": "Nenhum grupo correspondente encontrado",
             "SAVE": "Salvar"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Nenhum filme nesta lista",
+            "NO_SERIES": "Nenhuma série nesta lista",
+            "EMPTY_HINT": "Esta lista contém apenas canais ao vivo."
         }
     },
     "TOP_MENU": {

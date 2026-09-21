@@ -27,6 +27,16 @@ interface BuildPortalRailLinksOptions {
     playlistId: string;
     supportsDownloads: boolean;
     workspace: boolean;
+    /**
+     * Adds the Movies and Series links for an M3U playlist.
+     *
+     * Off unless the caller has established that this playlist actually
+     * holds films or episodes: most M3U playlists are live-only, and a rail
+     * that offers two permanently empty sections is worse than no rail
+     * change at all. Ignored for the portal providers, which have their own
+     * catalog sections unconditionally.
+     */
+    m3uCatalogSections?: boolean;
 }
 
 interface PortalRailLinkGroups {
@@ -37,7 +47,13 @@ interface PortalRailLinkGroups {
 export function buildPortalRailLinks(
     options: BuildPortalRailLinksOptions
 ): PortalRailLinkGroups {
-    const { provider, playlistId, supportsDownloads, workspace } = options;
+    const {
+        provider,
+        playlistId,
+        supportsDownloads,
+        workspace,
+        m3uCatalogSections = false,
+    } = options;
     const root = workspace
         ? ['/workspace', provider, playlistId]
         : [`/${provider}`, playlistId];
@@ -160,6 +176,28 @@ export function buildPortalRailLinks(
                 section: 'groups',
             },
         ];
+
+        if (m3uCatalogSections) {
+            // The same section tokens the portals use, so the rail tooltips,
+            // the search mode and the section-memory all recognise them
+            // without a new vocabulary.
+            primary.push(
+                {
+                    icon: 'movie',
+                    tooltip: 'Movies (this playlist)',
+                    path: [...root, 'vod'],
+                    exact: true,
+                    section: 'vod',
+                },
+                {
+                    icon: 'video_library',
+                    tooltip: 'Series (this playlist)',
+                    path: [...root, 'series'],
+                    exact: true,
+                    section: 'series',
+                }
+            );
+        }
 
         return {
             primary,

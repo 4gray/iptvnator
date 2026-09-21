@@ -218,6 +218,21 @@
             <mat-checkbox formControlName="stripCountryPrefix"></mat-checkbox>
         </div>
     </div>
+
+    <div class="setting-item">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.M3U_CATALOG_TABS' | translate }}</h4>
+            <p>
+                {{ 'SETTINGS.M3U_CATALOG_TABS_DESCRIPTION' | translate }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox
+                formControlName="m3uCatalogTabs"
+                data-test-id="m3u-catalog-tabs"
+            ></mat-checkbox>
+        </div>
+    </div>
 </section>
 @if (supportsPortalConnectivityGuard()) {
     <section
