@@ -4,6 +4,9 @@ import GithubSlugger from 'github-slugger';
 import { Marked, Tokenizer } from 'marked';
 import { parseFragment } from 'parse5';
 
+export const DOCUMENT_EXTENSION =
+    /\.(?:md|markdown|mdown|mkd|mdx|txt|json|ya?ml|html?|rst|rest|adoc|asciidoc|pdf|doc[xm]?|dot[xm]?|od[tspgfbm]|ot[tspg]|fod[tspg]|rtf|org|tex|latex)$/iu;
+
 // Inspection only: generated HTML is parsed in memory, never executed or emitted.
 const markdownLexer = new Marked({
     tokenizer: {
@@ -280,6 +283,7 @@ function isLiteralRepositoryPath(token) {
     // This applies to user-defined symbols as well as JavaScript globals.
     if (
         /^[\p{L}_][\p{L}\p{N}_]*(?:\.[\p{L}_][\p{L}\p{N}_]*)+$/u.test(path) &&
+        !DOCUMENT_EXTENSION.test(path) &&
         !/\.(?:md|mdx|json|jsonc|ya?ml|[cm]?[jt]sx?|html?|css|scss|sass|less|toml|xml|txt|sh|py|sql|svg|png|jpe?g|webp|gif|m3u8?|conf|ini|lock)$/iu.test(
             path
         )

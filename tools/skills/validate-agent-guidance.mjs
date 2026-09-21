@@ -10,6 +10,7 @@ import {
 } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
+    DOCUMENT_EXTENSION,
     guidanceAnchors as anchors,
     guidanceProse,
     guidanceStandaloneImports,
@@ -160,9 +161,7 @@ async function packageMentions(rootDir) {
             /(?:^|\/)(?:AGENTS|CLAUDE|INSTRUCTIONS|README|LICENSE|LICENCE|NOTICE|COPYING|AUTHORS|CONTRIBUTORS|CHANGELOG)$/u.test(
                 path
             ) ||
-            /\.(?:txt|json|ya?ml|html?|rst|rest|adoc|asciidoc|pdf|doc[xm]?|dot[xm]?|od[tspgfbm]|ot[tspg]|fod[tspg]|rtf|org|tex|latex)$/iu.test(
-                path
-            )
+            DOCUMENT_EXTENSION.test(path)
         )
             return false;
         if (packages.includes(token)) return true;
@@ -213,7 +212,7 @@ export async function validateAgentGuidance({ rootDir }) {
             const imports = guidanceStandaloneImports(markdown);
             const inlineImports = [];
             for (const match of prose.matchAll(
-                /(?:^|[^\p{L}\p{N}_@])@([^\s]+)/gu
+                /(?=(?:^|[^\p{L}\p{N}_@])@([^\s]+))/gu
             )) {
                 const token = match[1];
                 if (isPackageMention(token)) continue;

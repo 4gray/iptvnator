@@ -36,7 +36,8 @@ Backticked concrete paths in root guidance and the context map are checked from
 the repository root, including unknown top-level directories and filenames.
 Write generic filenames as prose; commands, templates, globs, URLs, package
 aliases and dotted code symbols are excluded. Bare dotted names with conventional
-file suffixes (such as .md, .json or .ts) are treated as filenames. Use a `./`
+file suffixes (such as .md, .json or .ts) are treated as filenames. Document formats
+share the suffix set used by package-import guards, including PDF and AsciiDoc. Use a `./`
 prefix or Markdown link for other ambiguous filenames that resemble code symbols.
 Explicit relative literals denote paths, including spaces, filesystem punctuation and hyphenated words.
 Put executable command examples in fenced code when their syntax also looks like a path.
@@ -78,7 +79,8 @@ whose visible text equals their URI, so colon-labeled prose remains checked.
 A closing bracket followed by punctuation and an at-sign terminates a bare URL exclusion.
 Extensionless inline candidates are also imports when they resolve to repository files,
 checking the full filename before prefixes at ASCII/Unicode prose separators,
-including opening parentheses, brackets and braces.
+including opening parentheses, brackets and braces. Each at-sign candidate is
+checked independently, including imports nested next to a package mention.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions, including document paths with fragments or queries.

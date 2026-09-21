@@ -1557,3 +1557,32 @@ for (const opening of ['(', '[', '{']) {
         );
     });
 }
+
+test('package prose cannot hide nested guidance import', async (t) => {
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+                'CLAUDE.md': '@AGENTS.md\n\nUse @angular/core(@INSTRUCTIONS)',
+                INSTRUCTIONS: 'Guidance',
+            })
+        ).some((message) => message.includes('additional or inline'))
+    );
+});
+for (const extension of ['pdf', 'rst', 'adoc', 'markdown', 'docm', 'latex']) {
+    test(`bare document literal is checked: ${extension}`, async (t) => {
+        const name = 'manual.' + extension;
+        assert.ok(
+            (await diagnostics(t, { 'AGENTS.md': '`' + name + '`' })).length > 0
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': '`' + name + '`',
+                [name]: 'Document',
+            }),
+            []
+        );
+    });
+}
