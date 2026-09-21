@@ -1,4 +1,4 @@
-import { Channel } from '@iptvnator/shared/interfaces';
+import { Channel, foldSearchText } from '@iptvnator/shared/interfaces';
 import { M3uSeries, applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 
 /**
@@ -59,14 +59,57 @@ export function toM3uCatalogCard(
  * A series card shows the show, not one of its episodes.
  *
  * The title already has the language tag removed by the aggregator, so the
- * country-prefix setting does not apply a second time here.
+ * country-prefix setting does not apply a second time here — with one
+ * exception, `disambiguate`.
+ *
+ * The aggregator keeps `TR:SHOW` and `DE:SHOW` apart on purpose: they are
+ * two dubs, and merging them would interleave two audio languages inside
+ * one season. Dropping the tag from the card then produced two cards with
+ * the same name, the same poster and no way to tell which audio a click
+ * would get. So the tag is restored only where the catalog proves it is
+ * needed, and the common case — one show, one card — stays clean.
+ *
+ * Remakes need no such treatment: they are separated by a stated year, and
+ * that year is part of the title the provider wrote, so the two cards
+ * already read differently.
  */
-export function toM3uSeriesCard(series: M3uSeries<Channel>): M3uCatalogCard {
+export function toM3uSeriesCard(
+    series: M3uSeries<Channel>,
+    disambiguate = false
+): M3uCatalogCard {
+    const tag = disambiguate ? series.languageTag : null;
+    const name = tag ? `${series.title} (${tag})` : series.title;
+
     return {
         id: `series:${series.id}`,
-        name: series.title,
-        title: series.title,
+        name,
+        title: name,
         poster_url: series.posterUrl ?? undefined,
         seriesId: series.id,
     };
+}
+
+/**
+ * The folded titles more than one series in this catalog answers to.
+ *
+ * Folded rather than compared raw, because a provider writing `Modern
+ * Family` in one group and `MODERN FAMILY` in another still produces two
+ * indistinguishable cards.
+ */
+export function duplicateM3uSeriesTitles(
+    series: readonly M3uSeries<Channel>[]
+): ReadonlySet<string> {
+    const seen = new Set<string>();
+    const duplicates = new Set<string>();
+
+    for (const entry of series) {
+        const key = foldSearchText(entry.title);
+        if (seen.has(key)) {
+            duplicates.add(key);
+        } else {
+            seen.add(key);
+        }
+    }
+
+    return duplicates;
 }

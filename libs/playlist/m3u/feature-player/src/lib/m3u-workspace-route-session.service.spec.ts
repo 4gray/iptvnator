@@ -48,11 +48,21 @@ async function flushEffects(): Promise<void> {
     await Promise.resolve();
 }
 
+/**
+ * Every section the URL can name, the catalog pair included.
+ *
+ * The helper stands in for `PlaylistContextFacade`, so a section missing
+ * here is a section the suite cannot reach — which is how `vod` and
+ * `series` stayed untested while the service already loaded them.
+ */
+type M3uTestSection =
+    'all' | 'favorites' | 'groups' | 'recent' | 'series' | 'vod' | null;
+
 function getM3uRouteContext(url: string): {
     inWorkspace: boolean;
     playlistId: string | null;
     provider: 'playlists' | null;
-    section: 'all' | 'favorites' | 'groups' | 'recent' | null;
+    section: M3uTestSection;
 } {
     const match = url.match(
         /^\/workspace\/playlists\/([^/]+)\/([^/?]+)(?:\/|$)/
@@ -62,9 +72,7 @@ function getM3uRouteContext(url: string): {
         inWorkspace: true,
         playlistId: match?.[1] ?? null,
         provider: match ? 'playlists' : null,
-        section:
-            (match?.[2] as 'all' | 'favorites' | 'groups' | 'recent' | null) ??
-            null,
+        section: (match?.[2] as M3uTestSection) ?? null,
     };
 }
 
@@ -224,6 +232,56 @@ describe('M3uWorkspaceRouteSession', () => {
                 ([action]) => action.type === FavoritesActions.setFavorites.type
             )
         ).toBe(false);
+    });
+
+    it.each(['vod', 'series'])(
+        'loads channels for the %s catalog section',
+        async (section) => {
+            // The catalog routes derive everything they show from the
+            // channel array, so a section the loader does not recognise
+            // opens permanently empty.
+            router.url = `/workspace/playlists/${PLAYLIST_ID}/${section}`;
+            playlistsService.getPlaylist.mockReturnValue(
+                of({
+                    playlist: {
+                        items: [PRIMARY_CHANNEL],
+                    },
+                } as Playlist)
+            );
+
+            TestBed.inject(M3uWorkspaceRouteSession);
+            await flushEffects();
+
+            expect(playlistsService.getPlaylist).toHaveBeenCalledWith(
+                PLAYLIST_ID
+            );
+            expect(store.dispatch).toHaveBeenCalledWith(
+                ChannelActions.setChannels({ channels: [PRIMARY_CHANNEL] })
+            );
+        }
+    );
+
+    it('does not reload the playlist when moving between loaded sections', async () => {
+        // Moving from the live list to Movies must not re-dispatch
+        // `setChannels`: the catalog index memoises on the array reference,
+        // so a needless dispatch rebuilds the whole index on every tab
+        // change.
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                playlist: {
+                    items: [PRIMARY_CHANNEL],
+                },
+            } as Playlist)
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        router.url = `/workspace/playlists/${PLAYLIST_ID}/vod`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
+        expect(playlistsService.getPlaylist).toHaveBeenCalledTimes(1);
     });
 
     it('ignores stale playlist responses after a newer route request wins', async () => {

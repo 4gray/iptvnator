@@ -835,7 +835,9 @@
         "CATALOG": {
             "NO_MOVIES": "Nenhum filme nesta lista",
             "NO_SERIES": "Nenhuma série nesta lista",
-            "EMPTY_HINT": "Esta lista contém apenas canais ao vivo."
+            "EMPTY_HINT": "Esta lista contém apenas canais ao vivo.",
+            "EMPTY_HINT_MOVIES": "Os filmes desta lista estão em Filmes.",
+            "EMPTY_HINT_SERIES": "As séries desta lista estão em Séries."
         }
     },
     "TOP_MENU": {

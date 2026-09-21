@@ -835,7 +835,9 @@
         "CATALOG": {
             "NO_MOVIES": "Geen films in deze afspeellijst",
             "NO_SERIES": "Geen series in deze afspeellijst",
-            "EMPTY_HINT": "Deze afspeellijst bevat alleen live kanalen."
+            "EMPTY_HINT": "Deze afspeellijst bevat alleen live kanalen.",
+            "EMPTY_HINT_MOVIES": "De films van deze afspeellijst staan onder Films.",
+            "EMPTY_HINT_SERIES": "De series van deze afspeellijst staan onder Series."
         }
     },
     "TOP_MENU": {

@@ -835,7 +835,9 @@
         "CATALOG": {
             "NO_MOVIES": "Aucun film dans cette playlist",
             "NO_SERIES": "Aucune série dans cette playlist",
-            "EMPTY_HINT": "Cette playlist ne contient que des chaînes en direct."
+            "EMPTY_HINT": "Cette playlist ne contient que des chaînes en direct.",
+            "EMPTY_HINT_MOVIES": "Les films de cette playlist se trouvent dans Films.",
+            "EMPTY_HINT_SERIES": "Les séries de cette playlist se trouvent dans Séries."
         }
     },
     "TOP_MENU": {

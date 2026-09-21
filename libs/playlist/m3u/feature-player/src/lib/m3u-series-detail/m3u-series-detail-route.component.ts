@@ -27,6 +27,7 @@ import {
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import {
     Channel,
+    PlaybackPositionData,
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
@@ -35,6 +36,40 @@ import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { toSeasonRecord } from './m3u-series-episode.adapter';
 import { M3uSeriesMetadataService } from './m3u-series-metadata.service';
 import { M3uSeriesPositionsService } from './m3u-series-positions.service';
+
+interface PlayingEpisode {
+    readonly episode: XtreamSerieEpisode;
+    /** Seconds to open at; `undefined` starts from the beginning. */
+    readonly startTime: number | undefined;
+}
+
+/** How close to the end still counts as finished rather than resumable. */
+const RESUME_TAIL_SECONDS = 15;
+
+function resumeOffsetOf(
+    saved: PlaybackPositionData | undefined
+): number | undefined {
+    const seconds = saved?.positionSeconds;
+    if (
+        typeof seconds !== 'number' ||
+        !Number.isFinite(seconds) ||
+        seconds <= 0
+    ) {
+        return undefined;
+    }
+
+    const duration = saved?.durationSeconds;
+    if (
+        typeof duration === 'number' &&
+        Number.isFinite(duration) &&
+        duration > 0 &&
+        seconds >= duration - RESUME_TAIL_SECONDS
+    ) {
+        return undefined;
+    }
+
+    return seconds;
+}
 
 /**
  * The detail page for one aggregated M3U series.
@@ -98,19 +133,27 @@ export class M3uSeriesDetailRouteComponent {
         () => this.series()?.episodeCount ?? 0
     );
 
-    /** The episode currently mounted in the inline player, if any. */
-    private readonly playing = signal<XtreamSerieEpisode | null>(null);
+    /**
+     * The episode currently mounted in the inline player, if any, together
+     * with the offset it was opened at.
+     *
+     * The offset is captured once, at selection, rather than read live from
+     * the positions map. The map is patched by this episode's own progress
+     * ticks, so a live read would feed the player a `startTime` that chases
+     * playback and re-seeks it on every tick.
+     */
+    private readonly playing = signal<PlayingEpisode | null>(null);
 
     protected readonly playingEpisodeId = computed(() => {
-        const id = Number(this.playing()?.id ?? '');
+        const id = Number(this.playing()?.episode.id ?? '');
         return Number.isFinite(id) && id > 0 ? id : null;
     });
 
     protected readonly playback = computed<ResolvedPortalPlayback | null>(
         () => {
-            const episode = this.playing();
-            const channel = episode ? this.channelOf(episode) : null;
-            if (!episode || !channel) {
+            const playing = this.playing();
+            const channel = playing ? this.channelOf(playing.episode) : null;
+            if (!playing || !channel) {
                 return null;
             }
 
@@ -122,6 +165,7 @@ export class M3uSeriesDetailRouteComponent {
                 // what gives the player a seekable timeline and a resume
                 // position instead of live semantics.
                 isLive: false,
+                startTime: playing.startTime,
             });
         }
     );
@@ -204,7 +248,7 @@ export class M3uSeriesDetailRouteComponent {
         currentTime: number;
         duration: number;
     }): void {
-        const episode = this.playing();
+        const episode = this.playing()?.episode;
         if (!episode || !Number.isFinite(update.currentTime)) {
             return;
         }
@@ -230,12 +274,25 @@ export class M3uSeriesDetailRouteComponent {
             undefined
     );
 
+    /**
+     * Opens an episode at the offset storage remembers for it.
+     *
+     * A row at or past the end starts over instead: resuming three seconds
+     * before the credits is not resuming, and the watched badge on the row
+     * already says it was finished.
+     */
     protected onEpisodeClicked(episode: XtreamSerieEpisode): void {
-        this.playing.set(episode);
+        const saved = this.playbackPositions().get(Number(episode.id));
+        this.playing.set({
+            episode,
+            startTime: resumeOffsetOf(saved),
+        });
+        this.positions.releaseProgressThrottle();
     }
 
     protected onPlayerClosed(): void {
         this.playing.set(null);
+        this.positions.releaseProgressThrottle();
     }
 
     protected onBack(): void {

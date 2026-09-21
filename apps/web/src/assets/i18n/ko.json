@@ -835,7 +835,9 @@
         "CATALOG": {
             "NO_MOVIES": "No movies in this playlist",
             "NO_SERIES": "No series in this playlist",
-            "EMPTY_HINT": "This playlist only contains live channels."
+            "EMPTY_HINT": "This playlist only contains live channels.",
+            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
+            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
         }
     },
     "TOP_MENU": {

@@ -217,6 +217,82 @@ describe('M3uCatalogRouteComponent', () => {
         expect(typeof component.cards()[0].seriesId).toBe('number');
     });
 
+    it('names the language when two dubs share a title', async () => {
+        // The aggregator keeps `TR:` and `DE:` apart on purpose — they are
+        // two audio tracks. Dropping the tag produced two cards with the
+        // same name and poster and no way to tell which one a click gets.
+        channels.set([
+            channel(
+                'http://h.example/series/u/p/6.mp4',
+                'TR:MODERN FAMILY S01E01',
+                'Shows'
+            ),
+            channel(
+                'http://h.example/series/u/p/7.mp4',
+                'DE:MODERN FAMILY S01E01',
+                'Shows'
+            ),
+        ]);
+        const fixture = await render('episode');
+        const component = fixture.componentInstance as unknown as {
+            cards(): { name: string }[];
+        };
+
+        expect(
+            component
+                .cards()
+                .map((card) => card.name)
+                .sort()
+        ).toEqual(['MODERN FAMILY (DE)', 'MODERN FAMILY (TR)']);
+    });
+
+    it('leaves a single card unqualified', async () => {
+        // The common case is one show, one card; a tag on every card would
+        // be noise on a playlist that prefixes everything.
+        channels.set([
+            channel(
+                'http://h.example/series/u/p/8.mp4',
+                'TR:MODERN FAMILY S01E01',
+                'Shows'
+            ),
+        ]);
+        const fixture = await render('episode');
+        const component = fixture.componentInstance as unknown as {
+            cards(): { name: string }[];
+        };
+
+        expect(component.cards()[0].name).toBe('MODERN FAMILY');
+    });
+
+    it('leaves remakes to the year the provider wrote', async () => {
+        // Remakes are separate series for the same reason dubs are, but
+        // they need no qualifier: the year is part of the title, so the
+        // cards already read differently.
+        channels.set([
+            channel(
+                'http://h.example/series/u/p/9.mp4',
+                'DARK 2017 S01E01',
+                'Shows'
+            ),
+            channel(
+                'http://h.example/series/u/p/10.mp4',
+                'DARK 2024 S01E01',
+                'Shows'
+            ),
+        ]);
+        const fixture = await render('episode');
+        const component = fixture.componentInstance as unknown as {
+            cards(): { name: string }[];
+        };
+
+        expect(
+            component
+                .cards()
+                .map((card) => card.name)
+                .sort()
+        ).toEqual(['DARK 2017', 'DARK 2024']);
+    });
+
     it('opens the detail route for a series card', async () => {
         channels.set([EPISODE]);
         const fixture = await render('episode');
