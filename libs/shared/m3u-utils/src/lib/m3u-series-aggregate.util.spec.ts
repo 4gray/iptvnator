@@ -152,6 +152,17 @@ describe('buildM3uSeriesCatalog', () => {
         expect(series[0].title).toBe('SHOW');
     });
 
+    it('carries the episode title the provider wrote', () => {
+        // The parser separates it from the series name; dropping it here
+        // would leave every episode grid cell repeating the show's name.
+        const series = build(['SHOW S1 E1 - Good News', 'SHOW S1 E2']);
+
+        expect(series[0].seasons.get(1)?.map((e) => e.title)).toEqual([
+            'Good News',
+            null,
+        ]);
+    });
+
     it('handles an absent list', () => {
         expect(buildM3uSeriesCatalog(null, 'pl-1')).toEqual([]);
         expect(buildM3uSeriesCatalog([], 'pl-1')).toEqual([]);

@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "Loading more…",
             "LOAD_MORE_FAILED": "Couldn't load more items",
             "RETRY": "Retry"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {

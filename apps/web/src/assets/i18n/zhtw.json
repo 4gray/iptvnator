@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "正在載入更多…",
             "LOAD_MORE_FAILED": "無法載入更多內容",
             "RETRY": "重試"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "資訊",
     "DOWNLOADS": {

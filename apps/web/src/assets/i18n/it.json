@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "Caricamento di altri elementi…",
             "LOAD_MORE_FAILED": "Impossibile caricare altri elementi",
             "RETRY": "Riprova"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 stagione",
+        "SEASON_COUNT_OTHER": "{{count}} stagioni"
     },
     "INFORMATION": "Informazioni",
     "DOWNLOADS": {

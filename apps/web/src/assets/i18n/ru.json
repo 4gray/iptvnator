@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "Загружаем ещё…",
             "LOAD_MORE_FAILED": "Не удалось загрузить больше элементов",
             "RETRY": "Повторить"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 сезон",
+        "SEASON_COUNT_OTHER": "сезонов: {{count}}"
     },
     "INFORMATION": "Инфо",
     "DOWNLOADS": {

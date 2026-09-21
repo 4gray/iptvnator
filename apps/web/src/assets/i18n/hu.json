@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "További elemek betöltése…",
             "LOAD_MORE_FAILED": "Nem sikerült több elemet betölteni",
             "RETRY": "Újra"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "Információk",
     "DOWNLOADS": {

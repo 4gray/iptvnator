@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "Φόρτωση περισσότερων…",
             "LOAD_MORE_FAILED": "Δεν ήταν δυνατή η φόρτωση περισσότερων στοιχείων",
             "RETRY": "Επανάληψη"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "Πληροφορίες",
     "DOWNLOADS": {

@@ -1,6 +1,6 @@
 import { hashM3uId, normalizeTitleKeys } from '@iptvnator/shared/interfaces';
 import { M3uCatalogEntry } from './m3u-catalog-index.util';
-import { parseM3uEpisode } from './m3u-episode-parse.util';
+import { M3uEpisodeParse, parseM3uEpisode } from './m3u-episode-parse.util';
 import { splitM3uNameTag } from './m3u-name-tag.util';
 
 /**
@@ -123,7 +123,7 @@ export function buildM3uSeriesCatalog<T extends ArtworkBearing>(
         series.posterUrl ??= channel.tvg?.logo || null;
         series.yearHint ??= keys.trailingYear;
 
-        addEpisode(series, channel, parsed.seasonNumber, parsed.episodeNumber);
+        addEpisode(series, channel, parsed);
     }
 
     return [...accumulators.values()].map((series) => finalize(series));
@@ -139,9 +139,9 @@ function recordGroup<T>(series: SeriesAccumulator<T>, title: string): void {
 function addEpisode<T extends ArtworkBearing>(
     series: SeriesAccumulator<T>,
     channel: T,
-    seasonNumber: number,
-    episodeNumber: number
+    parsed: M3uEpisodeParse
 ): void {
+    const { seasonNumber, episodeNumber } = parsed;
     let season = series.seasons.get(seasonNumber);
     if (!season) {
         season = new Map();
@@ -165,7 +165,7 @@ function addEpisode<T extends ArtworkBearing>(
         id: hashM3uId(`${series.key}\u0000${seasonNumber}x${episodeNumber}`),
         seasonNumber,
         episodeNumber,
-        title: null,
+        title: parsed.episodeTitle,
         channel,
         alternatives: [],
     });

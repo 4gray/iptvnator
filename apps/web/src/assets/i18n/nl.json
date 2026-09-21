@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "Meer laden…",
             "LOAD_MORE_FAILED": "Kan geen extra items laden",
             "RETRY": "Opnieuw proberen"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 seizoen",
+        "SEASON_COUNT_OTHER": "{{count}} seizoenen"
     },
     "INFORMATION": "Informatie",
     "DOWNLOADS": {
