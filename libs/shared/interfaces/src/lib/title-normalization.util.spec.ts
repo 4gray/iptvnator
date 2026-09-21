@@ -435,21 +435,21 @@ describe('cleanTitleForSearch', () => {
     it('keeps Cyrillic letters that folding would rewrite', () => {
         // NFD splits "й" into "и" + a breve and "ё" into "е" + a diaeresis;
         // the comparison key drops both marks, and TMDB answers the folded
-        // spelling with nothing (issue: "Фейк (10 серий)" never matched).
-        expect(normalizeTitle('Фейк (10 серий)')).toBe('феик');
-        expect(cleanTitleForSearch('Фейк (10 серий)')).toBe('Фейк');
-        expect(cleanTitleForSearch('Ёлки 2010')).toBe('Ёлки');
-        expect(cleanTitleForSearch('Волшебный участок s02')).toBe(
-            'Волшебный участок'
+        // spelling with nothing (issue: "Лейка (10 серий)" never matched).
+        expect(normalizeTitle('Лейка (10 серий)')).toBe('леика');
+        expect(cleanTitleForSearch('Лейка (10 серий)')).toBe('Лейка');
+        expect(cleanTitleForSearch('Ёжик 2010')).toBe('Ёжик');
+        expect(cleanTitleForSearch('Тестовый Сериал s02')).toBe(
+            'Тестовый Сериал'
         );
     });
 
     it('keeps Arabic hamza forms that folding splits into two words', () => {
         // "أ" decomposes into a bare alef + U+0654, which is outside the
         // stripped mark range and so becomes a SPACE in the key. TMDB finds
-        // "أطرق بابي" and nothing for "ا طرق بابي".
-        expect(normalizeTitle('AR| أطرق بابي')).toBe('ا طرق بابي');
-        expect(cleanTitleForSearch('AR| أطرق بابي')).toBe('أطرق بابي');
+        // "أمثلة تجريبية" and nothing for "ا مثلة تجريبية".
+        expect(normalizeTitle('AR| أمثلة تجريبية')).toBe('ا مثلة تجريبية');
+        expect(cleanTitleForSearch('AR| أمثلة تجريبية')).toBe('أمثلة تجريبية');
     });
 
     it('keeps Latin diacritics and casing', () => {
@@ -490,9 +490,9 @@ describe('cleanTitleForSearch', () => {
 
     it('normalizes to the same key as the text it was derived from', () => {
         for (const raw of [
-            'Фейк (10 серий)',
+            'Лейка (10 серий)',
             'EN - The Matrix (1999) 4K',
-            'Ёлки 2010',
+            'Ёжик 2010',
             'Amélie (2001)',
             '|FR|VO|Le dernier empereur',
         ]) {

@@ -976,8 +976,8 @@ function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
  * - unversioned → v2: title normalization learned to strip appended
  *   language/quality tags.
  * - v2 → v3: the search query stopped being the folded comparison key. Under
- *   v2 every title with a Cyrillic "й"/"ё" was searched folded ("феик" for
- *   "Фейк", "елки" for "Ёлки"), got no answer, and was cached as missing for
+ *   v2 every title with a Cyrillic "й"/"ё" was searched folded ("леика" for
+ *   "Лейка", "ежик" for "Ёжик"), got no answer, and was cached as missing for
  *   7 days.
  * - v3 → v4: year evidence became tiered. Under v3 a series admitted only by
  *   the "premiered earlier" tolerance competed with an exact-year match on
