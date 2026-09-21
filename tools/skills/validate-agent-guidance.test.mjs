@@ -1504,3 +1504,22 @@ for (const boundary of [').', '];', '}']) {
         );
     });
 }
+
+for (const uri of [
+    '<mailto:user@example.com?subject=@docs/guide.md>',
+    'mailto:user@example.com?subject=@docs/guide.md',
+    '<urn:example:@docs/guide.md>',
+]) {
+    test(`opaque URI is not a guidance import: ${uri}`, async (t) => {
+        assert.deepEqual(await diagnostics(t, { 'AGENTS.md': uri }), []);
+    });
+}
+test('colon directly before an import remains checked', async (t) => {
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'CLAUDE.md': '@AGENTS.md\n\nRead:@docs/guide.md',
+            })
+        ).some((message) => message.includes('additional or inline'))
+    );
+});
