@@ -77,7 +77,7 @@ function htmlNavigation(html, inspect = () => {}) {
             )
                 anchors.push(attribute.value);
             if (
-                (['a', 'area', 'image'].includes(node.tagName) &&
+                (['a', 'area', 'image', 'use'].includes(node.tagName) &&
                     attribute.name === 'href') ||
                 ([
                     'img',
@@ -100,6 +100,7 @@ function htmlNavigation(html, inspect = () => {}) {
                     ))
             )
                 references.push({
+                    svgUse: node.tagName === 'use',
                     target: attribute.value
                         .replace(/[\t\n\r]/gu, '')
                         .replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/gu, ''),
@@ -135,6 +136,16 @@ function htmlNavigation(html, inspect = () => {}) {
         for (const child of node.childNodes ?? []) visit(child);
     }
     visit(parseFragment(html));
+    for (const reference of references) {
+        if (
+            reference.svgUse &&
+            !reference.embeddedAnchors &&
+            reference.target.startsWith('#')
+        ) {
+            reference.image = false;
+            reference.embeddedAnchors = anchors;
+        }
+    }
     return {
         anchors,
         references:

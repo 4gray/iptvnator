@@ -69,7 +69,7 @@ Image and media references require a nonempty path that resolves to a file, not 
 Direct file URLs and file-scheme HTML bases are rejected; use portable repository-relative paths.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
-SVG image hrefs (including xlink), HTML image-input, video, audio, source and track `src` assets and video posters use the same
+SVG image/use hrefs (including xlink), HTML image-input, video, audio, source and track `src` assets and video posters use the same
 existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
@@ -91,6 +91,8 @@ from package exemptions. Recognized extensionless guidance names (including AGEN
 CLAUDE, INSTRUCTIONS, README, CONTRIBUTING and SECURITY, case-insensitively) are excluded in package subpaths too. URL-encoded
 paths do not receive package exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
+Federated handles in the @user@host form are prose, not imports.
+Exact declared packages remain exempt after version normalization.
 Declared package mentions may include a version (including semver comparators and wildcard ranges) or dist-tag qualifier.
 Qualifier handling includes unscoped names; terminal sentence punctuation is
 removed before matching a declared package, as are straight/curly apostrophe possessives.

@@ -1702,3 +1702,48 @@ for (const name of ['CONTRIBUTING', 'SECURITY', 'code_of_conduct', 'SUPPORT']) {
         );
     });
 }
+
+test('versioned declared package may share a guidance basename', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'package.json': JSON.stringify({
+                dependencies: { '@scope/support': '*' },
+            }),
+            'AGENTS.md': 'Use @scope/support@^2',
+        }),
+        []
+    );
+});
+test('federated handle is not an import', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, { 'AGENTS.md': 'Contact @alice@example.social' }),
+        []
+    );
+});
+for (const attribute of ['href', 'xlink:href']) {
+    test(`SVG use references are checked: ${attribute}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'AGENTS.md': `<svg><use ${attribute}="docs/missing.svg#icon"/></svg>`,
+                })
+            ).length > 0
+        );
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': `<svg><symbol id="icon"></symbol><use ${attribute}="#icon"/></svg>`,
+            }),
+            []
+        );
+    });
+}
+
+test('srcdoc SVG use keeps its own anchors', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                '<iframe srcdoc="<svg><symbol id=icon></symbol><use href=\'#icon\'/></svg>"></iframe>',
+        }),
+        []
+    );
+});
