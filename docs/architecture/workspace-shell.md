@@ -46,7 +46,8 @@ Current workspace routes:
    `dashboardAccessGuard`)
 3. `/workspace/dashboard`
 4. `/workspace/sources`
-5. `/workspace/playlists/:id/:view` (plus `favorites` and `recent` siblings)
+5. `/workspace/playlists/:id/:view` (plus `favorites`, `recent`, `vod`,
+   `series` and `series/:seriesId` siblings)
 6. `/workspace/global-favorites`
 7. `/workspace/global-recent`
 8. `/workspace/search`

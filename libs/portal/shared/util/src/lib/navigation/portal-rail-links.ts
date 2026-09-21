@@ -22,21 +22,27 @@ export interface PortalRailLink {
     section?: PortalRailSection;
 }
 
+/** Whether an M3U playlist holds films, episodes, or both. */
+export interface M3uCatalogSections {
+    readonly movies: boolean;
+    readonly series: boolean;
+}
+
 interface BuildPortalRailLinksOptions {
     provider: PortalProvider;
     playlistId: string;
     supportsDownloads: boolean;
     workspace: boolean;
     /**
-     * Adds the Movies and Series links for an M3U playlist.
+     * Which catalog links an M3U playlist's rail should offer.
      *
-     * Off unless the caller has established that this playlist actually
-     * holds films or episodes: most M3U playlists are live-only, and a rail
-     * that offers two permanently empty sections is worse than no rail
-     * change at all. Ignored for the portal providers, which have their own
-     * catalog sections unconditionally.
+     * Per kind rather than one flag, because a playlist holding films but
+     * no series is ordinary: offering both would put a permanently empty
+     * section in the rail, and an empty section is worse than no rail
+     * change at all. Absent means neither. Ignored for the portal
+     * providers, which have their own catalog sections unconditionally.
      */
-    m3uCatalogSections?: boolean;
+    m3uCatalogSections?: M3uCatalogSections;
 }
 
 interface PortalRailLinkGroups {
@@ -52,7 +58,7 @@ export function buildPortalRailLinks(
         playlistId,
         supportsDownloads,
         workspace,
-        m3uCatalogSections = false,
+        m3uCatalogSections,
     } = options;
     const root = workspace
         ? ['/workspace', provider, playlistId]
@@ -177,26 +183,27 @@ export function buildPortalRailLinks(
             },
         ];
 
-        if (m3uCatalogSections) {
-            // The same section tokens the portals use, so the rail tooltips,
-            // the search mode and the section-memory all recognise them
-            // without a new vocabulary.
-            primary.push(
-                {
-                    icon: 'movie',
-                    tooltip: 'Movies (this playlist)',
-                    path: [...root, 'vod'],
-                    exact: true,
-                    section: 'vod',
-                },
-                {
-                    icon: 'video_library',
-                    tooltip: 'Series (this playlist)',
-                    path: [...root, 'series'],
-                    exact: true,
-                    section: 'series',
-                }
-            );
+        // The same section tokens the portals use, so the rail tooltips,
+        // the search mode and the section-memory all recognise them without
+        // a new vocabulary.
+        if (m3uCatalogSections?.movies) {
+            primary.push({
+                icon: 'movie',
+                tooltip: 'Movies (this playlist)',
+                path: [...root, 'vod'],
+                exact: true,
+                section: 'vod',
+            });
+        }
+
+        if (m3uCatalogSections?.series) {
+            primary.push({
+                icon: 'video_library',
+                tooltip: 'Series (this playlist)',
+                path: [...root, 'series'],
+                exact: true,
+                section: 'series',
+            });
         }
 
         return {

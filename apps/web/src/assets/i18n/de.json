@@ -835,7 +835,9 @@
         "CATALOG": {
             "NO_MOVIES": "Keine Filme in dieser Playlist",
             "NO_SERIES": "Keine Serien in dieser Playlist",
-            "EMPTY_HINT": "Diese Playlist enthält nur Live-Kanäle."
+            "EMPTY_HINT": "Diese Playlist enthält nur Live-Kanäle.",
+            "EMPTY_HINT_MOVIES": "Die Filme dieser Playlist stehen unter Filme.",
+            "EMPTY_HINT_SERIES": "Die Serien dieser Playlist stehen unter Serien."
         }
     },
     "TOP_MENU": {

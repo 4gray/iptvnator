@@ -13,7 +13,10 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject } from 'rxjs';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
-import { TmdbEnrichmentService } from '@iptvnator/services';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    TmdbEnrichmentService,
+} from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils';
 import type { M3uSeriesDetailRouteComponent as ComponentType } from './m3u-series-detail-route.component';
@@ -111,6 +114,12 @@ describe('M3uSeriesDetailRouteComponent', () => {
 
     const params = new BehaviorSubject({ get: () => String(CATALOG[0].id) });
     const navigate = jest.fn();
+    const positionBridge = {
+        supportsStorage: true,
+        getSeriesPlaybackPositions: jest.fn().mockResolvedValue([]),
+        savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
+        clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
+    };
 
     async function render(): Promise<ComponentFixture<ComponentType>> {
         TestBed.configureTestingModule({
@@ -130,6 +139,10 @@ describe('M3uSeriesDetailRouteComponent', () => {
                     useValue: {
                         selectSignal: () => signal({ _id: 'pl-1' }),
                     },
+                },
+                {
+                    provide: PlaybackPositionRuntimeBridgeService,
+                    useValue: positionBridge,
                 },
                 {
                     provide: TmdbEnrichmentService,
@@ -171,7 +184,32 @@ describe('M3uSeriesDetailRouteComponent', () => {
         TestBed.resetTestingModule();
         params.next({ get: () => String(CATALOG[0].id) });
         navigate.mockReset();
+        positionBridge.getSeriesPlaybackPositions
+            .mockReset()
+            .mockResolvedValue([]);
+        positionBridge.savePlaybackPosition
+            .mockReset()
+            .mockResolvedValue(undefined);
+        positionBridge.clearPlaybackPosition
+            .mockReset()
+            .mockResolvedValue(undefined);
     });
+
+    function savedPosition(
+        episodeId: number,
+        positionSeconds: number,
+        durationSeconds?: number
+    ) {
+        return {
+            contentXtreamId: episodeId,
+            contentType: 'episode' as const,
+            seriesXtreamId: CATALOG[0].id,
+            seasonNumber: 1,
+            episodeNumber: 1,
+            positionSeconds,
+            durationSeconds,
+        };
+    }
 
     it('renders the series the route names', async () => {
         const fixture = await render();
@@ -240,6 +278,84 @@ describe('M3uSeriesDetailRouteComponent', () => {
 
         expect(first).not.toBe(before);
         expect(component.playbackSessionKey()).not.toBe(first);
+    });
+
+    it('opens an episode at the offset storage remembers', async () => {
+        // Without this the resume feature is inert: the badges show
+        // progress while every click still starts the episode at zero.
+        const first = CATALOG[0].seasons.get(1)?.[0];
+        positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
+            savedPosition(Number(first?.id), 640, 2400),
+        ]);
+
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { startTime?: number } | null;
+        };
+
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+
+        expect(component.playback()?.startTime).toBe(640);
+    });
+
+    it('starts a finished episode over rather than at the credits', async () => {
+        const first = CATALOG[0].seasons.get(1)?.[0];
+        positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
+            savedPosition(Number(first?.id), 2396, 2400),
+        ]);
+
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { startTime?: number } | null;
+        };
+
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+
+        expect(component.playback()?.startTime).toBeUndefined();
+    });
+
+    it('keeps the opened offset fixed while the episode plays', async () => {
+        // The offset is captured at selection. Reading it live from the
+        // positions map would let this episode's own progress ticks feed
+        // the player a `startTime` that chases playback and re-seeks it.
+        const first = CATALOG[0].seasons.get(1)?.[0];
+        positionBridge.getSeriesPlaybackPositions.mockResolvedValue([
+            savedPosition(Number(first?.id), 640, 2400),
+        ]);
+
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            onTimeUpdate(update: {
+                currentTime: number;
+                duration: number;
+            }): void;
+            playback(): { startTime?: number } | null;
+        };
+
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+        component.onTimeUpdate({ currentTime: 900, duration: 2400 });
+        await fixture.whenStable();
+
+        expect(component.playback()?.startTime).toBe(640);
+    });
+
+    it('starts an unwatched episode from the beginning', async () => {
+        const fixture = await render();
+        const component = fixture.componentInstance as unknown as {
+            seasons(): Record<string, unknown[]>;
+            onEpisodeClicked(episode: unknown): void;
+            playback(): { startTime?: number } | null;
+        };
+
+        component.onEpisodeClicked(component.seasons()['1'][0]);
+
+        expect(component.playback()?.startTime).toBeUndefined();
     });
 
     it('returns to the series list from the back action', async () => {

@@ -1,6 +1,15 @@
 import { hashM3uId, normalizeTitleKeys } from '@iptvnator/shared/interfaces';
-import { M3uCatalogEntry } from './m3u-catalog-index.util';
 import { M3uEpisodeParse, parseM3uEpisode } from './m3u-episode-parse.util';
+import {
+    M3uArtworkBearing,
+    M3uSeries,
+    M3uSeriesAccumulator,
+    M3uSeriesEpisode,
+} from './m3u-series-model';
+import {
+    regroupM3uSeriesByYear,
+    remintM3uEpisodeIds,
+} from './m3u-series-remake-split.util';
 import { hasEpisodeMarker } from './m3u-vod-detection.util';
 import { splitM3uNameTag } from './m3u-name-tag.util';
 
@@ -17,63 +26,11 @@ import { splitM3uNameTag } from './m3u-name-tag.util';
  * library, next to its only consumer — the Xtream episode shape is a UI
  * contract, not a property of an M3U playlist, and keeping it out of here
  * lets this module import contracts only.
+ *
+ * The pass runs in three stages, one file each: rows accumulate here,
+ * `m3u-series-remake-split.util.ts` decides which same-titled accumulators
+ * are separate remakes, and `finalize` freezes what survives.
  */
-
-export interface M3uSeriesEpisode<T> {
-    /** Stable numeric id, keyed on the series and the season×episode. */
-    readonly id: number;
-    readonly seasonNumber: number;
-    readonly episodeNumber: number;
-    /** The tail the provider wrote after the marker, when there was one. */
-    readonly title: string | null;
-    readonly channel: T;
-    /**
-     * Further rows that resolved to the same season×episode — typically the
-     * same episode at another quality. The first one wins; the rest are kept
-     * so a future quality picker has somewhere to read them from, and so
-     * they are not silently lost.
-     */
-    readonly alternatives: readonly T[];
-}
-
-export interface M3uSeries<T> {
-    /** Identity key; stable across refreshes for the same playlist. */
-    readonly key: string;
-    readonly id: number;
-    /** Display title: language tag removed. */
-    readonly title: string;
-    /** Title as the provider wrote it, tag included. */
-    readonly rawTitle: string;
-    readonly languageTag: string | null;
-    /** Trailing year the normalizer stripped, if any — a TMDB match hint. */
-    readonly yearHint: number | null;
-    /** Every group this series' episodes appeared in, in first-seen order. */
-    readonly groups: readonly string[];
-    /** The group holding most of its episodes. */
-    readonly primaryGroup: string;
-    readonly seasons: ReadonlyMap<number, readonly M3uSeriesEpisode<T>[]>;
-    readonly episodeCount: number;
-    /** First artwork any of its episodes carried. */
-    readonly posterUrl: string | null;
-}
-
-interface SeriesAccumulator<T> {
-    key: string;
-    /** Title identity without the year, for the regroup step. */
-    baseKey: string;
-    title: string;
-    rawTitle: string;
-    languageTag: string | null;
-    yearHint: number | null;
-    groups: string[];
-    groupCounts: Map<string, number>;
-    seasons: Map<number, Map<number, M3uSeriesEpisode<T>>>;
-    posterUrl: string | null;
-}
-
-type ArtworkBearing = M3uCatalogEntry & {
-    readonly tvg?: { readonly logo?: string | null } | null;
-};
 
 /**
  * Builds the series list from rows already classified as episodes.
@@ -83,35 +40,14 @@ type ArtworkBearing = M3uCatalogEntry & {
  * anyway — and two playlists holding the same show are two catalogs, not
  * one, until cross-playlist merging exists.
  */
-export function buildM3uSeriesCatalog<T extends ArtworkBearing>(
+export function buildM3uSeriesCatalog<T extends M3uArtworkBearing>(
     episodes: readonly T[] | null | undefined,
     playlistId: string
 ): readonly M3uSeries<T>[] {
-    const accumulators = new Map<string, SeriesAccumulator<T>>();
+    const accumulators = new Map<string, M3uSeriesAccumulator<T>>();
 
     for (const channel of episodes ?? []) {
-        // A row classified as an episode whose name carries NO marker at
-        // all still exists and still plays. Dropping it would make provider
-        // content vanish from the catalog with no trace — worse than the
-        // alternative, a one-episode series named after the row. If the
-        // parser later learns that spelling, such rows collapse into their
-        // real series on the next load.
-        //
-        // A name that is nothing BUT a marker ("S01E01") is the other case
-        // and is still skipped: there is no series name in it to file it
-        // under, and taking the marker as the title would produce one
-        // phantom series per episode.
-        const parsed =
-            parseM3uEpisode(channel.name) ??
-            (hasEpisodeMarker(channel.name)
-                ? null
-                : {
-                      seriesTitle: (channel.name ?? '').trim(),
-                      seasonNumber: 1,
-                      episodeNumber: 1,
-                      hasExplicitSeason: false,
-                      episodeTitle: null,
-                  });
+        const parsed = parseRow(channel.name);
         if (!parsed) {
             continue;
         }
@@ -161,21 +97,50 @@ export function buildM3uSeriesCatalog<T extends ArtworkBearing>(
         addEpisode(series, channel, parsed);
     }
 
-    return regroupByYear(accumulators.values()).map((series) => {
-        remintEpisodeIds(series);
+    return regroupM3uSeriesByYear(accumulators.values()).map((series) => {
+        remintM3uEpisodeIds(series);
         return finalize(series);
     });
 }
 
-function recordGroup<T>(series: SeriesAccumulator<T>, title: string): void {
+/**
+ * A row classified as an episode whose name carries NO marker at all still
+ * exists and still plays. Dropping it would make provider content vanish
+ * from the catalog with no trace — worse than the alternative, a
+ * one-episode series named after the row. If the parser later learns that
+ * spelling, such rows collapse into their real series on the next load.
+ *
+ * A name that is nothing BUT a marker ("S01E01") is the other case and is
+ * still skipped: there is no series name in it to file it under, and taking
+ * the marker as the title would produce one phantom series per episode.
+ */
+function parseRow(name: string | null | undefined): M3uEpisodeParse | null {
+    const parsed = parseM3uEpisode(name);
+    if (parsed) {
+        return parsed;
+    }
+    if (hasEpisodeMarker(name)) {
+        return null;
+    }
+
+    return {
+        seriesTitle: (name ?? '').trim(),
+        seasonNumber: 1,
+        episodeNumber: 1,
+        hasExplicitSeason: false,
+        episodeTitle: null,
+    };
+}
+
+function recordGroup<T>(series: M3uSeriesAccumulator<T>, title: string): void {
     if (!series.groupCounts.has(title)) {
         series.groups.push(title);
     }
     series.groupCounts.set(title, (series.groupCounts.get(title) ?? 0) + 1);
 }
 
-function addEpisode<T extends ArtworkBearing>(
-    series: SeriesAccumulator<T>,
+function addEpisode<T extends M3uArtworkBearing>(
+    series: M3uSeriesAccumulator<T>,
     channel: T,
     parsed: M3uEpisodeParse
 ): void {
@@ -209,124 +174,8 @@ function addEpisode<T extends ArtworkBearing>(
     });
 }
 
-/**
- * Decides which year-separated accumulators are actually one series.
- *
- * Rows arrive keyed by title AND stated year, because a duplicate
- * season×episode is collapsed into one episode the moment it is added — so
- * two remakes sharing a title would have merged before anything could tell
- * them apart.
- *
- * Merging back is what keeps "SHOW 2025" together with its unyeared
- * siblings, which real providers write constantly. It happens only when at
- * most ONE year is stated for the title: two stated years are remakes, and
- * leaving them merged attaches one show's watch progress and TMDB match to
- * the other. When a conflict exists, rows carrying no year stay their own
- * series, because there is no honest way to guess which remake they belong
- * to.
- */
-function regroupByYear<T extends ArtworkBearing>(
-    accumulators: Iterable<SeriesAccumulator<T>>
-): SeriesAccumulator<T>[] {
-    const byBase = new Map<string, SeriesAccumulator<T>[]>();
-    for (const series of accumulators) {
-        const existing = byBase.get(series.baseKey);
-        if (existing) {
-            existing.push(series);
-        } else {
-            byBase.set(series.baseKey, [series]);
-        }
-    }
-
-    const result: SeriesAccumulator<T>[] = [];
-
-    for (const [baseKey, parts] of byBase) {
-        const yeared = parts.filter((part) => part.yearHint !== null);
-
-        if (yeared.length >= 2) {
-            // Remakes. Each keeps its year-qualified key, so its episode
-            // ids stay its own.
-            result.push(...parts);
-            continue;
-        }
-
-        // One year at most: one series, keyed without the year so its ids
-        // do not move when a provider later adds or drops the tag.
-        result.push(mergeParts(baseKey, parts));
-    }
-
-    return result;
-}
-
-function mergeParts<T extends ArtworkBearing>(
-    baseKey: string,
-    parts: SeriesAccumulator<T>[]
-): SeriesAccumulator<T> {
-    const merged: SeriesAccumulator<T> = {
-        ...parts[0],
-        key: baseKey,
-        seasons: new Map(),
-    };
-
-    for (const part of parts) {
-        merged.yearHint ??= part.yearHint;
-        merged.posterUrl ??= part.posterUrl;
-        for (const [number, episodes] of part.seasons) {
-            for (const [episodeNumber, episode] of episodes) {
-                addMergedEpisode(merged, number, episodeNumber, episode);
-            }
-        }
-    }
-
-    return merged;
-}
-
-function addMergedEpisode<T extends ArtworkBearing>(
-    merged: SeriesAccumulator<T>,
-    seasonNumber: number,
-    episodeNumber: number,
-    episode: M3uSeriesEpisode<T>
-): void {
-    let season = merged.seasons.get(seasonNumber);
-    if (!season) {
-        season = new Map();
-        merged.seasons.set(seasonNumber, season);
-    }
-
-    const existing = season.get(episodeNumber);
-    season.set(
-        episodeNumber,
-        existing
-            ? {
-                  ...existing,
-                  alternatives: [
-                      ...existing.alternatives,
-                      episode.channel,
-                      ...episode.alternatives,
-                  ],
-              }
-            : episode
-    );
-}
-
-/** Ids follow the final key, or two series would share watch history. */
-function remintEpisodeIds<T extends ArtworkBearing>(
-    series: SeriesAccumulator<T>
-): void {
-    for (const [, episodes] of series.seasons) {
-        for (const [number, episode] of episodes) {
-            episodes.set(number, {
-                ...episode,
-                id: hashM3uId(
-                    `${series.key}\u0000${episode.seasonNumber}x${episode.episodeNumber}`
-                ),
-            });
-        }
-    }
-}
-
-function finalize<T extends ArtworkBearing>(
-    series: SeriesAccumulator<T>
+function finalize<T extends M3uArtworkBearing>(
+    series: M3uSeriesAccumulator<T>
 ): M3uSeries<T> {
     const seasons = new Map<number, readonly M3uSeriesEpisode<T>[]>();
     let episodeCount = 0;

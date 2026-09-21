@@ -79,6 +79,69 @@ describe('M3uSeriesPositionsService', () => {
         await pending;
     });
 
+    it('writes a playing episode at most once per throttle window', async () => {
+        // `timeupdate` fires about four times a second. Writing each one
+        // queues thousands of SQLite round-trips over a single episode.
+        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+        try {
+            await service.load('pl-1', 500);
+
+            await service.recordProgress('pl-1', position(11, 10));
+            await service.recordProgress('pl-1', position(11, 12));
+            nowSpy.mockReturnValue(1_010_000);
+            await service.recordProgress('pl-1', position(11, 20));
+
+            expect(bridge.savePlaybackPosition).toHaveBeenCalledTimes(1);
+
+            // The grid still follows every tick; only storage is coalesced.
+            expect(service.byEpisodeId().get(11)?.positionSeconds).toBe(20);
+
+            nowSpy.mockReturnValue(1_020_000);
+            await service.recordProgress('pl-1', position(11, 30));
+
+            expect(bridge.savePlaybackPosition).toHaveBeenCalledTimes(2);
+        } finally {
+            nowSpy.mockRestore();
+        }
+    });
+
+    it('writes immediately when the tick belongs to another episode', async () => {
+        // Otherwise the episode just left loses the offset it stopped at,
+        // because the next one's window is still open.
+        const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(2_000_000);
+        try {
+            await service.load('pl-1', 500);
+
+            await service.recordProgress('pl-1', position(11, 10));
+            await service.recordProgress('pl-1', position(12, 5));
+
+            expect(bridge.savePlaybackPosition).toHaveBeenCalledTimes(2);
+        } finally {
+            nowSpy.mockRestore();
+        }
+    });
+
+    it('survives a failing write instead of rejecting into the caller', async () => {
+        // Every caller starts these promises with `void`, from an effect or
+        // a media time update, so a rejection would surface as an unhandled
+        // rejection rather than as a skipped save.
+        bridge.savePlaybackPosition.mockRejectedValue(new Error('db gone'));
+        await service.load('pl-1', 500);
+
+        await expect(
+            service.recordProgress('pl-1', position(11, 42))
+        ).resolves.toBeUndefined();
+    });
+
+    it('survives a failing read instead of rejecting into the caller', async () => {
+        bridge.getSeriesPlaybackPositions.mockRejectedValue(
+            new Error('db gone')
+        );
+
+        await expect(service.load('pl-1', 500)).resolves.toBeUndefined();
+        expect(service.byEpisodeId().size).toBe(0);
+    });
+
     it('saves a watched toggle and clears an unwatched one', async () => {
         await service.load('pl-1', 500);
         bridge.getSeriesPlaybackPositions.mockClear();

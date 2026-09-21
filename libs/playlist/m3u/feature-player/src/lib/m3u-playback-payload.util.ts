@@ -22,6 +22,11 @@ export interface M3uPlaybackPayloadInput {
     readonly target: Channel & { readonly epgParams?: string };
     readonly playlistMeta: PlaylistMeta | null | undefined;
     readonly isLive: boolean;
+    /**
+     * Seconds to open at, for a recorded file the viewer already started.
+     * Live rows never set it — there is no offset into a live edge.
+     */
+    readonly startTime?: number;
 }
 
 export function buildM3uPlaybackPayload({
@@ -29,6 +34,7 @@ export function buildM3uPlaybackPayload({
     target,
     playlistMeta,
     isLive,
+    startTime,
 }: M3uPlaybackPayloadInput): ResolvedPortalPlayback {
     // Embedded MPV requests bypass the Electron webRequest override, so the
     // playlist-level custom headers must ride in the payload; channel
@@ -50,6 +56,7 @@ export function buildM3uPlaybackPayload({
         title: channel.name?.trim() || channel.tvg?.name || target.url,
         thumbnail: channel.tvg?.logo ?? null,
         isLive,
+        startTime,
         headers: Object.keys(headers).length > 0 ? headers : undefined,
         userAgent: effective['user-agent'],
         referer: effective.referer,

@@ -24,6 +24,7 @@ import { Channel, foldSearchText } from '@iptvnator/shared/interfaces';
 import { M3uContentKind } from '@iptvnator/shared/m3u-utils';
 import {
     M3uCatalogCard,
+    duplicateM3uSeriesTitles,
     toM3uCatalogCard,
     toM3uSeriesCard,
 } from './m3u-catalog-card.util';
@@ -142,7 +143,17 @@ export class M3uCatalogRouteComponent {
      */
     private readonly allCards = computed<readonly M3uCatalogCard[]>(() => {
         if (this.isSeries()) {
-            return this.catalog.series().map(toM3uSeriesCard);
+            // Two dubs of one show, or two remakes, are deliberately two
+            // series. Without the qualifier they would be two cards with
+            // the same name and poster.
+            const series = this.catalog.series();
+            const duplicates = duplicateM3uSeriesTitles(series);
+            return series.map((entry) =>
+                toM3uSeriesCard(
+                    entry,
+                    duplicates.has(foldSearchText(entry.title))
+                )
+            );
         }
 
         // Optional in the Settings shape, so the store's signal is too.
@@ -218,6 +229,25 @@ export class M3uCatalogRouteComponent {
             ? 'CHANNELS.CATALOG.NO_SERIES'
             : 'CHANNELS.CATALOG.NO_MOVIES'
     );
+
+    /**
+     * The hint has to name what the playlist DOES hold.
+     *
+     * The rail only offers a section the playlist has rows for, so this is
+     * reachable by a deep link or a bookmark — but "only contains live
+     * channels" would be a plain lie on a playlist whose films are one
+     * section away, and the viewer would have no reason to look for them.
+     */
+    protected readonly emptyHintKey = computed(() => {
+        const counts = this.catalog.index().counts;
+        const other = this.isSeries() ? counts.movie : counts.episode;
+        if (other === 0) {
+            return 'CHANNELS.CATALOG.EMPTY_HINT';
+        }
+        return this.isSeries()
+            ? 'CHANNELS.CATALOG.EMPTY_HINT_MOVIES'
+            : 'CHANNELS.CATALOG.EMPTY_HINT_SERIES';
+    });
 
     constructor() {
         // Selecting the first group keeps the grid populated on arrival; the

@@ -2,7 +2,7 @@
     <app-portal-empty-state
         icon="movie"
         [message]="emptyTitleKey() | translate"
-        [hint]="'CHANNELS.CATALOG.EMPTY_HINT' | translate"
+        [hint]="emptyHintKey() | translate"
     />
 } @else {
     <div class="catalog">

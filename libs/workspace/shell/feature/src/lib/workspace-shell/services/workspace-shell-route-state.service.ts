@@ -43,20 +43,24 @@ export class WorkspaceShellRouteStateService {
     private readonly catalogIndex = inject(M3uCatalogIndexService);
 
     /**
-     * Whether the M3U rail should offer Movies and Series.
+     * Which catalog sections the M3U rail should offer.
      *
      * Two conditions, both necessary. The setting is the user's opt-out, and
      * the index is what proves this particular playlist has anything to put
-     * there — most M3U playlists are live-only, and a rail with two
-     * permanently empty sections is a regression rather than a feature.
-     * Reading the index costs nothing here: it is the same memo the catalog
-     * routes read, so the build is shared rather than repeated.
+     * there — most M3U playlists are live-only, and a rail with permanently
+     * empty sections is a regression rather than a feature. The kinds are
+     * counted separately because a playlist with films and no series is
+     * ordinary. Reading the index costs nothing here: it is the same memo
+     * the catalog routes read, so the build is shared rather than repeated.
      */
-    private readonly m3uCatalogSections = computed(
-        () =>
-            this.settingsStore.m3uCatalogTabs?.() !== false &&
-            this.catalogIndex.hasNonLiveContent()
-    );
+    private readonly m3uCatalogSections = computed(() => {
+        if (this.settingsStore.m3uCatalogTabs?.() === false) {
+            return { movies: false, series: false };
+        }
+
+        const counts = this.catalogIndex.index().counts;
+        return { movies: counts.movie > 0, series: counts.episode > 0 };
+    });
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),

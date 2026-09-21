@@ -835,7 +835,9 @@
         "CATALOG": {
             "NO_MOVIES": "Brak filmów na tej liście",
             "NO_SERIES": "Brak seriali na tej liście",
-            "EMPTY_HINT": "Ta lista zawiera tylko kanały na żywo."
+            "EMPTY_HINT": "Ta lista zawiera tylko kanały na żywo.",
+            "EMPTY_HINT_MOVIES": "Filmy z tej listy znajdziesz w sekcji Filmy.",
+            "EMPTY_HINT_SERIES": "Seriale z tej listy znajdziesz w sekcji Seriale."
         }
     },
     "TOP_MENU": {

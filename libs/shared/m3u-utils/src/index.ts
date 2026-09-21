@@ -5,6 +5,8 @@ export * from './lib/m3u-content-kind.util';
 export * from './lib/m3u-episode-parse.util';
 export * from './lib/m3u-name-tag.util';
 export * from './lib/m3u-series-aggregate.util';
+export * from './lib/m3u-series-model';
+export * from './lib/m3u-series-remake-split.util';
 export * from './lib/m3u-vod-detection.util';
 export * from './lib/playback-media-extension.util';
 export * from './lib/playlist.utils';

@@ -835,7 +835,9 @@
         "CATALOG": {
             "NO_MOVIES": "Bu listede film yok",
             "NO_SERIES": "Bu listede dizi yok",
-            "EMPTY_HINT": "Bu liste yalnızca canlı kanallar içeriyor."
+            "EMPTY_HINT": "Bu liste yalnızca canlı kanallar içeriyor.",
+            "EMPTY_HINT_MOVIES": "Bu listenin filmleri Filmler bölümünde.",
+            "EMPTY_HINT_SERIES": "Bu listenin dizileri Diziler bölümünde."
         }
     },
     "TOP_MENU": {

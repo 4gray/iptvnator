@@ -632,7 +632,7 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 **Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`. All user-facing routes are nested under the workspace shell (`/workspace/...`); `/` redirects into the workspace.
 
 - Dashboard: `/workspace/dashboard`; sources overview: `/workspace/sources`
-- M3U player: `/workspace/playlists/:id` (children: `favorites`, `recent`, `:view`) — routes in `libs/playlist/m3u/feature-player`
+- M3U player: `/workspace/playlists/:id` (children: `favorites`, `recent`, `vod`, `series`, `series/:seriesId`, `:view`) — routes in `libs/playlist/m3u/feature-player`. `vod` and `series` are the Movies and Series catalogs a playlist gets when it holds films or episodes; they are declared before the `:view` catch-all and reuse the portals' own section tokens. `M3uWorkspaceRouteSession.isLoadedSection` must name every section that reads the channel array (`all`, `groups`, `vod`, `series`) or that section opens permanently empty. Contract: `docs/architecture/m3u-playlist-module.md` ("Content Catalog Sections")
 - Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `actor/:personId`, `discover`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
 - Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `actor/:personId`, `discover`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
