@@ -62,6 +62,7 @@ describe('M3uSeriesPositionsService', () => {
     });
 
     it('reflects a progress tick before the write settles', async () => {
+        await service.load('pl-1', 500);
         // The grid should follow the player without waiting on storage; a
         // slow write must not make progress look lost.
         let release: (() => void) | undefined;
@@ -79,6 +80,8 @@ describe('M3uSeriesPositionsService', () => {
     });
 
     it('saves a watched toggle and clears an unwatched one', async () => {
+        await service.load('pl-1', 500);
+        bridge.getSeriesPlaybackPositions.mockClear();
         await service.applyToggle('pl-1', 500, {
             markWatched: true,
             requests: [
@@ -99,6 +102,8 @@ describe('M3uSeriesPositionsService', () => {
     });
 
     it('reloads after a toggle rather than trusting the local patch', async () => {
+        await service.load('pl-1', 500);
+        bridge.getSeriesPlaybackPositions.mockClear();
         // A single failed write would otherwise leave the grid claiming a
         // state that storage does not have.
         await service.applyToggle('pl-1', 500, {
@@ -110,6 +115,18 @@ describe('M3uSeriesPositionsService', () => {
             'pl-1',
             500
         );
+    });
+
+    it('ignores work for a series it no longer owns', async () => {
+        // A progress tick from the player the viewer navigated away from
+        // must not patch the series now on screen.
+        await service.load('pl-1', 500);
+        await service.load('pl-1', 999);
+
+        await service.recordProgress('pl-1', position(11, 42));
+
+        expect(service.byEpisodeId().has(11)).toBe(false);
+        expect(bridge.savePlaybackPosition).not.toHaveBeenCalled();
     });
 
     it('does nothing without a playlist', async () => {

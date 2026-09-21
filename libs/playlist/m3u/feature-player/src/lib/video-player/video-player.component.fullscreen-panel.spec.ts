@@ -2,6 +2,7 @@ import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, of } from 'rxjs';
 import {
@@ -158,6 +159,17 @@ describe('VideoPlayerComponent fullscreen channel panel + zapping', () => {
                     },
                 },
                 { provide: Store, useValue: storeMock },
+                {
+                    // The live views read their rows through the catalog
+                    // index now, so films and episodes stop appearing in
+                    // them. This spec is about zapping, so it hands back
+                    // the same channels it always did.
+                    provide: M3uCatalogIndexService,
+                    useValue: {
+                        liveChannels: channels,
+                        splitsCatalog: signal(false),
+                    },
+                },
                 translateServiceProvider,
                 { provide: DataService, useValue: { sendIpcEvent: jest.fn() } },
                 {

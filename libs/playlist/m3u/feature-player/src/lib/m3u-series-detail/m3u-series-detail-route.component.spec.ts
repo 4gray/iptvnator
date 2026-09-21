@@ -119,7 +119,11 @@ describe('M3uSeriesDetailRouteComponent', () => {
                 { provide: Router, useValue: { navigate } },
                 {
                     provide: ActivatedRoute,
-                    useValue: { paramMap: params, snapshot: { data: {} } },
+                    useValue: {
+                        paramMap: params,
+                        snapshot: { data: {} },
+                        parent: { outlet: 'primary' },
+                    },
                 },
                 {
                     provide: Store,
@@ -246,9 +250,12 @@ describe('M3uSeriesDetailRouteComponent', () => {
 
         component.onBack();
 
+        // Relative to the parent, because `series/:seriesId` is two
+        // segments: `['..', 'series']` from here resolves to
+        // `/series/series`, which the generic player route answers.
         expect(navigate).toHaveBeenCalledWith(
-            ['..', 'series'],
-            expect.objectContaining({})
+            ['series'],
+            expect.objectContaining({ relativeTo: expect.anything() })
         );
     });
 

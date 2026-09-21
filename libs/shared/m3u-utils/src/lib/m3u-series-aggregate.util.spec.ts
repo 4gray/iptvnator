@@ -63,6 +63,40 @@ describe('buildM3uSeriesCatalog', () => {
         expect(series[0].yearHint).toBe(2025);
     });
 
+    it('keeps remakes that share a title apart', () => {
+        // Two stated years is the evidence that these are different shows.
+        // Merged, one remake's watch progress and TMDB match would attach
+        // to the other.
+        const series = build([
+            'SHOW 2020 S1 E1',
+            'SHOW 2020 S1 E2',
+            'SHOW 2021 S1 E1',
+        ]);
+
+        expect(series).toHaveLength(2);
+        expect(series.map((s) => s.yearHint).sort()).toEqual([2020, 2021]);
+        expect(series.find((s) => s.yearHint === 2020)?.episodeCount).toBe(2);
+        expect(series.find((s) => s.yearHint === 2021)?.episodeCount).toBe(1);
+    });
+
+    it('gives remakes distinct episode ids', () => {
+        // The ids follow the split key, or the two shows would share watch
+        // history for the same season and episode number.
+        const series = build(['SHOW 2020 S1 E1', 'SHOW 2021 S1 E1']);
+        const ids = series.map((s) => s.seasons.get(1)?.[0].id);
+
+        expect(new Set(ids).size).toBe(2);
+    });
+
+    it('does not split when only one year is stated', () => {
+        // This is what keeps a yeared title merging with its unyeared
+        // siblings, which real providers write constantly.
+        const series = build(['TR:BET 2025 S1 E1', 'TR:BET S1 E2']);
+
+        expect(series).toHaveLength(1);
+        expect(series[0].episodeCount).toBe(2);
+    });
+
     it('spans groups rather than fragmenting by them', () => {
         // A show's episodes legitimately sit in more than one provider
         // group; keying on the group would split it into two series.
@@ -142,7 +176,9 @@ describe('buildM3uSeriesCatalog', () => {
         expect(series[0].posterUrl).toBe('http://logo/show.png');
     });
 
-    it('skips rows whose name yields no series title', () => {
+    it('skips a row that is nothing but a marker', () => {
+        // There is no series name in "S01E01" to file it under, and taking
+        // the marker as a title would mint one phantom series per episode.
         const series = buildM3uSeriesCatalog(
             [row('S01E01'), row('SHOW S1 E1')],
             'pl-1'
@@ -150,6 +186,20 @@ describe('buildM3uSeriesCatalog', () => {
 
         expect(series).toHaveLength(1);
         expect(series[0].title).toBe('SHOW');
+    });
+
+    it('keeps a row whose name carries no marker at all', () => {
+        // Classified as an episode by its /series/ path but named in a way
+        // the parser does not recognise. Dropping it would make provider
+        // content vanish from the catalog with no trace.
+        const series = buildM3uSeriesCatalog(
+            [row('Some Documentary Feature')],
+            'pl-1'
+        );
+
+        expect(series).toHaveLength(1);
+        expect(series[0].title).toBe('Some Documentary Feature');
+        expect(series[0].episodeCount).toBe(1);
     });
 
     it('carries the episode title the provider wrote', () => {

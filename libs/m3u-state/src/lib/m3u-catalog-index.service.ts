@@ -1,5 +1,6 @@
 import { Injectable, Signal, computed, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
+import { SettingsStore } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import {
     M3uCatalogIndex,
@@ -34,6 +35,7 @@ import { selectActivePlaylistId, selectChannels } from './selectors';
 @Injectable({ providedIn: 'root' })
 export class M3uCatalogIndexService {
     private readonly store = inject(Store);
+    private readonly settingsStore = inject(SettingsStore);
 
     private readonly channels: Signal<Channel[]> =
         this.store.selectSignal(selectChannels);
@@ -46,6 +48,30 @@ export class M3uCatalogIndexService {
     /** True once the playlist holds something other than live channels. */
     readonly hasNonLiveContent: Signal<boolean> = computed(
         () => this.index().hasNonLiveContent
+    );
+
+    /**
+     * True when films and episodes have somewhere else to go, so the live
+     * views may stop carrying them.
+     */
+    readonly splitsCatalog: Signal<boolean> = computed(
+        () =>
+            this.settingsStore.m3uCatalogTabs?.() !== false &&
+            this.index().hasNonLiveContent
+    );
+
+    /**
+     * What the live channel list should render.
+     *
+     * Without this the Movies and Series sections would be additive rather
+     * than a split: every film and episode would still sit in the live list
+     * too, and the viewer would still scroll past 58,000 of them to reach a
+     * channel. Falls back to the complete list whenever the split is off or
+     * the playlist is live-only, so the setting genuinely restores today's
+     * behaviour and a live-only playlist is untouched.
+     */
+    readonly liveChannels: Signal<readonly Channel[]> = computed(() =>
+        this.splitsCatalog() ? this.index().liveChannels : this.channels()
     );
 
     private readonly playlistId: Signal<string> = this.store.selectSignal(

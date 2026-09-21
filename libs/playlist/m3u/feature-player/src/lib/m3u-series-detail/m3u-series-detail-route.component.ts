@@ -239,8 +239,12 @@ export class M3uSeriesDetailRouteComponent {
     }
 
     protected onBack(): void {
-        void this.router.navigate(['..', 'series'], {
-            relativeTo: this.route,
+        // Relative to the PARENT, not to this route: `series/:seriesId` is a
+        // two-segment path, so `..` from here lands on `/series` and adding
+        // `series` again would ask for `/series/series` — which the generic
+        // `:view` player route answers, not the catalog.
+        void this.router.navigate(['series'], {
+            relativeTo: this.route.parent,
         });
     }
 

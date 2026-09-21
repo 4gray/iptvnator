@@ -10,9 +10,9 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
-import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ChannelActions, M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { OPEN_M3U_CHANNEL_URL_STATE_KEY } from '@iptvnator/portal/shared/util';
 import {
     CategoryViewComponent,
     GridListComponent,
@@ -20,7 +20,7 @@ import {
     PortalEmptyStateComponent,
 } from '@iptvnator/portal/shared/ui';
 import { SettingsStore } from '@iptvnator/services';
-import { foldSearchText } from '@iptvnator/shared/interfaces';
+import { Channel, foldSearchText } from '@iptvnator/shared/interfaces';
 import { M3uContentKind } from '@iptvnator/shared/m3u-utils';
 import {
     M3uCatalogCard,
@@ -71,7 +71,6 @@ interface CatalogGroup {
 export class M3uCatalogRouteComponent {
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
-    private readonly store = inject(Store);
     private readonly catalog = inject(M3uCatalogIndexService);
     private readonly settingsStore = inject(SettingsStore);
 
@@ -166,11 +165,28 @@ export class M3uCatalogRouteComponent {
 
         for (const group of this.catalog.index().groupsByKind[this.kind()]) {
             for (const channel of group.channels) {
-                map.set(channel.url, group.title);
+                map.set(channel.id || channel.url, group.title);
             }
         }
         return map;
     });
+
+    /**
+     * The row behind each card, resolved once by the same identity the card
+     * carries. Searching the kind's array by URL on activation would pick
+     * the first row sharing that URL rather than the one clicked.
+     */
+    private readonly channelByCardId = computed<ReadonlyMap<string, Channel>>(
+        () =>
+            new Map(
+                this.catalog
+                    .index()
+                    .byKind[this.kind()].map((channel) => [
+                        channel.id || channel.url,
+                        channel,
+                    ])
+            )
+    );
 
     protected readonly matches = computed<readonly M3uCatalogCard[]>(() => {
         const term = foldSearchText(this.searchTerm().trim());
@@ -241,16 +257,24 @@ export class M3uCatalogRouteComponent {
             return;
         }
 
-        const raw = card['channelUrl'];
-        const url = typeof raw === 'string' ? raw : '';
-        const channel = this.catalog
-            .index()
-            .byKind[this.kind()].find((row) => row.url === url);
+        const cardId = card['id'];
+        const channel =
+            typeof cardId === 'string'
+                ? this.channelByCardId().get(cardId)
+                : undefined;
         if (!channel) {
             return;
         }
 
-        this.store.dispatch(ChannelActions.setActiveChannel({ channel }));
-        void this.router.navigate(['../all'], { relativeTo: this.route });
+        // Handed over as navigation state rather than dispatched here: the
+        // `all` route provides a fresh route session that reloads the
+        // playlist and resets the active channel, so a dispatch made before
+        // navigating is discarded and the player opens with no selection.
+        // The player already knows how to consume this key — it is the same
+        // path global search uses.
+        void this.router.navigate(['../all'], {
+            relativeTo: this.route,
+            state: { [OPEN_M3U_CHANNEL_URL_STATE_KEY]: channel.url },
+        });
     }
 }
