@@ -59,6 +59,7 @@ Rendered HTML anchor and image-map area hrefs and image sources use the same loc
 as Markdown links, including decoded attributes and fragment validation.
 URL attributes discard surrounding ASCII control/space characters before resolution.
 Iframe sources are document references and retain Markdown-target anchor checks.
+Image and media references must resolve to files, not directories.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
 HTML video, audio, source and track `src` assets and video posters use the same

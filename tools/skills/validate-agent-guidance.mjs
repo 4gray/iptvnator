@@ -61,6 +61,8 @@ async function validateReference(
         const actual = await realpath(absolute);
         if (!within(rootDir, actual))
             return `${source}: referenced path escapes repository root: ${target}`;
+        if (image && !(await stat(actual)).isFile())
+            return `${source}: media target is not a file: ${target}`;
         if (
             anchor &&
             !image &&

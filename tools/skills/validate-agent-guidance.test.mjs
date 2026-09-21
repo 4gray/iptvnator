@@ -1319,3 +1319,18 @@ for (const name of [
         );
     });
 }
+
+for (const reference of [
+    '![logo](docs/)',
+    '<img src="docs/">',
+    '<video src="docs/"></video>',
+    '<video poster="docs/"></video>',
+]) {
+    test(`media target must be a file: ${reference}`, async (t) => {
+        assert.ok(
+            (await diagnostics(t, { 'AGENTS.md': reference })).some((message) =>
+                message.includes('not a file')
+            )
+        );
+    });
+}
