@@ -73,7 +73,8 @@ including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
 At-signs inside external URIs (including explicit opaque autolinks such as mailto) are excluded
 per HTML text node, preserving adjacent imports. A colon directly before an import
-does not make that import a URI.
+does not make that import a URI. Opaque schemes are excluded only in parsed links
+whose visible text equals their URI, so colon-labeled prose remains checked.
 A closing bracket followed by punctuation and an at-sign terminates a bare URL exclusion.
 Extensionless inline candidates are also imports when they resolve to repository files,
 checking the full filename before prefixes at ASCII/Unicode prose separators.

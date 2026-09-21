@@ -145,9 +145,22 @@ export function guidanceProse(markdown) {
             )
         )
             return ' ';
+        if (node.tagName === 'a') {
+            const href = node.attrs?.find(
+                (attribute) => attribute.name === 'href'
+            )?.value;
+            if (
+                href &&
+                /^[a-z][a-z\d+.-]*:(?!\/\/)/iu.test(href) &&
+                node.childNodes?.length === 1 &&
+                node.childNodes[0].nodeName === '#text' &&
+                node.childNodes[0].value === href
+            )
+                return ' ';
+        }
         if (node.nodeName === '#text')
             return node.value.replace(
-                /(?:(?<![@/\p{L}\p{N}_])[a-z][a-z\d+.-]*:(?![@\s])|\/\/)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
+                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
                 ' '
             );
         const content = (node.childNodes ?? []).map(text).join('');

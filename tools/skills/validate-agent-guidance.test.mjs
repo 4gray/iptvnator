@@ -1522,3 +1522,13 @@ test('colon directly before an import remains checked', async (t) => {
         ).some((message) => message.includes('additional or inline'))
     );
 });
+
+test('colon-labeled prose cannot hide imports', async (t) => {
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'CLAUDE.md': '@AGENTS.md\n\nFallback:then;@docs/guide.md',
+            })
+        ).some((message) => message.includes('additional or inline'))
+    );
+});
