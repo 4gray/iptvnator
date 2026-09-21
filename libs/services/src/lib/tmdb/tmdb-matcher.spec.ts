@@ -160,9 +160,9 @@ describe('buildSearchTitleVariants', () => {
     });
 
     it('keeps spellings that fold to one key but differ on the wire', () => {
-        // A misspelled original title must not swallow the display title:
-        // TMDB knows "Лейка" and not "Леика", and only the second variant
-        // would find it.
+        // A misspelled original title must not swallow the display title.
+        // Take a pair where only the display spelling is the one TMDB
+        // indexes: only the second variant can find it.
         expect(buildSearchTitleVariants('Лейка', 'Леика')).toEqual([
             { query: 'Леика', normalized: 'леика' },
             { query: 'Лейка', normalized: 'леика' },

@@ -434,8 +434,9 @@ describe('titleYearsCompatible', () => {
 describe('cleanTitleForSearch', () => {
     it('keeps Cyrillic letters that folding would rewrite', () => {
         // NFD splits "й" into "и" + a breve and "ё" into "е" + a diaeresis;
-        // the comparison key drops both marks, and TMDB answers the folded
-        // spelling with nothing (issue: "Лейка (10 серий)" never matched).
+        // the comparison key drops both marks, and TMDB answers that folded
+        // spelling with nothing. The titles here are illustrative stand-ins
+        // chosen to fold the same way.
         expect(normalizeTitle('Лейка (10 серий)')).toBe('леика');
         expect(cleanTitleForSearch('Лейка (10 серий)')).toBe('Лейка');
         expect(cleanTitleForSearch('Ёжик 2010')).toBe('Ёжик');
@@ -446,8 +447,8 @@ describe('cleanTitleForSearch', () => {
 
     it('keeps Arabic hamza forms that folding splits into two words', () => {
         // "أ" decomposes into a bare alef + U+0654, which is outside the
-        // stripped mark range and so becomes a SPACE in the key. TMDB finds
-        // "أمثلة تجريبية" and nothing for "ا مثلة تجريبية".
+        // stripped mark range and so becomes a SPACE in the key — splitting
+        // the word in two, which is not a spelling TMDB indexes.
         expect(normalizeTitle('AR| أمثلة تجريبية')).toBe('ا مثلة تجريبية');
         expect(cleanTitleForSearch('AR| أمثلة تجريبية')).toBe('أمثلة تجريبية');
     });

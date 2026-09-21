@@ -9,7 +9,8 @@ import { TmdbSearchResult } from './tmdb.types';
  * Regression coverage for the search wire format. The comparison key folds
  * diacritics — Cyrillic "й" becomes "и" — and that key used to be sent as
  * the TMDB query, which matched nothing for any title carrying "й"/"ё" and
- * cached the miss for a week ("Лейка (10 серий)", "Тестовый Сериал").
+ * cached the miss for a week. The titles below are illustrative stand-ins
+ * that fold the same way, not the ones the failures were observed on.
  */
 describe('TmdbIdResolverService.resolveBySearch', () => {
     const series2026: TmdbSearchResult = {

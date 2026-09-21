@@ -520,7 +520,8 @@ export function normalizeTitleKeys(
  *
  * Comparison keys must fold so two spellings of one film meet; a search
  * query must not, because the search engine folds by its own rules and a
- * pre-folded Cyrillic query ("леика" for "Лейка") matches nothing there.
+ * pre-folded Cyrillic query matches nothing there ("леика" for "Лейка"
+ * illustrates the rewrite).
  * Compare the results with `normalizeTitle`, never with this.
  */
 export function cleanTitleForSearch(raw: string | null | undefined): string {
