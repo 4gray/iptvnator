@@ -1334,3 +1334,39 @@ for (const reference of [
         );
     });
 }
+
+for (const html of [
+    '<details><summary>Use @angular/core</summary><p>for Angular</p></details>',
+    '<table><tr><td>Use @angular/core</td><td>for Angular</td></tr></table>',
+    '<section>Use @angular/core</section><aside>for Angular</aside>',
+]) {
+    test(`HTML blocks separate package prose: ${html}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': html,
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+            }),
+            []
+        );
+    });
+}
+for (const tag of ['object', 'embed']) {
+    test(`embedded document targets are checked: ${tag}`, async (t) => {
+        const markup = (target) =>
+            `<${tag} ${tag === 'object' ? 'data' : 'src'}="${target}"></${tag}>`;
+        for (const target of ['docs/missing.pdf', 'docs/example.md#missing']) {
+            assert.ok(
+                (await diagnostics(t, { 'AGENTS.md': markup(target) })).length >
+                    0
+            );
+        }
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': markup('docs/example.md#repeat'),
+            }),
+            []
+        );
+    });
+}

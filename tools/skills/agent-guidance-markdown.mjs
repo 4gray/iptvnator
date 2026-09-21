@@ -78,16 +78,20 @@ function htmlNavigation(html, inspect = () => {}) {
                     'source',
                     'track',
                     'iframe',
+                    'embed',
                 ].includes(node.tagName) &&
                     attribute.name === 'src') ||
-                (node.tagName === 'video' && attribute.name === 'poster')
+                (node.tagName === 'video' && attribute.name === 'poster') ||
+                (node.tagName === 'object' && attribute.name === 'data')
             )
                 references.push({
                     target: attribute.value.replace(
                         /^[\u0000-\u0020]+|[\u0000-\u0020]+$/gu,
                         ''
                     ),
-                    image: !['a', 'area', 'iframe'].includes(node.tagName),
+                    image: !['a', 'area', 'iframe', 'object', 'embed'].includes(
+                        node.tagName
+                    ),
                 });
             if (
                 ['img', 'source'].includes(node.tagName) &&
@@ -113,6 +117,37 @@ export function guidanceProse(markdown) {
         if (node.nodeName === '#text') return node.value;
         const content = (node.childNodes ?? []).map(text).join('');
         return [
+            'address',
+            'article',
+            'aside',
+            'details',
+            'summary',
+            'dialog',
+            'dl',
+            'dt',
+            'dd',
+            'fieldset',
+            'legend',
+            'figure',
+            'figcaption',
+            'footer',
+            'form',
+            'header',
+            'hgroup',
+            'hr',
+            'main',
+            'nav',
+            'ol',
+            'ul',
+            'section',
+            'table',
+            'caption',
+            'thead',
+            'tbody',
+            'tfoot',
+            'tr',
+            'td',
+            'th',
             'p',
             'li',
             'blockquote',
@@ -125,7 +160,7 @@ export function guidanceProse(markdown) {
             'h5',
             'h6',
         ].includes(node.tagName)
-            ? content + '\n'
+            ? '\n' + content + '\n'
             : content;
     }
     return text(parseFragment(new Marked().parse(markdown)));

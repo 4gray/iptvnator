@@ -58,7 +58,7 @@ Explicit HTML anchors use `parse5`, excluding comments, scripts, styles and temp
 Rendered HTML anchor and image-map area hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
 URL attributes discard surrounding ASCII control/space characters before resolution.
-Iframe sources are document references and retain Markdown-target anchor checks.
+Iframe/embed sources and object data attributes are document references and retain Markdown-target anchor checks.
 Image and media references must resolve to files, not directories.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
@@ -85,7 +85,7 @@ separate package mentions from adjacent prose.
 Markdown destinations decode HTML entities before URI parsing, matching rendered links.
 Heading-anchor lookup is limited to Markdown targets. Source-file line fragments,
 PDF page fragments and other non-Markdown fragments retain file-existence checks.
-The import scan includes visible HTML text and literal backticks; it excludes parsed code nodes and non-rendered containers.
+The import scan separates HTML block/table elements and includes visible text and literal backticks; it excludes parsed code nodes and non-rendered containers.
 Navigation uses the parsed rendered tree too. Temporary in-memory markers retain
 definition, unresolved-reference and literal-path metadata, so Markdown inside
 inert templates is excluded consistently with raw HTML navigation.
