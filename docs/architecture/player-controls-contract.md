@@ -7,6 +7,9 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+The shared-controls preference checkbox is visible only when HTML5, Video.js
+or ArtPlayer is selected in Settings → Playback.
+
 The shared-controls foundation supports four runtime consumers and includes:
 
 - the `PlayerController` contract, default state, and capability presets;
@@ -1533,3 +1536,36 @@ replacement, track-list lifecycle and stable IDs, caption preference and
 explicit-off behavior, MPEG-TS live/VOD handling and duration projection,
 volume preservation/authority, stale ArtPlayer `customType` callbacks, and
 collaborator teardown. Persistent/background player ownership has not landed.
+
+## Radio and display sleep
+
+### Radio audio player
+
+M3U `radio="true"` entries use `AudioPlayerComponent` under
+`libs/ui/playback/src/lib/audio-player/`. The player always renders inline and
+uses HTML5 `<audio>` regardless of the configured video player. Radio bypasses
+`shouldShowInlinePlayer`'s external-player gate and hides the EPG ribbon and panel
+toggle. The station artwork, blurred logo background and glass controls form the
+radio layout; title/group scrolling is CSS-only. It supports play/pause, mute,
+and volume, including the volume keys in 5% steps. Volume shares the video
+players' `volume` localStorage key. The template, SCSS and TypeScript component
+live together; routing/integration stays in the M3U player template.
+
+### Display sleep during playback
+
+`PlaybackKeepAwakeService` in the web app watches `<video>` using document-level
+capture listeners because media events do not bubble. Release listeners also
+attach to the tracked element: Chromium's pause after DOM removal never reaches
+the document. A playing video holds a display-sleep lock only while the document
+is visible or that video is in picture-in-picture, which survives minimization.
+
+Electron uses main-process `powerSaveBlocker` through
+`window.electron.setPlaybackKeepAwake`. The renderer vote clears on reload,
+main-frame non-same-document navigation, crash (`render-process-gone`) or
+destruction; Angular navigation does not itself clear it. The PWA uses Screen
+Wake Lock. Browser auto-release clears its sentinel; the next media, visibility
+or PiP synchronization can request another lock. If state changes during a
+pending request, rejection triggers one queued re-evaluation rather than losing
+that update. Radio `<audio>` deliberately never blocks display sleep.
+Embedded MPV owns a separate blocker in `EmbeddedMpvNativeService`, and external
+MPV/VLC inhibit their own screensaver.

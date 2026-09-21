@@ -130,6 +130,22 @@ patched prefilter/matcher wiring and version pin, stress-tests the false-positiv
 chunk shape, and preserves ordinary and comment-bearing asset and worker
 `new URL(..., import.meta.url)` matches.
 
+## Electron Builder signing patch
+
+`app-builder-lib` 26.15.7 is patched in
+`patches/app-builder-lib@26.15.7.patch` with the upstream backport
+electron-userland/electron-builder#10172. For macOS signing,
+`security set-key-partition-list -k` must receive the temporary keychain's own
+password rather than the `.p12` import password. macOS runner images since
+`macos-26-arm64` 20260831 verify that password; the old argument caused
+`SecKeychainUnlock: The user name or passphrase you entered is not correct`.
+Keep the patch until electron-builder resolves a fixed app-builder-lib (26.16.1+).
+Run `pnpm run deps:electron-builder:test` after related dependency updates; it
+also rejects a mismatch between the patched and installed version.
+
+Native addon builds additionally require the root `node-gyp` devDependency;
+see [runtime staging](embedded-mpv-native.md#runtime-staging) before removing it.
+
 ## Placement Decision
 
 - `apps/` owns runtime applications, development servers, E2E applications,

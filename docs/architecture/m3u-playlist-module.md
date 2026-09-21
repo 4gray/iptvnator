@@ -1906,3 +1906,44 @@ deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
 row after a cleanup failure. Downloaded files are not removed. The dialog's
 confirmation covers deletion of the source and associated favorites, history
 and playback positions; no deletion happens on merely opening the dialog.
+
+## Opening playlists from the operating system
+
+Electron only: a `.m3u`/`.m3u8` path passed
+on the command line, opened through a file association, or delivered by macOS'
+`open-file` event is normalized to an absolute path in the main process
+(`apps/electron-backend/src/app/services/playlist-open-request.ts`) and queued there. The renderer
+(`apps/web/src/app/services/playlist-open-request.service.ts`) subscribes to the
+`OPEN_FILE` push **before** calling `announcePlaylistOpenListener`, which is
+what makes the main process flush. `OPEN_FILE` is the only way out of the
+queue, and a request stays there until the renderer confirms receipt via
+`acknowledgePlaylistOpenRequest` — `webContents.send()` returns before the
+listener runs, and a reload or dead render process keeps the `WebContents`
+alive, so a successful push is not proof of delivery. Anything unacknowledged
+is replayed to the next renderer that announces itself. The renderer
+imports them on a single promise chain so a burst arrives in a deterministic
+order. `addPlaylist$` in `libs/m3u-state` uses `concatMap` (not `switchMap`)
+for the same reason: each action carries a different playlist, so a newer add
+must never cancel an older one's write, EPG fetch and navigation. The import
+itself reuses the normal file path
+(`updatePlaylistFromFilePath` → `PlaylistActions.addPlaylist`), so persistence,
+playlist-scoped EPG, and the navigation to the new playlist all behave exactly
+like a dialog import.
+
+The OS-level registration that makes those paths reachable is
+`fileAssociations` in `electron-builder.json` — one entry per extension, each
+with its own `mimeType`. Electron Builder derives all three platform
+registrations from it: macOS `CFBundleDocumentTypes` (which is what makes
+`open-file` fire from Finder), the NSIS registry entries, and, on Linux, the
+desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
+deb/rpm/pacman. Two traps: it assigns the derived `MimeType` _after_ spreading
+`linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
+must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
+over percent-encoded `file://` URIs rather than paths —
+`createPlaylistOpenRequest` decodes them before the extension check. `%U` is
+also the _plural_ exec code, so a multi-file selection arrives as one launch
+with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
+of them and `enqueueAll` queues the batch, because stopping at the first match
+would silently drop the rest of the selection. Adding an exec code to
+`linux.executableArgs` would suppress the `%U` but also pass that code to the
+app as a real argument, so it is not an option.

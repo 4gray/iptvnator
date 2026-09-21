@@ -11,6 +11,16 @@ pnpm nx show projects --withTarget lint
 pnpm nx show projects --withTarget e2e
 ```
 
+## Manual CI Runs
+
+When a PR event does not start checks for the current head, dispatch CI and E2E
+with `gh workflow run ci.yml --ref <branch>` and
+`gh workflow run e2e-tests.yaml --ref <branch>`. CodeQL also supports
+`gh workflow run codeql-analysis.yml --ref <branch>`; this analyzes the selected
+branch commit instead of the PR merge commit. Verify each run's head SHA before
+using its result as evidence. Docker validation can use
+`gh workflow run docker.yml --ref <branch> -f push=false`.
+
 ## Unit And Type Checks
 
 | Area                               | Command                             |
@@ -152,3 +162,31 @@ are gated by:
 ```bash
 IPTVNATOR_TRACE_PLAYER=1 pnpm run serve:backend
 ```
+
+## Test impact and completion
+
+Before finishing a feature, bug fix, data-flow or UI workflow change, identify
+the affected projects and choose unit, integration, E2E, build, lint and manual
+checks. Bug fixes normally include regression coverage that fails before the
+fix. If automation is impractical, explain why and report the strongest manual
+validation. Update fixtures, mocks, routes and E2E flows when behavior changes.
+Prefer extending the closest existing suite to introducing a parallel suite.
+
+Run targeted unit checks first, then affected E2E for workflows, routing,
+persistence, playback, portals, settings or import flows. Electron IPC, SQLite,
+packaged runtime, external players, native files and Electron-only routes require
+Electron E2E where available, otherwise CDP/manual verification using the
+[debugging guide](../development/electron-debugging.md). Prefer atomized E2E
+targets before broad suites. Final reports name tests changed, commands/results,
+and skipped validation with reasons. Docs-only changes need Markdown validation,
+not app unit/E2E. Tooling validation still requires its own focused tests.
+
+## Agent guidance checks
+
+`pnpm run agents:validate` checks root instruction budgets/imports and guidance
+navigation links/anchors. `pnpm run skills:validate` checks skill frontmatter,
+length, paths and release mirrors. Both tooling suites run through
+`pnpm nx test repository-skills`; syntax checks use
+`pnpm nx lint repository-skills`. The CI guidance check runs regardless of the
+Nx affected set. Semantic preservation of moved contracts is a review task;
+link validation alone cannot prove it.

@@ -84,6 +84,8 @@ pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/linux-prefix
 
 ### Windows CI pin lifecycle
 
+The PAT-backed refresh job must pin every third-party action to a full commit.
+
 Windows package builds consume the one validated record in
 `windows-runtime-pin.json`; URL and checksum repository variables are not build
 inputs. Check it locally with:

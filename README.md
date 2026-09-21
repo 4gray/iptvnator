@@ -389,3 +389,11 @@ The name **"IPTVnator"** and the IPTVnator logo are unregistered trademarks of t
 [![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](#contributors)
 
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
+
+## Developer and agent documentation
+
+Start with the [task context map](docs/maintenance/agent-context-map.md) to find
+the authoritative contract and validation for your area. Common agent rules are
+in [AGENTS.md](AGENTS.md); Claude Code imports that same file. Development and
+documentation-maintenance conventions live in the
+[agent workflow](docs/development/agent-workflow.md).
