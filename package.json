@@ -156,7 +156,7 @@
         "@angular/platform-browser-dynamic": "22.1.6",
         "@angular/router": "22.1.6",
         "@angular/service-worker": "22.1.6",
-        "@astrojs/mdx": "7.0.7",
+        "@astrojs/mdx": "8.0.1",
         "@astrojs/sitemap": "3.7.4",
         "@babel/core": "7.29.7",
         "@electron/asar": "3.4.1",
