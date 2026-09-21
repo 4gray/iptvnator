@@ -75,6 +75,7 @@ import {
     combineLatest,
     filter,
     map,
+    merge,
     of,
     startWith,
     switchMap,
@@ -143,6 +144,7 @@ import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.serv
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
@@ -242,6 +244,7 @@ export class VideoPlayerComponent
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
+    private readonly catalogIndex = inject(M3uCatalogIndexService);
     private readonly epgService = inject(EpgService);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
@@ -521,10 +524,26 @@ export class VideoPlayerComponent
     readonly isSidebarCollapsed =
         this.liveSidebarStateService.isCollapsedFor('m3u');
 
-    /** Channels list */
-    readonly channels$: Observable<Channel[]> = this.store.select(
-        selectChannels
-    ) as Observable<Channel[]>;
+    /**
+     * Channels the live views render.
+     *
+     * The catalog index drops films and episodes once they have their own
+     * sections; without that the split would be additive and the live list
+     * would still carry everything. Remote up/down reads the same list, so
+     * zapping walks channels rather than wandering into a film.
+     */
+    readonly channels$: Observable<Channel[]> = merge(
+        this.store.select(selectChannels),
+        // So flipping the setting re-renders the rail instead of waiting
+        // for the next playlist load.
+        toObservable(this.catalogIndex.splitsCatalog)
+    ).pipe(
+        // `merge` rather than `combineLatest`: the store emits
+        // synchronously on subscribe, and remote up/down reads this stream
+        // with `take(1)`. An operator that waited for a second source would
+        // leave that path with nothing to read.
+        map(() => this.catalogIndex.liveChannels() as Channel[])
+    );
 
     /** Current epg program */
     readonly epgProgram = this.store.selectSignal(selectCurrentEpgProgram);

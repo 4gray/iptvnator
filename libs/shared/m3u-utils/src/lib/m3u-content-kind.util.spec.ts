@@ -81,14 +81,20 @@ describe('classifyM3uEntry', () => {
             ).toBe('movie');
         });
 
-        it('accepts a weak marker once no path stated the kind', () => {
-            // Nothing else is left to go on, and the container already
-            // proved this is a file rather than a stream.
+        it('applies the same strong-code rule with no path evidence', () => {
+            // One name must not get two answers depending on a path that
+            // said nothing: word order is what separates a film instalment
+            // from an episode, and the URL does not change that.
+            expect(
+                classifyM3uEntry(
+                    entry('http://h.example/x/y.mkv', 'Dark S02E03')
+                )
+            ).toBe('episode');
             expect(
                 classifyM3uEntry(
                     entry('http://h.example/x/y.mkv', 'Breaking Bad Episode 5')
                 )
-            ).toBe('episode');
+            ).toBe('movie');
         });
 
         it('never turns a stream container into a movie', () => {
@@ -101,6 +107,31 @@ describe('classifyM3uEntry', () => {
                     'live'
                 );
             }
+        });
+
+        it('keeps a live path that happens to contain the word series', () => {
+            // "/live/user/series/123.ts" is a channel; the stated rule is
+            // that live wins, so the guard runs before the series check.
+            expect(
+                classifyM3uEntry(
+                    entry('http://h.example/live/user/series/123.ts', 'Sport')
+                )
+            ).toBe('live');
+        });
+
+        it('keeps a season-named film a film with no path evidence', () => {
+            // Nothing but the extension and the name to go on, and a season
+            // word alone has never identified an episode.
+            expect(
+                classifyM3uEntry(
+                    entry('http://h.example/x/y.mp4', 'OPEN SEASON 3 2010')
+                )
+            ).toBe('movie');
+            expect(
+                classifyM3uEntry(
+                    entry('http://h.example/x/y.mp4', 'KILL BILL: BÖLÜM 2')
+                )
+            ).toBe('movie');
         });
 
         it('reads the path, not the query string', () => {

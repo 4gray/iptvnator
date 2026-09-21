@@ -485,6 +485,26 @@ export function getUnifiedCollectionNavigation(
         });
     }
 
+    if (item.sourceType === 'm3u') {
+        // Every M3U kind opens the same way: the playlist's own list, with
+        // the row named in navigation state. The player then decides what
+        // to show — the VOD detail for a film, the live layout for a
+        // channel — so one branch covers live, movie and series alike.
+        //
+        // Without this a favourited film or episode is a dead click: the
+        // portal branches above reject M3U, and the caller falls through
+        // to null.
+        const streamUrl = (item.streamUrl ?? '').trim();
+        if (!streamUrl) {
+            return null;
+        }
+
+        return {
+            link: ['/workspace', 'playlists', item.playlistId, 'all'],
+            state: { openM3uChannelUrl: streamUrl },
+        };
+    }
+
     return null;
 }
 

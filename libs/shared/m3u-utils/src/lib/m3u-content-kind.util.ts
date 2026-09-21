@@ -1,7 +1,6 @@
 import { isDashStreamUrl } from './dash.utils';
 import { getPlaybackMediaExtensionFromUrl } from './playback-media-extension.util';
 import {
-    hasEpisodeMarker,
     hasStrongEpisodeCode,
     isVodContainerExtension,
 } from './m3u-vod-detection.util';
@@ -95,14 +94,17 @@ export function classifyM3uEntry(
 
     const path = pathOf(url);
 
-    if (path.includes(SERIES_SEGMENT)) {
-        return 'episode';
-    }
-
-    // The guard that protects working channels: a live stream whose name
-    // happens to read "MTV S1 E1" must not leave the live layout.
+    // The guard that protects working channels comes FIRST, because the
+    // stated rule is that live wins: a stream published under
+    // `/live/user/series/123.ts` is a channel whose path happens to contain
+    // the word, and checking `/series/` ahead of it would file it as an
+    // episode.
     if (path.includes(LIVE_SEGMENT)) {
         return 'live';
+    }
+
+    if (path.includes(SERIES_SEGMENT)) {
+        return 'episode';
     }
 
     const name = channel.name;
@@ -115,10 +117,13 @@ export function classifyM3uEntry(
     // `.m3u8` or extension-less URL is how live is delivered, so it falls
     // through to live below.
     if (isVodContainerExtension(getPlaybackMediaExtensionFromUrl(url))) {
-        // The path already failed to claim this row, so a weak marker is the
-        // best evidence available and is accepted here — unlike under
-        // `/movie/`, where the provider stated the kind itself.
-        return hasEpisodeMarker(name) ? 'episode' : 'movie';
+        // The SAME strong-code rule as under `/movie/`. Accepting weak
+        // markers here would give one name two different answers depending
+        // on a path that said nothing at all: "KILL BILL: BÖLÜM 2" would be
+        // a film under `/movie/` and an episode as a bare `.mp4`. Word
+        // order is what separates a film instalment from an episode, and
+        // that does not change with the URL.
+        return hasStrongEpisodeCode(name) ? 'episode' : 'movie';
     }
 
     return 'live';

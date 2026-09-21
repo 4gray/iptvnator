@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject } from 'rxjs';
-import { ChannelActions, M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import {
@@ -160,21 +160,25 @@ describe('M3uCatalogRouteComponent', () => {
         expect(component.isEmpty()).toBe(true);
     });
 
-    it('hands an activated card to the existing player route', async () => {
+    it('hands an activated card to the player as navigation state', async () => {
+        // Not a dispatch: the `all` route provides a fresh session that
+        // reloads the playlist and resets the active channel, so anything
+        // dispatched before navigating is discarded.
         channels.set([DUNE]);
         const fixture = await render('movie');
         const component = fixture.componentInstance as unknown as {
-            onCardActivated(card: { channelUrl: string }): void;
+            cards(): { id: string }[];
+            onCardActivated(card: { id: string }): void;
         };
 
-        component.onCardActivated({ channelUrl: DUNE.url });
+        component.onCardActivated({ id: component.cards()[0].id });
 
-        expect(dispatch).toHaveBeenCalledWith(
-            ChannelActions.setActiveChannel({ channel: DUNE })
-        );
+        expect(dispatch).not.toHaveBeenCalled();
         expect(navigate).toHaveBeenCalledWith(
             ['../all'],
-            expect.objectContaining({})
+            expect.objectContaining({
+                state: { openM3uChannelUrl: DUNE.url },
+            })
         );
     });
 
@@ -182,10 +186,10 @@ describe('M3uCatalogRouteComponent', () => {
         channels.set([DUNE]);
         const fixture = await render('movie');
         const component = fixture.componentInstance as unknown as {
-            onCardActivated(card: { channelUrl: string }): void;
+            onCardActivated(card: { id: string }): void;
         };
 
-        component.onCardActivated({ channelUrl: 'http://h.example/gone.mkv' });
+        component.onCardActivated({ id: 'http://h.example/gone.mkv' });
 
         expect(dispatch).not.toHaveBeenCalled();
         expect(navigate).not.toHaveBeenCalled();

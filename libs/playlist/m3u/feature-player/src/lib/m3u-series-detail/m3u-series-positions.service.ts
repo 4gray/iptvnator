@@ -32,7 +32,21 @@ export class M3uSeriesPositionsService {
     /** Keyed by episode id, which is what the shared season grid looks up. */
     readonly byEpisodeId = this.positions.asReadonly();
 
+    /**
+     * Which request owns the state. Navigating between series issues a
+     * second read while the first is still in the database worker, and
+     * without this the slower one wins — showing the previous show's
+     * watched and resume state on the page now open.
+     */
+    private loadToken = 0;
+
+    /** The playlist/series the published map describes. */
+    private owner = '';
+
     async load(playlistId: string, seriesId: number): Promise<void> {
+        const token = ++this.loadToken;
+        this.owner = `${playlistId}\u0000${seriesId}`;
+
         if (!playlistId || !seriesId) {
             this.positions.set(new Map());
             return;
@@ -42,6 +56,10 @@ export class M3uSeriesPositionsService {
             playlistId,
             seriesId
         );
+        if (token !== this.loadToken) {
+            return;
+        }
+
         this.positions.set(
             new Map(rows.map((row) => [row.contentXtreamId, row]))
         );
@@ -59,7 +77,9 @@ export class M3uSeriesPositionsService {
         playlistId: string,
         position: PlaybackPositionData
     ): Promise<void> {
-        if (!playlistId) {
+        if (!playlistId || !this.owns(playlistId, position.seriesXtreamId)) {
+            // A tick from the player the viewer has already navigated away
+            // from would otherwise patch the new series' map.
             return;
         }
 
@@ -82,7 +102,7 @@ export class M3uSeriesPositionsService {
             | SeasonContainerPlaybackToggleRequest
             | SeasonContainerSeriesPlaybackToggleRequest
     ): Promise<void> {
-        if (!playlistId) {
+        if (!playlistId || !this.owns(playlistId, seriesId)) {
             return;
         }
 
@@ -104,6 +124,10 @@ export class M3uSeriesPositionsService {
         }
 
         await this.load(playlistId, seriesId);
+    }
+
+    private owns(playlistId: string, seriesId: number | undefined): boolean {
+        return this.owner === `${playlistId}\u0000${seriesId ?? 0}`;
     }
 
     private patch(position: PlaybackPositionData): void {

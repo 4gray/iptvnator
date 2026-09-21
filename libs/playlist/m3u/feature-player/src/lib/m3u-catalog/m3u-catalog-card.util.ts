@@ -42,9 +42,12 @@ export function toM3uCatalogCard(
     const name = applyChannelNameStrip(channel.name, stripPrefix);
 
     return {
-        // The parser mints a fresh random id on every import, so the URL is
-        // the only stable identity a card can carry across a refresh.
-        id: channel.url,
+        // The row's own id, not its URL: two imported rows can legitimately
+        // share a stream URL, and keying on it would file both cards under
+        // one group and open whichever row happened to be found first.
+        // Cards are never persisted, so per-session identity is enough, and
+        // the URL remains the fallback for rows the parser gave no id.
+        id: channel.id || channel.url,
         name,
         title: name,
         poster_url: channel.tvg?.logo || undefined,

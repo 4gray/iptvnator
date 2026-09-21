@@ -37,6 +37,15 @@ export interface M3uCatalogGroup<T> {
 
 export interface M3uCatalogIndex<T> {
     readonly byKind: Readonly<Record<M3uContentKind, readonly T[]>>;
+    /**
+     * Live and radio rows together, in the provider's own order.
+     *
+     * The live channel list renders this rather than `byKind.live`:
+     * concatenating the two buckets would put every radio station after
+     * every TV channel, which is not how the playlist is written. Built in
+     * the same pass so it costs nothing.
+     */
+    readonly liveChannels: readonly T[];
     readonly groupsByKind: Readonly<
         Record<M3uContentKind, readonly M3uCatalogGroup<T>[]>
     >;
@@ -59,12 +68,16 @@ export function buildM3uCatalogIndex<T extends M3uCatalogEntry>(
     channels: readonly T[] | null | undefined
 ): M3uCatalogIndex<T> {
     const byKind = emptyKindRecord<T[]>(() => []);
+    const liveChannels: T[] = [];
     const groupOrder = emptyKindRecord<string[]>(() => []);
     const groupRows = emptyKindRecord<Map<string, T[]>>(() => new Map());
 
     for (const channel of channels ?? []) {
         const kind = classifyM3uEntry(channel);
         byKind[kind].push(channel);
+        if (kind === 'live' || kind === 'radio') {
+            liveChannels.push(channel);
+        }
 
         const title = channel.group?.title ?? '';
         const buckets = groupRows[kind];
@@ -91,6 +104,7 @@ export function buildM3uCatalogIndex<T extends M3uCatalogEntry>(
 
     return {
         byKind,
+        liveChannels,
         groupsByKind,
         counts,
         hasNonLiveContent: counts.movie > 0 || counts.episode > 0,
