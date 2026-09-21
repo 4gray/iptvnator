@@ -40,8 +40,8 @@ function stripLeadingLanguageToken(raw: string): string | null {
 /**
  * One search candidate: what to SEND to TMDB and what to COMPARE its
  * answers against. The two differ on purpose — see `cleanTitleForSearch`:
- * a folded query ("феик") finds nothing on TMDB while the folded key is
- * exactly what the confidence gate and the cache need.
+ * folding rewrites letters TMDB matches on, so the folded form finds nothing
+ * there, while it is exactly what the confidence gate and the cache need.
  */
 export interface SearchTitleVariant {
     /** Provider spelling with tags/brackets/season/year stripped */
@@ -53,7 +53,8 @@ export interface SearchTitleVariant {
 /**
  * The identity of one search on the wire: the query with only the case
  * removed, since TMDB matches case-insensitively and nothing else about
- * the spelling may be folded away — "Феик" and "Фейк" are different
+ * the spelling may be folded away — "Леика" and "Лейка" (illustrative) are
+ * different
  * searches with different answers, however alike their comparison keys.
  * Both the variant deduplication and the cache row use this, so a cached
  * verdict can never be read back for a search that was never sent.
@@ -116,11 +117,11 @@ export function buildSearchLookupKey(
     // v2: normalizeTitleKeys learned to strip appended language/quality
     // tags; the version suffix invalidates cached (incl. negative) match
     // resolutions keyed on the old polluted titles.
-    // v3: the search query stopped being the folded key ("феик" for
-    // "Фейк"), which TMDB answered with nothing; every negative row recorded
-    // under v2 for a title with "й"/"ё" is that bug, not a missing title, and
-    // must not block the retry for its 7-day TTL. Rows are keyed by the
-    // query since then.
+    // v3: the search query stopped being the folded key — the fold rewrites
+    // "й" as "и" ("леика" for "Лейка", to illustrate) and TMDB answers that
+    // spelling with nothing; every negative row recorded under v2 for a title
+    // with "й"/"ё" is that bug, not a missing title, and must not block the
+    // retry for its 7-day TTL. Rows are keyed by the query since then.
     // v4: year evidence is tiered (see `yearEvidenceTier`), so every v3 row
     // resolved by popularity across tiers may name the wrong show — and a
     // positive row stays fresh for 30 days.

@@ -537,8 +537,9 @@ identity is the query with only its case removed (`searchQueryIdentity`):
 variants are deduplicated by it and every attempted variant is cached under
 its own key (`title:<identity>|year:<y>|v4`, in the language that variant
 was searched in), never by the folded key and never only under the first
-variant — "Феик" and "Фейк" fold to one key but are different searches with
-different answers, so a verdict for one must not be read back for the other;
+variant — "Леика" and "Лейка", an illustrative pair, fold to one key while
+staying two different searches that can get different answers, so a verdict
+for one must not be read back for the other;
 a misspelled original title must not swallow the display title that TMDB
 actually knows; and two items that share an original title but not a display
 title walk different variant lists, so a row keyed on the first variant alone
@@ -547,11 +548,13 @@ splits Cyrillic "й" into "и" + a combining breve and "ё" into "е" + a
 diaeresis, and Arabic hamza forms ("أ") into a bare alef + a combining hamza
 that the punctuation step then turns into a space inside the word. The key
 drops or splits on those marks, and TMDB's `/search` does not fold them the
-same way — a query of `феик` returns zero results while `Фейк` returns the
-show. Under the old single-form design every Russian title with "й"/"ё"
-("Фейк (10 серий)", "Волшебный участок", "Молодой Шерлок") was searched
-folded, missed, and cached as missing for the 7-day negative TTL. Compare
-results only through `normalized`; never send it over the wire.
+same way, so a folded query matches nothing there. Under the old single-form
+design that hit every Russian title carrying "й" or "ё" and every Arabic
+title carrying a hamza form: each was searched folded, missed, and cached as
+missing for the 7-day negative TTL. The Cyrillic and Arabic strings used
+throughout this section are illustrative stand-ins chosen to fold the same
+way, not the titles the failures were observed on. Compare results only
+through `normalized`; never send it over the wire.
 
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):

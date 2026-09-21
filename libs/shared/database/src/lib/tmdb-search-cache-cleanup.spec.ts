@@ -30,13 +30,13 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         const V3_MARKER = 'migration:tmdb-search-lookup-v3-cache-cleanup:v1';
         const V4_MARKER = 'migration:tmdb-search-lookup-v4-cache-cleanup:v1';
         const ROWS = [
-            ['tv', 'title:феик|year:2026', 'ru-RU', null],
-            ['tv', 'title:феик|year:2026|v2', 'ru-RU', null],
+            ['tv', 'title:леика|year:2026', 'ru-RU', null],
+            ['tv', 'title:леика|year:2026|v2', 'ru-RU', null],
             ['tv', 'title:the boys|year:2019|v2', 'en-US', 76479],
-            ['tv', 'title:фейк|year:2026|v3', 'ru-RU', 317869],
+            ['tv', 'title:лейка|year:2026|v3', 'ru-RU', 101101],
             ['tv', 'title:nightfall|year:2026|v4', 'ru-RU', 424242],
-            ['tv', 'id:317869|v2', 'ru-RU', 317869],
-            ['tv', 'id:317869|season:1', 'ru-RU', 317869],
+            ['tv', 'id:101101|v2', 'ru-RU', 101101],
+            ['tv', 'id:101101|season:1', 'ru-RU', 101101],
             ['person', 'person:287', 'en-US', 287],
             ['movie', 'badProviderId:999', 'any', null],
             ['movie', 'trending:week', 'en-US', null],
@@ -63,7 +63,7 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         hooks.runMigrations(skipped);
         const skippedAfter = snapshot(skipped);
         // Next startup: a row written meanwhile under the current key survives
-        skipped.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:гудовы|year:2026|v4', 'ru-RU', 318894)").run();
+        skipped.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:сосенка|year:2026|v4', 'ru-RU', 101103)").run();
         hooks.runMigrations(skipped);
         const repeated = snapshot(skipped);
         // Previous release: the earlier cleanups already ran; only v3 rows go
@@ -78,7 +78,7 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         const prePerson = new Database(':memory:');
         hooks.createTables(prePerson);
         prePerson.exec("DROP TABLE tmdb_metadata; CREATE TABLE tmdb_metadata (id INTEGER PRIMARY KEY AUTOINCREMENT, media_type TEXT NOT NULL CHECK (media_type IN ('movie', 'tv')), lookup_key TEXT NOT NULL, language TEXT NOT NULL, tmdb_id INTEGER, payload TEXT, fetched_at TEXT DEFAULT (datetime('now'))); CREATE UNIQUE INDEX tmdb_metadata_lookup_unique ON tmdb_metadata(media_type, lookup_key, language)");
-        prePerson.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:феик|year:2026', 'ru-RU', NULL)").run();
+        prePerson.prepare("INSERT INTO tmdb_metadata (media_type, lookup_key, language, tmdb_id) VALUES ('tv', 'title:леика|year:2026', 'ru-RU', NULL)").run();
         hooks.runMigrations(prePerson);
         const prePersonAfter = { ...snapshot(prePerson), check: prePerson.prepare("SELECT sql FROM sqlite_master WHERE name = 'tmdb_metadata'").get().sql.includes("'person'") };
         hooks.runMigrations(prePerson);
@@ -109,13 +109,13 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
     const V4_MARKER = 'migration:tmdb-search-lookup-v4-cache-cleanup:v1';
     const survivors = [
         'badProviderId:999',
-        'id:317869|season:1',
-        'id:317869|v2',
+        'id:101101|season:1',
+        'id:101101|v2',
         'person:287',
         'title:nightfall|year:2026|v4',
         'trending:week',
     ];
-    const detailsPayloads = ['{"id":317869}', '{"id":317869}'];
+    const detailsPayloads = ['{"id":101101}', '{"id":101101}'];
 
     expect(JSON.parse(result)).toEqual({
         skippedAfter: {
@@ -124,7 +124,7 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
             markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
         repeated: {
-            keys: [...survivors, 'title:гудовы|year:2026|v4'].sort(),
+            keys: [...survivors, 'title:сосенка|year:2026|v4'].sort(),
             payloads: detailsPayloads,
             markers: [V2_MARKER, V3_MARKER, V4_MARKER],
         },
@@ -132,8 +132,8 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
             // The older generations' rows are their business, already done
             keys: [
                 ...survivors,
-                'title:феик|year:2026',
-                'title:феик|year:2026|v2',
+                'title:леика|year:2026',
+                'title:леика|year:2026|v2',
                 'title:the boys|year:2019|v2',
             ].sort(),
             payloads: detailsPayloads,
@@ -142,8 +142,8 @@ it('drops only retired search rows across skipped, previous, pre-person, fresh a
         previousRepeated: {
             keys: [
                 ...survivors,
-                'title:феик|year:2026',
-                'title:феик|year:2026|v2',
+                'title:леика|year:2026',
+                'title:леика|year:2026|v2',
                 'title:the boys|year:2019|v2',
             ].sort(),
             payloads: detailsPayloads,

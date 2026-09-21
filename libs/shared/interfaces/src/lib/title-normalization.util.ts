@@ -443,7 +443,7 @@ const SEASON_SUFFIX_PATTERN = new RegExp(
  * every comparison key and OFF for the text sent to a remote search — see
  * `cleanTitleForSearch`. Folding is lossy for scripts whose "diacritics" are
  * distinct letters: NFD turns Cyrillic "й" into "и" + a combining breve, and
- * dropping the breve rewrites "Фейк" as "феик", "ё" as "е". Two provider
+ * dropping the breve rewrites "Лейка" as "леика", "ё" as "е". Two provider
  * copies of a title still meet on that key, which is all a comparison needs,
  * but TMDB's search does not fold Cyrillic the same way and answers a folded
  * query with nothing at all.
@@ -520,7 +520,8 @@ export function normalizeTitleKeys(
  *
  * Comparison keys must fold so two spellings of one film meet; a search
  * query must not, because the search engine folds by its own rules and a
- * pre-folded Cyrillic query ("феик" for "Фейк") matches nothing there.
+ * pre-folded Cyrillic query matches nothing there ("леика" for "Лейка"
+ * illustrates the rewrite).
  * Compare the results with `normalizeTitle`, never with this.
  */
 export function cleanTitleForSearch(raw: string | null | undefined): string {

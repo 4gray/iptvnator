@@ -88,14 +88,14 @@ describe('lookup keys', () => {
     });
 
     it('keys search rows by the wire spelling, not the folded key', () => {
-        // "Феик" and "Фейк" fold to one comparison key but are different
+        // "Леика" and "Лейка" fold to one comparison key but are different
         // searches with different answers; a verdict cached for one must
         // never be read back for the other.
-        expect(buildSearchLookupKey('Фейк', 2026)).toBe(
-            'title:фейк|year:2026|v4'
+        expect(buildSearchLookupKey('Лейка', 2026)).toBe(
+            'title:лейка|year:2026|v4'
         );
-        expect(buildSearchLookupKey('Феик', 2026)).not.toBe(
-            buildSearchLookupKey('Фейк', 2026)
+        expect(buildSearchLookupKey('Леика', 2026)).not.toBe(
+            buildSearchLookupKey('Лейка', 2026)
         );
         expect(buildSearchLookupKey('THE BOYS', 2019)).toBe(
             buildSearchLookupKey('The Boys', 2019)
@@ -139,8 +139,8 @@ describe('buildSearchTitleVariants', () => {
 
     it('sends the provider spelling to the search but compares on the folded key', () => {
         // The folded key rewrites "й" as "и"; TMDB finds nothing for it.
-        expect(buildSearchTitleVariants('Фейк (10 серий)', null)).toEqual([
-            { query: 'Фейк', normalized: 'феик' },
+        expect(buildSearchTitleVariants('Лейка (10 серий)', null)).toEqual([
+            { query: 'Лейка', normalized: 'леика' },
         ]);
         // Arabic hamza forms fold into a space inside the word
         expect(buildSearchTitleVariants('إيمان', null)).toEqual([
@@ -160,12 +160,12 @@ describe('buildSearchTitleVariants', () => {
     });
 
     it('keeps spellings that fold to one key but differ on the wire', () => {
-        // A misspelled original title must not swallow the display title:
-        // TMDB knows "Фейк" and not "Феик", and only the second variant
-        // would find it.
-        expect(buildSearchTitleVariants('Фейк', 'Феик')).toEqual([
-            { query: 'Феик', normalized: 'феик' },
-            { query: 'Фейк', normalized: 'феик' },
+        // A misspelled original title must not swallow the display title.
+        // Take a pair where only the display spelling is the one TMDB
+        // indexes: only the second variant can find it.
+        expect(buildSearchTitleVariants('Лейка', 'Леика')).toEqual([
+            { query: 'Леика', normalized: 'леика' },
+            { query: 'Лейка', normalized: 'леика' },
         ]);
         expect(buildSearchTitleVariants('Amelie', 'Amélie')).toEqual([
             { query: 'Amélie', normalized: 'amelie' },

@@ -9,20 +9,21 @@ import { TmdbSearchResult } from './tmdb.types';
  * Regression coverage for the search wire format. The comparison key folds
  * diacritics — Cyrillic "й" becomes "и" — and that key used to be sent as
  * the TMDB query, which matched nothing for any title carrying "й"/"ё" and
- * cached the miss for a week ("Фейк (10 серий)", "Волшебный участок").
+ * cached the miss for a week. The titles below are illustrative stand-ins
+ * that fold the same way, not the ones the failures were observed on.
  */
 describe('TmdbIdResolverService.resolveBySearch', () => {
-    const fake2026: TmdbSearchResult = {
-        id: 317869,
-        name: 'Фейк',
-        original_name: 'Фейк',
+    const series2026: TmdbSearchResult = {
+        id: 101101,
+        name: 'Лейка',
+        original_name: 'Лейка',
         first_air_date: '2026-07-16',
         vote_count: 3,
     };
-    const fake2024: TmdbSearchResult = {
-        id: 322696,
-        name: 'Фейк',
-        original_name: 'Фейк',
+    const series2024: TmdbSearchResult = {
+        id: 101102,
+        name: 'Лейка',
+        original_name: 'Лейка',
         first_air_date: '2024-12-05',
         vote_count: 0,
     };
@@ -67,7 +68,7 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
     beforeEach(() => {
         searchTv = jest.fn(async (query: string) =>
             // TMDB does not fold Cyrillic: only the provider spelling hits
-            query === 'Фейк' ? [fake2026, fake2024] : []
+            query === 'Лейка' ? [series2026, series2024] : []
         );
         searchMovie = jest.fn().mockResolvedValue([]);
         cacheGet = jest.fn().mockResolvedValue(null);
@@ -78,18 +79,18 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         const service = createService();
 
         const id = await service.resolveBySearch('tv', {
-            title: 'Фейк (10 серий)',
+            title: 'Лейка (10 серий)',
             year: 2026,
         });
 
-        expect(id).toBe(317869);
+        expect(id).toBe(101101);
         expect(searchTv).toHaveBeenCalledTimes(1);
-        expect(searchTv).toHaveBeenCalledWith('Фейк', null, 'ru-RU', 'key');
+        expect(searchTv).toHaveBeenCalledWith('Лейка', null, 'ru-RU', 'key');
         expect(cacheSet).toHaveBeenCalledWith({
             mediaType: 'tv',
-            lookupKey: 'title:фейк|year:2026|v4',
+            lookupKey: 'title:лейка|year:2026|v4',
             language: 'ru-RU',
-            tmdbId: 317869,
+            tmdbId: 101101,
             payload: null,
         });
     });
@@ -99,41 +100,41 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         const service = createService();
 
         const id = await service.resolveBySearch('tv', {
-            title: 'Молодой Шерлок',
+            title: 'Пробный Выпуск',
             year: 2026,
         });
 
         expect(id).toBeNull();
         expect(searchTv).toHaveBeenCalledWith(
-            'Молодой Шерлок',
+            'Пробный Выпуск',
             null,
             'ru-RU',
             'key'
         );
         expect(cacheSet).toHaveBeenCalledWith(
             expect.objectContaining({
-                lookupKey: 'title:молодой шерлок|year:2026|v4',
+                lookupKey: 'title:пробный выпуск|year:2026|v4',
                 tmdbId: null,
             })
         );
     });
 
     it('reads the cache before searching', async () => {
-        cacheGet.mockResolvedValue({ tmdbId: 317869 });
+        cacheGet.mockResolvedValue({ tmdbId: 101101 });
         const service = createService();
         const cacheService = (service as unknown as { cache: TmdbCacheService })
             .cache;
         jest.spyOn(cacheService, 'isFresh').mockReturnValue(true);
 
         const id = await service.resolveBySearch('tv', {
-            title: 'Фейк (10 серий)',
+            title: 'Лейка (10 серий)',
             year: 2026,
         });
 
-        expect(id).toBe(317869);
+        expect(id).toBe(101101);
         expect(cacheGet).toHaveBeenCalledWith(
             'tv',
-            'title:фейк|year:2026|v4',
+            'title:лейка|year:2026|v4',
             'ru-RU'
         );
         expect(searchTv).not.toHaveBeenCalled();
@@ -143,31 +144,31 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         const service = createService();
 
         const id = await service.resolveBySearch('tv', {
-            title: 'Фейк',
-            originalTitle: 'Феик',
+            title: 'Лейка',
+            originalTitle: 'Леика',
             year: 2026,
         });
 
-        expect(id).toBe(317869);
+        expect(id).toBe(101101);
         expect(searchTv.mock.calls.map(([query]) => query)).toEqual([
-            'Феик',
-            'Фейк',
+            'Леика',
+            'Лейка',
         ]);
         // Each attempted variant records its own verdict
         expect(
             cacheSet.mock.calls.map(([row]) => [row.lookupKey, row.tmdbId])
         ).toEqual([
-            ['title:феик|year:2026|v4', null],
-            ['title:фейк|year:2026|v4', 317869],
+            ['title:леика|year:2026|v4', null],
+            ['title:лейка|year:2026|v4', 101101],
         ]);
     });
 
     it("does not let one variant's cached verdict answer for another", async () => {
-        // Item A (original "Феик", display "Феик") cached a miss under
-        // "феик". Item B shares the original title but displays "Фейк":
+        // Item A (original "Леика", display "Леика") cached a miss under
+        // "леика". Item B shares the original title but displays "Лейка":
         // the cached miss must not suppress B's own second variant.
         cacheGet.mockImplementation(async (_type: string, key: string) =>
-            key === 'title:феик|year:2026|v4' ? { tmdbId: null } : null
+            key === 'title:леика|year:2026|v4' ? { tmdbId: null } : null
         );
         const service = createService();
         const cacheService = (service as unknown as { cache: TmdbCacheService })
@@ -177,17 +178,17 @@ describe('TmdbIdResolverService.resolveBySearch', () => {
         );
 
         const id = await service.resolveBySearch('tv', {
-            title: 'Фейк',
-            originalTitle: 'Феик',
+            title: 'Лейка',
+            originalTitle: 'Леика',
             year: 2026,
         });
 
-        expect(id).toBe(317869);
+        expect(id).toBe(101101);
         expect(searchTv).toHaveBeenCalledTimes(1);
-        expect(searchTv).toHaveBeenCalledWith('Фейк', null, 'ru-RU', 'key');
+        expect(searchTv).toHaveBeenCalledWith('Лейка', null, 'ru-RU', 'key');
         expect(cacheGet.mock.calls.map(([, key]) => key)).toEqual([
-            'title:феик|year:2026|v4',
-            'title:фейк|year:2026|v4',
+            'title:леика|year:2026|v4',
+            'title:лейка|year:2026|v4',
         ]);
     });
 
