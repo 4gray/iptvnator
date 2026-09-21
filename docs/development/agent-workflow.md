@@ -69,7 +69,7 @@ Image and media references require a nonempty path that resolves to a file, not 
 Direct file URLs and file-scheme HTML bases are rejected; use portable repository-relative paths.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
-HTML video, audio, source and track `src` assets and video posters use the same
+HTML image-input, video, audio, source and track `src` assets and video posters use the same
 existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
@@ -77,7 +77,7 @@ At-signs inside external URIs (including explicit opaque autolinks such as mailt
 per HTML text node, preserving adjacent imports. A colon directly before an import
 does not make that import a URI. Opaque schemes are excluded only in parsed links
 whose visible text equals their URI, so colon-labeled prose remains checked.
-A closing bracket or quote followed by punctuation and an at-sign terminates a bare URL exclusion.
+A closing bracket or matching enclosing quote followed by punctuation and an at-sign terminates a bare URL exclusion.
 Extensionless inline candidates are also imports when they resolve to repository files,
 checking the full filename before prefixes at ASCII/Unicode prose separators,
 including opening parentheses, brackets and braces. Each at-sign candidate is
@@ -88,7 +88,7 @@ rejected before those exemptions, including document paths with fragments or que
 All recognized Markdown extensions share the document-import guard; reStructuredText
 and AsciiDoc, PDF, Word, OpenDocument, RTF, Org and TeX documents are also excluded
 from package exemptions. Recognized extensionless guidance names (including AGENTS,
-CLAUDE, INSTRUCTIONS and README) are excluded in package subpaths too. URL-encoded
+CLAUDE, INSTRUCTIONS and README, case-insensitively) are excluded in package subpaths too. URL-encoded
 paths do not receive package exemptions. TypeScript configuration is parsed as JSONC.
 Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version (including semver comparators and wildcard ranges) or dist-tag qualifier.

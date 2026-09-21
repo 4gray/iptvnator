@@ -1630,3 +1630,42 @@ for (const embedded of [false, true]) {
         );
     });
 }
+
+for (const url of [
+    "https://example.com/don't@docs/guide.md",
+    "https://example.com/path'@docs/guide.md",
+]) {
+    test(`internal URL apostrophe remains URL prose: ${url}`, async (t) => {
+        assert.deepEqual(await diagnostics(t, { 'AGENTS.md': url }), []);
+    });
+}
+for (const name of ['readme', 'instructions', 'Agents']) {
+    test(`guidance basename matching ignores case: ${name}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'package.json': JSON.stringify({
+                        dependencies: { '@angular/core': '*' },
+                    }),
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @angular/core/docs/' + name,
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}
+test('image input source is validated', async (t) => {
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'AGENTS.md': '<input type="IMAGE" src="missing.png">',
+            })
+        ).length > 0
+    );
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md': '<input type="text" src="missing.png">',
+        }),
+        []
+    );
+});

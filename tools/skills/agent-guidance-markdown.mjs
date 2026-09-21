@@ -90,7 +90,14 @@ function htmlNavigation(html, inspect = () => {}) {
                 ].includes(node.tagName) &&
                     attribute.name === 'src') ||
                 (node.tagName === 'video' && attribute.name === 'poster') ||
-                (node.tagName === 'object' && attribute.name === 'data')
+                (node.tagName === 'object' && attribute.name === 'data') ||
+                (node.tagName === 'input' &&
+                    attribute.name === 'src' &&
+                    node.attrs.some(
+                        (attr) =>
+                            attr.name === 'type' &&
+                            attr.value.toLowerCase() === 'image'
+                    ))
             )
                 references.push({
                     target: attribute.value
@@ -141,7 +148,7 @@ function htmlNavigation(html, inspect = () => {}) {
 }
 
 export function guidanceProse(markdown) {
-    function text(node) {
+    function text(node, preceding = '') {
         if (
             ['script', 'style', 'template', 'pre', 'code'].includes(
                 node.tagName
@@ -163,10 +170,29 @@ export function guidanceProse(markdown) {
         }
         if (node.nodeName === '#text')
             return node.value.replace(
-                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]*?(?=[)\]}>"'”’][.,;:!?]*@|\s|$)/giu,
-                ' '
+                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
+                (url, offset) => {
+                    const opening = (
+                        preceding + node.value.slice(0, offset)
+                    ).at(-1);
+                    const closing = {
+                        '"': '"',
+                        "'": "'",
+                        '“': '”',
+                        '”': '”',
+                        '‘': '’',
+                        '’': '’',
+                    }[opening];
+                    const boundary = closing ? url.indexOf(closing) : -1;
+                    return boundary >= 0 &&
+                        /^[.,;:!?]*@/u.test(url.slice(boundary + 1))
+                        ? ' ' + url.slice(boundary)
+                        : ' ';
+                }
             );
-        const content = (node.childNodes ?? []).map(text).join('');
+        let content = '';
+        for (const child of node.childNodes ?? [])
+            content += text(child, preceding + content);
         return [
             'address',
             'article',
