@@ -11,6 +11,16 @@ pnpm nx show projects --withTarget lint
 pnpm nx show projects --withTarget e2e
 ```
 
+## Manual CI Runs
+
+When a PR event does not start checks for the current head, dispatch CI and E2E
+with `gh workflow run ci.yml --ref <branch>` and
+`gh workflow run e2e-tests.yaml --ref <branch>`. CodeQL also supports
+`gh workflow run codeql-analysis.yml --ref <branch>`; this analyzes the selected
+branch commit instead of the PR merge commit. Verify each run's head SHA before
+using its result as evidence. Docker validation can use
+`gh workflow run docker.yml --ref <branch> -f push=false`.
+
 ## Unit And Type Checks
 
 | Area                               | Command                             |
