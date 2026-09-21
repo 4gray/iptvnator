@@ -171,7 +171,7 @@
         "@fontsource/roboto": "5.3.0",
         "@ngrx/eslint-plugin": "22.0.1",
         "@ngx-translate/core": "16.0.4",
-        "@ngx-translate/http-loader": "16.0.1",
+        "@ngx-translate/http-loader": "17.0.0",
         "@nx/angular": "23.2.1",
         "@nx/devkit": "23.2.1",
         "@nx/esbuild": "23.2.1",
