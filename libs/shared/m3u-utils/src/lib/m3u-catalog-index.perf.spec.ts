@@ -1,9 +1,11 @@
 import {
     M3U_CATALOG_INDEX_BUDGET_MS,
+    M3U_SERIES_CATALOG_BUDGET_MS,
     REAL_PLAYLIST_ROW_COUNT,
     createSyntheticCatalogRows,
 } from './m3u-catalog-index.spec-data';
 import { buildM3uCatalogIndex } from './m3u-catalog-index.util';
+import { buildM3uSeriesCatalog } from './m3u-series-aggregate.util';
 
 /**
  * The index is built synchronously on the UI thread when a playlist route
@@ -41,6 +43,28 @@ describe('buildM3uCatalogIndex performance', () => {
         );
 
         expect(median).toBeLessThan(M3U_CATALOG_INDEX_BUDGET_MS);
+    });
+
+    it(`aggregates the series layer within ${M3U_SERIES_CATALOG_BUDGET_MS} ms`, () => {
+        // The expensive half: title normalization runs per episode row, and
+        // on a real catalog that is 40k of them. Kept a separate signal from
+        // the index budget so a regression points at the right layer.
+        const episodes = buildM3uCatalogIndex(rows).byKind.episode;
+        const samples: number[] = [];
+
+        for (let run = 0; run < 3; run += 1) {
+            const started = performance.now();
+            const series = buildM3uSeriesCatalog(episodes, 'perf');
+            samples.push(performance.now() - started);
+            expect(series.length).toBeGreaterThan(0);
+        }
+
+        const median = samples.sort((a, b) => a - b)[1];
+        console.log(
+            `series catalog: ${median.toFixed(1)} ms for ${episodes.length} episodes`
+        );
+
+        expect(median).toBeLessThan(M3U_SERIES_CATALOG_BUDGET_MS);
     });
 
     it('produces the intended content mix', () => {

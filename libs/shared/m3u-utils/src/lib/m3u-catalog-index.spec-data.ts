@@ -26,6 +26,15 @@
  */
 export const M3U_CATALOG_INDEX_BUDGET_MS = 300;
 
+/**
+ * Budget for collapsing the episode rows of that playlist into series.
+ *
+ * Higher than the index budget because title normalization runs per row and
+ * is the dominant cost; measured at ~290 ms on a real 40k-episode catalog,
+ * so this leaves headroom without hiding a regression.
+ */
+export const M3U_SERIES_CATALOG_BUDGET_MS = 900;
+
 /** The size of the playlist the budget is expressed against. */
 export const REAL_PLAYLIST_ROW_COUNT = 62_696;
 

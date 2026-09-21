@@ -1,0 +1,159 @@
+import { buildM3uSeriesCatalog } from './m3u-series-aggregate.util';
+
+const row = (name: string, group = 'Shows', logo?: string) => ({
+    url: `http://h.example/series/u/p/${encodeURIComponent(name)}.mp4`,
+    name,
+    group: { title: group },
+    tvg: { logo },
+});
+
+const build = (names: string[], playlistId = 'pl-1') =>
+    buildM3uSeriesCatalog(
+        names.map((name) => row(name)),
+        playlistId
+    );
+
+describe('buildM3uSeriesCatalog', () => {
+    it('collapses episodes of one show into a single series', () => {
+        const series = build([
+            'BLACK MIRROR S1 E1',
+            'BLACK MIRROR S1 E2',
+            'BLACK MIRROR S2 E1',
+        ]);
+
+        expect(series).toHaveLength(1);
+        expect(series[0].title).toBe('BLACK MIRROR');
+        expect(series[0].episodeCount).toBe(3);
+        expect([...series[0].seasons.keys()]).toEqual([1, 2]);
+        expect(series[0].seasons.get(1)).toHaveLength(2);
+    });
+
+    it('sorts seasons and episodes numerically, not by arrival', () => {
+        const series = build([
+            'SHOW S2 E10',
+            'SHOW S1 E2',
+            'SHOW S2 E2',
+            'SHOW S1 E1',
+        ]);
+
+        expect([...series[0].seasons.keys()]).toEqual([1, 2]);
+        expect(series[0].seasons.get(2)?.map((e) => e.episodeNumber)).toEqual([
+            2, 10,
+        ]);
+    });
+
+    it('keeps two dubs of one show apart', () => {
+        // Merging them would interleave Turkish and German audio inside one
+        // season, leaving S1E1 ambiguous and the up-next order arbitrary.
+        const series = build([
+            'TR:MODERN FAMILY S1 E1',
+            'DE:MODERN FAMILY S1 E1',
+        ]);
+
+        expect(series).toHaveLength(2);
+        expect(series.map((s) => s.languageTag).sort()).toEqual(['DE', 'TR']);
+        expect(series.every((s) => s.title === 'MODERN FAMILY')).toBe(true);
+    });
+
+    it('merges a yeared title with an unyeared one under the same tag', () => {
+        const series = build(['TR:BET 2025 S1 E1', 'TR:BET S1 E2']);
+
+        expect(series).toHaveLength(1);
+        expect(series[0].episodeCount).toBe(2);
+        expect(series[0].yearHint).toBe(2025);
+    });
+
+    it('spans groups rather than fragmenting by them', () => {
+        // A show's episodes legitimately sit in more than one provider
+        // group; keying on the group would split it into two series.
+        const series = buildM3uSeriesCatalog(
+            [
+                row('SHOW S1 E1', 'MULTI SERIES'),
+                row('SHOW S1 E2', 'Pazartesi Dizileri'),
+                row('SHOW S1 E3', 'Pazartesi Dizileri'),
+            ],
+            'pl-1'
+        );
+
+        expect(series).toHaveLength(1);
+        expect(series[0].groups).toEqual([
+            'MULTI SERIES',
+            'Pazartesi Dizileri',
+        ]);
+        expect(series[0].primaryGroup).toBe('Pazartesi Dizileri');
+    });
+
+    it('parks a duplicate season/episode as an alternative', () => {
+        // Same episode at another quality. It must not become a second
+        // episode, and it must not vanish.
+        const series = buildM3uSeriesCatalog(
+            [row('SHOW S1 E1', 'HD'), row('SHOW S1 E1 FHD', 'FHD')],
+            'pl-1'
+        );
+
+        expect(series[0].episodeCount).toBe(1);
+        expect(series[0].seasons.get(1)?.[0].alternatives).toHaveLength(1);
+    });
+
+    it('defaults a seasonless daily serial to season one', () => {
+        const series = build(['DELIKANLI 5.BÖLÜM', 'DELIKANLI 6.BÖLÜM']);
+
+        expect(series).toHaveLength(1);
+        expect([...series[0].seasons.keys()]).toEqual([1]);
+        expect(series[0].seasons.get(1)?.map((e) => e.episodeNumber)).toEqual([
+            5, 6,
+        ]);
+    });
+
+    it('gives every episode a stable, distinct id', () => {
+        const first = build(['SHOW S1 E1', 'SHOW S1 E2', 'SHOW S2 E1']);
+        const again = build(['SHOW S2 E1', 'SHOW S1 E2', 'SHOW S1 E1']);
+
+        const ids = (catalog: ReturnType<typeof build>) =>
+            [...catalog[0].seasons.values()]
+                .flat()
+                .map(
+                    (episode) =>
+                        `${episode.seasonNumber}x${episode.episodeNumber}=${episode.id}`
+                )
+                .sort();
+
+        expect(ids(first)).toEqual(ids(again));
+        expect(new Set(ids(first)).size).toBe(3);
+    });
+
+    it('keys series per playlist', () => {
+        const a = build(['SHOW S1 E1'], 'pl-1');
+        const b = build(['SHOW S1 E1'], 'pl-2');
+
+        expect(a[0].key).not.toBe(b[0].key);
+        expect(a[0].id).not.toBe(b[0].id);
+    });
+
+    it('takes the first artwork any episode carries', () => {
+        const series = buildM3uSeriesCatalog(
+            [
+                row('SHOW S1 E1', 'Shows'),
+                row('SHOW S1 E2', 'Shows', 'http://logo/show.png'),
+            ],
+            'pl-1'
+        );
+
+        expect(series[0].posterUrl).toBe('http://logo/show.png');
+    });
+
+    it('skips rows whose name yields no series title', () => {
+        const series = buildM3uSeriesCatalog(
+            [row('S01E01'), row('SHOW S1 E1')],
+            'pl-1'
+        );
+
+        expect(series).toHaveLength(1);
+        expect(series[0].title).toBe('SHOW');
+    });
+
+    it('handles an absent list', () => {
+        expect(buildM3uSeriesCatalog(null, 'pl-1')).toEqual([]);
+        expect(buildM3uSeriesCatalog([], 'pl-1')).toEqual([]);
+    });
+});
