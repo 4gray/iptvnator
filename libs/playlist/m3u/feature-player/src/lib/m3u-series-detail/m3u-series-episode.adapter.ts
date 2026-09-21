@@ -57,12 +57,13 @@ export function toSeasonRecord(series: M3uSeries<Channel>): M3uSeasonRecord {
 }
 
 /**
- * An episode shows the title the provider wrote after the marker when there
- * is one, and its number otherwise. "Episode 5" reads better in a grid than
- * a repeat of the series name, which is what the raw row would give.
+ * Only the title the provider actually wrote after the marker. The shared
+ * episode card already prefixes the number, so synthesising one here would
+ * render it twice ("59. E59"); an empty title lets the card show the number
+ * alone.
  */
 function episodeTitle(episode: M3uSeriesEpisode<Channel>): string {
-    return episode.title ?? `E${episode.episodeNumber}`;
+    return episode.title ?? '';
 }
 
 function containerExtension(url: string): string {

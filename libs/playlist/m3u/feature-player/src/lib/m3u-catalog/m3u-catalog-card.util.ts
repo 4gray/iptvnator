@@ -11,7 +11,10 @@ import { M3uSeries, applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
  * Exactly one of the two is set, and the component reads whichever its kind
  * put there.
  */
-export interface M3uCatalogCard {
+// A type alias rather than an interface: the shared grid's item type has an
+// index signature, and TypeScript grants an implicit one to aliases but not
+// to interfaces — an interface here fails to assign with no obvious reason.
+export type M3uCatalogCard = {
     readonly id: string;
     readonly name: string;
     readonly title: string;
@@ -20,7 +23,7 @@ export interface M3uCatalogCard {
     readonly channelUrl?: string;
     /** Series cards only. */
     readonly seriesId?: number;
-}
+};
 
 /**
  * An M3U row has no artwork field of its own — the grid reads `poster_url`,

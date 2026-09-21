@@ -130,12 +130,20 @@ const EPISODE_WORD_THEN_NUMBER = new RegExp(
     'iu'
 );
 /**
+ * Number-first: "5.BÖLÜM", "12 серия".
+ *
  * `\d{1,3}` rather than the two digits the general marker allows: daily
  * serials run past a hundred episodes, and "UZAK ŞEHİR 120.BÖLÜM" is the
  * same shape as its first episode.
+ *
+ * Deliberately NOT anchored to the end of the name. Turkish serials label
+ * their last episode "7.BÖLÜM FINAL", and an end-anchor filed exactly those
+ * rows as films. The order is what makes this safe: a film instalment is
+ * written "BÖLÜM 2" (word first), never "2.BÖLÜM", so the weak cases this
+ * rule exists to exclude cannot match it whatever follows.
  */
-const TRAILING_NUMBER_THEN_EPISODE_WORD = new RegExp(
-    `(?:^|[^\\p{L}\\d])\\d{1,3}[\\s._-]*${EPISODE_WORD}\\s*$`,
+const NUMBER_THEN_EPISODE_WORD = new RegExp(
+    `(?:^|[^\\p{L}\\d])\\d{1,3}[\\s._-]*${EPISODE_WORD}(?!\\p{L})`,
     'iu'
 );
 
@@ -147,7 +155,7 @@ export function hasStrongEpisodeCode(name: string | null | undefined): boolean {
     return (
         SEASON_EPISODE_CODE.test(name) ||
         CROSS_EPISODE_CODE.test(name) ||
-        TRAILING_NUMBER_THEN_EPISODE_WORD.test(name) ||
+        NUMBER_THEN_EPISODE_WORD.test(name) ||
         (SEASON_WORD_THEN_NUMBER.test(name) &&
             EPISODE_WORD_THEN_NUMBER.test(name))
     );

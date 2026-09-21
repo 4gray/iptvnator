@@ -146,7 +146,8 @@ export class M3uCatalogRouteComponent {
             return this.catalog.series().map(toM3uSeriesCard);
         }
 
-        const strip = this.settingsStore.stripCountryPrefix() === true;
+        // Optional in the Settings shape, so the store's signal is too.
+        const strip = this.settingsStore.stripCountryPrefix?.() === true;
         return this.catalog
             .index()
             .byKind[this.kind()].map((channel) =>
@@ -231,18 +232,17 @@ export class M3uCatalogRouteComponent {
      * shell and inline playback. Nothing new is introduced here: the catalog
      * is a way in, not a second playback path.
      */
-    protected onCardActivated(card: {
-        seriesId?: unknown;
-        channelUrl?: unknown;
-    }): void {
-        if (typeof card.seriesId === 'number') {
-            void this.router.navigate(['..', 'series', card.seriesId], {
+    protected onCardActivated(card: Record<string, unknown>): void {
+        const seriesId = card['seriesId'];
+        if (typeof seriesId === 'number') {
+            void this.router.navigate(['..', 'series', seriesId], {
                 relativeTo: this.route,
             });
             return;
         }
 
-        const url = typeof card.channelUrl === 'string' ? card.channelUrl : '';
+        const raw = card['channelUrl'];
+        const url = typeof raw === 'string' ? raw : '';
         const channel = this.catalog
             .index()
             .byKind[this.kind()].find((row) => row.url === url);

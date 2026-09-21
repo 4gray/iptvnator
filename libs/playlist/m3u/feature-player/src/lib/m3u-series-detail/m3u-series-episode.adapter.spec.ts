@@ -4,14 +4,19 @@ import { toSeasonRecord, toXtreamEpisode } from './m3u-series-episode.adapter';
 
 const row = (name: string, url?: string) =>
     ({
-        url: url ?? `http://h.example/series/u/p/${encodeURIComponent(name)}.mp4`,
+        url:
+            url ??
+            `http://h.example/series/u/p/${encodeURIComponent(name)}.mp4`,
         name,
         group: { title: 'Shows' },
         tvg: { logo: 'http://logo/show.png' },
     }) as unknown as Channel;
 
 const series = (names: string[]) =>
-    buildM3uSeriesCatalog(names.map((name) => row(name)), 'pl-1')[0];
+    buildM3uSeriesCatalog(
+        names.map((name) => row(name)),
+        'pl-1'
+    )[0];
 
 describe('M3U series episode adapter', () => {
     it('keys seasons as strings the shared component can sort', () => {
@@ -19,9 +24,9 @@ describe('M3U series episode adapter', () => {
             series(['SHOW S1 E1', 'SHOW S2 E1', 'SHOW S10 E1'])
         );
 
-        expect(Object.keys(record).sort((a, b) => Number(a) - Number(b))).toEqual(
-            ['1', '2', '10']
-        );
+        expect(
+            Object.keys(record).sort((a, b) => Number(a) - Number(b))
+        ).toEqual(['1', '2', '10']);
     });
 
     it('round-trips the numeric id through the string field', () => {
@@ -50,9 +55,9 @@ describe('M3U series episode adapter', () => {
             'pl-1'
         )[0];
 
-        expect(toXtreamEpisode(source.seasons.get(1)![0]).container_extension).toBe(
-            'mkv'
-        );
+        expect(
+            toXtreamEpisode(source.seasons.get(1)![0]).container_extension
+        ).toBe('mkv');
     });
 
     it('falls back to an empty extension when the URL has none', () => {
@@ -61,19 +66,20 @@ describe('M3U series episode adapter', () => {
             'pl-1'
         )[0];
 
-        expect(toXtreamEpisode(source.seasons.get(1)![0]).container_extension).toBe(
-            ''
-        );
+        expect(
+            toXtreamEpisode(source.seasons.get(1)![0]).container_extension
+        ).toBe('');
     });
 
-    it('titles an episode by its number when the provider wrote none', () => {
-        // Repeating the series name in every grid cell tells the viewer
-        // nothing; the number does.
+    it('leaves the title empty when the provider wrote none', () => {
+        // The shared episode card already prefixes the episode number, so a
+        // synthesised title renders it twice ("7. E7").
         const adapted = toXtreamEpisode(
             series(['SHOW S1 E7'])!.seasons.get(1)![0]
         );
 
-        expect(adapted.title).toBe('E7');
+        expect(adapted.title).toBe('');
+        expect(adapted.episode_num).toBe(7);
     });
 
     it('keeps a real episode title the provider did write', () => {

@@ -124,6 +124,10 @@ describe('hasStrongEpisodeCode', () => {
         ['The Office 1x02', true],
         ['DELIKANLI 5.BÖLÜM', true],
         ['UZAK SEHIR 120.BÖLÜM', true],
+        // Turkish serials label their last episode this way; an end-anchored
+        // rule filed exactly those rows as films.
+        ['DELIKANLI 7.BÖLÜM FINAL', true],
+        ['CENNETIN COCUKLARI 31.BÖLÜM SON', true],
         ['Tatort Staffel 2 Folge 12', true],
     ])('%s is strong', (name, expected) => {
         expect(hasStrongEpisodeCode(name)).toBe(expected);

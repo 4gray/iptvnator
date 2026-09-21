@@ -54,7 +54,7 @@ export class WorkspaceShellRouteStateService {
      */
     private readonly m3uCatalogSections = computed(
         () =>
-            this.settingsStore.m3uCatalogTabs() !== false &&
+            this.settingsStore.m3uCatalogTabs?.() !== false &&
             this.catalogIndex.hasNonLiveContent()
     );
 

@@ -9,7 +9,10 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
-import { M3uCatalogIndexService, selectActivePlaylist } from '@iptvnator/m3u-state';
+import {
+    M3uCatalogIndexService,
+    selectActivePlaylist,
+} from '@iptvnator/m3u-state';
 import { Store } from '@ngrx/store';
 import {
     DetailMetaTemplateDirective,
@@ -59,7 +62,7 @@ export class M3uSeriesDetailRouteComponent {
 
     private readonly playlist = this.store.selectSignal(selectActivePlaylist);
 
-    private readonly seriesId = toSignal(
+    protected readonly seriesId = toSignal(
         this.route.paramMap.pipe(
             map((params) => Number(params.get('seriesId') ?? ''))
         ),
@@ -70,9 +73,7 @@ export class M3uSeriesDetailRouteComponent {
         this.catalog.seriesById().get(this.seriesId())
     );
 
-    protected readonly playlistId = computed(
-        () => this.playlist()?._id ?? ''
-    );
+    protected readonly playlistId = computed(() => this.playlist()?._id ?? '');
 
     protected readonly seasons = computed(() => {
         const series = this.series();
@@ -121,7 +122,8 @@ export class M3uSeriesDetailRouteComponent {
      * when unrelated series state changes.
      */
     protected readonly playbackSessionKey = computed(
-        () => `m3u-series:${this.seriesId()}:${this.playingEpisodeId() ?? 'none'}`
+        () =>
+            `m3u-series:${this.seriesId()}:${this.playingEpisodeId() ?? 'none'}`
     );
 
     protected readonly seriesTitle = computed(() => this.series()?.title ?? '');
