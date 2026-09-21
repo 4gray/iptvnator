@@ -13,6 +13,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject } from 'rxjs';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
+import { TmdbEnrichmentService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { buildM3uSeriesCatalog } from '@iptvnator/shared/m3u-utils';
 import type { M3uSeriesDetailRouteComponent as ComponentType } from './m3u-series-detail-route.component';
@@ -37,7 +38,9 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 })
 class StubShellComponent {
     readonly title = input<string>();
+    readonly description = input<string>();
     readonly posterUrl = input<string>();
+    readonly backdropUrl = input<string>();
     readonly backAvailable = input(true);
     readonly playbackActive = input(false);
     readonly backClicked = output<void>();
@@ -58,7 +61,11 @@ class StubSeasonContainerComponent {
     readonly downloadsEnabled = input(true);
     readonly hasUnloadedSeasons = input(false);
     readonly playingEpisodeId = input<number | null>(null);
+    readonly playbackPositions = input<Map<number, unknown>>(new Map());
     readonly episodeClicked = output<unknown>();
+    readonly playbackToggleRequested = output<unknown>();
+    readonly seasonPlaybackToggleRequested = output<unknown>();
+    readonly seriesPlaybackToggleRequested = output<unknown>();
 }
 
 @Directive({ selector: '[appDetailMeta]', standalone: true })
@@ -76,7 +83,9 @@ class StubInlinePlayerComponent {
     readonly playback = input<unknown>(null);
     readonly seriesTitle = input<string | null>(null);
     readonly seriesEpisodes = input<unknown>(null);
+    readonly episodePlaybackPositions = input<Map<number, unknown>>(new Map());
     readonly closed = output<void>();
+    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
 }
 
 const row = (name: string) =>
@@ -96,9 +105,8 @@ describe('M3uSeriesDetailRouteComponent', () => {
     let M3uSeriesDetailRouteComponent: typeof ComponentType;
 
     beforeAll(async () => {
-        ({ M3uSeriesDetailRouteComponent } = await import(
-            './m3u-series-detail-route.component'
-        ));
+        ({ M3uSeriesDetailRouteComponent } =
+            await import('./m3u-series-detail-route.component'));
     });
 
     const params = new BehaviorSubject({ get: () => String(CATALOG[0].id) });
@@ -117,6 +125,13 @@ describe('M3uSeriesDetailRouteComponent', () => {
                     provide: Store,
                     useValue: {
                         selectSignal: () => signal({ _id: 'pl-1' }),
+                    },
+                },
+                {
+                    provide: TmdbEnrichmentService,
+                    useValue: {
+                        isEnabled: () => false,
+                        enrichTv: jest.fn(),
                     },
                 },
                 {

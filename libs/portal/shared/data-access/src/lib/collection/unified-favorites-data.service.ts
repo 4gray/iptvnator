@@ -33,6 +33,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
+import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 
@@ -492,7 +493,7 @@ export class UnifiedFavoritesDataService {
                 return {
                     uid: buildCollectionUid('m3u', meta._id, sourceItemId),
                     name: channel.name,
-                    contentType: 'live' as const,
+                    contentType: m3uCollectionContentType(channel),
                     sourceType: 'm3u' as const,
                     playlistId: meta._id,
                     playlistName: meta.title || meta.filename || 'M3U',
@@ -849,8 +850,7 @@ export class UnifiedFavoritesDataService {
 
     private getStalkerFavoriteId(
         favorite:
-            | Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'>
-            | StalkerPortalItem
+            Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'> | StalkerPortalItem
     ): string {
         if ('uid' in favorite) {
             return String(

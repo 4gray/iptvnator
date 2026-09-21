@@ -1,4 +1,7 @@
-import { classifyM3uEntry } from './m3u-content-kind.util';
+import {
+    classifyM3uEntry,
+    m3uCollectionContentType,
+} from './m3u-content-kind.util';
 import { M3U_ENTRY_CORPUS } from './m3u-entry-corpus.spec-data';
 import { hasStrongEpisodeCode } from './m3u-vod-detection.util';
 
@@ -144,5 +147,38 @@ describe('hasStrongEpisodeCode', () => {
         ['', false],
     ])('%s is not strong', (name, expected) => {
         expect(hasStrongEpisodeCode(name)).toBe(expected);
+    });
+});
+
+describe('m3uCollectionContentType', () => {
+    it('files an episode under the show it belongs to', () => {
+        // The collection surfaces have no separate episode kind, and a
+        // favourited episode belongs to its series.
+        expect(
+            m3uCollectionContentType(
+                entry('http://h.example/series/u/p/1.mp4', 'Dark S01E01')
+            )
+        ).toBe('series');
+    });
+
+    it('keeps radio on the live side', () => {
+        // The collection item carries its own radio flag; inventing a
+        // fourth content type would make every consumer learn it.
+        expect(
+            m3uCollectionContentType(
+                entry('http://h.example/live/u/p/1.ts', 'TRT FM', 'true')
+            )
+        ).toBe('live');
+    });
+
+    it.each([
+        ['http://h.example/movie/u/p/1.mkv', 'Dune', 'movie'],
+        ['http://h.example/live/u/p/2.ts', 'TRT 1', 'live'],
+    ])('%s is %s', (url, name, expected) => {
+        expect(m3uCollectionContentType(entry(url, name))).toBe(expected);
+    });
+
+    it('treats unusable input as live', () => {
+        expect(m3uCollectionContentType(null)).toBe('live');
     });
 });

@@ -1,6 +1,8 @@
 <app-portal-detail-shell
     [title]="seriesTitle()"
+    [description]="overview()"
     [posterUrl]="posterUrl()"
+    [backdropUrl]="backdropUrl()"
     [backAvailable]="true"
     [playbackActive]="playback() !== null"
     (backClicked)="onBack()"
@@ -36,7 +38,9 @@
                 [playback]="resolved"
                 [seriesTitle]="seriesTitle()"
                 [seriesEpisodes]="seasons()"
+                [episodePlaybackPositions]="playbackPositions()"
                 (closed)="onPlayerClosed()"
+                (timeUpdate)="onTimeUpdate($event)"
             />
         }
     </div>
@@ -51,7 +55,11 @@
             [downloadsEnabled]="false"
             [hasUnloadedSeasons]="false"
             [playingEpisodeId]="playingEpisodeId()"
+            [playbackPositions]="playbackPositions()"
             (episodeClicked)="onEpisodeClicked($event)"
+            (playbackToggleRequested)="onEpisodeWatchToggled($event)"
+            (seasonPlaybackToggleRequested)="onBulkWatchToggled($event)"
+            (seriesPlaybackToggleRequested)="onBulkWatchToggled($event)"
         />
     </div>
 </app-portal-detail-shell>

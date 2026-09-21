@@ -34,6 +34,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
+import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils';
 
 type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
@@ -597,7 +598,7 @@ export class UnifiedRecentDataService {
                         channel.name ||
                         recentItem.tvg_name?.trim() ||
                         recentItem.url,
-                    contentType: 'live' as const,
+                    contentType: m3uCollectionContentType(channel),
                     sourceType: 'm3u' as const,
                     playlistId: meta._id,
                     playlistName: meta.title || meta.filename || 'M3U',
