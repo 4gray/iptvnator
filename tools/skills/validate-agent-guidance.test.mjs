@@ -1489,3 +1489,18 @@ test('local HTML base uses native filesystem paths', async (t) => {
         []
     );
 });
+
+for (const boundary of [').', '];', '}']) {
+    test(`bare URL preserves adjacent import after ${boundary}`, async (t) => {
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nhttps://example.com/path' +
+                        boundary +
+                        '@docs/guide.md',
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}

@@ -72,6 +72,7 @@ existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
 At-signs inside external URLs are excluded per HTML text node, preserving adjacent imports.
+A closing bracket followed by punctuation and an at-sign terminates a bare URL exclusion.
 Extensionless inline candidates are also imports when they resolve to repository files,
 checking the full filename before prefixes at ASCII/Unicode prose separators.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
