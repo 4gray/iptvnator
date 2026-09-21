@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "جارٍ تحميل المزيد…",
             "LOAD_MORE_FAILED": "تعذر تحميل المزيد من العناصر",
             "RETRY": "عاود المحاولة"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "معلومات",
     "DOWNLOADS": {

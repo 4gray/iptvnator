@@ -1,17 +1,25 @@
 import { Channel } from '@iptvnator/shared/interfaces';
-import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { M3uSeries, applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 
 /**
  * The shape the shared grid renders. Kept structural rather than imported:
  * the grid's own item interface is not exported, and it carries an index
  * signature precisely so callers can supply their own row shape.
+ *
+ * One card type serves both sections. A movie card carries the channel URL
+ * it plays; a series card carries the numeric id its detail route opens.
+ * Exactly one of the two is set, and the component reads whichever its kind
+ * put there.
  */
 export interface M3uCatalogCard {
     readonly id: string;
     readonly name: string;
     readonly title: string;
     readonly poster_url?: string;
-    readonly channelUrl: string;
+    /** Movie cards only. */
+    readonly channelUrl?: string;
+    /** Series cards only. */
+    readonly seriesId?: number;
 }
 
 /**
@@ -38,5 +46,21 @@ export function toM3uCatalogCard(
         title: name,
         poster_url: channel.tvg?.logo || undefined,
         channelUrl: channel.url,
+    };
+}
+
+/**
+ * A series card shows the show, not one of its episodes.
+ *
+ * The title already has the language tag removed by the aggregator, so the
+ * country-prefix setting does not apply a second time here.
+ */
+export function toM3uSeriesCard(series: M3uSeries<Channel>): M3uCatalogCard {
+    return {
+        id: `series:${series.id}`,
+        name: series.title,
+        title: series.title,
+        poster_url: series.posterUrl ?? undefined,
+        seriesId: series.id,
     };
 }

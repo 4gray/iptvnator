@@ -28,7 +28,6 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
-    extractDrmFromRaw,
     isDashChannel,
     isDashStreamUrl,
     isLikelyM3uMovie,
@@ -58,7 +57,6 @@ import {
     EpgActions,
     PlaylistActions,
     buildExternalPlayerPayload,
-    resolveExternalPlayerHttpHeaders,
     resolveChannelEpgLookupKey,
     selectActive,
     selectActiveEpgProgram,
@@ -145,6 +143,7 @@ import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.serv
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
 import { M3uFullscreenChannelListComponent } from './fullscreen-channel-list/m3u-fullscreen-channel-list.component';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
+import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
@@ -493,41 +492,12 @@ export class VideoPlayerComponent
             return null;
         }
 
-        // Embedded MPV requests bypass the Electron webRequest override, so
-        // the playlist-level custom headers must ride in the payload; channel
-        // #EXTVLCOPT values still win.
-        const effective = resolveExternalPlayerHttpHeaders(
-            playbackTarget,
-            this.activePlaylistMeta()
-        );
-        const headers: Record<string, string> = {};
-        if (effective['user-agent']) {
-            headers['User-Agent'] = effective['user-agent'];
-        }
-        if (effective.referer) {
-            headers['Referer'] = effective.referer;
-        }
-        if (effective.origin) {
-            headers['Origin'] = effective.origin;
-        }
-
-        return {
-            streamUrl: `${playbackTarget.url}${playbackTarget.epgParams ?? ''}`,
-            title:
-                activeChannel.name?.trim() ||
-                activeChannel.tvg?.name ||
-                playbackTarget.url,
-            thumbnail: activeChannel.tvg?.logo ?? null,
+        return buildM3uPlaybackPayload({
+            channel: activeChannel,
+            target: playbackTarget,
+            playlistMeta: this.activePlaylistMeta(),
             isLive: !this.activePlaybackUrl() && !isLikelyM3uVod(activeChannel),
-            headers: Object.keys(headers).length > 0 ? headers : undefined,
-            userAgent: effective['user-agent'],
-            referer: effective.referer,
-            origin: effective.origin,
-            // Playlists imported before the DRM feature carry no drm field
-            // yet, but their raw KODIPROP block survived in the stored items
-            // — extract lazily so they work without a re-import.
-            drm: playbackTarget.drm ?? extractDrmFromRaw(playbackTarget.raw),
-        };
+        });
     });
     readonly sidebarStorageKey = computed(() =>
         this.activeView() === 'groups'

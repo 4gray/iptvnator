@@ -4,9 +4,11 @@ import { Channel } from '@iptvnator/shared/interfaces';
 import {
     M3uCatalogIndex,
     M3uContentKind,
+    M3uSeries,
     buildM3uCatalogIndex,
+    buildM3uSeriesCatalog,
 } from '@iptvnator/shared/m3u-utils';
-import { selectChannels } from './selectors';
+import { selectActivePlaylistId, selectChannels } from './selectors';
 
 /**
  * Owns the derived catalog index for the loaded M3U playlist.
@@ -45,6 +47,26 @@ export class M3uCatalogIndexService {
     readonly hasNonLiveContent: Signal<boolean> = computed(
         () => this.index().hasNonLiveContent
     );
+
+    private readonly playlistId: Signal<string> = this.store.selectSignal(
+        selectActivePlaylistId
+    );
+
+    /**
+     * The series layer, kept as its own `computed` so it is only built when
+     * something reads it. It is the expensive half — title normalization
+     * runs per episode row, which is 40k of them on a real catalog — and a
+     * viewer who never opens the Series section should not pay for it.
+     */
+    readonly series: Signal<readonly M3uSeries<Channel>[]> = computed(() =>
+        buildM3uSeriesCatalog(this.index().byKind.episode, this.playlistId())
+    );
+
+    /** Series by their stable numeric id, for the detail route. */
+    readonly seriesById: Signal<ReadonlyMap<number, M3uSeries<Channel>>> =
+        computed(
+            () => new Map(this.series().map((series) => [series.id, series]))
+        );
 
     channelsOfKind(kind: M3uContentKind): Signal<readonly Channel[]> {
         return computed(() => this.index().byKind[kind]);

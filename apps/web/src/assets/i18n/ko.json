@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "더 불러오는 중…",
             "LOAD_MORE_FAILED": "추가 항목을 불러오지 못했습니다",
             "RETRY": "다시 시도"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "정보",
     "DOWNLOADS": {

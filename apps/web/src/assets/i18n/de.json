@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "Lade mehr…",
             "LOAD_MORE_FAILED": "Weitere Einträge konnten nicht geladen werden",
             "RETRY": "Erneut versuchen"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 Staffel",
+        "SEASON_COUNT_OTHER": "{{count}} Staffeln"
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {

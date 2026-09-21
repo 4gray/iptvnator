@@ -1328,7 +1328,9 @@
             "LOADING_MORE": "Daha fazla yükleniyor…",
             "LOAD_MORE_FAILED": "Daha fazla öğe yüklenemedi",
             "RETRY": "Yeniden dene"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 sezon",
+        "SEASON_COUNT_OTHER": "{{count}} sezon"
     },
     "INFORMATION": "Bilgi",
     "DOWNLOADS": {

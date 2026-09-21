@@ -8,7 +8,10 @@ import { BehaviorSubject } from 'rxjs';
 import { ChannelActions, M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { SettingsStore } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
-import { buildM3uCatalogIndex } from '@iptvnator/shared/m3u-utils';
+import {
+    buildM3uCatalogIndex,
+    buildM3uSeriesCatalog,
+} from '@iptvnator/shared/m3u-utils';
 import type { M3uCatalogRouteComponent as M3uCatalogRouteComponentType } from './m3u-catalog-route.component';
 
 // The shared portal-UI barrel reaches video.js (unified collection ->
@@ -24,7 +27,11 @@ const channel = (url: string, name: string, group: string) =>
     ({ url, name, group: { title: group }, tvg: {} }) as unknown as Channel;
 
 const DUNE = channel('http://h.example/movie/u/p/1.mkv', 'Dune', 'Films');
-const MATRIX = channel('http://h.example/movie/u/p/2.mkv', 'Matrix', 'Classics');
+const MATRIX = channel(
+    'http://h.example/movie/u/p/2.mkv',
+    'Matrix',
+    'Classics'
+);
 const EPISODE = channel(
     'http://h.example/series/u/p/3.mp4',
     'Dark S01E01',
@@ -36,9 +43,8 @@ describe('M3uCatalogRouteComponent', () => {
     let M3uCatalogRouteComponent: typeof M3uCatalogRouteComponentType;
 
     beforeAll(async () => {
-        ({ M3uCatalogRouteComponent } = await import(
-            './m3u-catalog-route.component'
-        ));
+        ({ M3uCatalogRouteComponent } =
+            await import('./m3u-catalog-route.component'));
     });
 
     const channels = signal<Channel[]>([]);
@@ -72,6 +78,11 @@ describe('M3uCatalogRouteComponent', () => {
                     useValue: {
                         index: () => buildM3uCatalogIndex(channels()),
                         hasNonLiveContent: () => true,
+                        series: () =>
+                            buildM3uSeriesCatalog(
+                                buildM3uCatalogIndex(channels()).byKind.episode,
+                                'pl-1'
+                            ),
                     },
                 },
                 {
@@ -180,15 +191,43 @@ describe('M3uCatalogRouteComponent', () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
-    it('serves the series kind from the same component', async () => {
-        channels.set([DUNE, EPISODE]);
+    it('shows series rather than episode rows in the series section', async () => {
+        // The whole point of aggregating: a viewer sees the show, not the
+        // forty rows it occupies.
+        channels.set([
+            DUNE,
+            EPISODE,
+            channel(
+                'http://h.example/series/u/p/5.mp4',
+                'Dark S01E02',
+                'Shows'
+            ),
+        ]);
         const fixture = await render('episode');
         const component = fixture.componentInstance as unknown as {
-            cards(): { name: string }[];
+            cards(): { name: string; seriesId?: number }[];
         };
 
-        expect(component.cards().map((card) => card.name)).toEqual([
-            'Dark S01E01',
-        ]);
+        expect(component.cards()).toHaveLength(1);
+        expect(component.cards()[0].name).toBe('Dark');
+        expect(typeof component.cards()[0].seriesId).toBe('number');
+    });
+
+    it('opens the detail route for a series card', async () => {
+        channels.set([EPISODE]);
+        const fixture = await render('episode');
+        const component = fixture.componentInstance as unknown as {
+            cards(): { seriesId?: number }[];
+            onCardActivated(card: { seriesId?: number }): void;
+        };
+        const id = component.cards()[0].seriesId;
+
+        component.onCardActivated({ seriesId: id });
+
+        expect(navigate).toHaveBeenCalledWith(
+            ['..', 'series', id],
+            expect.objectContaining({})
+        );
+        expect(dispatch).not.toHaveBeenCalled();
     });
 });
