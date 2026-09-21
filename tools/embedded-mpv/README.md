@@ -103,6 +103,18 @@ updater:
 pnpm embedded-mpv:windows-runtime-pin:refresh -- --force
 ```
 
+That workflow validates its own result with
+`windows-runtime-pin.test.mjs`, so nothing in those refresh tests may read the
+CHECKED-IN pin's `publishedAt`. Building a fixture from it makes the outcome a
+function of the very data the job replaces, and the assertion then fails
+exactly when the job succeeds: a rotation asserted that the pin it had just
+written was already past the 14-day threshold, the validation step went red,
+the bot PR was never opened, and the pin sat until upstream retention deleted
+its asset — turning every Windows build red on a cold cache. Refresh tests
+build their own pin at a chosen age (`createPinFixture({ ageDays })`);
+`CURRENT_PIN` is for the schema, naming and licence-statement checks, which
+hold for any pin.
+
 The upstream archive is checksum- and layout-verified, not independently
 certified as a complete LGPL closure. It contains no corresponding source or
 license notices, so IPTVnator does not mirror it. Any future stable mirror must
