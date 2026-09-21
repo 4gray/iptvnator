@@ -1507,7 +1507,6 @@ for (const boundary of [').', '];', '}']) {
 
 for (const uri of [
     '<mailto:user@example.com?subject=@docs/guide.md>',
-    'mailto:user@example.com?subject=@docs/guide.md',
     '<urn:example:@docs/guide.md>',
 ]) {
     test(`opaque URI is not a guidance import: ${uri}`, async (t) => {

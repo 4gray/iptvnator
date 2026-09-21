@@ -147,7 +147,7 @@ export function guidanceProse(markdown) {
             return ' ';
         if (node.nodeName === '#text')
             return node.value.replace(
-                /(?:\b[a-z][a-z\d+.-]*:(?![@\s])|\/\/)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
+                /(?:(?<![@/\p{L}\p{N}_])[a-z][a-z\d+.-]*:(?![@\s])|\/\/)[^\s]*?(?=[)\]}>][.,;:!?]*@|\s|$)/giu,
                 ' '
             );
         const content = (node.childNodes ?? []).map(text).join('');
