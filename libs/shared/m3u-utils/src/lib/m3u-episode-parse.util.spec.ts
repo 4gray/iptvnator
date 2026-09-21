@@ -74,6 +74,7 @@ describe('parseM3uEpisode', () => {
             ['DELIKANLI 5.BÖLÜM', 'DELIKANLI', 1, 5, false],
             ['UZAK SEHIR 120.BÖLÜM', 'UZAK SEHIR', 1, 120, false],
             ['La Casa Capitulo 4', 'La Casa', 1, 4, false],
+            ['DELIKANLI 7.BÖLÜM FINAL', 'DELIKANLI', 1, 7, false],
             // Pilots and specials are numbered E0 by real providers; the
             // app already treats season zero as a valid Specials
             // coordinate, so episode zero is kept too.
