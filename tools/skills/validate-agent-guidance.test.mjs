@@ -1747,3 +1747,23 @@ test('srcdoc SVG use keeps its own anchors', async (t) => {
         []
     );
 });
+
+for (const suffix of [').', '];', '”']) {
+    test(`federated handle accepts closing punctuation: ${suffix}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': 'Contact (@alice@example.social' + suffix,
+            }),
+            []
+        );
+    });
+}
+test('multiple at-signs cannot disguise an adjacent document import', async (t) => {
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'CLAUDE.md': '@AGENTS.md\n\n@guide.md@alice@example.social',
+            })
+        ).some((message) => message.includes('additional or inline'))
+    );
+});
