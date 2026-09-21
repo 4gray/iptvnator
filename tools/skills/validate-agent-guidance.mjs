@@ -8,7 +8,7 @@ import {
     resolve,
     sep,
 } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
     guidanceAnchors as anchors,
     guidanceProse,
@@ -36,12 +36,24 @@ function within(root, path) {
 async function validateReference(
     rootDir,
     source,
-    { target, literal, image, unresolvedReference, embeddedAnchors }
+    { target, literal, image, unresolvedReference, embeddedAnchors, bases }
 ) {
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
-    if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(target)) return;
     if (image && !target) return `${source}: empty media target`;
+    if (bases?.length) {
+        try {
+            let base = pathToFileURL(resolve(rootDir, source));
+            for (const href of bases) base = new URL(href, base);
+            const url = new URL(target, base);
+            if (url.protocol !== 'file:') return;
+            target = url.pathname + url.search + url.hash;
+            embeddedAnchors = undefined;
+        } catch {
+            return `${source}: malformed HTML base or target: ${target}`;
+        }
+    }
+    if (/^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(target)) return;
     let path;
     let anchor;
     try {
@@ -189,10 +201,7 @@ export async function validateAgentGuidance({ rootDir }) {
                 diagnostics.push(
                     `${source}: at most ${maxBytes} UTF-8 bytes allowed (received ${bytes})`
                 );
-            const prose = guidanceProse(markdown).replace(
-                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]+/giu,
-                ' '
-            );
+            const prose = guidanceProse(markdown);
             const imports = guidanceStandaloneImports(markdown);
             const inlineImports = [];
             for (const match of prose.matchAll(

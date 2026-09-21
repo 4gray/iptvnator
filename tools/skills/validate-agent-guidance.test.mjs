@@ -1432,3 +1432,49 @@ test('srcdoc anchors are scoped and templates inert', async (t) => {
         []
     );
 });
+
+test('autolink does not hide adjacent import', async (t) => {
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'CLAUDE.md':
+                    '@AGENTS.md\n\n<https://example.com>).@docs/guide.md',
+            })
+        ).some((message) => message.includes('additional or inline'))
+    );
+});
+test('srcdoc base resolves local document paths', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                "<iframe srcdoc=\"<base href='docs/'><a href='example.md#repeat'>Go</a>\"></iframe>",
+        }),
+        []
+    );
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'AGENTS.md':
+                    "<iframe srcdoc=\"<base href='missing/'><a href='docs/example.md'>Go</a>\"></iframe>",
+            })
+        ).length > 0
+    );
+});
+
+test('srcdoc bases retain remote and repository containment rules', async (t) => {
+    assert.deepEqual(
+        await diagnostics(t, {
+            'AGENTS.md':
+                "<iframe srcdoc=\"<base href='https://example.com/'><a href='guide.md'>Go</a>\"></iframe>",
+        }),
+        []
+    );
+    assert.ok(
+        (
+            await diagnostics(t, {
+                'AGENTS.md':
+                    "<iframe srcdoc=\"<base href='../'><a href='guide.md'>Go</a>\"></iframe>",
+            })
+        ).some((message) => message.includes('escapes repository'))
+    );
+});

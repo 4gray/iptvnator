@@ -59,9 +59,14 @@ function decodeEntities(text, attribute = false) {
 function htmlNavigation(html, inspect = () => {}) {
     const anchors = [];
     const references = [];
+    let baseHref;
     function visit(node) {
         if (['script', 'style', 'template'].includes(node.tagName)) return;
         inspect(node);
+        if (node.tagName === 'base' && baseHref === undefined)
+            baseHref = node.attrs?.find(
+                (attribute) => attribute.name === 'href'
+            )?.value;
         for (const attribute of node.attrs ?? []) {
             if (
                 attribute.name === 'id' ||
@@ -97,7 +102,8 @@ function htmlNavigation(html, inspect = () => {}) {
                 for (const reference of embedded.references)
                     references.push(
                         reference.target.startsWith('#') &&
-                            !reference.embeddedAnchors
+                            !reference.embeddedAnchors &&
+                            !reference.bases?.length
                             ? {
                                   ...reference,
                                   embeddedAnchors: embedded.anchors,
@@ -119,7 +125,16 @@ function htmlNavigation(html, inspect = () => {}) {
         for (const child of node.childNodes ?? []) visit(child);
     }
     visit(parseFragment(html));
-    return { anchors, references };
+    return {
+        anchors,
+        references:
+            baseHref === undefined
+                ? references
+                : references.map((reference) => ({
+                      ...reference,
+                      bases: [baseHref, ...(reference.bases ?? [])],
+                  })),
+    };
 }
 
 export function guidanceProse(markdown) {
@@ -130,7 +145,11 @@ export function guidanceProse(markdown) {
             )
         )
             return ' ';
-        if (node.nodeName === '#text') return node.value;
+        if (node.nodeName === '#text')
+            return node.value.replace(
+                /(?:\b[a-z][a-z\d+.-]*:\/\/|\/\/)[^\s]+/giu,
+                ' '
+            );
         const content = (node.childNodes ?? []).map(text).join('');
         return [
             'address',

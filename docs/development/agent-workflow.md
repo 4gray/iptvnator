@@ -61,6 +61,7 @@ URL attributes remove ASCII tabs/newlines throughout and discard surrounding
 ASCII control/space characters before resolution.
 Iframe/embed sources and object data attributes are document references and retain Markdown-target anchor checks.
 Inline iframe srcdoc documents are traversed too, with their own fragment anchors.
+The first active HTML base href sets reference resolution, including nested srcdoc bases.
 Explicit srcset attributes must contain at least one parsed candidate.
 Image and media references require nonempty targets that resolve to files, not directories.
 Image references check file existence without interpreting image fragments as
@@ -69,7 +70,7 @@ HTML video, audio, source and track `src` assets and video posters use the same
 existence checks as images. Entity decoding uses full HTML text/attribute rules,
 including references whose semicolon may be omitted.
 Inline guidance imports are rejected after punctuation as well as whitespace.
-At-signs inside external URLs are excluded from the import scan.
+At-signs inside external URLs are excluded per HTML text node, preserving adjacent imports.
 Extensionless inline candidates are also imports when they resolve to repository files,
 checking the full filename before prefixes at ASCII/Unicode prose separators.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
