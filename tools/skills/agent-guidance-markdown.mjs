@@ -85,10 +85,9 @@ function htmlNavigation(html, inspect = () => {}) {
                 (node.tagName === 'object' && attribute.name === 'data')
             )
                 references.push({
-                    target: attribute.value.replace(
-                        /^[\u0000-\u0020]+|[\u0000-\u0020]+$/gu,
-                        ''
-                    ),
+                    target: attribute.value
+                        .replace(/[\t\n\r]/gu, '')
+                        .replace(/^[\u0000-\u0020]+|[\u0000-\u0020]+$/gu, ''),
                     image: !['a', 'area', 'iframe', 'object', 'embed'].includes(
                         node.tagName
                     ),

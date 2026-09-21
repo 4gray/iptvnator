@@ -57,7 +57,8 @@ Only headings present outside inert HTML containers contribute slugs or duplicat
 Explicit HTML anchors use `parse5`, excluding comments, scripts, styles and template contents.
 Rendered HTML anchor and image-map area hrefs and image sources use the same local-reference checks
 as Markdown links, including decoded attributes and fragment validation.
-URL attributes discard surrounding ASCII control/space characters before resolution.
+URL attributes remove ASCII tabs/newlines throughout and discard surrounding
+ASCII control/space characters before resolution.
 Iframe/embed sources and object data attributes are document references and retain Markdown-target anchor checks.
 Image and media references must resolve to files, not directories.
 Image references check file existence without interpreting image fragments as

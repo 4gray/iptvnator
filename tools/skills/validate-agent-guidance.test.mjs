@@ -1370,3 +1370,14 @@ for (const tag of ['object', 'embed']) {
         );
     });
 }
+
+for (const entity of ['&#9;', '&#10;', '&#13;']) {
+    test(`HTML URLs remove internal tab/newline: ${entity}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'AGENTS.md': `<a href="docs/exa${entity}mple.md#repeat">Guide</a>`,
+            }),
+            []
+        );
+    });
+}
