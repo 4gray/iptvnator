@@ -1586,3 +1586,14 @@ for (const extension of ['pdf', 'rst', 'adoc', 'markdown', 'docm', 'latex']) {
         );
     });
 }
+
+for (const markup of [
+    '![logo](#missing)',
+    '<img src="?v=1">',
+    '[Guide](file:///tmp/missing.md)',
+    '<a href="file:///etc/hosts">Guide</a>',
+]) {
+    test(`nonportable or pathless target is rejected: ${markup}`, async (t) => {
+        assert.ok((await diagnostics(t, { 'AGENTS.md': markup })).length > 0);
+    });
+}

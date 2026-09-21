@@ -65,7 +65,8 @@ Inline iframe srcdoc documents are traversed too, with their own fragment anchor
 The first active HTML base href sets reference resolution, including nested srcdoc bases.
 Resolved file URLs use native filesystem conversion, including Windows drive paths.
 Explicit srcset attributes must contain at least one parsed candidate.
-Image and media references require nonempty targets that resolve to files, not directories.
+Image and media references require a nonempty path that resolves to a file, not a directory.
+Direct file URLs are rejected; use portable repository-relative paths.
 Image references check file existence without interpreting image fragments as
 Markdown headings; document links keep anchor checks even when sharing a target.
 HTML video, audio, source and track `src` assets and video posters use the same

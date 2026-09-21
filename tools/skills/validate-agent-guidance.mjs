@@ -41,6 +41,8 @@ async function validateReference(
 ) {
     if (unresolvedReference !== undefined)
         return `${source}: unresolved Markdown reference "${unresolvedReference}"`;
+    if (/^file:/iu.test(target))
+        return `${source}: use a repository-relative path instead of a file URL: ${target}`;
     if (image && !target) return `${source}: empty media target`;
     let resolvedBasePath;
     if (bases?.length) {
@@ -68,6 +70,8 @@ async function validateReference(
     } catch {
         return `${source}: malformed local link: ${target}`;
     }
+    if (image && !path && !resolvedBasePath)
+        return `${source}: media target requires a path: ${target}`;
     if (embeddedAnchors && !path && !image)
         return !anchor || embeddedAnchors.includes(anchor)
             ? undefined
