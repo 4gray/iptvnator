@@ -77,7 +77,8 @@ does not make that import a URI. Opaque schemes are excluded only in parsed link
 whose visible text equals their URI, so colon-labeled prose remains checked.
 A closing bracket followed by punctuation and an at-sign terminates a bare URL exclusion.
 Extensionless inline candidates are also imports when they resolve to repository files,
-checking the full filename before prefixes at ASCII/Unicode prose separators.
+checking the full filename before prefixes at ASCII/Unicode prose separators,
+including opening parentheses, brackets and braces.
 Declared scoped dependencies, scope wildcards and matching TypeScript path aliases
 are recognized as package/alias mentions. Traversal and document-file imports are
 rejected before those exemptions, including document paths with fragments or queries.
@@ -90,7 +91,7 @@ Declared packages also permit safe subpaths; exact aliases stay exact.
 Declared package mentions may include a version (including semver comparators and wildcard ranges) or dist-tag qualifier.
 Qualifier handling includes unscoped names; terminal sentence punctuation is
 removed before matching a declared package, as are straight/curly apostrophe possessives.
-Unicode punctuation and ASCII commas, semicolons, colons, question/exclamation marks
+Unicode punctuation and ASCII opening delimiters, commas, semicolons, colons, question/exclamation marks
 separate package mentions from adjacent prose.
 Markdown destinations decode HTML entities before URI parsing, matching rendered links.
 Heading-anchor lookup is limited to Markdown targets. Source-file line fragments,

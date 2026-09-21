@@ -1532,3 +1532,28 @@ test('colon-labeled prose cannot hide imports', async (t) => {
         ).some((message) => message.includes('additional or inline'))
     );
 });
+
+for (const opening of ['(', '[', '{']) {
+    test(`opening delimiter separates package and import prose: ${opening}`, async (t) => {
+        assert.deepEqual(
+            await diagnostics(t, {
+                'package.json': JSON.stringify({
+                    dependencies: { '@angular/core': '*' },
+                }),
+                'AGENTS.md': 'Use @angular/core' + opening + 'test helpers)',
+            }),
+            []
+        );
+        assert.ok(
+            (
+                await diagnostics(t, {
+                    'CLAUDE.md':
+                        '@AGENTS.md\n\nRead @INSTRUCTIONS' +
+                        opening +
+                        'then continue)',
+                    INSTRUCTIONS: 'Guidance',
+                })
+            ).some((message) => message.includes('additional or inline'))
+        );
+    });
+}

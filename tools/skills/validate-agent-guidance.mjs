@@ -140,8 +140,9 @@ async function packageMentions(rootDir) {
         .map((name) => name.slice(1));
     const scopes = new Set(declared.map((name) => name.split('/')[0]));
     return (raw) => {
+        if (packages.includes(`@${raw}`) || packages.includes(raw)) return true;
         // ASCII punctuation also belongs to package names and version ranges.
-        let token = raw.split(/[,;:!?]|(?=[^\x00-\x7f])\p{P}/u, 1)[0];
+        let token = raw.split(/[,;:!?([{]|(?=[^\x00-\x7f])\p{P}/u, 1)[0];
         token = token.replace(/[?!.,;:)"'\]}]+$/u, '');
         token = token.replace(/['’]s$/iu, '');
         token = token.replace(
@@ -231,7 +232,7 @@ export async function validateAgentGuidance({ rootDir }) {
                     token.replace(/[?!.,;:)"'\]}]+$/u, ''),
                 ]);
                 for (const boundary of token.matchAll(
-                    /[,;:!?]|(?=[^\x00-\x7f])\p{P}/gu
+                    /[,;:!?([{]|(?=[^\x00-\x7f])\p{P}/gu
                 ))
                     candidates.add(token.slice(0, boundary.index));
                 for (const candidate of candidates) {
