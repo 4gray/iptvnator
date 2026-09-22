@@ -20,6 +20,17 @@
                     <span>{{ 'SOURCE_CLEANUP.TITLE' | translate }}</span>
                 </button>
             }
+            @if (canCompareXtream()) {
+                <button
+                    mat-stroked-button
+                    type="button"
+                    class="cleanup-trigger"
+                    (click)="openPlaylistComparison()"
+                >
+                    <mat-icon>compare_arrows</mat-icon>
+                    <span>{{ 'PLAYLIST_COMPARISON.TITLE' | translate }}</span>
+                </button>
+            }
             <button
                 type="button"
                 mat-stroked-button

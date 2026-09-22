@@ -1841,6 +1841,27 @@
             "checking": "Checking…"
         }
     },
+    "PLAYLIST_COMPARISON": {
+        "TITLE": "Comparer les playlists",
+        "LOCAL_ONLY": "Utilise uniquement les catalogues déjà importés sur cet appareil.",
+        "PLAYLIST_A": "Playlist A",
+        "PLAYLIST_B": "Playlist B",
+        "TOTAL_A": "Playlist A : {{count}}",
+        "TOTAL_B": "Playlist B : {{count}}",
+        "CHOOSE": "Choisir une playlist",
+        "SAME_PLAYLIST": "Choisissez deux playlists différentes.",
+        "MOVIES": "Films",
+        "SERIES": "Séries",
+        "LIVE": "Télévision en direct",
+        "COMMON": "Communs",
+        "ONLY_A": "Seulement A",
+        "ONLY_B": "Seulement B",
+        "AMBIGUOUS": "Ambigus",
+        "LOADING": "Chargement du catalogue local…",
+        "UNAVAILABLE": "Le catalogue n’a pas été importé localement pour l’une des playlists sélectionnées. Aucune requête réseau n’a été effectuée.",
+        "ERROR": "Le catalogue local n’a pas pu être lu.",
+        "EMPTY": "Aucun élément dans ce groupe."
+    },
     "SOURCE_CLEANUP": {
         "TITLE": "Clean up inactive sources…",
         "SCOPE": "All network sources in your library, regardless of page filters.",

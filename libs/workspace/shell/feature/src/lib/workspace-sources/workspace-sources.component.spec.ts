@@ -1,5 +1,5 @@
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
-import { SourceActivityService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SourceActivityService } from '@iptvnator/services';
 import { MatDialog } from '@angular/material/dialog';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import {
@@ -14,8 +14,8 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
-import { provideMockStore } from '@ngrx/store/testing';
+import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
 import {
@@ -39,6 +39,7 @@ class MockRecentPlaylistsComponent {
 
 describe('WorkspaceSourcesComponent', () => {
     let fixture: ComponentFixture<WorkspaceSourcesComponent>;
+    const runtime = { supportsSourceHealth: false, supportsXtreamSqliteDataSource: true };
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -79,6 +80,8 @@ describe('WorkspaceSourcesComponent', () => {
                         queryParamMap: of(convertToParamMap({})),
                     },
                 },
+                { provide: Router, useValue: { navigate: jest.fn() } },
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
                 {
                     provide: SortService,
                     useValue: {
@@ -222,5 +225,29 @@ describe('WorkspaceSourcesComponent', () => {
             fixture.nativeElement.querySelector('.sources-content');
 
         expect(content.classList.contains('app-scrollbar')).toBe(true);
+    });
+
+    it.each([
+        ['no Xtream source', [], false],
+        ['one Xtream source', [{ _id: 'a', title: 'A', serverUrl: 'https://a', username: 'a', password: 'a' }], false],
+        ['two Xtream sources', [{ _id: 'a', title: 'A', serverUrl: 'https://a', username: 'a', password: 'a' }, { _id: 'b', title: 'B', serverUrl: 'https://b', username: 'b', password: 'b' }], true],
+        ['non-Xtream sources', [{ _id: 'a', title: 'M3U' }, { _id: 'b', title: 'Stalker', macAddress: '00:00:00:00:00:01' }], false],
+    ])('shows comparison only with %s', (_label, playlists, expected) => {
+        const store = TestBed.inject(MockStore);
+        store.overrideSelector(selectAllPlaylistsMeta, playlists);
+        store.refreshState();
+        expect(fixture.componentInstance.canCompareXtream()).toBe(expected);
+    });
+
+    it('hides comparison when the SQLite Xtream capability is unavailable', () => {
+        runtime.supportsXtreamSqliteDataSource = false;
+        const store = TestBed.inject(MockStore);
+        store.overrideSelector(selectAllPlaylistsMeta, [
+            { _id: 'a', title: 'A', serverUrl: 'https://a', username: 'a', password: 'a' },
+            { _id: 'b', title: 'B', serverUrl: 'https://b', username: 'b', password: 'b' },
+        ]);
+        store.refreshState();
+        expect(fixture.componentInstance.canCompareXtream()).toBe(false);
+        runtime.supportsXtreamSqliteDataSource = true;
     });
 });

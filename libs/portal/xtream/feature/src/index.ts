@@ -12,3 +12,4 @@ export * from './lib/xtream-content-gate.component';
 export * from './lib/xtream-catalog-facade.service';
 export * from './lib/xtream-feature.routes';
 export * from './lib/xtream-workspace-route-session.service';
+export * from './lib/playlist-comparison/playlist-comparison.component';

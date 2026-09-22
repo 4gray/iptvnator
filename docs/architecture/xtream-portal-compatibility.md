@@ -5,6 +5,15 @@ Electron and PWA paths.
 
 ## Runtime Selection And Ownership
 
+### Local playlist comparison
+
+The playlist comparison MVP is Electron-only and supports Xtream-to-Xtream
+catalogues only. It reads the existing SQLite import snapshots and their import
+state; it never starts a provider request, refresh, or persistence operation.
+Movies and series match TMDB IDs, then normalized title plus stated year, then
+a unique normalized title. Live channels match `epg_channel_id`, then a unique
+normalized name. Provider `xtream_id` is never an inter-playlist identity.
+
 `provideXtreamDataSource()` selects `ElectronXtreamDataSource` only when
 `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource` proves that the
 complete SQLite-backed Xtream bridge is available. Otherwise it selects

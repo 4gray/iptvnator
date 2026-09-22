@@ -1,0 +1,65 @@
+.comparison {
+    height: 100%;
+    overflow: auto;
+    padding: 24px;
+    color: var(--app-on-surface);
+    background: var(--app-content-bg);
+}
+.comparison h2 {
+    margin: 0;
+}
+.comparison p,
+.comparison small {
+    color: var(--app-eyebrow-color);
+}
+.comparison__selectors,
+.comparison__summary,
+.comparison__types,
+.comparison__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 20px 0;
+}
+.comparison__selectors label {
+    display: grid;
+    gap: 6px;
+    min-width: min(100%, 280px);
+}
+.comparison select {
+    min-height: 40px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 8px;
+    padding: 0 10px;
+    color: inherit;
+    background: var(--app-widget-bg);
+}
+.comparison__summary span,
+.comparison__notice {
+    padding: 10px 12px;
+    border: 1px solid var(--app-widget-border);
+    border-radius: 8px;
+    background: var(--app-widget-bg);
+}
+.comparison .selected {
+    border-color: var(--app-selection-border);
+    background: var(--app-selection-surface);
+}
+.comparison__rows {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--app-widget-border);
+}
+.comparison__rows li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid var(--app-widget-border);
+}
+.comparison__rows span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
