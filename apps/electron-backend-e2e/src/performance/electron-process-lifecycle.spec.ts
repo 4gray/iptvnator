@@ -1,12 +1,26 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { describe, it } from 'node:test';
+import {
+    closeElectronApp,
+    type LaunchedElectronApp,
+} from '../electron-test-fixtures';
 
 import {
-    closeElectronApplicationAndConfirmExit,
+    closeElectronApplicationAndConfirmExit as closeApplication,
     ElectronApplicationDisposalError,
     prepareElectronApplication,
 } from '../electron-process-lifecycle';
+
+// Fake children have no OS PID; exercise lifecycle decisions independently
+// of the platform process-tree integration test.
+const closeElectronApplicationAndConfirmExit: typeof closeApplication = (
+    app,
+    options
+) =>
+    closeApplication(app, options, (child, signal) => {
+        child.kill(signal);
+    });
 
 class FakeChildProcess extends EventEmitter {
     exitCode: number | null = null;
@@ -25,6 +39,25 @@ class FakeChildProcess extends EventEmitter {
 }
 
 describe('Electron process lifecycle', () => {
+    it('does not return from public cleanup when close and termination both fail', async () => {
+        const child = new FakeChildProcess();
+        child.kill = () => {
+            throw new Error('termination failed');
+        };
+        const app = {
+            electronApp: {
+                close: async () => {
+                    throw new Error('CDP disconnected');
+                },
+                process: () => child,
+            },
+        } as unknown as LaunchedElectronApp;
+
+        await assert.rejects(
+            closeElectronApp(app),
+            /electron-process-exit-unconfirmed/
+        );
+    });
     it('closes and confirms exit when post-spawn launch preparation fails', async () => {
         const child = new FakeChildProcess();
         const launchFailure = new Error('renderer readiness failed');
@@ -71,7 +104,7 @@ describe('Electron process lifecycle', () => {
             }),
             /electron-process-exit-unconfirmed/
         );
-        assert.equal(child.killCalls, 1);
+        assert.equal(child.killCalls, 2);
     });
 
     it('preserves both preparation and unconfirmed-disposal failures', async () => {
@@ -135,6 +168,25 @@ describe('Electron process lifecycle', () => {
             exitTimeoutMs: 10,
         });
         assert.equal(child.killCalls, 1);
+        assert.equal(child.signalCode, 'SIGTERM');
+    });
+
+    it('still observes exit after the first termination attempt throws', async () => {
+        const child = new FakeChildProcess();
+        const signals: NodeJS.Signals[] = [];
+        await closeApplication(
+            {
+                close: () => new Promise<void>(() => undefined),
+                process: () => child,
+            },
+            { closeTimeoutMs: 1, exitTimeoutMs: 1 },
+            (_child, signal) => {
+                signals.push(signal);
+                if (signal === 'SIGTERM') throw new Error('termination failed');
+                child.kill();
+            }
+        );
+        assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
         assert.equal(child.signalCode, 'SIGTERM');
     });
 });

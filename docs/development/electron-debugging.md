@@ -75,6 +75,9 @@ only `electronApp.process()` can leave Electron holding the temporary profile
 and make the next launch exit on the single-instance lock. The E2E workflow
 checks this against a real Windows shell and child process. Test cleanup must
 target only its own launch PID, never all Electron or IPTVnator processes.
+Cleanup confirms process exit even if Playwright's close promise fails or
+never settles. If termination fails, it retries and then throws instead of
+allowing a relaunch against a potentially locked profile.
 
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before

@@ -31,7 +31,6 @@ import {
     closeElectronApplicationAndConfirmExit,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
-import { terminateElectronProcess } from './electron-process-termination';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -565,52 +564,7 @@ export async function launchCompetingElectronInstance(
 export async function closeElectronApp(
     app: LaunchedElectronApp
 ): Promise<void> {
-    try {
-        const closePromise = app.electronApp.close();
-        const closed = await waitForPromiseWithTimeout(
-            closePromise,
-            electronAppCloseTimeoutMs
-        );
-
-        if (closed) {
-            return;
-        }
-
-        console.warn(
-            `Electron app did not close within ${electronAppCloseTimeoutMs}ms; killing process`
-        );
-        const childProcess = app.electronApp.process();
-
-        if (!childProcess.killed) {
-            terminateElectronProcess(childProcess);
-        }
-
-        await waitForPromiseWithTimeout(
-            closePromise.catch(() => undefined),
-            electronAppKillWaitMs
-        );
-
-        // SIGTERM asks Electron for a graceful quit, which the app can
-        // legitimately refuse — the unsaved-settings close guard cancels the
-        // quit while it waits for an answer. A process that survives here
-        // would outlive the test, hold its data dir, and time out the worker
-        // teardown, so escalate to SIGKILL.
-        if (
-            childProcess.exitCode === null &&
-            childProcess.signalCode === null
-        ) {
-            console.warn(
-                'Electron app survived SIGTERM; escalating to SIGKILL'
-            );
-            terminateElectronProcess(childProcess, 'SIGKILL');
-            await waitForPromiseWithTimeout(
-                closePromise.catch(() => undefined),
-                electronAppKillWaitMs
-            );
-        }
-    } catch (error) {
-        console.warn('Failed to close Electron app cleanly:', error);
-    }
+    await closeElectronAppAndConfirmExit(app);
 }
 
 export async function closeElectronAppAndConfirmExit(
