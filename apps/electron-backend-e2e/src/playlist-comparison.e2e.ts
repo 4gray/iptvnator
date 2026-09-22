@@ -71,9 +71,10 @@ test.describe('Xtream playlist comparison', () => {
                                     }
                                   : {
                                         stream_id: 1,
-                                        name: 'Common Movie',
+                                        name: id.endsWith('a')
+                                            ? 'TMDB Movie A'
+                                            : 'TMDB Movie B',
                                         category_id: '1',
-                                        tmdb_id: 1,
                                     };
                         const unique =
                             type === 'live'
@@ -109,6 +110,16 @@ test.describe('Xtream playlist comparison', () => {
                             [common, unique],
                             type
                         );
+                        if (type === 'movie') {
+                            const movie = (
+                                await window.electron.dbGetContent(id, type)
+                            ).find((item) => item.xtream_id === 1);
+                            if (!movie) throw new Error('Missing common movie');
+                            await window.electron.dbSetContentMetadataIfMissing(
+                                movie.id,
+                                { tmdbId: 1, releaseYear: 2024 }
+                            );
+                        }
                         await window.electron.dbSetAppState(
                             `xtream-import-status:${id}:${type}`,
                             'completed'
@@ -133,6 +144,20 @@ test.describe('Xtream playlist comparison', () => {
             });
 
             const before = await app.mainWindow.evaluate(snapshot);
+            expect(before.content).toEqual(
+                expect.arrayContaining([
+                    [
+                        'comparison-a',
+                        'movie',
+                        expect.arrayContaining([
+                            expect.objectContaining({
+                                tmdb_id: 1,
+                                release_year: 2024,
+                            }),
+                        ]),
+                    ],
+                ])
+            );
             app = await restartElectronApp(app, dataDir);
             await app.mainWindow.evaluate(() => {
                 window.__portalDebugEvents = [];
@@ -173,10 +198,28 @@ test.describe('Xtream playlist comparison', () => {
             await selects.nth(0).selectOption('comparison-a');
             await selects.nth(1).selectOption('comparison-b');
 
-            for (const [type, common, onlyA, onlyB] of [
-                ['Movies', 'Common Movie', 'Only A Movie', 'Only B Movie'],
-                ['Series', 'Common Series', 'Only A Series', 'Only B Series'],
-                ['Live TV', 'Common Live', 'Only A Live', 'Only B Live'],
+            for (const [type, commonA, commonB, onlyA, onlyB] of [
+                [
+                    'Movies',
+                    'TMDB Movie A',
+                    'TMDB Movie B',
+                    'Only A Movie',
+                    'Only B Movie',
+                ],
+                [
+                    'Series',
+                    'Common Series',
+                    'Common Series',
+                    'Only A Series',
+                    'Only B Series',
+                ],
+                [
+                    'Live TV',
+                    'Common Live',
+                    'Common Live',
+                    'Only A Live',
+                    'Only B Live',
+                ],
             ]) {
                 await app.mainWindow
                     .getByRole('button', { name: type })
@@ -187,11 +230,19 @@ test.describe('Xtream playlist comparison', () => {
                 await app.mainWindow
                     .getByRole('button', { name: 'Common' })
                     .click();
-                await expect(
-                    app.mainWindow
-                        .locator('.comparison__rows')
-                        .getByText(common, { exact: true })
-                ).toHaveCount(2);
+                const commonRows = app.mainWindow.locator('.comparison__rows');
+                if (commonA === commonB) {
+                    await expect(
+                        commonRows.getByText(commonA, { exact: true })
+                    ).toHaveCount(2);
+                } else {
+                    await expect(
+                        commonRows.getByText(commonA, { exact: true })
+                    ).toBeVisible();
+                    await expect(
+                        commonRows.getByText(commonB, { exact: true })
+                    ).toBeVisible();
+                }
                 await app.mainWindow
                     .getByRole('button', { name: 'Only A' })
                     .click();

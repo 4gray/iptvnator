@@ -647,6 +647,8 @@ function selectContentFields() {
         rating: schema.content.rating,
         added: schema.content.added,
         poster_url: schema.content.posterUrl,
+        tmdb_id: schema.content.tmdbId,
+        release_year: schema.content.releaseYear,
         epg_channel_id: schema.content.epgChannelId,
         tv_archive: schema.content.tvArchive,
         tv_archive_duration: schema.content.tvArchiveDuration,

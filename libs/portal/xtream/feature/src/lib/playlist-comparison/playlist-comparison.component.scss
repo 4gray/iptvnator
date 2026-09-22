@@ -1,6 +1,9 @@
 .comparison {
+    display: flex;
+    flex-direction: column;
     height: 100%;
-    overflow: auto;
+    min-height: 0;
+    overflow: hidden;
     padding: 24px;
     color: var(--app-on-surface);
     background: var(--app-content-bg);
@@ -46,10 +49,19 @@
     background: var(--app-selection-surface);
 }
 .comparison__rows {
+    flex: 1;
+    min-height: 0;
     margin: 0;
     padding: 0;
+    overflow-y: auto;
     list-style: none;
     border-top: 1px solid var(--app-widget-border);
+}
+.comparison__result {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
 }
 .comparison__rows li {
     display: grid;

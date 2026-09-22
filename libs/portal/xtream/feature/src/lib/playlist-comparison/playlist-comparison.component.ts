@@ -45,6 +45,7 @@ const BUCKET_PROPERTIES: Record<
 export class PlaylistComparisonComponent implements OnInit {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly comparison = inject(XtreamPlaylistComparisonService);
+    private refreshGeneration = 0;
     readonly playlists = signal<PlaylistMeta[]>([]);
     readonly playlistA = signal('');
     readonly playlistB = signal('');
@@ -78,27 +79,34 @@ export class PlaylistComparisonComponent implements OnInit {
     async refresh(): Promise<void> {
         const aId = this.playlistA();
         const bId = this.playlistB();
+        const type = this.type();
+        const generation = ++this.refreshGeneration;
         this.result.set(null);
         this.unavailable.set(false);
         this.failed.set(false);
-        if (!aId || !bId || aId === bId) return;
+        if (!aId || !bId || aId === bId) {
+            this.loading.set(false);
+            return;
+        }
         this.loading.set(true);
         try {
             const [a, b] = await Promise.all([
-                this.comparison.catalogue(aId, this.type()),
-                this.comparison.catalogue(bId, this.type()),
+                this.comparison.catalogue(aId, type),
+                this.comparison.catalogue(bId, type),
             ]);
+            if (generation !== this.refreshGeneration) return;
             this.unavailable.set(
                 a.status !== 'completed' || b.status !== 'completed'
             );
             if (!this.unavailable())
                 this.result.set(
-                    compareXtreamCatalogues(a.content, b.content, this.type())
+                    compareXtreamCatalogues(a.content, b.content, type)
                 );
         } catch {
+            if (generation !== this.refreshGeneration) return;
             this.failed.set(true);
         } finally {
-            this.loading.set(false);
+            if (generation === this.refreshGeneration) this.loading.set(false);
         }
     }
     setBucket(bucket: PlaylistComparisonBucket): void {

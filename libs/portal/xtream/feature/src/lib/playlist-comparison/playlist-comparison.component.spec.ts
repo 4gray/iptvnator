@@ -16,11 +16,25 @@ const content = (id: number, title: string): XtreamContent => ({
     type: 'movie',
 });
 
+function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((next) => {
+        resolve = next;
+    });
+    return { promise, resolve };
+}
+
+const completed = (items: XtreamContent[]) => ({
+    status: 'completed' as const,
+    content: items,
+});
+
 describe('PlaylistComparisonComponent', () => {
     let component: PlaylistComparisonComponent;
     const catalogue = jest.fn();
 
     beforeEach(async () => {
+        catalogue.mockReset();
         catalogue.mockResolvedValue({ status: 'completed', content: [] });
         await TestBed.configureTestingModule({
             imports: [PlaylistComparisonComponent],
@@ -133,5 +147,64 @@ describe('PlaylistComparisonComponent', () => {
         await component.updateSelection('a', 'a');
         expect(component.failed()).toBe(true);
         expect(component.unavailable()).toBe(false);
+    });
+
+    it('does not let an older refresh replace the latest result', async () => {
+        const seriesA = deferred<ReturnType<typeof completed>>();
+        const seriesB = deferred<ReturnType<typeof completed>>();
+        const liveA = deferred<ReturnType<typeof completed>>();
+        const liveB = deferred<ReturnType<typeof completed>>();
+        catalogue.mockImplementation((playlistId: string, type: string) => {
+            const requests = {
+                series: { a: seriesA, b: seriesB },
+                live: { a: liveA, b: liveB },
+            };
+            return requests[type as 'series' | 'live']?.[
+                playlistId as 'a' | 'b'
+            ]?.promise;
+        });
+        component.playlistA.set('a');
+        component.playlistB.set('b');
+
+        const series = component.selectType('series');
+        const live = component.selectType('live');
+        liveA.resolve(
+            completed([
+                { ...content(1, 'Live A'), type: 'live', epg_channel_id: 'x' },
+            ])
+        );
+        liveB.resolve(
+            completed([
+                { ...content(2, 'Live B'), type: 'live', epg_channel_id: 'x' },
+            ])
+        );
+        await live;
+        seriesA.resolve(completed([content(3, 'Series A')]));
+        seriesB.resolve(completed([content(4, 'Series B')]));
+        await series;
+
+        expect(component.type()).toBe('live');
+        expect(component.result()?.common[0].a[0].title).toBe('Live A');
+    });
+
+    it('uses the content type captured when the refresh began', async () => {
+        const movieA = deferred<ReturnType<typeof completed>>();
+        const movieB = deferred<ReturnType<typeof completed>>();
+        catalogue.mockImplementation(() =>
+            catalogue.mock.calls.length % 2 === 1
+                ? movieA.promise
+                : movieB.promise
+        );
+        component.playlistA.set('a');
+        component.playlistB.set('b');
+
+        const refresh = component.refresh();
+        component.type.set('live');
+        movieA.resolve(completed([{ ...content(1, 'Movie A'), tmdb_id: 42 }]));
+        movieB.resolve(completed([{ ...content(2, 'Movie B'), tmdb_id: 42 }]));
+        await refresh;
+
+        expect(component.result()?.common).toHaveLength(1);
+        expect(component.result()?.common[0].reason).toBe('tmdb');
     });
 });
