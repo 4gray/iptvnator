@@ -31,6 +31,7 @@ import {
     closeElectronApplicationAndConfirmExit,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
+import { terminateElectronProcess } from './electron-process-termination';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -581,7 +582,7 @@ export async function closeElectronApp(
         const childProcess = app.electronApp.process();
 
         if (!childProcess.killed) {
-            childProcess.kill();
+            terminateElectronProcess(childProcess);
         }
 
         await waitForPromiseWithTimeout(
@@ -601,7 +602,7 @@ export async function closeElectronApp(
             console.warn(
                 'Electron app survived SIGTERM; escalating to SIGKILL'
             );
-            childProcess.kill('SIGKILL');
+            terminateElectronProcess(childProcess, 'SIGKILL');
             await waitForPromiseWithTimeout(
                 closePromise.catch(() => undefined),
                 electronAppKillWaitMs
