@@ -28,6 +28,7 @@ import {
     writeDataDirOwnerMarker,
 } from './data-dir-reaper';
 import {
+    captureElectronProcess,
     closeElectronApplicationAndConfirmExit,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
@@ -136,7 +137,6 @@ declare global {
 
 export type LaunchedElectronApp = {
     electronApp: ElectronApplication;
-    electronProcess: ChildProcess;
     mainWindow: Page;
 };
 
@@ -235,12 +235,11 @@ export async function launchElectronApp(
         args,
         env: buildElectronLaunchEnvironment(dataDir, options),
     });
-    const electronProcess = electronApp.process();
+    const electronProcess = captureElectronProcess(electronApp);
     return prepareElectronApplication({
         application: electronApp,
         dispose: (application) =>
             closeElectronApplicationAndConfirmExit(application, {
-                childProcess: electronProcess,
                 closeTimeoutMs: electronAppCloseTimeoutMs,
                 exitTimeoutMs: electronAppKillWaitMs,
             }),
@@ -253,7 +252,6 @@ export async function launchElectronApp(
             await startRendererFrameCapture(mainWindow);
             return {
                 electronApp: application,
-                electronProcess,
                 mainWindow,
             };
         },
@@ -462,12 +460,11 @@ export async function launchPackagedElectronApp(
             NODE_ENV: 'test',
         },
     });
-    const electronProcess = electronApp.process();
+    const electronProcess = captureElectronProcess(electronApp);
     return prepareElectronApplication({
         application: electronApp,
         dispose: (application) =>
             closeElectronApplicationAndConfirmExit(application, {
-                childProcess: electronProcess,
                 closeTimeoutMs: electronAppCloseTimeoutMs,
                 exitTimeoutMs: electronAppKillWaitMs,
             }),
@@ -477,7 +474,6 @@ export async function launchPackagedElectronApp(
             await waitForAppReady(mainWindow);
             return {
                 electronApp: application,
-                electronProcess,
                 mainWindow,
             };
         },
@@ -582,7 +578,6 @@ export async function closeElectronAppAndConfirmExit(
     app: LaunchedElectronApp
 ): Promise<void> {
     await closeElectronApplicationAndConfirmExit(app.electronApp, {
-        childProcess: app.electronProcess,
         closeTimeoutMs: electronAppCloseTimeoutMs,
         exitTimeoutMs: electronAppKillWaitMs,
     });

@@ -7,6 +7,7 @@ import {
 } from '../electron-test-fixtures';
 
 import {
+    captureElectronProcess,
     closeElectronApplicationAndConfirmExit as closeApplication,
     ElectronApplicationDisposalError,
     prepareElectronApplication,
@@ -39,25 +40,67 @@ class FakeChildProcess extends EventEmitter {
 }
 
 describe('Electron process lifecycle', () => {
+    it('rejects cleanup when no process was captured for that application', async () => {
+        await assert.rejects(
+            closeApplication(
+                { close: async () => assert.fail('exit cannot be confirmed') },
+                { closeTimeoutMs: 1, exitTimeoutMs: 1 }
+            ),
+            /electron-process-handle-not-captured/
+        );
+    });
+
+    it('cleans the replacement application after a partial restart assignment', async () => {
+        const oldChild = new FakeChildProcess();
+        const newChild = new FakeChildProcess();
+        const oldApplication = {
+            close: async () => {
+                oldChild.exitCode = 0;
+                oldChild.emit('exit', 0, null);
+            },
+            process: () => oldChild,
+        };
+        const newApplication = {
+            close: async () => {
+                newChild.exitCode = 0;
+                newChild.emit('exit', 0, null);
+            },
+            process: () => newChild,
+        };
+        const app = {
+            electronApp: oldApplication,
+        } as unknown as LaunchedElectronApp;
+        captureElectronProcess(oldApplication);
+        captureElectronProcess(newApplication);
+        await closeElectronApp(app);
+        // Existing E2E callers replace the application/window fields only.
+        app.electronApp =
+            newApplication as unknown as LaunchedElectronApp['electronApp'];
+
+        await closeElectronApp(app);
+        assert.equal(newChild.exitCode, 0);
+    });
+
     it('confirms an already exited process after Playwright disposes its dispatcher', async () => {
         const child = new FakeChildProcess();
-        child.exitCode = 0;
         const app = {
-            electronProcess: child,
             electronApp: {
                 close: async () => {
                     assert.fail(
                         'an exited application must not be closed again'
                     );
                 },
-                process: () => {
-                    throw new TypeError(
-                        "Cannot read properties of undefined (reading '_object')"
-                    );
-                },
+                process: () => child,
             },
         } as unknown as LaunchedElectronApp;
 
+        captureElectronProcess(app.electronApp);
+        child.exitCode = 0;
+        app.electronApp.process = () => {
+            throw new TypeError(
+                "Cannot read properties of undefined (reading '_object')"
+            );
+        };
         await closeElectronApp(app);
         assert.equal(child.killCalls, 0);
     });
@@ -68,17 +111,18 @@ describe('Electron process lifecycle', () => {
             throw new Error('termination failed');
         };
         const app = {
-            electronProcess: child,
             electronApp: {
                 close: async () => {
                     throw new Error('CDP disconnected');
                 },
-                process: () => {
-                    assert.fail('cleanup must use the retained child process');
-                },
+                process: () => child,
             },
         } as unknown as LaunchedElectronApp;
 
+        captureElectronProcess(app.electronApp);
+        app.electronApp.process = () => {
+            assert.fail('cleanup must use the retained child process');
+        };
         await assert.rejects(
             closeElectronApp(app),
             /electron-process-exit-unconfirmed/
@@ -96,13 +140,13 @@ describe('Electron process lifecycle', () => {
             },
             process: () => child,
         };
+        captureElectronProcess(application);
 
         await assert.rejects(
             prepareElectronApplication({
                 application,
                 dispose: (app) =>
                     closeElectronApplicationAndConfirmExit(app, {
-                        childProcess: child,
                         closeTimeoutMs: 10,
                         exitTimeoutMs: 10,
                     }),
@@ -123,22 +167,25 @@ describe('Electron process lifecycle', () => {
             close: async () => {
                 assert.fail('an exited application must not be closed again');
             },
-            process: () => {
-                assert.fail('the Playwright dispatcher is already disposed');
-            },
+            process: () => child,
         };
+        captureElectronProcess(application);
 
         await assert.rejects(
             prepareElectronApplication({
                 application,
                 dispose: (app) =>
                     closeElectronApplicationAndConfirmExit(app, {
-                        childProcess: child,
                         closeTimeoutMs: 10,
                         exitTimeoutMs: 10,
                     }),
                 prepare: async () => {
                     child.exitCode = 0;
+                    application.process = () => {
+                        assert.fail(
+                            'the Playwright dispatcher is already disposed'
+                        );
+                    };
                     throw launchFailure;
                 },
             }),
@@ -154,10 +201,10 @@ describe('Electron process lifecycle', () => {
             close: () => new Promise<void>(() => undefined),
             process: () => child,
         };
+        captureElectronProcess(application);
 
         await assert.rejects(
             closeElectronApplicationAndConfirmExit(application, {
-                childProcess: child,
                 closeTimeoutMs: 1,
                 exitTimeoutMs: 1,
             }),
@@ -199,10 +246,10 @@ describe('Electron process lifecycle', () => {
             },
             process: () => child,
         };
+        captureElectronProcess(application);
 
         await Promise.race([
             closeElectronApplicationAndConfirmExit(application, {
-                childProcess: child,
                 closeTimeoutMs: 1_000,
                 exitTimeoutMs: 10,
             }),
@@ -222,9 +269,9 @@ describe('Electron process lifecycle', () => {
             close: () => new Promise<void>(() => undefined),
             process: () => child,
         };
+        captureElectronProcess(application);
 
         await closeElectronApplicationAndConfirmExit(application, {
-            childProcess: child,
             closeTimeoutMs: 1,
             exitTimeoutMs: 10,
         });
@@ -235,11 +282,14 @@ describe('Electron process lifecycle', () => {
     it('still observes exit after the first termination attempt throws', async () => {
         const child = new FakeChildProcess();
         const signals: NodeJS.Signals[] = [];
+        const application = {
+            close: () => new Promise<void>(() => undefined),
+            process: () => child,
+        };
+        captureElectronProcess(application);
         await closeApplication(
-            {
-                close: () => new Promise<void>(() => undefined),
-            },
-            { childProcess: child, closeTimeoutMs: 1, exitTimeoutMs: 1 },
+            application,
+            { closeTimeoutMs: 1, exitTimeoutMs: 1 },
             (_child, signal) => {
                 signals.push(signal);
                 if (signal === 'SIGTERM') throw new Error('termination failed');

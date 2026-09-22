@@ -79,7 +79,10 @@ Cleanup confirms process exit even if Playwright's close promise fails or
 never settles. If termination fails, it retries and then throws instead of
 allowing a relaunch against a potentially locked profile.
 Capture the Node child-process handle immediately after launch and retain it
-for cleanup and preparation failures. After the last window closes on Linux,
+in a WeakMap keyed by the Electron application for cleanup and preparation
+failures. This binding follows the application when restart callers replace
+only the application/window fields on their fixture. After the last window
+closes on Linux,
 Electron can exit before cleanup begins; Playwright disposes its dispatcher,
 so calling `electronApp.process()` at that point can throw even after a clean
 exit. The retained handle still provides the actual exit code and signal.

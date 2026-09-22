@@ -18,6 +18,7 @@ import {
     openSettingsSection,
 } from './electron-test-fixtures';
 import { seedLegacyProfile, legacyPlaylists } from './legacy-profile-fixture';
+import { captureElectronProcess } from './electron-process-lifecycle';
 import { applyTheme } from './theme-contrast';
 
 interface StartupTestGlobals {
@@ -94,6 +95,7 @@ require(${JSON.stringify(electronMainPath)});`
         ],
         env: buildElectronLaunchEnvironment(dataDir),
     });
+    captureElectronProcess(app);
     const page = await app.firstWindow();
     try {
         // The route is intentionally still empty while recovery is pending.

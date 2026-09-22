@@ -11,9 +11,21 @@ export interface ClosableElectronApplication {
 }
 
 export interface ElectronExitConfirmationOptions {
-    readonly childProcess: ElectronChildProcess;
     readonly closeTimeoutMs: number;
     readonly exitTimeoutMs: number;
+}
+
+const electronProcesses = new WeakMap<
+    ClosableElectronApplication,
+    ElectronChildProcess
+>();
+
+export function captureElectronProcess<Process extends ElectronChildProcess>(
+    application: ClosableElectronApplication & { process(): Process }
+): Process {
+    const child = application.process();
+    electronProcesses.set(application, child);
+    return child;
 }
 
 export interface PrepareElectronApplicationOptions<Application, Prepared> {
@@ -61,7 +73,8 @@ export async function closeElectronApplicationAndConfirmExit(
     // Playwright discards its process dispatcher when Electron exits. Keep
     // using the Node handle captured immediately after launch, including when
     // the application's last window already caused a normal process exit.
-    const child = options.childProcess;
+    const child = electronProcesses.get(application);
+    if (!child) throw new Error('electron-process-handle-not-captured');
     if (hasExited(child)) return;
 
     const exit = observeProcessExit(child);
