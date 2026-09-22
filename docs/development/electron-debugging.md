@@ -78,6 +78,11 @@ target only its own launch PID, never all Electron or IPTVnator processes.
 Cleanup confirms process exit even if Playwright's close promise fails or
 never settles. If termination fails, it retries and then throws instead of
 allowing a relaunch against a potentially locked profile.
+Capture the Node child-process handle immediately after launch and retain it
+for cleanup and preparation failures. After the last window closes on Linux,
+Electron can exit before cleanup begins; Playwright disposes its dispatcher,
+so calling `electronApp.process()` at that point can throw even after a clean
+exit. The retained handle still provides the actual exit code and signal.
 
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before

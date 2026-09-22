@@ -7,7 +7,7 @@ import {
     Page,
     test as base,
 } from '@playwright/test';
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { createServer, Server } from 'http';
 import {
     accessSync,
@@ -136,6 +136,7 @@ declare global {
 
 export type LaunchedElectronApp = {
     electronApp: ElectronApplication;
+    electronProcess: ChildProcess;
     mainWindow: Page;
 };
 
@@ -234,15 +235,17 @@ export async function launchElectronApp(
         args,
         env: buildElectronLaunchEnvironment(dataDir, options),
     });
+    const electronProcess = electronApp.process();
     return prepareElectronApplication({
         application: electronApp,
         dispose: (application) =>
             closeElectronApplicationAndConfirmExit(application, {
+                childProcess: electronProcess,
                 closeTimeoutMs: electronAppCloseTimeoutMs,
                 exitTimeoutMs: electronAppKillWaitMs,
             }),
         prepare: async (application) => {
-            attachElectronProcessDiagnostics(application);
+            attachElectronProcessDiagnostics(electronProcess);
             const mainWindow = await findMainWindow(application);
             await waitForAppReady(mainWindow);
             await startPortalDebugCapture(mainWindow);
@@ -250,6 +253,7 @@ export async function launchElectronApp(
             await startRendererFrameCapture(mainWindow);
             return {
                 electronApp: application,
+                electronProcess,
                 mainWindow,
             };
         },
@@ -458,25 +462,32 @@ export async function launchPackagedElectronApp(
             NODE_ENV: 'test',
         },
     });
-    attachElectronProcessDiagnostics(electronApp);
-
-    const mainWindow = await findMainWindow(electronApp);
-    await waitForAppReady(mainWindow);
-
-    return {
-        electronApp,
-        mainWindow,
-    };
+    const electronProcess = electronApp.process();
+    return prepareElectronApplication({
+        application: electronApp,
+        dispose: (application) =>
+            closeElectronApplicationAndConfirmExit(application, {
+                childProcess: electronProcess,
+                closeTimeoutMs: electronAppCloseTimeoutMs,
+                exitTimeoutMs: electronAppKillWaitMs,
+            }),
+        prepare: async (application) => {
+            attachElectronProcessDiagnostics(electronProcess);
+            const mainWindow = await findMainWindow(application);
+            await waitForAppReady(mainWindow);
+            return {
+                electronApp: application,
+                electronProcess,
+                mainWindow,
+            };
+        },
+    });
 }
 
-function attachElectronProcessDiagnostics(
-    electronApp: ElectronApplication
-): void {
+function attachElectronProcessDiagnostics(childProcess: ChildProcess): void {
     if (!process.env['CI']) {
         return;
     }
-
-    const childProcess = electronApp.process();
 
     childProcess.stdout?.on('data', (chunk: Buffer) => {
         console.log(`[electron stdout] ${chunk.toString().trimEnd()}`);
@@ -571,29 +582,10 @@ export async function closeElectronAppAndConfirmExit(
     app: LaunchedElectronApp
 ): Promise<void> {
     await closeElectronApplicationAndConfirmExit(app.electronApp, {
+        childProcess: app.electronProcess,
         closeTimeoutMs: electronAppCloseTimeoutMs,
         exitTimeoutMs: electronAppKillWaitMs,
     });
-}
-
-async function waitForPromiseWithTimeout(
-    promise: Promise<unknown>,
-    timeoutMs: number
-): Promise<boolean> {
-    let timeoutId: NodeJS.Timeout | undefined;
-
-    try {
-        return await Promise.race([
-            promise.then(() => true),
-            new Promise<boolean>((resolvePromise) => {
-                timeoutId = setTimeout(() => resolvePromise(false), timeoutMs);
-            }),
-        ]);
-    } finally {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-    }
 }
 
 function assertPackagedRendererBuildIsElectronSafe(): void {

@@ -8,10 +8,10 @@ type ElectronChildProcess = Pick<
 
 export interface ClosableElectronApplication {
     close(): Promise<void>;
-    process(): ElectronChildProcess;
 }
 
 export interface ElectronExitConfirmationOptions {
+    readonly childProcess: ElectronChildProcess;
     readonly closeTimeoutMs: number;
     readonly exitTimeoutMs: number;
 }
@@ -58,7 +58,10 @@ export async function closeElectronApplicationAndConfirmExit(
 ): Promise<void> {
     assertTimeout(options.closeTimeoutMs);
     assertTimeout(options.exitTimeoutMs);
-    const child = application.process();
+    // Playwright discards its process dispatcher when Electron exits. Keep
+    // using the Node handle captured immediately after launch, including when
+    // the application's last window already caused a normal process exit.
+    const child = options.childProcess;
     if (hasExited(child)) return;
 
     const exit = observeProcessExit(child);
