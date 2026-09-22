@@ -1,0 +1,272 @@
+---
+title: v0.24 - Release Notes
+description: A rebuilt programme guide, channels and episodes within reach in fullscreen, and live stream information — plus more dependable sources, playback and upgrades.
+featured: true
+pubDate: 2026-09-21
+author: 4gray
+heroImage: /iptvnator/blog/v0-24/announce.png
+tags:
+    - release
+draft: true
+---
+
+import BlogImageSlider from '../../components/blog/BlogImageSlider.astro';
+import Alert from '../../components/blog/Alert.astro';
+import ChangeTable from '../../components/blog/ChangeTable.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import ReleaseMeta from '../../components/blog/ReleaseMeta.astro';
+import Spoiler from '../../components/blog/Spoiler.astro';
+import StatusPill from '../../components/blog/StatusPill.astro';
+
+IPTVnator **v0.24** makes it easier to find what is on and keep watching. The **programme guide** follows your M3U playlist, **channels and episodes** are a keypress away in fullscreen, and **stream information** tells you what the player is receiving while it plays.
+
+There is plenty around those three changes: local XMLTV files, catch-up downloads, automatic reconnection for embedded MPV, richer season artwork, and fixes for sources that disappeared during an upgrade. This release brings **27 features, 54 fixes and one performance improvement**.
+
+<ReleaseMeta
+    version="v0.24.0"
+    releaseDate="September 21, 2026"
+    channels={['Desktop', 'PWA']}
+/>
+
+## What changed
+
+<ChangeTable
+    rows={[
+        { area: 'Programme guide', change: 'Your M3U channels, groups and favorites in one guide, with playback above the grid.', impact: 'Find what is on without losing your place' },
+        { area: 'Fullscreen', change: 'Search channels or choose another episode from a slide-in panel.', impact: 'Keep watching while you browse' },
+        { area: 'Stream information', change: 'See resolution, frame rates, bitrate, audio and playback health when available.', impact: 'Understand the stream you are watching' },
+    ]}
+/>
+
+<Alert type="info" title="About the screenshots">
+These screenshots were captured with the release mock servers and fictional demonstration content. IPTVnator does not provide streams, playlists or media; you bring your own sources. The announcement cover is an AI-generated illustration, not an application screenshot.
+</Alert>
+
+## Programme guide, rebuilt
+
+<StatusPill type="new" />
+
+The programme guide now shows your playlist's own channels in their order, with the current group or favorites one click away. Click a channel to switch playback while the player stays on screen above the grid; double-click switches and closes. Open it from the new Guide button, the header, the command palette, or the G key. Hide channels without EPG and pick comfortable or compact rows. ([#1560](https://github.com/4gray/iptvnator/pull/1560), closes [#171](https://github.com/4gray/iptvnator/issues/171))
+
+## Channels and episodes in fullscreen
+
+<StatusPill type="new" />
+
+Rest the mouse on the left edge (tap it on touch) or press C while a live channel plays fullscreen: the channel list (M3U all/groups/favorites/recent, Xtream, Stalker, global favorites) slides over the video with search, so you can zap without leaving fullscreen. Nothing covers the video while it is closed. M3U playlists also zap with PageUp/PageDown. ([#1519](https://github.com/4gray/iptvnator/pull/1519), closes [#48](https://github.com/4gray/iptvnator/issues/48))
+
+Series playback now has the slide-in list in fullscreen too: rest the mouse on the left edge, click it, or press C to see the season tabs and episodes with stills, runtimes, descriptions and watch progress, and jump to another episode without leaving fullscreen. Works for Xtream and Stalker series with any built-in player. ([#1620](https://github.com/4gray/iptvnator/pull/1620))
+
+With the default shared controls, switching channels, episodes or alternative movie sources also keeps the player fullscreen ([#1509](https://github.com/4gray/iptvnator/pull/1509)).
+
+## Stream info while you watch
+
+<StatusPill type="new" />
+
+The player overlay now shows stream information: resolution, playback and source frame rates, stream and codec bitrates, audio details, buffer and dropped frames. Available in built-in web players and experimental frame-copy Embedded MPV. Unknown or unavailable values stay hidden; measured frame rates reflect dropped frames and stalls. ([#1578](https://github.com/4gray/iptvnator/pull/1578))
+
+## Downloads and recordings
+
+<StatusPill type="improved" />
+
+- **Keep a catch-up programme.** Download completed Xtream broadcasts as TS files and play them from Downloads. Interrupted archive downloads restart from the beginning. ([#1572](https://github.com/4gray/iptvnator/pull/1572))
+
+## Playback
+
+<StatusPill type="improved" />
+
+- **Reconnect automatically.** Embedded MPV retries dropped live streams up to six times. Settings → Playback adds an opt-out and advanced extra MPV options. ([#1515](https://github.com/4gray/iptvnator/pull/1515))
+- **Share useful diagnostics.** Playback errors explain confirmed access and DRM failures; Copy diagnostics creates a support report without stream URLs or credentials. ([#1574](https://github.com/4gray/iptvnator/pull/1574))
+
+## Movies, series and the dashboard
+
+<StatusPill type="improved" />
+
+- **Continue where you left off.** Continue Watching shows your episode and time remaining, including Stalker series filed under Movies. ([#1646](https://github.com/4gray/iptvnator/pull/1646))
+- **See what is on air.** Desktop dashboard cards for favorite and recent Xtream/Stalker channels show the programme and progress as they scroll into view. ([#1638](https://github.com/4gray/iptvnator/pull/1638))
+- **Mark movies as watched.** Set or clear watched status from Xtream and Stalker detail pages, including Favorites and Recently Viewed. ([#1605](https://github.com/4gray/iptvnator/pull/1605))
+- **Scan long season lists.** Series with more than six seasons show season thumbnails in the dropdown when artwork is available. ([#1633](https://github.com/4gray/iptvnator/pull/1633))
+- **Season artwork.** Multi-season series show each season’s poster beside the tabs and in the fullscreen episode panel, from TMDB when enabled or the provider. ([#1628](https://github.com/4gray/iptvnator/pull/1628))
+- **Control connection cooldowns.** Desktop settings can disable the temporary pause after repeated portal connection failures; account info offers an immediate retry. ([#1536](https://github.com/4gray/iptvnator/pull/1536))
+- **Fold Live TV panels in steps.** Hide categories alone or both panels; a category dropdown keeps browsing available in the narrower layout. ([#1556](https://github.com/4gray/iptvnator/pull/1556))
+- **Browse a wall of covers.** Turn off Show titles under covers in Settings → General; titles appear on hover or keyboard focus and remain visible when artwork is missing. ([#1604](https://github.com/4gray/iptvnator/pull/1604))
+
+## Live TV, EPG and M3U
+
+<StatusPill type="improved" />
+
+- **Copy a catch-up link.** Programme details can copy an archive URL for Xtream and supported M3U sources without interrupting playback. ([#1569](https://github.com/4gray/iptvnator/pull/1569))
+- **Correct guide times.** A display-only EPG offset fixes feeds with missing or incorrect timezone information, without importing the guide again. ([#1489](https://github.com/4gray/iptvnator/pull/1489), closes [#50](https://github.com/4gray/iptvnator/issues/50))
+- **Use local XMLTV files.** Desktop EPG sources accept `.xml` and `.xml.gz` files through the file picker or a confirmed local path. ([#1600](https://github.com/4gray/iptvnator/pull/1600))
+- **A tidier timeline.** Cycle between day, hour and detailed views with one button, or use Ctrl/⌘ + scroll to zoom around the cursor. ([#1557](https://github.com/4gray/iptvnator/pull/1557))
+
+## Settings, import and the desktop app
+
+<StatusPill type="improved" />
+
+- **AppManager discovery.** AppImages include the repository metadata AppManager needs to find and download complete updates. ([#1559](https://github.com/4gray/iptvnator/pull/1559))
+- **Review inactive sources together.** Desktop users can select sources to remove, retain individual entries and see the result for each deletion. ([#1596](https://github.com/4gray/iptvnator/pull/1596))
+- **Check source availability.** Desktop playlist lists show background availability checks for Stalker portals and M3U links alongside Xtream accounts. ([#1592](https://github.com/4gray/iptvnator/pull/1592))
+- **Try the nightly channel.** Settings → About offers builds from master. Stable remains the default; returning from nightly waits for a newer stable release. ([#1608](https://github.com/4gray/iptvnator/pull/1608))
+
+## Other changes
+
+<StatusPill type="improved" />
+
+- **Return to the source.** Open a favorite or recently viewed live channel inside its Xtream or M3U playlist from the source chip or context menu. ([#1634](https://github.com/4gray/iptvnator/pull/1634))
+- **Stalker gets the same shortcut.** Open in playlist selects and plays the channel inside its portal’s Live TV category. ([#1639](https://github.com/4gray/iptvnator/pull/1639))
+- **Choose how the app starts.** Open at the last size, maximized or fullscreen. F11 toggles fullscreen; `--fullscreen` affects one launch. ([#1514](https://github.com/4gray/iptvnator/pull/1514), closes [#1455](https://github.com/4gray/iptvnator/issues/1455))
+- **Zoom from the keyboard.** Ctrl/Cmd +/− adjusts the app size, including numpad keys; Ctrl/Cmd+0 resets it. Windows and Linux now have these shortcuts too. ([#1623](https://github.com/4gray/iptvnator/pull/1623), closes [#1109](https://github.com/4gray/iptvnator/issues/1109))
+
+## Performance
+
+<StatusPill type="improved" />
+
+- **Faster large catalogs.** Refreshing or removing a large Xtream playlist spends less time clearing and writing cached content. ([#1511](https://github.com/4gray/iptvnator/pull/1511), closes [#1292](https://github.com/4gray/iptvnator/issues/1292))
+
+## A look around
+
+<BlogImageSlider
+    images={[
+        { src: '/iptvnator/blog/v0-24/screenshots/dashboard-dark.png', alt: 'IPTVnator dashboard with fictional mock content in dark theme', caption: 'Dashboard, dark theme.' },
+        { src: '/iptvnator/blog/v0-24/screenshots/xtream-series-season-open-dark.png', alt: 'Series details with fictional mock episodes', caption: 'Series details and season navigation.' },
+        { src: '/iptvnator/blog/v0-24/screenshots/m3u-live-groups-two-column-light.png', alt: 'M3U channel groups in light theme', caption: 'Live TV groups, light theme.' },
+        { src: '/iptvnator/blog/v0-24/screenshots/settings-light.png', alt: 'IPTVnator settings in light theme', caption: 'Settings, light theme.' },
+        { src: '/iptvnator/blog/v0-24/screenshots/xtream-vod-details-dark.png', alt: 'Movie details with fictional mock content', caption: 'Movie details, dark theme.' },
+    ]}
+/>
+
+## Sources and upgrades
+
+<StatusPill type="fixed" />
+
+- Upgrades from older desktop versions retain all sources from the legacy profile. Already-upgraded users can choose to recover missing sources without replacing current sources or settings. Migration keeps the original data and retries safely after a failed write. ([#1550](https://github.com/4gray/iptvnator/pull/1550), closes [#1504](https://github.com/4gray/iptvnator/issues/1504))
+- Startup now shows a theme-aware preparation screen while loading sources and checking a large programme guide. Temporary source-read failures retry automatically; if loading still fails, you can retry without restarting the app. Recovery also completes any previously failed programme-guide cleanup before opening the library. ([#1568](https://github.com/4gray/iptvnator/pull/1568))
+- Removing and saving an EPG source now clears its cached programmes, including data left by previously removed sources on restart. Other configured sources and playlist guides are preserved, and Live TV stops showing programmes from the removed source. ([#1548](https://github.com/4gray/iptvnator/pull/1548))
+- A slow Xtream or Stalker panel is no longer mistaken for a dead one: a request that reached the panel and then timed out no longer trips the 30-second "portal is not responding" pause, which only fires when the panel never accepts the connection. The desktop app also gives IPv4 fallback the same 2.5-second budget as the self-hosted backend, so dual-stack panels behind VPNs stop failing in bursts. ([#1621](https://github.com/4gray/iptvnator/pull/1621))
+
+## Everything else
+
+The remaining fixes are grouped below. The full changelog also records maintenance and security dependency updates.
+
+<Spoiler title="Show the remaining fixes">
+
+**Playback**
+
+- When a stream refuses the connection, the embedded MPV player (frame-copy engine) no longer hands the URL to yt-dlp before giving up: the failure shows up right away and its error no longer reads "youtube-dl failed: unexpected error occurred", matching the native-view engines and the external MPV player. ([#1526](https://github.com/4gray/iptvnator/pull/1526))
+- The built-in player controls now hide on their own after you click a button in the bar with the mouse, such as fullscreen or mute. Previously the clicked button kept the bar pinned on screen until you clicked the video, which also paused it. Applies to the shared controls in the web players and the Embedded MPV frame-copy engine. ([#1512](https://github.com/4gray/iptvnator/pull/1512))
+- Arrow keys and the ±10 s buttons in the Embedded MPV player now move by their full step every time. Pressing an arrow repeatedly, or holding it, used to advance only about a second per press because each step was computed from a stale position; steps are now relative seeks executed by mpv itself, so rapid presses add up. ([#1518](https://github.com/4gray/iptvnator/pull/1518))
+- The fullscreen channel list is easier to find and calmer to use: moving the mouse shows a small tab on the left edge, a click on that edge opens the list at once, hover still opens it after a short rest, and the list now stays open for a full second after the mouse leaves. Opened with `C`, it no longer closes while the mouse only wanders over the video. ([#1619](https://github.com/4gray/iptvnator/pull/1619))
+- The fullscreen channel panel stays open under the pointer when its opening animation is delayed, instead of closing before the list appears. ([#1591](https://github.com/4gray/iptvnator/pull/1591))
+- With the default shared player controls, the built-in player now stays in fullscreen when you switch to another episode, when the next episode starts automatically, and when a live channel or an alternative movie source is switched — previously every switch dropped back to the page. The legacy vendor-controls opt-out keeps its previous behavior. ([#1509](https://github.com/4gray/iptvnator/pull/1509))
+- Switching channels or leaving playback now closes the old picture-in-picture window in HTML5, Video.js, and ArtPlayer even when shared player controls are disabled, preventing frozen or outdated video from remaining on top. This includes Safari’s legacy picture-in-picture mode. ([#1538](https://github.com/4gray/iptvnator/pull/1538))
+- Embedded MPV controls and programme-guide panels now follow the visual theme and stay readable in light and dark mode. Video overlays retain their contrasting dark backgrounds. ([#1541](https://github.com/4gray/iptvnator/pull/1541), closes [#1530](https://github.com/4gray/iptvnator/issues/1530))
+- The built-in HTML5 player now plays `.mkv`, `.webm`, `.avi`, `.mov` and other non-HLS video files directly instead of handing them to the HLS engine, which failed with a "network or provider loading error" on many Xtream episodes and movies. ArtPlayer and the HTML5 player now choose their engine by the same rule. ([#1510](https://github.com/4gray/iptvnator/pull/1510))
+- Keyboard shortcuts work again right after you click a button in the built-in player controls. Previously the clicked button kept the keyboard: after clicking fullscreen, Space left fullscreen instead of pausing, and the seek, volume and mute keys did nothing until you clicked the video. Applies to the shared controls in the web players and the Embedded MPV frame-copy engine. ([#1516](https://github.com/4gray/iptvnator/pull/1516))
+- With IPTVnator's shared controls turned off, the Video.js player's keyboard shortcuts now work again right after you click a button in its control bar. Previously the clicked button kept the keyboard: after clicking fullscreen, Space left fullscreen instead of pausing, and the seek, volume and mute keys did nothing until you clicked the video. ([#1523](https://github.com/4gray/iptvnator/pull/1523))
+- VLC now opens without an extra console window on Windows when playback progress tracking or Reuse VLC instance is enabled. ([#1533](https://github.com/4gray/iptvnator/pull/1533), closes [#871](https://github.com/4gray/iptvnator/issues/871))
+
+**Movies, series and the dashboard**
+
+- The dashboard's "Now on air on favorite channels" and "Recently watched Live TV" rails now show the current programme for channels whose guide lives in an XMLTV another playlist imported, not only in the global EPG sources from Settings — the same lookup the "See all" pages already used. ([#1637](https://github.com/4gray/iptvnator/pull/1637))
+- Xtream and Stalker portals no longer enter a connection cooldown merely because several parallel requests fail in the same millisecond. This fixes false unavailability in both the desktop app and the self-hosted web version. ([#1537](https://github.com/4gray/iptvnator/pull/1537), closes [#1438](https://github.com/4gray/iptvnator/issues/1438))
+- Xtream and Stalker keep remote channel order while you browse other categories or search. Use Show playing channel to return to the current channel without restarting playback. Stalker radio supports the same behavior. ([#1554](https://github.com/4gray/iptvnator/pull/1554), closes [#1520](https://github.com/4gray/iptvnator/issues/1520))
+- Russian titles containing "й" or "ё" and Arabic titles with hamza letters now match on TMDB. The search used to send a folded spelling — dropping the breve from "й", for instance — that TMDB never recognised, and cached the miss for a week; those cached misses are cleared on the next start. ([#1626](https://github.com/4gray/iptvnator/pull/1626))
+- A new series no longer picks up the poster, cast and plot of an older show that happens to share its title. Metadata is looked up in your own language, so an unrelated foreign series can be listed under the very same name — and the better-known one used to win. The release year the provider states now decides first. ([#1648](https://github.com/4gray/iptvnator/pull/1648))
+
+**Xtream**
+
+- Xtream Live TV in Auto can try advertised TS once when HLS initially fails with an HTTP error in a web player. The selected player and stream headers are kept. Settings explain the manual TS workaround for external players, Embedded MPV, and HLS retries that never report a terminal failure. ([#1558](https://github.com/4gray/iptvnator/pull/1558), closes [#1513](https://github.com/4gray/iptvnator/issues/1513))
+- Catch-up (timeshift) from the Favorites and Recent tabs now asks the panel for the programme you clicked: the start time is rendered in the panel's own timezone instead of your computer's. The panel's timezone is remembered per source, survives restarts, and panels that report an unusual timezone name are handled through their clock. ([#1563](https://github.com/4gray/iptvnator/pull/1563), closes [#1562](https://github.com/4gray/iptvnator/issues/1562))
+- Xtream category management now selects or deselects only matching categories while searching, preserving the visibility of all other categories. Button labels and availability reflect the search results, and the counter clearly shows the total selected. ([#1534](https://github.com/4gray/iptvnator/pull/1534), closes [#812](https://github.com/4gray/iptvnator/issues/812), closes [#816](https://github.com/4gray/iptvnator/issues/816))
+- The explicit HTTPS and HTTP connection test now detects Xtream portals that accept HTTP when HTTPS is unavailable and fills in the working address before you save. The saved address is used for catalog updates, provider EPG and playback. Connection failures now show a more specific explanation. ([#1588](https://github.com/4gray/iptvnator/pull/1588))
+- **Return to the source.** Open a favorite or recently viewed live channel inside its Xtream or M3U playlist from the source chip or context menu. ([#1634](https://github.com/4gray/iptvnator/pull/1634))
+- The Xtream sync panel now keeps its status text, labels and Stop sync button clearly readable in both light and dark themes. ([#1546](https://github.com/4gray/iptvnator/pull/1546))
+
+**Stalker portals**
+
+- **Stalker gets the same shortcut.** Open in playlist selects and plays the channel inside its portal’s Live TV category. ([#1639](https://github.com/4gray/iptvnator/pull/1639))
+- Stalker Live TV search stays within the selected category in the sidebar and fullscreen panel, including channels beyond the first page. All Items searches the whole catalog, and the two search fields work independently. ([#1552](https://github.com/4gray/iptvnator/pull/1552), closes [#1543](https://github.com/4gray/iptvnator/issues/1543))
+- In Stalker portals, switching the Live TV or radio category in the sidebar no longer stops the channel that is playing. The category only changes which channels are listed, matching how Xtream portals and M3U playlists already behave. ([#1517](https://github.com/4gray/iptvnator/pull/1517))
+- Stalker series with season markers such as “s02” or “2 сезон” now show the correct season in tabs and episode labels while preserving watch progress. TMDB updates no longer reset loaded episodes, and delayed portal responses cannot mix episodes from different series. ([#1545](https://github.com/4gray/iptvnator/pull/1545))
+- Seeking in Stalker movies and series now reaches the selected position instead of jumping forward or skipping to the next episode after resuming playback. ([#1544](https://github.com/4gray/iptvnator/pull/1544))
+
+**Live TV, EPG and M3U**
+
+- EPG guides now load when a server adds gzip compression to an already compressed XMLTV file. Sources using a single gzip layer continue to work. ([#1589](https://github.com/4gray/iptvnator/pull/1589), closes [#1586](https://github.com/4gray/iptvnator/issues/1586))
+- The EPG import panel no longer shows a horizontal scrollbar while sources download. Source names now read as host/file instead of running the two together, channel and programme counts use your locale's digit grouping, and the minimize button and summary are translated. ([#1599](https://github.com/4gray/iptvnator/pull/1599))
+- ClearKey channels with ordinary Base64 keys now play when imported or refreshed, including JSON playlist exports that use + and / characters. Refresh an existing playlist once to apply the fix. ([#1575](https://github.com/4gray/iptvnator/pull/1575))
+- DASH channels, including ClearKey-protected streams, now play from Recently Viewed and Favorites using the compatible built-in player. Existing imports keep their DRM keys without needing to re-import the playlist. ([#1597](https://github.com/4gray/iptvnator/pull/1597), closes [#1590](https://github.com/4gray/iptvnator/issues/1590))
+- M3U URL imports now accept a custom User-Agent for providers that require it before downloading the playlist. The value is saved and reused for playlist refreshes in the desktop app and self-hosted web app. ([#1535](https://github.com/4gray/iptvnator/pull/1535), closes [#465](https://github.com/4gray/iptvnator/issues/465), closes [#1120](https://github.com/4gray/iptvnator/issues/1120))
+- Movies and episodes recognized as video files in M3U playlists now offer playback time and seeking in built-in players, even when TMDB or movie details are disabled. Seeking remains dependent on the source's support. ([#1594](https://github.com/4gray/iptvnator/pull/1594))
+- The current program shown under each channel in the Xtream Live TV list now moves on by itself once that program ends, and its progress bar keeps advancing. Previously both stayed frozen on the old program until you left the category and came back in. ([#1647](https://github.com/4gray/iptvnator/pull/1647), closes [#767](https://github.com/4gray/iptvnator/issues/767))
+
+**Search**
+
+- Search now returns the same results whether you type upper or lower case Turkish characters. Titles with the dotted capital I (for example "İnşaat") are found by typing a plain lower case i, so "inş" and "İnş" match the same channels and movies — in global search, in each portal's search, in the command palette, and in the channel, category, favorites and download list filters. ([#1640](https://github.com/4gray/iptvnator/pull/1640), closes [#609](https://github.com/4gray/iptvnator/issues/609))
+
+**Settings, import and the desktop app**
+
+- Updating directly from older versions no longer blocks playlist loading with a missing database column error. Existing sources, favorites, and playback history are preserved. ([#1582](https://github.com/4gray/iptvnator/pull/1582), closes [#1580](https://github.com/4gray/iptvnator/issues/1580))
+- Opening an M3U playlist immediately after refreshing now waits for its pending save, so the channel list does not revert to the previous catalog. ([#1591](https://github.com/4gray/iptvnator/pull/1591))
+- The update status in Settings → About now names the channel it describes, and after picking another channel the check button becomes "Save and check": one click saves the choice and reports what that channel offers. Previously "Check again" silently re-checked the still-saved channel, so a fresh nightly could look like "no update". ([#1631](https://github.com/4gray/iptvnator/pull/1631))
+- Live TV now supports keyboard movement between categories and channels, and channel lists keep scrolling after mouse selection. Channel scrollbars and resize handles are independently accessible. Movie and series details support immediate keyboard scrolling and no longer hide their scrollbars. ([#1542](https://github.com/4gray/iptvnator/pull/1542), closes [#1506](https://github.com/4gray/iptvnator/issues/1506))
+- Detail buttons, episode cards and episode rows now keep visible backgrounds and borders in the light theme. The grid/list switch also clearly highlights the selected view in both themes. ([#1549](https://github.com/4gray/iptvnator/pull/1549))
+- Movie and series detail pages now show one Back arrow instead of two. The floating arrow always returns to the list, while watching too, and the "Close player" button beside the player is the only control that returns to the description. Escape still closes the player first and then goes back. ([#1627](https://github.com/4gray/iptvnator/pull/1627))
+- Movie and series detail pages keep their Back button visible while scrolling. Escape closes the inline player to the description, then returns to the previous view. Open menus, dialogs and fullscreen retain priority. ([#1576](https://github.com/4gray/iptvnator/pull/1576), closes [#1570](https://github.com/4gray/iptvnator/issues/1570))
+- "What's new" no longer fails with a raw error for a build published after the app started: the release list is re-read from GitHub when the requested version is missing, so a freshly offered nightly shows its notes. When a version really has no release, the dialog now says so in plain words and links to the channel's releases page. ([#1631](https://github.com/4gray/iptvnator/pull/1631))
+
+**Self-hosted web version**
+
+- The self-hosted backend now checks every provider redirect and pins connections to validated addresses, preventing redirects or DNS changes from bypassing private-network restrictions. Trusted LAN access remains available through the existing opt-in. ([#1553](https://github.com/4gray/iptvnator/pull/1553), closes [#1436](https://github.com/4gray/iptvnator/issues/1436))
+
+**Other changes**
+
+- Switching Favorites or Recently Viewed between "This playlist" and "All playlists" now shows a thin progress bar under the header and dims the list while the new items load, instead of leaving the old list on screen with no sign that anything happened. The toggle reflects your choice at once, a playing channel keeps playing, and quick switches show no indicator at all. ([#1636](https://github.com/4gray/iptvnator/pull/1636))
+- Portal recovery now waits for an active probe to finish before sending another request, even when redirects or a slow response take longer than 45 seconds. Completed and cancelled requests release the probe slot reliably. ([#1547](https://github.com/4gray/iptvnator/pull/1547), closes [#1439](https://github.com/4gray/iptvnator/issues/1439))
+- A hidden channel list no longer looks like a playlist that lost its channels: the player now says the list is hidden and offers a "Show channels list" button, a toggle in the workspace header stays in place in both states, and hiding the list in one place (M3U player, portal Live TV, favorites/recent) no longer hides it everywhere else. ([#1555](https://github.com/4gray/iptvnator/pull/1555), closes [#1458](https://github.com/4gray/iptvnator/issues/1458))
+- Reloading the desktop app while on any page no longer breaks it: View › Reload on macOS used to leave a blank, dead window until restart, and the reload offered by the settings unsaved-changes dialog did nothing. Both now reload the app back onto the page you were on. ([#1622](https://github.com/4gray/iptvnator/pull/1622))
+- The app now remembers your zoom level (Cmd/Ctrl and +/-): it holds when you switch between sections or resize the window, and comes back after a restart, so a larger font size no longer resets to the default. ([#1617](https://github.com/4gray/iptvnator/pull/1617), closes [#1109](https://github.com/4gray/iptvnator/issues/1109))
+
+</Spoiler>
+
+<Alert type="warning" title="Before updating">
+Please back up your playlists and important data before updating. Desktop startup applies database updates for catch-up downloads and EPG source tracking, and clears outdated TMDB search matches. Direct upgrades from older releases are supported; missing sources from an earlier migration can be recovered without replacing your current library. Allow the preparation screen to finish, and avoid downgrading a profile after it has been upgraded.
+</Alert>
+
+## Thanks
+
+Thank you to [@Bpl5966](https://github.com/Bpl5966) for embedded MPV reconnects and extra options ([#1515](https://github.com/4gray/iptvnator/pull/1515)), [@mark-jardine](https://github.com/mark-jardine) for the EPG time offset ([#1489](https://github.com/4gray/iptvnator/pull/1489)), and [@larsemig](https://github.com/larsemig) for stream information ([#1578](https://github.com/4gray/iptvnator/pull/1578)). Welcome to Bpl5966 and mark-jardine, whose first contributions are included in this release.
+
+A warm thank-you to everyone who reported issues, tested builds and helped others in the [Telegram community](https://t.me/iptvnator), and to the sponsors and donors who make time for this project possible. 💙 If IPTVnator is useful to you, you can support its development through [GitHub Sponsors](https://github.com/sponsors/4gray) or [Ko-fi](https://ko-fi.com/4gray).
+
+## Download
+
+<LinkCards
+    links={[
+        {
+            label: 'Download v0.24.0',
+            href: 'https://github.com/4gray/iptvnator/releases/tag/v0.24.0',
+            hint: 'Official binaries for macOS, Windows and Linux.',
+            icon: 'download',
+        },
+        {
+            label: 'Full release notes',
+            href: 'https://github.com/4gray/iptvnator/releases/tag/v0.24.0',
+            hint: 'Every entry in full, on GitHub.',
+            icon: 'github',
+        },
+        {
+            label: 'Full Changelog',
+            href: 'https://github.com/4gray/iptvnator/compare/v0.23.0...v0.24.0',
+            hint: 'Every commit between v0.23.0 and v0.24.0.',
+            icon: 'github',
+        },
+        {
+            label: 'All Releases',
+            href: 'https://github.com/4gray/iptvnator/releases',
+            hint: 'Browse every IPTVnator release.',
+            icon: 'github',
+        },
+    ]}
+/>
+

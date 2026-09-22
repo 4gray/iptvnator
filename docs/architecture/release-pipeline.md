@@ -136,6 +136,11 @@ fails on an unused import.
 
 ## Highlight cards
 
+For an imagegen announcement cover, use the reusable
+[release cover artwork recipe](../development/release-cover-artwork.md).
+It preserves the selected visual direction and exact 0.24 prompt; the
+deterministic cards and screenshot requirements below still apply.
+
 `tools/release/highlight-cards.mjs` plans and lays out;
 `tools/release/generate-highlight-cards.mjs` renders through sharp. Output is 1200×630 (Open Graph), matching the website
 palette in `apps/website/tailwind.config.mjs`.

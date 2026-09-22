@@ -7,6 +7,8 @@ description: Use when preparing, cutting, tagging, publishing, or verifying an I
 
 Full contract, asset table and rationale: `docs/architecture/release-pipeline.md`.
 
+For imagegen announcement covers, reuse [the approved artwork prompt](../../../docs/development/release-cover-artwork.md).
+
 The tag workflow authors the public GitHub body with
 `node tools/release/extract-changelog-section.mjs --public "${VERSION}"`.
 Keep the full changelog, including internal notes, committed before tagging.
