@@ -7,7 +7,7 @@ import {
     Page,
     test as base,
 } from '@playwright/test';
-import { spawn } from 'child_process';
+import { spawn, type ChildProcess } from 'child_process';
 import { createServer, Server } from 'http';
 import {
     accessSync,
@@ -28,6 +28,7 @@ import {
     writeDataDirOwnerMarker,
 } from './data-dir-reaper';
 import {
+    captureElectronProcess,
     closeElectronApplicationAndConfirmExit,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
@@ -234,6 +235,7 @@ export async function launchElectronApp(
         args,
         env: buildElectronLaunchEnvironment(dataDir, options),
     });
+    const electronProcess = captureElectronProcess(electronApp);
     return prepareElectronApplication({
         application: electronApp,
         dispose: (application) =>
@@ -242,7 +244,7 @@ export async function launchElectronApp(
                 exitTimeoutMs: electronAppKillWaitMs,
             }),
         prepare: async (application) => {
-            attachElectronProcessDiagnostics(application);
+            attachElectronProcessDiagnostics(electronProcess);
             const mainWindow = await findMainWindow(application);
             await waitForAppReady(mainWindow);
             await startPortalDebugCapture(mainWindow);
@@ -458,25 +460,30 @@ export async function launchPackagedElectronApp(
             NODE_ENV: 'test',
         },
     });
-    attachElectronProcessDiagnostics(electronApp);
-
-    const mainWindow = await findMainWindow(electronApp);
-    await waitForAppReady(mainWindow);
-
-    return {
-        electronApp,
-        mainWindow,
-    };
+    const electronProcess = captureElectronProcess(electronApp);
+    return prepareElectronApplication({
+        application: electronApp,
+        dispose: (application) =>
+            closeElectronApplicationAndConfirmExit(application, {
+                closeTimeoutMs: electronAppCloseTimeoutMs,
+                exitTimeoutMs: electronAppKillWaitMs,
+            }),
+        prepare: async (application) => {
+            attachElectronProcessDiagnostics(electronProcess);
+            const mainWindow = await findMainWindow(application);
+            await waitForAppReady(mainWindow);
+            return {
+                electronApp: application,
+                mainWindow,
+            };
+        },
+    });
 }
 
-function attachElectronProcessDiagnostics(
-    electronApp: ElectronApplication
-): void {
+function attachElectronProcessDiagnostics(childProcess: ChildProcess): void {
     if (!process.env['CI']) {
         return;
     }
-
-    const childProcess = electronApp.process();
 
     childProcess.stdout?.on('data', (chunk: Buffer) => {
         console.log(`[electron stdout] ${chunk.toString().trimEnd()}`);
@@ -564,52 +571,7 @@ export async function launchCompetingElectronInstance(
 export async function closeElectronApp(
     app: LaunchedElectronApp
 ): Promise<void> {
-    try {
-        const closePromise = app.electronApp.close();
-        const closed = await waitForPromiseWithTimeout(
-            closePromise,
-            electronAppCloseTimeoutMs
-        );
-
-        if (closed) {
-            return;
-        }
-
-        console.warn(
-            `Electron app did not close within ${electronAppCloseTimeoutMs}ms; killing process`
-        );
-        const childProcess = app.electronApp.process();
-
-        if (!childProcess.killed) {
-            childProcess.kill();
-        }
-
-        await waitForPromiseWithTimeout(
-            closePromise.catch(() => undefined),
-            electronAppKillWaitMs
-        );
-
-        // SIGTERM asks Electron for a graceful quit, which the app can
-        // legitimately refuse — the unsaved-settings close guard cancels the
-        // quit while it waits for an answer. A process that survives here
-        // would outlive the test, hold its data dir, and time out the worker
-        // teardown, so escalate to SIGKILL.
-        if (
-            childProcess.exitCode === null &&
-            childProcess.signalCode === null
-        ) {
-            console.warn(
-                'Electron app survived SIGTERM; escalating to SIGKILL'
-            );
-            childProcess.kill('SIGKILL');
-            await waitForPromiseWithTimeout(
-                closePromise.catch(() => undefined),
-                electronAppKillWaitMs
-            );
-        }
-    } catch (error) {
-        console.warn('Failed to close Electron app cleanly:', error);
-    }
+    await closeElectronAppAndConfirmExit(app);
 }
 
 export async function closeElectronAppAndConfirmExit(
@@ -619,26 +581,6 @@ export async function closeElectronAppAndConfirmExit(
         closeTimeoutMs: electronAppCloseTimeoutMs,
         exitTimeoutMs: electronAppKillWaitMs,
     });
-}
-
-async function waitForPromiseWithTimeout(
-    promise: Promise<unknown>,
-    timeoutMs: number
-): Promise<boolean> {
-    let timeoutId: NodeJS.Timeout | undefined;
-
-    try {
-        return await Promise.race([
-            promise.then(() => true),
-            new Promise<boolean>((resolvePromise) => {
-                timeoutId = setTimeout(() => resolvePromise(false), timeoutMs);
-            }),
-        ]);
-    } finally {
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-    }
 }
 
 function assertPackagedRendererBuildIsElectronSafe(): void {

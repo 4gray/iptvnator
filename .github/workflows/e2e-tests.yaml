@@ -68,6 +68,9 @@ jobs:
             - name: Build Backend
               run: pnpm nx build electron-backend
 
+            - name: Verify Electron process cleanup
+              run: pnpm exec tsx --test apps/electron-backend-e2e/src/performance/electron-process-lifecycle.spec.ts apps/electron-backend-e2e/src/performance/electron-process-termination.spec.ts
+
             - name: Install Playwright Browsers
               run: pnpm exec playwright install --with-deps
 

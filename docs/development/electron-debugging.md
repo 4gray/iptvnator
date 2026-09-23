@@ -67,6 +67,30 @@ agent-browser connect ws://127.0.0.1:9222/devtools/page/<iptvnator-page-id>
 agent-browser screenshot /tmp/iptvnator-cdp.png
 ```
 
+## E2E process cleanup and packaged diagnostics
+
+Playwright launches Electron through `cmd.exe` on Windows. If graceful E2E
+shutdown times out, terminate that process tree with `taskkill /T /F`; killing
+only `electronApp.process()` can leave Electron holding the temporary profile
+and make the next launch exit on the single-instance lock. The E2E workflow
+checks this against a real Windows shell and child process. Test cleanup must
+target only its own launch PID, never all Electron or IPTVnator processes.
+Cleanup confirms process exit even if Playwright's close promise fails or
+never settles. If termination fails, it retries and then throws instead of
+allowing a relaunch against a potentially locked profile.
+Capture the Node child-process handle immediately after launch and retain it
+in a WeakMap keyed by the Electron application for cleanup and preparation
+failures. This binding follows the application when restart callers replace
+only the application/window fields on their fixture. After the last window
+closes on Linux,
+Electron can exit before cleanup begins; Playwright disposes its dispatcher,
+so calling `electronApp.process()` at that point can throw even after a clean
+exit. The retained handle still provides the actual exit code and signal.
+
+The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
+even when the smoke fails. Check the paused-frame screenshot and trace before
+classifying a zero rendered-frame signal as an infrastructure flake.
+
 ## Main-process ownership
 
 The entry point is `apps/electron-backend/src/main.ts`; it bootstraps the database,
