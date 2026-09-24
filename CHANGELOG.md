@@ -40,7 +40,11 @@ Before updating, back up your playlists and important data. Desktop startup appl
 
 ## Thanks
 
-Thank you to [@Bpl5966](https://github.com/Bpl5966) for MPV reconnects and extra options ([#1515](https://github.com/4gray/iptvnator/pull/1515)), [@mark-jardine](https://github.com/mark-jardine) for the EPG time offset ([#1489](https://github.com/4gray/iptvnator/pull/1489)), and [@larsemig](https://github.com/larsemig) for stream information ([#1578](https://github.com/4gray/iptvnator/pull/1578)). A warm thank-you to everyone who reported issues, tested builds, helped in the [Telegram community](https://t.me/iptvnator), or supported development. 💙
+Thank you to [@Bpl5966](https://github.com/Bpl5966) for MPV reconnects and extra options ([#1515](https://github.com/4gray/iptvnator/pull/1515)), [@mark-jardine](https://github.com/mark-jardine) for the EPG time offset ([#1489](https://github.com/4gray/iptvnator/pull/1489)), and [@larsemig](https://github.com/larsemig) for stream information ([#1578](https://github.com/4gray/iptvnator/pull/1578)).
+
+Thank you also to [@thejdubb02](https://github.com/thejdubb02) for the original zoom-persistence, Turkish-search and Xtream EPG-refresh fixes ([#1613](https://github.com/4gray/iptvnator/pull/1613), [#1612](https://github.com/4gray/iptvnator/pull/1612), [#1610](https://github.com/4gray/iptvnator/pull/1610)). This work was incorporated and extended in [#1617](https://github.com/4gray/iptvnator/pull/1617), [#1640](https://github.com/4gray/iptvnator/pull/1640) and [#1647](https://github.com/4gray/iptvnator/pull/1647), with his co-authorship preserved.
+
+A warm thank-you to everyone who reported issues, tested builds, helped in the [Telegram community](https://t.me/iptvnator), or supported development. 💙
 
 If IPTVnator is useful to you, you can help keep it moving through [GitHub Sponsors](https://github.com/sponsors/4gray) or [Ko-fi](https://ko-fi.com/4gray).
 
