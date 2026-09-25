@@ -160,14 +160,17 @@ export class ParentalLockService {
      * is unlocked afterwards (already unlocked, feature off, or the PIN was
      * accepted). Concurrent callers share one prompt.
      */
-    requestUnlock(
+    async requestUnlock(
         options: Pick<
             ParentalLockPromptRequest,
             'titleKey' | 'descriptionKey'
         > = {}
     ): Promise<boolean> {
+        // `enabled` is false until the settings have loaded; deciding "not
+        // active" before that would open a gate during a slow startup.
+        await this.initialize();
         if (!this.active()) {
-            return Promise.resolve(true);
+            return true;
         }
         if (this.pendingUnlock) {
             return this.pendingUnlock;
@@ -181,7 +184,6 @@ export class ParentalLockService {
     private async promptForUnlock(
         options: Pick<ParentalLockPromptRequest, 'titleKey' | 'descriptionKey'>
     ): Promise<boolean> {
-        await this.initialize();
         const hash = this.pinHash();
         if (!this.prompt || !hash) {
             return false;

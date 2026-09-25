@@ -82,7 +82,13 @@ refresh deletes and re-inserts the rows.
 
 The renderer reports `active` to the main process over
 `PARENTAL_LOCK_SET_STATE` (`apps/electron-backend/src/app/events/parental-lock.events.ts`),
-which forwards it to the worker. Like the playback keep-awake vote, the
+which forwards it to the worker. `SETTINGS_UPDATE` only persists the
+`parentalLockEnabled` mirror; it never derives the live state from a settings
+save (every save carries the flag unchanged and would re-lock the worker
+under a renderer that shows "unlocked"). The one exception is a switch-off,
+which releases the worker at once. `requestUnlock()` awaits `initialize()`
+before it can answer "not active", so a slow settings load cannot open a
+gate. Like the playback keep-awake vote, the
 renderer's word does not outlive its page: on reload, main-frame navigation or
 a dead render process the flag falls back to the mirrored
 `PARENTAL_LOCK_ENABLED` setting, i.e. locked while the feature is on. The
@@ -110,9 +116,11 @@ locked default.
   `parentalLockStalkerCategoryGuard(section)` on the Stalker vod/series
   `:categoryId` routes prompt for the PIN when a locked category is reached
   by URL — bookmark, typed address, stale link — and redirect to the section
-  root on refusal. Electron routes carry SQLite row ids, so the Xtream guard
-  maps them through the unfiltered category read; Stalker routes already
-  carry the genre id.
+  root on refusal. Detail routes also resolve the ITEM's own category through
+  `getContentByXtreamId`, so a locked movie paired with an unlocked category
+  id in the URL is still refused. Electron routes carry SQLite row ids, so
+  the Xtream guard maps them through the unfiltered category read; Stalker
+  routes already carry the genre id.
 - **Stalker:** genres are stored unfiltered; `getCategoryResource` filters
   them, `getAllCategoriesForSelectedType` is the raw list for the lock
   dialog. `itvFullChannelList` and the content loader drop rows whose

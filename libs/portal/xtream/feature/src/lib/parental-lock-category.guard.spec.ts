@@ -6,6 +6,7 @@ import {
     RouterStateSnapshot,
     UrlTree,
 } from '@angular/router';
+import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DatabaseService,
     ParentalLockService,
@@ -13,12 +14,16 @@ import {
 } from '@iptvnator/services';
 import { parentalLockXtreamCategoryGuard } from './parental-lock-category.guard';
 
-function createRoute(playlistId: string, categoryId: string) {
+function createRoute(
+    playlistId: string,
+    categoryId: string,
+    itemParams: Record<string, string> = {}
+) {
     const parent = {
         paramMap: convertToParamMap({ id: playlistId }),
     } as ActivatedRouteSnapshot;
     const route = {
-        paramMap: convertToParamMap({ categoryId }),
+        paramMap: convertToParamMap({ categoryId, ...itemParams }),
     } as ActivatedRouteSnapshot;
     Object.defineProperty(route, 'pathFromRoot', {
         value: [parent, route],
@@ -36,6 +41,7 @@ describe('parentalLockXtreamCategoryGuard', () => {
     let databaseService: { getAllXtreamCategories: jest.Mock };
     let runtime: { supportsXtreamSqliteDataSource: boolean };
     let router: { createUrlTree: jest.Mock };
+    let dataSource: { getContentByXtreamId: jest.Mock };
 
     beforeEach(() => {
         parentalLock = {
@@ -53,8 +59,12 @@ describe('parentalLockXtreamCategoryGuard', () => {
         };
         runtime = { supportsXtreamSqliteDataSource: true };
         router = { createUrlTree: jest.fn(() => ({}) as UrlTree) };
+        dataSource = {
+            getContentByXtreamId: jest.fn().mockResolvedValue(null),
+        };
         TestBed.configureTestingModule({
             providers: [
+                { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
                 { provide: ParentalLockService, useValue: parentalLock },
                 { provide: DatabaseService, useValue: databaseService },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
@@ -63,14 +73,49 @@ describe('parentalLockXtreamCategoryGuard', () => {
         });
     });
 
-    function run(section: 'live' | 'vod' | 'series', categoryId: string) {
+    function run(
+        section: 'live' | 'vod' | 'series',
+        categoryId: string,
+        itemParams: Record<string, string> = {}
+    ) {
         return TestBed.runInInjectionContext(() =>
             parentalLockXtreamCategoryGuard(section)(
-                createRoute('playlist-1', categoryId),
+                createRoute('playlist-1', categoryId, itemParams),
                 {} as RouterStateSnapshot
             )
         );
     }
+
+    it('checks a detail item against its own category, not the one in the URL', async () => {
+        // Category row 12 (provider 900) is locked; row 13 (provider 901) is
+        // not. The URL names the unlocked one but the movie belongs to the
+        // locked one.
+        databaseService.getAllXtreamCategories.mockResolvedValue([
+            { id: 12, xtream_id: 900, type: 'movies' },
+            { id: 13, xtream_id: 901, type: 'movies' },
+        ]);
+        parentalLock.isXtreamCategoryLocked.mockImplementation(
+            (_playlist: string, _type: string, xtreamId: number) =>
+                xtreamId === 900
+        );
+        dataSource.getContentByXtreamId.mockResolvedValue({ category_id: 12 });
+
+        const result = await run('vod', '13', { vodId: '555' });
+
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            555,
+            'playlist-1',
+            'movie'
+        );
+        expect(parentalLock.requestUnlock).toHaveBeenCalled();
+        expect(result).not.toBe(true);
+
+        // A movie in an unlocked category passes without a prompt.
+        parentalLock.requestUnlock.mockClear();
+        dataSource.getContentByXtreamId.mockResolvedValue({ category_id: 13 });
+        await expect(run('vod', '13', { vodId: '556' })).resolves.toBe(true);
+        expect(parentalLock.requestUnlock).not.toHaveBeenCalled();
+    });
 
     it('passes through while the lock is inactive without touching the database', async () => {
         parentalLock.active.mockReturnValue(false);

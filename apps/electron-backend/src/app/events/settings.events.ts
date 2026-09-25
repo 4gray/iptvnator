@@ -45,13 +45,19 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     }
 
     // Mirrored so the database worker and a reloaded renderer start locked
-    // whenever the feature is on. Turning the feature off also releases the
-    // worker filter immediately; turning it on locks it — the renderer
-    // announces an explicit unlock through PARENTAL_LOCK_SET_STATE.
+    // whenever the feature is on. The LIVE enforcement state is the
+    // renderer's to announce through PARENTAL_LOCK_SET_STATE: every full
+    // settings save carries this flag unchanged, so applying it here would
+    // silently re-lock the worker under a renderer that still shows
+    // "unlocked". Only a switch-off releases the worker at once — nothing
+    // may stay withheld once the feature is gone.
     if (arg.parentalLockEnabled !== undefined) {
         const enabled = arg.parentalLockEnabled === true;
+        const wasEnabled = store.get(PARENTAL_LOCK_ENABLED, false) === true;
         store.set(PARENTAL_LOCK_ENABLED, enabled);
-        void applyParentalLockState(enabled).catch(() => undefined);
+        if (wasEnabled && !enabled) {
+            void applyParentalLockState(false).catch(() => undefined);
+        }
     }
 
     if (arg.mpvPlayerArguments !== undefined) {

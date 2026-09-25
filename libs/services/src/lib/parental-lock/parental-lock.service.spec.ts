@@ -156,6 +156,33 @@ describe('ParentalLockService', () => {
         expect(setParentalLockState).toHaveBeenLastCalledWith(true);
     });
 
+    it('does not open a gate before the settings have loaded', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        prompt.requestPin.mockResolvedValue(null);
+        let releaseSettings!: () => void;
+        const settingsStore = TestBed.inject(SettingsStore) as unknown as {
+            loadSettings: jest.Mock;
+        };
+        settingsStore.loadSettings.mockImplementation(
+            () =>
+                new Promise<void>((resolve) => {
+                    releaseSettings = () => {
+                        parentalLockEnabled.set(true);
+                        resolve();
+                    };
+                })
+        );
+        const service = TestBed.inject(ParentalLockService);
+        void service.initialize();
+
+        // Enabled is still the default false here: the answer must wait for
+        // the load instead of reading that as "feature off".
+        const gate = service.requestUnlock();
+        releaseSettings();
+        await expect(gate).resolves.toBe(false);
+        expect(prompt.requestPin).toHaveBeenCalledTimes(1);
+    });
+
     it('stays locked when the prompt is dismissed', async () => {
         storage.pinHash = await hashParentalLockPin('1234');
         parentalLockEnabled.set(true);
