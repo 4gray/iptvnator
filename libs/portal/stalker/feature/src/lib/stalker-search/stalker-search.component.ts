@@ -125,6 +125,13 @@ export class StalkerSearchComponent {
     private readonly parentalLock = inject(ParentalLockService);
     /** Lock version the accumulated results were built under. */
     private searchResultsLockVersion: number | null = null;
+    /**
+     * Withheld row ids seen for the current search identity. A page adding
+     * only new withheld ids is still progress and is skipped automatically;
+     * a page adding nothing new is the end of the results.
+     */
+    private searchWithheldKey = '';
+    private readonly searchWithheldIds = new Set<string>();
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistService = inject(PlaylistsService);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
@@ -279,15 +286,19 @@ export class StalkerSearchComponent {
                       )
                   )
                 : new Set<string>();
-            if (
+            const lockVersionChanged =
                 this.searchResultsLockVersion !== null &&
-                this.searchResultsLockVersion !== params.parentalLockVersion &&
-                params.page > 1
-            ) {
+                this.searchResultsLockVersion !== params.parentalLockVersion;
+            this.searchResultsLockVersion = params.parentalLockVersion;
+            if (lockVersionChanged) {
+                // A relock must also close an open detail of a genre that is
+                // withheld now; the list alone hiding it is not enough.
+                this.closeWithheldDetail(withheldCategoryIds);
+            }
+            if (lockVersionChanged && params.page > 1) {
                 // A lock flip past page 1: drop the withheld rows on screen
                 // and rebuild from page 1 rather than appending to pages
                 // accumulated under the old lock state.
-                this.searchResultsLockVersion = params.parentalLockVersion;
                 const retained = withoutWithheldStalkerItems(
                     this.accumulatedSearchResults(),
                     contentType,
@@ -297,7 +308,16 @@ export class StalkerSearchComponent {
                 this.searchPage.set(1);
                 return retained;
             }
-            this.searchResultsLockVersion = params.parentalLockVersion;
+            const withheldKey = JSON.stringify([
+                params.playlistId,
+                contentType,
+                params.search,
+                params.parentalLockVersion,
+            ]);
+            if (params.page === 1 || this.searchWithheldKey !== withheldKey) {
+                this.searchWithheldKey = withheldKey;
+                this.searchWithheldIds.clear();
+            }
 
             // Mirror the catalog request shape: many Ministra portals
             // return an empty list for get_ordered_list without the
@@ -348,19 +368,41 @@ export class StalkerSearchComponent {
                     contentType,
                     withheldCategoryIds
                 );
+                let newWithheldCount = 0;
+                if (items.length < rawItems.length) {
+                    const kept = new Set(items);
+                    for (const item of rawItems) {
+                        const id = String(item.id ?? '');
+                        if (
+                            !kept.has(item) &&
+                            !this.searchWithheldIds.has(id)
+                        ) {
+                            this.searchWithheldIds.add(id);
+                            newWithheldCount += 1;
+                        }
+                    }
+                }
 
                 if (!isCurrent()) {
                     return items;
                 }
 
-                return this.applySearchPageSuccess(
+                const merged = this.applySearchPageSuccess(
                     params.page,
                     items,
                     response.js?.total_items,
                     // A page made only of withheld rows still is a page the
                     // portal served; judge progress on what it sent.
-                    rawItems.length > 0
+                    rawItems.length > 0 &&
+                        (items.length > 0 || newWithheldCount > 0)
                 );
+                this.advancePastWithheldPage(
+                    params.page,
+                    items.length,
+                    newWithheldCount,
+                    isCurrent
+                );
+                return merged;
             } catch (error) {
                 this.logger.warn('Stalker search page failed', {
                     page: params.page,
@@ -653,6 +695,58 @@ export class StalkerSearchComponent {
                 this.syncSelectedVodFavorite();
             },
         });
+    }
+
+    /**
+     * The infinite scroll gives up after a few loads that add no height, so
+     * a run of pages made only of parental-locked rows must advance by
+     * itself until a visible row (or the real end) is reached. Only a page
+     * that added withheld ids not seen before counts — a stalled portal
+     * repeating the same locked rows must still end the loop.
+     */
+    advancePastWithheldPage(
+        page: number,
+        visibleCount: number,
+        newWithheldCount: number,
+        isCurrent: () => boolean
+    ): void {
+        if (
+            visibleCount > 0 ||
+            newWithheldCount === 0 ||
+            !this.searchHasMore()
+        ) {
+            return;
+        }
+        queueMicrotask(() => {
+            if (isCurrent()) {
+                this.searchPage.set(page + 1);
+            }
+        });
+    }
+
+    /**
+     * Closes the open detail when its genre is withheld by the parental
+     * lock (Lock now, idle relock): the title, its playback actions and the
+     * store's selected item must not outlive the list row.
+     */
+    closeWithheldDetail(withheldCategoryIds: ReadonlySet<string>): void {
+        const details = this.itemDetails();
+        const categoryId = details?.category_id;
+        if (
+            !details ||
+            categoryId === undefined ||
+            categoryId === null ||
+            !withheldCategoryIds.has(String(categoryId))
+        ) {
+            return;
+        }
+        const cleared = clearStalkerDetailViewState();
+        this.itemDetails.set(cleared.itemDetails);
+        this.vodDetailsItem.set(cleared.vodDetailsItem);
+        this.isSelectedVodFavorite.set(false);
+        this.selectedVodPosition.set(null);
+        this.closeInlinePlayer();
+        this.stalkerStore.setSelectedItem(null);
     }
 
     /** Leave the search page (e.g. back to the actor page that opened it) */

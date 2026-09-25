@@ -24,7 +24,11 @@ import {
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    ParentalLockService,
+    PlaylistsService,
+} from '@iptvnator/services';
 import { CONNECTIVITY_GUARD_RESET } from '@iptvnator/shared/interfaces';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { StalkerSearchComponent } from './stalker-search.component';
@@ -289,6 +293,37 @@ describe('StalkerSearchComponent playback session key', () => {
 describe('StalkerSearchComponent result paging', () => {
     let component: StalkerSearchComponent;
     let dataService: { sendIpcEvent: jest.Mock };
+    let parentalLock: {
+        active: jest.Mock<boolean, []>;
+        version: ReturnType<typeof signal<number>>;
+        lockedStalkerIds: jest.Mock<string[], [string, string]>;
+    };
+    let stalkerStoreMock: {
+        selectedItem: ReturnType<typeof signal<unknown>>;
+        setSelectedContentType: jest.Mock;
+        setSelectedItem: jest.Mock;
+        addToFavorites: jest.Mock;
+        removeFromFavorites: jest.Mock;
+        resolveVodPlayback: jest.Mock;
+    };
+
+    async function flush(): Promise<void> {
+        TestBed.flushEffects();
+        await Promise.resolve();
+        await Promise.resolve();
+        TestBed.flushEffects();
+        await Promise.resolve();
+    }
+
+    async function waitFor(predicate: () => boolean, attempts = 40) {
+        for (let index = 0; index < attempts; index += 1) {
+            if (predicate()) {
+                return;
+            }
+            await flush();
+        }
+        throw new Error('Timed out waiting for the search resource');
+    }
     const activePlaylist = signal({
         _id: 'playlist|one',
         title: 'Search portal',
@@ -306,6 +341,19 @@ describe('StalkerSearchComponent result paging', () => {
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn().mockResolvedValue({ success: true }),
+        };
+        parentalLock = {
+            active: jest.fn(() => false),
+            version: signal(0),
+            lockedStalkerIds: jest.fn(() => []),
+        };
+        stalkerStoreMock = {
+            selectedItem: signal(null),
+            setSelectedContentType: jest.fn(),
+            setSelectedItem: jest.fn(),
+            addToFavorites: jest.fn(),
+            removeFromFavorites: jest.fn(),
+            resolveVodPlayback: jest.fn(),
         };
         activePlaylist.set({
             _id: 'playlist|one',
@@ -336,17 +384,8 @@ describe('StalkerSearchComponent result paging', () => {
                     provide: PlaylistsService,
                     useValue: { getPortalFavorites: () => of([]) },
                 },
-                {
-                    provide: StalkerStore,
-                    useValue: {
-                        selectedItem: signal(null),
-                        setSelectedContentType: jest.fn(),
-                        setSelectedItem: jest.fn(),
-                        addToFavorites: jest.fn(),
-                        removeFromFavorites: jest.fn(),
-                        resolveVodPlayback: jest.fn(),
-                    },
-                },
+                { provide: StalkerStore, useValue: stalkerStoreMock },
+                { provide: ParentalLockService, useValue: parentalLock },
                 { provide: StalkerSessionService, useValue: {} },
                 { provide: StalkerPortalRepairService, useValue: {} },
                 {
@@ -401,6 +440,38 @@ describe('StalkerSearchComponent result paging', () => {
         component.applySearchPageSuccess(3, searchItems('page3', 1), 7);
         expect(component.searchResults()).toHaveLength(7);
         expect(component.searchHasMore()).toBe(false);
+    });
+
+    it('advances past a page made only of parental-locked rows, but not past a repeated one', async () => {
+        component.applySearchPageSuccess(1, searchItems('page1', 3), 10);
+        const pageBefore = component.searchPage();
+
+        // Locked rows the list had not seen: schedule the next page.
+        component.advancePastWithheldPage(pageBefore, 0, 2, () => true);
+        await flushMicrotasks();
+        expect(component.searchPage()).toBe(pageBefore + 1);
+
+        // A page with visible rows, or one adding no new withheld ids, or a
+        // request that is no longer current: stay put.
+        component.advancePastWithheldPage(pageBefore + 1, 1, 2, () => true);
+        component.advancePastWithheldPage(pageBefore + 1, 0, 0, () => true);
+        component.advancePastWithheldPage(pageBefore + 1, 0, 2, () => false);
+        await flushMicrotasks();
+        expect(component.searchPage()).toBe(pageBefore + 1);
+    });
+
+    it('closes an open detail whose genre became withheld on relock', () => {
+        component.selectItem({ id: 'adult-9', name: 'A', category_id: '9' });
+        expect(component.itemDetails()).not.toBeNull();
+
+        // Another genre locked: the detail stays.
+        component.closeWithheldDetail(new Set(['5']));
+        expect(component.itemDetails()).not.toBeNull();
+
+        component.closeWithheldDetail(new Set(['9']));
+        expect(component.itemDetails()).toBeNull();
+        expect(component.vodDetailsItem()).toBeNull();
+        expect(stalkerStoreMock.setSelectedItem).toHaveBeenLastCalledWith(null);
     });
 
     it('keeps paging past a page whose rows were all withheld by the parental lock', () => {

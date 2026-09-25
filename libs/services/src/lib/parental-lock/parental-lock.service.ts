@@ -106,20 +106,19 @@ export class ParentalLockService {
             untracked(() => {
                 this.versionState.update((value) => value + 1);
                 syncParentalLockStateToMainProcess(active);
-                if (!active) {
-                    this.idleTimer.arm(
-                        this.enabled() ? this.relockMinutes() : 0
-                    );
-                } else {
-                    this.idleTimer.disarm();
-                }
             });
         });
+        // The idle timer follows the UNLOCKED transition, not `active`:
+        // enabling the feature from an unlocked session (setupPin) never
+        // changes `active`, yet that session must still lock itself later.
         effect(() => {
+            const unlocked = this.unlocked();
             const minutes = this.relockMinutes();
             untracked(() => {
-                if (this.unlocked()) {
+                if (unlocked) {
                     this.idleTimer.arm(minutes);
+                } else {
+                    this.idleTimer.disarm();
                 }
             });
         });

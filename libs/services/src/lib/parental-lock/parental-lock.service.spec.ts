@@ -229,6 +229,28 @@ describe('ParentalLockService', () => {
         expect(service.lockedGroupTitles('p-1')).toEqual(['Adult']);
     });
 
+    it('arms the idle timer for the session that just enabled the feature', async () => {
+        jest.useFakeTimers();
+        try {
+            prompt.requestPin.mockResolvedValue('9876');
+            parentalLockRelockMinutes.set(5);
+            const service = await createService();
+
+            await expect(service.setupPin()).resolves.toBe(true);
+            TestBed.flushEffects();
+            expect(service.unlocked()).toBe(true);
+
+            // `active` never changed (unlocked before and after enabling), so
+            // the timer must be armed by the unlocked transition itself.
+            jest.advanceTimersByTime(5 * 60_000 + 1_500);
+            TestBed.flushEffects();
+            expect(service.unlocked()).toBe(false);
+            expect(service.active()).toBe(true);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('changePin and disable verify the stored PIN even while the session is unlocked', async () => {
         storage.pinHash = await hashParentalLockPin('1234');
         parentalLockEnabled.set(true);

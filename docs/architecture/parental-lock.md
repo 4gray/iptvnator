@@ -23,7 +23,9 @@ follow in a second PR.
 - The unlock lives in memory only. The app locks again on every restart, on
   "Lock now" (header button, command palette, settings), and after
   `Settings.parentalLockRelockMinutes` minutes without user interaction
-  (default 15; `0` = only on restart). Active playback of a built-in web
+  (default 15; `0` = only on restart). The idle timer follows the UNLOCKED
+  transition: armed the moment a session is unlocked — including the session
+  that just enabled the feature — and disarmed on lock. Active playback of a built-in web
   player counts as interaction, so a film never locks half way.
 - This is a child lock, not a security boundary: the PIN hash and the lock
   store sit in user-readable app data. The UI says so. There is no PIN
@@ -128,8 +130,11 @@ locked default.
   in the URL): `StalkerSearchComponent` filters each portal page through the
   same withheld-genre predicate, carries `parentalLockVersion` in its
   resource params, judges paging progress on the raw page (a page made only
-  of locked rows is not the end of the results) and, on a lock flip past
-  page 1, drops the withheld rows and restarts from page 1.
+  of locked rows is not the end of the results), advances past a run of
+  fully withheld pages by itself (the infinite scroll stops auto-filling
+  after a few no-growth loads), closes an open detail whose genre is newly
+  withheld and, on a lock flip past page 1, drops the withheld rows and
+  restarts from page 1.
 - **Stalker:** genres are stored unfiltered; `getCategoryResource` filters
   them, `getAllCategoriesForSelectedType` is the raw list for the lock
   dialog. `itvFullChannelList` and the content loader drop rows whose
