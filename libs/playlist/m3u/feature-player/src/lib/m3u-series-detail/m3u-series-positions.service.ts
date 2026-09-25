@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, OnDestroy, inject, signal } from '@angular/core';
 import { PlaybackPositionService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import {
@@ -29,7 +29,7 @@ const PROGRESS_SAVE_INTERVAL_MS = 15_000;
  * is ABSENT; a present database that fails still rejects.
  */
 @Injectable()
-export class M3uSeriesPositionsService {
+export class M3uSeriesPositionsService implements OnDestroy {
     private readonly bridge = inject(PlaybackPositionService);
 
     /**
@@ -43,6 +43,16 @@ export class M3uSeriesPositionsService {
     private lastSaveAt = 0;
 
     private lastSavedEpisodeId = 0;
+
+    /**
+     * The newest tick the throttle held back. Without it, closing the
+     * player, switching episodes or leaving the page throws away up to 15 s
+     * of progress, and the next visit resumes from an older point.
+     */
+    private pending: {
+        readonly playlistId: string;
+        readonly position: PlaybackPositionData;
+    } | null = null;
 
     // A plain Map rather than a ReadonlyMap: that is the shape the shared
     // season grid's input declares, and every write here replaces the map
@@ -67,6 +77,9 @@ export class M3uSeriesPositionsService {
 
     async load(playlistId: string, seriesId: number): Promise<void> {
         const token = ++this.loadToken;
+        // The held-back tick belongs to the series being left, and its row
+        // is still the right one to write.
+        void this.flushProgress();
         this.owner = `${playlistId}\u0000${seriesId}`;
         this.releaseProgressThrottle();
 
@@ -118,24 +131,52 @@ export class M3uSeriesPositionsService {
             position.contentXtreamId === this.lastSavedEpisodeId &&
             now - this.lastSaveAt <= PROGRESS_SAVE_INTERVAL_MS
         ) {
+            this.pending = { playlistId, position };
             return;
         }
 
+        if (
+            this.pending?.position.contentXtreamId === position.contentXtreamId
+        ) {
+            // This write supersedes the held-back tick of the same episode.
+            this.pending = null;
+        } else {
+            // A different episode: the one being left keeps its last offset.
+            await this.flushProgress();
+        }
         this.lastSaveAt = now;
         this.lastSavedEpisodeId = position.contentXtreamId;
         await this.bridge.savePlaybackPosition(playlistId, position);
     }
 
+    /** Writes the tick the throttle held back, if there is one. */
+    async flushProgress(): Promise<void> {
+        const pending = this.pending;
+        this.pending = null;
+        if (pending) {
+            await this.bridge.savePlaybackPosition(
+                pending.playlistId,
+                pending.position
+            );
+        }
+    }
+
     /**
-     * Forgets the throttle window.
+     * Saves what the throttle held back and forgets its window.
      *
-     * Called when the player closes, so the next episode's first tick is
-     * written straight away rather than waiting out the previous one's
-     * window.
+     * Called when the player closes or another episode is chosen, so the
+     * episode just left keeps its latest offset and the next one's first
+     * tick is written straight away rather than waiting out the window.
      */
     releaseProgressThrottle(): void {
+        void this.flushProgress();
         this.lastSaveAt = 0;
         this.lastSavedEpisodeId = 0;
+    }
+
+    /** Leaving the page mid-episode must not drop its last seconds. */
+    ngOnDestroy(): void {
+        void this.flushProgress();
     }
 
     /**

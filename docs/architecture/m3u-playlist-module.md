@@ -1759,15 +1759,35 @@ Electron-only path, so the PWA behaves identically.
   ordinary, and a permanently empty rail section is worse than no rail change
   at all. The empty state stays reachable by deep link and names whichever
   kind the playlist DOES hold.
+- `vod` and `series` are bound to one playlist's content, so section memory
+  (`PlaylistContextFacade`) restores them only from that playlist's own
+  record and never carries them to another source; a switch from either, or
+  from a portal's `vod`/`series`, opens the target M3U playlist at `all`.
+- `M3uCatalogIndexService.index` (and the series layer built on it) is empty
+  while `channelsLoading` is set. A playlist switch keeps the previous
+  playlist's rows in the store until the new ones arrive, and a catalog built
+  from them would open another source's film or save episode progress under
+  the new playlist's id. The catalog shows the grid skeleton meanwhile; the
+  live sidebar keeps reading the stored rows, as it did before the split.
 - A movie card hands its row to the `all` route as navigation state
-  (`openM3uChannelUrl`), which is the path global search already uses; that
-  route provides a fresh route session, so a dispatch made before navigating
-  would be discarded.
+  (`openM3uChannelUrl` plus `openM3uChannelId`), which is the path global
+  search already uses; that route provides a fresh route session, so a
+  dispatch made before navigating would be discarded. The id selects the
+  clicked row when several share one URL, and a stale id falls back to the
+  URL (`findM3uChannelOpenTarget`).
 - Series episode ids are derived from `series key × season × episode`, never
   from the URL: providers rotate tokens through the path on refresh, so a
   URL-keyed id would silently drop every watched flag on the next auto
   update. The hash is 48-bit (`hashM3uId`) because these ids key persisted
   playback positions and a 31-bit hash collides at ≈0.4% over ~42k keys.
+- A title whose rows state at most one year is one series under a year-free
+  key. When a second year appears (a remake), the earliest year keeps that
+  key, so a refresh that adds the remake leaves the original's ids and watch
+  history in place; only an original added after its remake moves the
+  remake's ids, since the previous catalog is not stored.
+- Episode progress reaches storage at most once per 15 s per episode; the
+  held-back tick is written when the player closes, another episode starts,
+  another series opens, or the page is destroyed.
 - The series detail page feeds the portals' own `PortalDetailShellComponent`
   / `SeasonContainerComponent` / `PortalInlinePlayerComponent` through an
   adapter in the feature library. Nothing shared is forked.

@@ -1,4 +1,4 @@
-@if (isEmpty()) {
+@if (showEmptyState()) {
     <app-portal-empty-state
         icon="movie"
         [message]="emptyTitleKey() | translate"
@@ -26,6 +26,7 @@
                 [items]="cards()"
                 [searchTerm]="searchTerm()"
                 [type]="kind() === 'movie' ? 'vod' : 'series'"
+                [isLoading]="loading()"
                 (itemClicked)="onCardActivated($event)"
             />
         </section>

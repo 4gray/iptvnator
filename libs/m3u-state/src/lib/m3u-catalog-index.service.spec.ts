@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { M3uCatalogIndexService } from './m3u-catalog-index.service';
-import { selectActivePlaylistId } from './selectors';
+import { selectActivePlaylistId, selectChannelsLoading } from './selectors';
 
 const channel = (url: string, name: string, group: string) =>
     ({ url, name, group: { title: group } }) as unknown as Channel;
@@ -20,10 +20,12 @@ describe('M3uCatalogIndexService', () => {
     const channels = signal<Channel[]>([]);
 
     const playlistId = signal('pl-1');
+    const loading = signal(false);
 
     beforeEach(() => {
         channels.set([]);
         playlistId.set('pl-1');
+        loading.set(false);
         TestBed.configureTestingModule({
             providers: [
                 {
@@ -36,7 +38,9 @@ describe('M3uCatalogIndexService', () => {
                         selectSignal: (selector: unknown) =>
                             selector === selectActivePlaylistId
                                 ? playlistId
-                                : channels,
+                                : selector === selectChannelsLoading
+                                  ? loading
+                                  : channels,
                     },
                 },
             ],
@@ -59,6 +63,41 @@ describe('M3uCatalogIndexService', () => {
                 .groupsOfKind('episode')()
                 .map((g) => g.title)
         ).toEqual(['Shows']);
+    });
+
+    it('exposes no catalog rows while the next playlist is loading', () => {
+        // A playlist switch leaves the previous playlist's rows in the store
+        // until the new ones arrive, under the new playlist's id.
+        channels.set([LIVE, MOVIE, EPISODE]);
+        const service = TestBed.inject(M3uCatalogIndexService);
+        expect(service.series()).toHaveLength(1);
+
+        loading.set(true);
+
+        expect(service.index().counts).toEqual({
+            live: 0,
+            movie: 0,
+            episode: 0,
+            radio: 0,
+        });
+        expect(service.channelsOfKind('movie')()).toEqual([]);
+        expect(service.series()).toEqual([]);
+        expect(service.seriesById().size).toBe(0);
+
+        loading.set(false);
+
+        expect(service.channelsOfKind('movie')()).toEqual([MOVIE]);
+    });
+
+    it('keeps the live list as it was while a load is in flight', () => {
+        // The live sidebar is not a catalog surface: blanking it would be a
+        // change of its own, outside this split.
+        channels.set([LIVE, MOVIE, EPISODE]);
+        const service = TestBed.inject(M3uCatalogIndexService);
+
+        loading.set(true);
+
+        expect(service.liveChannels()).toEqual([LIVE]);
     });
 
     it('reports a live-only playlist as having no other content', () => {

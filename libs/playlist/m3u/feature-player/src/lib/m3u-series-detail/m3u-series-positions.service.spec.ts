@@ -121,6 +121,74 @@ describe('M3uSeriesPositionsService', () => {
         }
     });
 
+    describe('the tick the throttle held back', () => {
+        let nowSpy: jest.SpyInstance<number, []>;
+        const saved = () =>
+            bridge.savePlaybackPosition.mock.calls.map(
+                ([, row]: [string, PlaybackPositionData]) => [
+                    row.contentXtreamId,
+                    row.positionSeconds,
+                ]
+            );
+
+        beforeEach(async () => {
+            nowSpy = jest.spyOn(Date, 'now').mockReturnValue(3_000_000);
+            await service.load('pl-1', 500);
+            await service.recordProgress('pl-1', position(11, 10));
+            nowSpy.mockReturnValue(3_005_000);
+            await service.recordProgress('pl-1', position(11, 15));
+        });
+
+        afterEach(() => nowSpy.mockRestore());
+
+        it('is saved when the player closes', async () => {
+            service.releaseProgressThrottle();
+            await Promise.resolve();
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 15],
+            ]);
+        });
+
+        it('is saved before another episode starts', async () => {
+            await service.recordProgress('pl-1', position(12, 1));
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 15],
+                [12, 1],
+            ]);
+        });
+
+        it('is saved when the page goes away', async () => {
+            service.ngOnDestroy();
+            await Promise.resolve();
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 15],
+            ]);
+        });
+
+        it('is saved when another series opens', async () => {
+            await service.load('pl-1', 600);
+
+            expect(saved()).toEqual([
+                [11, 10],
+                [11, 15],
+            ]);
+        });
+
+        it('is written once, not again on the next flush', async () => {
+            service.releaseProgressThrottle();
+            service.releaseProgressThrottle();
+            await Promise.resolve();
+
+            expect(saved()).toHaveLength(2);
+        });
+    });
+
     it('survives a failing write instead of rejecting into the caller', async () => {
         // Every caller starts these promises with `void`, from an effect or
         // a media time update, so a rejection would surface as an unhandled

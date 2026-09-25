@@ -54,6 +54,7 @@ describe('M3uCatalogRouteComponent', () => {
         }
     );
     const dispatch = jest.fn();
+    const loading = signal(false);
     const navigate = jest.fn();
 
     const params = (q?: string) => ({ get: () => q ?? null });
@@ -77,6 +78,7 @@ describe('M3uCatalogRouteComponent', () => {
                     provide: M3uCatalogIndexService,
                     useValue: {
                         index: () => buildM3uCatalogIndex(channels()),
+                        loading,
                         hasNonLiveContent: () => true,
                         series: () =>
                             buildM3uSeriesCatalog(
@@ -104,6 +106,7 @@ describe('M3uCatalogRouteComponent', () => {
     beforeEach(() => {
         TestBed.resetTestingModule();
         channels.set([]);
+        loading.set(false);
         queryParams.next(params());
         dispatch.mockReset();
         navigate.mockReset();
@@ -177,9 +180,56 @@ describe('M3uCatalogRouteComponent', () => {
         expect(navigate).toHaveBeenCalledWith(
             ['../all'],
             expect.objectContaining({
-                state: { openM3uChannelUrl: DUNE.url },
+                state: {
+                    openM3uChannelUrl: DUNE.url,
+                    openM3uChannelId: undefined,
+                },
             })
         );
+    });
+
+    it('names the clicked row when two films share one URL', async () => {
+        // Providers list one stream under several titles; a URL alone would
+        // make the player open whichever of them comes first.
+        const first = { ...DUNE, id: 'row-1', name: 'Dune' } as Channel;
+        const second = {
+            ...DUNE,
+            id: 'row-2',
+            name: 'Dune (Director Cut)',
+        } as Channel;
+        channels.set([first, second]);
+        const fixture = await render('movie');
+        const component = fixture.componentInstance as unknown as {
+            onCardActivated(card: { id: string }): void;
+        };
+
+        component.onCardActivated({ id: 'row-2' });
+
+        expect(navigate).toHaveBeenCalledWith(
+            ['../all'],
+            expect.objectContaining({
+                state: {
+                    openM3uChannelUrl: DUNE.url,
+                    openM3uChannelId: 'row-2',
+                },
+            })
+        );
+    });
+
+    it('shows the loading skeleton rather than an empty section while rows load', async () => {
+        channels.set([DUNE]);
+        const fixture = await render('movie');
+        const component = fixture.componentInstance as unknown as {
+            showEmptyState(): boolean;
+        };
+        channels.set([]);
+        loading.set(true);
+
+        expect(component.showEmptyState()).toBe(false);
+
+        loading.set(false);
+
+        expect(component.showEmptyState()).toBe(true);
     });
 
     it('ignores a card whose row is no longer in the catalog', async () => {

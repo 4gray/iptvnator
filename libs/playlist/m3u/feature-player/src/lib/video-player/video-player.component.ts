@@ -147,6 +147,10 @@ import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions'
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { buildM3uPlaybackPayload } from '../m3u-playback-payload.util';
 import { isM3uCollectionView } from './m3u-collection-view.util';
+import {
+    findM3uChannelOpenTarget,
+    isM3uChannelOpenTarget,
+} from './m3u-channel-open-target.util';
 
 const M3U_EPG_GUIDE_HEADER_ACTION_ID = 'm3u-epg-guide';
 const M3U_SIDEBAR_STORAGE_KEY = 'm3u-sidebar-width';
@@ -881,6 +885,11 @@ export class VideoPlayerComponent
                     ? state.openM3uChannelUrl.trim()
                     : '';
             const targetUrl = globalSearchTargetUrl || recentTargetUrl;
+            const targetId =
+                globalSearchTargetUrl &&
+                typeof state?.openM3uChannelId === 'string'
+                    ? state.openM3uChannelId
+                    : '';
             const canOpenGlobalSearchTarget =
                 !!globalSearchTargetUrl && currentView === 'all';
             const canOpenRecentTarget =
@@ -894,13 +903,15 @@ export class VideoPlayerComponent
                 return;
             }
 
-            if (activeChannel?.url === targetUrl) {
+            if (isM3uChannelOpenTarget(activeChannel, targetUrl, targetId)) {
                 this.clearConsumedChannelOpenState();
                 return;
             }
 
-            const matchedChannel = channels.find(
-                (channel) => channel.url === targetUrl
+            const matchedChannel = findM3uChannelOpenTarget(
+                channels,
+                targetUrl,
+                targetId
             );
             if (!matchedChannel) {
                 return;
@@ -1269,6 +1280,7 @@ export class VideoPlayerComponent
             const nextState = { ...historyState };
             delete nextState['openRecentChannelUrl'];
             delete nextState['openM3uChannelUrl'];
+            delete nextState['openM3uChannelId'];
             window.history.replaceState(nextState, document.title);
         } catch {
             // no-op

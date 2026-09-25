@@ -88,6 +88,44 @@ describe('buildM3uSeriesCatalog', () => {
         expect(new Set(ids).size).toBe(2);
     });
 
+    it.each([
+        ['after', ['SHOW 2017 S1 E1', 'SHOW 2024 S1 E1']],
+        ['before', ['SHOW 2024 S1 E1', 'SHOW 2017 S1 E1']],
+    ])(
+        'keeps the original ids when a remake arrives (listed %s it)',
+        (_order, names) => {
+            // Watch progress is stored under these ids. A refresh that adds
+            // a remake must not re-mint the show the viewer was watching.
+            const [before] = build(['SHOW 2017 S1 E1']);
+            const after = build(names);
+            const original = after.find((s) => s.yearHint === 2017);
+            const remake = after.find((s) => s.yearHint === 2024);
+
+            expect(original?.id).toBe(before.id);
+            expect(original?.seasons.get(1)?.[0].id).toBe(
+                before.seasons.get(1)?.[0].id
+            );
+            expect(remake?.seasons.get(1)?.[0].id).not.toBe(
+                before.seasons.get(1)?.[0].id
+            );
+        }
+    );
+
+    it('keeps episode ids distinct when unyeared rows sit beside two remakes', () => {
+        // The unyeared rows keep a key of their own, so handing the
+        // year-free key to the original cannot collide with them.
+        const series = build([
+            'SHOW 2017 S1 E1',
+            'SHOW 2024 S1 E1',
+            'SHOW S1 E1',
+        ]);
+        const ids = series.map((s) => s.seasons.get(1)?.[0].id);
+
+        expect(series).toHaveLength(3);
+        expect(new Set(ids).size).toBe(3);
+        expect(new Set(series.map((s) => s.id)).size).toBe(3);
+    });
+
     it('does not split when only one year is stated', () => {
         // This is what keeps a yeared title merging with its unyeared
         // siblings, which real providers write constantly.

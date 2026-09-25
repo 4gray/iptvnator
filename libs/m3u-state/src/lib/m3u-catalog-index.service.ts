@@ -9,7 +9,13 @@ import {
     buildM3uCatalogIndex,
     buildM3uSeriesCatalog,
 } from '@iptvnator/shared/m3u-utils';
-import { selectActivePlaylistId, selectChannels } from './selectors';
+import {
+    selectActivePlaylistId,
+    selectChannels,
+    selectChannelsLoading,
+} from './selectors';
+
+const EMPTY_INDEX: M3uCatalogIndex<Channel> = buildM3uCatalogIndex<Channel>([]);
 
 /**
  * Owns the derived catalog index for the loaded M3U playlist.
@@ -40,14 +46,38 @@ export class M3uCatalogIndexService {
     private readonly channels: Signal<Channel[]> =
         this.store.selectSignal(selectChannels);
 
-    /** Rows split by content kind, with per-kind group buckets. */
+    /**
+     * True while the route session is replacing the channel array.
+     *
+     * Switching playlists keeps the previous playlist's rows in the store
+     * until the new ones arrive, under the new playlist's URL and id.
+     */
+    readonly loading: Signal<boolean> = this.store.selectSignal(
+        selectChannelsLoading
+    );
+
+    /** Index of whatever the store holds, current or not. */
+    private readonly storedIndex: Signal<M3uCatalogIndex<Channel>> = computed(
+        () => buildM3uCatalogIndex(this.channels())
+    );
+
+    /**
+     * Rows split by content kind, with per-kind group buckets — empty while
+     * a load is in flight.
+     *
+     * The catalog, the series detail and the rail links read this, and
+     * none of them may show the previous playlist's rows: a card would open
+     * a film from another source, and an episode id would be minted with
+     * the new playlist's id, so its progress would be saved against the
+     * wrong playlist.
+     */
     readonly index: Signal<M3uCatalogIndex<Channel>> = computed(() =>
-        buildM3uCatalogIndex(this.channels())
+        this.loading() ? EMPTY_INDEX : this.storedIndex()
     );
 
     /** True once the playlist holds something other than live channels. */
     readonly hasNonLiveContent: Signal<boolean> = computed(
-        () => this.index().hasNonLiveContent
+        () => this.storedIndex().hasNonLiveContent
     );
 
     /**
@@ -57,7 +87,7 @@ export class M3uCatalogIndexService {
     readonly splitsCatalog: Signal<boolean> = computed(
         () =>
             this.settingsStore.m3uCatalogTabs?.() !== false &&
-            this.index().hasNonLiveContent
+            this.hasNonLiveContent()
     );
 
     /**
@@ -71,7 +101,7 @@ export class M3uCatalogIndexService {
      * behaviour and a live-only playlist is untouched.
      */
     readonly liveChannels: Signal<readonly Channel[]> = computed(() =>
-        this.splitsCatalog() ? this.index().liveChannels : this.channels()
+        this.splitsCatalog() ? this.storedIndex().liveChannels : this.channels()
     );
 
     private readonly playlistId: Signal<string> = this.store.selectSignal(

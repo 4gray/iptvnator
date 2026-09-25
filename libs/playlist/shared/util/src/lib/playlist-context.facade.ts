@@ -73,6 +73,14 @@ const M3U_SECTIONS = [
     'favorites',
     'recent',
 ] as const;
+/**
+ * M3U sections that exist only for a playlist holding films or episodes.
+ * Unlike every other section they are a property of one playlist's content,
+ * so they are restored from that playlist's own memory but never carried to
+ * another source: a live-only playlist offers no Movies link, and following
+ * the viewer there would open a section its rail does not show.
+ */
+const M3U_CATALOG_SECTIONS: ReadonlySet<string> = new Set(['vod', 'series']);
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistContextFacade {
@@ -239,7 +247,8 @@ export class PlaylistContextFacade {
             const section = this.resolveTargetSection(
                 provider,
                 routeContext.section,
-                playlistId
+                playlistId,
+                routeContext.playlistId
             );
             return [...prefix, 'playlists', playlistId, section];
         }
@@ -311,13 +320,18 @@ export class PlaylistContextFacade {
     private resolveTargetSection(
         provider: PortalProvider,
         currentSection: PortalRailSection | null,
-        targetPlaylistId: string
+        targetPlaylistId: string,
+        currentPlaylistId: string | null = null
     ): string {
         const fromCurrent = this.normalizeSectionForProvider(
             currentSection,
             provider
         );
-        if (fromCurrent) {
+        if (
+            fromCurrent &&
+            (targetPlaylistId === currentPlaylistId ||
+                !this.isPlaylistBoundSection(fromCurrent, provider))
+        ) {
             return fromCurrent;
         }
 
@@ -342,7 +356,10 @@ export class PlaylistContextFacade {
             providerMemory,
             provider
         );
-        if (normalizedProviderSection) {
+        if (
+            normalizedProviderSection &&
+            !this.isPlaylistBoundSection(normalizedProviderSection, provider)
+        ) {
             return normalizedProviderSection;
         }
 
@@ -351,6 +368,13 @@ export class PlaylistContextFacade {
         }
 
         return 'vod';
+    }
+
+    private isPlaylistBoundSection(
+        section: string,
+        provider: PortalProvider
+    ): boolean {
+        return provider === 'playlists' && M3U_CATALOG_SECTIONS.has(section);
     }
 
     private supportsSectionNavigation(provider: PortalProvider): boolean {
@@ -423,10 +447,7 @@ export class PlaylistContextFacade {
             const parsedProviders = (parsed as Record<string, unknown>)[
                 'providers'
             ];
-            if (
-                typeof parsedProviders === 'object' &&
-                parsedProviders !== null
-            ) {
+            if (typeof parsedProviders === 'object' && parsedProviders !== null) {
                 const candidate = parsedProviders as Record<string, unknown>;
                 if (typeof candidate['playlists'] === 'string') {
                     providers.playlists = candidate['playlists'];

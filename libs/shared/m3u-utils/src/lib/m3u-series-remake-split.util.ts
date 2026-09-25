@@ -49,9 +49,20 @@ export function regroupM3uSeriesByYear<T extends M3uArtworkBearing>(
         const yeared = parts.filter((part) => part.yearHint !== null);
 
         if (yeared.length >= 2) {
-            // Remakes. Each keeps its year-qualified key, so its episode
-            // ids stay its own.
-            result.push(...parts);
+            // Remakes. Each keeps its own ids, but the earliest keeps the
+            // year-free key the title had while it was the only one: a
+            // remake is almost always the newcomer, and without this its
+            // arrival in a refresh would re-mint the original's episode ids
+            // and orphan every watched mark and resume point stored under
+            // them. The rarer reverse order — an older original added after
+            // its remake — still moves the remake's ids; keeping both
+            // stable would need the previous catalog, which is not stored.
+            const original = earliestStatedYear(yeared);
+            result.push(
+                ...parts.map((part) =>
+                    part === original ? { ...part, key: baseKey } : part
+                )
+            );
             continue;
         }
 
@@ -61,6 +72,14 @@ export function regroupM3uSeriesByYear<T extends M3uArtworkBearing>(
     }
 
     return result;
+}
+
+function earliestStatedYear<T extends M3uArtworkBearing>(
+    yeared: readonly M3uSeriesAccumulator<T>[]
+): M3uSeriesAccumulator<T> {
+    return yeared.reduce((earliest, part) =>
+        Number(part.yearHint) < Number(earliest.yearHint) ? part : earliest
+    );
 }
 
 /** Ids follow the final key, or two series would share watch history. */

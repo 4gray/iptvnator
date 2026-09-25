@@ -12,7 +12,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
 import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
-import { OPEN_M3U_CHANNEL_URL_STATE_KEY } from '@iptvnator/portal/shared/util';
+import {
+    OPEN_M3U_CHANNEL_ID_STATE_KEY,
+    OPEN_M3U_CHANNEL_URL_STATE_KEY,
+} from '@iptvnator/portal/shared/util';
 import {
     CategoryViewComponent,
     GridListComponent,
@@ -81,6 +84,12 @@ export class M3uCatalogRouteComponent {
     );
 
     protected readonly isSeries = computed(() => this.kind() === 'episode');
+
+    /**
+     * A load in flight is not an empty section: the rows are on their way,
+     * so the grid shows its skeleton rather than "no movies".
+     */
+    protected readonly loading = this.catalog.loading;
 
     /**
      * The workspace header owns search for this route's `local-filter`
@@ -224,6 +233,11 @@ export class M3uCatalogRouteComponent {
 
     protected readonly isEmpty = computed(() => this.allCards().length === 0);
 
+    /** Empty and finished loading; a load in flight is not an empty section. */
+    protected readonly showEmptyState = computed(
+        () => this.isEmpty() && !this.loading()
+    );
+
     protected readonly emptyTitleKey = computed(() =>
         this.isSeries()
             ? 'CHANNELS.CATALOG.NO_SERIES'
@@ -304,7 +318,11 @@ export class M3uCatalogRouteComponent {
         // path global search uses.
         void this.router.navigate(['../all'], {
             relativeTo: this.route,
-            state: { [OPEN_M3U_CHANNEL_URL_STATE_KEY]: channel.url },
+            // The id picks this row out of any others sharing its URL.
+            state: {
+                [OPEN_M3U_CHANNEL_URL_STATE_KEY]: channel.url,
+                [OPEN_M3U_CHANNEL_ID_STATE_KEY]: channel.id,
+            },
         });
     }
 }
