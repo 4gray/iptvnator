@@ -33,7 +33,10 @@ function createScheduler(): FakeScheduler {
     return Object.assign(scheduler, {
         setTimeout: (callback: () => void, delay: number) => {
             const handle = nextHandle++;
-            scheduler.timers.set(handle, { at: scheduler.now + delay, callback });
+            scheduler.timers.set(handle, {
+                at: scheduler.now + delay,
+                callback,
+            });
             return handle;
         },
         clearTimeout: (handle: number) => {
@@ -43,11 +46,17 @@ function createScheduler(): FakeScheduler {
 }
 
 function createTarget() {
-    const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+    const listeners = new Map<
+        string,
+        Set<EventListenerOrEventListenerObject>
+    >();
     return {
         listeners,
         addEventListener: jest.fn((type: string, listener) => {
-            listeners.set(type, (listeners.get(type) ?? new Set()).add(listener));
+            listeners.set(
+                type,
+                (listeners.get(type) ?? new Set()).add(listener)
+            );
         }),
         removeEventListener: jest.fn((type: string, listener) => {
             listeners.get(type)?.delete(listener);
@@ -104,7 +113,9 @@ describe('ParentalLockIdleTimer', () => {
 
     it('defers expiry while playback is busy and fires once it stops', () => {
         let busy = true;
-        const { timer, scheduler, onExpire } = createTimer({ busy: () => busy });
+        const { timer, scheduler, onExpire } = createTimer({
+            busy: () => busy,
+        });
 
         timer.arm(5);
         scheduler.advance(5 * 60_000);

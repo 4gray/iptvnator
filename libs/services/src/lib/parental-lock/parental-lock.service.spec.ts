@@ -5,7 +5,10 @@ import { hashParentalLockPin } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from '../database-electron.service';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { SettingsStore } from '../settings-store.service';
-import { PARENTAL_LOCK_PROMPT, ParentalLockPromptRequest } from './parental-lock-prompt.token';
+import {
+    PARENTAL_LOCK_PROMPT,
+    ParentalLockPromptRequest,
+} from './parental-lock-prompt.token';
 import { ParentalLockStorageService } from './parental-lock-storage';
 import { ParentalLockService } from './parental-lock.service';
 
@@ -172,7 +175,9 @@ describe('ParentalLockService', () => {
 
         expect(storage.writePinHash).toHaveBeenCalledTimes(1);
         expect(storage.pinHash).not.toContain('9876');
-        expect(updateSettings).toHaveBeenCalledWith({ parentalLockEnabled: true });
+        expect(updateSettings).toHaveBeenCalledWith({
+            parentalLockEnabled: true,
+        });
         expect(updateBridgeSettings).toHaveBeenCalledWith({
             parentalLockEnabled: true,
         });
@@ -195,6 +200,44 @@ describe('ParentalLockService', () => {
         await expect(service.disable()).resolves.toBe(true);
         expect(service.enabled()).toBe(false);
         expect(service.lockedGroupTitles('p-1')).toEqual(['Adult']);
+    });
+
+    it('changePin and disable verify the stored PIN even while the session is unlocked', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+        prompt.requestPin.mockImplementation(
+            async (request: ParentalLockPromptRequest) =>
+                request.mode === 'set'
+                    ? '5678'
+                    : (await request.verify?.('1234'))
+                      ? '1234'
+                      : null
+        );
+        const service = await createService();
+        await service.requestUnlock();
+        TestBed.flushEffects();
+        expect(service.unlocked()).toBe(true);
+        prompt.requestPin.mockClear();
+
+        // A dismissed verification prompt aborts the change.
+        prompt.requestPin.mockResolvedValueOnce(null);
+        await expect(service.changePin()).resolves.toBe(false);
+        expect(prompt.requestPin).toHaveBeenCalledTimes(1);
+        expect(prompt.requestPin.mock.calls[0][0].mode).toBe('unlock');
+        expect(storage.writePinHash).not.toHaveBeenCalled();
+
+        prompt.requestPin.mockClear();
+        await expect(service.changePin()).resolves.toBe(true);
+        expect(
+            prompt.requestPin.mock.calls.map((call) => call[0].mode)
+        ).toEqual(['unlock', 'set']);
+        expect(storage.writePinHash).toHaveBeenCalledTimes(1);
+
+        prompt.requestPin.mockClear();
+        prompt.requestPin.mockResolvedValueOnce(null);
+        await expect(service.disable()).resolves.toBe(false);
+        expect(service.enabled()).toBe(true);
+        expect(prompt.requestPin.mock.calls[0][0].mode).toBe('unlock');
     });
 
     it('persists locks per portal, stamps the Xtream column and bumps the version', async () => {

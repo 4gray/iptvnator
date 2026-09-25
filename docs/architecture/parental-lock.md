@@ -11,8 +11,11 @@ follow in a second PR.
 
 ## Product rules
 
-- Off by default. Enabling asks for a new PIN (4–8 digits); disabling asks
-  for the current PIN and keeps the locks for a later re-enable.
+- Off by default. Enabling asks for a new PIN (4–8 digits); disabling and
+  changing the PIN always verify the current PIN against the stored hash,
+  even while the session is unlocked (`verifyCurrentPin()`, never the
+  `requestUnlock()` short-cut) — a parent leaving the app unlocked must not
+  leave the lock removable. Disabling keeps the locks for a later re-enable.
 - The unit of locking is the category. Nothing is blurred or greyed: a
   withheld category and its rows are absent. The only trace is one
   "N locked · Enter PIN to show" row at the bottom of a portal's category
@@ -102,8 +105,13 @@ locked default.
   dialog. `itvFullChannelList` and the content loader drop rows whose
   `tv_genre_id` / `category_id` is withheld, the content resource's params
   carry `parentalLockVersion` so lock/unlock re-fires it, and a stale
-  response is discarded when the version moved. A selected withheld genre is
-  cleared and the section root is navigated to.
+  response is discarded when the version moved. Paging is judged on the RAW
+  page: withheld ids the list has not seen before count as progress (so a
+  portal page made only of locked rows does not end the list), a page that
+  is entirely withheld requests the next page by itself, and the VOD/series
+  `totalCount` is reduced by the withheld ids seen so the grid stops asking
+  once every visible row is in. A selected withheld genre is cleared and the
+  section root is navigated to.
 - **M3U:** `ChannelListContainerComponent` derives one `visibleChannelList`
   (all views, favorites, recents, the fullscreen panel and numeric zapping
   read from it); locked groups are absent from the groups rail. A playing
@@ -120,7 +128,8 @@ locked default.
   dialog (rendered only while the feature is on), plus a new Stalker
   `StalkerCategoryLockDialogComponent` reached from a lock button above the
   categories rail; it offers "Lock adult (18+)" for genres the portal flags
-  `censored`. Opening any of these while locked asks for the PIN first.
+  `censored`. All three list the locked names and can rewrite the locks, so
+  each opens only after `requestUnlock()` succeeds.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 

@@ -5,6 +5,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
+import { ParentalLockService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { GroupManagementDialogComponent } from './group-management-dialog/group-management-dialog.component';
@@ -46,6 +47,7 @@ describe('GroupsViewComponent', () => {
     let fixture: ComponentFixture<GroupsViewComponent>;
     let component: GroupsViewComponent;
     let dialog: { open: jest.Mock };
+    let parentalLock: { requestUnlock: jest.Mock };
 
     const sportsCenter = createChannel(
         'sports-1',
@@ -102,6 +104,8 @@ describe('GroupsViewComponent', () => {
     beforeEach(async () => {
         localStorage.removeItem(GROUP_CHANNEL_SORT_STORAGE_KEY);
 
+        parentalLock = { requestUnlock: jest.fn().mockResolvedValue(true) };
+
         dialog = {
             open: jest.fn(),
         };
@@ -116,6 +120,10 @@ describe('GroupsViewComponent', () => {
                 {
                     provide: MatDialog,
                     useValue: dialog,
+                },
+                {
+                    provide: ParentalLockService,
+                    useValue: parentalLock,
                 },
             ],
         }).compileComponents();
@@ -498,14 +506,14 @@ describe('GroupsViewComponent', () => {
         ).toEqual(['Movie Classic']);
     });
 
-    it('opens the manage-groups dialog with all groups and emits updated hidden titles on save', () => {
+    it('opens the manage-groups dialog with all groups and emits updated hidden titles on save', async () => {
         const hiddenGroupTitlesChanged = jest.fn();
         component.hiddenGroupTitlesChanged.subscribe(hiddenGroupTitlesChanged);
         dialog.open.mockReturnValue({
             afterClosed: () => of({ hiddenGroupTitles: ['News', 'Sports'] }),
         });
 
-        component.openGroupManagement();
+        await component.openGroupManagement();
 
         expect(dialog.open).toHaveBeenCalledWith(
             GroupManagementDialogComponent,
@@ -527,6 +535,15 @@ describe('GroupsViewComponent', () => {
             'News',
             'Sports',
         ]);
+    });
+
+    it('keeps the manage-groups dialog closed when the parental PIN is refused', async () => {
+        // The dialog names every locked group and can rewrite the locks.
+        parentalLock.requestUnlock.mockResolvedValueOnce(false);
+
+        await component.openGroupManagement();
+
+        expect(dialog.open).not.toHaveBeenCalled();
     });
 
     it('drops the selected-group header in compact mode but keeps the groups rail header', () => {

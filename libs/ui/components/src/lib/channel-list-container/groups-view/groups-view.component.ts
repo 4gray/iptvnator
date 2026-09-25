@@ -22,7 +22,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
-import { SettingsStore } from '@iptvnator/services';
+import { ParentalLockService, SettingsStore } from '@iptvnator/services';
 import {
     foldSearchText,
     Channel,
@@ -84,6 +84,7 @@ interface FilteredGroupView {
 })
 export class GroupsViewComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly settingsStore = inject(SettingsStore);
     readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
@@ -488,7 +489,13 @@ export class GroupsViewComponent {
         this.localGroupSearchTerm.set(value);
     }
 
-    openGroupManagement(): void {
+    async openGroupManagement(): Promise<void> {
+        // The dialog lists every group by name, locked ones included, and can
+        // rewrite the locks — so it sits behind the PIN like the portal
+        // dialogs do.
+        if (!(await this.parentalLock.requestUnlock())) {
+            return;
+        }
         const groups =
             this.managementGroups() ??
             this.allGroups().map<GroupManagementDialogGroup>(

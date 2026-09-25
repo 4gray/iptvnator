@@ -284,6 +284,12 @@ export function withStalkerContent() {
                 };
 
                 let lastLivePageKey = '';
+                // Withheld (parental-locked) row ids seen while accumulating
+                // the current list. A page that adds only withheld ids still
+                // counts as progress, so paging continues past it; a page
+                // adding nothing new — withheld or not — is a stalled portal.
+                let withheldSeenKey = '';
+                const withheldSeenIds = new Set<string>();
                 return {
                     categoryResource: resource({
                         params: () => ({
@@ -648,16 +654,70 @@ export function withStalkerContent() {
                                     return [];
                                 }
 
+                                const rawItems = response.js.data.map((item) =>
+                                    toStalkerContentItem(
+                                        item,
+                                        playlist.portalUrl ?? ''
+                                    )
+                                );
                                 const newItems = withoutWithheldStalkerItems(
-                                    response.js.data.map((item) =>
-                                        toStalkerContentItem(
-                                            item,
-                                            playlist.portalUrl ?? ''
-                                        )
-                                    ),
+                                    rawItems,
                                     params.contentType,
                                     withheldCategoryIds
                                 );
+                                const listKey = JSON.stringify([
+                                    paramsPlaylistKey,
+                                    params.contentType,
+                                    params.category,
+                                    params.search,
+                                ]);
+                                if (
+                                    params.pageIndex === 1 ||
+                                    withheldSeenKey !== listKey
+                                ) {
+                                    withheldSeenKey = listKey;
+                                    withheldSeenIds.clear();
+                                }
+                                let newWithheldCount = 0;
+                                if (newItems.length < rawItems.length) {
+                                    const kept = new Set(newItems);
+                                    for (const item of rawItems) {
+                                        if (kept.has(item)) {
+                                            continue;
+                                        }
+                                        const id = String(item.id ?? '');
+                                        if (!withheldSeenIds.has(id)) {
+                                            withheldSeenIds.add(id);
+                                            newWithheldCount += 1;
+                                        }
+                                    }
+                                }
+                                // A page made only of withheld rows would
+                                // leave the list unchanged; request the next
+                                // one so unlocked rows further on still load.
+                                const skipWithheldPage = (hasMore: boolean) => {
+                                    if (
+                                        !hasMore ||
+                                        newItems.length > 0 ||
+                                        newWithheldCount === 0
+                                    ) {
+                                        return;
+                                    }
+                                    queueMicrotask(() => {
+                                        if (isCurrentRequest()) {
+                                            // `page` belongs to the selection
+                                            // feature; the facade composes
+                                            // its setter ahead of this one.
+                                            (
+                                                store as unknown as {
+                                                    setPage?: (
+                                                        page: number
+                                                    ) => void;
+                                                }
+                                            ).setPage?.(params.pageIndex);
+                                        }
+                                    });
+                                };
 
                                 if (
                                     params.contentType === 'itv' ||
@@ -688,6 +748,16 @@ export function withStalkerContent() {
                                     const replay =
                                         livePageKey === lastLivePageKey;
                                     lastLivePageKey = livePageKey;
+                                    const hasMoreChannels =
+                                        rawItems.length > 0 &&
+                                        (params.pageIndex === 1 ||
+                                            replay ||
+                                            newWithheldCount > 0 ||
+                                            nextChannels.length >
+                                                existingChannels.length) &&
+                                        nextChannels.length +
+                                            withheldSeenIds.size <
+                                            (response.js.total_items ?? 0);
                                     patchState(store, {
                                         totalCount:
                                             response.js.total_items ?? 0,
@@ -705,15 +775,9 @@ export function withStalkerContent() {
                                                   },
                                               }
                                             : { radioChannels: nextChannels }),
-                                        hasMoreChannels:
-                                            channels.length > 0 &&
-                                            (params.pageIndex === 1 ||
-                                                replay ||
-                                                nextChannels.length >
-                                                    existingChannels.length) &&
-                                            nextChannels.length <
-                                                (response.js.total_items ?? 0),
+                                        hasMoreChannels,
                                     });
+                                    skipWithheldPage(hasMoreChannels);
                                 } else {
                                     // VOD/series pages accumulate into one
                                     // continuous list for the infinite-scroll
@@ -737,18 +801,30 @@ export function withStalkerContent() {
                                     // end on every scroll crossing.
                                     const appendStalled =
                                         params.pageIndex > 1 &&
+                                        newWithheldCount === 0 &&
                                         nextContent.length <=
                                             previousContent.length;
+                                    // Withheld rows count against the portal's
+                                    // total, or the grid would keep asking for
+                                    // pages the lock will never let it show.
+                                    const totalCount = appendStalled
+                                        ? nextContent.length
+                                        : Math.max(
+                                              0,
+                                              (response.js.total_items ?? 0) -
+                                                  withheldSeenIds.size
+                                          );
 
                                     patchState(store, {
-                                        totalCount: appendStalled
-                                            ? nextContent.length
-                                            : (response.js.total_items ?? 0),
+                                        totalCount,
                                         paginatedContent: nextContent,
                                         contentError: null,
                                         appendError: null,
                                         hasMoreChannels: false,
                                     });
+                                    skipWithheldPage(
+                                        nextContent.length < totalCount
+                                    );
                                     return nextContent;
                                 }
 

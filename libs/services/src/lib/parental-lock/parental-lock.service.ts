@@ -28,6 +28,10 @@ import {
     PARENTAL_LOCK_PROMPT,
     ParentalLockPromptRequest,
 } from './parental-lock-prompt.token';
+import {
+    mirrorParentalLockEnabledSetting,
+    syncParentalLockStateToMainProcess,
+} from './parental-lock-bridge';
 import { ParentalLockStorageService } from './parental-lock-storage';
 
 const XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCategoryType[] = [
@@ -80,9 +84,7 @@ export class ParentalLockService {
         () => this.settingsStore.parentalLockEnabled?.() === true
     );
     /** Feature on and the PIN has been entered this session. */
-    readonly unlocked = computed(
-        () => this.enabled() && this.unlockedState()
-    );
+    readonly unlocked = computed(() => this.enabled() && this.unlockedState());
     /** Locked categories must currently be withheld. */
     readonly active = computed(() => this.enabled() && !this.unlockedState());
     /** A PIN exists; enabling is only possible once this is true. */
@@ -103,9 +105,11 @@ export class ParentalLockService {
             }
             untracked(() => {
                 this.versionState.update((value) => value + 1);
-                this.syncMainProcess(active);
+                syncParentalLockStateToMainProcess(active);
                 if (!active) {
-                    this.idleTimer.arm(this.enabled() ? this.relockMinutes() : 0);
+                    this.idleTimer.arm(
+                        this.enabled() ? this.relockMinutes() : 0
+                    );
                 } else {
                     this.idleTimer.disarm();
                 }
@@ -157,7 +161,10 @@ export class ParentalLockService {
      * accepted). Concurrent callers share one prompt.
      */
     requestUnlock(
-        options: Pick<ParentalLockPromptRequest, 'titleKey' | 'descriptionKey'> = {}
+        options: Pick<
+            ParentalLockPromptRequest,
+            'titleKey' | 'descriptionKey'
+        > = {}
     ): Promise<boolean> {
         if (!this.active()) {
             return Promise.resolve(true);
@@ -218,7 +225,7 @@ export class ParentalLockService {
             await this.settingsStore.updateSettings({
                 parentalLockEnabled: true,
             });
-            this.mirrorEnabledSetting(true);
+            mirrorParentalLockEnabledSetting(true);
         }
         return true;
     }
@@ -229,7 +236,7 @@ export class ParentalLockService {
         if (!this.prompt || !this.hasPin()) {
             return false;
         }
-        if (this.enabled() && !(await this.requestUnlock())) {
+        if (!(await this.verifyCurrentPin())) {
             return false;
         }
         const pin = await this.prompt.requestPin({ mode: 'set' });
@@ -244,15 +251,36 @@ export class ParentalLockService {
         if (!this.enabled()) {
             return true;
         }
-        if (!(await this.requestUnlock())) {
+        if (!(await this.verifyCurrentPin())) {
             return false;
         }
         await this.settingsStore.updateSettings({
             parentalLockEnabled: false,
         });
-        this.mirrorEnabledSetting(false);
+        mirrorParentalLockEnabledSetting(false);
         this.unlockedState.set(false);
         return true;
+    }
+
+    /**
+     * Always asks for the PIN, unlocked session or not: changing the PIN or
+     * switching the feature off must not be possible just because a parent
+     * left the app unlocked. Unlike `requestUnlock()` this never short-cuts
+     * on `active`.
+     */
+    private async verifyCurrentPin(): Promise<boolean> {
+        await this.initialize();
+        const hash = this.pinHash();
+        if (!this.prompt || !hash) {
+            return false;
+        }
+        const pin = await this.prompt.requestPin({
+            mode: 'unlock',
+            verify: (candidate) => verifyParentalLockPin(candidate, hash),
+            titleKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_TITLE',
+            descriptionKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_DESCRIPTION',
+        });
+        return pin !== null;
     }
 
     async setRelockMinutes(minutes: number): Promise<void> {
@@ -325,7 +353,8 @@ export class ParentalLockService {
 
     isM3uGroupLocked(playlistId: string, groupTitle: string): boolean {
         return (
-            this.active() && this.lockedGroupTitles(playlistId).includes(groupTitle)
+            this.active() &&
+            this.lockedGroupTitles(playlistId).includes(groupTitle)
         );
     }
 
@@ -449,25 +478,5 @@ export class ParentalLockService {
             console.error('Failed to store the parental lock PIN.', error);
             return false;
         }
-    }
-
-    private syncMainProcess(active: boolean): void {
-        const bridge = window.electron;
-        if (typeof bridge?.setParentalLockState !== 'function') {
-            return;
-        }
-        void bridge.setParentalLockState(active).catch((error) => {
-            console.error('Failed to sync the parental lock state.', error);
-        });
-    }
-
-    private mirrorEnabledSetting(enabled: boolean): void {
-        const bridge = window.electron;
-        if (typeof bridge?.updateSettings !== 'function') {
-            return;
-        }
-        void bridge
-            .updateSettings({ parentalLockEnabled: enabled })
-            .catch(() => undefined);
     }
 }

@@ -1911,7 +1911,9 @@
             "COOLDOWN": "Too many attempts. Wait 30 seconds and try again.",
             "NO_RECOVERY": "There is no way to recover a forgotten PIN — only resetting the app data removes it.",
             "SAVE": "Save PIN",
-            "UNLOCK": "Unlock"
+            "UNLOCK": "Unlock",
+            "CONFIRM_TITLE": "Confirm parental PIN",
+            "CONFIRM_DESCRIPTION": "Enter the current PIN to change this setting."
         },
         "LOCKED_COUNT": "Locked",
         "LOCK_CATEGORY": "Lock category",

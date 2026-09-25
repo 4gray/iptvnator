@@ -35,7 +35,10 @@ export class ParentalLockIdleTimer {
     private readonly onExpire: () => void;
     private readonly isBusy: () => boolean;
     private readonly now: () => number;
-    private readonly schedule: (callback: () => void, delayMs: number) => number;
+    private readonly schedule: (
+        callback: () => void,
+        delayMs: number
+    ) => number;
     private readonly cancel: (handle: number) => void;
     private readonly target: Pick<
         Document,
@@ -94,10 +97,13 @@ export class ParentalLockIdleTimer {
     }
 
     private scheduleCheck(delayMs: number): void {
-        this.handle = this.schedule(() => {
-            this.handle = null;
-            this.check();
-        }, Math.max(delayMs, 1_000));
+        this.handle = this.schedule(
+            () => {
+                this.handle = null;
+                this.check();
+            },
+            Math.max(delayMs, 1_000)
+        );
     }
 
     private check(): void {

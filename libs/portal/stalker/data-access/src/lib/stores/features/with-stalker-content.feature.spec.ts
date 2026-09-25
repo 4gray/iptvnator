@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
-import { DataService } from '@iptvnator/services';
+import { DataService, ParentalLockService } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
     PlaylistMeta,
@@ -138,16 +138,27 @@ describe('withStalkerContent failure states', () => {
     let dataService: {
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
+    let parentalLock: {
+        active: jest.Mock<boolean, []>;
+        version: ReturnType<typeof signal<number>>;
+        lockedStalkerIds: jest.Mock<string[], [string, string]>;
+    };
 
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn(),
+        };
+        parentalLock = {
+            active: jest.fn(() => false),
+            version: signal(0),
+            lockedStalkerIds: jest.fn(() => []),
         };
 
         TestBed.configureTestingModule({
             providers: [
                 TestContentStore,
                 { provide: DataService, useValue: dataService },
+                { provide: ParentalLockService, useValue: parentalLock },
                 {
                     provide: StalkerItvCacheService,
                     useValue: createItvCacheMock(),
@@ -588,6 +599,62 @@ describe('withStalkerContent failure states', () => {
         // instead of leaving hasMoreContent true past the end forever.
         expect(store.getPaginatedContent()).toHaveLength(2);
         expect(store.totalCount()).toBe(2);
+    });
+
+    it('pages past a VOD page made only of parental-locked rows', async () => {
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+                // Page 1: one visible film. Page 2: locked rows only. Page 3:
+                // the visible film paging must still reach.
+                const data =
+                    page === 1
+                        ? [{ id: 'movie-1', name: 'One', category_id: '5' }]
+                        : page === 2
+                          ? [
+                                { id: 'adult-1', name: 'A', category_id: '9' },
+                                { id: 'adult-2', name: 'B', category_id: '9' },
+                            ]
+                          : [
+                                {
+                                    id: 'movie-3',
+                                    name: 'Three',
+                                    category_id: '5',
+                                },
+                            ];
+                return Promise.resolve({ js: { data, total_items: 4 } });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 1);
+        expect(store.hasMoreContent()).toBe(true);
+
+        // The append lands on the fully withheld page; the loader must ask
+        // for the next one by itself instead of ending the list.
+        store.setPage(1);
+        await waitForCondition(
+            () => store.getPaginatedContent().length === 2,
+            60
+        );
+
+        expect(store.getPaginatedContent().map((item) => item.id)).toEqual([
+            'movie-1',
+            'movie-3',
+        ]);
+        // Both withheld ids are subtracted from the portal's total.
+        expect(store.totalCount()).toBe(2);
+        expect(store.hasMoreContent()).toBe(false);
     });
 
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
