@@ -13,6 +13,7 @@ const PUBLISH_ACTION_ALLOWLIST = Object.freeze([
     PINNED_UPLOAD_ARTIFACT_ACTION,
 ]);
 const BUILD_ACTION_ALLOWLIST = Object.freeze([
+    PINNED_UPLOAD_ARTIFACT_ACTION,
     'actions/cache/restore@v6',
     'actions/cache/save@v6',
     'actions/cache@v6',

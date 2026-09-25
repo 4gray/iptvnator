@@ -1,4 +1,10 @@
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Location } from '@angular/common';
@@ -31,6 +37,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 @Component({
     selector: 'app-season-container',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '<div data-testid="season-container"></div>',
 })
 class StubSeasonContainerComponent {
@@ -45,6 +52,7 @@ class StubSeasonContainerComponent {
     readonly activeEpisodeId = input<number | null>(null);
     readonly playingEpisodeId = input<number | null>(null);
     readonly seasonDescriptions = input<unknown>(null);
+    readonly seasonPosters = input<unknown>(null);
     readonly seasonWatchBatchRunning = input(false);
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
@@ -54,6 +62,7 @@ class StubSeasonContainerComponent {
 @Component({
     selector: 'app-portal-inline-player',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class StubPortalInlinePlayerComponent {
@@ -63,6 +72,10 @@ class StubPortalInlinePlayerComponent {
     readonly seriesTitle = input<string | null>(null);
     readonly seriesNavigation = input<unknown>(null);
     readonly upNextEpisodes = input<unknown>(null);
+    readonly seriesEpisodes = input<unknown>(null);
+    readonly seasonPosters = input<unknown>(null);
+    readonly episodePlaybackPositions = input<unknown>(null);
+    readonly seasonLoadStates = input<unknown>(null);
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();
     readonly streamUrlCopied = output<void>();
@@ -71,11 +84,13 @@ class StubPortalInlinePlayerComponent {
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly upNextEpisodeSelected = output<unknown>();
+    readonly episodePanelSeasonSelected = output<string>();
 }
 
 @Component({
     selector: 'mat-icon',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '<ng-content />',
 })
 class StubMatIconComponent {}
@@ -460,12 +475,8 @@ describe('SerialDetailsComponent', () => {
                 '2': 'TMDB season 2 overview',
             },
             episodes: {
-                '1': [
-                    { id: '1001', episode_num: 1, title: 'E1', season: 1 },
-                ],
-                '2': [
-                    { id: '2001', episode_num: 1, title: 'E1', season: 2 },
-                ],
+                '1': [{ id: '1001', episode_num: 1, title: 'E1', season: 1 }],
+                '2': [{ id: '2001', episode_num: 1, title: 'E1', season: 2 }],
             },
         });
 

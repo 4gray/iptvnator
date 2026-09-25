@@ -9,6 +9,7 @@ import {
     signal,
     viewChild,
     ElementRef,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatIconButton } from '@angular/material/button';
@@ -38,6 +39,7 @@ import { WorkspaceContextCategoryViewComponent } from './components/workspace-co
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -70,6 +72,7 @@ interface WorkspaceCategoryLike {
         WorkspaceContextErrorViewComponent,
     ],
     templateUrl: './workspace-context-panel.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-context-panel.component.scss',
 })
 export class WorkspaceContextPanelComponent {
@@ -336,10 +339,10 @@ export class WorkspaceContextPanelComponent {
 
     readonly filteredXtreamCategories = computed(() => {
         const cats = this.xtreamCategories();
-        const term = this.categorySearchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.categorySearchTerm().trim());
         const filtered = term
             ? cats.filter((category) =>
-                  this.getCategoryLabel(category).toLowerCase().includes(term)
+                  foldSearchText(this.getCategoryLabel(category)).includes(term)
               )
             : cats;
 
@@ -353,10 +356,10 @@ export class WorkspaceContextPanelComponent {
 
     readonly filteredStalkerCategories = computed(() => {
         const cats = this.stalkerCategories();
-        const term = this.categorySearchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.categorySearchTerm().trim());
         const filtered = term
             ? cats.filter((category) =>
-                  this.getCategoryLabel(category).toLowerCase().includes(term)
+                  foldSearchText(this.getCategoryLabel(category)).includes(term)
               )
             : cats;
 

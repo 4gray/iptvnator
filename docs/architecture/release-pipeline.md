@@ -136,6 +136,11 @@ fails on an unused import.
 
 ## Highlight cards
 
+For an imagegen announcement cover, use the reusable
+[release cover artwork recipe](../development/release-cover-artwork.md).
+It preserves the selected visual direction and exact 0.24 prompt; the
+deterministic cards and screenshot requirements below still apply.
+
 `tools/release/highlight-cards.mjs` plans and lays out;
 `tools/release/generate-highlight-cards.mjs` renders through sharp. Output is 1200×630 (Open Graph), matching the website
 palette in `apps/website/tailwind.config.mjs`.
@@ -275,6 +280,155 @@ updater at a time for a manager-owned installation.
 References: [AppImage desktop keys](https://docs.appimage.org/reference/desktop-integration.html),
 [AppManager desktop parser](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/desktop_entry.vala),
 [AppManager updater](https://github.com/kem-a/AppManager/blob/v3.8.0/src/core/updater.vala).
+
+## Rolling test drafts
+
+Every non-fork PR build publishes its artifacts to a rolling **draft** release
+tagged `test-pr-<n>`; a non-PR, non-tag build (a dispatch on a branch) uses
+`test-<branch>`, the shape master pushes used before the nightly channel took
+over. The tag is stable per PR, so the draft is updated in place and a PR has
+at most one.
+
+`cleanup-pr-draft.yml` deletes a PR's draft when the PR closes. That event is
+the fast path, not a guarantee: GitHub does not run a `pull_request: closed`
+workflow when the head ref is already gone at event time, which is what
+Dependabot does when it supersedes one of its own PRs — 15 drafts were
+orphaned that way before this was noticed. A daily scheduled sweep in the same
+workflow (also runnable with `gh workflow run cleanup-pr-draft.yml`) therefore
+lists every `test-pr-<n>` draft, asks GitHub for that PR's live state, and
+deletes the draft only when the PR is closed; anything else — an open PR, a
+lookup failure, a `test-<branch>` draft — is left alone.
+
+## Nightly channel
+
+Every push to `master` of `4gray/iptvnator` is also a nightly. The same
+`build-and-make.yaml` run that builds the matrix publishes its artifacts as a
+**prerelease of `4gray/iptvnator-nightly`** instead of the rolling
+`test-master` draft: a draft is invisible to anyone without write access and
+to electron-updater, while a published prerelease is what the desktop app's
+**Nightly** update channel installs. PR builds keep their `test-pr-<n>`
+drafts; tag builds are unaffected.
+
+**Version.** Each build job rewrites the `package.json` version before the
+frontend and backend builds and before electron-builder reads it
+(`tools/release/nightly-version.mjs --apply`):
+
+```
+0.23.0  →  0.23.1-nightly.20260915.1234
+           └ next patch ┘ └ commit date ┘ └ run number ┘
+```
+
+- Greater than the released `0.23.0`, so a stable user who switches channels
+  is offered it; smaller than `0.23.1` and `0.24.0`, so the next stable
+  release is offered to nightly users on either channel.
+- The run number only grows, so nightlies order correctly within a day.
+- The same `--apply` sets `publish[0].channel: nightly` in
+  `electron-builder.json`, which names the updater metadata
+  `nightly-mac.yml`, `nightly.yml`, `nightly-linux.yml`. electron-builder does
+  not derive that name from the prerelease tag for the GitHub provider (the
+  first nightly run produced `latest-*.yml` and the publish step refused
+  it). The artifact upload globs and the macOS metadata merge accept both
+  names.
+- The root `package.json` is an Nx `sharedGlobals` input, so the rewritten
+  version reaches the `web` and `electron-backend` bundles (which embed it)
+  instead of a cache hit built from the released version.
+- The base is the version in `package.json`. The patch is bumped only when
+  `v<base>` already exists on origin. A release cut commits the bump before
+  (or together with) its tag, and while that tag is missing the base is the
+  UPCOMING release, so the nightly keeps its patch
+  (`0.23.1` untagged → `0.23.1-nightly.<date>.<run>`): still above every
+  earlier nightly, still below the imminent `0.23.1`, so nightly users are
+  offered that release instead of skipping it.
+- The version is computed once, in the leading `nightly-version` job, and
+  handed to every build job as `--version` — a tag pushed while the matrix
+  runs cannot give one run two different versions. The release job reads
+  the same output to name the tag `v<version>`.
+
+**Publication** (steps at the end of the `create-release` job):
+
+1. `NIGHTLY_RELEASE_TOKEN` — a fine-grained PAT with *Contents: read/write*
+   on `4gray/iptvnator-nightly` — is required. Without it the run only warns;
+   `GITHUB_TOKEN` cannot write to another repository. The nightly repository
+   needs one commit on its default branch, because `gh release create`
+   creates the release tag there.
+2. The notes list the master commits since the previous nightly. That
+   nightly's source commit is read back from the `<!-- iptvnator-commit: … -->`
+   marker its own notes carry, then `compare` on the main repository (with
+   `GITHUB_TOKEN`) lists the range. A missing marker or a rewritten history
+   only drops the list.
+3. The release is created as a draft, assets are uploaded, then it is
+   published in one edit, so electron-updater never sees a release whose
+   channel file is still missing. Missing `nightly-mac.yml`,
+   `nightly.yml` or `nightly-linux.yml` fails the step instead. A published
+   release is never deleted by a re-run: re-running after a successful
+   publish is a no-op, and only a draft left behind by a failed run is
+   replaced.
+4. The release job is serialized per ref, but two master runs can finish out
+   of order. electron-updater takes the newest feed entry, so a nightly older
+   than the newest published one is dropped rather than published.
+5. Only the newest `NIGHTLY_KEEP_RELEASES` (20) nightlies are kept; older
+   ones are deleted together with their tags.
+
+**In the app.** `Settings.updateChannel` (`stable` / `nightly`, default
+`stable`) is a normal renderer setting mirrored into the main-process config
+by `SETTINGS_UPDATE` (`APP_UPDATE_CHANNEL`), because the startup check runs
+before the renderer exists. `AppUpdateService` re-points electron-updater on
+every check (`app-update-feed.ts`): the GitHub feed URL of the channel's
+repository, `allowPrerelease` only for nightly, the channel name (`nightly`,
+or the explicit `latest` for stable — the setter refuses `null` once set),
+and `allowDowngrade = false` reset afterwards, since assigning a channel
+silently enables downgrades and the constructor enables prereleases for any
+prerelease build. Release notes and the manual-install fallback (Linux
+without AppImage) read the channel's release list; notes for a nightly
+version always come from the nightly repository, so a nightly build on the
+stable channel still shows its own notes. `AppUpdateReleaseCatalogs`
+(`app-update-release-notes.ts`) owns one catalog per channel and both reads
+the updater performs on them (release notes with paging, newest release for
+the manual-install fallback); the service only delegates. Each catalog is a
+snapshot of the GitHub release list kept for the whole process, so `findIndex` reloads it
+once when a version is missing from a fully paged list — the updater had
+offered a nightly published after the catalog was first read, and "What's
+new" answered "not found" for it — and `handleUpdateAvailable` drops every
+catalog, since a newly found release proves the snapshots stale. Readers
+of one catalog are serialized through `runExclusive` (both
+`getReleaseNotes` and the manual-update check): a read dereferences an
+index into `releases` after awaiting further pages, and that reload
+rebuilds the array, so two overlapping readers must never interleave. The
+not-found rejection carries the shared
+`APP_UPDATE_RELEASE_NOTES_NOT_FOUND_MARKER` text: `ipcRenderer.invoke`
+strips custom properties off rejections, so the dialog recognises the case
+by that text, shows localized copy with the version, and links to the
+channel's release list (`appUpdateReleasesListUrl`) instead of printing the
+IPC wrapper; every other failure keeps its underlying reason under a
+localized headline.
+
+The About section keeps the select honest about that Save boundary. The
+status block carries a badge naming the channel the verdict describes
+(`status.verdictChannel`, see below), and while the select shows a channel
+other than the saved one (`status.channel`) the
+verdict is dimmed, a hint names both channels, and the plain "Check again"
+button is replaced by a primary "Save and check for <channel> updates"
+button that submits the settings form
+(`SettingsAboutSectionComponent.saveAndCheckForAppUpdate` →
+`SettingsComponent.onSubmit()`). No renderer-side check follows: the saved
+channel reaches `persistAppUpdateChannel`, whose change listener calls
+`AppUpdateService.setChannel`, which already re-checks an idle updater. A
+download in flight or finished belongs to the previous channel and is kept
+by `setChannel`, so in those states the plain check stays and only the hint
+is shown. Because that kept download outlives the channel it was found on,
+every check stamps `status.verdictChannel` with the channel it ran on and
+`setChannel` leaves it alone: the badge names `verdictChannel`, not
+`channel`, and while the two differ a hint says the shown update came from
+the other channel and the saved one has not been checked yet. Checking the unsaved channel without saving was rejected on
+purpose: the updater would then offer a download for a channel that is not
+persisted.
+
+Switching is forward-only on purpose: a nightly build stays installed until
+a newer stable release exists, because a downgrade could land on a release
+that does not understand the database schema a nightly migration already
+applied. Nightly users therefore accept that everything merged into master
+is de facto shipped — a migration on master can only be followed by another
+migration, never reworked.
 
 ## After verification
 

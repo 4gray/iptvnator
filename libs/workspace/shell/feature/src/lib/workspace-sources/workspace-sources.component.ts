@@ -15,10 +15,16 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    foldSearchText,
     sourceHealthType,
     PlaylistUpdateState,
 } from '@iptvnator/shared/interfaces';
-import { Component, computed, inject } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -55,6 +61,7 @@ interface SortOption {
         TranslatePipe,
     ],
     templateUrl: './workspace-sources.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-sources.component.scss',
 })
 export class WorkspaceSourcesComponent {
@@ -189,7 +196,7 @@ export class WorkspaceSourcesComponent {
     });
 
     readonly visibleSourcesCount = computed(() => {
-        const query = this.searchQuery().trim().toLowerCase();
+        const query = foldSearchText(this.searchQuery().trim());
         const filters = this.activeTypeFilters();
         const allPlaylists = this.playlists();
 
@@ -211,7 +218,7 @@ export class WorkspaceSourcesComponent {
 
                 return isStalkerFilter || isXtreamFilter || isM3uFilter;
             })
-            .filter((item) => (item.title || '').toLowerCase().includes(query))
+            .filter((item) => foldSearchText(item.title || '').includes(query))
             .length;
     });
 

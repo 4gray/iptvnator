@@ -1,9 +1,12 @@
-import { setupZoneTestEnv } from 'jest-preset-angular/setup-env/zone';
+// Keep Zone's fakeAsync helpers while preserving the Angular 21 test scheduler.
+import 'zone.js';
+import 'zone.js/testing';
+import { setupZonelessTestEnv } from 'jest-preset-angular/setup-env/zoneless';
 import { installDuplicateVideoJsQualityLevelsWarnFilter } from '@iptvnator/shared/testing';
 
 installDuplicateVideoJsQualityLevelsWarnFilter();
 
-setupZoneTestEnv({
+setupZonelessTestEnv({
     errorOnUnknownElements: true,
     errorOnUnknownProperties: true,
 });

@@ -41,6 +41,10 @@
 
         <span class="epg-timeline__spacer"></span>
 
+        <!-- host-owned action that stays visible in both states (e.g. the
+             collection tab's "open in playlist" chip) -->
+        <ng-content select="[epgToolbarAction]" />
+
         @if (collapsed()) {
             @if (loading()) {
                 <span class="epg-timeline__summary-title">{{

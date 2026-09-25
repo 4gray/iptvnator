@@ -5,6 +5,7 @@ import {
     input,
     output,
     signal,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
@@ -29,6 +30,7 @@ import { WorkspaceLiveCategoriesPopoverService } from './workspace-live-categori
         <button data-test-id="stub-pick" (click)="categorySelected.emit()">
             pick
         </button>`,
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class StubWorkspaceContextPanelComponent {
@@ -82,7 +84,10 @@ describe('WorkspaceLiveCategoriesPopoverService', () => {
                     provide: LIVE_CATEGORIES_POPOVER,
                     useExisting: WorkspaceLiveCategoriesPopoverService,
                 },
-                { provide: WorkspaceShellContextDrawerService, useValue: drawer },
+                {
+                    provide: WorkspaceShellContextDrawerService,
+                    useValue: drawer,
+                },
                 {
                     provide: Router,
                     useValue: { events: routerEvents.asObservable() },

@@ -1,4 +1,9 @@
-import { Component, input, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,6 +20,7 @@ import { XtreamContentGateComponent } from './xtream-content-gate.component';
 @Component({
     selector: 'app-playlist-error-view',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <div class="mock-error">
             <span class="mock-error__title">{{ title() }}</span>
@@ -29,13 +35,14 @@ class MockPlaylistErrorViewComponent {
 
 describe('XtreamContentGateComponent', () => {
     let fixture: ComponentFixture<XtreamContentGateComponent>;
-    const contentInitBlockReason =
-        signal<XtreamContentInitBlockReason | null>(null);
+    const contentInitBlockReason = signal<XtreamContentInitBlockReason | null>(
+        null
+    );
     const isContentInitialized = signal(false);
     const isPendingRestoreBlocked = signal(false);
-    const portalStatus = signal<'active' | 'inactive' | 'expired' | 'unavailable'>(
-        'active'
-    );
+    const portalStatus = signal<
+        'active' | 'inactive' | 'expired' | 'unavailable'
+    >('active');
     const retryContentInitialization = jest.fn().mockResolvedValue(undefined);
 
     beforeEach(async () => {
@@ -114,7 +121,9 @@ describe('XtreamContentGateComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.querySelector('.mock-error')).toBeNull();
-        expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('router-outlet')
+        ).not.toBeNull();
     });
 
     it('keeps the child outlet unavailable while parked state is pending', () => {
@@ -140,7 +149,9 @@ describe('XtreamContentGateComponent', () => {
         expect(warning?.textContent).toContain(
             'PORTALS.ERROR_VIEW.PORTAL_UNAVAILABLE.TITLE'
         );
-        expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('router-outlet')
+        ).not.toBeNull();
     });
 
     it('retries content initialization from the blocked state', () => {

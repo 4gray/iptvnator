@@ -7,6 +7,12 @@ import {
 import { BrowserWindow } from 'electron';
 import { EpgWorkerRuntime } from './epg-worker-runtime';
 import { runEpgFetch } from './epg-fetch-operation';
+import {
+    DENY_ALL_EPG_LOCAL_SOURCES,
+    EPG_LOCAL_SOURCE_REFUSED_MESSAGE,
+    EpgLocalSourceAuthorizer,
+} from './epg-local-source-authorizer';
+import { resolveLocalEpgSourcePath } from '../util/epg-local-source-path';
 import { Worker } from 'worker_threads';
 import {
     ElectronBridgeSecurityErrorCode,
@@ -118,18 +124,76 @@ export class EpgWorkerService {
             return;
         }
 
-        const fetchPromise = this.startFetch(url, options).finally(() => {
-            this.inFlightFetches.delete(url);
-        });
+        const fetchPromise = this.startFetch(url, options, generation).finally(
+            () => {
+                this.inFlightFetches.delete(url);
+            }
+        );
         this.inFlightFetches.set(url, fetchPromise);
         return fetchPromise;
     }
 
-    private startFetch(
+    /**
+     * Gate for local XMLTV files; `epg.events.ts` installs the persisted,
+     * prompting authorizer at registration. Until then every local path is
+     * refused, so a missing wiring fails closed rather than open.
+     */
+    localSourceAuthorizer: EpgLocalSourceAuthorizer =
+        DENY_ALL_EPG_LOCAL_SOURCES;
+
+    private async startFetch(
         url: string,
-        options: ElectronBridgeTrustOptions
+        options: ElectronBridgeTrustOptions,
+        generation: number
     ): Promise<void> {
-        return runEpgFetch(url, options, {
+        // The renderer's options must not be able to unlock the worker's
+        // local branch: the flag is set here, only for an allowed path.
+        const { allowLocalFile: _rendererFlag, ...trustOptions } =
+            options as ElectronBridgeTrustOptions & {
+                allowLocalFile?: unknown;
+            };
+        let workerOptions: ElectronBridgeTrustOptions & {
+            allowLocalFile?: boolean;
+        } = trustOptions;
+        const localPath = resolveLocalEpgSourcePath(url);
+        if (localPath) {
+            const allowed =
+                await this.localSourceAuthorizer.ensureAllowed(localPath);
+            // The prompt can stay open for a while; a source retired
+            // meanwhile (settings save, reconciliation) must end as
+            // cancelled rather than start an import the clear then awaits.
+            if (generation !== epgSourceGeneration(url)) {
+                this.sendProgressToRenderer(
+                    url,
+                    'cancelled',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    generation
+                );
+                return;
+            }
+            if (!allowed) {
+                epgLogger.log(
+                    this.loggerLabel,
+                    'Local EPG file was not allowed by the user'
+                );
+                this.sendProgressToRenderer(
+                    url,
+                    'error',
+                    undefined,
+                    EPG_LOCAL_SOURCE_REFUSED_MESSAGE
+                );
+                // A refusal is a failed fetch, not a completed one: the
+                // renderer's fetch result and EPG availability must not
+                // claim the file was read.
+                throw new Error(EPG_LOCAL_SOURCE_REFUSED_MESSAGE);
+            }
+            workerOptions = { ...trustOptions, allowLocalFile: true };
+        }
+        return runEpgFetch(url, workerOptions, {
             runtime: this.runtime,
             workers: this.workers,
             fetchedUrls: this.fetchedUrls,

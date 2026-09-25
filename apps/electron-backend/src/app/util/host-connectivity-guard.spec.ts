@@ -7,6 +7,7 @@
 import { HostConnectivityGuardError } from '@iptvnator/shared/host-health';
 import {
     beginGuardedHostRequest,
+    reportGuardedHostConnected,
     reportGuardedHostFailure,
     resetHostConnectivityGuardForTests,
     setHostConnectivityGuardEnabled,
@@ -155,6 +156,52 @@ describe('reportGuardedHostFailure', () => {
         expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).toThrow(
             HostConnectivityGuardError
         );
+    });
+
+    it('credits an accepted connection when it happens, not when the hung request times out', () => {
+        const silentTimeout = () =>
+            Object.assign(new Error('timeout of 30000ms exceeded'), {
+                code: 'ECONNABORTED',
+                config: { url: URL_ON_ENDPOINT },
+            });
+
+        // A connects and hangs. While it waits, the host dies: B and C are
+        // refused and open the breaker.
+        const hung = beginGuardedHostRequest(URL_ON_ENDPOINT);
+        reportGuardedHostConnected(hung);
+        attempt(ownFailure());
+        attempt(ownFailure());
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).toThrow(
+            HostConnectivityGuardError
+        );
+
+        // A's timeout finally settles. Its connect is older than B's and
+        // C's failures and must not reopen the host.
+        reportGuardedHostFailure(hung, silentTimeout(), {
+            requestUrl: URL_ON_ENDPOINT,
+            connected: true,
+        });
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).toThrow(
+            HostConnectivityGuardError
+        );
+    });
+
+    it('lets an accepted connection clear a refusal recorded before it', () => {
+        attempt(ownFailure());
+        const slow = beginGuardedHostRequest(URL_ON_ENDPOINT);
+        reportGuardedHostConnected(slow);
+        reportGuardedHostFailure(
+            slow,
+            Object.assign(new Error('timeout of 30000ms exceeded'), {
+                code: 'ECONNABORTED',
+                config: { url: URL_ON_ENDPOINT },
+            }),
+            { requestUrl: URL_ON_ENDPOINT, connected: true }
+        );
+        attempt(ownFailure());
+
+        // Refuse, accept-but-silent, refuse: not two consecutive failures.
+        expect(() => beginGuardedHostRequest(URL_ON_ENDPOINT)).not.toThrow();
     });
 
     it('counts a failure that names no endpoint at all', () => {

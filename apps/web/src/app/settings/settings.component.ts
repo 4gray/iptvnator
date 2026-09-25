@@ -7,6 +7,7 @@ import {
     OnDestroy,
     OnInit,
     ViewEncapsulation,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule } from '@angular/forms';
@@ -41,6 +42,7 @@ import {
     SETTINGS_EPG_VIEW_MODE_OPTIONS,
     SETTINGS_STARTUP_BEHAVIOR_OPTIONS,
     SETTINGS_STARTUP_WINDOW_MODE_OPTIONS,
+    SETTINGS_UPDATE_CHANNEL_OPTIONS,
     SETTINGS_THEME_OPTIONS,
 } from './settings-options';
 import { SettingsParentalLockFacade } from './settings-parental-lock.facade';
@@ -96,6 +98,8 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsResetSectionComponent,
         SettingsTmdbSectionComponent,
     ],
+    // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
+    changeDetection: ChangeDetectionStrategy.Eager,
     providers: [
         SettingsAppUpdateFacade,
         SettingsBackupFacade,
@@ -171,6 +175,7 @@ export class SettingsComponent
     readonly coverSizeOptions = SETTINGS_COVER_SIZE_OPTIONS;
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
     readonly startupWindowModeOptions = SETTINGS_STARTUP_WINDOW_MODE_OPTIONS;
+    readonly updateChannelOptions = SETTINGS_UPDATE_CHANNEL_OPTIONS;
     readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({

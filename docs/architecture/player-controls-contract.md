@@ -7,6 +7,9 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
+The shared-controls preference checkbox is visible only when HTML5, Video.js
+or ArtPlayer is selected in Settings → Playback.
+
 The shared-controls foundation supports four runtime consumers and includes:
 
 - the `PlayerController` contract, default state, and capability presets;
@@ -399,11 +402,21 @@ is rendered by `WebPlayerViewComponent` as a sibling of the engine and staged
 on the view's `fullscreenSurface` — the same host element every engine
 receives as `fullscreenTarget` — so it sits inside the fullscreen element and
 survives the engine remount a channel switch causes.
-It injects `FULLSCREEN_CHANNEL_PANEL` optionally: a live host provides
-`FullscreenChannelPanelHost` (`panelTemplate`, optional `panelTitle`) from its
-component `providers`, and the panel stamps that template into its body with a
-`FullscreenChannelPanelContext` of `{ searchTerm: Signal<string>, close }`.
-Without a provider — VOD detail pages, series playback — nothing renders. The
+It is a host-agnostic side panel — a channel list for live hosts, an episode
+list for series playback (see "Fullscreen episode panel" below) — and keeps
+its `FULLSCREEN_CHANNEL_PANEL` name for history. It injects the token
+optionally: a host provides `FullscreenChannelPanelHost` from its component
+`providers` — `panelTemplate`, optional `panelTitle`, optional
+`panelSearchEnabled` (default true; false drops the header's search field and
+shows the title as a text row in its place, keeping the header height) and
+optional `panelKind` (`'channels'` | `'episodes'`, only the accessible name
+of the list and the close button's label; every pointer and keyboard rule
+is identical for both) — and the panel stamps that template into its body
+with a `FullscreenChannelPanelContext` of
+`{ searchTerm: Signal<string>, open: Signal<boolean>, close }`. `open` lets a
+body that stays mounted between openings react to the panel coming up (the
+episode list centres its playing row on it). Without a provider — a movie in
+a VOD detail page — nothing renders. The
 host resolves the user preference itself: `Settings.fullscreenChannelPanel`
 (default on, Settings → Playback, offered for the web players while the
 shared controls are on and for Embedded MPV — the legacy vendor chrome
@@ -505,22 +518,44 @@ engine on first entry; a confirmed frame-copy capability survives an unknown
 probe during an MPV application remount, preserving the open panel and its
 search/scroll state. A confirmed native/unsupported result revokes it, and
 switching to a web engine clears the remembered MPV capability). Nothing is
-drawn over the video while the panel is closed — there is
-no handle or hint. An invisible 28px hot zone (40px on coarse pointers) on the
+drawn over the video while the panel is closed and the pointer rests. Mouse
+movement over the stage (the fullscreen element) reveals a slim, pointer-
+transparent hint tab on the left edge — a CSS chevron, no icon glyph or text
+— that fades `CHANNEL_PANEL_HINT_IDLE_MS` (2.5 s) after the last move, so it
+comes and goes with the controls chrome; it lights up (`--armed`) while the
+pointer rests in the hot zone, and it is not rendered while the panel is
+open. Touch movement never reveals it. The hint answered the first field
+report: the zone was an invisible strip with nothing telling the user where
+the list lived. An invisible 40px hot zone (48px on coarse pointers) on the
 left edge opens the panel after a 160ms mouse dwell; a sweep across the edge
-is ignored. The zone remains mounted above the scrim and below the panel while
-open, preserving the pointer target until the opening animation covers it.
-A delayed fullscreen paint therefore cannot turn a stationary edge hover into
-a synthetic mouse-leave that closes the panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`)
-so the leftmost transport button never loses a click or tap to it. The `C` key opens it too and focuses the search field (hover does
-not steal focus). Touch has neither hover nor a `C` key, so a tap on the hot
-zone opens the panel at once: the handler is bound to `pointerup`, not
-`pointerdown`, so the hot zone is still the tap's click target and the click
-that follows dies on it instead of reaching the video. It closes when the
-mouse leaves the panel for 420ms, on the close button (tooltip names Escape),
-on Escape, on the host's `close`, or through a transparent scrim
-over the video that swallows the click so the player's click-to-pause never
-sees it. The Escape that closes the panel is consumed (`preventDefault`):
+is ignored, and a click or tap on the zone opens at once without the dwell —
+only a primary press that began inside the zone and is released there
+(`pointerdown` records the pointer, `pointerup` must match it; a drag
+released over the edge, a right or middle button, or a pen barrel button
+never opens). The synthetic `pointerenter` that follows an explicit close
+neither opens nor arms the hint: the zone re-arms on the next real
+`pointermove`. The zone remains mounted above the
+scrim and below the panel while open, preserving the pointer target until
+the opening animation covers it. A delayed fullscreen paint therefore cannot
+turn a stationary edge hover into a synthetic mouse-leave that closes the
+panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
+the leftmost transport button never loses a click or tap to it. The `C` key
+opens it too and focuses the search field — or, for a host without one, the
+panel itself (`tabindex="-1"`), so the next Tab reaches its first control
+(hover does not steal focus).
+Touch has neither hover nor a `C` key, so the tap path above is its way in:
+the handler is bound to `pointerup`, not `pointerdown`, so the hot zone is
+still the tap's click target and the click that follows dies on it instead
+of reaching the video. It closes when the mouse leaves the panel for
+`CHANNEL_PANEL_CLOSE_GRACE_MS` (1 s) — but only once the pointer has engaged
+with the panel: a hover-opened panel counts as engaged from the start, while
+a `C`-opened one ignores the mouse roaming over the video until it has
+visited the list, so the shortcut never leaves the user typing into a closing
+search field (`FullscreenChannelPanelState.show(opener)`) — on the close
+button (tooltip names Escape), on Escape, on the host's `close`, or through
+a transparent scrim over the video that swallows the click so the player's
+click-to-pause never sees it. Clicks inside the panel never close it: the
+panel sits above the scrim, so no in-panel hit can reach it. The Escape that closes the panel is consumed (`preventDefault`):
 Electron leaves HTML fullscreen on an unhandled Escape, and the close
 shortcut must only slide the panel away; a closed panel leaves Escape alone,
 so the key still exits fullscreen then. A CDK overlay the list opens (sort menu, row context menu) renders in
@@ -554,6 +589,76 @@ CDK overlays render inside the fullscreen element because the app registers
 without it every tooltip, sort menu and context menu opened while fullscreen —
 the panel's view-switcher tooltips and row context menus included — would sit
 invisibly under the top layer.
+
+#### Fullscreen episode panel (series)
+
+Series playback gets the same panel as an **episode list**. The provider is
+`PortalInlinePlayerComponent` (`libs/ui/playback/src/lib/portal-inline-player/`),
+the component both series hosts (Xtream `SerialDetailsComponent`, Stalker
+`StalkerSeriesViewComponent`) render around `app-web-player-view` and that
+already feeds the Up Next rail — so it is the nearest provider for the nested
+view, which also shields that view from a page-level channel-list provider
+(the M3U player's) while its VOD detail hosts the player. The host object
+itself is built by `createEpisodePanelHost()`
+(`portal-inline-player-episode-panel.host.ts`) from the component's inputs
+and exposed as `episodePanel`, so the player's own responsibilities stay
+readable. It declares `panelKind: 'episodes'` and `panelSearchEnabled:
+false`: season tabs are the navigation, and the header shows the series
+title (`seriesTitle`, else the playback title) where the search field would
+be.
+
+- Data: the hosts pass their season→episodes map (`seriesEpisodes`, the same
+  `Record<seasonKey, XtreamSerieEpisode[]>` the season container gets, so the
+  TMDB overlay's stills and overviews ride in `info`), the per-episode
+  playback-position map (`episodePlaybackPositions`) and, for Stalker lazy
+  VOD series, per-season load states (`seasonLoadStates`: `loading` while
+  a request is on the wire, `unloaded` while the portal has not answered —
+  after a failed request too; `vodSeasonLoadStates` on the host, computed
+  by `getVodSeasonLoadStates()` in `@iptvnator/portal/stalker/data-access`).
+  `buildFullscreenEpisodePanelSeasons()`
+  (`libs/ui/playback/src/lib/fullscreen-episode-panel/fullscreen-episode-panel.util.ts`)
+  turns them into `FullscreenEpisodePanelSeason[]` — numeric keys ascending,
+  named keys after, each row a `FullscreenEpisodePanelItem` that extends the
+  Up Next entry with `seasonKey`, `episodeNumber`, `overview`, a "45 min"
+  `durationLabel` (numeric `duration_secs`, else the portals' text forms) and
+  the shared ≥90 % `watched` rule; the playing row is the one whose id equals
+  `contentInfo.contentXtreamId`.
+- Body: `app-fullscreen-episode-panel` stamps `SeasonTabsComponent` (the
+  detail page's tabs: pills up to six seasons, a dropdown beyond, watched
+  check marks, the "Back to playing episode" chip) over the selected season's
+  rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
+  case still looks designed; the `S01E03` label, runtime, watched check or
+  "Now playing" marker; the title (label as fallback); a 3-line clamped
+  overview when there is one; a progress bar on the thumbnail. Rows are
+  buttons inside `<li>`s of a `<ul>`, so their button role survives for
+  assistive technology. A loading season shows a spinner row, a loaded empty
+  one the season-empty copy, and an unanswered one a "could not be loaded"
+  row with a Retry button that re-emits the season selection — the tabs
+  never re-emit an already selected key, so a failed lazy load would
+  otherwise be stuck.
+- Selection: the tab follows the playing episode's season (`linkedSignal`)
+  and resets to it whenever playback moves into another season; a tab the
+  user picks holds until then. Opening the panel (context `open`) centres
+  the playing row inside the list's own scroll box — `scrollTop` math, never
+  `scrollIntoView`, so the stage and page are not scrolled with it — and the
+  effect depends on primitives only (open flag, shown season key, playing
+  season key and episode id), so the season objects a progress tick rebuilds
+  never yank a list the user is scrolling.
+- Actions: an episode click emits the item through the inline player's
+  `upNextEpisodeSelected` — the Up Next rail's output, so the host plays it
+  through its inline episode flow and the engine remount keeps fullscreen
+  exactly as a "next episode" does — and then calls the context's `close`;
+  a click on the playing row is inert. A season tab click emits
+  `episodePanelSeasonSelected` (as does the retry row), wired by both hosts
+  to the same `onSeasonSelected` their season container uses, so Xtream's
+  TMDB season enrichment and Stalker's lazy VOD season load run for the
+  panel's season too.
+- Gates: `Settings.fullscreenChannelPanel` (one setting for channels and
+  episodes; its label reads "Channel and episode list in fullscreen"),
+  `contentInfo.contentType === 'episode'` and non-live playback (a movie
+  never gets the panel), and at least one season. Native-view Embedded MPV is
+  withheld by the view's `enabled` input as for channels; external MPV/VLC
+  never mount the inline player, so they are excluded by construction.
 
 ### Keyboard ownership
 
@@ -1431,3 +1536,36 @@ replacement, track-list lifecycle and stable IDs, caption preference and
 explicit-off behavior, MPEG-TS live/VOD handling and duration projection,
 volume preservation/authority, stale ArtPlayer `customType` callbacks, and
 collaborator teardown. Persistent/background player ownership has not landed.
+
+## Radio and display sleep
+
+### Radio audio player
+
+M3U `radio="true"` entries use `AudioPlayerComponent` under
+`libs/ui/playback/src/lib/audio-player/`. The player always renders inline and
+uses HTML5 `<audio>` regardless of the configured video player. Radio bypasses
+`shouldShowInlinePlayer`'s external-player gate and hides the EPG ribbon and panel
+toggle. The station artwork, blurred logo background and glass controls form the
+radio layout; title/group scrolling is CSS-only. It supports play/pause, mute,
+and volume, including the volume keys in 5% steps. Volume shares the video
+players' `volume` localStorage key. The template, SCSS and TypeScript component
+live together; routing/integration stays in the M3U player template.
+
+### Display sleep during playback
+
+`PlaybackKeepAwakeService` in the web app watches `<video>` using document-level
+capture listeners because media events do not bubble. Release listeners also
+attach to the tracked element: Chromium's pause after DOM removal never reaches
+the document. A playing video holds a display-sleep lock only while the document
+is visible or that video is in picture-in-picture, which survives minimization.
+
+Electron uses main-process `powerSaveBlocker` through
+`window.electron.setPlaybackKeepAwake`. The renderer vote clears on reload,
+main-frame non-same-document navigation, crash (`render-process-gone`) or
+destruction; Angular navigation does not itself clear it. The PWA uses Screen
+Wake Lock. Browser auto-release clears its sentinel; the next media, visibility
+or PiP synchronization can request another lock. If state changes during a
+pending request, rejection triggers one queued re-evaluation rather than losing
+that update. Radio `<audio>` deliberately never blocks display sleep.
+Embedded MPV owns a separate blocker in `EmbeddedMpvNativeService`, and external
+MPV/VLC inhibit their own screensaver.

@@ -1,3 +1,4 @@
+import { observeRequestSocketConnect } from '@iptvnator/shared/host-health';
 import axios from 'axios';
 import {
     request as httpRequest,
@@ -45,8 +46,9 @@ export class ProviderAxiosTransport implements WebBackendHttpClient {
         agent.options.servername = isIP(hostname) ? '' : hostname;
         agent.options.checkServerIdentity = (_name, certificate) =>
             checkServerIdentity(hostname, certificate);
+        const { onConnect, ...axiosOptions } = options;
         const response = await axios.get<T>(root, {
-            ...options,
+            ...axiosOptions,
             params: undefined,
             transport: {
                 request: (
@@ -65,6 +67,9 @@ export class ProviderAxiosTransport implements WebBackendHttpClient {
                         callback
                     );
                     retainHeaderTimeout(request, options.timeout);
+                    if (onConnect) {
+                        observeRequestSocketConnect(request, onConnect);
+                    }
                     return request;
                 },
             },

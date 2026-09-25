@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, test } from './fixtures';
-import { waitForScrollIdle } from './e2e-helpers';
+import { pressTab, waitForScrollIdle } from './e2e-helpers';
 
 /**
  * The M3U movie-recognition workflow end to end: a playlist entry whose URL
@@ -406,11 +406,13 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
-    // M3U has no browse Back target, but the sticky watch control can close it.
+    // M3U has no browse Back target, so the shell shows no arrow in either
+    // state; the now-playing bar's own Close button returns to browse.
     const shell = detail(page).locator('app-portal-detail-shell');
+    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
     await shell
+        .locator('app-portal-inline-player')
         .getByRole('button', { name: 'Close player', exact: true })
-        .first()
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
     await expect(shell.locator('.shell__back-button')).toHaveCount(0);
@@ -422,6 +424,7 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
 for (const theme of ['light', 'dark']) {
     test(`@web @m3u channel scrolling keeps focus after selection (${theme})`, async ({
         page,
+        browserName,
     }) => {
         await serveSeekableClip(page);
         await selectPlayer(page);
@@ -450,7 +453,7 @@ for (const theme of ['light', 'dark']) {
         await expect
             .poll(() => viewport.evaluate((el) => el.scrollTop))
             .toBe(0);
-        await page.keyboard.press('Tab');
+        await pressTab(page, browserName);
         await expect(
             viewport.locator('button.channel-content').first()
         ).toBeFocused();
@@ -459,7 +462,7 @@ for (const theme of ['light', 'dark']) {
         await expect(viewport.locator('.channel-list-item').nth(1)).toHaveClass(
             /active/
         );
-        await page.keyboard.press('Tab');
+        await pressTab(page, browserName);
         const favorite = viewport.locator('.favorite-button').nth(1);
         await expect(favorite).toBeFocused();
         await page.keyboard.press('Space');

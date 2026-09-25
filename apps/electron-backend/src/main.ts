@@ -32,8 +32,13 @@ import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
+import { applyElectronNetworkDefaults } from './app/util/network-defaults';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
 import { AppUpdateService } from './app/services/app-update.service';
+import {
+    onAppUpdateChannelChange,
+    readStoredAppUpdateChannel,
+} from './app/services/app-update-channel';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import { bootstrapWindowCloseGuard } from './app/services/window-close-guard.service';
@@ -56,6 +61,13 @@ import {
 import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
+
+// Before the first portal, playlist or update request leaves this process.
+applyElectronNetworkDefaults((line) => {
+    if (isStartupTraceEnabled()) {
+        console.log(`[IPTVnator Trace][startup] ${line}`);
+    }
+});
 
 // Packaged Linux launchers force X11 via the .desktop entry
 // (electron-builder `executableArgs`), but direct binary/AppImage launches
@@ -142,6 +154,7 @@ export default class Main {
         const appUpdateService = new AppUpdateService({
             app,
             appVersion: environment.version,
+            channel: readStoredAppUpdateChannel(),
             getMainWindow: () => App.mainWindow,
             updater: () => autoUpdater,
             // quitAndInstall() closes the windows before 'before-quit' fires
@@ -151,6 +164,9 @@ export default class Main {
             cancelPreparedQuit: () => windowCloseGuard.revokeAllowedClose(),
         });
         AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
+        onAppUpdateChannelChange((channel) =>
+            appUpdateService.setChannel(channel)
+        );
 
         registerStaticHeaderShims();
         ElectronEvents.bootstrapElectronEvents();

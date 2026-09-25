@@ -19,6 +19,7 @@ export * from './lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component
 export * from './lib/progress-capsule/progress-capsule.component';
 export * from './lib/resizable/resizable.directive';
 export * from './lib/season-container/season-container.component';
+export * from './lib/season-container/season-tabs.component';
 export * from './lib/season-container/season-watch-presenter';
 export * from './lib/season-container/season-watch-toggle.util';
 export * from './lib/vod-sources/vod-source-copy-row.component';

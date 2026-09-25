@@ -42,6 +42,22 @@ jest.mock('./portal-debug.events', () => ({
     emitPortalDebugEvent: jest.fn(),
 }));
 
+// The transport's connect observer, captured per request so a test can play
+// the panel that accepts the connection and then goes quiet.
+const mockConnectHooks: Array<() => void> = [];
+jest.mock('@iptvnator/shared/host-health', () => {
+    const actual = jest.requireActual('@iptvnator/shared/host-health');
+    return {
+        ...actual,
+        observeAgentSocketConnections: jest.fn(
+            (agent: unknown, onConnect: () => void) => {
+                mockConnectHooks.push(onConnect);
+                return agent;
+            }
+        ),
+    };
+});
+
 describe('XtreamEvents session cancellation', () => {
     let consoleErrorSpy: jest.SpyInstance;
 
@@ -720,6 +736,64 @@ describe('XtreamEvents host connectivity guard', () => {
         await expect(loud()).rejects.toBeDefined();
 
         expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('keeps contacting a panel that accepts the connection and then times out', async () => {
+        // The reported symptom: a live but overloaded panel. axios raises the
+        // same code as for an unanswered SYN, but the socket did connect.
+        mockConnectHooks.length = 0;
+        axiosMock.mockImplementation(() => {
+            mockConnectHooks.at(-1)?.();
+            return Promise.reject(timedOut());
+        });
+
+        await expect(request()).rejects.toMatchObject({
+            message: 'timeout of 30000ms exceeded',
+        });
+        await expect(request()).rejects.toMatchObject({
+            message: 'timeout of 30000ms exceeded',
+        });
+        await expect(request()).rejects.toMatchObject({
+            message: 'timeout of 30000ms exceeded',
+        });
+
+        expect(mockConnectHooks).toHaveLength(3);
+        expect(axiosMock).toHaveBeenCalledTimes(3);
+        expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not let a hung request that connected earlier reopen a host that died meanwhile', async () => {
+        mockConnectHooks.length = 0;
+        const hung = createDeferred<never>();
+        // A: the panel accepts the connection, then never answers.
+        axiosMock.mockImplementationOnce(() => {
+            mockConnectHooks.at(-1)?.();
+            return hung.promise;
+        });
+        const first = request().then(
+            () => undefined,
+            (error) => error
+        );
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        expect(mockConnectHooks).toHaveLength(1);
+
+        // B and C: the host is gone, nothing connects.
+        axiosMock.mockRejectedValueOnce(timedOut());
+        axiosMock.mockRejectedValueOnce(timedOut());
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toBeDefined();
+        await expect(request()).rejects.toThrow(
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+        );
+
+        // A's timeout settles last; its connect is older than B's and C's
+        // failures and must not clear them.
+        hung.reject(timedOut());
+        await first;
+        await expect(request()).rejects.toThrow(
+            buildHostConnectivityFastFailMessage(SERVER_ENDPOINT)
+        );
+        expect(axiosMock).toHaveBeenCalledTimes(3);
     });
 
     it('contacts the panel again once the guard is reset', async () => {

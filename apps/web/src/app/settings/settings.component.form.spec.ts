@@ -81,6 +81,29 @@ describe('SettingsComponent form', () => {
         );
     });
 
+    it('stages the posters-only cover wall until Save', async () => {
+        const checkbox = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-test-id="cover-titles-toggle"] input'
+        ) as HTMLInputElement;
+        expect(checkbox).not.toBeNull();
+        expect(checkbox.checked).toBe(true);
+
+        checkbox.click();
+        fixture.detectChanges();
+
+        expect(component.settingsForm.get('showCoverTitles')?.value).toBe(
+            false
+        );
+        expect(settingsStore.updateSettings).not.toHaveBeenCalled();
+
+        await component.form.save(() => undefined);
+
+        expect(settingsStore.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({ showCoverTitles: false }),
+            expect.anything()
+        );
+    });
+
     it('hides the portal pause setting when the desktop bridge is unavailable', () => {
         fixture.destroy();
         window.electron = undefined;
@@ -455,7 +478,11 @@ describe('SettingsComponent form', () => {
             const webFixture = TestBed.createComponent(SettingsComponent);
             const webComponent = webFixture.componentInstance;
             stubSettingsSideEffects(webComponent);
+            const loadSettings = jest.spyOn(webComponent.form, 'loadSettings');
             webFixture.detectChanges();
+            expect(loadSettings).toHaveBeenCalledTimes(1);
+            // Await hydration before editing; Zone cannot track native awaits.
+            await loadSettings.mock.results[0].value;
             await webFixture.whenStable();
 
             webComponent.settingsForm.patchValue({ theme: Theme.DarkTheme });

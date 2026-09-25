@@ -1,10 +1,26 @@
 ignoredBuiltDependencies:
-  - '@parcel/watcher'
-  - '@swc/core'
-  - esbuild
-  - lmdb
-  - msgpackr-extract
-  - unrs-resolver
+    - '@parcel/watcher'
+    - '@swc/core'
+    - esbuild
+    - lmdb
+    - msgpackr-extract
+    - unrs-resolver
 
 onlyBuiltDependencies:
-  - nx
+    - nx
+
+# nx-electron imports this at runtime but omits it from its manifest.
+packageExtensions:
+    'nx-electron@22.0.0':
+        dependencies:
+            webpack-node-externals: '3.0.0'
+
+# Scoped compatibility bridges until these packages declare current peers.
+# nx-electron also needs patches/nx-electron@22.0.0.patch for Nx 23 exports.
+# Covered by executor/package tests and the historical IndexedDB v1 E2E.
+peerDependencyRules:
+    allowedVersions:
+        'nx-electron@22.0.0>@nx/devkit': '23.2.1'
+        'nx-electron@22.0.0>@nx/workspace': '23.2.1'
+        'ngx-indexed-db@22.0.0>@angular/common': '22.1.6'
+        'ngx-indexed-db@22.0.0>@angular/core': '22.1.6'

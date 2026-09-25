@@ -138,4 +138,23 @@ describe('resolvePlaylistScopedEpgFetchPlan', () => {
             ],
         });
     });
+
+    it('fetches a manual local file but never a legacy header-declared one', () => {
+        expect(
+            resolvePlaylistScopedEpgFetchPlan(
+                {
+                    epgUrls: [
+                        'file:///etc/passwd',
+                        '/home/user/epg/guide.xml.gz',
+                        'https://playlist.example.com/guide.xml',
+                    ],
+                    manualEpgUrls: ['/home/user/epg/guide.xml.gz'],
+                },
+                []
+            ).urls
+        ).toEqual([
+            '/home/user/epg/guide.xml.gz',
+            'https://playlist.example.com/guide.xml',
+        ]);
+    });
 });

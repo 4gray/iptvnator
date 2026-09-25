@@ -7,6 +7,7 @@ import {
     inject,
     signal,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import {
     MAT_DIALOG_DATA,
@@ -20,6 +21,7 @@ import {
     WorkspaceCommandSelection,
     WorkspaceResolvedCommandItem,
 } from '@iptvnator/portal/shared/util';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 interface WorkspaceCommandPaletteData {
     commands: WorkspaceResolvedCommandItem[];
@@ -38,6 +40,7 @@ interface WorkspaceCommandGroupSection {
     selector: 'app-workspace-command-palette',
     imports: [MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-command-palette.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-command-palette.component.scss',
 })
 export class WorkspaceCommandPaletteComponent implements AfterViewInit {
@@ -61,7 +64,7 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
     );
 
     readonly filteredCommands = computed(() => {
-        const term = this.query().trim().toLowerCase();
+        const term = foldSearchText(this.query().trim());
         const commands = this.visibleCommands();
 
         if (!term) {
@@ -73,11 +76,9 @@ export class WorkspaceCommandPaletteComponent implements AfterViewInit {
                 command.label,
                 command.description,
                 ...(command.keywords ?? []),
-            ]
-                .join(' ')
-                .toLowerCase();
+            ].join(' ');
 
-            return haystack.includes(term);
+            return foldSearchText(haystack).includes(term);
         });
     });
 

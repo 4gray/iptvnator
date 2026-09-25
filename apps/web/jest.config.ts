@@ -1,4 +1,4 @@
-import { nxPreset } from '@nx/jest/preset.js';
+import { nxPreset } from '@nx/jest/preset';
 import { createEsmPreset } from 'jest-preset-angular/presets/index.js';
 
 const angularEsmPreset = createEsmPreset({

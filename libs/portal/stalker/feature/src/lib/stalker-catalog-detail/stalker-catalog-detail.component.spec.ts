@@ -1,5 +1,11 @@
 import { Location } from '@angular/common';
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -33,7 +39,11 @@ function deferred<T>() {
     return { promise, reject, resolve };
 }
 
-@Component({ selector: 'app-vod-details', template: '' })
+@Component({
+    selector: 'app-vod-details',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubVodDetailsComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly item = input.required<unknown>();
@@ -42,9 +52,14 @@ class StubVodDetailsComponent {
     readonly playbackPosition = input<number | null>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly externalPlayback = input<unknown>(null);
+    readonly isWatched = input(false);
+    readonly watchedToggleBusy = input(false);
+    readonly watchedToggleReady = input(true);
+    readonly playbackStartPending = input(false);
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
+    readonly watchedToggled = output<{ item: unknown; watched: boolean }>();
     readonly downloadRequested = output<unknown>();
     readonly backClicked = output<void>();
     readonly inlineTimeUpdated = output<unknown>();
@@ -53,7 +68,11 @@ class StubVodDetailsComponent {
     readonly inlineExternalFallbackRequested = output<unknown>();
 }
 
-@Component({ selector: 'app-stalker-series-view', template: '' })
+@Component({
+    selector: 'app-stalker-series-view',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubStalkerSeriesViewComponent {
     readonly vodWithSeries = input<unknown>(null);
     readonly providerOnly = input(false);
@@ -70,6 +89,9 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
     const contentType = signal<'vod' | 'series'>('vod');
     const catalogPlaylist = signal({ id: 'stalker-1' });
     const snackBar = { open: jest.fn() };
+    const refreshPositions = jest.fn().mockResolvedValue(undefined);
+    const getPlaybackPosition = jest.fn().mockResolvedValue(null);
+    const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
     const routerMock = { navigateByUrl: jest.fn() };
     const locationMock = { back: jest.fn() };
     const originalHistoryState = window.history.state;
@@ -90,6 +112,9 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         catalogPlaylist.set({ id: 'stalker-1' });
         snackBar.open.mockReset();
+        refreshPositions.mockClear();
+        getPlaybackPosition.mockReset().mockResolvedValue(null);
+        savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
         routerMock.navigateByUrl.mockReset();
         locationMock.back.mockReset();
 
@@ -104,13 +129,18 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
                         playlist: catalogPlaylist,
                         clearSelectedItem: jest.fn(),
                         resolveVodPlayback,
+                        refreshPositions,
                     },
                 },
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
-                        getPlaybackPosition: jest.fn().mockResolvedValue(null),
+                        getPlaybackPosition,
                         savePlaybackPosition: jest.fn(),
+                        savePlaybackPositionOrThrow,
+                        clearPlaybackPositionOrThrow: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
                     },
                 },
                 {
@@ -182,6 +212,61 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         );
     });
 
+    it('marks the open movie watched from the child toggle and refreshes catalog badges', async () => {
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        expect(child.isWatched()).toBe(false);
+
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledWith(
+            'stalker-1',
+            expect.objectContaining({ contentXtreamId: 42, contentType: 'vod' })
+        );
+        expect(refreshPositions).toHaveBeenCalledWith('stalker-1');
+        expect(child.isWatched()).toBe(true);
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'XTREAM.MOVIE_MARKED_WATCHED',
+            undefined,
+            expect.anything()
+        );
+    });
+
+    it('blocks the toggle until the initial position read lands, then honours it', async () => {
+        let resolveRead!: (value: null) => void;
+        getPlaybackPosition.mockReturnValueOnce(
+            new Promise<null>((resolve) => {
+                resolveRead = resolve;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        expect(child.watchedToggleReady()).toBe(false);
+
+        // Before the row is known the direction would be a guess: refused.
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        expect(savePlaybackPositionOrThrow).not.toHaveBeenCalled();
+
+        resolveRead(null);
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(child.watchedToggleReady()).toBe(true);
+
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledTimes(1);
+        expect(child.isWatched()).toBe(true);
+    });
+
     it('keeps provider-only presentation disabled for a regular VOD open', async () => {
         selectedItem.set({
             id: '99',
@@ -226,6 +311,70 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
             expect(child.providerOnly()).toBe(true);
         }
     );
+
+    it('blocks the watched toggle while a Play is still resolving', async () => {
+        let resolve!: (value: { streamUrl: string }) => void;
+        resolveVodPlayback.mockReturnValueOnce(
+            new Promise((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        expect(child.playbackStartPending()).toBe(false);
+
+        fixture.componentInstance.onVodPlay({
+            type: 'stalker',
+            cmd: '/media/42',
+            data: selectedItem(),
+        } as never);
+        fixture.detectChanges();
+        expect(child.playbackStartPending()).toBe(true);
+        expect(fixture.componentInstance.watchedToggle.enabled()).toBe(false);
+
+        // A toggle in this window is refused, so nothing is written.
+        child.watchedToggled.emit({ item: child.item(), watched: true });
+        await fixture.whenStable();
+        expect(savePlaybackPositionOrThrow).not.toHaveBeenCalled();
+
+        resolve({ streamUrl: 'https://portal.example/movie.mpg' });
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(child.playbackStartPending()).toBe(false);
+    });
+
+    it('does not carry a pending start over to the next selected movie', async () => {
+        let resolve!: (value: { streamUrl: string }) => void;
+        resolveVodPlayback.mockReturnValueOnce(
+            new Promise((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.onVodPlay({
+            type: 'stalker',
+            cmd: '/media/42',
+            data: selectedItem(),
+        } as never);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(true);
+
+        selectedItem.set({
+            id: '99',
+            cmd: '/media/99',
+            info: { name: 'Replacement movie' },
+        });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+
+        resolve({ streamUrl: 'https://stale.example/movie.mpg' });
+        await fixture.whenStable();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+    });
 
     it('does not mount a VOD resolution after the catalog owner changes', async () => {
         let resolve!: (value: { streamUrl: string }) => void;

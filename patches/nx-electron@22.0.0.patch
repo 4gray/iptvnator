@@ -10,3 +10,15 @@ index e36f61a825a280c26ec5064f1ba086ac170fb1b6..17a351dd4b91bf3b72743036f79c8300
              {
                  from: (0, path_1.resolve)(options.sourcePath, options.name),
                  to: options.name,
+diff --git a/src/executors/build/executor.js b/src/executors/build/executor.js
+--- a/src/executors/build/executor.js
++++ b/src/executors/build/executor.js
+@@ -13,7 +13,7 @@
+ const workspace_1 = require("../../utils/workspace");
+ const config_1 = require("../../utils/config");
+ const js_1 = require("@nx/js");
+-const buildable_libs_utils_1 = require("@nx/js/src/utils/buildable-libs-utils");
++const buildable_libs_utils_1 = require("@nx/js/internal");
+ function executor(rawOptions, context) {
+     const { sourceRoot, projectRoot } = (0, workspace_1.getSourceRoot)(context);
+     const normalizedOptions = (0, normalize_1.normalizeBuildOptions)(rawOptions, context.root, sourceRoot, projectRoot);

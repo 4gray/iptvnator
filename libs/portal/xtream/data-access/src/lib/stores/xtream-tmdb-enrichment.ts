@@ -4,6 +4,7 @@ import {
     mergeEpisodesWithTmdb,
     mergeSerieInfoWithTmdb,
     mergeVodInfoWithTmdb,
+    tmdbSeasonPosterUrl,
 } from '@iptvnator/services';
 import {
     XtreamSerieDetails,
@@ -187,7 +188,11 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
     const season = await enrichment.getSeason(info.tmdb_id, seasonNumber);
     const tmdbEpisodes = season?.episodes ?? [];
     const seasonOverview = season?.overview?.trim() || null;
-    if ((!tmdbEpisodes.length && !seasonOverview) || !isCurrentSelection()) {
+    const seasonPoster = tmdbSeasonPosterUrl(season?.poster_path);
+    if (
+        (!tmdbEpisodes.length && !seasonOverview && !seasonPoster) ||
+        !isCurrentSelection()
+    ) {
         return;
     }
 
@@ -215,7 +220,10 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
         const overviewChanged =
             seasonOverview !== null &&
             current.tmdb_season_overviews?.[seasonKey] !== seasonOverview;
-        if (!episodesChanged && !overviewChanged) {
+        const posterChanged =
+            seasonPoster !== null &&
+            current.tmdb_season_posters?.[seasonKey] !== seasonPoster;
+        if (!episodesChanged && !overviewChanged && !posterChanged) {
             return;
         }
         store.setSelectedItem({
@@ -233,6 +241,14 @@ export async function enrichSerialSeasonWithTmdb<TItem extends SelectionRecord>(
                       tmdb_season_overviews: {
                           ...current.tmdb_season_overviews,
                           [seasonKey]: seasonOverview,
+                      },
+                  }
+                : {}),
+            ...(posterChanged
+                ? {
+                      tmdb_season_posters: {
+                          ...current.tmdb_season_posters,
+                          [seasonKey]: seasonPoster,
                       },
                   }
                 : {}),

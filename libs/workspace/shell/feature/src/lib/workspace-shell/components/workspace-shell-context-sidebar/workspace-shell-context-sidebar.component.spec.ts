@@ -1,4 +1,10 @@
-import { Component, Directive, input, signal } from '@angular/core';
+import {
+    Component,
+    Directive,
+    input,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatIcon } from '@angular/material/icon';
@@ -24,6 +30,7 @@ class MockResizableDirective {
 @Component({
     selector: 'app-workspace-context-panel',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceContextPanelComponent {
@@ -35,6 +42,7 @@ class MockWorkspaceContextPanelComponent {
 @Component({
     selector: 'app-workspace-collection-context-panel',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceCollectionContextPanelComponent {}
@@ -42,6 +50,7 @@ class MockWorkspaceCollectionContextPanelComponent {}
 @Component({
     selector: 'app-workspace-settings-context-panel',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceSettingsContextPanelComponent {}
@@ -49,6 +58,7 @@ class MockWorkspaceSettingsContextPanelComponent {}
 @Component({
     selector: 'app-workspace-sources-filters-panel',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceSourcesFiltersPanelComponent {}
@@ -111,7 +121,9 @@ describe('WorkspaceShellContextSidebarComponent', () => {
             })
             .compileComponents();
 
-        fixture = TestBed.createComponent(WorkspaceShellContextSidebarComponent);
+        fixture = TestBed.createComponent(
+            WorkspaceShellContextSidebarComponent
+        );
         liveSidebarService = TestBed.inject(LiveLayoutSidebarStateService);
         liveSidebarService.setState('portal', 'expanded');
     });

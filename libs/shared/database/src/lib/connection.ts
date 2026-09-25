@@ -43,6 +43,10 @@ const EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY =
     'migration:epg-program-source-url-backfill:v1';
 const TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY =
     'migration:tmdb-search-lookup-v2-cache-cleanup:v1';
+const TMDB_SEARCH_LOOKUP_V3_CACHE_CLEANUP_MIGRATION_KEY =
+    'migration:tmdb-search-lookup-v3-cache-cleanup:v1';
+const TMDB_SEARCH_LOOKUP_V4_CACHE_CLEANUP_MIGRATION_KEY =
+    'migration:tmdb-search-lookup-v4-cache-cleanup:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_BATCH_SIZE = 50_000;
 
 function readTraceFlag(name: string): boolean {
@@ -966,50 +970,90 @@ function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
 }
 
 /**
- * Search-match cache keys gained a v2 suffix when title normalization changed.
- * Remove the now-unreachable unversioned rows once rather than leaving negative
- * resolutions and other legacy search matches in long-lived installations.
+ * Every search-match cache key generation that has been retired, oldest
+ * first, each with the predicate selecting exactly the rows written under
+ * it. A retired generation's rows are unreachable — the resolver only ever
+ * reads the current key — so they would otherwise sit in long-lived
+ * installations forever, negative resolutions included.
+ *
+ * - unversioned → v2: title normalization learned to strip appended
+ *   language/quality tags.
+ * - v2 → v3: the search query stopped being the folded comparison key. Under
+ *   v2 every title with a Cyrillic "й"/"ё" was searched folded — the fold
+ *   spells them "и" and "е", as in the illustrative "леика" for "Лейка" —
+ *   got no answer, and was cached as missing for 7 days.
+ * - v3 → v4: year evidence became tiered. Under v3 a series admitted only by
+ *   the "premiered earlier" tolerance competed with an exact-year match on
+ *   popularity alone, so a new series resolved to its older, better-known
+ *   namesake — and that positive row stays fresh for 30 days.
+ */
+const LEGACY_TMDB_SEARCH_CACHE_CLEANUPS: ReadonlyArray<{
+    migrationKey: string;
+    rowPredicate: string;
+}> = [
+    {
+        migrationKey: TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY,
+        rowPredicate: `lookup_key LIKE 'title:%|year:%'
+                       AND lookup_key NOT LIKE 'title:%|year:%|v%'`,
+    },
+    {
+        migrationKey: TMDB_SEARCH_LOOKUP_V3_CACHE_CLEANUP_MIGRATION_KEY,
+        rowPredicate: `lookup_key LIKE 'title:%|year:%|v2'`,
+    },
+    {
+        migrationKey: TMDB_SEARCH_LOOKUP_V4_CACHE_CLEANUP_MIGRATION_KEY,
+        rowPredicate: `lookup_key LIKE 'title:%|year:%|v3'`,
+    },
+];
+
+/**
+ * Remove search-match rows written under a retired key generation, once per
+ * generation, recorded in `app_state`. Each generation is its own marker so
+ * an installation that skipped a release still runs every cleanup it missed,
+ * in order.
  */
 function cleanupLegacyTmdbSearchCache(sqliteDb: Database.Database): void {
-    try {
-        const migrationState = sqliteDb
-            .prepare(`SELECT value FROM app_state WHERE key = ?`)
-            .get(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY) as
-            { value?: unknown } | undefined;
+    for (const cleanup of LEGACY_TMDB_SEARCH_CACHE_CLEANUPS) {
+        try {
+            const migrationState = sqliteDb
+                .prepare(`SELECT value FROM app_state WHERE key = ?`)
+                .get(cleanup.migrationKey) as { value?: unknown } | undefined;
 
-        if (migrationState?.value === 'done') {
-            return;
+            if (migrationState?.value === 'done') {
+                continue;
+            }
+
+            const executeCleanup = sqliteDb.transaction(() => {
+                sqliteDb
+                    .prepare(
+                        `DELETE FROM tmdb_metadata
+                         WHERE ${cleanup.rowPredicate}`
+                    )
+                    .run();
+                sqliteDb
+                    .prepare(
+                        `INSERT INTO app_state (key, value, updated_at)
+                         VALUES (?, 'done', datetime('now'))
+                         ON CONFLICT(key) DO UPDATE SET
+                            value = excluded.value,
+                            updated_at = excluded.updated_at`
+                    )
+                    .run(cleanup.migrationKey);
+            });
+
+            executeCleanup();
+        } catch (error) {
+            const message =
+                typeof error === 'object' &&
+                error !== null &&
+                'message' in error
+                    ? String((error as { message?: unknown }).message ?? error)
+                    : String(error);
+
+            console.warn(
+                `Legacy TMDB search cache cleanup failed (continuing): ${message}`
+            );
         }
-
-        const executeCleanup = sqliteDb.transaction(() => {
-            sqliteDb
-                .prepare(
-                    `DELETE FROM tmdb_metadata
-                     WHERE lookup_key LIKE 'title:%|year:%'
-                       AND lookup_key NOT LIKE 'title:%|year:%|v%'`
-                )
-                .run();
-            sqliteDb
-                .prepare(
-                    `INSERT INTO app_state (key, value, updated_at)
-                     VALUES (?, 'done', datetime('now'))
-                     ON CONFLICT(key) DO UPDATE SET
-                        value = excluded.value,
-                        updated_at = excluded.updated_at`
-                )
-                .run(TMDB_SEARCH_LOOKUP_V2_CACHE_CLEANUP_MIGRATION_KEY);
-        });
-
-        executeCleanup();
-    } catch (error) {
-        const message =
-            typeof error === 'object' && error !== null && 'message' in error
-                ? String((error as { message?: unknown }).message ?? error)
-                : String(error);
-
-        console.warn(
-            `Legacy TMDB search cache cleanup failed (continuing): ${message}`
-        );
     }
 }
 

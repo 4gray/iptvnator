@@ -56,6 +56,7 @@
         <div class="results-grid">
             @for (item of searchResults(); track item.id) {
                 <app-content-card
+                    [allowPostersOnly]="false"
                     [title]="item.o_name || item.name || ''"
                     [posterUrl]="item.screenshot_uri"
                     [type]="selectedFilterType() === 'vod' ? 'movie' : 'series'"

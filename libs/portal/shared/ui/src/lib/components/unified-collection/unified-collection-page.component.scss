@@ -26,12 +26,44 @@
 }
 
 .collection-header {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 10px 16px;
     flex-shrink: 0;
     border-bottom: 1px solid var(--app-separator);
+}
+
+// Reload feedback for a list that is already on screen. The bar overlays the
+// header separator so appearing/disappearing never shifts the content below.
+.collection-reload-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    --mdc-linear-progress-track-height: 2px;
+    --mdc-linear-progress-active-indicator-height: 2px;
+    --mdc-linear-progress-active-indicator-color: var(--app-selection-color);
+}
+
+.collection-content {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+// The grid dims as a whole; the live tab dims only its channel rail
+// (see unified-live-tab.component.scss), so a playing channel stays bright.
+.collection-content--reloading app-unified-grid-tab {
+    opacity: var(--collection-reload-dim-opacity, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        --collection-reload-dim-duration: 0ms;
+    }
 }
 
 .collection-title {
@@ -86,6 +118,7 @@ app-unified-grid-tab {
 
 app-unified-grid-tab {
     flex-direction: column;
+    transition: opacity var(--collection-reload-dim-duration, 160ms) ease;
 }
 
 app-unified-live-tab {

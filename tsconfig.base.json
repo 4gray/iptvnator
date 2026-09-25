@@ -93,6 +93,9 @@
             "@iptvnator/shared/interfaces/ipc-commands": [
                 "libs/shared/interfaces/src/lib/ipc-commands.ts"
             ],
+            "@iptvnator/shared/interfaces/zoom-level": [
+                "libs/shared/interfaces/src/lib/zoom-level.util.ts"
+            ],
             "@iptvnator/ui/shared-portals": [
                 "libs/ui/shared-portals/src/index.ts"
             ],
@@ -116,7 +119,11 @@
             "@iptvnator/shared/marketing-fixtures": [
                 "./libs/shared/marketing-fixtures/src/index.ts"
             ]
-        }
+        },
+        "strict": false,
+        "noUncheckedSideEffectImports": false,
+        "types": ["*"],
+        "ignoreDeprecations": "6.0"
     },
     "exclude": ["node_modules", "tmp"],
     "files": ["global.d.ts"]

@@ -1,4 +1,11 @@
-import { Component, Directive, input, output, signal } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    Directive,
+    input,
+    output,
+    signal,
+} from '@angular/core';
 import {
     EpgProgram,
     RecordingStartMetadata,
@@ -11,6 +18,7 @@ import {
 import { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 
 @Component({
+    changeDetection: ChangeDetectionStrategy.Eager,
     selector: 'app-portal-channels-list',
     standalone: true,
     template: '<div data-test-id="portal-channels-list-stub"></div>',
@@ -26,6 +34,7 @@ export class StubPortalChannelsListComponent {
 }
 
 @Component({
+    changeDetection: ChangeDetectionStrategy.Eager,
     selector: 'app-grid-list',
     standalone: true,
     template: '<div data-test-id="grid-list-stub"></div>',
@@ -43,6 +52,7 @@ export class StubGridListComponent {
 }
 
 @Component({
+    changeDetection: ChangeDetectionStrategy.Eager,
     selector: 'app-web-player-view',
     standalone: true,
     template: '',
@@ -60,6 +70,7 @@ export class StubWebPlayerViewComponent {
 // Matches both live-panel selectors so the host's timeline ↔ list swap can be
 // asserted by tag name; both branches share the identical contract.
 @Component({
+    changeDetection: ChangeDetectionStrategy.Eager,
     selector: 'app-epg-timeline, app-epg-list-view',
     standalone: true,
     template: `

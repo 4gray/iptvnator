@@ -56,23 +56,70 @@ Omit `pnpm nx migrate --run-migrations` when the first command reports that no
 migrations exist. Major Nx updates always use this manual workflow and the
 resulting PR runs the full CI pipeline.
 
+## Angular 22 Toolchain Compatibility
+
+Angular framework/Material 22.1 and CLI/build 22.1 use Nx 23.2 and TypeScript
+6.0. Framework and CLI patch numbers may differ; keep framework packages aligned
+in both dependency sections and all official Nx packages on one exact version.
+Use `.nvmrc` for development/CI; supported LTS Node ranges are
+`^22.22.3 || ^24.15.0`. Docker uses the supported Node 24 line.
+
+The Angular 22 migration explicitly preserves the old default change detection
+with `ChangeDetectionStrategy.Eager`. Existing OnPush components and
+`provideZoneChangeDetection` remain in their existing modes.
+Existing eager components under Angular ESLint carry a line-scoped explanation
+for the newly recommended OnPush rule; new components keep that rule enabled.
+Adopting OnPush in those components requires a separate behavior review.
+TypeScript 6 migration settings preserve compiler defaults and per-project output roots;
+`ignoreDeprecations: "6.0"` temporarily supports legacy Node test configs and
+`baseUrl`, rather than changing the whole workspace to browser resolution.
+
+Two third-party packages need scoped compatibility bridges in
+`pnpm-workspace.yaml`:
+
+- `nx-electron@22.0.0` still declares Nx 22 peers. Its existing package-layout
+  patch also changes the removed `@nx/js/src/utils/buildable-libs-utils` import
+  to `@nx/js/internal`. A package extension supplies its undeclared runtime
+  dependency `webpack-node-externals`. The packaging suite loads every executor
+  and checks the single application manifest. Remove these bridges only after
+  the upstream package declares and implements the current Nx APIs.
+- `ngx-indexed-db@22.0.0` declares Angular `<22`, but its used API remains
+  compatible. Its allowance is scoped to the exact Angular version and must be
+  revalidated on upgrades. `apps/web-e2e/src/basic.e2e.ts` opens a historical
+  `iptvnator` v1 database, retains the `_id` key path, and checks reload
+  persistence. The shared interfaces package declares the same library version.
+  Remove the allowance when upstream includes the installed Angular version.
+
+Jest uses root Babel 7 while Angular build retains its own Babel 8. The website
+uses Astro 7 with the root TypeScript 6; no Astro-specific compiler package
+extension is needed. Keep the website build in toolchain validation.
+The website's alias uses a relative `./src/*` target without the deprecated
+`baseUrl` option.
+
+Electron's webpack build resolves `ts-loader` 9.6.2 through the existing
+`nx-electron` version range. Keep at least 9.5.7: earlier versions clear
+`rootDir` in transpile-only mode and fail with TypeScript 6 (TS5011/TS6059).
+
+Angular unit-test setup explicitly uses `setupZonelessTestEnv` and separately
+imports `zone.js/testing` for existing `fakeAsync` helpers. This preserves the
+Angular 21 scheduler used by jest-preset-angular 15: its `setupZoneTestEnv` loaded
+Zone but did not provide zone-based change detection on Angular 20+. Preset 17
+does provide it, which disables automatic fixture rendering and changes
+`whenStable()` behavior. Production applications continue to use their existing
+`provideZoneChangeDetection`; browser and Electron E2E validate that runtime.
+
 ## Vite Dev-Server Patch
 
-Angular's development builder currently resolves Vite `7.3.6`. That release's
-asset and worker transform prefilters can catastrophically backtrack on a large
-generated chunk containing unrelated `new URL...` expressions while searching
-for a valid `new URL(..., import.meta.url)` construct. The Electron development
-server can then fail a lazy chunk request with `Maximum call stack size
-exceeded`, even though static builds succeed because they do not pass emitted
-chunks through Vite's request-time plugin container.
+Angular's development builder resolves Vite `8.1.5`. It contains upstream precise
+asset/worker URL matchers, but also uses them as raw-code prefilters. Those
+prefilters reject valid expressions containing comments before the handlers can
+strip the comments and apply the precise matchers.
 
-`patches/vite@7.3.6.patch` backports Vite's upstream precise-matcher fix from
-[vitejs/vite#21800](https://github.com/vitejs/vite/pull/21800). Bounded
-prefilters keep the request-time scan linear while allowing comment-bearing
-asset and worker expressions to reach the precise matcher after Vite strips
-comments. Keep the patch while the supported Angular toolchain resolves Vite
-`7.3.6`; remove it only after the resolved Vite contains the upstream fix. Run
-the regression check after any related manifest or lockfile update:
+`patches/vite@8.1.5.patch` adds bounded asset/worker prefilters and uses the asset
+prefilter for bundled URL rewriting too. The precise handler matchers remain
+unchanged. This preserves the earlier protection against expensive scanning of
+large false-positive chunks and retains comment-bearing expressions. Remove the
+patch only when the resolved upstream Vite passes the same behavior checks:
 
 ```bash
 pnpm run deps:vite:test
@@ -82,6 +129,22 @@ CI runs the same check. It resolves Vite from `@angular/build`, verifies the
 patched prefilter/matcher wiring and version pin, stress-tests the false-positive
 chunk shape, and preserves ordinary and comment-bearing asset and worker
 `new URL(..., import.meta.url)` matches.
+
+## Electron Builder signing patch
+
+`app-builder-lib` 26.15.7 is patched in
+`patches/app-builder-lib@26.15.7.patch` with the upstream backport
+electron-userland/electron-builder#10172. For macOS signing,
+`security set-key-partition-list -k` must receive the temporary keychain's own
+password rather than the `.p12` import password. macOS runner images since
+`macos-26-arm64` 20260831 verify that password; the old argument caused
+`SecKeychainUnlock: The user name or passphrase you entered is not correct`.
+Keep the patch until electron-builder resolves a fixed app-builder-lib (26.16.1+).
+Run `pnpm run deps:electron-builder:test` after related dependency updates; it
+also rejects a mismatch between the patched and installed version.
+
+Native addon builds additionally require the root `node-gyp` devDependency;
+see [runtime staging](embedded-mpv-native.md#runtime-staging) before removing it.
 
 ## Placement Decision
 
@@ -163,7 +226,12 @@ the lazy workspace shell feature into the initial bundle.
 Use scoped aliases from `tsconfig.base.json` and expose public imports through a
 library's `src/index.ts`. Do not introduce legacy bare aliases such as
 `services`, `components`, `shared-interfaces`, or `database`, and avoid deep
-imports unless a sub-entrypoint is explicitly configured.
+imports unless a sub-entrypoint is explicitly configured. The configured
+sub-entrypoints are `@iptvnator/shared/interfaces/ipc-commands` and
+`@iptvnator/shared/interfaces/zoom-level`, both for the Electron preload: the
+`@iptvnator/shared/interfaces` barrel pulls in `ngx-indexed-db`, which the
+preload bundle must not carry, so the preload only type-imports the barrel
+and value-imports those two dependency-free modules directly.
 
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency

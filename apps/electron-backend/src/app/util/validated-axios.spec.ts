@@ -17,8 +17,34 @@ jest.mock('axios', () => ({
 
 const axiosMock = axios as unknown as jest.Mock;
 
+/** Every variable axios' proxy resolution reads, in both spellings. */
+const PROXY_ENV_NAMES = [
+    'http_proxy',
+    'https_proxy',
+    'all_proxy',
+    'no_proxy',
+].flatMap((name) => [name, name.toUpperCase()]);
+
 describe('requestWithValidatedRedirects', () => {
     const publicResolver = async () => ['93.184.216.34'];
+    let ambientProxyEnv: Record<string, string | undefined>;
+
+    // The observer decision reads the process environment; a runner that
+    // exports a proxy must not change what these cases prove.
+    beforeEach(() => {
+        ambientProxyEnv = Object.fromEntries(
+            PROXY_ENV_NAMES.map((name) => [name, process.env[name]])
+        );
+        for (const name of PROXY_ENV_NAMES) delete process.env[name];
+    });
+
+    afterEach(() => {
+        for (const name of PROXY_ENV_NAMES) {
+            const value = ambientProxyEnv[name];
+            if (value === undefined) delete process.env[name];
+            else process.env[name] = value;
+        }
+    });
 
     function createCapturingAgentFactory() {
         const lookups: LookupFunction[] = [];
@@ -142,6 +168,127 @@ describe('requestWithValidatedRedirects', () => {
         });
         expect(requestConfig.proxy).toBe(false);
         expect(requestConfig.url).toBe('https://epg.example/guide.xml');
+    });
+
+    it('hands the request its own observed agent when onConnect is requested', async () => {
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+        const onConnect = jest.fn();
+
+        await requestWithValidatedRedirects(
+            'http://panel.example/player_api.php',
+            { method: 'GET', onConnect },
+            // The portal handlers' policy: private targets allowed, no pinning,
+            // which used to leave the request on the shared global agent.
+            { allowPrivateNetworks: true }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0];
+        expect(requestConfig).not.toHaveProperty('onConnect');
+        expect(requestConfig.httpAgent).toBeInstanceOf(HttpAgent);
+        // The observer is installed on the instance, never on the prototype
+        // every other agent shares.
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                requestConfig.httpAgent,
+                'addRequest'
+            )
+        ).toBe(true);
+        expect(
+            Object.prototype.hasOwnProperty.call(new HttpAgent(), 'addRequest')
+        ).toBe(false);
+        expect(onConnect).not.toHaveBeenCalled();
+    });
+
+    it('does not observe a socket that would belong to an environment proxy', async () => {
+        process.env['HTTP_PROXY'] = 'http://proxy.example:3128';
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+
+        await requestWithValidatedRedirects(
+            'http://panel.example/player_api.php',
+            { method: 'GET', onConnect: jest.fn() },
+            { allowPrivateNetworks: true }
+        );
+
+        // Through a proxy the handshake proves nothing about the portal,
+        // so the request keeps axios' proxy support and gets no observer.
+        const requestConfig = axiosMock.mock.calls[0][0];
+        expect(requestConfig.httpAgent).toBeUndefined();
+        expect(requestConfig.proxy).not.toBe(false);
+    });
+
+    it('reads the proxy variables the way axios does: an empty lowercase one does not mask the uppercase one', async () => {
+        process.env['http_proxy'] = '';
+        process.env['HTTP_PROXY'] = 'http://proxy.example:3128';
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+
+        await requestWithValidatedRedirects(
+            'http://panel.example/player_api.php',
+            { method: 'GET', onConnect: jest.fn() },
+            { allowPrivateNetworks: true }
+        );
+
+        expect(axiosMock.mock.calls[0][0].httpAgent).toBeUndefined();
+    });
+
+    it('keeps observing a portal that no_proxy exempts from the environment proxy', async () => {
+        process.env['http_proxy'] = 'http://proxy.example:3128';
+        process.env['no_proxy'] = 'localhost,panel.example';
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+
+        await requestWithValidatedRedirects(
+            'http://panel.example/player_api.php',
+            { method: 'GET', onConnect: jest.fn() },
+            { allowPrivateNetworks: true }
+        );
+
+        // axios connects directly here, so the handshake is the portal's own.
+        const requestConfig = axiosMock.mock.calls[0][0];
+        expect(requestConfig.httpAgent).toBeInstanceOf(HttpAgent);
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                requestConfig.httpAgent,
+                'addRequest'
+            )
+        ).toBe(true);
+    });
+
+    it('still observes a pinned request under an environment proxy, since pinning disables the proxy', async () => {
+        process.env['https_proxy'] = 'http://proxy.example:3128';
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+
+        await requestWithValidatedRedirects(
+            'https://panel.example/player_api.php',
+            { method: 'GET', onConnect: jest.fn() },
+            { resolveHostname: publicResolver }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0];
+        expect(requestConfig.proxy).toBe(false);
+        expect(
+            Object.prototype.hasOwnProperty.call(
+                requestConfig.httpsAgent,
+                'addRequest'
+            )
+        ).toBe(true);
+    });
+
+    it('observes the agent an explicit factory supplies instead of replacing it', async () => {
+        axiosMock.mockResolvedValueOnce({ status: 200, headers: {}, data: {} });
+        const { factory } = createCapturingAgentFactory();
+
+        await requestWithValidatedRedirects(
+            'https://panel.example/player_api.php',
+            { agentFactory: factory, method: 'GET', onConnect: jest.fn() },
+            { resolveHostname: publicResolver }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0];
+        const created = jest.mocked(factory.createHttpsAgent).mock.results[0]
+            .value;
+        expect(requestConfig.httpsAgent).toBe(created);
+        expect(
+            Object.prototype.hasOwnProperty.call(created, 'addRequest')
+        ).toBe(true);
     });
 
     it('supplies the validated lookup to an explicit HTTP agent factory', async () => {

@@ -677,11 +677,15 @@ function copyGenericRuntimeToNativeBuild(runtime) {
     return manifest;
 }
 
-// Upstream node-gyp, resolved as a declared devDependency. This used to scan
-// node_modules/.pnpm for the `@electron/node-gyp` fork, which was only ever in
-// the tree as a transitive of `@electron/rebuild` 3 — rebuild 4 moved to
-// upstream `node-gyp` and the scan started throwing. The Electron target is
-// selected through the npm_config_* env below, not by the binary.
+// Upstream node-gyp, declared as a root devDependency so this resolves from a
+// plain `node apps/electron-backend/build-embedded-mpv.js`. Until it was
+// declared it was only in the tree as a transitive of `@electron/rebuild`,
+// reachable through pnpm's hidden hoist (node_modules/.pnpm/node_modules) —
+// which pnpm's `.bin` shims put on NODE_PATH, so `pnpm nx …` and CI worked
+// while a direct invocation on a clean install threw. Before that, this
+// scanned node_modules/.pnpm for the `@electron/node-gyp` fork, which
+// rebuild 4 dropped for upstream `node-gyp`. The Electron target is selected
+// through the npm_config_* env below, not by the binary.
 function resolveNodeGypBin() {
     try {
         return require.resolve('node-gyp/bin/node-gyp.js');

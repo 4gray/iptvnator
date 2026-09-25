@@ -440,7 +440,9 @@ test('keeps non-Linux builds independent from the Linux runtime prerequisite', (
 
     assert.ok(crossPlatformJob);
     assert.ok(linuxJob);
-    assert.equal(crossPlatformJob.needs, undefined);
+    // The nightly-version job is a cheap, platform-neutral prerequisite; the
+    // Linux runtime build must stay out of the non-Linux dependency list.
+    assert.deepEqual(crossPlatformJob.needs, 'nightly-version');
     assert.deepEqual(
         crossPlatformJob.strategy.matrix.include.map(({ os, arch }) => ({
             os,
@@ -453,7 +455,10 @@ test('keeps non-Linux builds independent from the Linux runtime prerequisite', (
         ]
     );
     assert.equal(crossPlatformJob.strategy['fail-fast'], false);
-    assert.equal(linuxJob.needs, 'linux-embedded-mpv-runtime');
+    assert.deepEqual(linuxJob.needs, [
+        'linux-embedded-mpv-runtime',
+        'nightly-version',
+    ]);
     assert.deepEqual(
         linuxJob.strategy.matrix.include.map(
             ({ os, arch, linux_profile: profile }) => ({
@@ -474,7 +479,17 @@ test('keeps non-Linux builds independent from the Linux runtime prerequisite', (
     );
     assert.equal(linuxJob.strategy['fail-fast'], false);
     assert.deepEqual(linuxJob.steps, crossPlatformJob.steps);
+    // Windows runners default to PowerShell, where the bash-style
+    // "${NIGHTLY_VERSION}" expands to nothing and the version script rejects
+    // the empty value; the step must pin bash on every host.
+    const applyNightlyVersion = crossPlatformJob.steps.find(
+        (step) => step.name === 'Apply nightly version'
+    );
+    assert.ok(applyNightlyVersion);
+    assert.equal(applyNightlyVersion.shell, 'bash');
+    assert.match(applyNightlyVersion.run, /--version "\$\{NIGHTLY_VERSION\}"/);
     assert.deepEqual(buildWorkflowConfig.jobs['create-release'].needs, [
+        'nightly-version',
         'build-cross-platform',
         'build-linux',
     ]);

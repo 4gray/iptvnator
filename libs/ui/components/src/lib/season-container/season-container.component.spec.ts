@@ -1185,9 +1185,7 @@ describe('SeasonContainerComponent', () => {
             fixture.detectChanges();
 
             const button = toggleButton();
-            expect(button?.textContent).toContain(
-                'Mark season as watched (2)'
-            );
+            expect(button?.textContent).toContain('Mark season as watched (2)');
             button?.click();
 
             expect(emitted).toEqual([
@@ -1277,9 +1275,7 @@ describe('SeasonContainerComponent', () => {
 
             const button = toggleButton();
             // 103 is the only markable episode: 101 watched, 102 playing.
-            expect(button?.textContent).toContain(
-                'Mark season as watched (1)'
-            );
+            expect(button?.textContent).toContain('Mark season as watched (1)');
             button?.click();
             expect(
                 emitted[0].requests.map((item) => item.contentXtreamId)

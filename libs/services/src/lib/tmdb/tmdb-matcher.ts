@@ -1,5 +1,6 @@
 import {
     TmdbMediaType,
+    cleanTitleForSearch,
     extractYear,
     normalizeTitle,
 } from '@iptvnator/shared/interfaces';
@@ -37,21 +38,58 @@ function stripLeadingLanguageToken(raw: string): string | null {
 }
 
 /**
+ * One search candidate: what to SEND to TMDB and what to COMPARE its
+ * answers against. The two differ on purpose — see `cleanTitleForSearch`:
+ * folding rewrites letters TMDB matches on, so the folded form finds nothing
+ * there, while it is exactly what the confidence gate and the cache need.
+ */
+export interface SearchTitleVariant {
+    /** Provider spelling with tags/brackets/season/year stripped */
+    query: string;
+    /** `normalizeTitle` of the same text; cache key and comparison form */
+    normalized: string;
+}
+
+/**
+ * The identity of one search on the wire: the query with only the case
+ * removed, since TMDB matches case-insensitively and nothing else about
+ * the spelling may be folded away — "Леика" and "Лейка" (illustrative) are
+ * different
+ * searches with different answers, however alike their comparison keys.
+ * Both the variant deduplication and the cache row use this, so a cached
+ * verdict can never be read back for a search that was never sent.
+ */
+export function searchQueryIdentity(query: string): string {
+    return query.toLowerCase();
+}
+
+/**
  * Ordered search-title candidates for one provider item: the original
  * title, the display title, then the same values with a leading
  * language-looking token dropped. The confidence gate still applies to
  * every variant, so extra candidates cannot produce wrong matches — only
- * extra searches on misses.
+ * extra searches on misses. Deduplicated by the wire identity, never by
+ * the folded comparison key: two spellings that fold to one key can still
+ * be different searches, and dropping the second would silently skip the
+ * one TMDB actually knows.
  */
 export function buildSearchTitleVariants(
     title: string | null | undefined,
     originalTitle?: string | null
-): string[] {
-    const variants: string[] = [];
+): SearchTitleVariant[] {
+    const variants: SearchTitleVariant[] = [];
     const push = (raw: string | null | undefined) => {
         const normalized = normalizeTitle(raw);
-        if (normalized && !variants.includes(normalized)) {
-            variants.push(normalized);
+        const query = cleanTitleForSearch(raw);
+        const identity = searchQueryIdentity(query);
+        if (
+            normalized &&
+            query &&
+            !variants.some(
+                (variant) => searchQueryIdentity(variant.query) === identity
+            )
+        ) {
+            variants.push({ query, normalized });
         }
     };
 
@@ -66,14 +104,28 @@ export function buildSearchTitleVariants(
     return variants;
 }
 
+/**
+ * Cache row for one search verdict, keyed by the wire query's identity
+ * (`searchQueryIdentity`), not by the folded comparison key: the verdict
+ * depends on what was sent, and two spellings sharing a folded key ("Все"
+ * / "Всё") may get different answers.
+ */
 export function buildSearchLookupKey(
-    normalizedTitle: string,
+    query: string,
     year: number | null
 ): string {
     // v2: normalizeTitleKeys learned to strip appended language/quality
     // tags; the version suffix invalidates cached (incl. negative) match
-    // resolutions keyed on the old polluted titles
-    return `title:${normalizedTitle}|year:${year ?? ''}|v2`;
+    // resolutions keyed on the old polluted titles.
+    // v3: the search query stopped being the folded key — the fold rewrites
+    // "й" as "и" ("леика" for "Лейка", to illustrate) and TMDB answers that
+    // spelling with nothing; every negative row recorded under v2 for a title
+    // with "й"/"ё" is that bug, not a missing title, and must not block the
+    // retry for its 7-day TTL. Rows are keyed by the query since then.
+    // v4: year evidence is tiered (see `yearEvidenceTier`), so every v3 row
+    // resolved by popularity across tiers may name the wrong show — and a
+    // positive row stays fresh for 30 days.
+    return `title:${searchQueryIdentity(query)}|year:${year ?? ''}|v4`;
 }
 
 export function buildDetailsLookupKey(tmdbId: number): string {
@@ -108,9 +160,7 @@ export function parseProviderTmdbId(
  *   name mismatch alone says more about our own inputs than about the id.
  */
 export type ProviderIdVerdict =
-    | 'corroborated'
-    | 'contradicted'
-    | 'inconclusive';
+    'corroborated' | 'contradicted' | 'inconclusive';
 
 /** The same tolerance the search gate uses, applied in reverse */
 function yearsAgree(
@@ -135,7 +185,11 @@ export function assessProviderId(
         original_name?: string;
         first_air_date?: string;
     },
-    query: { title?: string | null; originalTitle?: string | null; year?: number | null },
+    query: {
+        title?: string | null;
+        originalTitle?: string | null;
+        year?: number | null;
+    },
     mediaType: TmdbMediaType
 ): ProviderIdVerdict {
     // Same effective year the search would use, so the two agree on what
@@ -171,7 +225,9 @@ export function detailsMatchProviderTitle(
     query: { title?: string | null; originalTitle?: string | null }
 ): boolean {
     const variants = new Set(
-        buildSearchTitleVariants(query.title, query.originalTitle)
+        buildSearchTitleVariants(query.title, query.originalTitle).map(
+            (variant) => variant.normalized
+        )
     );
     if (variants.size === 0) {
         // Nothing to compare against — never call that a mismatch
@@ -205,6 +261,52 @@ function resultYear(
 }
 
 /**
+ * How strongly one candidate's own year backs the year the provider stated.
+ * Lower is stronger; `null` means the candidate is not admissible at all.
+ *
+ * The series tier is what makes long-running shows work: a portal reports
+ * the CURRENT season's year ("The Boys s05" → 2026) while TMDB's
+ * `first_air_date` is the 2019 premiere. It is a last resort, though, not an
+ * equal — ranked alongside the exact-year tier with popularity deciding, it
+ * hands every NEW series its older, better-known namesake. TMDB returns
+ * titles in the REQUEST language, so in a non-English catalog those
+ * collisions are routine rather than exotic: a 2026 local-language drama
+ * (4 votes) lost to an unrelated 2018 foreign show TMDB lists under the same
+ * localized name (26 votes), and rendered its poster, cast and genres. Over
+ * 400 Cyrillic series titles sampled from a real catalog, 20 normalized keys
+ * had a same-titled older series and 16 of those were the more popular row.
+ *
+ * The mirror case survives on purpose: a long-running show whose stated
+ * season year happens to BE another same-titled show's premiere year now
+ * resolves to the newer show. Only the older show's season air dates could
+ * separate the two, and a search response does not carry them — while the
+ * shape needs three coincidences at once, against one that needs none.
+ */
+const YEAR_TIER_EXACT = 0;
+const YEAR_TIER_ADJACENT = 1;
+const YEAR_TIER_EARLIER_SERIES = 2;
+
+function yearEvidenceTier(
+    year: number | null,
+    wantedYear: number,
+    mediaType: TmdbMediaType
+): number | null {
+    if (year === null) {
+        return null;
+    }
+    if (year === wantedYear) {
+        return YEAR_TIER_EXACT;
+    }
+    if (Math.abs(year - wantedYear) === 1) {
+        return YEAR_TIER_ADJACENT;
+    }
+
+    return mediaType === 'tv' && year < wantedYear
+        ? YEAR_TIER_EARLIER_SERIES
+        : null;
+}
+
+/**
  * Pick the search result that confidently matches the queried title/year.
  * Returns `null` when confidence is insufficient — enrichment must never
  * attach a wrong movie's metadata.
@@ -231,25 +333,36 @@ export function pickConfidentMatch(
 
     const wantedYear = query.year;
     if (wantedYear !== null) {
-        const yearMatches = exactTitleMatches.filter((result) => {
-            const year = resultYear(result, mediaType);
-            if (year === null) {
-                return false;
-            }
-            if (Math.abs(year - wantedYear) <= 1) {
-                return true;
-            }
-            // Series: providers often report the CURRENT season's year
-            // ("The Boys s05" → 2026) while TMDB's first_air_date is the
-            // show's premiere (2019) — accept shows that started earlier.
-            return mediaType === 'tv' && year < wantedYear;
-        });
+        // Popularity only breaks ties INSIDE the strongest tier any
+        // candidate reached — see `yearEvidenceTier`.
+        const ranked = exactTitleMatches
+            .map((result) => ({
+                result,
+                tier: yearEvidenceTier(
+                    resultYear(result, mediaType),
+                    wantedYear,
+                    mediaType
+                ),
+            }))
+            .filter(
+                (
+                    candidate
+                ): candidate is {
+                    result: TmdbSearchResult;
+                    tier: number;
+                } => candidate.tier !== null
+            );
 
-        if (yearMatches.length === 0) {
+        if (ranked.length === 0) {
             return null;
         }
 
-        return pickMostPopular(yearMatches);
+        const bestTier = Math.min(...ranked.map((candidate) => candidate.tier));
+        return pickMostPopular(
+            ranked
+                .filter((candidate) => candidate.tier === bestTier)
+                .map((candidate) => candidate.result)
+        );
     }
 
     // Without a year the title must be unambiguous

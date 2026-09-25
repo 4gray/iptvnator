@@ -539,7 +539,7 @@ export class PlaylistEffects {
     private fetchPlaylistScopedEpg(
         playlist: Pick<
             Playlist,
-            '_id' | 'epgUrls' | 'macAddress' | 'serverUrl'
+            '_id' | 'epgUrls' | 'macAddress' | 'manualEpgUrls' | 'serverUrl'
         >,
         options: { force?: boolean } = {}
     ): void {

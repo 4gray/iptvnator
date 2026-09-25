@@ -1,17 +1,19 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
+    pressTab,
     rasterizedBorderContrast,
     setInputValue,
     surfaceContrast,
     waitForScrollIdle,
 } from './e2e-helpers';
 import {
-    getRegisteredProviderUrl,
-    interceptProviderTargetRegistration,
-} from './provider-target-route';
+    addXtreamPortal,
+    DEFAULT_PASSWORD,
+    DEFAULT_USERNAME,
+    interceptXtreamRequests,
+    MOCK_SERVER,
+} from './xtream-series-playback.fixture';
 
 /**
  * Xtream Codes E2E Tests
@@ -28,77 +30,12 @@ import {
  * Tag: @xtream — run only Xtream tests with: nx e2e web-e2e --grep "@xtream"
  */
 
-const XTREAM_MOCK_PORT = process.env['XTREAM_MOCK_PORT'] ?? '3211';
-const MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
-
-/** Default scenario credentials */
-const DEFAULT_USERNAME = 'user1';
-const DEFAULT_PASSWORD = 'pass1';
 const EPG_USERNAME = 'epg';
 const EPG_PASSWORD = 'epg';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Intercept calls from the Angular PWA proxy (/xtream) and redirect them
- * to the mock server. This avoids any real backend requirement.
- */
-async function interceptXtreamRequests(page: Page): Promise<void> {
-    const providerTargets = await interceptProviderTargetRegistration(page);
-
-    await page.route('**/localhost:3000/xtream**', async (route) => {
-        const originalUrl = new URL(route.request().url());
-        const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
-        const providerUrl = getRegisteredProviderUrl(
-            originalUrl,
-            providerTargets
-        );
-
-        if (providerUrl) {
-            mockUrl.searchParams.set('url', providerUrl);
-        }
-
-        originalUrl.searchParams.forEach((value, key) => {
-            if (key === 'targetId') {
-                return;
-            }
-
-            mockUrl.searchParams.set(key, value);
-        });
-        await route.continue({ url: mockUrl.toString() });
-    });
-}
-
-/**
- * Add an Xtream portal via the UI.
- */
-async function addXtreamPortal(
-    page: Page,
-    options: { name?: string; username?: string; password?: string } = {}
-): Promise<void> {
-    const {
-        name = 'Mock Xtream Portal',
-        username = DEFAULT_USERNAME,
-        password = DEFAULT_PASSWORD,
-    } = options;
-
-    await page.getByRole('button', { name: 'Add playlist' }).click();
-    const dialog = page.locator('mat-dialog-container');
-    await expect(dialog).toBeVisible();
-    // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
-    await dialog.getByRole('radio', { name: /Xtream credentials/i }).click();
-
-    await setInputValue(dialog.locator('#title'), name);
-    await setInputValue(dialog.locator('#serverUrl'), MOCK_SERVER);
-    await setInputValue(dialog.locator('#username'), username);
-    await setInputValue(dialog.locator('#password'), password);
-
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
-    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
-    await page.waitForURL(/xtreams.*vod/);
-}
 
 async function openPlaylistDetailsDialog(page: Page, title: string) {
     const playlistSettingsButton = page.getByRole('button', {
@@ -783,6 +720,76 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
 });
 
 // ---------------------------------------------------------------------------
+// Season cover beside the season tabs (provider tier)
+//
+// The default scenario's get_series_info carries a distinct seasons[].cover
+// per season, which differs from the show cover, so with TMDB enrichment off
+// the serial details page shows that cover next to the tabs and swaps it on
+// a tab click. Image requests are answered locally so a slow or blocked CDN
+// cannot fold the column (the app hides a cover whose image failed).
+// ---------------------------------------------------------------------------
+
+test('@xtream season cover — shows the provider season cover and follows the selected tab', async ({
+    page,
+    request,
+}) => {
+    const TRANSPARENT_PNG = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64'
+    );
+    await page.route('**/picsum.photos/**', (route) =>
+        route.fulfill({ contentType: 'image/png', body: TRANSPARENT_PNG })
+    );
+
+    const categories = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
+        )
+    ).json()) as Array<{ category_id: string; category_name: string }>;
+    const category = categories[0];
+    const seriesItems = (await (
+        await request.get(
+            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
+        )
+    ).json()) as Array<{ name: string; series_id: number }>;
+    const targetSeries = seriesItems[0];
+
+    await addXtreamPortal(page);
+    await page.goto(page.url().replace(/\/vod.*$/, '/series'));
+
+    const categoryItem = page
+        .locator('.context-panel .category-item')
+        .filter({ hasText: category.category_name })
+        .first();
+    await expect(categoryItem).toBeVisible({ timeout: 10_000 });
+    await categoryItem.click();
+
+    const seriesCard = page
+        .locator('app-grid-list mat-card')
+        .filter({ hasText: targetSeries.name })
+        .first();
+    await expect(seriesCard).toBeVisible({ timeout: 10_000 });
+    await seriesCard.click();
+
+    // Season 1 is auto-selected; its provider cover sits beside the tabs.
+    // The mock seeds season art as `season-<id>-<n>` (cover) and
+    // `season-big-<id>-<n>` (cover_big); the app prefers cover_big.
+    const cover = page.locator('[data-testid="season-cover"]');
+    await expect(cover).toBeVisible({ timeout: 15_000 });
+    await expect(cover).toHaveAttribute(
+        'src',
+        new RegExp(`season(-big)?-${targetSeries.series_id}-1/`)
+    );
+
+    // The cover follows the selected tab.
+    await page.locator('.season-tabs__pill').nth(1).click();
+    await expect(cover).toHaveAttribute(
+        'src',
+        new RegExp(`season(-big)?-${targetSeries.series_id}-2/`)
+    );
+});
+
+// ---------------------------------------------------------------------------
 // Series-level watched toggle: the season header's ⋮ menu marks EVERY season
 // in one action (default scenario: 3 seasons × 8 episodes = 24), flips to
 // unwatch-all once the whole series is watched, and survives a reload.
@@ -883,6 +890,48 @@ type XtreamRawEpgListing = {
     title: string;
 };
 
+test('@xtream posters-only wall — hides VOD titles behind a hover caption after Save', async ({
+    page,
+}) => {
+    await addXtreamPortal(page);
+    await page.locator('.context-panel .category-item').first().click();
+
+    const grid = page.locator('app-grid-list');
+    const firstCard = grid.locator('mat-card').first();
+    await expect(firstCard).toBeVisible({ timeout: 10_000 });
+    await expect(firstCard.locator('.title')).toBeVisible();
+    await expect(grid).not.toHaveClass(/grid-list--posters-only/);
+
+    const catalogUrl = page.url();
+    await page.goto('/workspace/settings/general');
+    const toggle = page.locator('[data-test-id="cover-titles-toggle"]');
+    await expect(toggle.locator('input')).toBeChecked();
+    await toggle.click();
+    const saveButton = page.locator('[data-test-id="save-settings"]');
+    await saveButton.click();
+    await expect(saveButton).toBeHidden();
+
+    await page.goto(catalogUrl);
+    await page.locator('.context-panel .category-item').first().click();
+    await expect(firstCard).toBeVisible({ timeout: 10_000 });
+    await expect(grid).toHaveClass(/grid-list--posters-only/);
+    await expect(firstCard.locator('.title')).toHaveCount(0);
+
+    // The caption is a hover/focus reveal: hidden at rest, shown when the
+    // pointer or keyboard focus lands on the card.
+    const caption = firstCard.locator('.cover-title-overlay');
+    await expect(caption).toHaveCSS('opacity', '0');
+    await firstCard.hover();
+    await expect(caption).toHaveCSS('opacity', '1');
+    await page.mouse.move(0, 0);
+    await expect(caption).toHaveCSS('opacity', '0');
+    await firstCard.focus();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Shift+Tab');
+    await expect(firstCard).toBeFocused();
+    await expect(caption).toHaveCSS('opacity', '1');
+});
+
 async function getEpgFixtureStream(
     request: APIRequestContext
 ): Promise<XtreamLiveStream> {
@@ -922,308 +971,6 @@ function formatXtreamDateTime(timestampSeconds: number): string {
         .replace('T', ' ')
         .replace('.000Z', '');
 }
-
-// ---------------------------------------------------------------------------
-// Fullscreen survives an episode switch
-//
-// app-web-player-view remounts the engine component for every playback
-// application (next episode, channel, or alternative source). DOM fullscreen
-// used to be owned by that engine's shell, so the Fullscreen API exited the
-// moment the old shell left the document — every "next episode" click and
-// every autoplay hand-off dropped the viewer back to the page. The owner is
-// now the app-web-player-view host, which spans all applications of one mount.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Inline series playback helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Serve a tiny VP8 clip for every episode stream. Chromium ships no
- * proprietary codecs, so the clip stands in for the mock's external HLS
- * redirect; the browser sniffs the WebM container from the bytes. Registered
- * after the beforeEach proxy route, so it runs first and fetches from the
- * mock itself (the mock ignores the url parameter).
- */
-async function routeEpisodeClip(page: Page): Promise<void> {
-    const episodeClip = readFileSync(
-        join(__dirname, 'fixtures/playback/episode.webm')
-    );
-    await page.route(
-        (url) =>
-            url.origin === MOCK_SERVER && url.pathname.startsWith('/series/'),
-        async (route) => {
-            // Chromium's media pipeline seeks through byte ranges; a plain
-            // 200 to a Range request clamps every seek to the start, which
-            // would defeat end-of-episode steps.
-            const range = /^bytes=(\d*)-(\d*)$/.exec(
-                route.request().headers()['range'] ?? ''
-            );
-            const last = episodeClip.length - 1;
-            const start = range?.[1]
-                ? Number(range[1])
-                : range?.[2]
-                  ? Math.max(0, episodeClip.length - Number(range[2]))
-                  : 0;
-            const end =
-                range?.[1] && range[2]
-                    ? Math.min(Number(range[2]), last)
-                    : last;
-            await route.fulfill({
-                status: range ? 206 : 200,
-                headers: {
-                    'accept-ranges': 'bytes',
-                    'content-length': String(end - start + 1),
-                    'content-type': 'video/webm',
-                    ...(range
-                        ? {
-                              'content-range': `bytes ${start}-${end}/${episodeClip.length}`,
-                          }
-                        : {}),
-                },
-                body: episodeClip.subarray(start, end + 1),
-            });
-        }
-    );
-}
-
-/**
- * The mock's episodes are .mkv, which the HTML5 player would hand to hls.js;
- * get_series_info is rewritten to .mp4 — the extension the player gives to
- * the native source path.
- */
-async function rewriteSeriesEpisodesToMp4(page: Page): Promise<void> {
-    await page.route('**/localhost:3000/xtream**', async (route) => {
-        const original = new URL(route.request().url());
-        if (original.searchParams.get('action') !== 'get_series_info') {
-            await route.fallback();
-            return;
-        }
-        const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
-        original.searchParams.forEach((value, key) => {
-            if (key !== 'targetId') {
-                mockUrl.searchParams.set(key, value);
-            }
-        });
-        const response = await route.fetch({ url: mockUrl.toString() });
-        const body = (await response.json()) as {
-            payload: {
-                episodes?: Record<
-                    string,
-                    Array<{ container_extension: string }>
-                >;
-            };
-        };
-        for (const episodes of Object.values(body.payload.episodes ?? {})) {
-            for (const episode of episodes) {
-                episode.container_extension = 'mp4';
-            }
-        }
-        await route.fulfill({ response, json: body });
-    });
-}
-
-/** Persist the web player engine and the shared-controls preference. */
-async function selectWebPlayer(
-    page: Page,
-    engine: string,
-    sharedControls = true
-): Promise<void> {
-    await page.goto('/workspace/settings/playback');
-    await page.locator('[data-test-id="select-video-player"]').click();
-    await page.getByRole('option', { name: engine, exact: true }).click();
-    const toggle = page.locator(
-        '[data-test-id="web-player-shared-controls-toggle"]'
-    );
-    if ((await toggle.locator('input').isChecked()) !== sharedControls) {
-        await toggle.click();
-    }
-    const saveButton = page.getByRole('button', { name: 'Save changes' });
-    await saveButton.click();
-    await expect(saveButton).toBeHidden();
-}
-
-/** Add the mock portal and start the first episode of the first series. */
-async function playFirstSeriesEpisode(
-    page: Page,
-    request: APIRequestContext
-): Promise<{ playerView: Locator; video: Locator }> {
-    const categories = (await (
-        await request.get(
-            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series_categories`
-        )
-    ).json()) as Array<{ category_id: string; category_name: string }>;
-    const category = categories[0];
-    const seriesItems = (await (
-        await request.get(
-            `${MOCK_SERVER}/player_api.php?username=${DEFAULT_USERNAME}&password=${DEFAULT_PASSWORD}&action=get_series&category_id=${category.category_id}`
-        )
-    ).json()) as Array<{ name: string; series_id: number }>;
-    const targetSeries = seriesItems[0];
-
-    await page.goto('/');
-    await addXtreamPortal(page);
-    await page.goto(page.url().replace(/\/vod.*$/, '/series'));
-    const categoryItem = page
-        .locator('.context-panel .category-item')
-        .filter({ hasText: category.category_name })
-        .first();
-    await expect(categoryItem).toBeVisible({ timeout: 10_000 });
-    await categoryItem.click();
-    const seriesCard = page
-        .locator('app-grid-list mat-card')
-        .filter({ hasText: targetSeries.name })
-        .first();
-    await expect(seriesCard).toBeVisible({ timeout: 10_000 });
-    await seriesCard.click();
-
-    const episodeCards = page.locator('.episode-card');
-    await expect(episodeCards).toHaveCount(8, { timeout: 15_000 });
-    await episodeCards.first().click();
-
-    const playerView = page.locator(
-        'app-portal-inline-player app-web-player-view'
-    );
-    return { playerView, video: playerView.locator('video') };
-}
-
-test.describe('@xtream inline series fullscreen', () => {
-    // No autoplay-policy flag is needed: the episode click is a user
-    // activation and the fixture clip carries no audio track.
-    test.skip(
-        ({ browserName }) => browserName !== 'chromium',
-        'DOM fullscreen assertions target Chromium'
-    );
-
-    test('stays in fullscreen across manual and automatic episode switches', async ({
-        page,
-        request,
-    }) => {
-        await routeEpisodeClip(page);
-        await rewriteSeriesEpisodesToMp4(page);
-
-        // Persist the HTML5 engine first: Video.js rejects the mock's
-        // video/matroska source type before any bytes are sniffed.
-        await selectWebPlayer(page, 'HTML5 video player');
-        const { playerView, video } = await playFirstSeriesEpisode(
-            page,
-            request
-        );
-        await expect(playerView.locator('app-html-video-player')).toBeVisible({
-            timeout: 15_000,
-        });
-        const waitForMetadata = () =>
-            expect
-                .poll(() =>
-                    video.evaluate((el) => (el as HTMLVideoElement).readyState)
-                )
-                .toBeGreaterThanOrEqual(1);
-        await waitForMetadata();
-
-        // The bar auto-hides during playback; a hover reveals it. The
-        // overlay title renders only while the controls consider themselves
-        // fullscreen, so it doubles as the controls-state assertion.
-        // Asserted as "some element is fullscreen" rather than by owner tag,
-        // so the test guards the behavior, not the wiring.
-        const fullscreenOwner = () =>
-            page.evaluate(() => document.fullscreenElement?.tagName ?? null);
-        const overlayTitle = playerView.locator(
-            '[data-test-id="player-controls-media-title"]'
-        );
-        await playerView.hover();
-        await playerView
-            .getByRole('button', { name: 'Enter fullscreen' })
-            .click();
-        await expect.poll(fullscreenOwner).not.toBeNull();
-        await expect(overlayTitle).toContainText('S01E01');
-
-        // Chromium leaves the clicked button focused; the shared controls
-        // release that focus so Space reaches the playback shortcut instead
-        // of activating the button again (which left fullscreen while the
-        // video kept playing).
-        const paused = () =>
-            video.evaluate((el) => (el as HTMLVideoElement).paused);
-        await expect.poll(paused).toBe(false);
-        await page.keyboard.press('Space');
-        await expect.poll(paused).toBe(true);
-        expect(await fullscreenOwner()).not.toBeNull();
-        await page.keyboard.press('Space');
-        await expect.poll(paused).toBe(false);
-
-        // Manual switch from the shared controls' own next-episode button.
-        await playerView.hover();
-        await playerView
-            .locator('[data-test-id="player-controls-next-episode"]')
-            .click();
-        await expect(overlayTitle).toContainText('S01E02', {
-            timeout: 15_000,
-        });
-        expect(await fullscreenOwner()).not.toBeNull();
-
-        // Automatic switch: the clip reaching its end autoplays the next
-        // episode with no user activation anywhere near it.
-        await waitForMetadata();
-        await video.evaluate(async (el) => {
-            const media = el as HTMLVideoElement;
-            media.currentTime = Math.max(0, media.duration - 0.2);
-            // Headless autoplay is not guaranteed for a remounted element;
-            // the document already carries user activation from the clicks.
-            await media.play();
-        });
-        await expect(overlayTitle).toContainText('S01E03', {
-            timeout: 15_000,
-        });
-        expect(await fullscreenOwner()).not.toBeNull();
-    });
-});
-
-test.describe('@xtream vendor-chrome Video.js shortcuts', () => {
-    test.skip(
-        ({ browserName }) => browserName !== 'chromium',
-        'DOM fullscreen assertions target Chromium'
-    );
-
-    test('keep working after a mouse click on a control-bar button', async ({
-        page,
-        request,
-    }) => {
-        await routeEpisodeClip(page);
-        await rewriteSeriesEpisodesToMp4(page);
-        // Video.js with the shared controls opted out: the vendor control bar.
-        await selectWebPlayer(page, 'Video.js player', false);
-        const { playerView, video } = await playFirstSeriesEpisode(
-            page,
-            request
-        );
-        await expect(playerView.locator('app-vjs-player')).toBeVisible({
-            timeout: 15_000,
-        });
-        await expect(playerView.locator('app-player-controls')).toHaveCount(0);
-        const paused = () =>
-            video.evaluate((el) => (el as HTMLVideoElement).paused);
-        const fullscreenOwner = () =>
-            page.evaluate(() => document.fullscreenElement?.tagName ?? null);
-        await expect.poll(paused).toBe(false);
-
-        // Chromium leaves the clicked Video.js button focused, and a focused
-        // Video.js component swallows every key; the legacy chrome releases
-        // that focus so Space and M reach the playback shortcuts instead of
-        // Space activating the button again (which left fullscreen while the
-        // video kept playing).
-        await playerView.hover();
-        await playerView.locator('.vjs-fullscreen-control').click();
-        await expect.poll(fullscreenOwner).not.toBeNull();
-        await page.keyboard.press('Space');
-        await expect.poll(paused).toBe(true);
-        expect(await fullscreenOwner()).not.toBeNull();
-        await page.keyboard.press('Space');
-        await expect.poll(paused).toBe(false);
-        await page.keyboard.press('m');
-        await expect
-            .poll(() => video.evaluate((el) => (el as HTMLVideoElement).muted))
-            .toBe(true);
-    });
-});
 
 for (const theme of ['light', 'dark']) {
     test(`@xtream detail surfaces stay visible (${theme})`, async ({
@@ -1302,6 +1049,7 @@ for (const theme of ['light', 'dark']) {
 
     test(`@xtream navigation: channel focus and separate scrollbar (${theme})`, async ({
         page,
+        browserName,
     }) => {
         await addXtreamPortal(page);
         await page.getByRole('link', { name: 'Live TV', exact: true }).click();
@@ -1317,10 +1065,10 @@ for (const theme of ['light', 'dark']) {
         await page.keyboard.press('ArrowRight');
         await expect(viewport).toBeFocused();
         await expect(page.locator('app-web-player-view')).toHaveCount(0);
-        await page.keyboard.press('Tab');
+        await pressTab(page, browserName);
         const firstAction = viewport.locator('button.channel-content').first();
         await expect(firstAction).toBeFocused();
-        await page.keyboard.press('Shift+Tab');
+        await pressTab(page, browserName, 'backward');
         await expect(viewport).toBeFocused();
 
         const row = viewport.locator('.channel-name').first();
@@ -1345,7 +1093,7 @@ for (const theme of ['light', 'dark']) {
         await page.keyboard.press('Space');
         await expect(page.locator('app-web-player-view')).toBeVisible();
         await expect(firstAction).toBeFocused();
-        await page.keyboard.press('Tab');
+        await pressTab(page, browserName);
         await expect(
             viewport.locator('.favorite-button').first()
         ).toBeFocused();

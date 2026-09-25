@@ -11,7 +11,11 @@
     border-radius: 18px;
     border: 1px solid rgba(20, 20, 20, 0.08);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 250, 245, 0.92)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.78),
+            rgba(255, 250, 245, 0.92)
+        ),
         rgba(255, 250, 245, 0.9);
     box-shadow:
         0 20px 56px rgba(25, 20, 20, 0.12),
@@ -42,10 +46,6 @@
     align-items: center;
     justify-content: space-between;
     min-width: 0;
-}
-
-.player-shell__back {
-    flex: none;
 }
 
 .player-shell__heading {

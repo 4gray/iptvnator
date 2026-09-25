@@ -6,6 +6,7 @@ import {
     signal,
     ViewEncapsulation,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
@@ -70,6 +71,7 @@ const METHOD_BY_CANDIDATE_KIND: Record<
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
     styleUrl: './add-playlist-dialog.component.scss',
+    changeDetection: ChangeDetectionStrategy.Eager,
     encapsulation: ViewEncapsulation.None,
 })
 export class AddPlaylistDialogComponent {
@@ -98,8 +100,9 @@ export class AddPlaylistDialogComponent {
      * the prefill is applied by an effect that re-runs once the child's
      * viewChild signal resolves, then clears this.
      */
-    private readonly pendingPrefill =
-        signal<ProviderImportCandidate | null>(null);
+    private readonly pendingPrefill = signal<ProviderImportCandidate | null>(
+        null
+    );
 
     /**
      * Survives the auto-detect surface being destroyed by a method switch, so

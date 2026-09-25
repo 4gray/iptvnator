@@ -4,6 +4,12 @@ import { expect, test } from './fixtures';
 const fixturePath = join(__dirname, 'fixtures/test.m3u');
 
 test('@web @m3u basic playlist import flow', async ({ page }) => {
+    // The fixture's placeholder media hosts must not delay navigation or make
+    // persistence coverage depend on external DNS and asset availability.
+    await page.route(
+        /^https?:\/\/(?:channel\.icons\.url|example\.channels|xml-url)\//,
+        (route) => route.abort()
+    );
     await page.goto('/');
 
     // Basic checks
@@ -25,6 +31,15 @@ test('@web @m3u basic playlist import flow', async ({ page }) => {
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
         addButton.click(),
     ]);
+    await expect(page.getByText('test', { exact: true })).toBeVisible();
+    await expect(page.getByText('4 channels')).toBeVisible();
+    await expect(page.getByText('1. Channel 1')).toBeVisible();
+    await expect(page.getByText('4. HappyKids TV')).toBeVisible();
+
+    const importedPlaylistUrl = page.url();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+
+    await expect(page).toHaveURL(importedPlaylistUrl);
     await expect(page.getByText('test', { exact: true })).toBeVisible();
     await expect(page.getByText('4 channels')).toBeVisible();
     await expect(page.getByText('1. Channel 1')).toBeVisible();
@@ -110,7 +125,161 @@ test('@web @auto-detect keeps the pasted message when switching methods', async 
     );
 });
 
-test('@web keyboard shortcuts help opens from question mark', async ({ page }) => {
+test('@web @m3u reads an existing v1 IndexedDB playlist after application upgrade', async ({
+    page,
+}) => {
+    const playlistId = 'legacy-indexeddb-playlist';
+    // Seed before Angular boots so the application must open the old database.
+    await page.route('**/__indexeddb-seed__', (route) =>
+        route.fulfill({ contentType: 'text/html', body: '<!doctype html>' })
+    );
+    await page.route('https://legacy.example.invalid/**', (route) =>
+        route.abort()
+    );
+    await page.goto('/__indexeddb-seed__');
+    await page.evaluate(
+        (id) =>
+            new Promise<void>((resolve, reject) => {
+                const request = indexedDB.open('iptvnator', 1);
+                request.onerror = () => reject(request.error);
+                request.onupgradeneeded = () => {
+                    const store = request.result.createObjectStore(
+                        'playlists',
+                        {
+                            keyPath: '_id',
+                            autoIncrement: false,
+                        }
+                    );
+                    // Freeze the historical schema independently of app config.
+                    for (const name of [
+                        '_id',
+                        'filename',
+                        'title',
+                        'count',
+                        'playlist',
+                        'importDate',
+                        'lastUsage',
+                        'favorites',
+                        'recentlyViewed',
+                        'autoRefresh',
+                        'url',
+                        'filePath',
+                    ]) {
+                        store.createIndex(name, name, { unique: false });
+                    }
+                };
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const transaction = db.transaction(
+                        'playlists',
+                        'readwrite'
+                    );
+                    transaction.onabort = () => {
+                        db.close();
+                        reject(transaction.error);
+                    };
+                    transaction.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    transaction.objectStore('playlists').add({
+                        _id: id,
+                        title: 'Legacy playlist',
+                        filename: 'legacy.m3u',
+                        importDate: '2025-01-01T00:00:00.000Z',
+                        lastUsage: '2025-01-01T00:00:00.000Z',
+                        count: 1,
+                        autoRefresh: false,
+                        favorites: [],
+                        recentlyViewed: [],
+                        playlist: {
+                            header: { attrs: {}, raw: '#EXTM3U' },
+                            items: [
+                                {
+                                    id: 'legacy-channel',
+                                    name: 'Legacy channel',
+                                    url: 'https://legacy.example.invalid/live.m3u8',
+                                    group: { title: 'News' },
+                                    tvg: {
+                                        id: '',
+                                        name: '',
+                                        url: '',
+                                        logo: '',
+                                        rec: '',
+                                    },
+                                    http: {
+                                        referrer: '',
+                                        'user-agent': '',
+                                        origin: '',
+                                    },
+                                    radio: 'false',
+                                },
+                            ],
+                        },
+                    });
+                };
+            }),
+        playlistId
+    );
+
+    const playlistPath = `/workspace/playlists/${playlistId}/all`;
+    await page.goto(playlistPath, { waitUntil: 'domcontentloaded' });
+    await expect(
+        page.getByText('Legacy playlist', { exact: true })
+    ).toBeVisible();
+    await expect(
+        page.getByText('1. Legacy channel', { exact: true })
+    ).toBeVisible();
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(new RegExp(`${playlistPath}$`));
+    await expect(
+        page.getByText('Legacy playlist', { exact: true })
+    ).toBeVisible();
+    await expect(
+        page.getByText('1. Legacy channel', { exact: true })
+    ).toBeVisible();
+
+    const persisted = await page.evaluate(
+        (id) =>
+            new Promise((resolve, reject) => {
+                const request = indexedDB.open('iptvnator');
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const transaction = db.transaction('playlists', 'readonly');
+                    const store = transaction.objectStore('playlists');
+                    const record = store.get(id);
+                    transaction.onabort = () => {
+                        db.close();
+                        reject(transaction.error);
+                    };
+                    transaction.oncomplete = () => {
+                        resolve({
+                            version: db.version,
+                            keyPath: store.keyPath,
+                            autoIncrement: store.autoIncrement,
+                            id: record.result?._id,
+                            channel: record.result?.playlist.items[0].name,
+                        });
+                        db.close();
+                    };
+                };
+            }),
+        playlistId
+    );
+    expect(persisted).toEqual({
+        version: 1,
+        keyPath: '_id',
+        autoIncrement: false,
+        id: playlistId,
+        channel: 'Legacy channel',
+    });
+});
+
+test('@web keyboard shortcuts help opens from question mark', async ({
+    page,
+}) => {
     await page.goto('/');
 
     await page.getByRole('button', { name: 'Open keyboard shortcuts' }).focus();

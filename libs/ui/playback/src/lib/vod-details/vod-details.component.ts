@@ -7,6 +7,7 @@ import {
     output,
     signal,
     untracked,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -66,6 +67,7 @@ import { createVodDownloadState } from './vod-download-state.util';
     selector: 'app-vod-details',
     templateUrl: './vod-details.component.html',
     styleUrls: ['../styles/detail-view.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         DetailActionsTemplateDirective,
         DetailMetaTemplateDirective,
@@ -100,6 +102,21 @@ export class VodDetailsComponent {
     /** Provider detail handoff hides local/download presentation only. */
     readonly providerOnly = input(false);
 
+    /** The host's verdict on the position row (≥90% or marked by hand). */
+    readonly isWatched = input(false);
+
+    /** A watched write is in flight; the toggle waits for it. */
+    readonly watchedToggleBusy = input(false);
+
+    /** The host has the stored row in hand (`playbackPosition` is not a placeholder). */
+    readonly watchedToggleReady = input(true);
+
+    /**
+     * A Play/Resume is still resolving with the portal: nothing plays yet,
+     * but the player about to start would overwrite a row written now.
+     */
+    readonly playbackStartPending = input(false);
+
     // ============ Outputs ============
 
     /** Emitted when play button is clicked */
@@ -115,6 +132,12 @@ export class VodDetailsComponent {
     readonly favoriteToggled = output<{
         item: VodDetailsItem;
         isFavorite: boolean;
+    }>();
+
+    /** Emitted when the manual watched toggle is clicked (desired state) */
+    readonly watchedToggled = output<{
+        item: VodDetailsItem;
+        watched: boolean;
     }>();
 
     /** Emitted when back button is clicked */
@@ -195,10 +218,13 @@ export class VodDetailsComponent {
         void this.router.navigate(this.crossPortalSimilar.buildLink(item));
     }
 
-    /** Whether there's a playback position to resume from */
+    /**
+     * Whether there's a playback position to resume from. A watched movie
+     * shows Play, not "Resume 1:32:00" from its final seconds.
+     */
     readonly hasPlaybackPosition = computed(() => {
         const pos = this.playbackPosition();
-        return pos !== null && pos > 0;
+        return pos !== null && pos > 0 && !this.isWatched();
     });
 
     /** Formatted playback position (e.g., "12:34" or "1:23:45") */
@@ -289,6 +315,31 @@ export class VodDetailsComponent {
                 positionSeconds: pos,
             });
         }
+    }
+
+    /**
+     * The manual watched toggle stays off while playback owns the row: the
+     * player persists its position every ~15 s and would overwrite a
+     * just-written full-progress row, silently flipping the movie back.
+     */
+    readonly canToggleWatched = computed(
+        () =>
+            !this.watchedToggleBusy() &&
+            this.watchedToggleReady() &&
+            !this.playbackStartPending() &&
+            this.inlinePlayback() === null &&
+            this.matchedExternalPlayback() === null &&
+            !this.isExternalLaunchPending()
+    );
+
+    toggleWatched(): void {
+        if (!this.canToggleWatched()) {
+            return;
+        }
+        this.watchedToggled.emit({
+            item: this.item(),
+            watched: !this.isWatched(),
+        });
     }
 
     /** Handle favorite toggle - emits the desired new state */

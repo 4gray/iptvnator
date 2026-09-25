@@ -18,6 +18,7 @@ import {
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
 import {
+    fetchXtreamEpgFixture,
     fetchXtreamLiveFixture,
     fetchXtreamSeriesFixture,
     fetchXtreamVodFixture,
@@ -47,6 +48,33 @@ test.describe('Dashboard Activation', () => {
             liveFixture.items,
             getXtreamTitle
         );
+        // The mock's guide for the channel favourited below (its first live
+        // stream). The programme on air is read off the full guide at
+        // assertion time: the mock cuts its slots from the second the guide
+        // was generated, so the "current" listing of a fixture fetched in
+        // that same second is the slot that ended just then.
+        const epgFixture = await fetchXtreamEpgFixture(
+            request,
+            xtreamCredentials
+        );
+        expect(getXtreamTitle(epgFixture.stream)).toBe(liveTitle);
+        const liveNowTitle = () => {
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const index = epgFixture.fullEpg.findIndex(
+                (listing) =>
+                    listing.startTimestamp <= nowSeconds &&
+                    nowSeconds < listing.stopTimestamp
+            );
+            expect(index).toBeGreaterThanOrEqual(0);
+            // Tolerate a slot boundary passing between the app's answer and
+            // this assertion.
+            const titles = epgFixture.fullEpg
+                .slice(index, index + 2)
+                .map((listing) =>
+                    listing.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                );
+            return new RegExp(titles.join('|'));
+        };
         const app = await launchElectronApp(dataDir);
 
         try {
@@ -139,6 +167,15 @@ test.describe('Dashboard Activation', () => {
                 app.mainWindow,
                 'dashboard-live-favorites-rail'
             );
+            // An Xtream card has no XMLTV key: its "now on air" line comes
+            // from the portal, asked for lazily once the card is on screen.
+            await expect(
+                dashboardRailCardByTitle(
+                    app.mainWindow,
+                    'dashboard-live-favorites-rail',
+                    liveTitle
+                ).locator('.rail__channel-now')
+            ).toContainText(liveNowTitle(), { timeout: 30000 });
             await dashboardRailCardByTitle(
                 app.mainWindow,
                 'dashboard-live-favorites-rail',
@@ -167,6 +204,14 @@ test.describe('Dashboard Activation', () => {
                 app.mainWindow,
                 'dashboard-recent-live-rail'
             );
+            // Same channel, same key: the recent card shares the answer.
+            await expect(
+                dashboardRailCardByTitle(
+                    app.mainWindow,
+                    'dashboard-recent-live-rail',
+                    liveTitle
+                ).locator('.rail__channel-now')
+            ).toContainText(liveNowTitle(), { timeout: 30000 });
             await dashboardRailCardByTitle(
                 app.mainWindow,
                 'dashboard-recent-live-rail',
@@ -249,8 +294,8 @@ function dashboardRailCardByTitle(
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: browse uses the sticky Back, watch uses the
-    // now-playing bar's direct Back (the sticky watch action is Close player).
+    // Return to the list: the shell's sticky Back is route-level in browse
+    // and watch alike (closing the player is the bar's own Close button).
     const backButton = page
         .locator('app-portal-detail-shell')
         .first()

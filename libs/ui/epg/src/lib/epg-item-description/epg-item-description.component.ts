@@ -1,5 +1,10 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, inject } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
@@ -33,6 +38,7 @@ export type EpgItemDialogData = EpgProgram & {
     selector: 'app-epg-item-description',
     templateUrl: './epg-item-description.component.html',
     styleUrls: ['./epg-item-description.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [DatePipe, MatDialogModule, MatIcon, TranslatePipe],
 })
 export class EpgItemDescriptionComponent {

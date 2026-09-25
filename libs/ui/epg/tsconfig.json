@@ -10,7 +10,8 @@
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
         "emitDecoratorMetadata": false,
-        "module": "preserve"
+        "module": "preserve",
+        "ignoreDeprecations": "6.0"
     },
     "angularCompilerOptions": {
         "enableI18nLegacyMessageIdFormat": false,

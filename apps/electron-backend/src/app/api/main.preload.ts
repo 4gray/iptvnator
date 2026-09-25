@@ -1,5 +1,5 @@
 import type { SourceProbeContext } from '@iptvnator/shared/interfaces';
-import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import { contextBridge, ipcRenderer, webFrame, webUtils } from 'electron';
 import {
     APP_UPDATE_CHECK,
     APP_UPDATE_DOWNLOAD,
@@ -10,6 +10,8 @@ import {
     ACKNOWLEDGE_PLAYLIST_OPEN_REQUEST,
     ANNOUNCE_PLAYLIST_OPEN_LISTENER,
     OPEN_FILE,
+    WINDOW_GET_ZOOM_LEVEL,
+    WINDOW_ZOOM_LEVEL_APPLIED,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     attachEmbeddedMpvFrameView,
@@ -19,6 +21,10 @@ import {
     createPreloadPerformanceCapture,
     toPreloadPerformanceTargetMethod,
 } from './preload-performance-capture';
+import {
+    adjustFrameZoomLevel,
+    applyPersistedZoomLevel,
+} from './preload-zoom-level';
 import {
     createXtreamPreloadPerformanceCapture,
     isXtreamPreloadPerformanceCaptureEnabled,
@@ -275,6 +281,11 @@ function wrapElectronApi<T extends object>(api: T): T {
     ) as T;
 }
 
+const frameZoomPorts = {
+    getZoomLevel: () => webFrame.getZoomLevel(),
+    setZoomLevel: (level: number) => webFrame.setZoomLevel(level),
+};
+
 const electronApi: ElectronBridgeApi = {
     // Remote control channel change listener
     onChannelChange: (
@@ -422,6 +433,9 @@ const electronApi: ElectronBridgeApi = {
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
     toggleFullScreenWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_FULLSCREEN),
     closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),
+    // Zoom shortcuts: same frame-bound webFrame route as the restore below;
+    // synchronous, no IPC — persistence reads the level back in main.
+    adjustZoomLevel: (action) => adjustFrameZoomLevel(frameZoomPorts, action),
     getWindowState: () => ipcRenderer.invoke(WINDOW_GET_STATE),
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
@@ -683,6 +697,7 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_GET_PROGRAM_COVERAGE', window),
     forceFetchEpg: (url: string, options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
+    openEpgFileDialog: () => ipcRenderer.invoke('EPG_OPEN_FILE_DIALOG'),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
     reconcileEpgSources: (urls: string[]) =>
         ipcRenderer.invoke('EPG_RECONCILE_SOURCES', { urls }),
@@ -1165,5 +1180,23 @@ const electronApi: ElectronBridgeApi = {
         return () => ipcRenderer.off('RECORDINGS_UPDATE_EVENT', handler);
     },
 };
+
+// Restore the app zoom level (issue #1109). Must be webFrame (temporary,
+// frame-bound zoom), not a main-process setZoomLevel: under file:// Chromium
+// keys zoom by full URL, and the app's pushState routing would reset it on
+// the next resize. Applied at DOMContentLoaded, never earlier — see
+// preload-zoom-level.ts for the Linux/Windows ready-to-show trap.
+applyPersistedZoomLevel({
+    requestPersistedZoomLevel: () => ipcRenderer.sendSync(WINDOW_GET_ZOOM_LEVEL),
+    ...frameZoomPorts,
+    whenDocumentParsed: (apply) => {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', apply, { once: true });
+        } else {
+            apply();
+        }
+    },
+    notifyApplied: () => ipcRenderer.send(WINDOW_ZOOM_LEVEL_APPLIED),
+});
 
 contextBridge.exposeInMainWorld('electron', wrapElectronApi(electronApi));

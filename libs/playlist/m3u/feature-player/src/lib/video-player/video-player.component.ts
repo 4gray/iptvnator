@@ -14,6 +14,7 @@ import {
     signal,
     untracked,
     viewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -226,6 +227,7 @@ function isInsideScrollableRegion(
         { provide: EPG_GUIDE_SOURCE, useExisting: M3uEpgGuideSourceService },
     ],
     templateUrl: './video-player.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './video-player.component.scss',
 })
 export class VideoPlayerComponent

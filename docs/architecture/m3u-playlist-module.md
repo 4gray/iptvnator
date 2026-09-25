@@ -978,7 +978,34 @@ These URLs are playlist-scoped by default:
   TTL expires.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
-  playlists are not treated as global fallback sources. Single-channel current
+  playlists are not treated as global fallback sources. The one opt-out is
+  `EpgLookupOptions.anySourceFallback` (renderer-only, never forwarded to the
+  bridge): after the scope — playlist sources, then the global ones — has
+  answered, the keys still without a programme are retried once against every
+  imported source through the source-less batch path and its cache. The
+  ladder has the same shape with or without the bridge's batch endpoint: on
+  an older preload the scoped pass runs as per-channel scoped lookups
+  (`getScopedCurrentProgramForChannel`, same scope -> fallback-scope walk,
+  same scoped cache key) and only the any-source retry is source-less.
+  Collapsing that preload straight into the source-less lookup would drop
+  the caller's scope, which is what the scopes exist to prevent. The
+  dashboard live
+  rails pass the option: without it a favourite whose guide only exists in
+  another playlist's XMLTV showed no programme on the dashboard while its
+  "See all" row — resolved by `StreamResolverService`, which never scopes by
+  source — had one. They still ask **per source scope**, one lookup per
+  distinct set of playlist-declared XMLTV URLs, and namespace the answers by
+  that scope: a `tvg-id` is unique inside a guide, not across imports, so a
+  single flat map keyed by lookup key alone would hand one playlist's card
+  the programme another playlist's guide resolved for the same id. Playlists
+  sharing a guide share one lookup. Only a card that carries a real XMLTV key
+  is widened: an Xtream or Stalker card has none, so its lookup key is just
+  its display title, and searching every guide by title would let a
+  same-named M3U channel answer for a portal channel. Those cards keep the
+  strict scope (their own programmes come from the portal), and the
+  any-source flag is part of the scope identity so the two never share an
+  answer. Wiring: `DashboardLiveEpgPresenter` in
+  `libs/workspace/dashboard/feature/src/lib/rails/`. The channel list keeps the strict scope. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped
@@ -1063,6 +1090,62 @@ These URLs are playlist-scoped by default:
 
 ## EPG Integration
 
+### Xtream channel-row programme refresh
+
+The "current programme" line under each Xtream Live TV channel used to be
+written only when a row scrolled into view, when an EPG result arrived, or
+when the display offset changed. Nothing re-evaluated it as wall-clock time
+passed, so once a programme ended the row stayed on it until the category was
+left and re-entered (#767).
+
+`PortalChannelsListComponent` re-checks the rows on screen once a minute. The
+rules, each of which exists to avoid a specific failure:
+
+- A programme still on air only has its **progress bar** advanced. No cache
+  read, no request: a row with nothing to learn must not cost traffic.
+- Once it ends the row is re-picked from the queue's cache, and only a
+  programme that is **on air or upcoming** may replace it. A finished
+  programme is never re-applied — it would keep presenting itself as current,
+  and the earliest-item fallback that fills a blank row on first paint would
+  move an advanced row *backwards*.
+- A cached guide whose programmes have **all** ended is dropped
+  (`EpgQueueService.invalidate`) and refetched, because the queue skips any
+  stream that still holds a cached answer. An **empty** answer means the
+  provider has no guide for that channel and is left alone; re-asking would
+  put one call per EPG-less visible row on the wire every minute.
+- What is on screen stays there until a replacement arrives, so a refreshing
+  row never blanks out.
+
+A programme occupies `[start, stop)` in every one of these comparisons, so
+"has it ended" and "what is on air" cannot disagree on the boundary instant.
+The selection rules are pure functions in
+`libs/portal/xtream/feature/src/lib/portal-channels-list/epg-preview-program.ts`
+and take an explicit `nowMs` in the PROVIDER's clock (`epgProviderClockMs`),
+never `Date.now()`.
+
+Two root-provided services exist because a live layout mounts the channel list
+more than once — the sidebar and the fullscreen channel panel render side by
+side — over one shared `EpgQueueService`:
+
+- `EpgRefillLimiter` is the floor on dropping an exhausted cache, the one
+  place that overrides the queue's own throttling. A provider whose guide has
+  genuinely run out answers the refill with the same finished programmes, so
+  without a floor the row would ask again on the very next tick. Records carry
+  the owning playlist, since a stream id is provider-local and the service
+  outlives a playlist switch, and they expire by age rather than by viewport
+  membership — a claim dropped when its row scrolled away would be handed back
+  the moment the user scrolled to it again.
+- `EpgRefreshCoordinator` owns the single timer and merges what every mounted
+  list needs into one queue request. `EpgQueueService.enqueue` is latest-wins:
+  it bumps one generation, replaces the queue and the visible set, and drops an
+  earlier caller's entries after its XMLTV await. Separate timers would cancel
+  each other whenever both lists had rows to fill, which is exactly what
+  happens on a programme boundary. Each list still decides for itself what is
+  stale (that reads only its own state) and contributes its whole visible
+  slice, since the queue drops anything outside the visible set it was last
+  handed; a channel both lists show is fetched once, and playlists stay apart
+  because their credentials differ.
+
 ### XMLTV response compression
 
 The Electron EPG worker decodes HTTP `Content-Encoding` layers in reverse
@@ -1080,6 +1163,63 @@ and stream backpressure. Invalid or truncated gzip fails the import; it is not
 retried as plain XML. Source errors and consumer cancellation terminate the
 whole decoding chain. The decoder does not recursively unpack file layers or
 change XML parsing, source reconciliation, or database persistence contracts.
+
+### Local XMLTV files
+
+An EPG source is not necessarily a URL. Settings → EPG and the playlist
+dialog accept, next to `http(s)` links, a file on the user's computer in any
+of these shapes (Electron only — the PWA has no EPG import at all):
+
+- a `file:` URL (`file:///home/you/epg/guide.xml.gz`, `file:///C:/epg/guide.xml`)
+- an absolute POSIX path (`/home/you/epg/guide.xml`)
+- a Windows drive or UNC path (`C:\epg\guide.xml.gz`, `\\nas\share\guide.xml`)
+
+Both surfaces also offer a folder button that opens the native file picker
+(`EPG_OPEN_FILE_DIALOG` → `ElectronBridgeApi.openEpgFileDialog`, gated on
+`RuntimeCapabilitiesService.supportsEpgFilePicker`) and writes the chosen
+absolute path into the row. Relative paths are refused: the main process
+has no meaningful working directory to resolve them against. The value is stored exactly as typed
+(trimmed) and is the source key everywhere — freshness, reconciliation, the
+progress panel and `epg_channel_sources` all treat it like a URL string.
+
+The shape rules live in one place, `classifyEpgSourceReference()` in
+`libs/shared/interfaces/src/lib/epg-source-reference.util.ts`, and both
+forms validate through its structural `validateEpgSourceReferenceControl`.
+In the worker, `openEpgSourceStream()` (`epg-source-stream.ts`) is the single
+entry that yields decoded XMLTV bytes: remote sources still go through
+`requestWithValidatedRedirects` with the private-network/TLS trust policy,
+while local sources are read with `fs.createReadStream` behind the same
+signature-sniffing optional gunzip stage the HTTP path uses, so `.xml`,
+`.xml.gz` and an extension-less gzip file all parse. A missing file, a
+directory, or a truncated gzip fail the import with a plain message; nothing
+is retried as XML.
+
+**Provenance rule.** Only values the user chose or typed by hand may be
+local, and the decision is enforced in the main process, not in the form.
+The local branch bypasses `validateRemoteUrl` (which only knows http/https),
+so two layers guard it:
+
+- Header-declared M3U sources (`x-tvg-url`/`url-tvg`/`tvg-url`) are filtered
+  to remote links — `extractM3uEpgUrls` no longer matches `file:`, and
+  `resolvePlaylistEpgSourceState` / `filterPlaylistEpgUrlsForFetch` drop a
+  legacy non-remote entry that older versions stored from a header unless it
+  also appears in `manualEpgUrls`. A downloaded playlist cannot point the
+  importer at a file on disk; a user whose own local M3U references a local
+  XMLTV adds that file in the playlist dialog instead.
+- `FETCH_EPG`/`EPG_FORCE_FETCH` carry renderer-supplied strings, so
+  `EpgWorkerService.startFetch` asks the main-process
+  `EpgLocalSourceAuthorizer` (`epg-local-source-authorizer.ts`) before a
+  local path reaches the worker. A path the native picker returned is trusted
+  at once; a hand-typed path is confirmed once in a native message box the
+  renderer cannot fake, and a refusal fails that fetch — the progress panel
+  shows it with Retry ("Retry to be asked again") and the IPC result does
+  not report success. Allowed paths persist under
+  `TRUSTED_LOCAL_EPG_SOURCES` in the main-process config (`store.service.ts`)
+  so startup refreshes need no prompt. The worker's local branch opens only
+  when main set `allowLocalFile` on the fetch options — the flag is never
+  taken from the renderer — and the service defaults to a deny-all authorizer
+  until `epg.events.ts` installs the persisted one, so a missing wiring fails
+  closed. This mirrors `save-file-dialog` → `write-file` for playlist exports.
 
 ### EpgService (`@iptvnator/epg/data-access`)
 
@@ -1170,9 +1310,11 @@ class EpgService {
 - The unified favorites/recent live tab
   (`libs/portal/shared/ui/.../unified-collection/unified-live-tab.component.ts`)
   hosts the same timeline but does not use the NgRx playlist state; it keeps
-  its own `activeTimeshift` signal, resolves the replay URL with
-  `resolveM3uCatchupUrl`, and swaps the inline player's playback target (or
-  hands the URL to the configured external player). Selecting another channel,
+  its own `activeTimeshift` signal and hands it to
+  `createUnifiedLiveCatchup` (`unified-live-catchup.ts`), which resolves the
+  replay URL with `resolveM3uCatchupUrl` and swaps the inline player's
+  playback target (or hands the URL to the configured external player).
+  Selecting another channel,
   closing the player, or "Return to live" clears the override.
 - Catch-up activation is never silent: if the replay URL cannot be resolved
   for a programme the user clicked, both hosts surface a
@@ -1764,3 +1906,44 @@ deletes with follow-up cleanup warnings. The UI does not resurrect a deleted
 row after a cleanup failure. Downloaded files are not removed. The dialog's
 confirmation covers deletion of the source and associated favorites, history
 and playback positions; no deletion happens on merely opening the dialog.
+
+## Opening playlists from the operating system
+
+Electron only: a `.m3u`/`.m3u8` path passed
+on the command line, opened through a file association, or delivered by macOS'
+`open-file` event is normalized to an absolute path in the main process
+(`apps/electron-backend/src/app/services/playlist-open-request.ts`) and queued there. The renderer
+(`apps/web/src/app/services/playlist-open-request.service.ts`) subscribes to the
+`OPEN_FILE` push **before** calling `announcePlaylistOpenListener`, which is
+what makes the main process flush. `OPEN_FILE` is the only way out of the
+queue, and a request stays there until the renderer confirms receipt via
+`acknowledgePlaylistOpenRequest` — `webContents.send()` returns before the
+listener runs, and a reload or dead render process keeps the `WebContents`
+alive, so a successful push is not proof of delivery. Anything unacknowledged
+is replayed to the next renderer that announces itself. The renderer
+imports them on a single promise chain so a burst arrives in a deterministic
+order. `addPlaylist$` in `libs/m3u-state` uses `concatMap` (not `switchMap`)
+for the same reason: each action carries a different playlist, so a newer add
+must never cancel an older one's write, EPG fetch and navigation. The import
+itself reuses the normal file path
+(`updatePlaylistFromFilePath` → `PlaylistActions.addPlaylist`), so persistence,
+playlist-scoped EPG, and the navigation to the new playlist all behave exactly
+like a dialog import.
+
+The OS-level registration that makes those paths reachable is
+`fileAssociations` in `electron-builder.json` — one entry per extension, each
+with its own `mimeType`. Electron Builder derives all three platform
+registrations from it: macOS `CFBundleDocumentTypes` (which is what makes
+`open-file` fire from Finder), the NSIS registry entries, and, on Linux, the
+desktop entry's `MimeType` plus `/usr/share/mime/packages/iptvnator.xml` for
+deb/rpm/pacman. Two traps: it assigns the derived `MimeType` _after_ spreading
+`linux.desktop.entry`, so declaring `MimeType` there is silently overwritten and
+must not be used; and it appends `%U` to `Exec`, so Linux file managers hand
+over percent-encoded `file://` URIs rather than paths —
+`createPlaylistOpenRequest` decodes them before the extension check. `%U` is
+also the _plural_ exec code, so a multi-file selection arrives as one launch
+with one argument per file; `extractPlaylistOpenRequestsFromArgv` returns all
+of them and `enqueueAll` queues the batch, because stopping at the first match
+would silently drop the rest of the selection. Adding an exec code to
+`linux.executableArgs` would suppress the `%U` but also pass that code to the
+app as a real argument, so it is not an option.

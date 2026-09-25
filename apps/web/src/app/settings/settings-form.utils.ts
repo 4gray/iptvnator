@@ -7,11 +7,14 @@ import {
     Validators,
 } from '@angular/forms';
 import {
+    AppUpdateChannel,
     CoverSize,
+    DEFAULT_APP_UPDATE_CHANNEL,
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
     EpgViewMode,
     Language,
+    normalizeAppUpdateChannel,
     normalizeDashboardRailsSettings,
     normalizeEmbeddedMpvExtraOptions,
     normalizeExternalPlayerArguments,
@@ -24,10 +27,9 @@ import {
     StreamFormat,
     Theme,
     validateEmbeddedMpvExtraOptions,
+    validateEpgSourceReferenceControl,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-
-export const EPG_URL_PATTERN = /^(http|https|file):\/\/[^ "]+$/;
 
 /**
  * Rejects malformed lines and the option keys the embed depends on, so a
@@ -45,8 +47,13 @@ export function embeddedMpvExtraOptionsValidator(
     return validateEmbeddedMpvExtraOptions(control.value);
 }
 
+/**
+ * An EPG source is a remote XMLTV link or a local file (absolute path or
+ * `file:` URL); the accepted shapes live in `@iptvnator/shared/interfaces`
+ * so the playlist dialog validates identically.
+ */
 export function createEpgUrlControl(value = ''): FormControl<string | null> {
-    return new FormControl(value, [Validators.pattern(EPG_URL_PATTERN)]);
+    return new FormControl(value, [validateEpgSourceReferenceControl]);
 }
 
 export function createSettingsForm(
@@ -86,6 +93,7 @@ export function createSettingsForm(
         }),
         startupBehavior: StartupBehavior.FirstView,
         startupWindowMode: 'normal' as StartupWindowMode,
+        updateChannel: DEFAULT_APP_UPDATE_CHANNEL as AppUpdateChannel,
         showExternalPlaybackBar: true,
         stripCountryPrefix: false,
         theme: Theme.SystemTheme,
@@ -111,6 +119,7 @@ export function createSettingsForm(
         embeddedMpvAutoReconnect: true,
         portalConnectivityGuard: true,
         coverSize: 'medium' as CoverSize,
+        showCoverTitles: true,
         ...(supportsEpg
             ? {
                   preferUploadedEpgOverXtream: false,
@@ -178,6 +187,7 @@ export function createSettingsFromFormValue(
         dashboardRails: normalizeDashboardRailsSettings(value.dashboardRails),
         startupBehavior: value.startupBehavior ?? StartupBehavior.FirstView,
         startupWindowMode: normalizeStartupWindowMode(value.startupWindowMode),
+        updateChannel: normalizeAppUpdateChannel(value.updateChannel),
         showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
         stripCountryPrefix: value.stripCountryPrefix ?? false,
         theme: value.theme ?? Theme.SystemTheme,
@@ -201,6 +211,7 @@ export function createSettingsFromFormValue(
         embeddedMpvAutoReconnect: value.embeddedMpvAutoReconnect ?? true,
         portalConnectivityGuard: value.portalConnectivityGuard !== false,
         coverSize: value.coverSize ?? 'medium',
+        showCoverTitles: value.showCoverTitles !== false,
         epgUrl,
         preferUploadedEpgOverXtream:
             value.preferUploadedEpgOverXtream ??

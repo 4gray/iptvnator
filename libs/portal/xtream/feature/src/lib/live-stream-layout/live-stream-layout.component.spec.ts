@@ -75,6 +75,7 @@ describe('LiveStreamLayoutComponent', () => {
     const selectedItem = signal<unknown>(sampleChannel);
     const currentPlaylist = signal(playlist);
     const liveStreams = signal<unknown[]>([]);
+    const isContentInitialized = signal(true);
     const paginatedContent = signal<unknown[]>([]);
     const hasMoreContent = signal(false);
 
@@ -92,6 +93,7 @@ describe('LiveStreamLayoutComponent', () => {
         selectedItem,
         currentPlaylist,
         liveStreams,
+        isContentInitialized,
         selectItemsFromSelectedCategory: jest.fn(() => [sampleChannel]),
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),

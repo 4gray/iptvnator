@@ -3,7 +3,8 @@
     "compilerOptions": {
         "types": ["node"],
         "moduleResolution": "nodenext",
-        "module": "NodeNext"
+        "module": "NodeNext",
+        "ignoreDeprecations": "6.0"
     },
     "include": ["**/*.ts"]
 }

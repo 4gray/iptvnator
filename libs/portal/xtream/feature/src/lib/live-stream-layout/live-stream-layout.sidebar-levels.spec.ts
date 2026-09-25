@@ -1,6 +1,13 @@
 import { EpgArchiveDownloadService } from '@iptvnator/ui/epg';
 import { EpgArchiveCopyService } from '@iptvnator/ui/epg';
-import { Component, Directive, input, output, signal } from '@angular/core';
+import {
+    Component,
+    Directive,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
@@ -40,6 +47,7 @@ import { LiveStreamLayoutComponent } from './live-stream-layout.component';
 @Component({
     selector: 'app-portal-channels-list',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class StubPortalChannelsListComponent {
@@ -56,13 +64,19 @@ class StubPortalChannelsListComponent {
 @Component({
     selector: 'app-channel-list-hidden-state',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '<div data-test-id="hidden-state-stub"></div>',
 })
 class StubChannelListHiddenStateComponent {
     readonly restore = output<void>();
 }
 
-@Component({ selector: 'app-grid-list', standalone: true, template: '' })
+@Component({
+    selector: 'app-grid-list',
+    standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubGridListComponent {
     readonly items = input<unknown[]>([]);
     readonly isLoading = input(false);
@@ -75,6 +89,7 @@ class StubGridListComponent {
 @Component({
     selector: 'app-web-player-view, app-epg-timeline, app-epg-list-view',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '',
 })
 class StubPassiveComponent {}
@@ -110,6 +125,7 @@ describe('LiveStreamLayoutComponent sidebar levels', () => {
         selectedItem: signal(null),
         currentPlaylist: signal({ _id: 'pl-1', title: 'Playlist' }),
         liveStreams: emptyList,
+        isContentInitialized: signal(true),
         selectItemsFromSelectedCategory: jest.fn(() => []),
         constructStreamUrl: jest.fn(() => ''),
         openPlayer: jest.fn(),

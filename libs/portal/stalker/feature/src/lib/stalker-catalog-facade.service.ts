@@ -22,22 +22,11 @@ import {
     PORTAL_CATALOG_FACADE,
     PORTAL_PLAYBACK_POSITIONS,
     StalkerPortalCatalogFacade,
+    getPortalPlaybackProgressPercent,
+    resolvePortalSeriesWatchState,
+    resolvePortalWatchState,
 } from '@iptvnator/portal/shared/util';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
-
-function calculateProgress(position: PlaybackPositionData | undefined): number {
-    if (!position || !position.durationSeconds) {
-        return 0;
-    }
-
-    const percent = (position.positionSeconds / position.durationSeconds) * 100;
-
-    if (position.positionSeconds > 10 && percent < 1) {
-        return 1;
-    }
-
-    return Math.min(100, Math.round(percent));
-}
 
 @Injectable()
 export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
@@ -283,20 +272,16 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
             this.contentType() === 'series' ||
             isStalkerSeriesFlag(item.is_series);
 
-        if (hasSeriesProgress) {
-            return { hasSeriesProgress: true };
+        if (hasSeriesProgress || isSeries) {
+            return {
+                watchState: resolvePortalSeriesWatchState(hasSeriesProgress),
+            };
         }
 
-        if (isSeries) {
-            return { hasSeriesProgress: false };
-        }
-
-        const progress = calculateProgress(
-            this.stalkerPositions().get(`vod_${numericId}`)
-        );
+        const position = this.stalkerPositions().get(`vod_${numericId}`);
         return {
-            progress,
-            isWatched: progress >= 90,
+            progress: getPortalPlaybackProgressPercent(position),
+            watchState: resolvePortalWatchState(position),
         };
     }
 

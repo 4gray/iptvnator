@@ -1,4 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -14,6 +20,8 @@ import {
     EpgProgressService,
 } from '@iptvnator/epg/data-access';
 import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
+import { normalizeDateLocale } from '@iptvnator/pipes';
+import { formatEpgImportDisplayUrl } from './epg-import-display-url';
 
 interface EpgTrustConfirmDialogData {
     confirmLabel: string;
@@ -24,6 +32,7 @@ interface EpgTrustConfirmDialogData {
 @Component({
     selector: 'app-epg-trust-confirm-dialog',
     imports: [MatButtonModule, MatDialogModule, TranslatePipe],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <h2 mat-dialog-title>{{ data.title }}</h2>
         <mat-dialog-content class="mat-typography">
@@ -55,6 +64,7 @@ class EpgTrustConfirmDialogComponent {
         TranslatePipe,
     ],
     templateUrl: './epg-progress-panel.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './epg-progress-panel.component.scss',
 })
 export class EpgProgressPanelComponent {
@@ -106,11 +116,19 @@ export class EpgProgressPanelComponent {
     }
 
     getDisplayUrl(url: string): string {
+        return formatEpgImportDisplayUrl(url);
+    }
+
+    formatCount(value: number): string {
+        // App language codes are not all BCP 47 tags (`zhtw`, `ary`, `by`);
+        // the date pipes already map those aliases for Intl.
+        const locale = normalizeDateLocale(
+            this.translate.currentLang || this.translate.defaultLang
+        );
         try {
-            const urlObject = new URL(url);
-            return urlObject.hostname + urlObject.pathname.split('/').pop();
+            return new Intl.NumberFormat(locale).format(value);
         } catch {
-            return url.length > 40 ? `${url.substring(0, 40)}...` : url;
+            return String(value);
         }
     }
 

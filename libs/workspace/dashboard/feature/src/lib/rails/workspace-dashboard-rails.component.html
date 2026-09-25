@@ -99,9 +99,7 @@
                                     >
                                 }
                                 @for (genre of item.genres; track genre) {
-                                    <span class="hero__badge">{{
-                                        genre
-                                    }}</span>
+                                    <span class="hero__badge">{{ genre }}</span>
                                 }
                             </span>
                         }
@@ -149,7 +147,10 @@
                             </span>
                         }
 
-                        @if (item.watchProgress !== null && item.watchProgress !== undefined) {
+                        @if (
+                            item.watchProgress !== null &&
+                            item.watchProgress !== undefined
+                        ) {
                             <span class="hero__progress" aria-hidden="true">
                                 <span
                                     class="hero__progress-bar"
@@ -233,6 +234,9 @@
                 [seeAllState]="liveSeeAllState"
                 layout="channel"
                 [testId]="'dashboard-live-favorites-rail'"
+                (visibleCardsChanged)="
+                    liveEpg.setVisibleCards('favorites', $event)
+                "
             />
         } @else if (showLiveFavoritesSkeleton()) {
             <section
@@ -261,6 +265,9 @@
                 [seeAllState]="liveSeeAllState"
                 layout="channel"
                 [testId]="'dashboard-recent-live-rail'"
+                (visibleCardsChanged)="
+                    liveEpg.setVisibleCards('recent', $event)
+                "
             />
         }
 
@@ -270,8 +277,7 @@
         ) {
             <lib-dashboard-rail
                 [label]="
-                    'WORKSPACE.DASHBOARD.FAVORITE_MOVIES_AND_SERIES'
-                        | translate
+                    'WORKSPACE.DASHBOARD.FAVORITE_MOVIES_AND_SERIES' | translate
                 "
                 [items]="favoriteMoviesAndSeriesCards()"
                 [totalCount]="
@@ -340,7 +346,8 @@
             />
         } @else if (
             dashboardRails().xtreamRecentlyAdded &&
-            xtreamPlaylistCount() > 0 && data.xtreamRecentlyAddedLoading()
+            xtreamPlaylistCount() > 0 &&
+            data.xtreamRecentlyAddedLoading()
         ) {
             <section
                 class="rails-page__skeleton-rail"

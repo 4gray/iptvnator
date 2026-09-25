@@ -563,6 +563,12 @@ export const epgPreloadCases: PreloadInvokeCase[] = [
         ],
     },
     {
+        method: 'openEpgFileDialog',
+        args: [],
+        channel: 'EPG_OPEN_FILE_DIALOG',
+        forwardedArgs: [],
+    },
+    {
         method: 'clearEpgData',
         args: [],
         channel: 'EPG_CLEAR_ALL',

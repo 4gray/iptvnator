@@ -8,6 +8,7 @@ import {
     OnInit,
     signal,
     untracked,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
@@ -44,6 +45,7 @@ import {
     XtreamSerieInfo,
 } from '@iptvnator/shared/interfaces';
 import { buildSeasonDescriptions } from './season-descriptions.util';
+import { buildSeasonPosters } from './season-posters.util';
 import {
     createDiscoverFacetNavigation,
     isProviderOnlyDetailState,
@@ -85,6 +87,7 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
         SerialDetailsSeasonWatchService,
         SerialDetailsSimilarService,
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         DetailActionsTemplateDirective,
         DetailMetaTemplateDirective,
@@ -189,6 +192,11 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     /** Season descriptions (provider text, TMDB fallback, URL junk dropped). */
     readonly seasonDescriptions = computed<Record<string, string>>(() =>
         buildSeasonDescriptions(this.selectedItem())
+    );
+
+    /** Season posters (TMDB season poster first, provider season cover next). */
+    readonly seasonPosters = computed<Record<string, string>>(() =>
+        buildSeasonPosters(this.selectedItem())
     );
 
     /** The "Similar" rail: catalog matches plus cross-portal matches */

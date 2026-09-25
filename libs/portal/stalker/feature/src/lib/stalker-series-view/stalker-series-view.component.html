@@ -211,14 +211,18 @@
                 [seriesTitle]="serial.info.name"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 [upNextEpisodes]="upNextEpisodes()"
+                [seriesEpisodes]="mappedSeasons()"
+                [seasonPosters]="seasonPosters()"
+                [episodePlaybackPositions]="episodePlaybackPositions()"
+                [seasonLoadStates]="vodSeasonLoadStates()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
-                (backClicked)="goBack()"
                 (streamUrlCopied)="showCopyNotification()"
                 (playbackEnded)="handleInlinePlaybackEnded()"
                 (previousEpisodeRequested)="playPreviousEpisode()"
                 (nextEpisodeRequested)="playNextEpisode()"
                 (upNextEpisodeSelected)="playUpNextEpisode($event)"
+                (episodePanelSeasonSelected)="onSeasonSelected($event)"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "
@@ -240,11 +244,16 @@
                     inlinePlayback()?.contentInfo?.contentXtreamId ?? null
                 "
                 [seasonDescriptions]="seasonDescriptions()"
+                [seasonPosters]="seasonPosters()"
                 [downloadsEnabled]="!providerOnly()"
                 [downloadAdapter]="episodeDownloadAdapter()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
-                    isCurrentSeasonLoading(seasonContainer?.selectedSeason())
+                    isCurrentSeasonLoading(
+                        $safeNavigationMigration(
+                            seasonContainer?.selectedSeason()
+                        )
+                    )
                 "
                 [seasonWatchBatchRunning]="seasonWatchBatchRunning()"
                 [hasUnloadedSeasons]="hasUnloadedVodSeasons()"

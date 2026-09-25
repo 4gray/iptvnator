@@ -9,6 +9,11 @@ const ipcHandlers = new Map<
     (event: unknown, args: unknown) => Promise<unknown>
 >();
 
+jest.mock('../services/store.service', () => ({
+    TRUSTED_LOCAL_EPG_SOURCES: 'TRUSTED_LOCAL_EPG_SOURCES',
+    store: { get: jest.fn(), set: jest.fn() },
+}));
+
 jest.mock('electron', () => ({
     app: {
         isPackaged: false,

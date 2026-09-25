@@ -1,4 +1,9 @@
-import { Component, input, output } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { createStalkerVodItem } from '@iptvnator/shared/interfaces';
@@ -6,7 +11,11 @@ import { VodDetailsComponent } from '@iptvnator/ui/playback';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail.component';
 
-@Component({ selector: 'app-vod-details', template: '' })
+@Component({
+    selector: 'app-vod-details',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubVodDetailsComponent {
     readonly playbackSessionKey = input.required<string>();
     readonly item = input.required<unknown>();
@@ -15,9 +24,14 @@ class StubVodDetailsComponent {
     readonly playbackPosition = input<number | null>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly externalPlayback = input<unknown>(null);
+    readonly isWatched = input(false);
+    readonly watchedToggleBusy = input(false);
+    readonly watchedToggleReady = input(true);
+    readonly playbackStartPending = input(false);
     readonly playClicked = output<unknown>();
     readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
+    readonly watchedToggled = output<{ item: unknown; watched: boolean }>();
     readonly backClicked = output<void>();
     readonly inlineTimeUpdated = output<unknown>();
     readonly inlinePlaybackClosed = output<void>();
@@ -25,7 +39,11 @@ class StubVodDetailsComponent {
     readonly inlineExternalFallbackRequested = output<unknown>();
 }
 
-@Component({ selector: 'app-stalker-series-view', template: '' })
+@Component({
+    selector: 'app-stalker-series-view',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    template: '',
+})
 class StubStalkerSeriesViewComponent {
     readonly vodWithSeries = input<unknown>(null);
     readonly providerOnly = input(false);
@@ -76,6 +94,33 @@ describe('StalkerInlineDetailComponent provider presentation', () => {
         ).componentInstance as StubVodDetailsComponent;
         expect(child.providerOnly()).toBe(true);
         expect(child.playbackSessionKey()).toBe('collection-owned-vod-key');
+    });
+
+    it('relays the watched state and toggle of regular VOD details', async () => {
+        fixture.componentRef.setInput('categoryId', 'vod');
+        fixture.componentRef.setInput('vodDetailsItem', VOD_ITEM);
+        fixture.componentRef.setInput('isWatched', true);
+        fixture.componentRef.setInput('watchedToggleBusy', true);
+        fixture.componentRef.setInput('watchedToggleReady', false);
+        fixture.componentRef.setInput('playbackStartPending', true);
+        const watchedToggled = jest.fn();
+        fixture.componentInstance.watchedToggled.subscribe(watchedToggled);
+        await fixture.whenStable();
+
+        const child = fixture.debugElement.query(
+            By.directive(StubVodDetailsComponent)
+        ).componentInstance as StubVodDetailsComponent;
+        expect(child.isWatched()).toBe(true);
+        expect(child.watchedToggleBusy()).toBe(true);
+        expect(child.watchedToggleReady()).toBe(false);
+        expect(child.playbackStartPending()).toBe(true);
+
+        child.watchedToggled.emit({ item: VOD_ITEM, watched: false });
+
+        expect(watchedToggled).toHaveBeenCalledWith({
+            item: VOD_ITEM,
+            watched: false,
+        });
     });
 
     it.each([

@@ -53,7 +53,7 @@ The application is a cross-platform, open-source project built with Electron and
 **Discovery & metadata**
 
 - Global search across live TV, movies, and series _(desktop)_
-- TMDB enrichment (opt-in) — plots, cast & crew, trailers, ratings, artwork, a "Similar" rail, clickable actor pages, and a trending dashboard rail _(trending rail: desktop)_
+- TMDB enrichment (opt-in, requires your own TMDB API key) — plots, cast & crew, trailers, ratings, artwork, a "Similar" rail, clickable actor pages, and a trending dashboard rail _(trending rail: desktop)_
 - Dashboard with recently watched & continue-watching
 
 **Organization**
@@ -145,6 +145,18 @@ such as MPV, VLC, or IINA.
 Download the latest version of the application for macOS, Windows, and Linux from the [release page](https://github.com/4gray/iptvnator/releases).
 
 Alternatively, you can install the application using one of the following package managers:
+
+### Nightly builds
+
+Every merge into `master` is published as a prerelease in
+[4gray/iptvnator-nightly](https://github.com/4gray/iptvnator-nightly). The
+desktop app can follow them: **Settings → About → Update channel → Nightly**
+offers each new build through the built-in updater (macOS, Windows, and the
+Linux AppImage). Nightly builds are untested snapshots — they may break, and
+their database changes are permanent, so switching back to **Stable** keeps
+the installed nightly until the next stable release is newer. Back up your
+playlists first, and mention the version and commit shown in *About* when
+reporting a bug from a nightly.
 
 ### Homebrew
 
@@ -272,11 +284,18 @@ needed.
 
 Requirements:
 
-- Node.js 22.13–22.x or 24 and newer with pnpm (via Corepack)
+- Node.js 22.22.3 or newer within 22.x, or 24.15.0 or newer within 24.x
+- pnpm 10.33.0 (via Corepack)
+
+The repository's `.nvmrc` pins the Node.js version used by CI. With nvm,
+run `nvm install` and `nvm use` from the repository root to use the same version
+for local development.
 
 1. Clone this repository and install project dependencies:
 
     ```
+    $ nvm install
+    $ nvm use
     $ corepack enable
     $ pnpm install
     ```
@@ -370,3 +389,11 @@ The name **"IPTVnator"** and the IPTVnator logo are unregistered trademarks of t
 [![All Contributors](https://img.shields.io/badge/all_contributors-13-orange.svg?style=flat-square)](#contributors)
 
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
+
+## Developer and agent documentation
+
+Start with the [task context map](docs/maintenance/agent-context-map.md) to find
+the authoritative contract and validation for your area. Common agent rules are
+in [AGENTS.md](AGENTS.md); Claude Code imports that same file. Development and
+documentation-maintenance conventions live in the
+[agent workflow](docs/development/agent-workflow.md).

@@ -16,6 +16,7 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export interface GroupManagementDialogGroup {
     readonly count: number;
@@ -78,14 +79,14 @@ export class GroupManagementDialogComponent {
     );
 
     readonly filteredGroups = computed(() => {
-        const term = this.searchTerm().trim().toLowerCase();
+        const term = foldSearchText(this.searchTerm().trim());
 
         if (!term) {
             return this.groups();
         }
 
         return this.groups().filter((group) =>
-            group.key.toLowerCase().includes(term)
+            foldSearchText(group.key).includes(term)
         );
     });
 

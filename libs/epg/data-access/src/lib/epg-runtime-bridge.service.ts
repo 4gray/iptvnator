@@ -27,7 +27,18 @@ export type EpgImportProgress = ElectronBridgeEpgProgress;
 export type EpgFetchResult = ElectronBridgeEpgFetchResult;
 export type EpgFreshnessResult = ElectronBridgeEpgFreshnessResult;
 export type EpgClearResult = ElectronBridgeResult;
-export type EpgLookupOptions = ElectronBridgeEpgLookupOptions;
+export interface EpgLookupOptions extends ElectronBridgeEpgLookupOptions {
+    /**
+     * Retry the keys the scoped lookup (playlist scope, then Settings-managed
+     * global sources) left without a programme against every imported XMLTV
+     * source. Off by default: the scopes exist so a playlist's own guide wins
+     * over a same-named channel in another playlist's guide. Surfaces with no
+     * playlist context — the dashboard live rails — opt in, matching the
+     * collection resolver and the timeline, which never scope by source.
+     * Renderer-only: it is not forwarded to the desktop bridge.
+     */
+    anySourceFallback?: boolean;
+}
 export type EpgCurrentProgramsOptions = ElectronBridgeCurrentProgramsOptions;
 
 type EpgElectronBridge = Pick<
@@ -37,6 +48,7 @@ type EpgElectronBridge = Pick<
     | 'clearEpgDataForSource'
     | 'fetchEpg'
     | 'forceFetchEpg'
+    | 'openEpgFileDialog'
     | 'getChannelPrograms'
     | 'getCurrentProgramsBatch'
     | 'getEpgChannelMetadata'
@@ -61,6 +73,10 @@ export class EpgRuntimeBridgeService {
 
     get supportsProgress(): boolean {
         return this.runtime.supportsEpgProgress;
+    }
+
+    get supportsFilePicker(): boolean {
+        return this.runtime.supportsEpgFilePicker;
     }
 
     get supportsProgramLookup(): boolean {
@@ -117,6 +133,15 @@ export class EpgRuntimeBridgeService {
         return (
             this.bridge?.forceFetchEpg?.(url, options) ?? Promise.resolve(null)
         );
+    }
+
+    /** Native picker for a local XMLTV file; null when unsupported or cancelled. */
+    pickEpgFile(): Promise<string | null> {
+        if (!this.supportsFilePicker) {
+            return Promise.resolve(null);
+        }
+
+        return this.bridge?.openEpgFileDialog?.() ?? Promise.resolve(null);
     }
 
     clearEpgData(): Promise<EpgClearResult | null> {

@@ -1,6 +1,7 @@
 import { FormBuilder } from '@angular/forms';
 import { Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
+    createEpgUrlControl,
     createSettingsForm,
     createSettingsFromFormValue,
 } from './settings-form.utils';
@@ -78,6 +79,38 @@ describe('settings form utils — startup window mode', () => {
         expect(
             createSettingsFromFormValue(form, {} as Settings).startupWindowMode
         ).toBe('normal');
+    });
+});
+
+describe('settings form utils — update channel', () => {
+    const formBuilder = new FormBuilder();
+
+    it('defaults the form control to the stable channel', () => {
+        const form = createSettingsForm(formBuilder, true);
+
+        expect(form.getRawValue().updateChannel).toBe('stable');
+    });
+
+    it('carries the chosen channel into the settings object', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({ updateChannel: 'nightly' });
+
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).updateChannel
+        ).toBe('nightly');
+    });
+
+    it('collapses a missing or unknown channel to stable', () => {
+        const form = createSettingsForm(formBuilder, true);
+        form.patchValue({ updateChannel: null as unknown as 'stable' });
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).updateChannel
+        ).toBe('stable');
+
+        form.patchValue({ updateChannel: 'canary' as unknown as 'stable' });
+        expect(
+            createSettingsFromFormValue(form, {} as Settings).updateChannel
+        ).toBe('stable');
     });
 });
 
@@ -201,4 +234,25 @@ describe('settings form utils — embedded MPV session options', () => {
 
         expect(settings.embeddedMpvAutoReconnect).toBe(true);
     });
+});
+
+describe('settings form utils — EPG source control', () => {
+    it.each([
+        'https://epg.example.org/guide.xml.gz',
+        '/home/user/epg/guide.xml',
+        'C:\\epg\\guide.xml.gz',
+        'file:///home/user/epg/guide.xml',
+        '',
+    ])('accepts %j', (value) => {
+        expect(createEpgUrlControl(value).valid).toBe(true);
+    });
+
+    it.each(['guide.xml', 'ftp://epg.example.org/guide.xml', 'epg'])(
+        'rejects %j',
+        (value) => {
+            const control = createEpgUrlControl(value);
+            expect(control.valid).toBe(false);
+            expect(control.errors).toEqual({ epgSourceReference: true });
+        }
+    );
 });

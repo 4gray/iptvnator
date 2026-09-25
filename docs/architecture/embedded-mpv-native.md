@@ -987,6 +987,13 @@ The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-
 Current development behavior:
 
 - The addon build supports `darwin`, `win32`, and `linux`; Windows and Linux builds require running on that target OS.
+- The addon is compiled by upstream `node-gyp`, declared as a root
+  `devDependency` and resolved with `require.resolve` in
+  `apps/electron-backend/build-embedded-mpv.js`. That resolution must not rely
+  on the `NODE_PATH` that pnpm's `.bin` shims export: it only reaches pnpm's
+  hidden hoist (`node_modules/.pnpm/node_modules`), so an undeclared
+  `node-gyp` works under `pnpm nx …` and in CI but fails from a plain
+  `node apps/electron-backend/build-embedded-mpv.js` on a clean install.
 - The build script first looks for staged inputs at `vendor/embedded-mpv/<platform>-<arch>/`. On Linux, local development can fall back to distribution `libmpv-dev` headers and libraries. `LIBMPV_INCLUDE_DIR` overrides the header root. `LINUX_NATIVE_LIBRARY_DIR` is a link-time override and must name a directory already visible to the system dynamic loader; it is never inherited as helper `LD_LIBRARY_PATH`.
 - When the staged-input path is used, it must contain `include/mpv/client.h`,
   `runtime-manifest.json`, and the platform runtime/build files. The Linux

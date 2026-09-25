@@ -1,4 +1,11 @@
-import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import {
+    Component,
+    EventEmitter,
+    Output,
+    inject,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util';
@@ -11,6 +18,7 @@ const KB = 1024;
     imports: [DragDropFileUploadDirective, MatIconModule, TranslatePipe],
     selector: 'app-file-upload',
     templateUrl: './file-upload.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrls: ['./file-upload.component.scss'],
 })
 export class FileUploadComponent {

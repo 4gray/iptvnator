@@ -1,5 +1,12 @@
 import { CdkTrapFocus } from '@angular/cdk/a11y';
-import { Component, Directive, input, output, signal } from '@angular/core';
+import {
+    Component,
+    Directive,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
 import { EmbeddedMpvOverlayVisibilityService } from '@iptvnator/ui/playback';
@@ -21,6 +28,7 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 @Component({
     selector: 'app-workspace-shell-rail',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceShellRailComponent {
@@ -39,6 +47,7 @@ class MockWorkspaceShellRailComponent {
 @Component({
     selector: 'app-workspace-shell-header',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceShellHeaderComponent {
@@ -89,6 +98,7 @@ class MockWorkspaceShellHeaderComponent {
 @Component({
     selector: 'app-workspace-shell-context-sidebar',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceShellContextSidebarComponent {
@@ -101,6 +111,7 @@ class MockWorkspaceShellContextSidebarComponent {
 @Component({
     selector: 'app-external-playback-dock',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockExternalPlaybackDockComponent {
@@ -112,6 +123,7 @@ class MockExternalPlaybackDockComponent {
 @Component({
     selector: 'app-playlist-drop-overlay',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockPlaylistDropOverlayComponent {
@@ -130,6 +142,7 @@ class MockPlaylistDropZoneDirective {
 @Component({
     selector: 'app-workspace-shell-import-overlay',
     template: '',
+    changeDetection: ChangeDetectionStrategy.Eager,
     standalone: true,
 })
 class MockWorkspaceShellImportOverlayComponent {}

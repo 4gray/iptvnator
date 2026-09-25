@@ -1,5 +1,11 @@
 import { Location } from '@angular/common';
-import { Component, input, output, signal } from '@angular/core';
+import {
+    Component,
+    input,
+    output,
+    signal,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -32,6 +38,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 @Component({
     selector: 'app-portal-inline-player',
     standalone: true,
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: '<div data-testid="inline-vod-player"></div>',
 })
 class StubPortalInlinePlayerComponent {
@@ -94,6 +101,8 @@ describe('VodDetailsRouteComponent fallback actions', () => {
     const playDownload = jest.fn().mockResolvedValue(undefined);
     const revealFile = jest.fn().mockResolvedValue({ success: true });
     const toggleFavorite = jest.fn();
+    const savePlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
+    const loadAllPositions = jest.fn().mockResolvedValue(undefined);
     const sparseItem = (): SparseVodItem => ({
         info: [],
         stream_id: 650020,
@@ -190,6 +199,8 @@ describe('VodDetailsRouteComponent fallback actions', () => {
         playDownload.mockClear();
         revealFile.mockClear();
         toggleFavorite.mockClear();
+        savePlaybackPositionOrThrow.mockClear().mockResolvedValue(undefined);
+        loadAllPositions.mockClear();
         await TestBed.configureTestingModule({
             imports: [VodDetailsRouteComponent],
             providers: [
@@ -240,6 +251,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                         constructVodStreamUrl,
                         addRecentItem: jest.fn(),
                         backfillContentMetadata: jest.fn(),
+                        loadAllPositions,
                     },
                 },
                 {
@@ -282,6 +294,10 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                     useValue: {
                         getPlaybackPosition: jest.fn().mockResolvedValue(null),
                         savePlaybackPosition: jest.fn(),
+                        savePlaybackPositionOrThrow,
+                        clearPlaybackPositionOrThrow: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
                     },
                 },
                 {
@@ -345,6 +361,36 @@ describe('VodDetailsRouteComponent fallback actions', () => {
 
         expect(fixture.componentInstance.selectedCatalogItem()).toBeNull();
         expect(fixture.componentInstance.selectedCategory()).toBeNull();
+    });
+    it('marks the movie watched from the action row and refreshes catalog badges', async () => {
+        selectedItem.set(richItem());
+        fixture.detectChanges();
+        const host = fixture.nativeElement as HTMLElement;
+        const toggle = host.querySelector<HTMLButtonElement>(
+            '[data-testid="vod-watched-toggle"]'
+        );
+        expect(toggle).not.toBeNull();
+        expect(toggle?.getAttribute('aria-pressed')).toBe('false');
+
+        toggle?.click();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(savePlaybackPositionOrThrow).toHaveBeenCalledWith(
+            'playlist-1',
+            expect.objectContaining({
+                contentXtreamId: 650020,
+                contentType: 'vod',
+            })
+        );
+        expect(loadAllPositions).toHaveBeenCalledWith('playlist-1');
+        expect(
+            host
+                .querySelector('[data-testid="vod-watched-toggle"]')
+                ?.getAttribute('aria-pressed')
+        ).toBe('true');
+        // A watched copy reads Play, never "Resume" from its final seconds.
+        expect(host.querySelector('.play-btn--resume')).toBeNull();
     });
     it('starts playable sparse VOD inline with catalog presentation', () => {
         const item = sparseItem();

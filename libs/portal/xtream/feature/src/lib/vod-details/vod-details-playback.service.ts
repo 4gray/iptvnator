@@ -13,7 +13,7 @@ import {
     createExternalPlaybackButtonState,
     createInlinePlaybackPositionWriter,
     createLogger,
-    getPortalPlaybackProgressPercent,
+    createPendingPlaybackStart,
 } from '@iptvnator/portal/shared/util';
 import {
     resolveXtreamVodPlaybackSource,
@@ -40,7 +40,7 @@ import {
 } from './vod-details-external-launch-owner';
 import { settleOwnedExternalLaunch } from './vod-details-external-launch';
 import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
-import { formatPlaybackPosition } from './vod-primary-action-position';
+import { isResumablePosition } from './vod-primary-action-position';
 
 export interface VodDetailsPlaybackBindings {
     /** Current vod id resolved from the route */
@@ -125,10 +125,6 @@ export class VodDetailsPlaybackService {
     );
     readonly isExternalStopAction = this.externalButton.isStopAction;
     readonly externalPrimaryButtonState = this.externalButton.buttonState;
-    readonly vodPlaybackProgress = computed(() =>
-        getPortalPlaybackProgressPercent(this.vodPlaybackPosition())
-    );
-
     /** Mirrors an incoming position into the route's row when it owns it. */
     private trackPosition(position: PlaybackPositionData | null): void {
         this.vodPlaybackPosition.set(position);
@@ -146,17 +142,9 @@ export class VodDetailsPlaybackService {
     }
 
     /** Whether the ROUTE copy has somewhere to resume from. */
-    readonly hasPlaybackPosition = computed(() => {
-        const progress = getPortalPlaybackProgressPercent(
-            this.routePlaybackPosition()
-        );
-        const inProgress = progress > 0 && progress < 90;
-        this.logger.debug('hasPlaybackPosition check', {
-            vodId: this.bindings()?.vodId(),
-            inProgress,
-        });
-        return inProgress;
-    });
+    readonly hasPlaybackPosition = computed(() =>
+        isResumablePosition(this.routePlaybackPosition())
+    );
 
     constructor() {
         const unsubscribePositionUpdates =
@@ -306,11 +294,9 @@ export class VodDetailsPlaybackService {
     }
 
     stopExternalPlayback(): Promise<void> {
-        return this.externalPlayback.closeSession(this.matchedExternalPlayback());
-    }
-
-    formatPosition(): string {
-        return formatPlaybackPosition(this.routePlaybackPosition());
+        return this.externalPlayback.closeSession(
+            this.matchedExternalPlayback()
+        );
     }
 
     closeInlinePlayer(): void {
@@ -357,8 +343,21 @@ export class VodDetailsPlaybackService {
         );
     }
 
+    /**
+     * Retires every stored-position read still in flight. A row written
+     * since (the manual watched toggle) must not be overwritten by the older
+     * answer that read started from.
+     */
+    discardPendingPositionLoads(): void {
+        this.positionLoadGeneration++;
+    }
+
+    /** The route copy's row is in hand; fails closed while a read is in flight. */
+    readonly positionLoaded = signal(false);
+
     async loadPosition(playlistId: string, vodId: number): Promise<void> {
         const generation = ++this.positionLoadGeneration;
+        this.positionLoaded.set(false);
         const position = await this.playbackPositions.getPlaybackPosition(
             playlistId,
             vodId,
@@ -375,6 +374,7 @@ export class VodDetailsPlaybackService {
 
         this.vodPlaybackPosition.set(position);
         this.routePlaybackPosition.set(position);
+        this.positionLoaded.set(true);
     }
 
     private addToRecentlyViewed(): void {
@@ -410,6 +410,19 @@ export class VodDetailsPlaybackService {
     private launchedExternallyGeneration = 0;
     private readonly externalLaunchGeneration = signal<number | null>(null);
 
+    /**
+     * Starts still between the click and `inlinePlayback` / the external
+     * launch (closing the previous player is a round-trip). The watched
+     * toggle waits them out: a row written inside that window would be
+     * overwritten by the new player's first position tick.
+     */
+    private readonly pendingStart = createPendingPlaybackStart<
+        number | undefined
+    >();
+    readonly playbackStartPending = computed(() =>
+        this.pendingStart.isPendingFor(this.bindings()?.vodId())
+    );
+
     async startResolvedPlayback(
         playback: ResolvedPortalPlayback,
         isCurrent: () => boolean = () => true
@@ -430,31 +443,37 @@ export class VodDetailsPlaybackService {
         }
 
         const generation = ++this.startGeneration;
+        const startId = this.pendingStart.begin(this.bindings()?.vodId());
+        try {
+            // A switch REPLACES what is playing. With MPV or VLC and instance
+            // reuse off, the backend spawns a second detached player
+            // otherwise — both sources keep running and Stop owns only the
+            // newer one.
+            const previousPlayerClosed = await closeRunningExternalSession(
+                runningSession,
+                (session) => this.externalPlayback.closeSession(session),
+                (message, error) => this.logger.warn(message, error)
+            );
 
-        // A switch REPLACES what is playing. With MPV or VLC and instance
-        // reuse off, the backend spawns a second detached player otherwise —
-        // both sources keep running and Stop owns only the newer one.
-        const previousPlayerClosed = await closeRunningExternalSession(
-            runningSession,
-            (session) => this.externalPlayback.closeSession(session),
-            (message, error) => this.logger.warn(message, error)
-        );
+            // Closing is a round-trip, and a second pick across it would
+            // otherwise reach this line too: both would have seen the same
+            // session, closed it once, and then launched independently — two
+            // detached players again, the older one holding a source the user
+            // has moved on from.
+            if (
+                !previousPlayerClosed ||
+                generation !== this.startGeneration ||
+                !isCurrent()
+            ) {
+                return false;
+            }
 
-        // Closing is a round-trip, and a second pick across it would otherwise
-        // reach this line too: both would have seen the same session, closed
-        // it once, and then launched independently — two detached players
-        // again, the older one holding a source the user has moved on from.
-        if (
-            !previousPlayerClosed ||
-            generation !== this.startGeneration ||
-            !isCurrent()
-        ) {
-            return false;
+            // Same movie, different source: still a view.
+            this.addToRecentlyViewed();
+            return await this.applyPlayback(playback, isCurrent);
+        } finally {
+            this.pendingStart.settle(startId);
         }
-
-        // Same movie, different source: still a view.
-        this.addToRecentlyViewed();
-        return await this.applyPlayback(playback, isCurrent);
     }
 
     private startPlayback(playback: ResolvedPortalPlayback): Promise<boolean> {
@@ -483,11 +502,7 @@ export class VodDetailsPlaybackService {
         this.closeInlinePlayer();
         this.claimExternalLaunch(playback, generation);
         const launch = this.portalPlayer.openResolvedPlayback(playback, true);
-        return await this.settleExternalLaunch(
-            generation,
-            isCurrent,
-            launch
-        );
+        return await this.settleExternalLaunch(generation, isCurrent, launch);
     }
 
     private claimExternalLaunch(
@@ -514,8 +529,7 @@ export class VodDetailsPlaybackService {
                     error
                 ),
             clearPending: () => this.clearExternalLaunchPending(generation),
-            clearOwnership: () =>
-                this.clearExternalLaunchOwnership(generation),
+            clearOwnership: () => this.clearExternalLaunchOwnership(generation),
         });
     }
 

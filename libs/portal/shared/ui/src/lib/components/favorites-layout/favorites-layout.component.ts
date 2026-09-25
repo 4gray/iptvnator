@@ -1,4 +1,10 @@
-import { Component, inject, input, output } from '@angular/core';
+import {
+    Component,
+    inject,
+    input,
+    output,
+    ChangeDetectionStrategy,
+} from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -50,6 +56,7 @@ export interface FavoriteLayoutItem {
         './favorites-layout.component.scss',
         '../../styles/portal-sidebar.scss',
     ],
+    changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
         CategoryViewComponent,
         ContentCardComponent,

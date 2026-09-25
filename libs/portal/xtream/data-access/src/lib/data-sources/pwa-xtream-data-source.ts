@@ -1,5 +1,6 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import {
+    foldSearchText,
     ContentMetadataPatch,
     Playlist,
     PlaybackPositionData,
@@ -607,7 +608,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     ): Promise<XtreamContentItem[]> {
         void excludeHidden;
         const results: XtreamCachedContentItem[] = [];
-        const searchLower = searchTerm.toLowerCase();
+        const searchLower = foldSearchText(searchTerm);
 
         for (const type of types) {
             const cacheKey = `${playlistId}-${type}-content`;
@@ -616,7 +617,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             const filtered = content.filter((item) => {
                 const title =
                     item.name || item.title || item.stream_display_name || '';
-                return title.toLowerCase().includes(searchLower);
+                return foldSearchText(title).includes(searchLower);
             });
 
             results.push(...filtered);

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import {
     MAT_DIALOG_DATA,
     MatDialogModule,
@@ -19,6 +19,7 @@ export interface WorkspaceKeyboardShortcutsDialogData {
     selector: 'app-workspace-keyboard-shortcuts-dialog',
     imports: [MatButtonModule, MatDialogModule, MatIconModule, TranslatePipe],
     templateUrl: './workspace-keyboard-shortcuts-dialog.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styleUrl: './workspace-keyboard-shortcuts-dialog.component.scss',
 })
 export class WorkspaceKeyboardShortcutsDialogComponent {

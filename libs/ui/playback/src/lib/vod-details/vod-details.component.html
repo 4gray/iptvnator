@@ -259,6 +259,26 @@
             </button>
         }
 
+        <!-- Manual watched toggle -->
+        @let watchedLabel =
+            (isWatched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
+                | translate;
+        <button
+            type="button"
+            class="favorite-btn watched-btn"
+            [class.favorite-btn--active]="isWatched()"
+            [disabled]="!canToggleWatched()"
+            [attr.aria-pressed]="isWatched()"
+            [attr.aria-label]="watchedLabel"
+            (click)="toggleWatched()"
+            data-test-id="vod-watched-toggle"
+        >
+            <mat-icon>{{
+                isWatched() ? 'check_circle' : 'check_circle_outline'
+            }}</mat-icon>
+            {{ watchedLabel }}
+        </button>
+
         <!-- Download buttons (Electron only) -->
         @if (isElectron() && !providerOnly()) {
             @if (isDownloaded()) {
@@ -300,7 +320,6 @@
             [playback]="playback"
             (timeUpdate)="onInlineTimeUpdate($event)"
             (closed)="closeInlinePlayback()"
-            (backClicked)="goBack()"
             (streamUrlCopied)="onStreamUrlCopied()"
             (externalFallbackRequested)="
                 onInlineExternalFallbackRequested($event)

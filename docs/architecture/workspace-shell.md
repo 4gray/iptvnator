@@ -304,27 +304,28 @@ handlers in `apps/electron-backend/src/app/events/window.events.ts`):
    snap, F11). The controls hide themselves while the window is
    fullscreen.
 
-   Window state is **never re-read at event time**. `attachWindowStateEvents`
-   seeds `{ isMaximized, isFullScreen }` once at window creation and each
-   event patches only the flag it names; every push carries a copy of that
-   tracked state. On Windows both getters can still report the
-   pre-transition value while the matching event fires — `isFullScreen()`
-   stays `true` during an HTML fullscreen exit, and `isMaximized()` reads
-   `false` while the window is fullscreen. Because the renderer replaces
-   both flags on every push and no later event corrects a stale one,
-   polling left the controls hidden forever after leaving fullscreen and
-   stuck the maximize/restore glyph on the wrong icon. Regression coverage:
-   `app-window-state.spec.ts` and `window-controls.e2e.ts`.
+    Window state is **never re-read at event time**. `attachWindowStateEvents`
+    seeds `{ isMaximized, isFullScreen }` once at window creation and each
+    event patches only the flag it names; every push carries a copy of that
+    tracked state. On Windows both getters can still report the
+    pre-transition value while the matching event fires — `isFullScreen()`
+    stays `true` during an HTML fullscreen exit, and `isMaximized()` reads
+    `false` while the window is fullscreen. Because the renderer replaces
+    both flags on every push and no later event corrects a stale one,
+    polling left the controls hidden forever after leaving fullscreen and
+    stuck the maximize/restore glyph on the wrong icon. Regression coverage:
+    `app-window-state.spec.ts` and `window-controls.e2e.ts`.
 
-   The pushed `isFullScreen` is the OR of two flags tracked apart: native
-   (OS-level, fed by `enter/leave-full-screen`) and HTML-element (fed by
-   the `*-html-*` pair). Electron remembers when the window was already
-   natively fullscreen before the player entered HTML fullscreen and then
-   leaves ONLY the HTML state on exit — no `leave-full-screen` fires and the
-   window stays fullscreen — so a single flag cleared by
-   `leave-html-full-screen` would un-hide the controls over a window that
-   is still fullscreen. A fullscreen launch (below) or F11 followed by the
-   player's `F` → `Esc` makes that path routine on Windows/Linux.
+    The pushed `isFullScreen` is the OR of two flags tracked apart: native
+    (OS-level, fed by `enter/leave-full-screen`) and HTML-element (fed by
+    the `*-html-*` pair). Electron remembers when the window was already
+    natively fullscreen before the player entered HTML fullscreen and then
+    leaves ONLY the HTML state on exit — no `leave-full-screen` fires and the
+    window stays fullscreen — so a single flag cleared by
+    `leave-html-full-screen` would un-hide the controls over a window that
+    is still fullscreen. A fullscreen launch (below) or F11 followed by the
+    player's `F` → `Esc` makes that path routine on Windows/Linux.
+
 3. `WINDOW:TOGGLE_FULLSCREEN` toggles OS-level fullscreen (`setFullScreen`)
    and, like the maximize toggle, reports the requested state and leaves
    the `WINDOW:STATE_CHANGED` push authoritative. Because the transition is
@@ -406,6 +407,168 @@ Startup window mode (`Settings.startupWindowMode`, issue #1455):
    `window.events.spec.ts`, and the startup-window-mode cases in
    `settings.e2e.ts`.
 
+Zoom level (Cmd/Ctrl and +/−/0, issue #1109):
+
+1. The packaged renderer runs under `file://` with path routing. Chromium
+   keys per-host zoom by the FULL URL when a URL has no host, so every
+   `pushState` to another section owns a separate zoom entry: after a route
+   change `webContents.getZoomLevel()` already reports that entry (usually
+   0) and the next visual-properties sync — a window resize, a display
+   change — snaps the renderer back to it. Chromium persists those per-URL
+   entries in `Preferences` on its own, which is why the level used to
+   "appear briefly" on `index.html` at startup and then reset. Dev mode
+   (`http://localhost:4200`) is per-host and never shows this, so only a
+   packaged or `ELECTRON_IS_DEV=0` run can verify zoom behaviour.
+2. Restore therefore happens in the preload, not the main process:
+   `applyPersistedZoomLevel` (`api/preload-zoom-level.ts`) asks for the
+   stored level over the synchronous `WINDOW:GET_ZOOM_LEVEL` IPC at preload
+   start and applies it with `webFrame.setZoomLevel`, which installs a
+   TEMPORARY, frame-bound zoom level. It survives in-page navigation and
+   resizes, the zoom shortcuts (point 4) step it through the same call, and
+   `getZoomLevel()` reports it regardless of the route.
+   `webContents.setZoomLevel` from the main process would write the per-URL
+   entry and re-create the bug. When nothing is stored the preload re-applies
+   the current level for the same reason: entering temporary mode makes the
+   first zoom shortcut URL-independent too. A failed request is swallowed
+   and only costs this load its restore.
+   The apply is deferred to `DOMContentLoaded` — never at preload start and
+   never from a `setTimeout`: on Linux and Windows a `webFrame.setZoomLevel`
+   that early leaves the hidden window without a first frame, `ready-to-show`
+   never fires, `show()` never runs, and the renderer gets no animation
+   frames (the splash `main.ts` removes in a `requestAnimationFrame` stays).
+   macOS is unaffected and CDP-driven tests force frames, so only the
+   packaged Linux/Windows E2E asserting the splash is gone caught it
+   (`legacy-playlist-migration.e2e.ts`, defer-epg). After the parser
+   finishes the call is harmless and still lands before the first Angular
+   paint. The preload then sends `WINDOW:ZOOM_LEVEL_APPLIED`.
+3. Chromium never persists temporary zoom, so `services/window-zoom-level.ts`
+   owns the electron-conf key `ZOOM_LEVEL`: the applied acknowledgement (not
+   the request — between the two the sender's `getZoomLevel()` is still the
+   per-URL default) marks the sender
+   as owning the level, `persistZoomLevel` writes it back from the window
+   `close` and app `before-quit` handlers (the bounds-only saves of before,
+   folded into `persistWindowState`), and `attachZoomLevelPersistence` also
+   writes it on every main-frame cross-document `did-start-navigation` —
+   a reload drops the temporary level, and by `did-finish-load` the new
+   document's preload has already read whatever was stored. That
+   navigation also releases ownership until the next preload answers, so a
+   close mid-reload cannot save the per-URL default over the user's level.
+4. The shortcuts are a renderer key binding, not a native menu: the
+   Windows/Linux window calls `setMenu(null)`, so no accelerator could reach
+   it there. `WorkspaceKeyboardShortcutsService` (`libs/workspace/shell`)
+   listens on the document like it does for F11 and resolves the chord with
+   `resolveZoomShortcutAction` (`libs/portal/shared/util`): Cmd on macOS,
+   Ctrl elsewhere, never Alt; `+`/`=` (so `Ctrl+=` and `Ctrl+Shift+=` both
+   zoom in), `-`/`_`, `0`, and the numpad `+`/`-`/`0` (by `code`, since a
+   NumLock-off `0` reports `Insert`). Keys are matched by `event.key`, so
+   non-US layouts zoom with their own `+`/`-` keys. Like F11 it is not gated
+   by the typing-target check — browsers zoom from any focus — and a key
+   another handler already `preventDefault`ed is left alone. The binding
+   calls the synchronous, preload-local `window.electron.adjustZoomLevel`
+   (`adjustFrameZoomLevel` in `api/preload-zoom-level.ts`), which steps the
+   frame's temporary level through the same `webFrame.setZoomLevel` as the
+   restore and returns the level applied — never a main-process
+   `webContents.setZoomLevel`, which would re-create the per-URL bug. The
+   step and limits live in `libs/shared/interfaces/src/lib/zoom-level.util.ts`
+   (`stepZoomLevel`): 0.5 per press, Electron's own `zoomIn`/`zoomOut` role
+   step (≈10 %), clamped to levels −4…6 (≈48 %…299 %, inside Chromium's
+   25–500 %), off-grid levels snapping to the next grid point in the pressed
+   direction; `Ctrl/Cmd+0` returns to level 0. A stored level already
+   outside the limits (the macOS menu roles never clamped) is never moved
+   against the request: a press further out leaves it, a press back in
+   lands on the limit. Persistence needs nothing
+   extra: the main process reads the live level back (point 3). On macOS the
+   default application menu still carries the `zoomIn`/`zoomOut`/`resetZoom`
+   roles, but Chromium hands a key equivalent to the web contents first and
+   Electron performs the menu equivalent only in
+   `WebContents::PlatformHandleKeyboardEvent`
+   (`shell/browser/api/electron_api_web_contents_mac.mm`, Electron 43.3.0),
+   the unhandled-keyboard-event hook — a `preventDefault`ed keydown never
+   gets there, so the binding keeps one press at one step. CDP-dispatched
+   keys (the E2E) never reach the menu at all.
+   Without a bridge (PWA) the browser keeps its own zoom, and the help
+   dialog lists the chords as Electron-only. Regression coverage:
+   `window-zoom-level.e2e.ts` presses the real shortcuts (in, out, numpad,
+   reset) and measures the rendered factor (content width ÷
+   `window.innerWidth`) across a section change, a resize, a reload and a
+   restart; key resolution and the bridge step are unit-tested in
+   `keyboard-shortcuts.spec.ts`, `workspace-keyboard-shortcuts.service.spec.ts`
+   and `preload-zoom-level.spec.ts`.
+
+Reloading the renderer on an in-app route:
+
+1. The packaged renderer is `dist/apps/web/index.html` over `file://` and
+   Angular routes by path (no hash strategy), so once the user is on a
+   section the document URL is `file:///…/web/workspace/sources` — a path
+   with no file behind it. A reload of that URL fails with
+   `ERR_FILE_NOT_FOUND` (-6) or is cancelled outright, depending on who
+   starts it. Two user-reachable triggers: the macOS default application
+   menu (nothing calls `Menu.setApplicationMenu`, so View › Reload / Force
+   Reload are live; Windows/Linux drop the menu bar via `setMenu(null)`),
+   and the settings unsaved-changes guard, which calls
+   `window.location.reload()` after the user confirms a reload intent on
+   `/workspace/settings/<section>`. Dev mode (`http://localhost:4200`) never
+   shows either — the dev server serves the index for every path.
+2. Both legs live in `services/renderer-reload-fallback.ts` and end in the
+   same `restoreRendererRoute`: load the packaged index with the routed
+   URL's route — its path relative to the renderer root plus query and
+   fragment (`resolveRoutedRendererUrl`) — in the `restoreRoute` query
+   parameter.
+    - A main-process reload (`webContents.reload()`, the menu role,
+      DevTools) fires no `will-navigate`, so it cannot be redirected up
+      front: it fails, Chromium commits `chrome-error://chromewebdata/`
+      and `app-root` stays empty until the app restarts.
+      `attachRendererReloadFallback` recovers it after the fact from the
+      main-frame `did-fail-load` with `ERR_FILE_NOT_FOUND`
+      (`resolveReloadedRendererRoute`); other error codes, subframes and
+      non-`file:` URLs are left alone. The recovery load is deferred to
+      the error page's `dom-ready` and never issued from inside
+      `did-fail-load`: a `loadFile` started while Chromium is still
+      committing the error page yields a document that never receives
+      animation frames — the splash stays, nothing paints, while
+      `document.visibilityState` still says `visible` — and the same load
+      after `dom-ready` paints normally (Electron emits `did-fail-load`
+      before that `dom-ready`). A cross-document navigation starting in
+      between withdraws the pending recovery, so a stale `dom-ready` can
+      never re-load the index over a newer navigation.
+    - A renderer-initiated reload (`location.reload()`, the settings
+      guard) does fire `will-navigate`, where the routed URL is not the
+      trusted index and `handleRendererNavigation` would cancel it —
+      silently, so the confirmed reload simply never happened. The handler
+      now recognizes a routed renderer URL and sends it straight to the
+      index with its route, with no failed load in between; every other
+      untrusted navigation is still blocked (external URLs still open in
+      the browser).
+   A failed `index.html` itself is never re-requested (it would loop):
+   `resolveRoutedRendererUrl` rejects the index, and the recovery load
+   carries `index.html` as its path, so a second failure cannot recurse.
+3. The renderer consumes the parameter before Angular bootstraps:
+   `apps/web/src/main.ts` calls `resolveRestoredRendererRoute`
+   (`libs/shared/interfaces/src/lib/renderer-reload-route.util.ts`, which
+   also owns the parameter name) and installs the result with
+   `history.replaceState`, so the router's initial navigation lands on the
+   route the user was on. The route is resolved against `document.baseURI`
+   (the packaged `<base href="./">`, i.e. the renderer directory — the same
+   prefix Angular strips from `location.pathname`), and anything that would
+   leave that directory (an absolute URL, another scheme, a `..` escape)
+   is dropped with only the parameter removed, so the app boots at its
+   default route instead of following an arbitrary target.
+4. Zoom persistence is unaffected: the failed reload's
+   `did-start-navigation` already saved the level and released ownership,
+   the recovery load's `did-start-navigation` is then a no-op, and the new
+   document's preload restores the level as after any other reload. The
+   main-process close guard also treats the recovery like any full
+   navigation (`did-navigate` disarms it).
+5. Regression coverage: `renderer-reload.e2e.ts` reloads from the main
+   process (`webContents.reload()`, the menu role) on Sources and from the
+   renderer (`window.location.reload()`, the settings guard) on a settings
+   section and asserts a NEW document is rendered on the same route with
+   the parameter gone (`renderer-reload.support.ts` marks the old document,
+   since the URL alone is identical before and after);
+   `window-zoom-level.e2e.ts` reloads the same way. Unit coverage:
+   `renderer-reload-fallback.spec.ts`, `renderer-reload-route.util.spec.ts`,
+   `app.spec.ts` ("renderer reload recovery").
+
 Layout integration:
 
 1. `document.body` gets a `frameless-platform` class (set in
@@ -439,15 +602,15 @@ Toolchain notes for the Electron 43 baseline:
    implicit `node-gyp rebuild` bypasses those binaries and makes installation
    depend on the host compiler toolchain. The old `node-abi` override belonged
    to v12's removed `prebuild-install` path and is no longer required.
-2. Local development supports **Node 22.13–22.x or Node >= 24**, declared in
-   `engines` as `^22.13.0 || >=24.0.0`.
-   The direct `@faker-js/faker` dependency and current lint tooling require
-   that floor. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
+2. Local development supports **Node 22.22.3–22.x or 24.15.0–24.x**, declared in
+   `engines` as `^22.22.3 || ^24.15.0`. Use `.nvmrc` (currently 22.23.2) for
+   development and CI. Angular 22 sets this supported LTS range and requires
+   TypeScript `>=6.0 <6.1`. `electron-builder` 26.15.7 also pulls `@electron/rebuild` 4,
    which requires Node 22.12 or newer, and the root `postinstall` runs
    `install-app-deps` on every `pnpm install`. The 26.15.7 minimum also
    carries the v26 backport that fully extracts the Snap template's `.tar.7z`
    payload; 26.15.0–26.15.6 can
-   produce a Snap that is missing `desktop-init.sh`. CI already runs Node 22.
+   produce a Snap that is missing `desktop-init.sh`.
 3. Dependabot keeps Electron, native database, packaging, EPG parser, and
    version-locked Shaka/mpegts updates out of the shared npm minor/patch group.
    Those dependencies require standalone PRs so their dedicated package,
@@ -457,7 +620,7 @@ Toolchain notes for the Electron 43 baseline:
    Electron command instead of during package `postinstall`, so `electron`
    must not remain in pnpm's `onlyBuiltDependencies` allowlist. The first local
    `pnpm run serve:backend` can include a one-time download; use `pnpm exec
-   electron --version` to prewarm it before an offline run.
+electron --version` to prewarm it before an offline run.
 
 Known caveats:
 

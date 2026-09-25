@@ -15,6 +15,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import {
+    PortalWatchState,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
 } from '@iptvnator/portal/shared/util';
@@ -23,6 +24,7 @@ import {
     ProgressCapsuleComponent,
     WatchedBadgeComponent,
 } from '@iptvnator/ui/components';
+import { CoverTitlesService } from '../../cover-titles/cover-titles.service';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 
 interface GridListItem {
@@ -41,8 +43,7 @@ interface GridListItem {
     rating?: string | number;
     rating_imdb?: string | number;
     progress?: number;
-    isWatched?: boolean;
-    hasSeriesProgress?: boolean;
+    watchState?: PortalWatchState;
     tv_archive?: number | string | null;
     tv_archive_duration?: number | string | null;
     [key: string]: unknown;
@@ -107,19 +108,26 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
             } @else {
                 @for (item of items(); track $index) {
                     @let i = $any(item);
+                    @let title = channelTitle(i);
                     <mat-card
                         [class.grid-card--logo]="variant() === 'logo'"
+                        role="button"
+                        tabindex="0"
+                        [attr.aria-label]="title"
                         (click)="itemClicked.emit(item)"
+                        (keydown.enter)="itemClicked.emit(item)"
+                        (keydown.space)="onSpaceKey($event, item)"
                     >
                         @let poster = resolvePoster(i);
+                        @let artworkMissing = !poster || hasArtworkFailed(poster);
                         <div class="card-thumbnail-container">
-                            @if (poster && !hasArtworkFailed(poster)) {
+                            @if (!artworkMissing) {
                                 <img
                                     class="stream-icon"
                                     [src]="poster"
                                     (error)="onImageError($event, poster)"
                                     loading="lazy"
-                                    alt="logo"
+                                    [alt]="title"
                                 />
                             } @else if (
                                 shouldRenderArtworkPlaceholder(poster)
@@ -137,8 +145,24 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                     class="stream-icon"
                                     src="./assets/images/default-poster.png"
                                     loading="lazy"
-                                    alt="logo"
+                                    [alt]="title"
                                 />
+                            }
+                            @if (postersOnly()) {
+                                <!-- Hover/focus caption for the posters-only
+                                     wall; pinned open when the cover cannot
+                                     identify the item on its own. -->
+                                <div
+                                    class="cover-title-overlay"
+                                    [class.cover-title-overlay--pinned]="
+                                        artworkMissing
+                                    "
+                                    aria-hidden="true"
+                                >
+                                    <span class="cover-title-overlay__text">{{
+                                        title
+                                    }}</span>
+                                </div>
                             }
                             @if (i.progress && i.progress > 0) {
                                 <app-progress-capsule [progress]="i.progress" />
@@ -149,7 +173,8 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                     data-test-id="grid-catchup-badge"
                                     [matTooltip]="
                                         catchupLabelKey(i)
-                                            | translate: { days: catchupDays(i) }
+                                            | translate
+                                                : { days: catchupDays(i) }
                                     "
                                 >
                                     <mat-icon>history</mat-icon>
@@ -157,16 +182,22 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                          status as text for AT users -->
                                     <span class="visually-hidden">{{
                                         catchupLabelKey(i)
-                                            | translate: { days: catchupDays(i) }
+                                            | translate
+                                                : { days: catchupDays(i) }
                                     }}</span>
                                 </div>
                             }
-                            @if (i.isWatched) {
+                            @if (i.watchState === 'watched') {
                                 <app-watched-badge
                                     [isWatched]="true"
                                     icon="check_circle"
                                 />
-                            } @else if (i.hasSeriesProgress) {
+                            } @else if (
+                                i.watchState === 'in-progress' && !i.progress
+                            ) {
+                                <!-- Started with no percent to draw (a series):
+                                     the eye says "touched", the capsule above
+                                     already says it for a movie. -->
                                 <app-watched-badge
                                     [isWatched]="true"
                                     icon="remove_red_eye"
@@ -182,11 +213,11 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                 <mat-icon>star</mat-icon>{{ rating }}
                             </div>
                         }
-                        <mat-card-actions>
-                            <div class="title">
-                                {{ channelTitle(i) }}
-                            </div>
-                        </mat-card-actions>
+                        @if (!postersOnly()) {
+                            <mat-card-actions>
+                                <div class="title">{{ title }}</div>
+                            </mat-card-actions>
+                        }
                     </mat-card>
                 } @empty {
                     <div class="grid-empty-state">
@@ -250,11 +281,13 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
         ProgressCapsuleComponent,
         WatchedBadgeComponent,
     ],
+    host: { '[class.grid-list--posters-only]': 'postersOnly()' },
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
     private readonly failedArtworkUrls = signal<ReadonlySet<string>>(new Set());
     private readonly settingsStore = inject(SettingsStore);
+    private readonly coverTitles = inject(CoverTitlesService);
 
     readonly items = input<GridListItem[]>([]);
     readonly isLoading = input<boolean>(false);
@@ -281,6 +314,20 @@ export class GridListComponent {
     /** Prefix stripping applies to channel grids only, never VOD/series. */
     private readonly isLiveGrid = computed(() =>
         ['live', 'itv', 'radio'].includes(this.type())
+    );
+    /**
+     * Posters-only wall (`Settings.showCoverTitles === false`) applies to
+     * VOD/series covers only: channel logos are too often missing or
+     * generic to identify a channel without its name. A grid filtered by
+     * an in-section search keeps its titles too — those results are
+     * identified by the name the user just typed.
+     */
+    protected readonly postersOnly = computed(
+        () =>
+            this.coverTitles.postersOnly() &&
+            !this.isLiveGrid() &&
+            this.variant() !== 'logo' &&
+            !this.hasActiveSearch()
     );
     protected readonly catchupDays = getXtreamCatchupDays;
     /** Catch-up badge is live-grid only; VOD/series rows never carry it. */
@@ -329,23 +376,28 @@ export class GridListComponent {
         }
     }
 
+    /** Space activates like a click but must not scroll the grid. */
+    protected onSpaceKey(event: Event, item: GridListItem): void {
+        event.preventDefault();
+        this.itemClicked.emit(item);
+    }
+
+    /**
+     * A failed poster is remembered per URL so the template re-renders the
+     * fallback branch (placeholder or default poster) — and the posters-only
+     * overlay can pin the title, since a default poster identifies nothing.
+     */
     protected onImageError(event: Event, poster: string): void {
-        if (this.usesArtworkPlaceholder()) {
-            this.failedArtworkUrls.update((failedUrls) => {
-                const nextFailedUrls = new Set(failedUrls);
-                nextFailedUrls.add(poster);
+        this.failedArtworkUrls.update((failedUrls) => {
+            const nextFailedUrls = new Set(failedUrls);
+            nextFailedUrls.add(poster);
 
-                return nextFailedUrls;
-            });
-            (event.target as HTMLImageElement | null)?.style.setProperty(
-                'display',
-                'none'
-            );
-            return;
-        }
-
-        (event.target as HTMLImageElement).src =
-            './assets/images/default-poster.png';
+            return nextFailedUrls;
+        });
+        (event.target as HTMLImageElement | null)?.style.setProperty(
+            'display',
+            'none'
+        );
     }
 
     private usesArtworkPlaceholder(): boolean {

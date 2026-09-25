@@ -6,6 +6,7 @@ import {
     model,
     Output,
     ViewChild,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -38,6 +39,7 @@ export interface SearchFilter {
         TranslatePipe,
     ],
     templateUrl: './search-form.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             .search-container {

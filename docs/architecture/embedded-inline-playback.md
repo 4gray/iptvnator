@@ -162,18 +162,20 @@ Contracts:
   player subtree, so shell state changes cannot recreate the `<video>`.
 - **External MPV/VLC sessions do not flip the layout to watch** — browse
   layout stays, and the primary CTA keeps its "Stop <player>" behavior.
-- The shell's sticky control and Escape close inline playback through
-  `closePlayerRequested`; hosts wire it to `closeInlinePlayer()`. From browse,
-  they emit the host-owned `backClicked` instead (unless `backAvailable=false`).
-  Escape respects fullscreen, menus/dialogs, editable fields and hidden/inert
-  surfaces, and consumes a handled key so one press performs only one action.
-  See [Portal Detail Navigation](./portal-detail-navigation.md).
-- The now-playing bar separates two exits: the back arrow emits
-  `backClicked`, which hosts wire to their route-level `goBack()` (straight
-  back to the list — everything browse offers is also visible in watch, so
-  a two-step unwind would be ceremony); the "Close player" button and
-  Escape emit `closed`/`closePlayerRequested` and return to browse without
-  navigating.
+- The shell's sticky arrow emits the host-owned `backClicked` in browse and
+  watch alike (unless `backAvailable=false`, when it is not rendered at all):
+  hosts wire it to their route-level `goBack()`, straight back to the list —
+  everything browse offers is also visible in watch, so a two-step unwind
+  would be ceremony. Escape alone unwinds one level: in watch it emits
+  `closePlayerRequested`, which hosts wire to `closeInlinePlayer()`; in browse
+  it emits `backClicked`. Escape respects fullscreen, menus/dialogs, editable
+  fields and hidden/inert surfaces, and consumes a handled key so one press
+  performs only one action. See
+  [Portal Detail Navigation](./portal-detail-navigation.md).
+- The now-playing bar has one exit of its own: the "Close player" button
+  emits `closed` and returns to browse without navigating. It carries no back
+  arrow — a second arrow beside the sticky one, with a different meaning,
+  was the duplicate this contract removes.
 - Entering watch scrolls the shell to the top; leaving keeps the scroll
   position.
 
@@ -248,6 +250,16 @@ seasons, with per-episode watch-progress bars from playback positions.
 - Layering: the rail is an opaque panel rendered on top of the stage, so the
   ambient fill stays behind it and shows in the flexible gap between the
   docked player and the rail on very wide stages.
+- Fullscreen: the rail cannot show over a fullscreen video, so the same
+  host offers the whole series — season tabs plus the selected season's
+  episodes — as the slide-in side panel of the player's fullscreen surface.
+  `PortalInlinePlayerComponent` provides `FULLSCREEN_CHANNEL_PANEL` for the
+  nested view from the hosts' `seriesEpisodes` / `episodePlaybackPositions` /
+  `seasonLoadStates` inputs, an episode picked there travels the same
+  `upNextEpisodeSelected` output as a rail click, and a season tab picked
+  there travels `episodePanelSeasonSelected` into the host's
+  `onSeasonSelected`. Contract: "Fullscreen episode panel" in
+  `docs/architecture/player-controls-contract.md`.
 
 Season navigation inside `SeasonContainerComponent` uses season tabs
 (`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
@@ -265,6 +277,82 @@ without a click. Switching tabs never stops playback; a "back to playing
 episode" chip appears when the playing episode is outside the opened
 season. Season descriptions come from `get_series_info` seasons (Xtream)
 or `TmdbEnrichmentService.getSeason` (Stalker).
+
+The tabs and description sit in a **season card** with an optional cover
+column: the selected season's own poster (`seasonPosters` input, keyed like
+`seasonDescriptions`; TMDB season poster first, provider `seasons[].cover_big`
+next — see "Season/Episode Enrichment" in `tmdb-metadata-enrichment.md`).
+The column is sized by `--season-cover-width` (96 / 120 / 144px for
+`Settings.coverSize` small / medium / large, `apps/web/src/_cover-size.scss`;
+medium matches the About block's poster) and is not rendered at all — the
+card collapses to one column and the tabs render exactly as before — when
+the selected season has no poster, when the item has a single season (that
+poster is the show poster a few hundred pixels below the hero), or when the
+image request failed. The hero poster never follows the season: the show
+keeps its identity element, the season gets its own picture next to its own
+text. The fullscreen episode panel shows the same poster as a compact season
+strip (poster, season name, episode count — `PORTALS.EPISODE_COUNT_ONE` /
+`PORTALS.EPISODE_COUNT_OTHER`) above its season tabs, under the
+same gates, from `PortalInlinePlayerComponent.seasonPosters` through
+`buildFullscreenEpisodePanelSeasons`.
+
+Beyond six seasons the tabs become a `mat-menu` dropdown, and that dropdown
+carries **season thumbnails** from the same `seasonPosters` map
+(`SeasonTabsComponent.seasonPosters`, passed by the season container and by
+the fullscreen episode panel): a 28×42 poster projected into the leading slot
+of each menu row that has one, and the selected season's poster inside the
+closed trigger (`season-tabs__dropdown--with-thumb` tightens the pill around
+it). A season without a poster gets no placeholder tile — its row simply
+starts with the text — and a poster whose image request fails is dropped from
+both places rather than left as a broken-image frame (the component keeps its
+own failed-URL set, independent of the container's cover column). The pill
+row (six seasons or fewer) deliberately stays text-only: the design review
+rejected per-pill thumbnails as a second poster rail, and the season cover
+beside the tabs already shows the selected season's picture.
+
+### Manual watched toggle for movies
+
+Movies carry the same manual "watched" affordance as episodes, in the
+detail action row of both portals: Xtream renders an icon square after
+Favorite (`vod-details-watched.service.ts`), Stalker a labelled button
+inside the shared `app-vod-details` component, wired by the routed
+catalog detail and by the collection inline detail (Favorites / Recent).
+Both hosts delegate to `createVodWatchedToggle()` in
+`@iptvnator/portal/shared/util`:
+
+- **Marking** writes a full-progress `vod` position row — the same shape
+  playback leaves behind, so catalog badges, the dashboard and the
+  Play/Resume rule need no new state. The duration is the stored row's
+  (real), else the provider's `duration_secs` (Xtream), else 1 s: Stalker
+  VOD details state no runtime, and "position === duration" is what
+  "watched" means, whatever the number.
+- **Unmarking** deletes the row, which also forgets the resume point —
+  the trade the episode toggle already makes.
+- Both writes use the rejecting `savePlaybackPositionOrThrow` /
+  `clearPlaybackPositionOrThrow` boundary: the row on screen changes only
+  after a confirmed write, and a refused write reports instead of showing
+  the movie as (un)watched.
+- The toggle is **disabled while the movie plays** (inline player mounted,
+  external session live or launching for this content): the player
+  persists its position every ~15 s and would overwrite a just-written
+  row, silently flipping the movie back.
+- It acts on the **route copy's row only**. Positions are keyed by
+  (playlist, stream), so a pinned multi-source alternative keeps its own
+  state, exactly as playback would leave it.
+- A completion that lands **after navigation** (`stillCurrent`) still
+  refreshes the playlist's catalog positions (the write did land), but
+  neither patches the new page's row nor shows its snackbar.
+- A watched copy shows **Play**, never "Resume 1:32:00" from its final
+  seconds — `app-vod-details` folds `isWatched` into `hasPlaybackPosition`,
+  which Xtream's route already did through its 90% rule.
+
+Catalog cards derive their corner badge from one shared `PortalWatchState`
+(`unwatched` / `in-progress` / `watched`, `portal-watch-state.ts`): both
+facades map a movie's position through `watchStateFromProgressPercent` /
+`resolvePortalWatchState` (90% threshold, shared with the Resume rule),
+and a series through `resolvePortalSeriesWatchState`, which reports at
+most `in-progress` — the list payload never carries the episode total, so
+"every episode watched" is not decidable there.
 
 The season header carries a season-level watched toggle next to
 "Download season" (`season-watch-toggle.util.ts` builds the request:

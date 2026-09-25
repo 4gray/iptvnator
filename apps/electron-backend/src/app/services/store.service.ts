@@ -1,8 +1,13 @@
 import { Conf } from 'electron-conf/main';
 import { getElectronConfigDirectory } from '@iptvnator/shared/database';
-import type { StartupWindowMode } from '@iptvnator/shared/interfaces';
+import type {
+    AppUpdateChannel,
+    StartupWindowMode,
+} from '@iptvnator/shared/interfaces';
 
 export const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
+/** App-wide zoom, as the raw Electron zoom level (0 is default). */
+export const ZOOM_LEVEL = 'ZOOM_LEVEL';
 export const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';
 export const MPV_PLAYER_ARGUMENTS = 'MPV_PLAYER_ARGUMENTS';
 export const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
@@ -37,6 +42,22 @@ export const PORTAL_CONNECTIVITY_GUARD = 'PORTAL_CONNECTIVITY_GUARD';
 export const PARENTAL_LOCK_ENABLED = 'PARENTAL_LOCK_ENABLED';
 
 /**
+ * Update channel (`stable` / `nightly`). Mirrored here from the renderer's
+ * settings by the SETTINGS_UPDATE handler because the startup update check
+ * runs before the renderer's IndexedDB settings are reachable; absent means
+ * `stable`. Read and written only through `app-update-channel.ts`.
+ */
+export const APP_UPDATE_CHANNEL = 'APP_UPDATE_CHANNEL';
+
+/**
+ * Local XMLTV files the EPG importer may read: every path the native picker
+ * returned plus every hand-typed path the user allowed in the main-process
+ * confirmation (`epg-local-source-authorizer.ts`). Owned by main, never by
+ * the renderer, because the renderer is what this list defends against.
+ */
+export const TRUSTED_LOCAL_EPG_SOURCES = 'TRUSTED_LOCAL_EPG_SOURCES';
+
+/**
  * Extra libmpv options for embedded sessions, one "key=value" per line, as
  * typed in Settings > Playback. Mirrored here by the SETTINGS_UPDATE handler
  * because sessions are created in the main process, where the renderer's
@@ -53,6 +74,7 @@ export const EMBEDDED_MPV_AUTO_RECONNECT = 'EMBEDDED_MPV_AUTO_RECONNECT';
 
 export type StoreType = {
     [WINDOW_BOUNDS]: Electron.Rectangle;
+    [ZOOM_LEVEL]: number;
     [MPV_PLAYER_PATH]: string;
     [MPV_PLAYER_ARGUMENTS]: string;
     [VLC_PLAYER_PATH]: string;
@@ -65,6 +87,8 @@ export type StoreType = {
     [STARTUP_WINDOW_MODE]: StartupWindowMode;
     [PORTAL_CONNECTIVITY_GUARD]: boolean;
     [PARENTAL_LOCK_ENABLED]: boolean;
+    [APP_UPDATE_CHANNEL]: AppUpdateChannel;
+    [TRUSTED_LOCAL_EPG_SOURCES]: string[];
 };
 
 // Export singleton store instance

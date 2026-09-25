@@ -162,7 +162,10 @@ ArrowUp/Down, PageUp/Down, Home/End and Space retain native scrolling there;
 scroll keys do not bubble into document-level player shortcuts. A row's main
 button remains separate from favorite/info actions, supports native Enter and
 Space activation, and retains keyboard focus on activation. Tab/Shift+Tab use
-the normal DOM order. Scrolling from a virtual row moves focus to its viewport
+the normal DOM order; Safari's default keyboard preference skips buttons on
+plain Tab, so there the row button is reached with Option+Tab (WebKit E2E
+runs press it through `pressTab` in `apps/web-e2e/src/e2e-helpers.ts`).
+Scrolling from a virtual row moves focus to its viewport
 before CDK can recycle the row; asynchronous data updates never move focus.
 Xtream aligns a newly selected channel only when it is outside the viewport;
 updates to the same selected ID never re-align it. A smooth scroll to an
@@ -233,6 +236,65 @@ minimum dimensions and flexible columns over fixed row widths.
 - Show fallback icon only when no image is available or image loading fails
 - Do not render placeholder and real logo at the same time
 - Keep logos contained with `object-fit: contain`
+
+## Cover Grids
+
+Movie and series covers render in three surfaces: the catalog grid
+(`app-grid-list`, `libs/portal/shared/ui/.../grid-list/`), the favorites /
+recent card (`app-content-card`, same lib) and the dashboard rails. All of
+them size from the `--cover-grid-min-width` / `--cover-rail-width` /
+`--cover-gap` tokens that `Settings.coverSize` writes onto `<html>` as
+`data-cover-size` (`apps/web/src/_cover-size.scss`). The same file carries
+`--season-cover-width` (96 / 120 / 144px) for the season cover beside the
+season tabs on series detail pages; medium equals the About block's 120px
+poster so browse and watch share one secondary-poster size.
+
+### Posters-only wall
+
+`Settings.showCoverTitles` (Settings > General, default on, only an explicit
+`false` opts out — coerced like `webPlayerSharedControls`) removes the title
+row under VOD and series covers so the grid shows more rows per screen.
+
+- **Resolution.** `CoverTitlesService.postersOnly` (`libs/portal/shared/ui`)
+  is the single source: the opt-out AND a hover-capable pointer
+  (`(any-hover: hover)` media query, tracked live). On touch-only devices the
+  preference is ignored and titles stay under the covers, because a tap
+  already opens the item and there is no gesture left to peek at a hidden
+  name.
+- **Scope.** Catalog grids (Xtream/Stalker VOD and series), unified
+  favorites/recent grids and the portal favorites tab. Exempt, regardless of
+  the setting: live channel grids (`type` `live`/`itv`/`radio` or the
+  `logo` variant — logos are too often missing to identify a channel),
+  search results and "recently added" rails (they answer by name; hosts
+  pass `[allowPostersOnly]="false"` to `app-content-card`; `app-grid-list`
+  and `app-unified-grid-tab` drop the wall themselves while their
+  `searchTerm` input is non-blank, i.e. an in-section search is filtering
+  the list), and
+  the dashboard rails (their meta rows do not fit an overlay).
+- **Reveal.** The title is a `.cover-title-overlay` inside the poster
+  wrapper: bottom gradient scrim, two clamped lines, 150 ms ease-out
+  opacity, shown on `:hover` and `:focus-visible` of the card, none under
+  `prefers-reduced-motion`. It is `aria-hidden`; the card itself carries the
+  accessible name.
+- **Pinned caption.** When the item has no cover to identify it — no
+  poster URL, or the image failed and the default poster / placeholder is
+  showing — the overlay is pinned open (`--pinned`). Both components track
+  failed URLs so the fallback branch re-renders instead of swapping `src`
+  in place.
+- **Layout hints.** The grid's `contain-intrinsic-size` drops from 270 px to
+  222 px (bare 2/3 poster) under `.grid-list--posters-only`, and the skeleton
+  hides its text lines so loading matches the cards it precedes.
+- **Keyboard.** Both cards expose a `role="button"`, `tabindex="0"` surface
+  labelled by the title, activated by Enter and Space (Space prevents the
+  page scroll) and carrying a `:focus-visible` ring (`card-focus-ring`
+  mixin in `libs/ui/styles/_content-grid.scss`). On `app-content-card` that
+  surface is the inner `.content-card__activation` element, and the Remove
+  control (labelled by `removeTooltip`) is a SIBLING positioned over the
+  poster corner — an interactive control nested inside a `role="button"`
+  is an invalid accessibility structure. Its ring is drawn on the OUTER
+  `.content-card` via `:has(> .content-card__activation:focus-visible)`,
+  because the card's `overflow: hidden` would clip an outline on the inner
+  surface on every edge. Poster `alt` is the title, not a literal.
 
 ## EPG Views
 
@@ -468,6 +530,49 @@ The progress bar should clearly communicate:
 - remaining duration
 
 Avoid making the track too faint, especially in dark theme.
+
+## Loading States
+
+Two loading states exist, chosen by whether content is already on screen.
+
+### First load: skeleton
+
+Nothing is rendered yet, so the skeleton replaces the whole content area and
+mirrors the row/card geometry it precedes (see Channel List Item and Cover
+Grids). The unified Favorites/Recent page gates this on `isLoading`, set only
+while its item list is empty.
+
+### Reload with content on screen: non-destructive indicator
+
+A reload of a list that is already rendered (the collection page's
+"This playlist ↔ All playlists" scope switch, a favorites reload) must never
+swap back to the skeleton: that unmounts a playing channel, drops focus from
+the toggle the user just clicked, and flashes on fast IndexedDB/SQLite answers.
+Instead keep everything mounted and layer feedback on top:
+
+- an indeterminate `mat-progress-bar` (2 px track, `--app-selection-color`
+  fill) absolutely positioned over the header's bottom separator, so its
+  appearance never shifts content;
+- `aria-busy="true"` on the content region for the whole reload;
+- the list or grid dims to opacity `0.6` with a 160 ms transition (`0ms` under
+  `prefers-reduced-motion: reduce`). The player is never dimmed — the live tab
+  dims only its channel rail.
+
+**Grace period.** The bar and dimming render only once the reload has run for
+`COLLECTION_RELOAD_INDICATOR_DELAY_MS` (180 ms); a reload that settles sooner
+shows nothing. `aria-busy` is set immediately, since it does not paint. A
+superseded reload keeps the earliest deadline and never clears the indicator;
+only the latest request's completion does. Reference implementation:
+`createCollectionReloadIndicator` in
+`libs/portal/shared/data-access/src/lib/collection/collection-reload-indicator.ts`.
+Controls that triggered the reload stay enabled and reflect the requested
+value at once (`scope.set()` runs synchronously before the load starts).
+Because the rows on screen then belong to the PREVIOUS request, actions on
+them (Clear, drag reorder) must bind to the request that loaded those rows,
+never to the toggle's current value — "This playlist" applied to still-mounted
+global rows would delete other playlists' favorites or write foreign URLs
+into this playlist (`loadedRequest` on `UnifiedCollectionDataService`, which
+the collection page reads through its own `mutationRequest`).
 
 ## Navigation Lists
 

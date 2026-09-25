@@ -27,6 +27,7 @@ import {
     buildXtreamEpgMappingKey,
     EpgProgram,
     epgProviderClockMs,
+    playlistDisplayLabel,
 } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
@@ -35,6 +36,7 @@ import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     deriveVisibleFavoriteChannels,
     FavoritesChannelSortMode,
+    getLiveCollectionPlaylistNavigation,
     getXtreamCatchupDays,
     isXtreamCatchupAvailable,
     UnifiedFavoriteChannel,
@@ -93,10 +95,19 @@ export class GlobalFavoritesListComponent {
     readonly channelsReordered = output<UnifiedFavoriteChannel[]>();
     readonly favoriteToggled = output<UnifiedFavoriteChannel>();
     readonly removeRequested = output<UnifiedFavoriteChannel>();
+    /** Row asks to be opened inside its owning playlist (host navigates). */
+    readonly openInPlaylistRequested = output<UnifiedFavoriteChannel>();
     /** Emitted after the mapping dialog closes having changed a mapping. */
     readonly epgMappingChanged = output<void>();
 
     readonly contextMenuChannel = signal<EnrichedUnifiedFavorite | null>(null);
+    readonly contextMenuCanOpenInPlaylist = computed(() => {
+        const channel = this.contextMenuChannel();
+        return !!channel && this.canOpenInPlaylist(channel);
+    });
+    readonly contextMenuPlaylistName = computed(() =>
+        playlistDisplayLabel(this.contextMenuChannel()?.playlistName)
+    );
     readonly contextMenuPosition = signal({
         x: '0px',
         y: '0px',
@@ -192,10 +203,25 @@ export class GlobalFavoritesListComponent {
         return (
             Boolean(channel.m3uChannel) ||
             this.mode() === 'recent' ||
+            this.canOpenInPlaylist(channel) ||
             (this.supportsEpgMapping &&
                 (channel.xtreamId != null ||
                     Boolean(this.stalkerItemId(channel))))
         );
+    }
+
+    canOpenInPlaylist(channel: UnifiedFavoriteChannel): boolean {
+        return getLiveCollectionPlaylistNavigation(channel) !== null;
+    }
+
+    openContextMenuChannelInPlaylist(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel || !this.canOpenInPlaylist(channel)) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        this.openInPlaylistRequested.emit(channel);
     }
 
     openEpgMapping(): void {

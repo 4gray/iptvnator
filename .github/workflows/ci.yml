@@ -103,7 +103,7 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v7
               with:
-                  node-version: '22'
+                  node-version-file: '.nvmrc'
                   cache: 'pnpm'
 
             - name: Install dependencies
@@ -141,11 +141,14 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v7
               with:
-                  node-version: '22'
+                  node-version-file: '.nvmrc'
                   cache: 'pnpm'
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
+
+            - name: Validate agent guidance
+              run: pnpm run agents:validate
 
             - name: Validate Nx dependency version policy
               run: pnpm run deps:nx:validate

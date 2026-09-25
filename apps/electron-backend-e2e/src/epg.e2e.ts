@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
@@ -233,10 +234,7 @@ test.describe('Electron EPG', () => {
                     removedUrls: [],
                 }));
             });
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             await expect(
                 app.mainWindow.getByTestId('settings-unsaved-bar')
@@ -296,6 +294,106 @@ test.describe('Electron EPG', () => {
         }
     });
 
+    test('@epg @electron imports a local gzipped XMLTV file given as an absolute path', async ({
+        dataDir,
+    }) => {
+        const localGuide = join(dataDir, 'local guide.xml.gz');
+        writeFileSync(localGuide, gzipSync(epgFixtureXml));
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await expect(
+                app.mainWindow.getByTestId('epg-source-formats')
+            ).toContainText('file://');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            const field = app.mainWindow
+                .locator('.epg-source-row input')
+                .first();
+            await field.fill('guide.xml');
+            // Material reveals errors once the control is touched.
+            await field.blur();
+            await expect(
+                app.mainWindow.locator('.epg-source-row mat-error')
+            ).toBeVisible();
+            await field.fill(localGuide);
+            await expect(
+                app.mainWindow.locator('.epg-source-row mat-error')
+            ).toHaveCount(0);
+
+            // Native dialogs cannot be driven from Playwright: stub them in
+            // the main process. A hand-typed path is confirmed once through
+            // the message box; a refused path is reported, never read.
+            await app.electronApp.evaluate(({ dialog }) => {
+                dialog.showMessageBox = (async () => ({
+                    response: 1,
+                    checkboxChecked: false,
+                })) as typeof dialog.showMessageBox;
+            });
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-error'
+                )
+            ).toContainText('was not allowed');
+            expect(await getEpgChannelCount(app.mainWindow)).toBe(0);
+
+            await app.electronApp.evaluate(({ dialog }) => {
+                dialog.showMessageBox = (async () => ({
+                    response: 0,
+                    checkboxChecked: false,
+                })) as typeof dialog.showMessageBox;
+            });
+            await app.mainWindow
+                .locator('.epg-progress-panel .retry-btn')
+                .click();
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBeGreaterThan(0);
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1);
+
+            // A file chosen in the native picker is trusted without a prompt.
+            const browsedGuide = join(dataDir, 'browsed guide.xml.gz');
+            writeFileSync(browsedGuide, gzipSync(epgFixtureXml));
+            await app.electronApp.evaluate(({ dialog }, filePath) => {
+                dialog.showOpenDialog = (async () => ({
+                    canceled: false,
+                    filePaths: [filePath],
+                })) as typeof dialog.showOpenDialog;
+                dialog.showMessageBox = (async () => {
+                    throw new Error('picked files must not prompt');
+                }) as typeof dialog.showMessageBox;
+            }, browsedGuide);
+            await app.mainWindow.getByTestId('epg-source-browse').click();
+            await expect(field).toHaveValue(browsedGuide);
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(2);
+
+            // Leave with a pristine form: a dirty settings form arms the
+            // main-process close guard, and the app would then wait for a
+            // confirmation dialog instead of closing.
+            await app.mainWindow.getByTestId('discard-settings').click();
+            await expect(
+                app.mainWindow.getByTestId('settings-unsaved-bar')
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@epg @electron adds an EPG source, fetches guide data, removes its stored EPG data on save', async ({
         dataDir,
     }) => {
@@ -316,10 +414,7 @@ test.describe('Electron EPG', () => {
                 .first()
                 .fill(epgServer.resourceUrl);
 
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .first()
-                .click();
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
             await expect(
                 app.mainWindow.locator('.epg-progress-panel')
             ).toBeVisible();
@@ -334,12 +429,28 @@ test.describe('Electron EPG', () => {
                     .first()
             ).toBeVisible();
 
+            // The row must fit the 300px panel: Material icon buttons carry a
+            // 48px touch target that used to poke past the row padding and
+            // turn into a horizontal scrollbar.
+            const importsList = app.mainWindow.locator(
+                '.epg-progress-panel .imports-list'
+            );
+            await expect
+                .poll(() =>
+                    importsList.evaluate(
+                        (element) => element.scrollWidth - element.clientWidth
+                    )
+                )
+                .toBe(0);
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel .item-url')
+            ).toHaveText(
+                `${new URL(epgServer.resourceUrl).hostname}/guide.xml`
+            );
+
             await saveSettings(app.mainWindow);
 
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await expect(app.mainWindow.locator('.epg-source-row')).toHaveCount(
                 0
             );
@@ -417,10 +528,7 @@ test.describe('Electron EPG', () => {
                     '.epg-progress-panel .import-item.status-error'
                 )
             ).toHaveCount(1);
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             await expect(
                 app.mainWindow.locator('.epg-progress-panel .import-item')
@@ -483,8 +591,7 @@ test.describe('Electron EPG', () => {
             await app.mainWindow
                 .locator('.epg-source-row')
                 .first()
-                .locator('button')
-                .nth(1)
+                .getByTestId('epg-source-remove')
                 .click();
             // A staged removal must not delete data before Save.
             expect(await programs()).toContain('Removed Bulletin');
@@ -504,10 +611,7 @@ test.describe('Electron EPG', () => {
             await expect.poll(programs).toEqual(['Retained Bulletin']);
             await openSettings(app.mainWindow);
             await openSettingsSection(app.mainWindow, 'epg');
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             await expect.poll(programs).toEqual([]);
             await expect.poll(() => getEpgChannelCount(app.mainWindow)).toBe(0);
@@ -573,8 +677,7 @@ test.describe('Electron EPG', () => {
             await app.mainWindow
                 .locator('.epg-source-row')
                 .nth(1)
-                .locator('button')
-                .nth(1)
+                .getByTestId('epg-source-remove')
                 .click();
             await saveSettings(app.mainWindow);
             const firstMetadata = {
@@ -682,10 +785,7 @@ test.describe('Electron EPG', () => {
                 .locator('.epg-source-row input')
                 .fill(epgServer.resourceUrl);
             await saveSettings(app.mainWindow);
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .nth(1)
-                .click();
+            await app.mainWindow.getByTestId('epg-source-remove').click();
             await saveSettings(app.mainWindow);
             // The same URL still belongs to the saved M3U playlist.
             const retained = await app.mainWindow.evaluate(async () =>
@@ -698,6 +798,135 @@ test.describe('Electron EPG', () => {
             await closeElectronApp(app);
             await playlistServer.close();
             await epgServer.close();
+        }
+    });
+
+    test("@epg @electron dashboard live rails find a programme that only another playlist's XMLTV carries", async ({
+        dataDir,
+    }) => {
+        test.setTimeout(120000);
+        // The reported case: the favourited channel's own playlist declares
+        // no guide, Settings hold a global XMLTV that does not know it, and
+        // the programme exists only in the guide a DIFFERENT playlist
+        // imported. The rails searched the global scope alone and showed
+        // nothing, while the "See all" row — resolved unscoped — had it.
+        const otherPlaylistEpgServer = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'playlist-guide-news',
+                'Playlist Guide News',
+                'Other Playlist Bulletin'
+            ),
+            {
+                contentType: 'application/xml; charset=utf-8',
+                resourcePath: '/guides/other-playlist.xml',
+            }
+        );
+        const globalEpgServer = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'global-other',
+                'Global Other',
+                'Global Other Bulletin'
+            ),
+            {
+                contentType: 'application/xml; charset=utf-8',
+                resourcePath: '/guides/global-guide.xml',
+            }
+        );
+        // Declares the guide, so importing it is what puts those programmes
+        // in the database under that source.
+        const guideOwnerServer = await createMutableTextServer(
+            buildM3uContent([
+                {
+                    name: 'Playlist Guide News',
+                    tvgId: 'playlist-guide-news',
+                    url: 'https://example.com/live/guide-owner.m3u8',
+                },
+            ]).replace(
+                '#EXTM3U',
+                `#EXTM3U x-tvg-url="${otherPlaylistEpgServer.resourceUrl}"`
+            ),
+            {
+                contentType: 'application/x-mpegurl; charset=utf-8',
+                resourcePath: '/guide-owner.m3u',
+            }
+        );
+        // Carries the same XMLTV id under its own display name and declares
+        // no guide at all — the playlist the dashboard card comes from.
+        const guidelessServer = await createMutableTextServer(
+            buildM3uContent([
+                {
+                    name: 'Mirror News',
+                    tvgId: 'playlist-guide-news',
+                    url: 'https://example.com/live/mirror-news.m3u8',
+                },
+            ]),
+            {
+                contentType: 'application/x-mpegurl; charset=utf-8',
+                resourcePath: '/guideless.m3u',
+            }
+        );
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                guideOwnerServer.resourceUrl
+            );
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1, { timeout: 30000 });
+
+            await openSettings(app.mainWindow);
+            await openSettingsSection(app.mainWindow, 'epg');
+            await app.mainWindow
+                .getByRole('button', { name: 'Add EPG source' })
+                .click();
+            await app.mainWindow
+                .locator('.epg-source-row input')
+                .first()
+                .fill(globalEpgServer.resourceUrl);
+            await saveSettings(app.mainWindow);
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBe(2);
+
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                guidelessServer.resourceUrl
+            );
+
+            await openWorkspaceSection(app.mainWindow, 'All channels');
+            const channelItem = channelItemByTitle(
+                app.mainWindow,
+                'Mirror News'
+            );
+            await expect(channelItem).toBeVisible({ timeout: 20000 });
+            await channelItem.hover();
+            await channelItem.locator('.favorite-button').first().click();
+            await expect(
+                channelItem.locator('.favorite-button mat-icon').first()
+            ).toHaveText(/star/);
+
+            await goToDashboard(app.mainWindow);
+            const card = app.mainWindow
+                .locator('[data-test-id="dashboard-live-favorites-rail-card"]')
+                .filter({ hasText: 'Mirror News' })
+                .first();
+            await expect(card).toBeVisible({ timeout: 20000 });
+            await expect(card.locator('.rail__channel-now')).toContainText(
+                'Other Playlist Bulletin',
+                { timeout: 30000 }
+            );
+        } finally {
+            await closeElectronApp(app);
+            await guidelessServer.close();
+            await guideOwnerServer.close();
+            await otherPlaylistEpgServer.close();
+            await globalEpgServer.close();
         }
     });
 
@@ -752,10 +981,7 @@ test.describe('Electron EPG', () => {
                 .locator('.epg-source-row input')
                 .first()
                 .fill(epgServer.resourceUrl);
-            await app.mainWindow
-                .locator('.epg-source-row button')
-                .first()
-                .click();
+            await app.mainWindow.getByTestId('epg-source-refresh').click();
 
             await expect
                 .poll(() => getEpgChannelCount(app.mainWindow), {

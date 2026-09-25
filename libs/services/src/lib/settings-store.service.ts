@@ -2,6 +2,10 @@ import {
     EpgSourceSettingsService,
     epgSourceUrlsChanged,
 } from './epg-source-settings.service';
+import {
+    coerceProvidedDefaultOnSettings,
+    resolveDefaultOnSettings,
+} from './settings-opt-out.util';
 import { computed, inject } from '@angular/core';
 import {
     patchState,
@@ -25,6 +29,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
+    normalizeAppUpdateChannel,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
     normalizeParentalLockRelockMinutes,
@@ -80,19 +85,7 @@ export const SettingsStore = signalStore(
                             epgOffsetMinutes: normalizeEpgOffsetMinutes(
                                 storedSettings.epgOffsetMinutes
                             ),
-
-                            // Absent in settings stored before the default
-                            // flip means "never chose" — those users get the
-                            // new default; only an explicit false opts out.
-                            webPlayerSharedControls:
-                                storedSettings.webPlayerSharedControls !==
-                                false,
-                            portalConnectivityGuard:
-                                storedSettings.portalConnectivityGuard !==
-                                false,
-                            embeddedMpvAutoReconnect:
-                                storedSettings.embeddedMpvAutoReconnect !==
-                                false,
+                            ...resolveDefaultOnSettings(storedSettings),
                             dashboardRails: normalizeDashboardRailsSettings(
                                 storedSettings.dashboardRails
                             ),
@@ -139,24 +132,7 @@ export const SettingsStore = signalStore(
                 const previousEpgUrls = store.epgUrl();
                 patchState(store, {
                     ...settings,
-                    ...(settings.webPlayerSharedControls !== undefined
-                        ? {
-                              webPlayerSharedControls:
-                                  settings.webPlayerSharedControls !== false,
-                          }
-                        : {}),
-                    ...(settings.portalConnectivityGuard !== undefined
-                        ? {
-                              portalConnectivityGuard:
-                                  settings.portalConnectivityGuard !== false,
-                          }
-                        : {}),
-                    ...(settings.embeddedMpvAutoReconnect !== undefined
-                        ? {
-                              embeddedMpvAutoReconnect:
-                                  settings.embeddedMpvAutoReconnect !== false,
-                          }
-                        : {}),
+                    ...coerceProvidedDefaultOnSettings(settings),
                     ...(settings.dashboardRails !== undefined
                         ? {
                               dashboardRails: normalizeDashboardRailsSettings(
@@ -243,6 +219,9 @@ export const SettingsStore = signalStore(
                     startupWindowMode: normalizeStartupWindowMode(
                         store.startupWindowMode?.()
                     ),
+                    updateChannel: normalizeAppUpdateChannel(
+                        store.updateChannel?.()
+                    ),
                     showExternalPlaybackBar:
                         store.showExternalPlaybackBar?.() ??
                         DEFAULT_SETTINGS.showExternalPlaybackBar,
@@ -275,6 +254,7 @@ export const SettingsStore = signalStore(
                         store.embeddedMpvAutoReconnect?.() !== false,
                     coverSize:
                         store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
+                    showCoverTitles: store.showCoverTitles?.() !== false,
                     epgViewMode:
                         store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,
                     epgOffsetMinutes: normalizeEpgOffsetMinutes(

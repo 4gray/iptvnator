@@ -1,0 +1,301 @@
+// Stamped into the fullscreen panel's body, which is its single flex child;
+// the list below is the body's only scroll owner. The panel wears the
+// `dark-theme` context class, so the light-on-dark palette here is fixed.
+:host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.episode-panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.episode-panel__tabs {
+    flex-shrink: 0;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    // The season tabs read the app's text/tag tokens, which the light theme
+    // resolves to dark ink. This panel is always dark, so they are pinned to
+    // the light-on-dark palette here; custom properties reach the child.
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.72);
+    --text-muted: rgba(255, 255, 255, 0.5);
+    --tag-bg: rgba(255, 255, 255, 0.1);
+    --tag-border: rgba(255, 255, 255, 0.22);
+    --accent-success: #4ade80;
+}
+
+// ─── Season strip: the shown season's poster, name and count above the tabs ──
+
+.episode-panel__season {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 4px 10px;
+}
+
+.episode-panel__season-poster {
+    flex: none;
+    width: 44px;
+    aspect-ratio: 2 / 3;
+    object-fit: cover;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.episode-panel__season-meta {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+}
+
+.episode-panel__season-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.episode-panel__season-count {
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.episode-panel__list {
+    // Positioned so a row's offsetTop is measured against this scroll box.
+    position: relative;
+    display: grid;
+    gap: 4px;
+    align-content: start;
+    flex: 1;
+    min-height: 0;
+    margin: 0;
+    padding: 8px;
+    list-style: none;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
+}
+
+.episode-panel__row {
+    display: block;
+}
+
+.episode-panel__state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 28px 12px;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+
+    mat-icon {
+        color: rgba(255, 255, 255, 0.4);
+    }
+}
+
+.episode-panel__state--stacked {
+    flex-direction: column;
+}
+
+.episode-panel__retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+    background: transparent;
+    color: #ffffff;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    mat-icon {
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        color: inherit;
+    }
+}
+
+// ─── Row ─────────────────────────────────────────────────────────────────────
+
+.episode-panel__item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    width: 100%;
+    padding: 8px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+
+    &:hover,
+    &:focus-visible {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: -2px;
+    }
+}
+
+.episode-panel__item--playing {
+    background: rgba(255, 255, 255, 0.14);
+    cursor: default;
+}
+
+// Watched rows step back so the unwatched ones read as "what's left".
+.episode-panel__item--watched:not(.episode-panel__item--playing) {
+    .episode-panel__still,
+    .episode-panel__number,
+    .episode-panel__title {
+        opacity: 0.7;
+    }
+}
+
+.episode-panel__thumb {
+    position: relative;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 128px;
+    aspect-ratio: 16 / 9;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.episode-panel__still {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+// No still (no TMDB match, provider repeats the poster): a large numeral
+// tile stands in, so the row reads as designed rather than as a broken image.
+.episode-panel__number {
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.55);
+    font-variant-numeric: tabular-nums;
+}
+
+.episode-panel__playing-badge {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+
+    mat-icon {
+        color: #ffffff;
+    }
+}
+
+.episode-panel__progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.28);
+}
+
+.episode-panel__progress-bar {
+    display: block;
+    height: 100%;
+    background: #e50914;
+}
+
+// ─── Text ────────────────────────────────────────────────────────────────────
+
+.episode-panel__meta {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
+    padding-top: 2px;
+}
+
+.episode-panel__label {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.episode-panel__duration {
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.episode-panel__watched {
+    width: 15px;
+    height: 15px;
+    font-size: 15px;
+    color: var(--accent-success, #4ade80);
+}
+
+.episode-panel__now-playing {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #7dd87d;
+}
+
+.episode-panel__title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: #ffffff;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.episode-panel__overview {
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.62);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+@container (max-width: 560px) {
+    .episode-panel__thumb {
+        width: 104px;
+    }
+
+    .episode-panel__overview {
+        -webkit-line-clamp: 2;
+    }
+}

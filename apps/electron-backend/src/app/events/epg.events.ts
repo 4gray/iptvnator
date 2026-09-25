@@ -1,5 +1,10 @@
 import { reconcileEpgSources } from './epg-source-settings.service';
-import { ipcMain } from 'electron';
+import { dialog, ipcMain } from 'electron';
+import { store, TRUSTED_LOCAL_EPG_SOURCES } from '../services/store.service';
+import {
+    PersistedEpgLocalSourceAuthorizer,
+    promptForLocalEpgSource,
+} from './epg-local-source-authorizer';
 import {
     ElectronBridgeCurrentProgramsOptions,
     ElectronBridgeEpgGuideWindow,
@@ -131,6 +136,24 @@ export default class EpgEvents {
             }
         );
 
+        epgWorkerService.localSourceAuthorizer =
+            new PersistedEpgLocalSourceAuthorizer(
+                {
+                    load: () => store.get(TRUSTED_LOCAL_EPG_SOURCES) ?? [],
+                    save: (filePaths) =>
+                        store.set(TRUSTED_LOCAL_EPG_SOURCES, filePaths),
+                },
+                promptForLocalEpgSource
+            );
+
+        ipcMain.handle('EPG_OPEN_FILE_DIALOG', async () => {
+            const filePath = await this.pickEpgSourceFile();
+            if (filePath) {
+                epgWorkerService.localSourceAuthorizer.authorize(filePath);
+            }
+            return filePath;
+        });
+
         ipcMain.handle('EPG_CLEAR_ALL', async () => {
             await this.clearEpgData();
             return { success: true };
@@ -205,6 +228,22 @@ export default class EpgEvents {
         );
 
         return ipcMain;
+    }
+
+    /**
+     * Native picker for a local XMLTV file. Resolves the absolute path the
+     * user chose, or null on cancel; the renderer stores it as the source
+     * value and the worker reads it through `openEpgSourceStream`.
+     */
+    private static async pickEpgSourceFile(): Promise<string | null> {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            properties: ['openFile'],
+            filters: [
+                { name: 'XMLTV', extensions: ['xml', 'gz', 'xmltv'] },
+                { name: 'All Files', extensions: ['*'] },
+            ],
+        });
+        return canceled || filePaths.length === 0 ? null : filePaths[0];
     }
 
     private static async checkEpgFreshness(

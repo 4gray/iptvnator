@@ -6,6 +6,8 @@ import {
     verifyUncachedStalkerSearch,
 } from './stalker-category-search.fixture';
 import { verifyStalkerSeasonMarkers } from './stalker-season-markers.fixture';
+import { verifyStalkerOpenInPlaylist } from './stalker-open-in-playlist.fixture';
+import { playFirstItvChannel } from './stalker-itv-playback.fixture';
 import { expect, test } from './fixtures';
 import {
     getRegisteredProviderUrl,
@@ -467,6 +469,13 @@ test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
     expect(shortEpgRequests).toHaveLength(0);
 });
 
+test('@stalker ITV favorite opens inside its portal from global favorites', async ({
+    page,
+}) => {
+    await addStalkerPortal(page);
+    await verifyStalkerOpenInPlaylist(page, 'Mock Stalker Portal');
+});
+
 test('@stalker ITV playback survives a category switch', async ({ page }) => {
     await addStalkerPortal(page);
     await verifyStalkerPlaybackCategoryReturn(page);
@@ -891,32 +900,6 @@ test('@stalker create_link returns a playable stream URL', async ({
  * Play the first channel of the first ITV category and report every
  * `create_link` request the page made while doing so.
  */
-async function playFirstItvChannel(page: Page): Promise<string[]> {
-    const createLinkRequests: string[] = [];
-    page.on('request', (request) => {
-        if (request.url().includes('action=create_link')) {
-            createLinkRequests.push(request.url());
-        }
-    });
-
-    await page.getByRole('link', { name: /live|itv/i }).click();
-    await page.waitForURL(/stalker.*itv/);
-
-    const categories = page.locator('.category-item');
-    await expect(categories.nth(1)).toBeVisible({ timeout: 10_000 });
-    await categories.nth(1).click();
-
-    const channels = page.locator('[data-test-id="channel-item"]');
-    await expect(channels.first()).toBeVisible({ timeout: 20_000 });
-    await channels.first().click();
-    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-web-player-view')).toBeVisible({
-        timeout: 20_000,
-    });
-
-    return createLinkRequests;
-}
-
 test('@stalker ITV plays an unflagged channel without minting a link', async ({
     page,
 }) => {

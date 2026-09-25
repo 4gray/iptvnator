@@ -1,6 +1,7 @@
 <div
     class="sidebar"
     [class.sidebar-collapsed]="isSidebarCollapsed()"
+    [class.sidebar--reloading]="reloading()"
     appResizable
     [minWidth]="250"
     [maxWidth]="600"
@@ -24,6 +25,7 @@
         (epgMappingChanged)="onEpgMappingChanged()"
         (favoriteToggled)="onFavoriteToggled($event)"
         (removeRequested)="onRemoveRequested($event)"
+        (openInPlaylistRequested)="onOpenInPlaylistRequested($event)"
     />
 </div>
 
@@ -114,7 +116,18 @@
                             (collapsedChange)="
                                 onLiveEpgPanelCollapsedChange($event)
                             "
-                        />
+                        >
+                            <!-- ngProjectAs: a control-flow block only reaches
+                                 a selected slot when the wrapper names it -->
+                            <ng-container ngProjectAs="[epgToolbarAction]">
+                                @if (openInPlaylistTarget()) {
+                                    <app-open-in-playlist-chip
+                                        [playlistName]="openInPlaylistName()"
+                                        (activated)="openActiveItemInPlaylist()"
+                                    />
+                                }
+                            </ng-container>
+                        </app-epg-list-view>
                     } @else {
                         <app-epg-timeline
                             [programs]="timelinePrograms()"
@@ -145,7 +158,18 @@
                             (collapsedChange)="
                                 onLiveEpgPanelCollapsedChange($event)
                             "
-                        />
+                        >
+                            <!-- ngProjectAs: a control-flow block only reaches
+                                 a selected slot when the wrapper names it -->
+                            <ng-container ngProjectAs="[epgToolbarAction]">
+                                @if (openInPlaylistTarget()) {
+                                    <app-open-in-playlist-chip
+                                        [playlistName]="openInPlaylistName()"
+                                        (activated)="openActiveItemInPlaylist()"
+                                    />
+                                }
+                            </ng-container>
+                        </app-epg-timeline>
                     }
                 </div>
             </div>
@@ -180,5 +204,6 @@
         (epgMappingChanged)="onEpgMappingChanged()"
         (favoriteToggled)="onFavoriteToggled($event)"
         (removeRequested)="onRemoveRequested($event)"
+        (openInPlaylistRequested)="onOpenInPlaylistRequested($event)"
     />
 </ng-template>

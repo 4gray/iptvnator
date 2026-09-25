@@ -31,8 +31,10 @@ describe('PlaylistInfoComponent', () => {
     };
     let epgBridge: {
         supportsDataManagement: boolean;
+        supportsFilePicker: boolean;
         forceFetchEpg: jest.Mock;
         clearEpgDataForSource: jest.Mock;
+        pickEpgFile: jest.Mock;
     };
     let runtime: {
         isElectron: boolean;
@@ -82,6 +84,8 @@ describe('PlaylistInfoComponent', () => {
         };
         epgBridge = {
             supportsDataManagement: true,
+            supportsFilePicker: true,
+            pickEpgFile: jest.fn().mockResolvedValue(null),
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             clearEpgDataForSource: jest
                 .fn()
@@ -167,15 +171,9 @@ describe('PlaylistInfoComponent', () => {
                         currentLang: 'en',
                         get: jest.fn((key: string) => of(key)),
                         instant: jest.fn((key: string) => key),
-                        onDefaultLangChange: of({
-                            lang: 'en',
-                            translations: {},
-                        }),
-                        onLangChange: of({ lang: 'en', translations: {} }),
-                        onTranslationChange: of({
-                            lang: 'en',
-                            translations: {},
-                        }),
+                        onDefaultLangChange: new Subject(),
+                        onLangChange: new Subject(),
+                        onTranslationChange: new Subject(),
                     },
                 },
                 {
@@ -581,6 +579,23 @@ describe('PlaylistInfoComponent', () => {
         );
         expect(component.playlistEpgSourceInputs.length).toBe(1);
         expect(component.playlistEpgSourceInputs.at(0).value).toBe('');
+    });
+
+    it('fills a playlist-local EPG source input from the native file picker', async () => {
+        createComponent();
+        const input = component.playlistEpgSourceInputs.at(0);
+        await component.browsePlaylistEpgSourceInput(0);
+        expect(input.value).toBe('');
+
+        epgBridge.pickEpgFile.mockResolvedValue('/home/user/epg/guide.xml.gz');
+        await component.browsePlaylistEpgSourceInput(0);
+        expect(input.value).toBe('/home/user/epg/guide.xml.gz');
+        expect(input.valid).toBe(true);
+        expect(input.dirty).toBe(true);
+
+        epgBridge.supportsFilePicker = false;
+        await component.browsePlaylistEpgSourceInput(0);
+        expect(epgBridge.pickEpgFile).toHaveBeenCalledTimes(2);
     });
 
     it('shows a validation error for invalid playlist-local EPG source URLs', () => {

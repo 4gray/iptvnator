@@ -24,7 +24,8 @@ Related:
   "Movie Recognition (VOD Detail View)" in
   `docs/architecture/m3u-playlist-module.md`.
 - Enrichment is **opt-in** via `Settings > Metadata (TMDB)` because it sends
-  movie/series titles to a third-party API. Default: disabled.
+  movie/series titles to a third-party API. Default: disabled. Users supply
+  their own TMDB API key; distributed builds ship without a shared key.
 - The detail view renders provider data **immediately**; enrichment runs
   asynchronously and patches the selected item once TMDB responds. A
   staleness guard drops responses that arrive after the user navigated away.
@@ -44,7 +45,7 @@ store imports):
 
 | File                         | Responsibility                                                                                                                               |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tmdb-config.ts`             | API/image base URLs, embedded default API key, cache TTLs, app-language → TMDB-language mapping                                              |
+| `tmdb-config.ts`             | API/image base URLs, empty default API key placeholder, cache TTLs, app-language → TMDB-language mapping                                              |
 | `tmdb.types.ts`              | TMDB v3 response shapes (search, details with credits)                                                                                       |
 | `tmdb-api.service.ts`        | Thin `fetch`-based client (TMDB supports CORS; works in Electron renderer and PWA). Accepts v3 keys (`api_key` param) and v4 tokens (Bearer) |
 | `tmdb-matcher.ts`            | Title normalization, year extraction, and the match-confidence gate (pure functions)                                                         |
@@ -140,7 +141,27 @@ Wrong metadata is worse than no metadata, so id resolution is conservative:
    provider year — portals report the current season's year while TMDB's
    `first_air_date` is the premiere. Without a year, the exact-title match
    must be unambiguous (single hit).
-4. No confident match → the provider data stays untouched, and the negative
+4. Several admitted results are ranked by **year evidence first**
+   (`yearEvidenceTier`): the provider's exact year beats a year off by one,
+   which beats the series "premiered earlier" tolerance. Popularity
+   (`vote_count`, then `popularity`) only breaks ties inside the strongest
+   tier any candidate reached.
+
+   The tolerance is a last resort, not an equal. Ranked alongside the
+   exact-year tier it handed every new series its older, better-known
+   namesake: because TMDB returns titles in the request language, an
+   unrelated 2018 foreign series came back under the same `ru-RU` name as a
+   2026 local-language series and outvoted it, rendering its poster, cast
+   and genres. Over 400 Cyrillic series titles sampled from a real catalog,
+   20 normalized keys had a same-titled older series and 16 of those were
+   the more popular row.
+
+   The mirror case is accepted knowingly: a long-running show whose stated
+   season year happens to BE another same-titled show's premiere year now
+   resolves to the newer show. Separating those two needs the older show's
+   season air dates, which a search response does not carry — and the shape
+   needs three coincidences at once, against one that needs none.
+5. No confident match → the provider data stays untouched, and the negative
    verdict is cached (shorter TTL) so browsing back doesn't re-search.
 
 The year filter is applied client-side rather than via TMDB's strict
@@ -246,6 +267,25 @@ a `get_series_info` season overview wins when it is real prose, but panels
 routinely fill it with a bare cover-image URL —
 `sanitizeProviderOverview` (`@iptvnator/shared/interfaces`) treats a
 URL-only value as absent, and the stored TMDB overview fills the gap.
+
+The same payload's `poster_path` — every TMDB season has its own poster,
+distinct from the show poster on most shows — is stored as a full `w342`
+URL (`tmdbSeasonPosterUrl`) in `tmdb_season_posters[seasonKey]` beside the
+overview, under the same write-only-if-changed convergence guard. Stalker
+keeps it in `StalkerSeriesTmdbSeasonsService.posters(tmdbId)` next to
+`descriptions(tmdbId)`, dropped together with the entry when a replacement
+fetch fails. Season posters resolve **TMDB-first**, like the show artwork
+merge (`prefer(tmdbPoster, provider)`): `buildSeasonPosters`
+(`libs/portal/xtream/feature/src/lib/serial-details/season-posters.util.ts`)
+takes the stored TMDB poster and falls back to the provider's
+`seasons[].cover_big`/`cover` from `get_series_info`, accepted only as a
+trimmed http(s) URL that differs from the show poster because panels repeat
+it on every season. Stalker has no provider season art, so it is TMDB-only.
+The detail views render the selected season's poster as the season cover
+beside the season tabs and in the fullscreen episode panel's season strip;
+both are withheld for one-season items (that poster is the show poster) and
+fold on a failed image request. Contract: "Two-State Detail Layout" in
+`embedded-inline-playback.md`.
 
 The season number `{n}` is the provider's episode season number, with one
 correction (`resolveEnrichmentSeasonNumber` in
@@ -455,7 +495,7 @@ tmdb_metadata (
   media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>|v2'               -- details payload row
               'id:<tmdbId>|season:<n>'       -- season payload row
-              'title:<normalized>|year:<y>|v2' -- search resolution row
+              'title:<query lowercased>|year:<y>|v4' -- search resolution row
               'person:<personId>'            -- person payload row
               'trending:week'                -- trending list row
               'badProviderId:<tmdbId>'       -- id confirmed 404 by TMDB
@@ -470,14 +510,51 @@ tmdb_metadata (
 TTLs (enforced at read time in `TmdbCacheService.isFresh`): details and
 positive matches 30 days, negative matches 7 days.
 
-Search and details keys carry a `|v2` version suffix (`buildDetailsLookupKey`
-in `tmdb-matcher.ts`): for search rows so normalization changes cannot reuse
-stale positive or negative resolutions, for details rows because payloads now
-include videos via `append_to_response` and pre-videos cache rows had to be
-invalidated. Database startup deletes the obsolete
-unversioned search rows once and records
-`migration:tmdb-search-lookup-v2-cache-cleanup:v1` in `app_state`; details and
-person cache rows are unaffected.
+Search keys carry a `|v4` and details keys a `|v2` version suffix
+(`buildSearchLookupKey` / `buildDetailsLookupKey` in `tmdb-matcher.ts`): for
+search rows so normalization or query changes cannot reuse stale positive or
+negative resolutions, for details rows because payloads now include videos
+via `append_to_response` and pre-videos cache rows had to be invalidated.
+Search v2 → v3 retired the rows written while the folded comparison key was
+also the wire query (see "Search query vs. comparison key" below); v3 → v4
+retired the rows resolved before year evidence was tiered, where a positive
+row naming the wrong show would otherwise stay fresh for 30 days. Database
+startup deletes the rows of every retired search-key generation once, each
+under its own `app_state` marker so a skipped release still runs the cleanups
+it missed (`migration:tmdb-search-lookup-v2-cache-cleanup:v1` for the
+unversioned rows, `…-v3-…` for the `|v2` rows, `…-v4-…` for the `|v3` rows;
+`LEGACY_TMDB_SEARCH_CACHE_CLEANUPS` in `connection.ts`); details and person
+cache rows are unaffected.
+
+### Search query vs. comparison key
+
+`buildSearchTitleVariants` yields `{ query, normalized }` pairs. `normalized`
+is `normalizeTitle` — the folded key used for `pickConfidentMatch`, where
+both sides fold the same way. `query` is `cleanTitleForSearch`
+(`libs/shared/interfaces`): the same tag, bracket, season and trailing-year
+stripping, but the letters left as the provider wrote them. The search's
+identity is the query with only its case removed (`searchQueryIdentity`):
+variants are deduplicated by it and every attempted variant is cached under
+its own key (`title:<identity>|year:<y>|v4`, in the language that variant
+was searched in), never by the folded key and never only under the first
+variant — "Леика" and "Лейка", an illustrative pair, fold to one key while
+staying two different searches that can get different answers, so a verdict
+for one must not be read back for the other;
+a misspelled original title must not swallow the display title that TMDB
+actually knows; and two items that share an original title but not a display
+title walk different variant lists, so a row keyed on the first variant alone
+would hand the second item the first one's answer, or its cached miss. The two must differ because folding is lossy outside Latin: NFD
+splits Cyrillic "й" into "и" + a combining breve and "ё" into "е" + a
+diaeresis, and Arabic hamza forms ("أ") into a bare alef + a combining hamza
+that the punctuation step then turns into a space inside the word. The key
+drops or splits on those marks, and TMDB's `/search` does not fold them the
+same way, so a folded query matches nothing there. Under the old single-form
+design that hit every Russian title carrying "й" or "ё" and every Arabic
+title carrying a hamza form: each was searched folded, missed, and cached as
+missing for the 7-day negative TTL. The Cyrillic and Arabic strings used
+throughout this section are illustrative stand-ins chosen to fold the same
+way, not the titles the failures were observed on. Compare results only
+through `normalized`; never send it over the wire.
 
 Electron IPC path (follows the standard DB worker contract, see
 [SQLite DB Worker](./sqlite-db-worker.md)):
@@ -505,8 +582,7 @@ The panel's full path — settings button, preload bridge, DB worker, real
 SQLite — is covered by `@settings @electron @persistence sizes and clears
 the TMDB metadata cache` in `apps/electron-backend-e2e/src/settings.e2e.ts`.
 It seeds a row through `dbSetTmdbMetadata` rather than through enrichment,
-which needs an API key that builds outside the release pipeline do not
-carry.
+so the test does not depend on a TMDB API key or external API access.
 
 The PWA uses a session-scoped in-memory map (acceptable for phase 1; TMDB
 supports CORS so the PWA calls the API directly).
@@ -515,7 +591,7 @@ supports CORS so the PWA calls the API directly).
 
 `Settings.tmdb?: { enabled: boolean; apiKey?: string }`
 (`libs/shared/interfaces/src/lib/tmdb.interface.ts`). The settings page has
-a "Metadata (TMDB)" section: enable toggle, optional API key override with a
+a "Metadata (TMDB)" section: enable toggle, user-provided API key with a
 "check key" button (validates against `/configuration`), the M3U
 movie-recognition toggle (root-level `Settings.m3uVodDetails`, shown only
 while TMDB is enabled and bound via `[formControl]` because it is not part of
@@ -525,19 +601,30 @@ lot. Sizing is a full table scan, so it runs only once that section is the
 active one, and a failed read or clear says so instead of showing an empty
 cache.
 
-The embedded default key lives in `DEFAULT_TMDB_API_KEY`
-(`libs/services/src/lib/tmdb/tmdb-config.ts`) and is an **empty placeholder
-in the repository by design**: the real key is stored in the `TMDB_API_KEY`
-GitHub Actions secret and injected at CI build time by
-`tools/tmdb/inject-tmdb-key.mjs` (step "Inject TMDB API key" in
-`build-and-make.yaml`, before the frontend build). Rationale: TMDB keys are
-free and extractable from any client binary regardless, but keeping the key
-out of the public repo prevents trivial scraping and fork propagation. Never
-commit a real key; never reuse keys found in other repositories.
+Distributed builds ship **without a shared TMDB API key**. To use
+metadata enrichment, users enable it and enter their own key under
+`Settings > Metadata (TMDB)`. Key registration is available through the
+[TMDB account settings](https://www.themoviedb.org/settings/api); see the
+[TMDB API FAQ](https://developer.themoviedb.org/docs/faq).
 
-With no key available (empty default and no user override in settings),
-enrichment stays inactive even when the toggle is on — fork PRs and local
-dev builds fall into this mode automatically.
+This is a project distribution policy, not a claim that TMDB's terms
+categorically prohibit embedding an application key. A key shipped in a
+client can be extracted and misused; revoking a shared key could interrupt
+metadata access for everyone using it. TMDB also applies
+[service rate limits](https://developer.themoviedb.org/docs/rate-limiting),
+so a personal key does not remove the need to respect throttling.
+
+`DEFAULT_TMDB_API_KEY` in `libs/services/src/lib/tmdb/tmdb-config.ts` is
+empty by default. The build tooling still supports optional injection:
+`tools/tmdb/inject-tmdb-key.mjs` reads `TMDB_API_KEY` during the "Inject
+TMDB API key" step in `.github/workflows/build-and-make.yaml`. With no
+non-empty secret, that step is a no-op. Its presence does not mean release
+builds include a key; leave the secret unset for the no-shared-key policy.
+Never commit a real key or reuse keys found in other repositories.
+
+At runtime, a non-empty user key takes precedence over an injected default.
+With neither available, enrichment stays inactive even when the toggle is
+on. This applies to release, local development, and fork builds alike.
 
 ## Failure Behavior
 

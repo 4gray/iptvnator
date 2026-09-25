@@ -65,11 +65,44 @@ function response({ ok = true, status = 200, json } = {}) {
     };
 }
 
-function createPinFixture() {
+/** The clock every refresh-rule test reasons against. */
+const REFRESH_CLOCK = new Date('2026-08-29T00:00:00Z');
+const DAY_MS = 86_400_000;
+
+/**
+ * A checked-out pin whose AGE the test chooses, built from the synthetic
+ * release fixture rather than from `CURRENT_PIN`.
+ *
+ * The refresh tests are about the rule, so they must not read the checked-in
+ * pin's publish date. Reading it makes the outcome a function of production
+ * data that this very job exists to replace, and the assertion then fails
+ * precisely when the job succeeds: the weekly refresh has been red since
+ * 2026-09-07 because its validation step asserted that the pin it had just
+ * rotated was already over two weeks old, so the rotation never reached a
+ * pull request and the checked-in pin was left to expire out of upstream
+ * retention. `CURRENT_PIN` stays where it belongs — the schema, naming and
+ * licence-statement checks, which exist to validate the checked-in file and
+ * hold for any pin.
+ *
+ * The fixture's commit differs from `releaseFixture()`'s default so a
+ * rotation is observable as a change.
+ */
+function createPinFixture({
+    ageDays = 0,
+    commit = 'a1b2c3d4e5123456789012345678901234567890',
+} = {}) {
+    const publishedAt = new Date(REFRESH_CLOCK.getTime() - ageDays * DAY_MS);
+    const pin = pinFromUpstreamRelease(
+        releaseFixture({
+            date: publishedAt.toISOString().slice(0, 10),
+            commit,
+            publishedAt: publishedAt.toISOString(),
+        })
+    );
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'impv-win-pin-'));
     const pinPath = path.join(root, 'windows-runtime-pin.json');
-    fs.writeFileSync(pinPath, serializeWindowsRuntimePin(CURRENT_PIN));
-    return { root, pinPath };
+    fs.writeFileSync(pinPath, serializeWindowsRuntimePin(pin));
+    return { root, pinPath, pin };
 }
 
 test('checked-in Windows runtime pin is internally consistent', () => {
@@ -124,13 +157,15 @@ test('upstream release must provide GitHub digest and build evidence', () => {
     );
 });
 
-test('young available pin does not query releases or rewrite the file', async () => {
-    const fixture = createPinFixture();
+test('available pin one day under the threshold is left alone', async () => {
+    const fixture = createPinFixture({
+        ageDays: WINDOWS_RUNTIME_REFRESH_AFTER_DAYS - 1,
+    });
     let requestCount = 0;
     try {
         const result = await refreshWindowsRuntimePin({
             pinPath: fixture.pinPath,
-            now: new Date('2026-08-29T00:00:00Z'),
+            now: REFRESH_CLOCK,
             fetchImpl: async () => {
                 requestCount += 1;
                 return response();
@@ -141,24 +176,42 @@ test('young available pin does not query releases or rewrite the file', async ()
         assert.equal(requestCount, 1);
         assert.equal(
             fs.readFileSync(fixture.pinPath, 'utf8'),
-            serializeWindowsRuntimePin(CURRENT_PIN)
+            serializeWindowsRuntimePin(fixture.pin)
         );
     } finally {
         fs.rmSync(fixture.root, { recursive: true, force: true });
     }
 });
 
+test('a pin rotated moments ago does not immediately ask to rotate again', async () => {
+    // The invariant the refresh job depends on: its own freshly written pin
+    // must read as current on the next run, whatever date that run falls on.
+    const fixture = createPinFixture({ ageDays: 0 });
+    try {
+        const result = await refreshWindowsRuntimePin({
+            pinPath: fixture.pinPath,
+            now: REFRESH_CLOCK,
+            fetchImpl: async () => response(),
+        });
+        assert.equal(result.reason, 'current');
+        assert.equal(result.changed, false);
+    } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+});
+
 test('unavailable pin rotates to the newest downloadable release', async () => {
-    const fixture = createPinFixture();
+    // Deliberately young, so only the 404 can explain the rotation.
+    const fixture = createPinFixture({ ageDays: 1 });
     const latest = releaseFixture();
     const requests = [];
     try {
         const result = await refreshWindowsRuntimePin({
             pinPath: fixture.pinPath,
-            now: new Date('2026-08-29T00:00:00Z'),
+            now: REFRESH_CLOCK,
             fetchImpl: async (url, options = {}) => {
                 requests.push([url, options.method ?? 'GET']);
-                if (url === CURRENT_PIN.asset.url) {
+                if (url === fixture.pin.asset.url) {
                     return response({ ok: false, status: 404 });
                 }
                 if (url.startsWith('https://api.github.com/')) {
@@ -183,24 +236,29 @@ test('unavailable pin rotates to the newest downloadable release', async () => {
 });
 
 test('age threshold rotates an available pin before upstream retention', async () => {
-    const fixture = createPinFixture();
+    const fixture = createPinFixture({
+        ageDays: WINDOWS_RUNTIME_REFRESH_AFTER_DAYS,
+    });
     const latest = releaseFixture();
     try {
+        assert.equal(
+            runtimePinAgeDays(fixture.pin, REFRESH_CLOCK),
+            WINDOWS_RUNTIME_REFRESH_AFTER_DAYS
+        );
         const result = await refreshWindowsRuntimePin({
             pinPath: fixture.pinPath,
-            now: new Date('2026-09-05T13:00:00Z'),
+            now: REFRESH_CLOCK,
             fetchImpl: async (url) =>
                 url.startsWith('https://api.github.com/')
                     ? response({ json: [latest] })
                     : response(),
         });
-        assert.equal(
-            runtimePinAgeDays(CURRENT_PIN, new Date('2026-09-05T13:00:00Z')) >=
-                WINDOWS_RUNTIME_REFRESH_AFTER_DAYS,
-            true
-        );
         assert.equal(result.changed, true);
         assert.equal(result.reason, 'age-threshold');
+        assert.equal(
+            readWindowsRuntimePin(fixture.pinPath).releaseTag,
+            latest.tag_name
+        );
     } finally {
         fs.rmSync(fixture.root, { recursive: true, force: true });
     }

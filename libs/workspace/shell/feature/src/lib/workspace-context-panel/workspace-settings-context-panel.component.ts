@@ -1,5 +1,5 @@
 import { Location } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
@@ -12,6 +12,7 @@ import {
     selector: 'app-workspace-settings-context-panel',
     imports: [MatIconModule, RouterLink, RouterLinkActive, TranslateModule],
     styleUrls: ['./workspace-settings-context-panel.component.scss'],
+    changeDetection: ChangeDetectionStrategy.Eager,
     template: `
         <h2 class="panel-title">{{ 'SETTINGS.TITLE' | translate }}</h2>
         <div class="settings-panel-body">
@@ -54,9 +55,12 @@ export class WorkspaceSettingsContextPanelComponent {
     // links are real navigations now, so the phone drawer's NavigationEnd
     // auto-close fires too — the explicit close just makes the drawer react
     // immediately instead of waiting for the navigation to settle.
-    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
-        optional: true,
-    });
+    private readonly contextDrawer = inject(
+        WorkspaceShellContextDrawerService,
+        {
+            optional: true,
+        }
+    );
 
     onSectionClicked() {
         this.contextDrawer?.close();

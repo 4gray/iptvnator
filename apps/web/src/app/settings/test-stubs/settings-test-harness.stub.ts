@@ -97,6 +97,7 @@ export const DEFAULT_SETTINGS = {
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
     startupWindowMode: 'normal',
+    updateChannel: 'stable',
     showExternalPlaybackBar: true,
     stripCountryPrefix: false,
     theme: Theme.SystemTheme,
@@ -115,6 +116,7 @@ export const DEFAULT_SETTINGS = {
     embeddedMpvAutoReconnect: true,
     portalConnectivityGuard: true,
     coverSize: 'medium',
+    showCoverTitles: true,
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
     epgViewMode: 'timeline',
@@ -127,6 +129,8 @@ export const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {
     manualDownloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
     status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle,
     supportedSelfUpdate: true,
+    channel: 'stable',
+    installedChannel: 'stable',
 };
 
 export class MatSnackBarStub {
@@ -216,7 +220,9 @@ export function createEpgBridgeStub(): Partial<EpgRuntimeBridgeService> {
         clearEpgData: jest.fn().mockResolvedValue({ success: true }),
         clearEpgDataForSource: jest.fn().mockResolvedValue({ success: true }),
         forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
+        pickEpgFile: jest.fn().mockResolvedValue(null),
         supportsDataManagement: true,
+        supportsFilePicker: true,
         supportsImport: true,
     };
 }

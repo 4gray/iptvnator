@@ -6,6 +6,7 @@ import {
     inject,
     input,
     untracked,
+    ChangeDetectionStrategy,
 } from '@angular/core';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
@@ -28,6 +29,7 @@ import { PlaylistMeta, sourceHealthType } from '@iptvnator/shared/interfaces';
             role="img"
         ></span>
     }`,
+    changeDetection: ChangeDetectionStrategy.Eager,
     styles: [
         `
             :host {
