@@ -189,7 +189,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             playlistId,
             dbType
         );
-        if (importStatus === 'completed' && cached.length > 0) {
+        // The read is filtered by the parental lock, so an empty result is
+        // not proof of a cold cache: a type whose every category is locked
+        // is complete and must not be refetched from the provider.
+        if (
+            importStatus === 'completed' &&
+            (cached.length > 0 ||
+                (await this.dbService.hasXtreamCategories(playlistId, dbType)))
+        ) {
             return cached;
         }
 
@@ -334,7 +341,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
         const cached = await this.dbService.getXtreamContent(playlistId, type);
-        if (importStatus === 'completed' && cached.length > 0) {
+        // Filtered by the parental lock like the category read: empty is not
+        // cold while unfiltered rows exist.
+        if (
+            importStatus === 'completed' &&
+            (cached.length > 0 ||
+                (await this.dbService.hasXtreamContent(playlistId, type)))
+        ) {
             return cached;
         }
 

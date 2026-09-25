@@ -98,8 +98,21 @@ locked default.
   `XtreamStore.reloadCategories()` + `reloadCachedContent()` and, if the
   selected category vanished, clears the selection and navigates to the
   section root.
-- **Xtream (PWA):** `PwaXtreamDataSource` drops withheld categories and
-  streams at read time; the same reloads apply.
+- **Xtream (PWA):** `PwaXtreamDataSource` drops withheld categories,
+  streams and search hits at read time; the same reloads apply.
+- **Warm-cache detection (Electron):** the filtered category/content reads
+  can be empty while the offline cache is complete (every category locked),
+  so `ElectronXtreamDataSource` confirms an empty read with the unfiltered
+  `hasXtreamCategories` / `hasXtreamContent` before refetching from the
+  provider.
+- **Routes:** `parentalLockXtreamCategoryGuard(section)` on every Xtream
+  `:categoryId` route (live, vod, series and their detail children) and
+  `parentalLockStalkerCategoryGuard(section)` on the Stalker vod/series
+  `:categoryId` routes prompt for the PIN when a locked category is reached
+  by URL — bookmark, typed address, stale link — and redirect to the section
+  root on refusal. Electron routes carry SQLite row ids, so the Xtream guard
+  maps them through the unfiltered category read; Stalker routes already
+  carry the genre id.
 - **Stalker:** genres are stored unfiltered; `getCategoryResource` filters
   them, `getAllCategoriesForSelectedType` is the raw list for the lock
   dialog. `itvFullChannelList` and the content loader drop rows whose
@@ -110,7 +123,10 @@ locked default.
   portal page made only of locked rows does not end the list), a page that
   is entirely withheld requests the next page by itself, and the VOD/series
   `totalCount` is reduced by the withheld ids seen so the grid stops asking
-  once every visible row is in. A selected withheld genre is cleared and the
+  once every visible row is in. A lock flip while the list sits past page 1
+  drops the withheld rows on screen at once and restarts from page 1, so rows
+  accumulated under the old lock state are never appended to. A selected
+  withheld genre is cleared and the
   section root is navigated to.
 - **M3U:** `ChannelListContainerComponent` derives one `visibleChannelList`
   (all views, favorites, recents, the fullscreen panel and numeric zapping

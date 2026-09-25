@@ -612,7 +612,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         for (const type of types) {
             const cacheKey = `${playlistId}-${type}-content`;
-            const content = this.contentCache.get(cacheKey) || [];
+            // Same lock boundary as the catalog read: a search must not
+            // surface rows the category list withholds.
+            const content = this.withoutLockedContent(
+                playlistId,
+                type as StreamType,
+                this.contentCache.get(cacheKey) || []
+            );
 
             const filtered = content.filter((item) => {
                 const title =

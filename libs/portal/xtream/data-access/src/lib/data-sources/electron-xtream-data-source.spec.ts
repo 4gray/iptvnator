@@ -56,6 +56,26 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
             );
         });
 
+        it('keeps a complete cache whose every category the parental lock withholds', async () => {
+            // The filtered read returns nothing, but rows exist: refetching
+            // from the provider would be wasted work and, for content, a
+            // full re-import.
+            harness.dbService.getXtreamImportStatus.mockResolvedValue(
+                'completed'
+            );
+            harness.dbService.getXtreamCategories.mockResolvedValue([]);
+            harness.dbService.hasXtreamCategories.mockResolvedValue(true);
+
+            const result = await harness.dataSource.getCategories(
+                playlistId,
+                credentials,
+                'live'
+            );
+
+            expect(result).toEqual([]);
+            expect(harness.apiService.getCategories).not.toHaveBeenCalled();
+        });
+
         it('fetches from the API and caches to DB when the cache is cold', async () => {
             const remoteCategories = [
                 { category_id: '10', category_name: 'News' },

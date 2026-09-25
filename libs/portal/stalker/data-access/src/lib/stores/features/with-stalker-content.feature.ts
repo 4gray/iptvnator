@@ -290,6 +290,7 @@ export function withStalkerContent() {
                 // adding nothing new — withheld or not — is a stalled portal.
                 let withheldSeenKey = '';
                 const withheldSeenIds = new Set<string>();
+                let lastParentalLockVersion: number | null = null;
                 return {
                     categoryResource: resource({
                         params: () => ({
@@ -496,6 +497,55 @@ export function withStalkerContent() {
                                     playlist,
                                     params.contentType
                                 );
+                            // A lock flip while the list is past page 1 must
+                            // not append filtered rows onto pages that were
+                            // accumulated under the old lock state: drop the
+                            // withheld rows on screen now and restart from
+                            // page 1 so the list is rebuilt under the new one.
+                            if (
+                                lastParentalLockVersion !== null &&
+                                params.parentalLockVersion !==
+                                    lastParentalLockVersion &&
+                                params.pageIndex > 1
+                            ) {
+                                lastParentalLockVersion =
+                                    params.parentalLockVersion;
+                                const retained = withoutWithheldStalkerItems(
+                                    store.paginatedContent(),
+                                    params.contentType,
+                                    withheldCategoryIds
+                                );
+                                patchState(store, {
+                                    paginatedContent: retained,
+                                    ...(params.contentType === 'itv'
+                                        ? {
+                                              itvChannels:
+                                                  withoutWithheldStalkerItems(
+                                                      store.itvChannels(),
+                                                      'itv',
+                                                      withheldCategoryIds
+                                                  ),
+                                          }
+                                        : params.contentType === 'radio'
+                                          ? {
+                                                radioChannels:
+                                                    withoutWithheldStalkerItems(
+                                                        store.radioChannels(),
+                                                        'radio',
+                                                        withheldCategoryIds
+                                                    ),
+                                            }
+                                          : {}),
+                                });
+                                (
+                                    store as unknown as {
+                                        setPage?: (page: number) => void;
+                                    }
+                                ).setPage?.(0);
+                                return retained;
+                            }
+                            lastParentalLockVersion =
+                                params.parentalLockVersion;
 
                             if (params.contentType === 'itv') {
                                 const cachedChannels =

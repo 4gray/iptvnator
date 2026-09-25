@@ -657,6 +657,56 @@ describe('withStalkerContent failure states', () => {
         expect(store.hasMoreContent()).toBe(false);
     });
 
+    it('drops accumulated rows of a newly locked genre and restarts from page 1', async () => {
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+                const data =
+                    page === 1
+                        ? [
+                              { id: 'movie-1', name: 'One', category_id: '5' },
+                              { id: 'adult-1', name: 'A', category_id: '9' },
+                          ]
+                        : [{ id: 'movie-2', name: 'Two', category_id: '5' }];
+                return Promise.resolve({ js: { data, total_items: 3 } });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+        store.setPage(1);
+        await waitForCondition(() => store.getPaginatedContent().length === 3);
+
+        // Lock now: the genre-9 row loaded on page 1 must leave the screen
+        // and the list must be rebuilt from page 1 under the new lock state.
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        parentalLock.version.set(1);
+
+        await waitForCondition(
+            () =>
+                store.page() === 0 &&
+                !store.isPaginatedContentLoading() &&
+                store
+                    .getPaginatedContent()
+                    .every((item) => item.category_id !== '9'),
+            60
+        );
+
+        expect(store.getPaginatedContent().map((item) => item.id)).toEqual([
+            'movie-1',
+        ]);
+        expect(store.totalCount()).toBe(2);
+    });
+
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
         let failPageTwo = true;
         dataService.sendIpcEvent.mockImplementation(
