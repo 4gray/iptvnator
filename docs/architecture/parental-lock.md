@@ -118,9 +118,18 @@ locked default.
   by URL — bookmark, typed address, stale link — and redirect to the section
   root on refusal. Detail routes also resolve the ITEM's own category through
   `getContentByXtreamId`, so a locked movie paired with an unlocked category
-  id in the URL is still refused. Electron routes carry SQLite row ids, so
+  id in the URL is still refused; on a cold PWA navigation the guard
+  hydrates the session cache first (`getPlaylist` + `getContent`), and an
+  item the catalog cannot place fails closed (PIN prompt) rather than
+  passing as unlocked. Electron routes carry SQLite row ids, so
   the Xtream guard maps them through the unfiltered category read; Stalker
   routes already carry the genre id.
+- **Stalker search route** (`/workspace/stalker/:id/search`, no category
+  in the URL): `StalkerSearchComponent` filters each portal page through the
+  same withheld-genre predicate, carries `parentalLockVersion` in its
+  resource params, judges paging progress on the raw page (a page made only
+  of locked rows is not the end of the results) and, on a lock flip past
+  page 1, drops the withheld rows and restarts from page 1.
 - **Stalker:** genres are stored unfiltered; `getCategoryResource` filters
   them, `getAllCategoriesForSelectedType` is the raw list for the lock
   dialog. `itvFullChannelList` and the content loader drop rows whose
@@ -153,7 +162,11 @@ locked default.
   `StalkerCategoryLockDialogComponent` reached from a lock button above the
   categories rail; it offers "Lock adult (18+)" for genres the portal flags
   `censored`. All three list the locked names and can rewrite the locks, so
-  each opens only after `requestUnlock()` succeeds.
+  each opens only after `requestUnlock()` succeeds. The Xtream dialog loads
+  its candidates through the capability-selected data source
+  (`IXtreamDataSource.getAllCategories`, which the PWA source answers from
+  its session cache or the API), so PWA users can set locks too; the
+  hide/show checkboxes remain Electron-only.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 

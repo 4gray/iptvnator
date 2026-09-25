@@ -404,14 +404,54 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
               );
     }
 
+    /**
+     * The raw category list in the SQLite wire shape, locked ones included:
+     * the lock editor's candidates. Hidden/shown is not tracked in the PWA,
+     * so every row reports `hidden: false`. Reads the session cache and
+     * falls back to the API with the stored credentials on a cold session.
+     */
     async getAllCategories(
         playlistId: string,
         type: DbCategoryType
     ): Promise<XtreamCategoryFromDb[]> {
-        void playlistId;
-        void type;
-        // PWA doesn't track hidden categories - return empty
-        return [];
+        const categoryType: CategoryType = type === 'movies' ? 'vod' : type;
+        const cacheKey = `${playlistId}-${categoryType}-categories`;
+        let categories = this.categoryCache.get(cacheKey);
+        if (!categories) {
+            const playlist = await this.getPlaylist(playlistId);
+            if (!playlist) {
+                return [];
+            }
+            categories = await this.apiService.getCategories(
+                {
+                    serverUrl: playlist.serverUrl,
+                    username: playlist.username,
+                    password: playlist.password,
+                },
+                categoryType
+            );
+            this.categoryCache.set(cacheKey, categories);
+        }
+        const locked = new Set(
+            this.parentalLock.lockedXtreamIds(playlistId, type)
+        );
+        const rows: XtreamCategoryFromDb[] = [];
+        for (const category of categories) {
+            const xtreamId = Number(category.category_id);
+            if (!Number.isFinite(xtreamId)) {
+                continue;
+            }
+            rows.push({
+                id: xtreamId,
+                name: category.category_name,
+                playlist_id: playlistId,
+                type,
+                xtream_id: xtreamId,
+                hidden: false,
+                locked: locked.has(xtreamId),
+            });
+        }
+        return rows;
     }
 
     async getCachedCategories(

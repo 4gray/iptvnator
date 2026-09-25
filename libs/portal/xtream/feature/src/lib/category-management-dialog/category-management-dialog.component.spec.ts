@@ -1,7 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { DatabaseService, XCategoryFromDb } from '@iptvnator/services';
+import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
+import {
+    DatabaseService,
+    RuntimeCapabilitiesService,
+    XCategoryFromDb,
+} from '@iptvnator/services';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
@@ -17,14 +22,17 @@ const categories: XCategoryFromDb[] = [
     ...category,
     playlist_id: 'mock-playlist',
     type: 'live',
+    locked: false,
 }));
 
 describe('CategoryManagementDialogComponent', () => {
     let fixture: ComponentFixture<CategoryManagementDialogComponent>;
     let component: CategoryManagementDialogComponent;
     const db = {
-        getAllXtreamCategories: jest.fn(),
         updateCategoryVisibility: jest.fn(),
+    };
+    const dataSource = {
+        getAllCategories: jest.fn(),
     };
     const dialogRef = { close: jest.fn() };
     const data: CategoryManagementDialogData = {
@@ -35,7 +43,7 @@ describe('CategoryManagementDialogComponent', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
-        db.getAllXtreamCategories.mockResolvedValue(categories);
+        dataSource.getAllCategories.mockResolvedValue(categories);
         db.updateCategoryVisibility.mockResolvedValue(undefined);
         data.contentType = 'live';
         await TestBed.configureTestingModule({
@@ -45,6 +53,11 @@ describe('CategoryManagementDialogComponent', () => {
             ],
             providers: [
                 { provide: DatabaseService, useValue: db },
+                { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsXtreamSqliteDataSource: true },
+                },
                 { provide: MatDialogRef, useValue: dialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: data },
             ],
@@ -194,7 +207,7 @@ describe('CategoryManagementDialogComponent', () => {
         async (contentType, dbType) => {
             data.contentType = contentType;
             await component.ngOnInit();
-            expect(db.getAllXtreamCategories).toHaveBeenLastCalledWith(
+            expect(dataSource.getAllCategories).toHaveBeenLastCalledWith(
                 'mock-playlist',
                 dbType
             );

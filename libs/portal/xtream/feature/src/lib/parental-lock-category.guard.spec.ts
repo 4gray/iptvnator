@@ -41,7 +41,11 @@ describe('parentalLockXtreamCategoryGuard', () => {
     let databaseService: { getAllXtreamCategories: jest.Mock };
     let runtime: { supportsXtreamSqliteDataSource: boolean };
     let router: { createUrlTree: jest.Mock };
-    let dataSource: { getContentByXtreamId: jest.Mock };
+    let dataSource: {
+        getContentByXtreamId: jest.Mock;
+        getPlaylist: jest.Mock;
+        getContent: jest.Mock;
+    };
 
     beforeEach(() => {
         parentalLock = {
@@ -61,6 +65,12 @@ describe('parentalLockXtreamCategoryGuard', () => {
         router = { createUrlTree: jest.fn(() => ({}) as UrlTree) };
         dataSource = {
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
+            getPlaylist: jest.fn().mockResolvedValue({
+                serverUrl: 'http://panel.example',
+                username: 'u',
+                password: 'p',
+            }),
+            getContent: jest.fn().mockResolvedValue([]),
         };
         TestBed.configureTestingModule({
             providers: [
@@ -150,6 +160,36 @@ describe('parentalLockXtreamCategoryGuard', () => {
 
         await expect(run('series', '12')).resolves.toBe(true);
         expect(router.createUrlTree).not.toHaveBeenCalled();
+    });
+
+    it('hydrates the PWA session cache before judging a detail item on a cold navigation', async () => {
+        runtime.supportsXtreamSqliteDataSource = false;
+        parentalLock.isXtreamCategoryLocked.mockImplementation(
+            (_playlist: string, _type: string, xtreamId: number) =>
+                xtreamId === 900
+        );
+        dataSource.getContentByXtreamId
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({ category_id: '900' });
+
+        const result = await run('vod', '901', { vodId: '555' });
+
+        expect(dataSource.getContent).toHaveBeenCalledWith(
+            'playlist-1',
+            { serverUrl: 'http://panel.example', username: 'u', password: 'p' },
+            'movie'
+        );
+        expect(parentalLock.requestUnlock).toHaveBeenCalled();
+        expect(result).not.toBe(true);
+    });
+
+    it('fails closed for a detail item the catalog cannot place', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+
+        const result = await run('series', '13', { serialId: '777' });
+
+        expect(parentalLock.requestUnlock).toHaveBeenCalled();
+        expect(result).not.toBe(true);
     });
 
     it('uses the route id as the provider id in the PWA', async () => {

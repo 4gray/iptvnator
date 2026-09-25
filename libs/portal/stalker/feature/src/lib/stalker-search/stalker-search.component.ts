@@ -21,9 +21,11 @@ import {
     executeStalkerRequest,
     StalkerPortalRepairService,
     StalkerSessionService,
+    withoutWithheldStalkerItems,
 } from '@iptvnator/portal/stalker/data-access';
 import {
     DataService,
+    ParentalLockService,
     PlaylistsService,
     resetHostConnectivityGuard,
 } from '@iptvnator/services';
@@ -120,6 +122,9 @@ export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly location = inject(Location);
     private readonly dataService = inject(DataService);
+    private readonly parentalLock = inject(ParentalLockService);
+    /** Lock version the accumulated results were built under. */
+    private searchResultsLockVersion: number | null = null;
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistService = inject(PlaylistsService);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
@@ -241,6 +246,9 @@ export class StalkerSearchComponent {
             page: this.searchPage(),
             playlistId: this.currentPlaylist()?._id ?? null,
             action: StalkerPortalActions.GetOrderedList,
+            // Lock/unlock re-fires the search: withheld rows are dropped at
+            // page time, so the results must be rebuilt when they change.
+            parentalLockVersion: this.parentalLock.version(),
         }),
         loader: async ({ params }) => {
             if (params.search.length < 3) {
@@ -260,6 +268,36 @@ export class StalkerSearchComponent {
                 return [];
             }
             const contentType = params.contentType;
+            // The dedicated search route has no category guard, so it filters
+            // the portal's rows itself: a locked genre's title must not reach
+            // the grid, its detail or playback through search.
+            const withheldCategoryIds = this.parentalLock.active()
+                ? new Set(
+                      this.parentalLock.lockedStalkerIds(
+                          playlist._id,
+                          contentType
+                      )
+                  )
+                : new Set<string>();
+            if (
+                this.searchResultsLockVersion !== null &&
+                this.searchResultsLockVersion !== params.parentalLockVersion &&
+                params.page > 1
+            ) {
+                // A lock flip past page 1: drop the withheld rows on screen
+                // and rebuild from page 1 rather than appending to pages
+                // accumulated under the old lock state.
+                this.searchResultsLockVersion = params.parentalLockVersion;
+                const retained = withoutWithheldStalkerItems(
+                    this.accumulatedSearchResults(),
+                    contentType,
+                    withheldCategoryIds
+                );
+                this.accumulatedSearchResults.set(retained);
+                this.searchPage.set(1);
+                return retained;
+            }
+            this.searchResultsLockVersion = params.parentalLockVersion;
 
             // Mirror the catalog request shape: many Ministra portals
             // return an empty list for get_ordered_list without the
@@ -301,9 +339,14 @@ export class StalkerSearchComponent {
                         playlist,
                         requestParams
                     );
-                const items = (response.js?.data || []).map(
+                const rawItems = (response.js?.data || []).map(
                     (item: StalkerVodSource) =>
                         this.processItemUrls(item, portalUrl)
+                );
+                const items = withoutWithheldStalkerItems(
+                    rawItems,
+                    contentType,
+                    withheldCategoryIds
                 );
 
                 if (!isCurrent()) {
@@ -313,7 +356,10 @@ export class StalkerSearchComponent {
                 return this.applySearchPageSuccess(
                     params.page,
                     items,
-                    response.js?.total_items
+                    response.js?.total_items,
+                    // A page made only of withheld rows still is a page the
+                    // portal served; judge progress on what it sent.
+                    rawItems.length > 0
                 );
             } catch (error) {
                 this.logger.warn('Stalker search page failed', {
@@ -343,7 +389,8 @@ export class StalkerSearchComponent {
     applySearchPageSuccess(
         page: number,
         items: StalkerVodSource[],
-        totalItems: number | undefined
+        totalItems: number | undefined,
+        pageHadRows: boolean = items.length > 0
     ): StalkerVodSource[] {
         const previous = page === 1 ? [] : this.accumulatedSearchResults();
         const merged =
@@ -352,13 +399,16 @@ export class StalkerSearchComponent {
         // a reported total. Dedup after mid-list portal mutations can leave
         // the unique list permanently shorter than total_items, and a
         // repeated page dedupes to no growth; either way a no-progress
-        // append is the practical end of the results.
-        const madeProgress = page === 1 || merged.length > previous.length;
+        // append is the practical end of the results. A page whose rows were
+        // all withheld by the parental lock counts as progress too.
+        const withheldRows = pageHadRows && items.length === 0;
+        const madeProgress =
+            page === 1 || merged.length > previous.length || withheldRows;
         this.searchHasMore.set(
             madeProgress &&
                 (typeof totalItems === 'number' && totalItems >= 0
                     ? merged.length < totalItems
-                    : items.length > 0)
+                    : pageHadRows)
         );
         this.searchAppendError.set(false);
         this.accumulatedSearchResults.set(merged);

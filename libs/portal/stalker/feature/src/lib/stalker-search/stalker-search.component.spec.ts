@@ -403,6 +403,21 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchHasMore()).toBe(false);
     });
 
+    it('keeps paging past a page whose rows were all withheld by the parental lock', () => {
+        component.applySearchPageSuccess(1, searchItems('page1', 3), 10);
+        expect(component.searchHasMore()).toBe(true);
+
+        // The portal sent rows, every one of them locked: no visible growth,
+        // but not the end of the results either.
+        component.applySearchPageSuccess(2, [], 10, true);
+        expect(component.searchResults()).toHaveLength(3);
+        expect(component.searchHasMore()).toBe(true);
+
+        // An actually empty page still ends it.
+        component.applySearchPageSuccess(3, [], 10, false);
+        expect(component.searchHasMore()).toBe(false);
+    });
+
     it('stops paging when a total-backed append makes no progress', () => {
         component.applySearchPageSuccess(1, searchItems('page1', 3), 10);
         expect(component.searchHasMore()).toBe(true);

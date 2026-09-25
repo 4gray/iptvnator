@@ -21,6 +21,7 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
         type: 'live' as const,
         xtream_id: 10,
         hidden: false,
+        locked: false,
     };
     const dbContentItem = {
         id: 1,

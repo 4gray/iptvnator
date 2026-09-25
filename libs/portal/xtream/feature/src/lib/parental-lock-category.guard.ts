@@ -99,14 +99,38 @@ export function parentalLockXtreamCategoryGuard(
             route.paramMap.get('vodId') ?? route.paramMap.get('serialId')
         );
         if (!locked && section !== 'live' && Number.isFinite(itemId)) {
-            const item = await dataSource.getContentByXtreamId(
+            const contentType = section === 'vod' ? 'movie' : 'series';
+            let item = await dataSource.getContentByXtreamId(
                 itemId,
                 playlistId,
-                section === 'vod' ? 'movie' : 'series'
+                contentType
             );
+            if (!item && rows === null) {
+                // PWA: the session cache is empty on a cold navigation, so
+                // hydrate it the way the route session would before judging.
+                const playlist = await dataSource.getPlaylist(playlistId);
+                if (playlist) {
+                    await dataSource.getContent(
+                        playlistId,
+                        {
+                            serverUrl: playlist.serverUrl,
+                            username: playlist.username,
+                            password: playlist.password,
+                        },
+                        contentType
+                    );
+                    item = await dataSource.getContentByXtreamId(
+                        itemId,
+                        playlistId,
+                        contentType
+                    );
+                }
+            }
             const itemCategoryId = Number(item?.category_id);
+            // An item the catalog cannot place fails closed: while the lock
+            // is active an unknown title is not proof of an unlocked one.
             locked =
-                Number.isFinite(itemCategoryId) && isLocked(itemCategoryId);
+                !Number.isFinite(itemCategoryId) || isLocked(itemCategoryId);
         }
 
         if (!locked || (await parentalLock.requestUnlock())) {

@@ -80,13 +80,15 @@
                     [attr.data-category-id]="category.xtream_id"
                     (click)="toggleCategory(category)"
                 >
-                    <mat-checkbox
-                        [checked]="category.selected"
-                        [aria-label]="category.name"
-                        (click)="$event.stopPropagation()"
-                        (change)="toggleCategory(category)"
-                    >
-                    </mat-checkbox>
+                    @if (supportsVisibility) {
+                        <mat-checkbox
+                            [checked]="category.selected"
+                            [aria-label]="category.name"
+                            (click)="$event.stopPropagation()"
+                            (change)="toggleCategory(category)"
+                        >
+                        </mat-checkbox>
+                    }
                     <span class="category-name">{{ category.name }}</span>
                     <span class="item-count"
                         >({{ getItemCount(category) }})</span

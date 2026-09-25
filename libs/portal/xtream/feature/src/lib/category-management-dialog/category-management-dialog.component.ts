@@ -18,9 +18,11 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DatabaseService,
     ParentalLockService,
+    RuntimeCapabilitiesService,
     XCategoryFromDb,
 } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -55,7 +57,14 @@ interface CategoryWithSelection extends XCategoryFromDb {
 })
 export class CategoryManagementDialogComponent implements OnInit {
     private readonly dbService = inject(DatabaseService);
+    private readonly dataSource = inject(XTREAM_DATA_SOURCE);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly parentalLock = inject(ParentalLockService);
+    /**
+     * Hide/show is SQLite-backed and Electron-only; the PWA data source lists
+     * its raw categories so the lock toggles still have candidates there.
+     */
+    readonly supportsVisibility = this.runtime.supportsXtreamSqliteDataSource;
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialogRef = inject(
         MatDialogRef<CategoryManagementDialogComponent>
@@ -132,7 +141,7 @@ export class CategoryManagementDialogComponent implements OnInit {
         const expectedCategoryCount = this.data.itemCounts.size;
 
         while (true) {
-            const categories = await this.dbService.getAllXtreamCategories(
+            const categories = await this.dataSource.getAllCategories(
                 this.data.playlistId,
                 type
             );
@@ -212,10 +221,10 @@ export class CategoryManagementDialogComponent implements OnInit {
                 .filter((c) => c.selected)
                 .map((c) => c.id);
 
-            if (toHide.length > 0) {
+            if (this.supportsVisibility && toHide.length > 0) {
                 await this.dbService.updateCategoryVisibility(toHide, true);
             }
-            if (toShow.length > 0) {
+            if (this.supportsVisibility && toShow.length > 0) {
                 await this.dbService.updateCategoryVisibility(toShow, false);
             }
 
