@@ -217,8 +217,11 @@ function keepFactual(field?: VodSourceField): VodSourceField | undefined {
  *
  * `Intl.Locale` does the canonicalizing: 639-2 collapses to 639-1 where one
  * exists, both German forms land on `de`, and regions drop away. `und` —
- * ffprobe's marker for undetermined — canonicalizes to nothing, which is
- * exactly right: it means the provider does not know either.
+ * ffprobe's marker for undetermined — is declined explicitly: it means the
+ * provider does not know either. Older ICU builds canonicalized it to an
+ * empty subtag, but ICU 78 (Electron 43, Node 26) keeps `und`, and a kept
+ * `und` would read as a stated language and turn "unknown vs. English" into
+ * a dub change.
  *
  * Anything that survives with more than three characters is not a language
  * code (`Russian` parses as the subtag `russian`), so the comparison is
@@ -232,7 +235,11 @@ function canonicalLanguage(raw: string | null | undefined): string | null {
 
     try {
         const language = new LocaleCtor(value).language;
-        return language && language.length <= 3 ? language : null;
+        return language &&
+            language.length <= 3 &&
+            language !== UNDETERMINED_LANGUAGE
+            ? language
+            : null;
     } catch {
         // Not a well-formed tag at all; saying nothing beats comparing junk.
         return null;
@@ -252,6 +259,9 @@ const LocaleCtor = (
         Locale?: new (tag: string) => { language?: string };
     }
 ).Locale;
+
+/** ISO 639-2 "undetermined"; see `canonicalLanguage`. */
+const UNDETERMINED_LANGUAGE = 'und';
 
 function cleanString(raw: string | null | undefined): string | null {
     const trimmed = typeof raw === 'string' ? raw.trim() : '';

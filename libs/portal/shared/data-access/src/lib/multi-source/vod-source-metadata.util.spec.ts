@@ -180,8 +180,10 @@ describe('applyApiMetadata', () => {
     });
 
     it.each([
-        // ffprobe's marker for "we do not know".
+        // ffprobe's marker for "we do not know". ICU 78 (Electron 43)
+        // keeps it as the subtag instead of emptying it.
         ['und'],
+        ['und-US'],
         ['Russian'],
         ['en_US'],
         [''],
@@ -355,6 +357,19 @@ describe('audioDiffersFactually', () => {
         );
         const to = candidate(
             applyApiMetadata(candidate(), { audioLanguage: 'en-US' })
+        );
+
+        expect(audioDiffersFactually(from, to)).toBe(false);
+    });
+
+    it('stays silent when one side reports an undetermined language', () => {
+        // `und` is ffprobe admitting it does not know; measured against a
+        // stated English it is not a dub change.
+        const from = candidate(
+            applyApiMetadata(candidate(), { audioLanguage: 'und' })
+        );
+        const to = candidate(
+            applyApiMetadata(candidate(), { audioLanguage: 'eng' })
         );
 
         expect(audioDiffersFactually(from, to)).toBe(false);
