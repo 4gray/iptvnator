@@ -26,12 +26,42 @@ export function isValidParentalLockPin(pin: unknown): pin is string {
     );
 }
 
-function getSubtleCrypto(): SubtleCrypto {
-    const cryptoApi = globalThis.crypto;
-    if (!cryptoApi?.subtle) {
+/**
+ * Structural view of the WebCrypto surface this file needs. Named DOM types
+ * (`SubtleCrypto`, `BufferSource`) are unavailable to the Node build of the
+ * web backend, which compiles this shared library as well.
+ */
+interface WebCryptoSubtleLike {
+    importKey(
+        format: 'raw',
+        keyData: Uint8Array,
+        algorithm: 'PBKDF2',
+        extractable: boolean,
+        keyUsages: ['deriveBits']
+    ): Promise<unknown>;
+    deriveBits(
+        algorithm: {
+            name: 'PBKDF2';
+            hash: 'SHA-256';
+            salt: Uint8Array;
+            iterations: number;
+        },
+        baseKey: unknown,
+        length: number
+    ): Promise<ArrayBuffer>;
+}
+
+interface WebCryptoLike {
+    subtle?: WebCryptoSubtleLike;
+    getRandomValues?<T extends Uint8Array>(array: T): T;
+}
+
+function getWebCrypto(): Required<WebCryptoLike> {
+    const cryptoApi = (globalThis as { crypto?: WebCryptoLike }).crypto;
+    if (!cryptoApi?.subtle || !cryptoApi.getRandomValues) {
         throw new Error('WebCrypto is unavailable in this runtime.');
     }
-    return cryptoApi.subtle;
+    return cryptoApi as Required<WebCryptoLike>;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -56,7 +86,7 @@ async function derivePinHash(
     salt: Uint8Array,
     iterations: number
 ): Promise<Uint8Array> {
-    const subtle = getSubtleCrypto();
+    const subtle = getWebCrypto().subtle;
     const keyMaterial = await subtle.importKey(
         'raw',
         new TextEncoder().encode(pin),
@@ -68,7 +98,7 @@ async function derivePinHash(
         {
             name: 'PBKDF2',
             hash: 'SHA-256',
-            salt: salt as BufferSource,
+            salt,
             iterations,
         },
         keyMaterial,
@@ -82,7 +112,7 @@ export async function hashParentalLockPin(pin: string): Promise<string> {
         throw new Error('PIN must be 4 to 8 digits.');
     }
     const salt = new Uint8Array(PIN_HASH_SALT_BYTES);
-    globalThis.crypto.getRandomValues(salt);
+    getWebCrypto().getRandomValues(salt);
     const hash = await derivePinHash(pin, salt, PIN_HASH_ITERATIONS);
     return [
         PIN_HASH_VERSION,
