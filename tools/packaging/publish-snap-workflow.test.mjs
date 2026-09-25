@@ -184,6 +184,18 @@ test(
             step,
             'Snapcraft needs a writable sibling directory for metadata extraction'
         );
+        const canElevate =
+            process.getuid() === 0 ||
+            spawnSync('sudo', ['-n', 'true']).status === 0;
+        const canDropPrivileges =
+            spawnSync('/usr/bin/setpriv', ['--version']).status === 0;
+        if (!canElevate || !canDropPrivileges) {
+            const reason =
+                'Snap upload permission integration requires root or passwordless sudo and /usr/bin/setpriv';
+            assert.ok(!process.env.CI, reason);
+            t.skip(reason);
+            return;
+        }
         const directory = fs.mkdtempSync(
             path.join(os.tmpdir(), 'snap-upload-permissions-')
         );
