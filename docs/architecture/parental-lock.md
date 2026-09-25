@@ -96,7 +96,13 @@ a dead render process the flag falls back to the mirrored
 `PARENTAL_LOCK_ENABLED` setting, i.e. locked while the feature is on. The
 renderer, in turn, reports nothing before its settings have loaded, so it can
 never send a spurious "unlocked" while the main process still holds the
-locked default.
+locked default. Unreadable settings fail the same way: `SettingsStore`
+serves defaults and records `storageFailure = 'load'`, and the switch is
+then unknown rather than off — a stored PIN stands in for it (`enabled`
+follows `hasPin`, so the session starts locked and one PIN entry unlocks
+it), and without a PIN the renderer does not report at all, leaving the
+main process on its mirrored default instead of announcing "unlocked" on
+the strength of default settings.
 
 ### In-memory catalogs
 
@@ -110,13 +116,32 @@ locked default.
   "All", recently added or search has no selected category to vanish
   with, so its row disappearing from a list is not enough — the item is
   cleared and the route returns to the section root while the (still
-  readable) selected category stays.
+  readable) selected category stays. Applies run one at a time and each is
+  abandoned once a newer `version` exists (the queued apply reads the latest
+  state): `ElectronXtreamDataSource` shares in-flight category/content
+  reads per playlist and type, and its share key carries the lock version,
+  so an unlock refresh still running when "Lock now" arrives can never hand
+  the relock its unfiltered rows. The apply also re-runs the stored
+  in-portal search (`XtreamStore.refreshSearchResults`, the last
+  `searchContent` call as issued) — `searchResults` is a separate array the
+  search page renders directly and would otherwise keep locked titles until
+  the query changes. Live playback is stopped by the layout itself:
+  `LiveStreamLayoutComponent` keeps the playing channel's provider category
+  id (mapped from the SQLite row id on Electron) and drops `activePlayback`
+  on a `version` change that locks it, because the player is gated on that
+  signal, not on the store selection — which an ordinary category switch
+  also clears while the channel keeps playing.
 - **Stalker:** the same service checks the selected genre through
   `isStalkerCategoryLocked` and, independently, the selected item's own
-  `category_id` — an item opened from `*` (All) or search is withheld by
-  its genre even though `*` itself can never be locked. A withheld item is
-  cleared and the section root is navigated to; the category selection is
-  reset only when the genre itself is locked.
+  genre — `tv_genre_id` for live and radio rows, `category_id` for VOD and
+  series, the rule the store's withheld filter applies — so an item opened
+  from `*` (All) or search is withheld by its genre even though `*` itself
+  can never be locked. A withheld item is cleared and the section root is
+  navigated to; the category selection is reset only when the genre itself
+  is locked. `StalkerLiveStreamLayoutComponent` drops its `activePlayback`
+  whenever the store selection is cleared: its template mounts the player
+  only with a selection, and the held stream must not resurface with the
+  next one.
 - **Xtream (PWA):** `PwaXtreamDataSource` drops withheld categories,
   streams and search hits at read time; the same reloads apply.
 - **Warm-cache detection (Electron):** the filtered category/content reads
@@ -204,8 +229,9 @@ never exported.
 Favorites, recently viewed, playback positions / Continue Watching, the
 dashboard rails built from Stalker and M3U documents, global favorites /
 recent pages, the EPG guide, downloads and recordings lists, the remote
-control's channel-number resolvers and the command palette's channel search
-still show rows from locked categories. The SQLite-side hooks exist
+control's channel-number resolvers, the command palette's channel search and
+the Electron-only global search page (`/workspace/search`, whose stored
+results are not re-run on a relock) still show rows from locked categories. The SQLite-side hooks exist
 (`unlockedCategoryCondition()` / `unlockedCategorySql()`), the renderer
 predicate is `ParentalLockService.is*Locked`.
 

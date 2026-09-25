@@ -81,6 +81,8 @@ export function withSearch() {
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
             let searchRequestVersion = 0;
+            /** The last in-portal search, so it can be re-run as issued. */
+            let lastSearch: SearchContentParams | null = null;
 
             return {
                 /**
@@ -110,12 +112,14 @@ export function withSearch() {
                     const requestVersion = ++searchRequestVersion;
 
                     if (!playlistId || !searchTerm.trim()) {
+                        lastSearch = null;
                         patchState(store, {
                             searchResults: [],
                             isSearching: false,
                         });
                         return [];
                     }
+                    lastSearch = { term: searchTerm, types, excludeHidden };
 
                     patchState(store, { isSearching: true });
 
@@ -155,6 +159,18 @@ export function withSearch() {
                         });
                         return [];
                     }
+                },
+
+                /**
+                 * Re-runs the last in-portal search with its own parameters,
+                 * so stored results reflect the current read filters (the
+                 * parental lock) without the page having to search again.
+                 */
+                async refreshSearchResults(): Promise<void> {
+                    if (!lastSearch) {
+                        return;
+                    }
+                    await this.searchContent(lastSearch);
                 },
 
                 /**
@@ -209,6 +225,7 @@ export function withSearch() {
                  */
                 resetSearchResults(): void {
                     searchRequestVersion++;
+                    lastSearch = null;
                     patchState(store, initialSearchState);
                 },
             };

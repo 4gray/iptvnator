@@ -16,6 +16,7 @@ describe('ParentalLockService', () => {
     const originalElectron = window.electron;
     let parentalLockEnabled: ReturnType<typeof signal<boolean>>;
     let parentalLockRelockMinutes: ReturnType<typeof signal<number>>;
+    let storageFailure: ReturnType<typeof signal<'load' | 'save' | null>>;
     let updateSettings: jest.Mock;
     let storage: {
         pinHash: string | null;
@@ -42,6 +43,7 @@ describe('ParentalLockService', () => {
     beforeEach(() => {
         parentalLockEnabled = signal(false);
         parentalLockRelockMinutes = signal(15);
+        storageFailure = signal<'load' | 'save' | null>(null);
         updateSettings = jest.fn(async (patch: Record<string, unknown>) => {
             if ('parentalLockEnabled' in patch) {
                 parentalLockEnabled.set(patch['parentalLockEnabled'] === true);
@@ -87,6 +89,7 @@ describe('ParentalLockService', () => {
                     useValue: {
                         parentalLockEnabled,
                         parentalLockRelockMinutes,
+                        storageFailure,
                         loadSettings: jest.fn(async () => undefined),
                         updateSettings,
                     },
@@ -126,6 +129,28 @@ describe('ParentalLockService', () => {
         expect(setParentalLockState).toHaveBeenLastCalledWith(false);
         await expect(service.requestUnlock()).resolves.toBe(true);
         expect(prompt.requestPin).not.toHaveBeenCalled();
+    });
+
+    it('stands in the stored PIN for the switch when settings could not be read', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        storageFailure.set('load');
+        // Defaults-by-failure: the store reports the feature as off.
+        parentalLockEnabled.set(false);
+
+        const service = await createService();
+
+        expect(service.enabled()).toBe(true);
+        expect(service.active()).toBe(true);
+        expect(setParentalLockState).toHaveBeenLastCalledWith(true);
+    });
+
+    it('never announces an unlocked state on unreadable settings without a PIN', async () => {
+        storageFailure.set('load');
+
+        const service = await createService();
+
+        expect(service.enabled()).toBe(false);
+        expect(setParentalLockState).not.toHaveBeenCalled();
     });
 
     it('starts locked with the feature on and unlocks through the prompt', async () => {

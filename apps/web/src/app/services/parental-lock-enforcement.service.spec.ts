@@ -9,7 +9,7 @@ import { ParentalLockEnforcementService } from './parental-lock-enforcement.serv
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 interface Applier {
-    applyXtream(): Promise<void>;
+    applyXtream(version: number): Promise<void>;
     applyStalker(): Promise<void>;
 }
 
@@ -31,7 +31,10 @@ describe('ParentalLockEnforcementService', () => {
         currentPlaylist: signal<{ _id: string } | null>({ _id: 'stalker-1' }),
         selectedContentType: signal<string>('vod'),
         selectedCategoryId: signal<string | null>('*'),
-        selectedItem: signal<{ category_id?: string } | null>(null),
+        selectedItem: signal<{
+            category_id?: string;
+            tv_genre_id?: string;
+        } | null>(null),
         clearSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
     };
@@ -41,6 +44,7 @@ describe('ParentalLockEnforcementService', () => {
         selectedItem: signal<{ category_id?: number } | null>(null),
         reloadCategories: jest.fn(async () => undefined),
         reloadCachedContent: jest.fn(async () => undefined),
+        refreshSearchResults: jest.fn(async () => undefined),
         getCategoriesBySelectedType: jest.fn(() => [{ id: 7 }, { id: 8 }]),
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
@@ -109,6 +113,27 @@ describe('ParentalLockEnforcementService', () => {
             expect(router.navigate).not.toHaveBeenCalled();
         });
 
+        it('judges a live channel from All by its genre, not by category_id', async () => {
+            router.url = '/workspace/stalker/stalker-1/itv';
+            stalkerStore.selectedContentType.set('itv');
+            lockedStalkerIds.add('9');
+            stalkerStore.selectedItem.set({
+                tv_genre_id: '9',
+                category_id: '3',
+            });
+
+            await service.applyStalker();
+
+            expect(stalkerStore.clearSelectedItem).toHaveBeenCalled();
+            expect(router.navigate).toHaveBeenCalledWith([
+                '/workspace',
+                'stalker',
+                'stalker-1',
+                'itv',
+            ]);
+            stalkerStore.selectedContentType.set('vod');
+        });
+
         it('steps off a locked selected category', async () => {
             router.url = '/workspace/stalker/stalker-1/vod';
             lockedStalkerIds.add('9');
@@ -126,7 +151,7 @@ describe('ParentalLockEnforcementService', () => {
             router.url = '/workspace/xtreams/xtream-1/vod/42';
             xtreamStore.selectedItem.set({ category_id: 99 });
 
-            await service.applyXtream();
+            await service.applyXtream(parentalLock.version());
 
             expect(xtreamStore.reloadCategories).toHaveBeenCalled();
             expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
@@ -139,12 +164,20 @@ describe('ParentalLockEnforcementService', () => {
             ]);
         });
 
+        it('re-runs the stored in-portal search after the reload', async () => {
+            router.url = '/workspace/xtreams/xtream-1/search';
+
+            await service.applyXtream(parentalLock.version());
+
+            expect(xtreamStore.refreshSearchResults).toHaveBeenCalled();
+        });
+
         it('keeps a selected item whose category survived the lock', async () => {
             router.url = '/workspace/xtreams/xtream-1/vod/42';
             xtreamStore.selectedCategoryId.set(7);
             xtreamStore.selectedItem.set({ category_id: 7 });
 
-            await service.applyXtream();
+            await service.applyXtream(parentalLock.version());
 
             expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
             expect(router.navigate).not.toHaveBeenCalled();
@@ -154,7 +187,7 @@ describe('ParentalLockEnforcementService', () => {
             router.url = '/workspace/xtreams/xtream-1/live';
             xtreamStore.selectedCategoryId.set(99);
 
-            await service.applyXtream();
+            await service.applyXtream(parentalLock.version());
 
             expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
             expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(null);
@@ -165,5 +198,83 @@ describe('ParentalLockEnforcementService', () => {
                 'live',
             ]);
         });
+    });
+});
+
+describe('ParentalLockEnforcementService apply serialization', () => {
+    it('runs applies one at a time and abandons a result superseded by a newer version', async () => {
+        const version = signal(0);
+        let releaseReload: () => void = () => undefined;
+        const xtreamStore = {
+            playlistId: signal('xtream-1'),
+            selectedCategoryId: signal<number | null>(99),
+            selectedItem: signal(null),
+            reloadCategories: jest.fn(
+                () => new Promise<void>((resolve) => (releaseReload = resolve))
+            ),
+            reloadCachedContent: jest.fn(async () => undefined),
+            refreshSearchResults: jest.fn(async () => undefined),
+            getCategoriesBySelectedType: jest.fn(() => [] as unknown[]),
+            setSelectedItem: jest.fn(),
+            setSelectedCategory: jest.fn(),
+        };
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: ParentalLockService,
+                    useValue: {
+                        version,
+                        registerBusyProbe: jest.fn(),
+                        isStalkerCategoryLocked: jest.fn(() => false),
+                        isM3uGroupLocked: jest.fn(() => false),
+                    },
+                },
+                { provide: XtreamStore, useValue: xtreamStore },
+                {
+                    provide: StalkerStore,
+                    useValue: { currentPlaylist: signal(null) },
+                },
+                {
+                    provide: Router,
+                    useValue: { url: '/', navigate: jest.fn() },
+                },
+                {
+                    provide: Store,
+                    useValue: {
+                        selectSignal: () => signal(null),
+                        dispatch: jest.fn(),
+                    },
+                },
+                {
+                    provide: PlaybackKeepAwakeService,
+                    useValue: { hasPlayingVideo: () => false },
+                },
+            ],
+        });
+        const service = TestBed.inject(ParentalLockEnforcementService);
+        TestBed.runInInjectionContext(() => service.start());
+        TestBed.flushEffects();
+
+        // Unlock: the reload is held open...
+        version.set(1);
+        TestBed.flushEffects();
+        await Promise.resolve();
+        expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
+
+        // ...and "Lock now" arrives meanwhile: no second reload starts yet.
+        version.set(2);
+        TestBed.flushEffects();
+        await Promise.resolve();
+        expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
+
+        // The superseded apply must not act on its (unlocked) rows.
+        releaseReload();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(2);
+        expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
+
+        releaseReload();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledTimes(1);
     });
 });

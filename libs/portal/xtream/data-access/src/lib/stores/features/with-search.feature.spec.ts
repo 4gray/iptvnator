@@ -114,3 +114,48 @@ describe('withSearch renderer performance markers', () => {
         expect(events).toEqual([]);
     });
 });
+
+describe('withSearch refreshSearchResults', () => {
+    let searchContent: jest.Mock;
+    let store: InstanceType<typeof TestSearchStore>;
+
+    beforeEach(() => {
+        searchContent = jest.fn(async () => [{ xtream_id: 1 }]);
+        TestBed.configureTestingModule({
+            providers: [
+                TestSearchStore,
+                { provide: XTREAM_DATA_SOURCE, useValue: { searchContent } },
+            ],
+        });
+        store = TestBed.inject(TestSearchStore);
+    });
+
+    it('re-runs the last search with the parameters it was issued with', async () => {
+        await store.searchContent({
+            term: 'news',
+            types: ['live'],
+            excludeHidden: true,
+        });
+        searchContent.mockResolvedValueOnce([]);
+
+        await store.refreshSearchResults();
+
+        expect(searchContent).toHaveBeenLastCalledWith(
+            'playlist-1',
+            'news',
+            ['live'],
+            true
+        );
+        expect(store.searchResults()).toEqual([]);
+    });
+
+    it('does nothing without a previous search or after a reset', async () => {
+        await store.refreshSearchResults();
+        expect(searchContent).not.toHaveBeenCalled();
+
+        await store.searchContent('news', ['live']);
+        store.resetSearchResults();
+        await store.refreshSearchResults();
+        expect(searchContent).toHaveBeenCalledTimes(1);
+    });
+});

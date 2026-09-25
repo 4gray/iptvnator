@@ -33,6 +33,11 @@ import {
     syncParentalLockStateToMainProcess,
 } from './parental-lock-bridge';
 import { ParentalLockStorageService } from './parental-lock-storage';
+import {
+    withM3uLocks,
+    withStalkerLocks,
+    withXtreamLocks,
+} from './parental-lock-store.util';
 
 const XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCategoryType[] = [
     'live',
@@ -79,9 +84,24 @@ export class ParentalLockService {
     private initialization: Promise<void> | null = null;
     private pendingUnlock: Promise<boolean> | null = null;
 
-    /** The feature switch from settings. */
-    readonly enabled = computed(
-        () => this.settingsStore.parentalLockEnabled?.() === true
+    /**
+     * The persisted feature switch could not be read (IndexedDB failure):
+     * `SettingsStore` then serves defaults, which would read as "off".
+     */
+    private readonly switchUnknown = computed(
+        () => this.settingsStore.storageFailure?.() === 'load'
+    );
+    /**
+     * The feature switch from settings. While the switch is unknown a stored
+     * PIN stands in for it: the PIN exists only once a parent set the lock
+     * up, so failing toward "locked" costs one PIN entry, whereas failing
+     * toward "off" would expose every locked category precisely during a
+     * storage failure.
+     */
+    readonly enabled = computed(() =>
+        this.switchUnknown()
+            ? this.pinHash() !== null
+            : this.settingsStore.parentalLockEnabled?.() === true
     );
     /** Feature on and the PIN has been entered this session. */
     readonly unlocked = computed(() => this.enabled() && this.unlockedState());
@@ -105,7 +125,12 @@ export class ParentalLockService {
             }
             untracked(() => {
                 this.versionState.update((value) => value + 1);
-                syncParentalLockStateToMainProcess(active);
+                // Unknown switch and no PIN to stand in for it: the main
+                // process keeps its mirrored (locked) default rather than
+                // being told "unlocked" on the strength of default settings.
+                if (!this.switchUnknown() || this.hasPin()) {
+                    syncParentalLockStateToMainProcess(active);
+                }
             });
         });
         // The idle timer follows the UNLOCKED transition, not `active`:
@@ -364,19 +389,11 @@ export class ParentalLockService {
         categoryType: ParentalLockXtreamCategoryType,
         xtreamIds: number[]
     ): Promise<boolean> {
-        const current = this.locksFor(playlistId);
-        const next: ParentalLockPlaylistLocks = {
-            ...current,
-            xtream: [
-                ...current.xtream.filter(
-                    (entry) => entry.categoryType !== categoryType
-                ),
-                ...[...new Set(xtreamIds)].map((xtreamId) => ({
-                    categoryType,
-                    xtreamId,
-                })),
-            ],
-        };
+        const next = withXtreamLocks(
+            this.locksFor(playlistId),
+            categoryType,
+            xtreamIds
+        );
         if (!(await this.persistPlaylistLocks(playlistId, next))) {
             return false;
         }
@@ -388,29 +405,24 @@ export class ParentalLockService {
         categoryType: ParentalLockStalkerCategoryType,
         categoryIds: string[]
     ): Promise<boolean> {
-        const current = this.locksFor(playlistId);
-        return this.persistPlaylistLocks(playlistId, {
-            ...current,
-            stalker: [
-                ...current.stalker.filter(
-                    (entry) => entry.categoryType !== categoryType
-                ),
-                ...[...new Set(categoryIds)].map((categoryId) => ({
-                    categoryType,
-                    categoryId,
-                })),
-            ],
-        });
+        return this.persistPlaylistLocks(
+            playlistId,
+            withStalkerLocks(
+                this.locksFor(playlistId),
+                categoryType,
+                categoryIds
+            )
+        );
     }
 
     async setM3uLocks(
         playlistId: string,
         groupTitles: string[]
     ): Promise<boolean> {
-        return this.persistPlaylistLocks(playlistId, {
-            ...this.locksFor(playlistId),
-            m3u: [...new Set(groupTitles)],
-        });
+        return this.persistPlaylistLocks(
+            playlistId,
+            withM3uLocks(this.locksFor(playlistId), groupTitles)
+        );
     }
 
     /** Backup restore: replaces every lock of one playlist. */

@@ -150,7 +150,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         options?: XtreamOperationOptions
     ): Promise<XtreamCategoryFromDb[]> {
         const dbType = mapCategoryTypeToDbType(type);
-        const requestKey = `${playlistId}:${dbType}`;
+        // The lock version keys the share: a read issued under an older lock
+        // state (still unlocked, or locks since edited) answers with rows the
+        // caller under the newer state must not be handed.
+        const requestKey = `${playlistId}:${dbType}:${this.parentalLock.version()}`;
         const inFlightRequest = this.categoryRequests.get(requestKey);
 
         if (inFlightRequest) {
@@ -304,7 +307,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         onTotal?: (total: number) => void,
         options?: XtreamOperationOptions
     ): Promise<XtreamContentItem[]> {
-        const requestKey = `${playlistId}:${type}`;
+        const requestKey = `${playlistId}:${type}:${this.parentalLock.version()}`;
         const inFlightRequest = this.contentRequests.get(requestKey);
 
         if (inFlightRequest) {

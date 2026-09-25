@@ -34,6 +34,7 @@ export class ParentalLockEnforcementService {
     private readonly activeChannel = this.store.selectSignal(selectActive);
     private started = false;
     private lastVersion = -1;
+    private applyChain: Promise<void> = Promise.resolve();
 
     start(): void {
         if (this.started) {
@@ -52,24 +53,55 @@ export class ParentalLockEnforcementService {
                 const first = this.lastVersion === -1;
                 this.lastVersion = version;
                 if (!first) {
-                    void this.apply();
+                    this.scheduleApply();
                 }
             });
         });
     }
 
+    /**
+     * Applies run one at a time. `ElectronXtreamDataSource` shares in-flight
+     * reads per playlist and type, so an unlock refresh still running when
+     * "Lock now" arrives would hand the relock its unfiltered rows. Each
+     * apply also abandons its result once a newer version exists, leaving
+     * the queued apply to read the latest state.
+     */
+    private scheduleApply(): void {
+        this.applyChain = this.applyChain
+            .then(() => this.apply())
+            .catch((error) => {
+                console.error(
+                    'Failed to apply the parental lock change.',
+                    error
+                );
+            });
+    }
+
     private async apply(): Promise<void> {
-        await Promise.all([this.applyXtream(), this.applyStalker()]);
+        const version = this.parentalLock.version();
+        await Promise.all([this.applyXtream(version), this.applyStalker()]);
+        if (this.parentalLock.version() !== version) {
+            return;
+        }
         this.applyM3u();
     }
 
-    private async applyXtream(): Promise<void> {
+    private async applyXtream(version: number): Promise<void> {
         const playlistId = this.xtreamStore.playlistId?.();
         if (!playlistId) {
             return;
         }
         await this.xtreamStore.reloadCategories();
         await this.xtreamStore.reloadCachedContent();
+        if (this.parentalLock.version() !== version) {
+            return;
+        }
+        // Stored in-portal search results are a separate array the search
+        // page renders directly; re-run the search so it reads filtered.
+        await this.xtreamStore.refreshSearchResults?.();
+        if (this.parentalLock.version() !== version) {
+            return;
+        }
 
         const match = XTREAM_ROUTE.exec(this.router.url);
         const categoryType = toParentalLockXtreamCategoryType(match?.[2]);
@@ -143,16 +175,23 @@ export class ParentalLockEnforcementService {
                 selectedCategoryId
             );
         // An item opened from "All" (`*`) or search has its own genre to be
-        // judged by; the list dropping its row is not enough.
+        // judged by; the list dropping its row is not enough. Live and radio
+        // rows carry that genre in `tv_genre_id`, VOD and series rows in
+        // `category_id` (the store's withheld filter applies the same rule).
         const selectedItem = this.stalkerStore.selectedItem?.() as {
             category_id?: string | number;
+            tv_genre_id?: string | number;
         } | null;
+        const itemCategoryId =
+            contentType === 'itv' || contentType === 'radio'
+                ? selectedItem?.tv_genre_id
+                : selectedItem?.category_id;
         const itemWithheld =
             !!selectedItem &&
             this.parentalLock.isStalkerCategoryLocked(
                 playlistId,
                 contentType,
-                selectedItem.category_id
+                itemCategoryId
             );
         if (!categoryWithheld && !itemWithheld) {
             return;

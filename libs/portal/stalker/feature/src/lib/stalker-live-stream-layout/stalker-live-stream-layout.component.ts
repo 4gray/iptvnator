@@ -643,6 +643,22 @@ export class StalkerLiveStreamLayoutComponent
             30_000
         );
 
+        // The parental lock clears the store selection from outside this
+        // layout when the playing channel's genre is withheld
+        // (ParentalLockEnforcementService). The template mounts the player
+        // only with a selection, so the playback held here is dropped too
+        // instead of resurfacing with the next selection.
+        effect(() => {
+            if (this.stalkerStore.selectedItem()) {
+                return;
+            }
+            untracked(() => {
+                if (this.activePlayback()) {
+                    this.clearActivePlayback();
+                }
+            });
+        });
+
         // Load favorites for current playlist
         const playlistId = this.stalkerStore.currentPlaylist()?._id;
         if (playlistId) {
