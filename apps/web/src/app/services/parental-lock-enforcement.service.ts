@@ -72,20 +72,42 @@ export class ParentalLockEnforcementService {
         await this.xtreamStore.reloadCachedContent();
 
         const match = XTREAM_ROUTE.exec(this.router.url);
-        const selectedCategoryId = this.xtreamStore.selectedCategoryId();
-        if (selectedCategoryId === null) {
-            return;
-        }
         const categoryType = toParentalLockXtreamCategoryType(match?.[2]);
         const categories = this.xtreamStore.getCategoriesBySelectedType();
-        const stillVisible = categories.some(
-            (category) =>
-                Number(
-                    (category as { id?: number | string }).id ??
-                        (category as { category_id?: string }).category_id
-                ) === Number(selectedCategoryId)
-        );
-        if (stillVisible) {
+        const isVisibleCategory = (categoryId: unknown): boolean =>
+            categories.some(
+                (category) =>
+                    Number(
+                        (category as { id?: number | string }).id ??
+                            (category as { category_id?: string }).category_id
+                    ) === Number(categoryId)
+            );
+        const selectedCategoryId = this.xtreamStore.selectedCategoryId();
+        // The selected ITEM is judged on its own category: opened from
+        // "All", recently added or search it has no selected category to
+        // vanish with, yet its detail must not outlive the lock.
+        const selectedItem = this.xtreamStore.selectedItem?.() as {
+            category_id?: string | number;
+        } | null;
+        const itemWithheld =
+            selectedItem?.category_id !== undefined &&
+            selectedItem?.category_id !== null &&
+            !isVisibleCategory(selectedItem.category_id);
+        if (itemWithheld) {
+            this.xtreamStore.setSelectedItem(null);
+        }
+        if (
+            selectedCategoryId === null ||
+            isVisibleCategory(selectedCategoryId)
+        ) {
+            if (itemWithheld && match && match[1] === playlistId) {
+                void this.router.navigate([
+                    '/workspace',
+                    'xtreams',
+                    match[1],
+                    match[2],
+                ]);
+            }
             return;
         }
         this.xtreamStore.setSelectedItem(null);
@@ -109,20 +131,36 @@ export class ParentalLockEnforcementService {
         const contentType = toParentalLockStalkerCategoryType(
             this.stalkerStore.selectedContentType()
         );
+        if (!contentType) {
+            return;
+        }
         const selectedCategoryId = this.stalkerStore.selectedCategoryId();
-        if (
-            !contentType ||
-            !selectedCategoryId ||
-            !this.parentalLock.isStalkerCategoryLocked(
+        const categoryWithheld =
+            !!selectedCategoryId &&
+            this.parentalLock.isStalkerCategoryLocked(
                 playlistId,
                 contentType,
                 selectedCategoryId
-            )
-        ) {
+            );
+        // An item opened from "All" (`*`) or search has its own genre to be
+        // judged by; the list dropping its row is not enough.
+        const selectedItem = this.stalkerStore.selectedItem?.() as {
+            category_id?: string | number;
+        } | null;
+        const itemWithheld =
+            !!selectedItem &&
+            this.parentalLock.isStalkerCategoryLocked(
+                playlistId,
+                contentType,
+                selectedItem.category_id
+            );
+        if (!categoryWithheld && !itemWithheld) {
             return;
         }
         this.stalkerStore.clearSelectedItem();
-        this.stalkerStore.setSelectedCategory(null);
+        if (categoryWithheld) {
+            this.stalkerStore.setSelectedCategory(null);
+        }
         const match = STALKER_ROUTE.exec(this.router.url);
         if (match && match[1] === playlistId) {
             void this.router.navigate([

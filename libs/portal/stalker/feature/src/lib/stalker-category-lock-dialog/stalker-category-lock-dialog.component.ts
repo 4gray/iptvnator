@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
     signal,
 } from '@angular/core';
@@ -81,6 +82,16 @@ export class StalkerCategoryLockDialogComponent {
     readonly censoredCount = computed(
         () => this.categories().filter((category) => category.censored).length
     );
+
+    constructor() {
+        // Same relock rule as the Xtream editor: the dialog outliving the
+        // unlocked session would keep the locked names and Save reachable.
+        effect(() => {
+            if (this.parentalLock.active()) {
+                this.dialogRef.close(false);
+            }
+        });
+    }
 
     private buildDraft(): LockableCategory[] {
         const locked = new Set(

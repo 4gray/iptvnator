@@ -105,7 +105,18 @@ locked default.
   `ParentalLockEnforcementService` (`apps/web/src/app/services/`) calls
   `XtreamStore.reloadCategories()` + `reloadCachedContent()` and, if the
   selected category vanished, clears the selection and navigates to the
-  section root.
+  section root. The selected ITEM is judged separately, on its own
+  `category_id` against the reloaded category list: a detail opened from
+  "All", recently added or search has no selected category to vanish
+  with, so its row disappearing from a list is not enough — the item is
+  cleared and the route returns to the section root while the (still
+  readable) selected category stays.
+- **Stalker:** the same service checks the selected genre through
+  `isStalkerCategoryLocked` and, independently, the selected item's own
+  `category_id` — an item opened from `*` (All) or search is withheld by
+  its genre even though `*` itself can never be locked. A withheld item is
+  cleared and the section root is navigated to; the category selection is
+  reset only when the genre itself is locked.
 - **Xtream (PWA):** `PwaXtreamDataSource` drops withheld categories,
   streams and search hits at read time; the same reloads apply.
 - **Warm-cache detection (Electron):** the filtered category/content reads
@@ -167,7 +178,11 @@ locked default.
   `StalkerCategoryLockDialogComponent` reached from a lock button above the
   categories rail; it offers "Lock adult (18+)" for genres the portal flags
   `censored`. All three list the locked names and can rewrite the locks, so
-  each opens only after `requestUnlock()` succeeds. The Xtream dialog loads
+  each opens only after `requestUnlock()` succeeds — and closes itself,
+  discarding the draft, the moment `active` becomes true again (idle relock,
+  Lock now), since the PIN gate covers only the opening. The M3U group
+  dialog does this only while it carries lock toggles; the plain hide/show
+  editor is not behind the PIN. The Xtream dialog loads
   its candidates through the capability-selected data source
   (`IXtreamDataSource.getAllCategories`, which the PWA source answers from
   its session cache or the API), so PWA users can set locks too; the

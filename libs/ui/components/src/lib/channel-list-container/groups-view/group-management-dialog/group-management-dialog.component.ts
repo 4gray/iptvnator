@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
     signal,
 } from '@angular/core';
@@ -16,6 +17,7 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { ParentalLockService } from '@iptvnator/services';
 import { foldSearchText } from '@iptvnator/shared/interfaces';
 
 export interface GroupManagementDialogGroup {
@@ -64,6 +66,7 @@ export class GroupManagementDialogComponent {
         >
     );
     readonly data = inject<GroupManagementDialogData>(MAT_DIALOG_DATA);
+    private readonly parentalLock = inject(ParentalLockService);
 
     readonly showLocks = this.data.lockedGroupTitles !== undefined;
     readonly searchTerm = signal('');
@@ -99,6 +102,16 @@ export class GroupManagementDialogComponent {
             this.groups().length > 0 &&
             this.groups().every((group) => group.selected)
     );
+
+    constructor() {
+        // A relock while the editor is open: the locked group names it
+        // lists and the lock list it can rewrite are behind the PIN.
+        effect(() => {
+            if (this.showLocks && this.parentalLock.active()) {
+                this.dialogRef.close(undefined);
+            }
+        });
+    }
 
     clearSearch(): void {
         this.searchTerm.set('');

@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
     OnInit,
     signal,
@@ -106,6 +107,17 @@ export class CategoryManagementDialogComponent implements OnInit {
             this.filteredCategories().length > 0 &&
             this.filteredSelectedCount() === this.filteredCategories().length
     );
+
+    constructor() {
+        // The PIN gate only covers opening: a relock (idle timer, Lock now)
+        // while the editor is open must take its locked names and its
+        // lock-rewriting Save away too.
+        effect(() => {
+            if (this.parentalLock.active()) {
+                this.dialogRef.close(false);
+            }
+        });
+    }
 
     async ngOnInit(): Promise<void> {
         await this.loadCategories();
