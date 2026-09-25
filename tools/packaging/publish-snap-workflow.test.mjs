@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse } from 'yaml';
 import {
@@ -99,6 +100,140 @@ function assertStepRejectedByBothPolicies(stepSource) {
     }
 }
 
+test('recovery resolves only an existing public stable release before checkout', (t) => {
+    const workflow = parse(fs.readFileSync(publishWorkflowPath, 'utf8'));
+    const steps = workflow.jobs['verify-snap'].steps;
+    const resolve = steps.find((step) => step.id === 'resolve-release');
+    assert.ok(
+        resolve,
+        'recovery must resolve the public release before checkout'
+    );
+    assert.ok(steps.indexOf(resolve) < steps.findIndex((step) => step.uses));
+    assert.equal(workflow.on.workflow_dispatch.inputs.tag.required, true);
+    const directory = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'snap-release-resolution-')
+    );
+    t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+    fs.writeFileSync(
+        path.join(directory, 'gh'),
+        '#!/bin/sh\ncat "$RELEASE_FIXTURE"\n',
+        { mode: 0o755 }
+    );
+    const output = path.join(directory, 'output');
+    const fixture = path.join(directory, 'release.json');
+    for (const [patch, tag, eventId, succeeds] of [
+        [{}, 'v0.24.0', '', true],
+        [{}, 'v0.24.0', '123', true],
+        [{ draft: true }, 'v0.24.0', '', false],
+        [{ prerelease: true }, 'v0.24.0', '', false],
+        [{ tag_name: 'v0.25.0' }, 'v0.24.0', '', false],
+        [{}, 'v0.24.0', '456', false],
+        [{}, 'v0.24.0; touch injected', '', false],
+        [{}, '../../master', '', false],
+    ]) {
+        fs.writeFileSync(
+            fixture,
+            JSON.stringify({
+                id: 123,
+                tag_name: 'v0.24.0',
+                draft: false,
+                prerelease: false,
+                published_at: '2026-09-24T06:58:11Z',
+                ...patch,
+            })
+        );
+        fs.writeFileSync(output, '');
+        const result = spawnSync(
+            'bash',
+            ['-e', '-o', 'pipefail', '-c', resolve.run],
+            {
+                encoding: 'utf8',
+                env: {
+                    ...process.env,
+                    PATH: `${directory}:${process.env.PATH}`,
+                    RELEASE_FIXTURE: fixture,
+                    RUNNER_TEMP: directory,
+                    GITHUB_OUTPUT: output,
+                    GITHUB_REPOSITORY: '4gray/iptvnator',
+                    REQUESTED_TAG: tag,
+                    EVENT_RELEASE_ID: eventId,
+                },
+            }
+        );
+        assert.equal(result.status === 0, succeeds, result.stderr);
+        if (succeeds) {
+            assert.match(
+                fs.readFileSync(output, 'utf8'),
+                /tag=v0\.24\.0\nrelease-id=123\n/
+            );
+        } else {
+            assert.equal(fs.readFileSync(output, 'utf8'), '');
+        }
+    }
+});
+
+test(
+    'Snapcraft scratch siblings are writable while upload payloads cannot be replaced',
+    { skip: process.platform !== 'linux' },
+    (t) => {
+        const workflow = parse(fs.readFileSync(publishWorkflowPath, 'utf8'));
+        const step = workflow.jobs['publish-snap'].steps.find(
+            (entry) => entry.name === 'Prepare Snapcraft upload workspace'
+        );
+        assert.ok(
+            step,
+            'Snapcraft needs a writable sibling directory for metadata extraction'
+        );
+        const directory = fs.mkdtempSync(
+            path.join(os.tmpdir(), 'snap-upload-permissions-')
+        );
+        const asRoot = (command) =>
+            spawnSync(
+                process.getuid() === 0 ? 'bash' : 'sudo',
+                process.getuid() === 0
+                    ? ['-e', '-c', command]
+                    : ['-n', 'bash', '-e', '-c', command],
+                { encoding: 'utf8' }
+            );
+        t.after(() => asRoot(`rm -rf '${directory}'`));
+        const sealed = path.join(directory, 'sealed');
+        const upload = path.join(directory, 'upload');
+        const setup = asRoot(
+            `chmod 0755 '${directory}'; mkdir '${sealed}'; printf payload > '${sealed}/package.snap'; chown -R root:root '${sealed}'; chmod 0444 '${sealed}/package.snap'; chmod 0555 '${sealed}'`
+        );
+        assert.equal(setup.status, 0, setup.stderr);
+        const prepare = asRoot(
+            step.run
+                .replaceAll('/var/lib/iptvnator-snap-release/assets', sealed)
+                .replaceAll('/var/lib/iptvnator-snap-upload', upload)
+                .replaceAll('sudo ', '')
+        );
+        assert.equal(prepare.status, 0, prepare.stderr);
+        const checks = `
+        const fs = require('node:fs');
+        const assert = require('node:assert/strict');
+        const sealed = ${JSON.stringify(sealed)};
+        const upload = ${JSON.stringify(upload)};
+        assert.throws(() => fs.mkdtempSync(sealed + '/tmp-'), { code: 'EACCES' });
+        const scratch = fs.mkdtempSync(upload + '/tmp-');
+        fs.rmdirSync(scratch);
+        assert.equal(fs.statSync(upload).uid, 0);
+        assert.equal(fs.statSync(upload).mode & 0o1777, 0o1777);
+        assert.equal(fs.statSync(upload + '/package.snap').ino, fs.statSync(sealed + '/package.snap').ino);
+        assert.throws(() => fs.writeFileSync(upload + '/package.snap', 'changed'), { code: 'EACCES' });
+        assert.throws(() => fs.unlinkSync(upload + '/package.snap'), { code: 'EPERM' });
+        fs.writeFileSync(upload + '/replacement', 'changed');
+        assert.throws(() => fs.renameSync(upload + '/replacement', upload + '/package.snap'), { code: 'EPERM' });
+        assert.equal(fs.readFileSync(sealed + '/package.snap', 'utf8'), 'payload');
+    `;
+        // Nobody models an unprivileged uploader even when the test runs in a root container.
+        const result = asRoot(
+            `/usr/bin/setpriv --reuid=65534 --regid=65534 --clear-groups '${process.execPath}' -e '${checks.replaceAll("'", "'\\''")}'`
+        );
+        assert.equal(result.status, 0, result.stderr);
+    }
+);
+
 test('publishes Snap only after a public v-tag release contains binary and source assets', () => {
     assert.equal(
         fs.existsSync(publishWorkflowPath),
@@ -134,8 +269,8 @@ test('publishes Snap only after a public v-tag release contains binary and sourc
     assert.match(workflowText, /release-snap-assets\.cjs verify/);
     assertPublishSnapWorkflowPolicy(workflowText);
     const disabledWorkflow = workflowText.replace(
-        'github.event.release.draft == false }}',
-        'github.event.release.draft == false && false }}'
+        'github.event.release.draft == false)',
+        'github.event.release.draft == false && false)'
     );
     assert.notEqual(disabledWorkflow, workflowText);
     assert.doesNotThrow(() => parse(disabledWorkflow));
@@ -286,7 +421,7 @@ test('rejects Snap uploads that target candidate or stable channels', () => {
 test('rejects edge upload text in non-executing shell contexts', () => {
     const workflowText = fs.readFileSync(publishWorkflowPath, 'utf8');
     const edgeUpload =
-        'SNAPCRAFT_STORE_CREDENTIALS="${STORE_CREDENTIALS}" /snap/bin/snapcraft upload --release=edge "${SNAP_FILE}"';
+        'SNAPCRAFT_STORE_CREDENTIALS="${STORE_CREDENTIALS}" /snap/bin/snapcraft upload --release=edge "${UPLOAD_DIRECTORY}/${SNAP_NAME}"';
     const blockIndent = ' '.repeat(18);
     for (const replacement of [
         `cat <<123\n${edgeUpload}\n123`,

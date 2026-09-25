@@ -439,6 +439,21 @@ candidate/stable promotion remain manual (see
 draft during artifact verification, then publish it in a follow-up commit and
 verify the website deployment.
 
+If a Store upload fails after publication, run `publish-snap.yaml` from
+`master` with its `tag` input set to the existing public stable tag, for example
+`gh workflow run publish-snap.yaml --ref master -f tag=v0.24.0`. The workflow
+resolves the public release through the API, rejects drafts/prereleases and
+invalid tags, and repeats the full released-tooling, asset and source-archive
+verification before uploading to `edge`. Do not move the release tag, rebuild
+its assets or republish the GitHub release to retry a Store upload.
+
+Snapcraft extracts metadata into a temporary sibling of the input `.snap`.
+The publisher therefore gives it root-owned read-only hard links in a separate
+root-owned sticky directory. Temporary siblings are writable, while the sticky
+bit prevents the unprivileged uploader from replacing the root-owned inputs.
+The original verified snapshot stays sealed; upload filenames are enumerated
+only from that snapshot, never from the writable scratch directory.
+
 ## Validation
 
 ```bash
