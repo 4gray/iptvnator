@@ -111,7 +111,10 @@ is a failed read too — corruption never becomes an empty store), and while the
 `ParentalLockService.withholdsEverything` is true — every `is*Locked`
 predicate answers true and the set-based filters (PWA Xtream, Stalker
 content and search, the M3U channel list) receive
-`ALL_CATEGORIES_WITHHELD`, so the whole catalog is withheld until the PIN
+`ALL_CATEGORIES_WITHHELD` — under which a row WITHOUT a genre is withheld
+too (`isStalkerItemWithheld`, `isStalkerCategoryLocked`), since "no genre"
+must not be the one row a withheld catalog still shows — so the whole
+catalog is withheld until the PIN
 is entered or the store reads again (`requestUnlock` and every lock write
 retry the read first, and a write is refused while it still fails, since it
 would be built on an empty in-memory store and wipe the persisted locks).
@@ -250,7 +253,10 @@ the toggle never shows a state the next launch will not have.
   shown as locked while Electron reads, which filter by the index alone,
   still serve it); if the rollback write fails too, the playlist is
   re-stamped on the next store access, and every launch re-derives the
-  index from the store for each playlist that has locks.
+  index from the store for each playlist that has locks — awaited inside
+  the store's `load()`, so `readable` (and with it every catalog read the
+  renderer gates) stays false until the index agrees with the store; a
+  re-stamp that keeps failing keeps the session fail-closed.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 

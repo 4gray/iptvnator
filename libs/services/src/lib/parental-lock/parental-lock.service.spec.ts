@@ -164,6 +164,9 @@ describe('ParentalLockService', () => {
         expect(service.withholdsEverything()).toBe(true);
         expect(service.isXtreamCategoryLocked('p', 'live', 1)).toBe(true);
         expect(service.isStalkerCategoryLocked('p', 'itv', '1')).toBe(true);
+        expect(service.isStalkerCategoryLocked('p', 'itv', undefined)).toBe(
+            true
+        );
         expect(service.isM3uGroupLocked('p', 'News')).toBe(true);
         // Nothing is known about the persisted locks: a write built on the
         // empty in-memory store would wipe them.

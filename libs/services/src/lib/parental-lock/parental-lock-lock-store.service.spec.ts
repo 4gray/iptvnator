@@ -51,6 +51,35 @@ describe('ParentalLockLockStore', () => {
         expect(store.readable()).toBe(true);
     });
 
+    it('is not readable until the startup re-stamp has completed', async () => {
+        let resolveStamp: (ok: boolean) => void = () => undefined;
+        setCategoryLocks.mockImplementation(
+            () => new Promise<boolean>((resolve) => (resolveStamp = resolve))
+        );
+        const load = store.load();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(setCategoryLocks).toHaveBeenCalled();
+        expect(store.readable()).toBe(false);
+
+        setCategoryLocks.mockResolvedValue(true);
+        resolveStamp(true);
+        await load;
+        expect(store.readable()).toBe(true);
+    });
+
+    it('stays not readable while the startup re-stamp keeps failing', async () => {
+        setCategoryLocks.mockResolvedValue(false);
+        await store.load();
+        expect(store.readable()).toBe(false);
+        await expect(store.ensureReadable()).resolves.toBe(false);
+
+        setCategoryLocks.mockResolvedValue(true);
+        await expect(store.ensureReadable()).resolves.toBe(true);
+        expect(store.readable()).toBe(true);
+    });
+
     it('re-derives the SQLite index from the store on load', async () => {
         await store.load();
         // ensureReadable awaits the reconcile that load() started.
@@ -92,9 +121,11 @@ describe('ParentalLockLockStore', () => {
             store.setXtreamLocks('pl-1', 'live', [7, 9])
         ).resolves.toBe(false);
         expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7, 9]);
+        expect(store.readable()).toBe(false);
 
-        await store.ensureReadable();
+        await expect(store.ensureReadable()).resolves.toBe(true);
 
         expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'live', [7, 9]);
+        expect(store.readable()).toBe(true);
     });
 });

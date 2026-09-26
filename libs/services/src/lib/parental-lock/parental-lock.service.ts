@@ -374,15 +374,19 @@ export class ParentalLockService {
         categoryType: ParentalLockStalkerCategoryType,
         categoryId: string | number | null | undefined
     ): boolean {
+        if (!this.active()) {
+            return false;
+        }
+        // Fail-closed mode withholds rows without a genre too: "unknown
+        // genre" is not "no locked genre" while the locks are unknown.
+        if (!this.locks.readable()) {
+            return true;
+        }
         if (categoryId === null || categoryId === undefined) {
             return false;
         }
-        return (
-            this.active() &&
-            (!this.locks.readable() ||
-                this.lockedStalkerIds(playlistId, categoryType).includes(
-                    String(categoryId)
-                ))
+        return this.lockedStalkerIds(playlistId, categoryType).includes(
+            String(categoryId)
         );
     }
 

@@ -1,3 +1,4 @@
+import { ALL_CATEGORIES_WITHHELD } from '@iptvnator/shared/interfaces';
 import type { StalkerContentType } from '../stalker-store.contracts';
 
 /** Minimal item shape the parental lock needs: the category a row belongs to. */
@@ -24,11 +25,13 @@ export function isStalkerItemWithheld(
         contentType === 'itv' || contentType === 'radio'
             ? item.tv_genre_id
             : item.category_id;
-    return (
-        categoryId !== undefined &&
-        categoryId !== null &&
-        withheldCategoryIds.has(String(categoryId))
-    );
+    if (categoryId === undefined || categoryId === null) {
+        // A row without a genre is visible under a normal lock set but not
+        // in fail-closed mode: while the locks are unknown, "no genre" must
+        // not become the one row the withheld catalog still shows.
+        return withheldCategoryIds === ALL_CATEGORIES_WITHHELD;
+    }
+    return withheldCategoryIds.has(String(categoryId));
 }
 
 export function withoutWithheldStalkerItems<T extends StalkerLockableItem>(

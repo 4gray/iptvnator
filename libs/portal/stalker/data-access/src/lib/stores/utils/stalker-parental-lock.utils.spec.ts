@@ -2,6 +2,7 @@ import {
     isStalkerItemWithheld,
     withoutWithheldStalkerItems,
 } from './stalker-parental-lock.utils';
+import { ALL_CATEGORIES_WITHHELD } from '@iptvnator/shared/interfaces';
 
 describe('stalker-parental-lock.utils', () => {
     const withheld = new Set(['7', '9']);
@@ -38,5 +39,28 @@ describe('stalker-parental-lock.utils', () => {
             items
         );
         expect(withoutWithheldStalkerItems(items, 'vod', withheld)).toEqual([]);
+    });
+});
+
+describe('isStalkerItemWithheld in fail-closed mode', () => {
+    it('withholds rows without a genre only while everything is withheld', () => {
+        expect(isStalkerItemWithheld({}, 'itv', ALL_CATEGORIES_WITHHELD)).toBe(
+            true
+        );
+        expect(
+            isStalkerItemWithheld(
+                { name: 'x' } as never,
+                'vod',
+                ALL_CATEGORIES_WITHHELD
+            )
+        ).toBe(true);
+        expect(isStalkerItemWithheld({}, 'itv', new Set(['9']))).toBe(false);
+        expect(
+            withoutWithheldStalkerItems(
+                [{ tv_genre_id: '1' }, {}],
+                'itv',
+                ALL_CATEGORIES_WITHHELD
+            )
+        ).toEqual([]);
     });
 });

@@ -50,17 +50,23 @@ export class ParentalLockLockStore {
      * the next store access.
      */
     private readonly staleIndexPlaylists = new Set<string>();
+    private readonly staleIndexCount = signal(0);
 
     /** The persisted store could not be read; see `ensureReadable()`. */
     readonly unreadable = signal(false);
     /**
-     * The store has been read and is trustworthy. False while the initial
-     * read is still in flight — the settings can report the feature as on
-     * before the locks are known, and an empty in-memory store must not
-     * read as "nothing is locked" in that window.
+     * The store has been read, is trustworthy, and (on Electron) the SQLite
+     * index agrees with it. False while the initial read is still in flight
+     * — the settings can report the feature as on before the locks are
+     * known, and an empty in-memory store must not read as "nothing is
+     * locked" in that window — and while a re-stamp is outstanding, since
+     * Electron reads filter by the index alone.
      */
     readonly readable = computed(
-        () => this.loadedState() && !this.unreadable()
+        () =>
+            this.loadedState() &&
+            !this.unreadable() &&
+            this.staleIndexCount() === 0
     );
     /** Bumps whenever the lock set changes; consumers re-query. */
     readonly revision = this.revisionState.asReadonly();
@@ -75,19 +81,24 @@ export class ParentalLockLockStore {
      */
     load(): Promise<void> {
         if (!this.loading) {
-            this.loading = this.storage.readLocks().then((locks) => {
+            this.loading = (async () => {
+                const locks = await this.storage.readLocks();
                 if (locks === null) {
                     console.error('The parental lock store could not be read.');
                     this.unreadable.set(true);
                 } else {
                     this.locks.set(locks);
                     for (const playlistId of Object.keys(locks)) {
-                        this.staleIndexPlaylists.add(playlistId);
+                        this.markIndexStale(playlistId);
                     }
+                    // Awaited: catalog reads issued before the index agrees
+                    // with the store would serve rows stamped unlocked, and
+                    // nothing would reload them afterwards.
+                    await this.reconcileXtreamIndex();
                 }
                 this.loadedState.set(true);
-                void this.reconcileXtreamIndex();
-            });
+                this.revisionState.update((value) => value + 1);
+            })();
         }
         return this.loading;
     }
@@ -98,24 +109,29 @@ export class ParentalLockLockStore {
      */
     async ensureReadable(): Promise<boolean> {
         await this.load();
-        if (!this.unreadable()) {
-            await this.reconcileXtreamIndex();
-            return true;
+        if (this.unreadable()) {
+            const locks = await this.storage.readLocks();
+            if (locks === null) {
+                return false;
+            }
+            this.locks.set(locks);
+            this.unreadable.set(false);
+            this.revisionState.update((value) => value + 1);
         }
-        const locks = await this.storage.readLocks();
-        if (locks === null) {
-            return false;
-        }
-        this.locks.set(locks);
-        this.unreadable.set(false);
-        this.revisionState.update((value) => value + 1);
-        return true;
+        await this.reconcileXtreamIndex();
+        return this.readable();
+    }
+
+    private markIndexStale(playlistId: string): void {
+        this.staleIndexPlaylists.add(playlistId);
+        this.staleIndexCount.set(this.staleIndexPlaylists.size);
     }
 
     /** Re-stamps every playlist whose index may lag behind the store. */
     private async reconcileXtreamIndex(): Promise<void> {
         if (!this.runtime.supportsXtreamSqliteDataSource) {
             this.staleIndexPlaylists.clear();
+            this.staleIndexCount.set(0);
             return;
         }
         for (const playlistId of [...this.staleIndexPlaylists]) {
@@ -129,6 +145,10 @@ export class ParentalLockLockStore {
                     error
                 );
             }
+        }
+        if (this.staleIndexCount() !== this.staleIndexPlaylists.size) {
+            this.staleIndexCount.set(this.staleIndexPlaylists.size);
+            this.revisionState.update((value) => value + 1);
         }
     }
 
@@ -227,7 +247,8 @@ export class ParentalLockLockStore {
     ): Promise<void> {
         if (!(await this.persistPlaylistLocks(playlistId, previous))) {
             console.error('Failed to roll back the parental lock store.');
-            this.staleIndexPlaylists.add(playlistId);
+            this.markIndexStale(playlistId);
+            this.revisionState.update((value) => value + 1);
         }
     }
 
