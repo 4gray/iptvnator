@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Após falhas repetidas de ligação, pausar novos pedidos Xtream e Stalker durante 30 segundos. Experimente desativar se um portal ficar indisponível de forma intermitente. Aplica-se ao guardar, sem reiniciar.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Cada pedido será executado de forma independente. Os servidores indisponíveis podem demorar mais a indicar um erro.",
         "TITLE": "Configurações",
+        "SEARCH_RESULTS_TITLE": "Resultados da pesquisa",
+        "SEARCH_RESULTS_COUNT": "Configurações correspondentes a “{{query}}”: {{count}}",
+        "SEARCH_EMPTY_HINT": "Nenhuma configuração corresponde. Tente outra palavra, como reprodutor, tema ou EPG.",
         "GENERAL": "Geral",
         "GENERAL_SUBTITLE": "Altere a configuração do aplicativo",
         "PLAYBACK": "Reprodução",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "Ações de contexto",
             "SEARCH_LABEL": "Pesquisar",
             "SEARCH_SOURCES_PLACEHOLDER": "Pesquisar fontes (todas as playlists)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Pesquisar nas configurações...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Pesquisar todas as playlists...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Pesquisar nesta playlist...",
             "SEARCH_SECTION_PLACEHOLDER": "Pesquisar nesta seção...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Paleta de comandos",
             "SUBTITLE": "Ações globais e contextuais",
-            "SEARCH_PLACEHOLDER": "Digite para filtrar comandos",
+            "SEARCH_PLACEHOLDER": "Pesquisar comandos e configurações",
             "SEARCH_LABEL": "Filtrar comandos",
             "EMPTY": "Nenhum comando encontrado",
             "GROUP_GLOBAL": "Ações globais",
             "GROUP_PLAYLIST": "Esta playlist",
             "GROUP_VIEW": "Visualização atual",
             "GROUP_SECTION": "Esta seção",
-            "GROUP_RECENT": "Usados recentemente"
+            "GROUP_RECENT": "Usados recentemente",
+            "GROUP_SETTINGS": "Configurações"
         },
         "SHORTCUTS": {
             "TITLE": "Atalhos de teclado",

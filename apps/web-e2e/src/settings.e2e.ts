@@ -254,6 +254,84 @@ test.describe('Settings', () => {
         );
     });
 
+    test('@settings @search @web Search settings from the header and open a result', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        // The fresh browser context has no playlists; settings search must
+        // still be offered.
+        const search = page.locator(
+            'app-workspace-shell-header input[type="search"]'
+        );
+        await expect(search).toBeEnabled();
+
+        // "subtitles" is a keyword of the "Show captions" row.
+        await search.fill('subtitles');
+        await expect(page).toHaveURL(/\/workspace\/settings\/general\?q=subtitles$/);
+        await expect(
+            page.locator('[data-test-id="settings-search-results"]')
+        ).toBeVisible();
+        await expect(page.locator('app-settings-general-section')).toHaveCount(0);
+        await expect(
+            page.locator('[data-test-id="settings-section-matches-general"]')
+        ).toHaveText('1');
+
+        await page
+            .locator('[data-test-id="settings-search-result-show-captions"]')
+            .click();
+
+        await expect(page).toHaveURL(/\/workspace\/settings\/general$/);
+        await expect(search).toHaveValue('');
+        const row = page.locator('[data-setting-id="show-captions"]');
+        await expect(row).toBeFocused();
+        await expect(row).toHaveClass(/setting-item--revealed/);
+        await expect(row).not.toHaveClass(/setting-item--revealed/, {
+            timeout: 5000,
+        });
+    });
+
+    test('@settings @search @web Enter opens the best settings match', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        const search = page.locator(
+            'app-workspace-shell-header input[type="search"]'
+        );
+
+        await search.fill('stream format');
+        await search.press('Enter');
+
+        await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
+        await expect(
+            page.locator('[data-setting-id="stream-format"]')
+        ).toBeFocused();
+    });
+
+    test('@settings @search @web Command palette opens a setting from anywhere', async ({
+        page,
+    }) => {
+        // The shell registers Ctrl/Cmd+K once its lazy chunk has rendered.
+        await expect(
+            page.locator('a[href$="/workspace/settings"]')
+        ).toBeVisible();
+        await expect(page).not.toHaveURL(/\/workspace\/settings/);
+        await page.keyboard.press('Control+k');
+
+        const palette = page.locator('.workspace-command-palette-overlay');
+        await expect(palette).toBeVisible();
+        await palette.locator('input[type="search"]').fill('ambient');
+        await expect(palette).toContainText('Settings');
+        await palette
+            .locator('.palette-command', { hasText: /ambient/i })
+            .first()
+            .click();
+
+        await expect(page).toHaveURL(/\/workspace\/settings\/playback$/);
+        await expect(
+            page.locator('[data-setting-id="player-ambient-mode"]')
+        ).toBeFocused();
+    });
+
     test.afterEach(async ({ page }, testInfo) => {
         await page.screenshot({
             path: join(

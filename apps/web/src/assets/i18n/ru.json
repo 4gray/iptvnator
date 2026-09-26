@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "После повторных ошибок подключения приостанавливать новые запросы Xtream и Stalker на 30 секунд. Попробуйте отключить, если портал периодически становится недоступен. Применяется после сохранения без перезапуска.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Каждый запрос будет выполняться независимо. Если сервер недоступен, ожидание ошибки может увеличиться.",
         "TITLE": "Настройки",
+        "SEARCH_RESULTS_TITLE": "Результаты поиска",
+        "SEARCH_RESULTS_COUNT": "Настройки по запросу «{{query}}»: {{count}}",
+        "SEARCH_EMPTY_HINT": "Ничего не найдено. Попробуйте другое слово, например «плеер», «тема» или «EPG».",
         "GENERAL": "Общие",
         "GENERAL_SUBTITLE": "Изменение основных параметров приложения",
         "PLAYBACK": "Воспроизведение",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "Действия раздела",
             "SEARCH_LABEL": "Поиск",
             "SEARCH_SOURCES_PLACEHOLDER": "Искать источники (все плейлисты)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Искать в настройках...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Искать во всех плейлистах...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Искать в этом плейлисте...",
             "SEARCH_SECTION_PLACEHOLDER": "Искать в этом разделе...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Палитра команд",
             "SUBTITLE": "Глобальные и контекстные действия",
-            "SEARCH_PLACEHOLDER": "Введите текст для фильтрации команд",
+            "SEARCH_PLACEHOLDER": "Искать команды и настройки",
             "SEARCH_LABEL": "Фильтровать команды",
             "EMPTY": "Команды не найдены",
             "GROUP_GLOBAL": "Глобальные действия",
             "GROUP_PLAYLIST": "Этот плейлист",
             "GROUP_VIEW": "Текущее представление",
             "GROUP_SECTION": "Этот раздел",
-            "GROUP_RECENT": "Недавно использованные"
+            "GROUP_RECENT": "Недавно использованные",
+            "GROUP_SETTINGS": "Настройки"
         },
         "SHORTCUTS": {
             "TITLE": "Сочетания клавиш",

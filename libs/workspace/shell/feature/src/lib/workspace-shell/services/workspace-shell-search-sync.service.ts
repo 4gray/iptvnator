@@ -139,6 +139,14 @@ export class WorkspaceShellSearchSyncService {
         this.appliedSearchQuery.set(value.trim());
     }
 
+    /**
+     * Drops a keystroke still waiting for the debounce without applying it,
+     * for callers that are about to navigate away from the typed term.
+     */
+    discardPendingInput(): void {
+        this.cancelPendingSearchApply();
+    }
+
     private syncSearchFromUrl(url: string): void {
         const previousUrl = this.lastSyncedUrl;
         this.lastSyncedUrl = url;

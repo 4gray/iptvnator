@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "After repeated connection failures, pause new Xtream and Stalker requests for 30 seconds. Try disabling this if a portal becomes unavailable intermittently. Applies after saving, without restarting.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Each request will run independently. Unavailable servers may take longer to report an error.",
         "TITLE": "Settings",
+        "SEARCH_RESULTS_TITLE": "Search results",
+        "SEARCH_RESULTS_COUNT": "Settings matching “{{query}}”: {{count}}",
+        "SEARCH_EMPTY_HINT": "No settings match. Try another word, such as player, theme or EPG.",
         "GENERAL": "General",
         "GENERAL_SUBTITLE": "Change the configuration of the application",
         "PLAYBACK": "Playback",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "Section actions",
             "SEARCH_LABEL": "Search",
             "SEARCH_SOURCES_PLACEHOLDER": "Search sources (all playlists)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Search settings...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Search all playlists...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Search in this playlist...",
             "SEARCH_SECTION_PLACEHOLDER": "Search in this section...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Command palette",
             "SUBTITLE": "Global and contextual actions",
-            "SEARCH_PLACEHOLDER": "Type to filter commands",
+            "SEARCH_PLACEHOLDER": "Search commands and settings",
             "SEARCH_LABEL": "Filter commands",
             "EMPTY": "No commands found",
             "GROUP_GLOBAL": "Global actions",
             "GROUP_PLAYLIST": "This playlist",
             "GROUP_VIEW": "Current view",
             "GROUP_SECTION": "This section",
-            "GROUP_RECENT": "Recently used"
+            "GROUP_RECENT": "Recently used",
+            "GROUP_SETTINGS": "Settings"
         },
         "SHORTCUTS": {
             "TITLE": "Keyboard shortcuts",

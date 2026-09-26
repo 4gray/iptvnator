@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Пасля паўторных памылак падключэння прыпыняць новыя запыты Xtream і Stalker на 30 секунд. Паспрабуйце выключыць, калі партал перыядычна становіцца недаступным. Ужываецца пасля захавання без перазапуску.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Кожны запыт будзе выконвацца незалежна. Калі сервер недаступны, чаканне памылкі можа павялічыцца.",
         "TITLE": "Налады",
+        "SEARCH_RESULTS_TITLE": "Вынікі пошуку",
+        "SEARCH_RESULTS_COUNT": "Налады па запыце «{{query}}»: {{count}}",
+        "SEARCH_EMPTY_HINT": "Нічога не знойдзена. Паспрабуйце іншае слова, напрыклад «прайгравальнік», «тэма» ці «EPG».",
         "GENERAL": "Агульныя",
         "GENERAL_SUBTITLE": "Змяніце канфігурацыю праграмы",
         "PLAYBACK": "Прайграванне",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "Кантэкстныя дзеянні",
             "SEARCH_LABEL": "Пошук",
             "SEARCH_SOURCES_PLACEHOLDER": "Пошук крыніц (усе плэйлісты)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Шукаць у наладах...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Шукаць ва ўсіх плэйлістах...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Пошук у гэтым плэйлісце...",
             "SEARCH_SECTION_PLACEHOLDER": "Шукаць у гэтым раздзеле...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Палітра каманд",
             "SUBTITLE": "Глабальныя і кантэкстныя дзеянні",
-            "SEARCH_PLACEHOLDER": "Увядзіце для фільтрацыі каманд",
+            "SEARCH_PLACEHOLDER": "Шукаць каманды і налады",
             "SEARCH_LABEL": "Фільтр каманд",
             "EMPTY": "Каманд не знойдзена",
             "GROUP_GLOBAL": "Глабальныя дзеянні",
             "GROUP_PLAYLIST": "Гэты плэйліст",
             "GROUP_VIEW": "Бягучы выгляд",
             "GROUP_SECTION": "Гэты раздзел",
-            "GROUP_RECENT": "Нядаўна выкарыстаныя"
+            "GROUP_RECENT": "Нядаўна выкарыстаныя",
+            "GROUP_SETTINGS": "Налады"
         },
         "SHORTCUTS": {
             "TITLE": "Спалучэнні клавіш",

@@ -9,7 +9,7 @@
         </div>
     </header>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="language">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.LANGUAGE' | translate }}</h4>
             <p>{{ 'SETTINGS.LANGUAGE_DESCRIPTION' | translate }}</p>
@@ -40,7 +40,10 @@
         </div>
     </div>
 
-    <div class="setting-item setting-item--full-control">
+    <div
+        class="setting-item setting-item--full-control"
+        data-setting-id="theme"
+    >
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.THEME' | translate }}</h4>
             <p>{{ 'SETTINGS.THEME_DESCRIPTION' | translate }}</p>
@@ -74,7 +77,10 @@
         </div>
     </div>
 
-    <div class="setting-item setting-item--full-control">
+    <div
+        class="setting-item setting-item--full-control"
+        data-setting-id="cover-size"
+    >
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.COVER_SIZE' | translate }}</h4>
             <p>{{ 'SETTINGS.COVER_SIZE_DESCRIPTION' | translate }}</p>
@@ -108,7 +114,7 @@
         </div>
     </div>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="cover-titles">
         <div class="setting-item__meta">
             <h4 id="cover-titles-label">
                 {{ 'SETTINGS.COVER_TITLES' | translate }}
@@ -127,7 +133,7 @@
         </div>
     </div>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="startup-behavior">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.STARTUP_BEHAVIOR' | translate }}</h4>
             <p>
@@ -160,7 +166,11 @@
     </div>
 
     @if (supportsStartupWindowMode()) {
-        <div class="setting-item" data-test-id="startup-window-mode-setting">
+        <div
+            class="setting-item"
+            data-setting-id="startup-window-mode"
+            data-test-id="startup-window-mode-setting"
+        >
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.STARTUP_WINDOW_MODE' | translate }}</h4>
                 <p>
@@ -195,7 +205,7 @@
         </div>
     }
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="show-captions">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.SHOW_CAPTIONS' | translate }}</h4>
             <p>
@@ -207,7 +217,7 @@
         </div>
     </div>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="strip-country-prefix">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.STRIP_COUNTRY_PREFIX' | translate }}</h4>
             <p>
@@ -233,7 +243,7 @@
                 <h3>{{ 'SETTINGS.PORTAL_CONNECTIONS' | translate }}</h3>
             </div>
         </header>
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="portal-connectivity-guard">
             <div class="setting-item__meta">
                 <h4 id="portal-connectivity-label">
                     {{ 'SETTINGS.PORTAL_CONNECTIVITY_GUARD' | translate }}
