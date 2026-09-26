@@ -2,10 +2,12 @@
 
 IPTVnator measures performance through a small set of everyday user journeys.
 Each journey has deterministic counters that are asserted exactly, and
-wall-clock timings that are recorded as evidence. Counters are ratcheted in CI:
-a committed baseline may only be lowered, and only with the measured output as
-evidence. This document is the contract for that loop; `tools/performance/`
-holds the scripts.
+wall-clock timings that are recorded as evidence. Counters are meant to be
+ratcheted in CI: a committed baseline that may only be lowered, and only with
+the measured output as evidence. This document is the contract for that loop;
+`tools/performance/` holds the scripts. The measurement script lands first;
+the baseline file and the CI job follow in their own PRs (#1693, #1694), so
+until they merge the reported number is informational, not enforced.
 
 ## Journeys
 

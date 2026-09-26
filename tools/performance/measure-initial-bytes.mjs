@@ -58,8 +58,10 @@ function classify(tag, attributes) {
 
 /**
  * Lists the same-origin resources `index.html` puts on the initial path, in
- * document order and without duplicates. Query strings and fragments are
- * stripped so the URL maps to a file on disk.
+ * document order. Duplicates are collapsed by request URL, not by file: the
+ * browser fetches `chunk.js?v=1` and `chunk.js?v=2` separately, so both count,
+ * while a fragment never reaches the server and is ignored. `path` is the
+ * file on disk the URL maps to.
  */
 export function extractInitialResources(html) {
     const seen = new Set();
@@ -70,10 +72,11 @@ export function extractInitialResources(html) {
             parseAttributes(rawAttributes)
         );
         if (!resource || EXTERNAL_URL.test(resource.url)) continue;
-        const file = resource.url.replace(/[?#].*$/, '').replace(/^\.?\//, '');
-        if (!file || seen.has(file)) continue;
-        seen.add(file);
-        resources.push({ path: file, kind: resource.kind });
+        const url = resource.url.replace(/#.*$/, '').replace(/^\.?\//, '');
+        const file = url.replace(/\?.*$/, '');
+        if (!file || seen.has(url)) continue;
+        seen.add(url);
+        resources.push({ path: file, url, kind: resource.kind });
     }
     return resources;
 }
@@ -160,7 +163,7 @@ function formatBytes(bytes) {
 export function formatReport(measurement) {
     const rows = [...measurement.resources].sort((a, b) => b.bytes - a.bytes);
     const width = Math.max(
-        ...rows.map((row) => row.path.length),
+        ...rows.map((row) => row.url.length),
         'index.html'.length
     );
     const lines = [
@@ -169,7 +172,7 @@ export function formatReport(measurement) {
         `${'index.html'.padEnd(width)}  html           ${formatBytes(measurement.indexHtml.bytes).padStart(11)}`,
         ...rows.map(
             (row) =>
-                `${row.path.padEnd(width)}  ${row.kind.padEnd(13)}  ${formatBytes(row.bytes).padStart(11)}`
+                `${row.url.padEnd(width)}  ${row.kind.padEnd(13)}  ${formatBytes(row.bytes).padStart(11)}`
         ),
         '',
         `scripts        ${formatBytes(measurement.totals.script).padStart(11)}`,

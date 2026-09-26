@@ -69,14 +69,20 @@ after(async () => {
 });
 
 test('extracts scripts, stylesheets and modulepreload chunks in document order', () => {
-    assert.deepEqual(extractInitialResources(BUILT_INDEX_HTML), [
-        { path: 'assets/app-config.js', kind: 'script' },
-        { path: 'styles-VDU4SQ5F.css', kind: 'stylesheet' },
-        { path: 'chunk-B6uziQ1i.js', kind: 'modulepreload' },
-        { path: 'chunk-Cn2Agfvf.js', kind: 'modulepreload' },
-        { path: 'polyfills-EBB6HFCX.js', kind: 'script' },
-        { path: 'main-EI6PCDGR.js', kind: 'script' },
-    ]);
+    assert.deepEqual(
+        extractInitialResources(BUILT_INDEX_HTML).map(({ path, kind }) => ({
+            path,
+            kind,
+        })),
+        [
+            { path: 'assets/app-config.js', kind: 'script' },
+            { path: 'styles-VDU4SQ5F.css', kind: 'stylesheet' },
+            { path: 'chunk-B6uziQ1i.js', kind: 'modulepreload' },
+            { path: 'chunk-Cn2Agfvf.js', kind: 'modulepreload' },
+            { path: 'polyfills-EBB6HFCX.js', kind: 'script' },
+            { path: 'main-EI6PCDGR.js', kind: 'script' },
+        ]
+    );
 });
 
 test('ignores manifest, icon and external references', () => {
@@ -90,22 +96,35 @@ test('ignores manifest, icon and external references', () => {
         <script>inline()</script>
         <script src="main.js" type="module"></script>`;
     assert.deepEqual(extractInitialResources(html), [
-        { path: 'main.js', kind: 'script' },
+        { path: 'main.js', url: 'main.js', kind: 'script' },
     ]);
 });
 
-test('deduplicates references and normalizes relative URLs', () => {
+test('deduplicates by request URL, ignores fragments and normalizes relative URLs', () => {
     const html = `
         <LINK REL="modulepreload" HREF='./chunk-a.js'>
+        <link rel="modulepreload" href="chunk-a.js">
         <link rel="modulepreload" href="chunk-a.js?v=2">
         <link rel="modulepreload" href="/chunk-b.js#hash">
+        <link rel="modulepreload" href="chunk-b.js#other">
         <script src=main.js></script>
         <script src="main.js"></script>`;
     assert.deepEqual(extractInitialResources(html), [
-        { path: 'chunk-a.js', kind: 'modulepreload' },
-        { path: 'chunk-b.js', kind: 'modulepreload' },
-        { path: 'main.js', kind: 'script' },
+        { path: 'chunk-a.js', url: 'chunk-a.js', kind: 'modulepreload' },
+        { path: 'chunk-a.js', url: 'chunk-a.js?v=2', kind: 'modulepreload' },
+        { path: 'chunk-b.js', url: 'chunk-b.js', kind: 'modulepreload' },
+        { path: 'main.js', url: 'main.js', kind: 'script' },
     ]);
+});
+
+test('counts a file once per distinct request URL', async () => {
+    const distDir = await writeDist('cache-busted', {
+        indexHtml: `<link rel="modulepreload" href="chunk-a.js"><link rel="modulepreload" href="chunk-a.js?v=2">`,
+        files: { 'chunk-a.js': 100 },
+    });
+    const measurement = await measureInitialBytes({ distDir });
+    assert.equal(measurement.resources.length, 2);
+    assert.equal(measurement.totals.modulepreload, 200);
 });
 
 test('sums index.html and every referenced file into the counter', async () => {
