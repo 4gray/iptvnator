@@ -137,7 +137,12 @@ lock store are known (in the PWA the settings read can be the slower one).
 Every lock write re-reads a failed store BEFORE building its edit, so a
 recovered store is edited, never overwritten by an edit built on the empty
 fail-closed one. The feature switch itself is
-persisted through one guarded path (`persistEnabled`): `updateSettings`
+persisted through one guarded path (`persistEnabled`), and every
+parental-lock settings write first retries a failed startup settings read
+(`ensureSettingsReadable`) and is refused while settings stay unreadable —
+`updateSettings` writes the whole settings object, which after a failed
+read is the defaults and would replace the user's persisted preferences.
+Within that path `updateSettings`
 patches memory before it writes, so a failed write is undone in memory and
 `setupPin`/`disable` report false (whether to persist is decided from the
 settings switch BEFORE the PIN is stored, since `enabled` follows `hasPin`

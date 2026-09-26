@@ -226,12 +226,19 @@ describe('ParentalLockService', () => {
         expect(updateBridgeSettings).not.toHaveBeenCalled();
     });
 
-    it('still persists the switch when settings could not be read', async () => {
+    it('retries a failed settings read before persisting the switch', async () => {
         storageFailure.set('load');
         prompt.requestPin.mockResolvedValue('1234');
         const service = await createService();
+        // Storage recovers: the retry reads the persisted settings back.
+        const loadSettings = TestBed.inject(SettingsStore)
+            .loadSettings as jest.Mock;
+        loadSettings.mockImplementationOnce(async () => {
+            storageFailure.set(null);
+        });
 
         await expect(service.setupPin()).resolves.toBe(true);
+        expect(loadSettings).toHaveBeenCalledTimes(2);
 
         expect(updateSettings).toHaveBeenCalledWith({
             parentalLockEnabled: true,
@@ -239,6 +246,18 @@ describe('ParentalLockService', () => {
         expect(updateBridgeSettings).toHaveBeenCalledWith({
             parentalLockEnabled: true,
         });
+    });
+
+    it('refuses parental-lock settings writes while settings stay unreadable', async () => {
+        storageFailure.set('load');
+        prompt.requestPin.mockResolvedValue('1234');
+        const service = await createService();
+
+        // Writing now would replace the persisted settings with defaults.
+        await expect(service.setupPin()).resolves.toBe(false);
+        await expect(service.setRelockMinutes(30)).resolves.toBe(false);
+        expect(updateSettings).not.toHaveBeenCalled();
+        expect(prompt.requestPin).not.toHaveBeenCalled();
     });
 
     it('keeps the session locked on a failed PIN read and retries before unlocking', async () => {

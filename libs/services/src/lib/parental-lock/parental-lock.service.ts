@@ -24,10 +24,12 @@ import {
     PARENTAL_LOCK_PROMPT,
     ParentalLockPromptRequest,
 } from './parental-lock-prompt.token';
+import { syncParentalLockStateToMainProcess } from './parental-lock-bridge';
 import {
-    mirrorParentalLockEnabledSetting,
-    syncParentalLockStateToMainProcess,
-} from './parental-lock-bridge';
+    ensureParentalLockSettingsReadable,
+    persistParentalLockEnabled,
+    persistParentalLockRelockMinutes,
+} from './parental-lock-settings-writer';
 import { ParentalLockStorageService } from './parental-lock-storage';
 
 /**
@@ -238,7 +240,7 @@ export class ParentalLockService {
      */
     async setupPin(): Promise<boolean> {
         await this.initialize();
-        if (!this.prompt) {
+        if (!this.prompt || !(await this.ensureSettingsReadable())) {
             return false;
         }
         // Decided BEFORE the PIN is stored: with the settings switch
@@ -262,34 +264,12 @@ export class ParentalLockService {
         return true;
     }
 
-    /**
-     * Persists the feature switch. `updateSettings` patches the in-memory
-     * value before the write; on a failed write that patch is undone (the
-     * second write fails the same way and is ignored), so the toggle
-     * cannot show a state the next launch will not have, and the Electron
-     * mirror is only updated for a persisted switch.
-     */
-    private async persistEnabled(enabled: boolean): Promise<boolean> {
-        try {
-            await this.settingsStore.updateSettings({
-                parentalLockEnabled: enabled,
-            });
-        } catch (error) {
-            console.error('Failed to persist the parental lock switch.', error);
-            await this.settingsStore
-                .updateSettings({ parentalLockEnabled: !enabled })
-                .catch(() => undefined);
-            return false;
-        }
-        // The mirror is what a reloaded renderer and a restarted worker
-        // start from; a switch persisted on one side only is undone.
-        if (!(await mirrorParentalLockEnabledSetting(enabled))) {
-            await this.settingsStore
-                .updateSettings({ parentalLockEnabled: !enabled })
-                .catch(() => undefined);
-            return false;
-        }
-        return true;
+    private persistEnabled(enabled: boolean): Promise<boolean> {
+        return persistParentalLockEnabled(this.settingsStore, enabled);
+    }
+
+    private ensureSettingsReadable(): Promise<boolean> {
+        return ensureParentalLockSettingsReadable(this.settingsStore);
     }
 
     /** Verifies the current PIN, then replaces it. */
@@ -352,20 +332,11 @@ export class ParentalLockService {
      * timer on screen never differs from the one the next launch uses.
      */
     async setRelockMinutes(minutes: number): Promise<boolean> {
-        const previous = this.relockMinutes();
-        try {
-            await this.settingsStore.updateSettings({
-                parentalLockRelockMinutes:
-                    normalizeParentalLockRelockMinutes(minutes),
-            });
-            return true;
-        } catch (error) {
-            console.error('Failed to persist the relock timeout.', error);
-            await this.settingsStore
-                .updateSettings({ parentalLockRelockMinutes: previous })
-                .catch(() => undefined);
-            return false;
-        }
+        return persistParentalLockRelockMinutes(
+            this.settingsStore,
+            minutes,
+            this.relockMinutes()
+        );
     }
 
     // -- Lock store (ParentalLockLockStore; predicates add `active`) -------
