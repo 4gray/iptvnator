@@ -44,7 +44,7 @@
         "styles:inputs:test": "node --test tools/nx/check-stylesheet-inputs.test.mjs",
         "styles:inputs:check": "node tools/nx/check-stylesheet-inputs.mjs",
         "styles:inputs:validate": "pnpm run styles:inputs:test && pnpm run styles:inputs:check",
-        "coverage:tools:test": "node --test tools/coverage/coverage-integrity.test.mjs",
+        "coverage:tools:test": "node --test tools/coverage/coverage-integrity.test.mjs tools/coverage/e2e-shard-reports.test.mjs",
         "coverage:unit:ci": "node tools/coverage/run-tier-a-coverage.mjs",
         "coverage:merge": "node tools/coverage/merge-coverage.mjs",
         "coverage:health": "node tools/coverage/coverage-health.mjs",
