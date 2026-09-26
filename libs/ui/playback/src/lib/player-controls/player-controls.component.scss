@@ -242,6 +242,78 @@
     transform: translateY(0);
 }
 
+// The wide settings panel sits beside the video: the dock and the top chrome
+// slide left so nothing is covered, in sync with the panel's own slide-in.
+.player-controls__bar--panel-open {
+    right: 370px;
+}
+
+.player-controls__title--panel-open {
+    right: 354px;
+}
+
+.player-controls__corner--panel-open {
+    right: 374px;
+}
+
+// A compact sheet replaces the dock while open; the sheet carries the
+// controls' pointer events, and the video tap that closes it lands on the
+// surface underneath.
+.player-controls__bar--sheet-open {
+    opacity: 0;
+    pointer-events: none;
+}
+
+// Placement of the settings surface. The panel component styles its inside.
+.player-controls__settings {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 4;
+    width: 330px;
+    max-width: calc(100cqw - 32px);
+    animation: player-controls-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.player-controls__settings--sheet {
+    top: auto;
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    max-width: none;
+    max-height: min(70%, calc(100cqh - 24px));
+    animation: player-controls-sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes player-controls-panel-in {
+    from {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes player-controls-sheet-in {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .player-controls__settings,
+    .player-controls__settings--sheet {
+        animation: none;
+    }
+}
+
 // --- Timeline row -----------------------------------------------------------
 
 .player-controls__timeline {
@@ -460,6 +532,108 @@
 
 .player-controls__record-button--active {
     color: var(--mat-sys-error, #ff5252) !important;
+}
+
+// Value chips (subtitles, speed): the two settings a viewer changes mid-film.
+// Neutral until something is on (cyan) or changed (violet).
+.player-controls__chip {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    max-width: 160px;
+    padding: 0 11px;
+    color: var(--pc-text);
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    transition: background 120ms ease-out;
+}
+
+.player-controls__chip mat-icon {
+    flex: 0 0 auto;
+    width: 19px;
+    height: 19px;
+    font-size: 19px;
+}
+
+.player-controls__chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-controls__chip:hover,
+.player-controls__chip:focus-visible {
+    background: var(--pc-hover);
+}
+
+.player-controls__chip:focus-visible {
+    outline: 2px solid var(--pc-text);
+    outline-offset: 2px;
+}
+
+.player-controls__chip--on {
+    color: var(--pc-accent-cyan);
+    background: rgba(92, 214, 255, 0.15);
+}
+
+.player-controls__chip--modified {
+    color: var(--pc-accent-violet);
+    background: rgba(181, 153, 255, 0.16);
+}
+
+.player-controls__chip--on:hover,
+.player-controls__chip--on:focus-visible {
+    background: rgba(92, 214, 255, 0.24);
+}
+
+.player-controls__chip--modified:hover,
+.player-controls__chip--modified:focus-visible {
+    background: rgba(181, 153, 255, 0.26);
+}
+
+// The settings button: filled in the accent while its panel is open, and
+// carrying state dots where the chips are folded away (compact).
+:host :is(.player-controls__tune) {
+    position: relative;
+}
+
+:host :is(.player-controls__tune--active),
+:host :is(.player-controls__tune--active:hover) {
+    color: #ffffff;
+    background: var(--pc-accent-blue);
+    --mdc-icon-button-icon-color: #ffffff;
+    --mat-icon-button-icon-color: #ffffff;
+}
+
+.player-controls__tune-dots {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    display: flex;
+    gap: 4px;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+.player-controls__tune-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+}
+
+.player-controls__tune-dot--cyan {
+    background: var(--pc-accent-cyan);
+}
+
+.player-controls__tune-dot--violet {
+    background: var(--pc-accent-violet);
 }
 
 // Primary action: a filled circle in the accent colour. Not a Material icon
@@ -716,25 +890,6 @@
     white-space: nowrap;
 }
 
-.player-controls__track-popover {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    right: 0;
-    display: flex;
-    flex-direction: column;
-    min-width: 220px;
-    // Cap to the player box (minus a small gutter) so the panel never spills
-    // past the player's edges on small windows; falls back to the viewport
-    // where container units are unavailable.
-    max-width: min(420px, calc(100cqw - 24px), 80vw);
-    // Height grows to fit the list; only when it would exceed the room above
-    // the dock does the inner list start scrolling. 120px ≈ the dock height
-    // plus the 6px gap and a little breathing room.
-    max-height: min(calc(100cqh - 120px), 70vh);
-    padding: 10px 12px;
-    z-index: 3;
-}
-
 .player-controls__menu-title {
     flex: 0 0 auto;
     padding: 0 2px 6px;
@@ -796,161 +951,6 @@
     padding: 2px;
     color: var(--pc-text-dim);
     font-size: 0.8rem;
-}
-
-.player-controls__track-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    // No fixed cap: the panel's max-height bounds the popover, and the title
-    // above stays pinned while this list takes the remaining space and scrolls
-    // only when the content genuinely exceeds it.
-    flex: 0 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-.player-controls__track {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 10px;
-    color: var(--pc-text);
-    background: transparent;
-    border: 0;
-    border-radius: 10px;
-    cursor: pointer;
-    font: inherit;
-    text-align: left;
-}
-
-.player-controls__track span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.player-controls__track:hover,
-.player-controls__track:focus-visible,
-.player-controls__track--selected {
-    background: rgba(255, 255, 255, 0.16);
-}
-
-.player-controls__track mat-icon {
-    color: #ffffff;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-}
-
-.player-controls__load-subtitle mat-icon {
-    color: rgba(255, 255, 255, 0.85);
-}
-
-// Single scroll owner for the subtitle popover's list + delay/style sections:
-// on short players (e.g. the 220px portal player) the panel's max-height cap
-// must scroll ALL content — sections outside the list's own scroll area would
-// otherwise clip or overflow into the dock.
-.player-controls__subtitle-body {
-    display: flex;
-    flex-direction: column;
-    flex: 0 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-// Inside the shared scroll owner the list must not nest a second scroll area.
-.player-controls__subtitle-body .player-controls__track-list {
-    flex: none;
-    overflow-y: visible;
-}
-
-.player-controls__subtitle-section {
-    flex: 0 0 auto;
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-
-.player-controls__subtitle-section-title {
-    padding: 0 2px 6px;
-    color: var(--pc-text-tertiary);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.player-controls__subtitle-delay-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.player-controls__subtitle-delay-value {
-    min-width: 58px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-    color: var(--pc-text);
-}
-
-.player-controls__subtitle-preset-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding-bottom: 4px;
-}
-
-.player-controls__subtitle-chip {
-    padding: 4px 10px;
-    color: var(--pc-text);
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 999px;
-    cursor: pointer;
-    font: inherit;
-    font-size: 0.8rem;
-}
-
-.player-controls__subtitle-chip:hover,
-.player-controls__subtitle-chip:focus-visible,
-.player-controls__subtitle-chip--selected {
-    background: rgba(255, 255, 255, 0.16);
-    border-color: rgba(255, 255, 255, 0.6);
-}
-
-.player-controls__subtitle-swatch {
-    width: 26px;
-    height: 26px;
-    border: 2px solid rgba(255, 255, 255, 0.35);
-    border-radius: 50%;
-    cursor: pointer;
-    background: var(--swatch-color, transparent);
-}
-
-// The "engine default" swatch has no color of its own: render a diagonal
-// slash so it reads as "no override".
-.player-controls__subtitle-swatch--default {
-    background:
-        linear-gradient(
-            135deg,
-            transparent 44%,
-            rgba(255, 255, 255, 0.7) 46%,
-            rgba(255, 255, 255, 0.7) 54%,
-            transparent 56%
-        ),
-        rgba(255, 255, 255, 0.08);
-}
-
-.player-controls__subtitle-swatch:hover,
-.player-controls__subtitle-swatch:focus-visible,
-.player-controls__subtitle-swatch--selected {
-    border-color: #ffffff;
 }
 
 // Touch scrubbing needs a taller hit strip and thumb than the 18px mouse

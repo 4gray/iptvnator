@@ -621,6 +621,8 @@
             "SEARCH_IN": "Zoeken in {{title}}",
             "CLEAR_SEARCH": "Zoekopdracht wissen",
             "LOAD_SUBTITLE_FILE": "Ondertitelbestand laden…",
+            "SETTINGS": "Instellingen",
+            "CLOSE_SETTINGS": "Instellingen sluiten",
             "SUBTITLE_DELAY": "Ondertitelvertraging",
             "SUBTITLE_DELAY_DECREASE": "Ondertitels eerder tonen",
             "SUBTITLE_DELAY_INCREASE": "Ondertitels later tonen",

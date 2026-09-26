@@ -621,6 +621,8 @@
             "SEARCH_IN": "Rechercher dans {{title}}",
             "CLEAR_SEARCH": "Effacer la recherche",
             "LOAD_SUBTITLE_FILE": "Charger un fichier de sous-titres…",
+            "SETTINGS": "Réglages",
+            "CLOSE_SETTINGS": "Fermer les réglages",
             "SUBTITLE_DELAY": "Décalage des sous-titres",
             "SUBTITLE_DELAY_DECREASE": "Afficher les sous-titres plus tôt",
             "SUBTITLE_DELAY_INCREASE": "Afficher les sous-titres plus tard",

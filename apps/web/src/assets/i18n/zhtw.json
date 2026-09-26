@@ -621,6 +621,8 @@
             "SEARCH_IN": "在 {{title}} 中搜尋",
             "CLEAR_SEARCH": "清除搜尋",
             "LOAD_SUBTITLE_FILE": "載入字幕檔案…",
+            "SETTINGS": "設定",
+            "CLOSE_SETTINGS": "關閉設定",
             "SUBTITLE_DELAY": "字幕延遲",
             "SUBTITLE_DELAY_DECREASE": "提前顯示字幕",
             "SUBTITLE_DELAY_INCREASE": "延後顯示字幕",

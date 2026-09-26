@@ -289,7 +289,11 @@ It owns only transient presentation behavior:
 - `ControlsSurface` — pointer/click/double-click surface interactions;
 - `ControlsTimeline` — scrub state and timeline projections;
 - `ControlsTimelineHover` — the time under the pointer over the timeline;
-- `ControlsLayout` — the compact/wide dock mode from the host's width; and
+- `ControlsLayout` — the compact/wide dock mode from the host's width;
+- `ControlsSettings` — the settings panel's groups, on/modified state and
+  open/close transitions (`controls-settings-groups.ts` holds the pure
+  group-availability rule);
+- `app-player-settings-panel` — the panel / bottom sheet presentation; and
 - `controls-view-model.ts` — derived display state.
 
 ### The dock
@@ -321,7 +325,8 @@ app's `--app-selection-color` is a different blue that would fight the video.
   the hover/tap popover in the compact mode — inline, the button is a
   plain mute toggle for every pointer type (`buttonClick(event,
   { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
-  +10s · next episode. Right: the capability actions, end-aligned.
+  +10s · next episode. Right: the value chips, the `tune` button,
+  recording, picture-in-picture and fullscreen, end-aligned.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
   not a Material icon button. Hover darkens the fill rather than lightening
@@ -330,6 +335,55 @@ app's `--app-selection-color` is a different blue that would fight the video.
 - **Icon buttons** are 40px with a 12px radius (32px / 9px compact) through
   Material's `--mat-icon-button-*` tokens; their hover is a flat
   `rgba(255,255,255,.1)` layer.
+
+### Settings panel
+
+Every track, quality, speed and aspect choice lives behind one **`tune`**
+button (`data-test-id="player-controls-settings-button"`) in a single
+surface, `app-player-settings-panel` (`player-settings-panel.component.*`),
+instead of five popovers. `ControlsMenuState` knows three menus — `volume`,
+`settings`, `stats` — and `settingsFocus`, the group the panel was opened
+for. `ControlsSettings` derives, from capabilities and state, which groups
+exist (`getSettingsGroupAvailability`: audio needs more than one track,
+subtitles a track or `externalSubtitles`, quality more than one level,
+speed and aspect their capabilities), whether anything is on or changed,
+and owns open/toggle/close; the `tune` button and the panel render only
+while at least one group exists, and the availability reconciliation closes
+the panel the moment the last group disappears.
+
+- **Wide dock**: two **value chips** precede `tune` — subtitles
+  (`closed_caption` + the selected track's label, or "Off") and speed
+  (`speed` + `1.25×`). Audio and aspect ratio have no chip: they are
+  panel-only. A chip click opens the panel **focused on its group**
+  (`settingsFocus`; the group scrolls into view and wears a brief ring);
+  right-click or long-press on the subtitle chip toggles subtitles without
+  opening anything (`ControlsSettings.toggleSubtitles`: the first embedded
+  track on, `-1` off; with no track to turn on it opens the group so the
+  file loader is reachable). While the panel is open the dock, title and
+  corner shift left by the panel's width (`--panel-open` modifiers,
+  `right: 370px`), the chips and the picture-in-picture / recording buttons
+  fold away, `tune` fills in the accent color, and fullscreen stays.
+- **Compact dock**: no chips; `tune` carries **state dots** (5px, cyan when
+  subtitles are on or a non-default audio track is selected, violet when
+  speed, aspect or manual quality differ from their default) and the panel
+  opens as a **bottom sheet** (`--sheet` modifier: grip, two-column rows,
+  24px segmented items) that replaces the dock while open. Picture-in-
+  picture and recording stay in the compact dock — the mock shows only
+  `tune` + fullscreen there, but those two are engine features a viewer
+  needs without opening anything.
+- **Inside**: list groups (audio, subtitles, quality) use `menuitemradio`
+  rows with a check mark and a cyan selection; segmented groups (speed,
+  aspect) use `radio` items with a violet selection, and a selected default
+  (`1×`, the first aspect preset) stays neutral. The subtitle group carries
+  the load-file action and the delay / size / color sections that the
+  popover used to hold (same `player-controls-load-subtitle`,
+  `player-controls-subtitle-delay`, `player-controls-subtitle-style` test
+  ids). A choice applies immediately and **keeps the panel open** —
+  `ControlsMenuSelection` no longer closes anything — so alternatives can be
+  compared against the running video; Escape, the close button, the `tune`
+  button, a click on the video surface or an outside pointerdown close it.
+- **Colors** follow the color-as-state rule of the dock: cyan means "on",
+  violet means "changed", and neutral rows/items read as the default.
 
 ### Stream info popover
 
@@ -734,7 +788,8 @@ instance owns shortcuts initially. Pointer, focus, or control interaction
 activates that instance through the normal reveal path. If the active instance
 becomes unavailable, playback shortcuts fall back to the most recently attached
 available instance; detaching the active instance also transfers ownership.
-Escape remains a global dismissal action and closes popovers on every mounted
+Escape remains a global dismissal action and closes popovers and the settings
+panel on every mounted
 controls instance.
 
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
@@ -1258,11 +1313,11 @@ regressions:
 
 ## Advanced subtitle support
 
-The subtitle popover carries three capability-gated extensions beyond track
-selection (#1408): loading an external subtitle file, adjusting the subtitle
-timing offset, and styling subtitle text (size + color). Each is honest per
-engine — an engine that cannot support a control simply never advertises the
-capability, and the UI is not rendered.
+The subtitles group of the settings panel carries three capability-gated
+extensions beyond track selection (#1408): loading an external subtitle
+file, adjusting the subtitle timing offset, and styling subtitle text (size
++ color). Each is honest per engine — an engine that cannot support a control
+simply never advertises the capability, and the UI is not rendered.
 
 Contract surface:
 
@@ -1273,11 +1328,12 @@ Contract surface:
   environment's picker), `setSubtitleDelay(seconds)`, and
   `setSubtitleStyle(style)`.
 
-The subtitle menu stays reachable with an empty track list whenever
+The subtitles group stays reachable with an empty track list whenever
 `externalSubtitles` is set — loading a file is what creates the first track.
-Delay and style rows keep the popover open, because these settings are tuned
-iteratively against the running video (`ControlsSubtitleSettings` owns those
-interactions); the load action closes it because a file dialog opens on top.
+Delay and style rows keep the panel open like every other choice, because
+these settings are tuned iteratively against the running video
+(`ControlsSubtitleSettings` owns those interactions); the file dialog the
+load action opens sits on top of the still-open panel.
 
 Persistence: the style (size/color) is a cross-engine preference stored under
 the `subtitleStyle` localStorage key (`subtitle-style.ts`), the same mechanism
@@ -1439,6 +1495,11 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-format.utils.ts
 ├── controls-layout.ts
 ├── controls-timeline-hover.ts
+├── controls-settings.ts
+├── controls-settings-groups.ts
+├── player-settings-panel.component.ts
+├── player-settings-panel.component.html
+├── player-settings-panel.component.scss
 ├── controls-fullscreen.ts
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts

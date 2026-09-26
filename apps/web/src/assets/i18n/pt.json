@@ -621,6 +621,8 @@
             "SEARCH_IN": "Pesquisar em {{title}}",
             "CLEAR_SEARCH": "Limpar pesquisa",
             "LOAD_SUBTITLE_FILE": "Carregar ficheiro de legendas…",
+            "SETTINGS": "Configurações",
+            "CLOSE_SETTINGS": "Fechar configurações",
             "SUBTITLE_DELAY": "Atraso das legendas",
             "SUBTITLE_DELAY_DECREASE": "Mostrar legendas mais cedo",
             "SUBTITLE_DELAY_INCREASE": "Mostrar legendas mais tarde",

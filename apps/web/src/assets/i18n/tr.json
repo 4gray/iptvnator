@@ -621,6 +621,8 @@
             "SEARCH_IN": "{{title}} içinde ara",
             "CLEAR_SEARCH": "Aramayı temizle",
             "LOAD_SUBTITLE_FILE": "Altyazı dosyası yükle…",
+            "SETTINGS": "Ayarlar",
+            "CLOSE_SETTINGS": "Ayarları kapat",
             "SUBTITLE_DELAY": "Altyazı gecikmesi",
             "SUBTITLE_DELAY_DECREASE": "Altyazıları daha erken göster",
             "SUBTITLE_DELAY_INCREASE": "Altyazıları daha geç göster",

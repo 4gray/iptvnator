@@ -621,6 +621,8 @@
             "SEARCH_IN": "In {{title}} suchen",
             "CLEAR_SEARCH": "Suche löschen",
             "LOAD_SUBTITLE_FILE": "Untertiteldatei laden…",
+            "SETTINGS": "Einstellungen",
+            "CLOSE_SETTINGS": "Einstellungen schließen",
             "SUBTITLE_DELAY": "Untertitelverzögerung",
             "SUBTITLE_DELAY_DECREASE": "Untertitel früher anzeigen",
             "SUBTITLE_DELAY_INCREASE": "Untertitel später anzeigen",

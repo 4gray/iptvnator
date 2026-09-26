@@ -236,8 +236,8 @@ describe('PlayerControlsComponent capability contract', () => {
             ],
         });
         fixture.detectChanges();
-        component.toggleMenu('audio');
-        expect(component.menus.audioOpen()).toBe(true);
+        component.settings.open('audio');
+        expect(component.menus.settingsOpen()).toBe(true);
 
         fake.state.set({
             ...createEmptyControlsState(),
@@ -251,8 +251,8 @@ describe('PlayerControlsComponent capability contract', () => {
             playbackSpeed: true,
         });
         fixture.detectChanges();
-        component.toggleMenu('speed');
-        expect(component.menus.speedOpen()).toBe(true);
+        component.settings.open('speed');
+        expect(component.menus.settingsOpen()).toBe(true);
 
         fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES });
         fixture.detectChanges();
@@ -292,16 +292,16 @@ describe('PlayerControlsComponent capability contract', () => {
 
         const root = fixture.nativeElement as HTMLElement;
         const trigger = root.querySelector<HTMLButtonElement>(
-            '[data-test-id="player-controls-quality"]'
+            '[data-test-id="player-controls-settings-button"]'
         );
         expect(trigger).not.toBeNull();
         trigger?.click();
         fixture.detectChanges();
-        expect(component.menus.qualityOpen()).toBe(true);
+        expect(component.menus.settingsOpen()).toBe(true);
 
         const entries = Array.from(
             root.querySelectorAll<HTMLButtonElement>(
-                '.player-controls__track-popover .player-controls__track'
+                '[data-test-id="player-settings-quality"] .player-settings__option'
             )
         );
         expect(entries.map((entry) => entry.textContent?.trim())).toEqual([
@@ -314,9 +314,9 @@ describe('PlayerControlsComponent capability contract', () => {
         entries[2].click();
         fixture.detectChanges();
         expect(fake.commands.setQualityLevel).toHaveBeenCalledWith(1);
-        expect(component.menus.qualityOpen()).toBe(false);
+        // The panel stays open so the next level can be compared in place.
+        expect(component.menus.settingsOpen()).toBe(true);
 
-        component.toggleMenu('quality');
         fake.state.set({
             ...createEmptyControlsState(),
             qualityLevels: [{ id: 0, label: '1080p', selected: false }],
@@ -324,7 +324,9 @@ describe('PlayerControlsComponent capability contract', () => {
         fixture.detectChanges();
         expect(component.anyMenuOpen()).toBe(false);
         expect(
-            root.querySelector('[data-test-id="player-controls-quality"]')
+            root.querySelector(
+                '[data-test-id="player-controls-settings-button"]'
+            )
         ).toBeNull();
     });
 

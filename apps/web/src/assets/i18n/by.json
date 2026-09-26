@@ -621,6 +621,8 @@
             "SEARCH_IN": "Пошук у {{title}}",
             "CLEAR_SEARCH": "Ачысціць пошук",
             "LOAD_SUBTITLE_FILE": "Загрузіць файл субтытраў…",
+            "SETTINGS": "Налады",
+            "CLOSE_SETTINGS": "Закрыць налады",
             "SUBTITLE_DELAY": "Затрымка субтытраў",
             "SUBTITLE_DELAY_DECREASE": "Паказваць субтытры раней",
             "SUBTITLE_DELAY_INCREASE": "Паказваць субтытры пазней",

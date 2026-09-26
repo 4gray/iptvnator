@@ -20,6 +20,7 @@ import { ControlsFullscreen } from './controls-fullscreen';
 import { ControlsLayout } from './controls-layout';
 import { ControlsMenuSelection } from './controls-menu-selection';
 import { type ControlsMenu, ControlsMenuState } from './controls-menu-state';
+import { ControlsSettings } from './controls-settings';
 import { ControlsShortcuts } from './controls-shortcuts';
 import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
@@ -30,27 +31,24 @@ import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
 import { ControlsVolumeInteractions } from './controls-volume-interactions';
 import { ControlsSubtitleSettings } from './controls-subtitle-settings';
-import {
-    formatRemainingTime,
-    formatTime,
-    speedLabel,
-} from './controls-format.utils';
+import { formatRemainingTime, formatTime } from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
 } from './player-controls.model';
-import {
-    SUBTITLE_COLOR_PRESETS,
-    SUBTITLE_DELAY_STEP_SECONDS,
-    SUBTITLE_SIZE_PRESETS,
-    subtitleDelayLabel,
-} from './subtitle-style';
+import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
 
 @Component({
     selector: 'app-player-controls',
     templateUrl: './player-controls.component.html',
     styleUrl: './player-controls.component.scss',
-    imports: [MatButtonModule, MatIconModule, MatTooltipModule, TranslatePipe],
+    imports: [
+        MatButtonModule,
+        MatIconModule,
+        MatTooltipModule,
+        TranslatePipe,
+        PlayerSettingsPanelComponent,
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         class: 'player-controls-host',
@@ -114,8 +112,6 @@ export class PlayerControlsComponent implements OnDestroy {
     });
     readonly menuSelection = new ControlsMenuSelection({
         commands: () => this.controller().commands,
-        menus: this.menus,
-        visibility: this.visibility,
         revealSticky: () => this.reveal({ scheduleHide: false }),
     });
     readonly volumeInteractions = new ControlsVolumeInteractions({
@@ -137,6 +133,14 @@ export class PlayerControlsComponent implements OnDestroy {
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
+    readonly settings = new ControlsSettings({
+        state: this.state,
+        capabilities: this.capabilities,
+        showControls: this.showControls,
+        menus: this.menus,
+        commands: () => this.controller().commands,
+        reveal: (options) => this.reveal(options),
+    });
     private readonly controllerVolume = computed(() => this.state().volume);
     private readonly timeline = new ControlsTimeline(this.state);
     readonly scrubPosition = this.timeline.scrubPosition;
@@ -312,11 +316,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.streamStats.dispose();
     }
     formatTime = formatTime;
-    speedLabel = speedLabel;
-    subtitleDelayLabel = subtitleDelayLabel;
-    readonly subtitleSizePresets = SUBTITLE_SIZE_PRESETS;
-    readonly subtitleColorPresets = SUBTITLE_COLOR_PRESETS;
-    readonly subtitleDelayStep = SUBTITLE_DELAY_STEP_SECONDS;
     togglePlay(): void {
         this.reveal();
         if (!this.canTogglePlay()) {
@@ -371,12 +370,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.reveal();
     }
 
-    loadExternalSubtitle(): void {
-        if (!this.capabilities().externalSubtitles) {
-            return;
-        }
-        this.menuSelection.externalSubtitle();
-    }
     toggleRecording(): void {
         if (!this.canRecord()) {
             return;

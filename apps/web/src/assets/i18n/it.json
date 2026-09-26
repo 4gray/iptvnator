@@ -621,6 +621,8 @@
             "SEARCH_IN": "Cerca in {{title}}",
             "CLEAR_SEARCH": "Cancella ricerca",
             "LOAD_SUBTITLE_FILE": "Carica file sottotitoli…",
+            "SETTINGS": "Impostazioni",
+            "CLOSE_SETTINGS": "Chiudi impostazioni",
             "SUBTITLE_DELAY": "Ritardo sottotitoli",
             "SUBTITLE_DELAY_DECREASE": "Mostra i sottotitoli prima",
             "SUBTITLE_DELAY_INCREASE": "Mostra i sottotitoli dopo",

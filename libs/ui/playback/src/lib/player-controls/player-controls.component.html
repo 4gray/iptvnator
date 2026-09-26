@@ -22,6 +22,9 @@
     <div
         class="player-controls__title"
         [class.player-controls__title--visible]="controlsAreVisible()"
+        [class.player-controls__title--panel-open]="
+            settings.isOpen() && !isCompact()
+        "
         data-test-id="player-controls-media-title"
     >
         <div class="player-controls__title-primary">
@@ -39,6 +42,9 @@
     <div
         class="player-controls__corner"
         [class.player-controls__corner--visible]="controlsAreVisible()"
+        [class.player-controls__corner--panel-open]="
+            settings.isOpen() && !isCompact()
+        "
         (pointerenter)="chrome.onPointerEnter()"
         (pointerleave)="chrome.onPointerLeave()"
         (pointerdown)="chrome.onPointerDown()"
@@ -116,6 +122,12 @@
         class="player-controls__bar"
         [class.player-controls__bar--visible]="controlsAreVisible()"
         [class.player-controls__bar--compact]="isCompact()"
+        [class.player-controls__bar--panel-open]="
+            settings.isOpen() && !isCompact()
+        "
+        [class.player-controls__bar--sheet-open]="
+            settings.isOpen() && isCompact()
+        "
         (pointerenter)="chrome.onPointerEnter()"
         (pointerleave)="chrome.onPointerLeave()"
         (pointerdown)="chrome.onPointerDown()"
@@ -442,78 +454,21 @@
             </div>
 
             <div class="player-controls__actions">
-                @if (hasAudioTracks()) {
-                    <div class="player-controls__popover-anchor">
+                @if (
+                    settings.available() && !isCompact() && !settings.isOpen()
+                ) {
+                    @if (settings.groups().subtitles) {
                         <button
-                            mat-icon-button
                             type="button"
-                            class="player-controls__button"
-                            (click)="toggleMenu('audio')"
-                            [attr.aria-expanded]="menus.audioOpen()"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate
+                            class="player-controls__chip"
+                            [class.player-controls__chip--on]="
+                                settings.subtitlesOn()
                             "
-                            [matTooltip]="
-                                'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate
+                            data-test-id="player-controls-subtitle-chip"
+                            (click)="settings.open('subtitles')"
+                            (contextmenu)="
+                                settings.onSubtitleChipContextMenu($event)
                             "
-                            matTooltipPosition="above"
-                        >
-                            <mat-icon>graphic_eq</mat-icon>
-                        </button>
-                        @if (menus.audioOpen()) {
-                            <div
-                                class="player-controls__panel player-controls__track-popover"
-                                role="menu"
-                                [attr.aria-label]="
-                                    'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS'
-                                        | translate
-                                "
-                            >
-                                <div class="player-controls__menu-title">
-                                    {{
-                                        'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS'
-                                            | translate
-                                    }}
-                                </div>
-                                <div class="player-controls__track-list">
-                                    @for (
-                                        track of state().audioTracks;
-                                        track track.id
-                                    ) {
-                                        <button
-                                            type="button"
-                                            role="menuitemradio"
-                                            [attr.aria-checked]="track.selected"
-                                            class="player-controls__track"
-                                            [class.player-controls__track--selected]="
-                                                track.selected
-                                            "
-                                            (click)="
-                                                menuSelection.audioTrack(
-                                                    track.id
-                                                )
-                                            "
-                                        >
-                                            <span>{{ track.label }}</span>
-                                            @if (track.selected) {
-                                                <mat-icon>check</mat-icon>
-                                            }
-                                        </button>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-
-                @if (hasSubtitleTracks()) {
-                    <div class="player-controls__popover-anchor">
-                        <button
-                            mat-icon-button
-                            type="button"
-                            class="player-controls__button"
-                            (click)="toggleMenu('subtitle')"
-                            [attr.aria-expanded]="menus.subtitleOpen()"
                             [attr.aria-label]="
                                 'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
                             "
@@ -523,554 +478,90 @@
                             matTooltipPosition="above"
                         >
                             <mat-icon>{{
-                                state().subtitlesEnabled
-                                    ? 'subtitles'
-                                    : 'subtitles_off'
+                                settings.subtitlesOn()
+                                    ? 'closed_caption'
+                                    : 'closed_caption_disabled'
                             }}</mat-icon>
+                            <span class="player-controls__chip-label">{{
+                                settings.subtitleLabel() ??
+                                    ('EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
+                                        | translate)
+                            }}</span>
                         </button>
-                        @if (menus.subtitleOpen()) {
-                            <div
-                                class="player-controls__panel player-controls__track-popover"
-                                role="menu"
-                                [attr.aria-label]="
-                                    'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
-                                "
-                            >
-                                <div class="player-controls__menu-title">
-                                    {{
-                                        'EMBEDDED_MPV.PLAYER.SUBTITLES'
-                                            | translate
-                                    }}
-                                </div>
-                                <!-- Single scroll owner for the track list AND the
-                                 delay/style sections: on short players the
-                                 popover height cap must scroll everything, not
-                                 clip the sections outside the list. -->
-                                <div class="player-controls__subtitle-body">
-                                    <div class="player-controls__track-list">
-                                        @if (
-                                            capabilities().subtitles &&
-                                            state().subtitleTracks.length > 0
-                                        ) {
-                                            <button
-                                                type="button"
-                                                role="menuitemradio"
-                                                [attr.aria-checked]="
-                                                    !state().subtitlesEnabled
-                                                "
-                                                class="player-controls__track"
-                                                [class.player-controls__track--selected]="
-                                                    !state().subtitlesEnabled
-                                                "
-                                                (click)="
-                                                    menuSelection.subtitleTrack(
-                                                        -1
-                                                    )
-                                                "
-                                            >
-                                                <span>{{
-                                                    'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
-                                                        | translate
-                                                }}</span>
-                                                @if (
-                                                    !state().subtitlesEnabled
-                                                ) {
-                                                    <mat-icon>check</mat-icon>
-                                                }
-                                            </button>
-                                        }
-                                        @for (
-                                            track of state().subtitleTracks;
-                                            track track.id
-                                        ) {
-                                            <button
-                                                type="button"
-                                                role="menuitemradio"
-                                                [attr.aria-checked]="
-                                                    track.selected
-                                                "
-                                                class="player-controls__track"
-                                                [class.player-controls__track--selected]="
-                                                    track.selected
-                                                "
-                                                (click)="
-                                                    menuSelection.subtitleTrack(
-                                                        track.id
-                                                    )
-                                                "
-                                            >
-                                                <span>{{ track.label }}</span>
-                                                @if (track.selected) {
-                                                    <mat-icon>check</mat-icon>
-                                                }
-                                            </button>
-                                        }
-                                        @if (capabilities().externalSubtitles) {
-                                            <button
-                                                type="button"
-                                                role="menuitem"
-                                                class="player-controls__track player-controls__load-subtitle"
-                                                data-test-id="player-controls-load-subtitle"
-                                                (click)="loadExternalSubtitle()"
-                                            >
-                                                <span>{{
-                                                    'EMBEDDED_MPV.PLAYER.LOAD_SUBTITLE_FILE'
-                                                        | translate
-                                                }}</span>
-                                                <mat-icon>upload_file</mat-icon>
-                                            </button>
-                                        }
-                                    </div>
-                                    @if (capabilities().subtitleDelay) {
-                                        <div
-                                            class="player-controls__subtitle-section"
-                                            data-test-id="player-controls-subtitle-delay"
-                                        >
-                                            <div
-                                                class="player-controls__subtitle-section-title"
-                                            >
-                                                {{
-                                                    'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY'
-                                                        | translate
-                                                }}
-                                            </div>
-                                            <div
-                                                class="player-controls__subtitle-delay-row"
-                                            >
-                                                <button
-                                                    mat-icon-button
-                                                    type="button"
-                                                    class="player-controls__button"
-                                                    (click)="
-                                                        subtitleSettings.adjustDelay(
-                                                            -subtitleDelayStep
-                                                        )
-                                                    "
-                                                    [attr.aria-label]="
-                                                        'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
-                                                            | translate
-                                                    "
-                                                    [matTooltip]="
-                                                        'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
-                                                            | translate
-                                                    "
-                                                >
-                                                    <mat-icon>remove</mat-icon>
-                                                </button>
-                                                <span
-                                                    class="player-controls__subtitle-delay-value"
-                                                    aria-live="polite"
-                                                    >{{
-                                                        subtitleDelayLabel(
-                                                            state()
-                                                                .subtitleDelaySeconds
-                                                        )
-                                                    }}</span
-                                                >
-                                                <button
-                                                    mat-icon-button
-                                                    type="button"
-                                                    class="player-controls__button"
-                                                    (click)="
-                                                        subtitleSettings.adjustDelay(
-                                                            subtitleDelayStep
-                                                        )
-                                                    "
-                                                    [attr.aria-label]="
-                                                        'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
-                                                            | translate
-                                                    "
-                                                    [matTooltip]="
-                                                        'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
-                                                            | translate
-                                                    "
-                                                >
-                                                    <mat-icon>add</mat-icon>
-                                                </button>
-                                                <button
-                                                    mat-icon-button
-                                                    type="button"
-                                                    class="player-controls__button"
-                                                    [disabled]="
-                                                        state()
-                                                            .subtitleDelaySeconds ===
-                                                        0
-                                                    "
-                                                    (click)="
-                                                        subtitleSettings.resetDelay()
-                                                    "
-                                                    [attr.aria-label]="
-                                                        'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
-                                                            | translate
-                                                    "
-                                                    [matTooltip]="
-                                                        'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
-                                                            | translate
-                                                    "
-                                                >
-                                                    <mat-icon
-                                                        >restart_alt</mat-icon
-                                                    >
-                                                </button>
-                                            </div>
-                                        </div>
-                                    }
-                                    @if (capabilities().subtitleStyle) {
-                                        <div
-                                            class="player-controls__subtitle-section"
-                                            data-test-id="player-controls-subtitle-style"
-                                        >
-                                            <div
-                                                class="player-controls__subtitle-section-title"
-                                            >
-                                                {{
-                                                    'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE'
-                                                        | translate
-                                                }}
-                                            </div>
-                                            <div
-                                                class="player-controls__subtitle-preset-row"
-                                                role="radiogroup"
-                                                [attr.aria-label]="
-                                                    'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE'
-                                                        | translate
-                                                "
-                                            >
-                                                @for (
-                                                    preset of subtitleSizePresets;
-                                                    track preset.value
-                                                ) {
-                                                    <button
-                                                        type="button"
-                                                        role="radio"
-                                                        class="player-controls__subtitle-chip"
-                                                        [attr.aria-checked]="
-                                                            preset.value ===
-                                                            state()
-                                                                .subtitleStyle
-                                                                .sizePercent
-                                                        "
-                                                        [class.player-controls__subtitle-chip--selected]="
-                                                            preset.value ===
-                                                            state()
-                                                                .subtitleStyle
-                                                                .sizePercent
-                                                        "
-                                                        (click)="
-                                                            subtitleSettings.setSize(
-                                                                preset.value
-                                                            )
-                                                        "
-                                                    >
-                                                        {{ preset.label }}
-                                                    </button>
-                                                }
-                                            </div>
-                                            <div
-                                                class="player-controls__subtitle-section-title"
-                                            >
-                                                {{
-                                                    'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR'
-                                                        | translate
-                                                }}
-                                            </div>
-                                            <div
-                                                class="player-controls__subtitle-preset-row"
-                                                role="radiogroup"
-                                                [attr.aria-label]="
-                                                    'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR'
-                                                        | translate
-                                                "
-                                            >
-                                                @for (
-                                                    preset of subtitleColorPresets;
-                                                    track preset.label
-                                                ) {
-                                                    <button
-                                                        type="button"
-                                                        role="radio"
-                                                        class="player-controls__subtitle-swatch"
-                                                        [class.player-controls__subtitle-swatch--default]="
-                                                            preset.value ===
-                                                            null
-                                                        "
-                                                        [style.--swatch-color]="
-                                                            preset.value
-                                                        "
-                                                        [attr.aria-checked]="
-                                                            preset.value ===
-                                                            state()
-                                                                .subtitleStyle
-                                                                .color
-                                                        "
-                                                        [class.player-controls__subtitle-swatch--selected]="
-                                                            preset.value ===
-                                                            state()
-                                                                .subtitleStyle
-                                                                .color
-                                                        "
-                                                        [attr.aria-label]="
-                                                            preset.label
-                                                                | translate
-                                                        "
-                                                        [matTooltip]="
-                                                            preset.label
-                                                                | translate
-                                                        "
-                                                        (click)="
-                                                            subtitleSettings.setColor(
-                                                                preset.value
-                                                            )
-                                                        "
-                                                    ></button>
-                                                }
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-
-                @if (hasQualityLevels()) {
-                    <div class="player-controls__popover-anchor">
+                    }
+                    @if (settings.groups().speed) {
                         <button
-                            mat-icon-button
                             type="button"
-                            class="player-controls__button"
-                            data-test-id="player-controls-quality"
-                            (click)="toggleMenu('quality')"
-                            [attr.aria-expanded]="menus.qualityOpen()"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.QUALITY' | translate
+                            class="player-controls__chip"
+                            [class.player-controls__chip--modified]="
+                                settings.speedModified()
                             "
-                            [matTooltip]="
-                                'EMBEDDED_MPV.PLAYER.QUALITY' | translate
-                            "
-                            matTooltipPosition="above"
-                        >
-                            <mat-icon>high_quality</mat-icon>
-                        </button>
-                        @if (menus.qualityOpen()) {
-                            <div
-                                class="player-controls__panel player-controls__track-popover"
-                                role="menu"
-                                [attr.aria-label]="
-                                    'EMBEDDED_MPV.PLAYER.QUALITY' | translate
-                                "
-                            >
-                                <div class="player-controls__menu-title">
-                                    {{
-                                        'EMBEDDED_MPV.PLAYER.QUALITY'
-                                            | translate
-                                    }}
-                                </div>
-                                <div class="player-controls__track-list">
-                                    <button
-                                        type="button"
-                                        role="menuitemradio"
-                                        [attr.aria-checked]="
-                                            state().qualityAutoEnabled
-                                        "
-                                        class="player-controls__track"
-                                        [class.player-controls__track--selected]="
-                                            state().qualityAutoEnabled
-                                        "
-                                        (click)="menuSelection.qualityLevel(-1)"
-                                    >
-                                        <span>{{
-                                            'EMBEDDED_MPV.PLAYER.QUALITY_AUTO'
-                                                | translate
-                                        }}</span>
-                                        @if (state().qualityAutoEnabled) {
-                                            <mat-icon>check</mat-icon>
-                                        }
-                                    </button>
-                                    @for (
-                                        level of state().qualityLevels;
-                                        track level.id
-                                    ) {
-                                        <button
-                                            type="button"
-                                            role="menuitemradio"
-                                            [attr.aria-checked]="level.selected"
-                                            class="player-controls__track"
-                                            [class.player-controls__track--selected]="
-                                                level.selected
-                                            "
-                                            (click)="
-                                                menuSelection.qualityLevel(
-                                                    level.id
-                                                )
-                                            "
-                                        >
-                                            <span>{{ level.label }}</span>
-                                            @if (level.selected) {
-                                                <mat-icon>check</mat-icon>
-                                            }
-                                        </button>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
-                }
-
-                @if (capabilities().playbackSpeed) {
-                    <div class="player-controls__popover-anchor">
-                        <button
-                            mat-icon-button
-                            type="button"
-                            class="player-controls__button"
-                            (click)="toggleMenu('speed')"
-                            [attr.aria-expanded]="menus.speedOpen()"
+                            data-test-id="player-controls-speed-chip"
+                            (click)="settings.open('speed')"
                             [attr.aria-label]="
                                 'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate
                             "
                             [matTooltip]="
                                 'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
                                     | translate
-                                        : {
-                                              speed: speedLabel(
-                                                  state().playbackSpeed
-                                              ),
-                                          }
+                                        : { speed: settings.speedLabel() }
                             "
                             matTooltipPosition="above"
                         >
                             <mat-icon>speed</mat-icon>
+                            <span class="player-controls__chip-label">{{
+                                settings.speedLabel()
+                            }}</span>
                         </button>
-                        @if (menus.speedOpen()) {
-                            <div
-                                class="player-controls__panel player-controls__track-popover"
-                                role="menu"
-                                [attr.aria-label]="
-                                    'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED'
-                                        | translate
-                                "
-                            >
-                                <div class="player-controls__menu-title">
-                                    {{
-                                        'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED'
-                                            | translate
-                                    }}
-                                </div>
-                                <div class="player-controls__track-list">
-                                    @for (
-                                        preset of state().speedPresets;
-                                        track preset.value
-                                    ) {
-                                        <button
-                                            type="button"
-                                            role="menuitemradio"
-                                            [attr.aria-checked]="
-                                                preset.value ===
-                                                state().playbackSpeed
-                                            "
-                                            class="player-controls__track"
-                                            [class.player-controls__track--selected]="
-                                                preset.value ===
-                                                state().playbackSpeed
-                                            "
-                                            (click)="
-                                                menuSelection.speed(
-                                                    preset.value
-                                                )
-                                            "
-                                        >
-                                            <span>{{ preset.label }}</span>
-                                            @if (
-                                                preset.value ===
-                                                state().playbackSpeed
-                                            ) {
-                                                <mat-icon>check</mat-icon>
-                                            }
-                                        </button>
-                                    }
-                                </div>
-                            </div>
-                        }
-                    </div>
+                    }
                 }
 
-                @if (capabilities().aspectRatio) {
-                    <div class="player-controls__popover-anchor">
-                        <button
-                            mat-icon-button
-                            type="button"
-                            class="player-controls__button"
-                            (click)="toggleMenu('aspect')"
-                            [attr.aria-expanded]="menus.aspectOpen()"
-                            [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
-                            "
-                            [matTooltip]="
-                                'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
-                            "
-                            matTooltipPosition="above"
-                        >
-                            <mat-icon>aspect_ratio</mat-icon>
-                        </button>
-                        @if (menus.aspectOpen()) {
-                            <div
-                                class="player-controls__panel player-controls__track-popover"
-                                role="menu"
-                                [attr.aria-label]="
-                                    'EMBEDDED_MPV.PLAYER.ASPECT_RATIO'
-                                        | translate
-                                "
+                @if (settings.available()) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="player-controls__button player-controls__tune"
+                        [class.player-controls__tune--active]="
+                            settings.isOpen()
+                        "
+                        data-test-id="player-controls-settings-button"
+                        (click)="settings.toggle()"
+                        [attr.aria-expanded]="settings.isOpen()"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.SETTINGS' | translate
+                        "
+                        [matTooltip]="
+                            'EMBEDDED_MPV.PLAYER.SETTINGS' | translate
+                        "
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>tune</mat-icon>
+                        @if (
+                            isCompact() &&
+                            !settings.isOpen() &&
+                            settings.hasDots()
+                        ) {
+                            <span
+                                class="player-controls__tune-dots"
+                                data-test-id="player-controls-settings-dots"
+                                aria-hidden="true"
                             >
-                                <div class="player-controls__menu-title">
-                                    {{
-                                        'EMBEDDED_MPV.PLAYER.ASPECT_RATIO'
-                                            | translate
-                                    }}
-                                </div>
-                                <div class="player-controls__track-list">
-                                    @for (
-                                        preset of state().aspectPresets;
-                                        track preset.value
-                                    ) {
-                                        <button
-                                            type="button"
-                                            role="menuitemradio"
-                                            [attr.aria-checked]="
-                                                preset.value ===
-                                                state().aspectRatio
-                                            "
-                                            class="player-controls__track"
-                                            [class.player-controls__track--selected]="
-                                                preset.value ===
-                                                state().aspectRatio
-                                            "
-                                            (click)="
-                                                menuSelection.aspect(
-                                                    preset.value
-                                                )
-                                            "
-                                        >
-                                            <span>{{
-                                                preset.value === 'no'
-                                                    ? ('EMBEDDED_MPV.PLAYER.ASPECT_DEFAULT'
-                                                      | translate)
-                                                    : preset.label
-                                            }}</span>
-                                            @if (
-                                                preset.value ===
-                                                state().aspectRatio
-                                            ) {
-                                                <mat-icon>check</mat-icon>
-                                            }
-                                        </button>
-                                    }
-                                </div>
-                            </div>
+                                @if (settings.dots().cyan) {
+                                    <span
+                                        class="player-controls__tune-dot player-controls__tune-dot--cyan"
+                                    ></span>
+                                }
+                                @if (settings.dots().violet) {
+                                    <span
+                                        class="player-controls__tune-dot player-controls__tune-dot--violet"
+                                    ></span>
+                                }
+                            </span>
                         }
-                    </div>
+                    </button>
                 }
 
-                @if (canRecord()) {
+                @if (canRecord() && !(settings.isOpen() && !isCompact())) {
                     <button
                         mat-icon-button
                         type="button"
@@ -1103,7 +594,10 @@
                     </button>
                 }
 
-                @if (capabilities().pictureInPicture) {
+                @if (
+                    capabilities().pictureInPicture &&
+                    !(settings.isOpen() && !isCompact())
+                ) {
                     <button
                         mat-icon-button
                         type="button"
@@ -1162,4 +656,26 @@
             </div>
         </div>
     </div>
+
+    @if (settings.isOpen()) {
+        <app-player-settings-panel
+            class="player-controls__settings"
+            [class.player-controls__settings--sheet]="isCompact()"
+            data-test-id="player-controls-settings-panel"
+            [controller]="controller()"
+            [settings]="settings"
+            [selection]="menuSelection"
+            [subtitleSettings]="subtitleSettings"
+            [mode]="isCompact() ? 'sheet' : 'panel'"
+            [title]="'EMBEDDED_MPV.PLAYER.SETTINGS' | translate"
+            (closeRequested)="settings.close()"
+            (pointerenter)="chrome.onPointerEnter()"
+            (pointerleave)="chrome.onPointerLeave()"
+            (pointerdown)="chrome.onPointerDown()"
+            (click)="chrome.onClick($event)"
+            (keydown)="chrome.onKeyDown()"
+            (focusin)="chrome.onFocusIn($event)"
+            (focusout)="chrome.onFocusOut($event)"
+        />
+    }
 }

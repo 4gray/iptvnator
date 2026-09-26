@@ -621,6 +621,8 @@
             "SEARCH_IN": "{{title}}에서 검색",
             "CLEAR_SEARCH": "검색 지우기",
             "LOAD_SUBTITLE_FILE": "자막 파일 불러오기…",
+            "SETTINGS": "설정",
+            "CLOSE_SETTINGS": "설정 닫기",
             "SUBTITLE_DELAY": "자막 지연",
             "SUBTITLE_DELAY_DECREASE": "자막을 더 빨리 표시",
             "SUBTITLE_DELAY_INCREASE": "자막을 더 늦게 표시",

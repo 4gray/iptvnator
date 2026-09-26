@@ -621,6 +621,8 @@
             "SEARCH_IN": "Αναζήτηση σε {{title}}",
             "CLEAR_SEARCH": "Καθαρισμός αναζήτησης",
             "LOAD_SUBTITLE_FILE": "Φόρτωση αρχείου υποτίτλων…",
+            "SETTINGS": "Ρυθμίσεις",
+            "CLOSE_SETTINGS": "Κλείσιμο ρυθμίσεων",
             "SUBTITLE_DELAY": "Καθυστέρηση υποτίτλων",
             "SUBTITLE_DELAY_DECREASE": "Εμφάνιση υποτίτλων νωρίτερα",
             "SUBTITLE_DELAY_INCREASE": "Εμφάνιση υποτίτλων αργότερα",

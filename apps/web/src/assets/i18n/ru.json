@@ -621,6 +621,8 @@
             "SEARCH_IN": "Поиск в {{title}}",
             "CLEAR_SEARCH": "Очистить поиск",
             "LOAD_SUBTITLE_FILE": "Загрузить файл субтитров…",
+            "SETTINGS": "Настройки",
+            "CLOSE_SETTINGS": "Закрыть настройки",
             "SUBTITLE_DELAY": "Задержка субтитров",
             "SUBTITLE_DELAY_DECREASE": "Показывать субтитры раньше",
             "SUBTITLE_DELAY_INCREASE": "Показывать субтитры позже",

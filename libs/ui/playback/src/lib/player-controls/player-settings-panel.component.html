@@ -1,0 +1,439 @@
+@if (mode() === 'sheet') {
+    <div class="player-settings__grip" aria-hidden="true"></div>
+}
+<div class="player-settings__header">
+    <div class="player-settings__title">{{ title() }}</div>
+    <button
+        mat-icon-button
+        type="button"
+        class="player-settings__close"
+        data-test-id="player-settings-close"
+        (click)="closeRequested.emit()"
+        [attr.aria-label]="'EMBEDDED_MPV.PLAYER.CLOSE_SETTINGS' | translate"
+        [matTooltip]="'EMBEDDED_MPV.PLAYER.CLOSE_SETTINGS' | translate"
+    >
+        <mat-icon>close</mat-icon>
+    </button>
+</div>
+
+<div class="player-settings__body">
+    @if (groups().audio) {
+        <section
+            class="player-settings__group"
+            [class.player-settings__group--focused]="isFocused('audio')"
+            data-group="audio"
+            data-test-id="player-settings-audio"
+        >
+            <div class="player-settings__heading">
+                <span
+                    class="player-settings__dot player-settings__dot--cyan"
+                    aria-hidden="true"
+                ></span>
+                {{ 'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate }}
+            </div>
+            <div
+                class="player-settings__options"
+                role="group"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate
+                "
+            >
+                @for (track of state().audioTracks; track track.id) {
+                    <button
+                        type="button"
+                        role="menuitemradio"
+                        class="player-settings__option"
+                        [class.player-settings__option--selected]="
+                            track.selected
+                        "
+                        [attr.aria-checked]="track.selected"
+                        (click)="selection().audioTrack(track.id)"
+                    >
+                        <span>{{ track.label }}</span>
+                        @if (track.selected) {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                }
+            </div>
+        </section>
+    }
+
+    @if (groups().subtitles) {
+        <section
+            class="player-settings__group"
+            [class.player-settings__group--focused]="isFocused('subtitles')"
+            data-group="subtitles"
+            data-test-id="player-settings-subtitles"
+        >
+            <div class="player-settings__heading">
+                <span
+                    class="player-settings__dot player-settings__dot--cyan"
+                    aria-hidden="true"
+                ></span>
+                {{ 'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate }}
+            </div>
+            <div
+                class="player-settings__options"
+                role="group"
+                [attr.aria-label]="'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate"
+            >
+                @if (
+                    capabilities().subtitles &&
+                    state().subtitleTracks.length > 0
+                ) {
+                    <button
+                        type="button"
+                        role="menuitemradio"
+                        class="player-settings__option player-settings__option--default"
+                        [class.player-settings__option--selected]="
+                            !state().subtitlesEnabled
+                        "
+                        [attr.aria-checked]="!state().subtitlesEnabled"
+                        (click)="selection().subtitleTrack(-1)"
+                    >
+                        <span>{{
+                            'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF' | translate
+                        }}</span>
+                        @if (!state().subtitlesEnabled) {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                }
+                @for (track of state().subtitleTracks; track track.id) {
+                    <button
+                        type="button"
+                        role="menuitemradio"
+                        class="player-settings__option"
+                        [class.player-settings__option--selected]="
+                            track.selected
+                        "
+                        [attr.aria-checked]="track.selected"
+                        (click)="selection().subtitleTrack(track.id)"
+                    >
+                        <span>{{ track.label }}</span>
+                        @if (track.selected) {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                }
+                @if (capabilities().externalSubtitles) {
+                    <button
+                        type="button"
+                        role="menuitem"
+                        class="player-settings__option player-settings__option--action"
+                        data-test-id="player-controls-load-subtitle"
+                        (click)="loadExternalSubtitle()"
+                    >
+                        <span>{{
+                            'EMBEDDED_MPV.PLAYER.LOAD_SUBTITLE_FILE' | translate
+                        }}</span>
+                        <mat-icon>upload_file</mat-icon>
+                    </button>
+                }
+            </div>
+
+            @if (capabilities().subtitleDelay) {
+                <div
+                    class="player-settings__subsection"
+                    data-test-id="player-controls-subtitle-delay"
+                >
+                    <div class="player-settings__subheading">
+                        {{ 'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY' | translate }}
+                    </div>
+                    <div class="player-settings__delay-row">
+                        <button
+                            mat-icon-button
+                            type="button"
+                            (click)="
+                                subtitleSettings().adjustDelay(
+                                    -subtitleDelayStep
+                                )
+                            "
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_DECREASE'
+                                    | translate
+                            "
+                        >
+                            <mat-icon>remove</mat-icon>
+                        </button>
+                        <span
+                            class="player-settings__delay-value"
+                            aria-live="polite"
+                            >{{
+                                subtitleDelayLabel(state().subtitleDelaySeconds)
+                            }}</span
+                        >
+                        <button
+                            mat-icon-button
+                            type="button"
+                            (click)="
+                                subtitleSettings().adjustDelay(
+                                    subtitleDelayStep
+                                )
+                            "
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_INCREASE'
+                                    | translate
+                            "
+                        >
+                            <mat-icon>add</mat-icon>
+                        </button>
+                        <button
+                            mat-icon-button
+                            type="button"
+                            [disabled]="state().subtitleDelaySeconds === 0"
+                            (click)="subtitleSettings().resetDelay()"
+                            [attr.aria-label]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
+                                    | translate
+                            "
+                            [matTooltip]="
+                                'EMBEDDED_MPV.PLAYER.SUBTITLE_DELAY_RESET'
+                                    | translate
+                            "
+                        >
+                            <mat-icon>restart_alt</mat-icon>
+                        </button>
+                    </div>
+                </div>
+            }
+
+            @if (capabilities().subtitleStyle) {
+                <div
+                    class="player-settings__subsection"
+                    data-test-id="player-controls-subtitle-style"
+                >
+                    <div class="player-settings__subheading">
+                        {{ 'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE' | translate }}
+                    </div>
+                    <div
+                        class="player-settings__seg"
+                        role="radiogroup"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.SUBTITLE_SIZE' | translate
+                        "
+                    >
+                        @for (
+                            preset of subtitleSizePresets;
+                            track preset.value
+                        ) {
+                            <button
+                                type="button"
+                                role="radio"
+                                class="player-settings__seg-item"
+                                [class.player-settings__seg-item--selected]="
+                                    preset.value ===
+                                    state().subtitleStyle.sizePercent
+                                "
+                                [attr.aria-checked]="
+                                    preset.value ===
+                                    state().subtitleStyle.sizePercent
+                                "
+                                (click)="
+                                    subtitleSettings().setSize(preset.value)
+                                "
+                            >
+                                {{ preset.label }}
+                            </button>
+                        }
+                    </div>
+                    <div class="player-settings__subheading">
+                        {{ 'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR' | translate }}
+                    </div>
+                    <div
+                        class="player-settings__swatches"
+                        role="radiogroup"
+                        [attr.aria-label]="
+                            'EMBEDDED_MPV.PLAYER.SUBTITLE_COLOR' | translate
+                        "
+                    >
+                        @for (
+                            preset of subtitleColorPresets;
+                            track preset.label
+                        ) {
+                            <button
+                                type="button"
+                                role="radio"
+                                class="player-settings__swatch"
+                                [class.player-settings__swatch--default]="
+                                    preset.value === null
+                                "
+                                [class.player-settings__swatch--selected]="
+                                    preset.value === state().subtitleStyle.color
+                                "
+                                [style.--swatch-color]="preset.value"
+                                [attr.aria-checked]="
+                                    preset.value === state().subtitleStyle.color
+                                "
+                                [attr.aria-label]="preset.label | translate"
+                                [matTooltip]="preset.label | translate"
+                                (click)="
+                                    subtitleSettings().setColor(preset.value)
+                                "
+                            ></button>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+    }
+
+    @if (groups().quality) {
+        <section
+            class="player-settings__group"
+            [class.player-settings__group--focused]="isFocused('quality')"
+            data-group="quality"
+            data-test-id="player-settings-quality"
+        >
+            <div class="player-settings__heading">
+                <span
+                    class="player-settings__dot player-settings__dot--violet"
+                    aria-hidden="true"
+                ></span>
+                {{ 'EMBEDDED_MPV.PLAYER.QUALITY' | translate }}
+            </div>
+            <div
+                class="player-settings__options"
+                role="group"
+                [attr.aria-label]="'EMBEDDED_MPV.PLAYER.QUALITY' | translate"
+            >
+                <button
+                    type="button"
+                    role="menuitemradio"
+                    class="player-settings__option player-settings__option--default"
+                    [class.player-settings__option--selected]="
+                        state().qualityAutoEnabled
+                    "
+                    [attr.aria-checked]="state().qualityAutoEnabled"
+                    (click)="selection().qualityLevel(-1)"
+                >
+                    <span>{{
+                        'EMBEDDED_MPV.PLAYER.QUALITY_AUTO' | translate
+                    }}</span>
+                    @if (state().qualityAutoEnabled) {
+                        <mat-icon>check</mat-icon>
+                    }
+                </button>
+                @for (level of state().qualityLevels; track level.id) {
+                    <button
+                        type="button"
+                        role="menuitemradio"
+                        class="player-settings__option"
+                        [class.player-settings__option--selected]="
+                            level.selected
+                        "
+                        [attr.aria-checked]="level.selected"
+                        (click)="selection().qualityLevel(level.id)"
+                    >
+                        <span>{{ level.label }}</span>
+                        @if (level.selected) {
+                            <mat-icon>check</mat-icon>
+                        }
+                    </button>
+                }
+            </div>
+        </section>
+    }
+
+    @if (groups().speed) {
+        <section
+            class="player-settings__group"
+            [class.player-settings__group--focused]="isFocused('speed')"
+            data-group="speed"
+            data-test-id="player-settings-speed"
+        >
+            <div class="player-settings__heading">
+                <span
+                    class="player-settings__dot player-settings__dot--violet"
+                    aria-hidden="true"
+                ></span>
+                {{ 'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate }}
+            </div>
+            <div
+                class="player-settings__seg"
+                role="radiogroup"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate
+                "
+            >
+                @for (preset of state().speedPresets; track preset.value) {
+                    <button
+                        type="button"
+                        role="radio"
+                        class="player-settings__seg-item"
+                        [class.player-settings__seg-item--default]="
+                            preset.value === 1
+                        "
+                        [class.player-settings__seg-item--selected]="
+                            preset.value === state().playbackSpeed
+                        "
+                        [attr.aria-checked]="
+                            preset.value === state().playbackSpeed
+                        "
+                        (click)="selection().speed(preset.value)"
+                    >
+                        {{ preset.label }}
+                    </button>
+                }
+            </div>
+        </section>
+    }
+
+    @if (groups().aspect) {
+        <section
+            class="player-settings__group"
+            [class.player-settings__group--focused]="isFocused('aspect')"
+            data-group="aspect"
+            data-test-id="player-settings-aspect"
+        >
+            <div class="player-settings__heading">
+                <span
+                    class="player-settings__dot player-settings__dot--neutral"
+                    aria-hidden="true"
+                ></span>
+                {{ 'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate }}
+            </div>
+            <div
+                class="player-settings__seg"
+                role="radiogroup"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate
+                "
+            >
+                @for (preset of state().aspectPresets; track preset.value) {
+                    <button
+                        type="button"
+                        role="radio"
+                        class="player-settings__seg-item"
+                        [class.player-settings__seg-item--default]="
+                            preset.value === defaultAspect()
+                        "
+                        [class.player-settings__seg-item--selected]="
+                            preset.value === state().aspectRatio
+                        "
+                        [attr.aria-checked]="
+                            preset.value === state().aspectRatio
+                        "
+                        (click)="selection().aspect(preset.value)"
+                    >
+                        {{
+                            preset.value === 'no'
+                                ? ('EMBEDDED_MPV.PLAYER.ASPECT_DEFAULT'
+                                  | translate)
+                                : preset.label
+                        }}
+                    </button>
+                }
+            </div>
+        </section>
+    }
+</div>

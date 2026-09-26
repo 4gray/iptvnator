@@ -621,6 +621,8 @@
             "SEARCH_IN": "Szukaj w {{title}}",
             "CLEAR_SEARCH": "Wyczyść wyszukiwanie",
             "LOAD_SUBTITLE_FILE": "Wczytaj plik napisów…",
+            "SETTINGS": "Ustawienia",
+            "CLOSE_SETTINGS": "Zamknij ustawienia",
             "SUBTITLE_DELAY": "Opóźnienie napisów",
             "SUBTITLE_DELAY_DECREASE": "Pokaż napisy wcześniej",
             "SUBTITLE_DELAY_INCREASE": "Pokaż napisy później",
