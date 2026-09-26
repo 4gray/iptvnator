@@ -111,10 +111,12 @@ it is retargeted, so dispatch one with `gh workflow run ci.yml --ref <branch>`
 when you need the number. A PR that grows the counter fails that job.
 
 That runner is the canonical measurer: take baseline values from its output,
-not from a local build, even though local macOS builds have so far matched it
-byte for byte. (An apparent 556-byte platform difference during the first
-measurements was `package.json` text embedded in `main.js`, which moved with
-every script edit; #1692 fixed that by importing only the version.)
+not from a local build. A local macOS build of the code before #1695 is 2
+bytes smaller in `main.js` (the eager locale imports); since #1695 the two
+have been byte-identical. (An apparent 556-byte platform difference during
+the first measurements was otherwise `package.json` text embedded in
+`main.js`, which moved with every script edit; #1692 fixed that by importing
+only the version.)
 
 The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
