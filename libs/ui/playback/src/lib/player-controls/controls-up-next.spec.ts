@@ -117,6 +117,16 @@ describe('ControlsUpNext', () => {
         expect(upNext.visible()).toBe(false);
     });
 
+    it('does not count down once the episode has ended', () => {
+        setState({
+            status: 'ended',
+            canNextEpisode: true,
+            durationSeconds: 1200,
+            positionSeconds: 1200,
+        });
+        expect(upNext.visible()).toBe(false);
+    });
+
     it('yields to hidden controls and to the open settings panel', () => {
         showControls.set(false);
         expect(upNext.visible()).toBe(false);

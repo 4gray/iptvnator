@@ -377,19 +377,18 @@
     top: 50%;
     right: 0;
     left: 0;
-    display: flex;
-    gap: 3px;
     height: 6px;
     transform: translateY(-50%);
 }
 
-// One flex item per segment; `flex-grow` carries the segment's share of the
-// duration, so widths are proportional to time. A tiny segment still gets a
-// visible sliver rather than vanishing between the 3px gaps.
+// Segments sit at their exact time positions (`left` = start, `width` =
+// share, minus the 3px gap at each segment's end), so a drawn boundary is
+// where the linear seek input and the hover label change segment. A segment
+// shorter than the gap simply collapses rather than shifting its neighbours.
 .player-controls__timeline-segment {
-    position: relative;
-    flex: 1 1 0;
-    min-width: 4px;
+    position: absolute;
+    top: 0;
+    bottom: 0;
     overflow: hidden;
     border-radius: 3px;
     background: var(--pc-track);
@@ -512,9 +511,16 @@
 
 // --- Control row ------------------------------------------------------------
 
+// Each side column keeps at least its own content width: when the action
+// cluster needs more than half of what the transport leaves, the transport
+// slides off-centre instead of the actions overlapping it or leaving the
+// player. Which extras exist at all is decided by `ControlsLayout`.
 .player-controls__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(min-content, 1fr) auto minmax(
+            min-content,
+            1fr
+        );
     gap: 8px;
     align-items: center;
 }
@@ -563,7 +569,7 @@
     align-items: center;
     gap: 6px;
     height: 32px;
-    max-width: 160px;
+    max-width: 132px;
     padding: 0 11px;
     color: var(--pc-text);
     background: transparent;

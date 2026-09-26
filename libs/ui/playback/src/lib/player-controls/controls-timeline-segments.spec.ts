@@ -7,7 +7,12 @@ import {
 describe('normalizeTimelineSegments', () => {
     it('renders one untitled segment without input or duration', () => {
         expect(normalizeTimelineSegments(null, 600)).toEqual([
-            { startSeconds: 0, endSeconds: 600, title: null, share: 1 },
+            expect.objectContaining({
+                startSeconds: 0,
+                endSeconds: 600,
+                title: null,
+                share: 1,
+            }),
         ]);
         expect(normalizeTimelineSegments([], 600)).toHaveLength(1);
         expect(
@@ -15,7 +20,9 @@ describe('normalizeTimelineSegments', () => {
                 [{ startSeconds: 0, endSeconds: 10, title: 'Intro' }],
                 0
             )
-        ).toEqual([{ startSeconds: 0, endSeconds: 0, title: null, share: 1 }]);
+        ).toEqual([
+            expect.objectContaining({ startSeconds: 0, title: null, share: 1 }),
+        ]);
         expect(
             normalizeTimelineSegments([], Number.POSITIVE_INFINITY)
         ).toHaveLength(1);
@@ -31,24 +38,50 @@ describe('normalizeTimelineSegments', () => {
         );
 
         expect(segments).toEqual([
-            { startSeconds: 0, endSeconds: 60, title: null, share: 0.1 },
-            {
+            expect.objectContaining({
+                startSeconds: 0,
+                endSeconds: 60,
+                title: null,
+                share: 0.1,
+            }),
+            expect.objectContaining({
                 startSeconds: 60,
                 endSeconds: 300,
                 title: 'Chapter 1',
                 share: 0.4,
-            },
-            {
+            }),
+            expect.objectContaining({
                 startSeconds: 300,
                 endSeconds: 450,
                 title: 'Chapter 2',
                 share: 0.25,
-            },
-            { startSeconds: 450, endSeconds: 600, title: null, share: 0.25 },
+            }),
+            expect.objectContaining({
+                startSeconds: 450,
+                endSeconds: 600,
+                title: null,
+                share: 0.25,
+            }),
         ]);
         expect(
             segments.reduce((total, segment) => total + segment.share, 0)
         ).toBeCloseTo(1);
+    });
+
+    it('places segments at their time positions with a gap after all but the last', () => {
+        const segments = normalizeTimelineSegments(
+            [
+                { startSeconds: 0, endSeconds: 150, title: 'A' },
+                { startSeconds: 150, endSeconds: 600, title: 'B' },
+            ],
+            600
+        );
+
+        expect(segments.map((s) => s.startPercent)).toEqual([0, 25]);
+        expect(segments.map((s) => s.width)).toEqual([
+            'max(0px, calc(25% - 3px))',
+            '75%',
+        ]);
     });
 
     it('clamps to the duration, cuts overlaps and drops empty segments', () => {

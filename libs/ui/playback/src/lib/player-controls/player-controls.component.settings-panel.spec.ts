@@ -1,7 +1,10 @@
 import { WritableSignal, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { COMPACT_LAYOUT_MAX_WIDTH } from './controls-layout';
+import {
+    COMPACT_LAYOUT_MAX_WIDTH,
+    ROOMY_LAYOUT_MIN_WIDTH,
+} from './controls-layout';
 import {
     DEFAULT_PLAYER_CAPABILITIES,
     createEmptyControlsState,
@@ -311,6 +314,49 @@ describe('PlayerControlsComponent settings panel', () => {
             expect(
                 query('[data-test-id="player-controls-settings-panel"]')
             ).toBeNull();
+        });
+    });
+
+    describe('wide dock without room for extras', () => {
+        beforeEach(() => {
+            withEverything();
+            resizeTo(ROOMY_LAYOUT_MIN_WIDTH - 1);
+        });
+
+        it('stays wide but folds the chips into tune and opens a sheet', () => {
+            expect(query('.player-controls__bar')?.classList).not.toContain(
+                'player-controls__bar--compact'
+            );
+            expect(query('.player-controls__slider--inline')).not.toBeNull();
+            expect(
+                query('[data-test-id="player-controls-speed-chip"]')
+            ).toBeNull();
+            expect(
+                query('[data-test-id="player-controls-subtitle-chip"]')
+            ).toBeNull();
+
+            setState({
+                audioTracks: fake.state().audioTracks,
+                subtitleTracks: [{ id: 5, label: 'Russian', selected: true }],
+                subtitlesEnabled: true,
+            });
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-settings-dots"]')
+            ).not.toBeNull();
+
+            query('[data-test-id="player-controls-settings-button"]')?.click();
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-settings-panel"]')
+                    ?.classList
+            ).toContain('player-controls__settings--sheet');
+            expect(query('.player-controls__bar')?.classList).toContain(
+                'player-controls__bar--sheet-open'
+            );
+            expect(query('.player-controls__bar')?.classList).not.toContain(
+                'player-controls__bar--panel-open'
+            );
         });
     });
 

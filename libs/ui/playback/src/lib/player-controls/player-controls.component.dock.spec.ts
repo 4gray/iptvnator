@@ -317,11 +317,13 @@ describe('PlayerControlsComponent dock', () => {
             expect(
                 segments.map((s) => s.dataset['segmentTitle'] ?? null)
             ).toEqual(['Chapter 1', 'Chapter 2', null]);
-            expect(segments.map((s) => s.style.flexGrow)).toEqual([
-                '0.25',
-                '0.5',
-                '0.25',
+            // Positioned by time, so boundaries match the linear seek input.
+            expect(segments.map((s) => s.style.left)).toEqual([
+                '0%',
+                '25%',
+                '75%',
             ]);
+            expect(segments.at(-1)?.style.width).toBe('25%');
             expect(
                 segments.map(
                     (s) =>

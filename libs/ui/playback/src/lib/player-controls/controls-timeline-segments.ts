@@ -5,15 +5,24 @@ export interface TimelineSegmentView {
     startSeconds: number;
     endSeconds: number;
     title: string | null;
-    /** Share of the whole duration, 0..1; drives the segment's flex-grow. */
+    /** Share of the whole duration, 0..1. */
     share: number;
+    /** Left edge on the track, 0..100 — the same mapping the seek input uses. */
+    startPercent: number;
+    /** CSS width: the share, minus the gap every segment but the last keeps. */
+    width: string;
 }
+
+/** Visual gap (px) after every segment except the last. */
+export const TIMELINE_SEGMENT_GAP_PX = 3;
 
 const WHOLE_TIMELINE: TimelineSegmentView = {
     startSeconds: 0,
     endSeconds: 0,
     title: null,
     share: 1,
+    startPercent: 0,
+    width: '100%',
 };
 
 /**
@@ -46,7 +55,10 @@ export function normalizeTimelineSegments(
         .filter((segment) => segment.endSeconds > segment.startSeconds)
         .sort((a, b) => a.startSeconds - b.startSeconds);
 
-    const cover: Omit<TimelineSegmentView, 'share'>[] = [];
+    const cover: Pick<
+        TimelineSegmentView,
+        'startSeconds' | 'endSeconds' | 'title'
+    >[] = [];
     let cursor = 0;
     for (const segment of ordered) {
         const startSeconds = Math.max(segment.startSeconds, cursor);
@@ -70,10 +82,19 @@ export function normalizeTimelineSegments(
             title: null,
         });
     }
-    return cover.map((segment) => ({
-        ...segment,
-        share: (segment.endSeconds - segment.startSeconds) / durationSeconds,
-    }));
+    return cover.map((segment, index) => {
+        const share =
+            (segment.endSeconds - segment.startSeconds) / durationSeconds;
+        const last = index === cover.length - 1;
+        return {
+            ...segment,
+            share,
+            startPercent: (segment.startSeconds / durationSeconds) * 100,
+            width: last
+                ? `${share * 100}%`
+                : `max(0px, calc(${share * 100}% - ${TIMELINE_SEGMENT_GAP_PX}px))`,
+        };
+    });
 }
 
 /** How much of one segment the position has played through, 0..100. */

@@ -11,12 +11,13 @@
     "
 >
     <span class="player-up-next__thumb" aria-hidden="true">
-        @if (item().thumbnailUrl) {
+        @if (thumbnail(); as src) {
             <img
                 class="player-up-next__image"
-                [src]="item().thumbnailUrl"
+                [src]="src"
                 alt=""
                 loading="lazy"
+                (error)="onThumbnailError()"
             />
         } @else {
             <span class="player-up-next__placeholder">{{ item().label }}</span>

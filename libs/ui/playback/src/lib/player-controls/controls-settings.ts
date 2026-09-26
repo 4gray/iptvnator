@@ -53,7 +53,7 @@ export class ControlsSettings {
         () => this.available() && this.deps.menus.settingsOpen()
     );
 
-    readonly focusGroup = this.deps.menus.settingsFocus;
+    readonly focusGroup = computed(() => this.deps.menus.settingsFocus());
 
     readonly subtitlesOn = computed(
         () => this.groups().subtitles && this.deps.state().subtitlesEnabled

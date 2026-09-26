@@ -23,7 +23,7 @@
         class="player-controls__title"
         [class.player-controls__title--visible]="controlsAreVisible()"
         [class.player-controls__title--panel-open]="
-            settings.isOpen() && !isCompact()
+            settings.isOpen() && layout.roomy()
         "
         data-test-id="player-controls-media-title"
     >
@@ -43,7 +43,7 @@
         class="player-controls__corner"
         [class.player-controls__corner--visible]="controlsAreVisible()"
         [class.player-controls__corner--panel-open]="
-            settings.isOpen() && !isCompact()
+            settings.isOpen() && layout.roomy()
         "
         (pointerenter)="chrome.onPointerEnter()"
         (pointerleave)="chrome.onPointerLeave()"
@@ -123,10 +123,10 @@
         [class.player-controls__bar--visible]="controlsAreVisible()"
         [class.player-controls__bar--compact]="isCompact()"
         [class.player-controls__bar--panel-open]="
-            settings.isOpen() && !isCompact()
+            settings.isOpen() && layout.roomy()
         "
         [class.player-controls__bar--sheet-open]="
-            settings.isOpen() && isCompact()
+            settings.isOpen() && !layout.roomy()
         "
         (pointerenter)="chrome.onPointerEnter()"
         (pointerleave)="chrome.onPointerLeave()"
@@ -160,7 +160,8 @@
                                 [class.player-controls__timeline-segment--titled]="
                                     segment.title !== null
                                 "
-                                [style.flex-grow]="segment.share"
+                                [style.left.%]="segment.startPercent"
+                                [style.width]="segment.width"
                                 [attr.data-segment-title]="segment.title"
                             >
                                 <div
@@ -466,7 +467,7 @@
 
             <div class="player-controls__actions">
                 @if (
-                    settings.available() && !isCompact() && !settings.isOpen()
+                    settings.available() && layout.roomy() && !settings.isOpen()
                 ) {
                     @if (settings.groups().subtitles) {
                         <button
@@ -548,7 +549,7 @@
                     >
                         <mat-icon>tune</mat-icon>
                         @if (
-                            isCompact() &&
+                            !layout.roomy() &&
                             !settings.isOpen() &&
                             settings.hasDots()
                         ) {
@@ -572,7 +573,7 @@
                     </button>
                 }
 
-                @if (canRecord() && !(settings.isOpen() && !isCompact())) {
+                @if (canRecord() && !(settings.isOpen() && layout.roomy())) {
                     <button
                         mat-icon-button
                         type="button"
@@ -607,7 +608,7 @@
 
                 @if (
                     capabilities().pictureInPicture &&
-                    !(settings.isOpen() && !isCompact())
+                    !(settings.isOpen() && layout.roomy())
                 ) {
                     <button
                         mat-icon-button
@@ -671,13 +672,13 @@
     @if (settings.isOpen()) {
         <app-player-settings-panel
             class="player-controls__settings"
-            [class.player-controls__settings--sheet]="isCompact()"
+            [class.player-controls__settings--sheet]="!layout.roomy()"
             data-test-id="player-controls-settings-panel"
             [controller]="controller()"
             [settings]="settings"
             [selection]="menuSelection"
             [subtitleSettings]="subtitleSettings"
-            [mode]="isCompact() ? 'sheet' : 'panel'"
+            [mode]="layout.roomy() ? 'panel' : 'sheet'"
             [title]="'EMBEDDED_MPV.PLAYER.SETTINGS' | translate"
             (closeRequested)="settings.close()"
             (pointerenter)="chrome.onPointerEnter()"

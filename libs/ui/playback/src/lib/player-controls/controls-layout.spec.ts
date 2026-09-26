@@ -1,4 +1,8 @@
-import { COMPACT_LAYOUT_MAX_WIDTH, ControlsLayout } from './controls-layout';
+import {
+    COMPACT_LAYOUT_MAX_WIDTH,
+    ControlsLayout,
+    ROOMY_LAYOUT_MIN_WIDTH,
+} from './controls-layout';
 
 type ResizeCallback = (entries: ResizeObserverEntry[]) => void;
 
@@ -59,6 +63,23 @@ describe('ControlsLayout', () => {
 
         callbacks[0]([entry(COMPACT_LAYOUT_MAX_WIDTH + 1)]);
         expect(layout.mode()).toBe('wide');
+    });
+
+    it('reports room for chips and the side panel only from the roomy width', () => {
+        const layout = new ControlsLayout();
+        layout.attach(document.createElement('div'));
+        expect(layout.roomy()).toBe(true);
+
+        callbacks[0]([entry(ROOMY_LAYOUT_MIN_WIDTH - 1)]);
+        expect(layout.mode()).toBe('wide');
+        expect(layout.roomy()).toBe(false);
+
+        callbacks[0]([entry(ROOMY_LAYOUT_MIN_WIDTH)]);
+        expect(layout.roomy()).toBe(true);
+
+        callbacks[0]([entry(400)]);
+        expect(layout.mode()).toBe('compact');
+        expect(layout.roomy()).toBe(false);
     });
 
     it('uses the last entry of a batch and ignores zero widths', () => {

@@ -89,7 +89,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly feedback = new ControlsFeedback();
     readonly anyMenuOpen = this.menus.anyOpen;
     private readonly shortcuts = new ControlsShortcuts();
-    private readonly layout = new ControlsLayout();
+    readonly layout = new ControlsLayout();
     /** Compact dock: narrow inline players and phone-sized viewports. */
     readonly isCompact = computed(() => this.layout.mode() === 'compact');
     private readonly visibility = new ControlsVisibility(() => this.canHide());

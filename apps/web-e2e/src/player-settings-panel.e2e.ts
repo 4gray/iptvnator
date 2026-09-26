@@ -109,6 +109,8 @@ test('@web @playback settings panel opens from the speed chip and applies in pla
     page,
 }) => {
     test.setTimeout(90_000);
+    // Chips and the side panel need a player of at least 960px.
+    await page.setViewportSize({ width: 1600, height: 1000 });
     await serveClip(page);
     await selectHtml5Player(page);
     await importPlaylist(page);

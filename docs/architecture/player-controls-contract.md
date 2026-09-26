@@ -343,7 +343,11 @@ app's `--app-selection-color` is a different blue that would fight the video.
 The track is drawn as a row of segments, one flex item per segment with
 `flex-grow` equal to its share of the duration and its own accent fill, so
 a film's chapters or a catch-up recording's programmes read directly off
-the bar. The optional `timelineSegments` input
+the bar. Each segment is placed absolutely at its time position (`left` =
+start percent, `width` = share minus the 3px gap every segment but the
+last keeps), so a drawn boundary sits exactly where the linear seek input
+and the hover label change segment; a segment shorter than the gap
+collapses instead of pushing its neighbours. The optional `timelineSegments` input
 (`PlayerTimelineSegment { startSeconds, endSeconds, title }`) supplies
 them; `normalizeTimelineSegments` (`controls-timeline-segments.ts`) clamps
 to the duration, orders, drops empty and reversed entries, cuts overlaps at
@@ -366,8 +370,10 @@ watched, "Up next · in 7 min" and the title. The host supplies the item
 through the optional `upNext` input (`PlayerUpNextItem { label, title,
 thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
 `seriesNavigation` capability, `canNextEpisode`, a finite duration with at
-most `UP_NEXT_THRESHOLD_SECONDS` (8 min) left, not live, controls shown,
+most `UP_NEXT_THRESHOLD_SECONDS` (8 min) left, not live, not `ended` (with
+autoplay off nothing is scheduled, so no countdown), controls shown,
 settings panel closed — and how many minutes remain (never below one). A
+still that fails to load falls back to the label tile. A
 click emits `nextEpisodeRequested`, the same output the hosts already
 handle, so the switch keeps fullscreen exactly like the transport button.
 The card is a glass surface that does not fade with the controls; the
@@ -393,7 +399,7 @@ and owns open/toggle/close; the `tune` button and the panel render only
 while at least one group exists, and the availability reconciliation closes
 the panel the moment the last group disappears.
 
-- **Wide dock**: two **value chips** precede `tune` — subtitles
+- **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
   (`closed_caption` + the selected track's label, or "Off") and speed
   (`speed` + `1.25×`). Audio and aspect ratio have no chip: they are
   panel-only. A chip click opens the panel **focused on its group**
@@ -405,7 +411,7 @@ the panel the moment the last group disappears.
   corner shift left by the panel's width (`--panel-open` modifiers,
   `right: 370px`), the chips and the picture-in-picture / recording buttons
   fold away, `tune` fills in the accent color, and fullscreen stays.
-- **Compact dock**: no chips; `tune` carries **state dots** (5px, cyan when
+- **Compact dock, and wide docks below 960px**: no chips; `tune` carries **state dots** (5px, cyan when
   subtitles are on or a non-default audio track is selected, violet when
   speed, aspect or manual quality differ from their default) and the panel
   opens as a **bottom sheet** (`--sheet` modifier: grip, two-column rows,
@@ -1038,8 +1044,19 @@ places that must agree: the `@container player-controls (max-width: 719px)`
 block in the stylesheet sizes the compact dock (14px gutters, 32px buttons,
 36px play circle, 5px track), and `ControlsLayout`
 (`COMPACT_LAYOUT_MAX_WIDTH`, a `ResizeObserver` on the host) drives the
-template branches CSS cannot express — today the inline volume slider versus
+template branches CSS cannot express — the inline volume slider versus
 its popover. Without `ResizeObserver` (unit tests) the mode stays `wide`.
+
+A second threshold, `ROOMY_LAYOUT_MIN_WIDTH` (960px, `ControlsLayout.roomy`),
+gates the wide dock's extras: the subtitle/speed chips and the settings
+panel beside the video. Between 720px and 960px the dock stays wide (full
+button sizes, inline volume) but folds the chips into `tune` with state
+dots and opens settings as the bottom sheet, because the widest action row
+(volume, series transport, two chips, tune/record/PiP/fullscreen) and the
+dock beside a 370px panel do not fit there. The control row's side columns
+are `minmax(min-content, 1fr)`, so if the actions still need more than half
+of what the transport leaves, the transport slides off-centre instead of
+the actions overlapping it or leaving the player.
 Episode navigation stays in the compact transport: the series hosts rely on
 those buttons, and the inline series player is often narrower than 720px.
 

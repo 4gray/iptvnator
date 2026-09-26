@@ -1,8 +1,10 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     input,
     output,
+    signal,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -29,4 +31,15 @@ export class PlayerUpNextCardComponent {
     readonly minutesLeft = input.required<number>();
     readonly compact = input(false);
     readonly selected = output<void>();
+
+    /** The still that failed to load; a new URL gets its own attempt. */
+    private readonly failedThumbnail = signal<string | null>(null);
+    readonly thumbnail = computed(() => {
+        const url = this.item().thumbnailUrl;
+        return url && url !== this.failedThumbnail() ? url : null;
+    });
+
+    onThumbnailError(): void {
+        this.failedThumbnail.set(this.item().thumbnailUrl);
+    }
 }

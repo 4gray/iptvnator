@@ -78,6 +78,26 @@ describe('PlayerUpNextCardComponent', () => {
         );
     });
 
+    it('falls back to the label tile when the still fails, and retries a new URL', () => {
+        query('.player-up-next__image')?.dispatchEvent(new Event('error'));
+        fixture.detectChanges();
+        expect(query('.player-up-next__image')).toBeNull();
+        expect(query('.player-up-next__placeholder')?.textContent?.trim()).toBe(
+            'S01E03'
+        );
+
+        fixture.componentRef.setInput('item', {
+            label: 'S01E04',
+            title: 'Four',
+            thumbnailUrl: 'https://img.example/other.jpg',
+            progressPercent: null,
+        });
+        fixture.detectChanges();
+        expect(query('.player-up-next__image')?.getAttribute('src')).toBe(
+            'https://img.example/other.jpg'
+        );
+    });
+
     it('emits on click', () => {
         const selected = jest.fn();
         fixture.componentInstance.selected.subscribe(selected);

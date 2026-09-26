@@ -10,6 +10,17 @@ import { signal } from '@angular/core';
  */
 export const COMPACT_LAYOUT_MAX_WIDTH = 719;
 
+/**
+ * Container width (px) from which the wide dock has room for its extras:
+ * the subtitle/speed value chips beside the action buttons, and the
+ * settings panel beside the video (the panel takes 370px of the dock).
+ * Between the compact breakpoint and this width the dock stays wide but
+ * folds the chips into `tune` and opens settings as a bottom sheet.
+ * Sized from the widest action row: volume + series transport + two chips
+ * + tune/record/PiP/fullscreen, and dock + panel with only tune/fullscreen.
+ */
+export const ROOMY_LAYOUT_MIN_WIDTH = 960;
+
 export type ControlsLayoutMode = 'compact' | 'wide';
 
 /**
@@ -23,6 +34,8 @@ export type ControlsLayoutMode = 'compact' | 'wide';
  */
 export class ControlsLayout {
     readonly mode = signal<ControlsLayoutMode>('wide');
+    /** Room for chips and the side panel; see {@link ROOMY_LAYOUT_MIN_WIDTH}. */
+    readonly roomy = signal(true);
     private observer: ResizeObserver | null = null;
 
     attach(host: HTMLElement): void {
@@ -52,6 +65,10 @@ export class ControlsLayout {
             width <= COMPACT_LAYOUT_MAX_WIDTH ? 'compact' : 'wide';
         if (this.mode() !== next) {
             this.mode.set(next);
+        }
+        const roomy = width >= ROOMY_LAYOUT_MIN_WIDTH;
+        if (this.roomy() !== roomy) {
+            this.roomy.set(roomy);
         }
     }
 

@@ -47,6 +47,9 @@ export class ControlsUpNext {
             remaining === null ||
             remaining > UP_NEXT_THRESHOLD_SECONDS ||
             state.isLive ||
+            // An ended episode with autoplay off schedules no switch: a
+            // countdown would promise one. Autoplay replaces the playback.
+            state.status === 'ended' ||
             !state.canNextEpisode ||
             !this.deps.capabilities().seriesNavigation ||
             !this.deps.showControls() ||
