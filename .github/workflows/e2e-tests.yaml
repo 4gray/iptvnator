@@ -78,8 +78,22 @@ jobs:
               if: matrix.shard == 1
               run: pnpm exec tsx --test apps/electron-backend-e2e/src/performance/electron-process-lifecycle.spec.ts apps/electron-backend-e2e/src/performance/electron-process-termination.spec.ts
 
-            - name: Install Playwright Browsers
-              run: pnpm exec playwright install --with-deps
+            # The suite drives Electron through Playwright's _electron API and
+            # never launches a Playwright browser (or records video, which
+            # would need Playwright's ffmpeg), so no `playwright install`.
+            # The Ubuntu runner image already ships Electron's shared
+            # libraries and xvfb; fail fast with a clear message if an image
+            # update ever drops one.
+            - name: Check Electron runtime dependencies
+              if: runner.os == 'Linux'
+              run: |
+                  command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
+                  missing="$(ldd node_modules/electron/dist/electron | grep 'not found' || true)"
+                  if [ -n "$missing" ]; then
+                      echo "::error::Electron is missing shared libraries:"
+                      echo "$missing"
+                      exit 1
+                  fi
 
             - name: Run Electron E2E Tests (Linux)
               if: runner.os == 'Linux'
