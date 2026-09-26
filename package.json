@@ -71,6 +71,8 @@
         "serve:website": "nx serve website",
         "build:website": "nx build website",
         "i18n:check": "node tools/i18n/check-drift.mjs",
+        "perf:initial-bytes": "node tools/performance/measure-initial-bytes.mjs",
+        "perf:tools:test": "node --test tools/performance/measure-initial-bytes.test.mjs",
         "agents:validate": "node tools/skills/validate-agent-guidance.mjs",
         "skills:validate": "node tools/skills/validate-repository-skills.mjs",
         "release:artwork:dry-run": "tsx --tsconfig tsconfig.base.json tools/release/generate-marketing-artwork.ts --dry-run",

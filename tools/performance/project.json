@@ -1,0 +1,27 @@
+{
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "name": "performance-tools",
+    "projectType": "library",
+    "sourceRoot": "tools/performance",
+    "tags": ["scope:tools", "domain:performance", "type:tool"],
+    "targets": {
+        "test": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "inputs": ["{projectRoot}/*.mjs", "{projectRoot}/*.json"],
+            "options": {
+                "command": "node --test tools/performance/measure-initial-bytes.test.mjs",
+                "cwd": "{workspaceRoot}"
+            }
+        },
+        "lint": {
+            "inputs": [
+                "default",
+                "{workspaceRoot}/eslint.config.mjs",
+                "{workspaceRoot}/tools/eslint-rules/**/*",
+                "{workspaceRoot}/tools/eslint/**/*"
+            ],
+            "command": "eslint \"tools/performance/*.mjs\""
+        }
+    }
+}

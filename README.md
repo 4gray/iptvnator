@@ -376,6 +376,17 @@ To run only the Angular app without Electron, use:
 $ pnpm run serve:frontend
 ```
 
+To see how many bytes the built web app puts on the initial load path (the
+number CI ratchets), build it and run the measurement:
+
+```
+$ pnpm nx build web
+$ pnpm run perf:initial-bytes
+```
+
+The contract behind that number is in
+[docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
+
 ## Disclaimer
 
 **IPTVnator doesn't provide any playlists or other digital content.**
