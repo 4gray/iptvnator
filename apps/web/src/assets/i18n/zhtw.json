@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "自動重新連線中斷的串流",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "播放中的串流中斷時，內嵌播放器會以逐漸拉長的間隔重新載入，最多嘗試 6 次後放棄。從未成功啟動的串流仍需手動重試。",
         "VOD_AUTO_FAILOVER": "播放發生錯誤時自動切換來源",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "當電影無法播放，且其他播放清單中也有同一部影片時，會自動切換過去並保留播放進度。預設為關閉；由於其他來源可能使用不同的配音，每次切換都會提示您。"
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "當電影無法播放，且其他播放清單中也有同一部影片時，會自動切換過去並保留播放進度。預設為關閉；由於其他來源可能使用不同的配音，每次切換都會提示您。",
+        "M3U_CATALOG_TABS": "Movies and series sections",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel."
     },
     "THEMES": {
         "DARK_THEME": "深色",
@@ -829,6 +831,13 @@
             "SEARCH_PLACEHOLDER": "搜尋群組...",
             "NO_RESULTS": "找不到符合的群組",
             "SAVE": "儲存"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "No movies in this playlist",
+            "NO_SERIES": "No series in this playlist",
+            "EMPTY_HINT": "This playlist only contains live channels.",
+            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
+            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
         }
     },
     "TOP_MENU": {
@@ -1321,7 +1330,9 @@
             "LOADING_MORE": "正在載入更多…",
             "LOAD_MORE_FAILED": "無法載入更多內容",
             "RETRY": "重試"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "資訊",
     "DOWNLOADS": {

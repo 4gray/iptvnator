@@ -598,7 +598,7 @@ channel-list-container/
 
 ### Loading States
 
-- `M3uWorkspaceRouteSession` owns route-driven channel loading for the player/sidebar routes: `all` and `groups`.
+- `M3uWorkspaceRouteSession` owns route-driven channel loading for every section that reads the channel array: `all`, `groups`, `vod` and `series`. The catalog sections derive everything they show from that array, so a section missing from `isLoadedSection` opens permanently empty. Moving between two loaded sections does not re-dispatch `setChannels` — the catalog index memoises on the array reference, so a needless dispatch would rebuild it on every tab change.
 - The route session sets `channelsLoading` before `getPlaylist()` resolves and clears it when `ChannelActions.setChannels` lands.
 - The route session dispatches reducer-only `FavoritesActions.hydrateFavorites`
   after that persisted read. Hydration must not use the persistence-bearing
@@ -1724,11 +1724,73 @@ Routes live in `libs/playlist/m3u/feature-player/src/lib/m3u-workspace.routes.ts
 (`createM3uWorkspaceRoutes()`), nested under the workspace shell:
 
 ```
-/workspace/playlists/:id            # M3U player (redirects to .../all)
-/workspace/playlists/:id/favorites  # Favorites collection view
-/workspace/playlists/:id/recent     # Recently viewed collection view
-/workspace/playlists/:id/:view      # Video player with channel list view
+/workspace/playlists/:id                  # M3U player (redirects to .../all)
+/workspace/playlists/:id/favorites        # Favorites collection view
+/workspace/playlists/:id/recent           # Recently viewed collection view
+/workspace/playlists/:id/vod              # Movies catalog (poster grid)
+/workspace/playlists/:id/series           # Series catalog (poster grid)
+/workspace/playlists/:id/series/:seriesId # Series detail (seasons/episodes)
+/workspace/playlists/:id/:view            # Video player with channel list view
 ```
+
+`vod` and `series` are declared BEFORE the `:view` catch-all, which would
+otherwise swallow them and open the player on a non-existent channel view.
+They reuse the portals' own `vod`/`series` section tokens, so the rail
+tooltips, the search mode (`local-filter`) and the section memory recognise
+them without a new vocabulary.
+
+### Content Catalog Sections
+
+An M3U playlist is not necessarily a list of live channels. On a real
+62,696-entry playlist only 4,699 rows are live; the rest are 17,667 films
+and 40,330 episode rows. `buildM3uCatalogIndex` (`libs/shared/m3u-utils`)
+splits the array by derived content kind and `buildM3uSeriesCatalog`
+collapses the episode rows into 1,953 series. Both are memoised
+`computed()`s on `M3uCatalogIndexService` (`libs/m3u-state`), keyed
+implicitly on the channel array reference — there is no schema change and no
+Electron-only path, so the PWA behaves identically.
+
+- The live views render `M3uCatalogIndexService.liveChannels` rather than the
+  whole array, so the sections are a SPLIT and not an addition. It falls back
+  to the complete list when the split is off or the playlist is live-only.
+- The rail offers each catalog section only when the playlist has rows of
+  that kind (`counts.movie` / `counts.episode`) AND `Settings.m3uCatalogTabs`
+  is not explicitly `false` — a playlist with films but no series is
+  ordinary, and a permanently empty rail section is worse than no rail change
+  at all. The empty state stays reachable by deep link and names whichever
+  kind the playlist DOES hold.
+- `vod` and `series` are bound to one playlist's content, so section memory
+  (`PlaylistContextFacade`) restores them only from that playlist's own
+  record and never carries them to another source; a switch from either, or
+  from a portal's `vod`/`series`, opens the target M3U playlist at `all`.
+- `M3uCatalogIndexService.index` (and the series layer built on it) is empty
+  while `channelsLoading` is set. A playlist switch keeps the previous
+  playlist's rows in the store until the new ones arrive, and a catalog built
+  from them would open another source's film or save episode progress under
+  the new playlist's id. The catalog shows the grid skeleton meanwhile; the
+  live sidebar keeps reading the stored rows, as it did before the split.
+- A movie card hands its row to the `all` route as navigation state
+  (`openM3uChannelUrl` plus `openM3uChannelId`), which is the path global
+  search already uses; that route provides a fresh route session, so a
+  dispatch made before navigating would be discarded. The id selects the
+  clicked row when several share one URL, and a stale id falls back to the
+  URL (`findM3uChannelOpenTarget`).
+- Series episode ids are derived from `series key × season × episode`, never
+  from the URL: providers rotate tokens through the path on refresh, so a
+  URL-keyed id would silently drop every watched flag on the next auto
+  update. The hash is 48-bit (`hashM3uId`) because these ids key persisted
+  playback positions and a 31-bit hash collides at ≈0.4% over ~42k keys.
+- A title whose rows state at most one year is one series under a year-free
+  key. When a second year appears (a remake), the earliest year keeps that
+  key, so a refresh that adds the remake leaves the original's ids and watch
+  history in place; only an original added after its remake moves the
+  remake's ids, since the previous catalog is not stored.
+- Episode progress reaches storage at most once per 15 s per episode; the
+  held-back tick is written when the player closes, another episode starts,
+  another series opens, or the page is destroyed.
+- The series detail page feeds the portals' own `PortalDetailShellComponent`
+  / `SeasonContainerComponent` / `PortalInlinePlayerComponent` through an
+  adapter in the feature library. Nothing shared is forked.
 
 ## Adding New Features
 

@@ -21,6 +21,7 @@ import {
     selectChannelsLoading,
     selectCurrentEpgProgram,
 } from '@iptvnator/m3u-state';
+import { M3uCatalogIndexService } from '@iptvnator/m3u-state';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -94,6 +95,9 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
     const currentEpgProgram$ = new BehaviorSubject<EpgProgram | null>(null);
     const epgPrograms$ = new BehaviorSubject<EpgProgram[]>([]);
 
+    /** What the catalog index reports as the live-only split. */
+    const liveChannels = signal<Channel[]>([]);
+
     const player = signal<VideoPlayer>(VideoPlayer.VideoJs);
     const showCaptions = signal(false);
     const stripCountryPrefix = signal(false);
@@ -138,6 +142,17 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
         localStorage.removeItem(liveSidebarStateStorageKey('collection'));
     }
 
+    function makeSidebarChannel(id: string, url = `http://h/${id}.ts`) {
+        return {
+            id,
+            url,
+            name: id,
+            radio: 'false',
+            group: { title: 'Group' },
+            tvg: { id: '', logo: '', name: id },
+        } as Channel;
+    }
+
     function query(selector: string): Element | null {
         return fixture.nativeElement.querySelector(selector);
     }
@@ -160,11 +175,19 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
         activeChannel$.next(null);
         channels.set([]);
         channels$.next([]);
+        liveChannels.set([]);
         routeParams$.next({ id: playlistId(), view: 'all' });
 
         await TestBed.configureTestingModule({
             imports: [VideoPlayerComponent],
             providers: [
+                {
+                    provide: M3uCatalogIndexService,
+                    useValue: {
+                        liveChannels,
+                        splitsCatalog: signal(true),
+                    },
+                },
                 {
                     provide: ActivatedRoute,
                     useValue: {
@@ -405,4 +428,35 @@ describe('VideoPlayerComponent — collapsible channels rail', () => {
         expect(component.guideOpen()).toBe(true);
         expect(guideSource.scopeId()).toBe('group:Sports');
     });
+    it.each(['all', 'groups'])('hands the %s view the live split', (view) => {
+        const live = makeSidebarChannel('live-1');
+        const movie = makeSidebarChannel('movie-1', 'http://h/movie.mkv');
+        channels.set([live, movie]);
+        channels$.next([live, movie]);
+        liveChannels.set([live]);
+        routeParams$.next({ id: playlistId(), view });
+        fixture.detectChanges();
+
+        expect(component.sidebarChannels()).toEqual([live]);
+    });
+
+    it.each(['favorites', 'recent'])(
+        'hands the %s view the whole playlist',
+        (view) => {
+            // Both views resolve their STORED rows against the array they
+            // are handed and drop anything missing from it, so the live
+            // split would make a favourited or recently watched film
+            // disappear from the one place the viewer put it — while it
+            // stays persisted and still counts as a favourite elsewhere.
+            const live = makeSidebarChannel('live-1');
+            const movie = makeSidebarChannel('movie-1', 'http://h/movie.mkv');
+            channels.set([live, movie]);
+            channels$.next([live, movie]);
+            liveChannels.set([live]);
+            routeParams$.next({ id: playlistId(), view });
+            fixture.detectChanges();
+
+            expect(component.sidebarChannels()).toEqual([live, movie]);
+        }
+    );
 });

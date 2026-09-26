@@ -197,6 +197,78 @@ describe('PlaylistContextFacade', () => {
         ).toEqual(['workspace', 'playlists', m3uB._id, 'groups']);
     });
 
+    it.each(['vod', 'series'] as const)(
+        'opens the channel list rather than carrying the %s catalog to another M3U playlist',
+        (section) => {
+            const service = instantiateFacade();
+
+            expect(
+                service.resolveTargetCommands('playlists', m3uB._id, {
+                    inWorkspace: true,
+                    provider: 'playlists',
+                    playlistId: m3uA._id,
+                    section,
+                })
+            ).toEqual(['workspace', 'playlists', m3uB._id, 'all']);
+        }
+    );
+
+    it('keeps an M3U catalog section when the target is the same playlist', () => {
+        const service = instantiateFacade();
+
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, {
+                inWorkspace: true,
+                provider: 'playlists',
+                playlistId: m3uA._id,
+                section: 'series',
+            })
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'series']);
+    });
+
+    it('does not turn a portal Movies section into an M3U catalog', () => {
+        const service = instantiateFacade();
+
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, {
+                inWorkspace: true,
+                provider: 'xtreams',
+                playlistId: xtreamA._id,
+                section: 'vod',
+            })
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'all']);
+    });
+
+    it('restores a catalog section only from the playlist that remembered it', () => {
+        localStorage.setItem(
+            LAST_SECTION_STORAGE_KEY,
+            JSON.stringify({
+                providers: { playlists: 'vod' },
+                playlists: {
+                    [m3uA._id]: {
+                        provider: 'playlists',
+                        section: 'vod',
+                        updatedAt: 1,
+                    },
+                },
+            })
+        );
+        const service = instantiateFacade();
+        const noSection = {
+            inWorkspace: true,
+            provider: 'xtreams' as const,
+            playlistId: xtreamA._id,
+            section: null,
+        };
+
+        expect(
+            service.resolveTargetCommands('playlists', m3uA._id, noSection)
+        ).toEqual(['workspace', 'playlists', m3uA._id, 'vod']);
+        expect(
+            service.resolveTargetCommands('playlists', m3uB._id, noSection)
+        ).toEqual(['workspace', 'playlists', m3uB._id, 'all']);
+    });
+
     it('maps Stalker ITV routes to Xtream live routes', () => {
         const service = instantiateFacade();
 

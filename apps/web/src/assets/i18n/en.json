@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Reconnect dropped streams automatically",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "When a playing stream drops, the embedded player reloads it with increasing delays, up to 6 attempts, before giving up. A stream that never started still needs a manual Retry.",
         "VOD_AUTO_FAILOVER": "Auto-switch source on playback error",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "When a movie fails to play and the same film exists in another playlist, switch to it automatically and keep the timecode. Off by default; the switch is always announced because another source can carry a different dub."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "When a movie fails to play and the same film exists in another playlist, switch to it automatically and keep the timecode. Off by default; the switch is always announced because another source can carry a different dub.",
+        "M3U_CATALOG_TABS": "Movies and series sections",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel."
     },
     "THEMES": {
         "DARK_THEME": "Dark",
@@ -829,6 +831,13 @@
             "SEARCH_PLACEHOLDER": "Search groups...",
             "NO_RESULTS": "No matching groups found",
             "SAVE": "Save"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "No movies in this playlist",
+            "NO_SERIES": "No series in this playlist",
+            "EMPTY_HINT": "This playlist only contains live channels.",
+            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
+            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
         }
     },
     "TOP_MENU": {
@@ -1321,7 +1330,9 @@
             "LOADING_MORE": "Loading more…",
             "LOAD_MORE_FAILED": "Couldn't load more items",
             "RETRY": "Retry"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "Information",
     "DOWNLOADS": {

@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Megszakadt adatfolyamok automatikus újracsatlakoztatása",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Ha egy lejátszás alatt álló adatfolyam megszakad, a beágyazott lejátszó egyre hosszabb várakozással, legfeljebb 6 próbálkozással tölti be újra, mielőtt feladná. Az el sem indult adatfolyamhoz továbbra is kézi újrapróbálkozás szükséges.",
         "VOD_AUTO_FAILOVER": "Automatikus forrásváltás lejátszási hiba esetén",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Ha egy film lejátszása meghiúsul, és ugyanaz a film egy másik lejátszási listában is megtalálható, az alkalmazás automatikusan átvált rá, és megőrzi a lejátszási pozíciót. Alapértelmezés szerint kikapcsolva; a váltásról mindig értesítés jelenik meg, mert egy másik forráson eltérő szinkron lehet."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Ha egy film lejátszása meghiúsul, és ugyanaz a film egy másik lejátszási listában is megtalálható, az alkalmazás automatikusan átvált rá, és megőrzi a lejátszási pozíciót. Alapértelmezés szerint kikapcsolva; a váltásról mindig értesítés jelenik meg, mert egy másik forráson eltérő szinkron lehet.",
+        "M3U_CATALOG_TABS": "Movies and series sections",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel."
     },
     "THEMES": {
         "DARK_THEME": "Sötét",
@@ -829,6 +831,13 @@
             "SEARCH_PLACEHOLDER": "Keresés a csoportok között…",
             "NO_RESULTS": "Nem található a keresésnek megfelelő csoport",
             "SAVE": "Mentés"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "No movies in this playlist",
+            "NO_SERIES": "No series in this playlist",
+            "EMPTY_HINT": "This playlist only contains live channels.",
+            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
+            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
         }
     },
     "TOP_MENU": {
@@ -1321,7 +1330,9 @@
             "LOADING_MORE": "További elemek betöltése…",
             "LOAD_MORE_FAILED": "Nem sikerült több elemet betölteni",
             "RETRY": "Újra"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "Információk",
     "DOWNLOADS": {

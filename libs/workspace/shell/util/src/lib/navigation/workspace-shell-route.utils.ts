@@ -132,6 +132,8 @@ function resolvePortalSearchMode(
     if (context.provider === 'playlists') {
         return section === 'all' ||
             section === 'groups' ||
+            section === 'vod' ||
+            section === 'series' ||
             section === 'favorites' ||
             section === 'recent'
             ? 'local-filter'

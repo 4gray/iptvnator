@@ -1,0 +1,65 @@
+<app-portal-detail-shell
+    [title]="seriesTitle()"
+    [description]="overview()"
+    [posterUrl]="posterUrl()"
+    [backdropUrl]="backdropUrl()"
+    [backAvailable]="true"
+    [playbackActive]="playback() !== null"
+    (backClicked)="onBack()"
+    (closePlayerRequested)="onPlayerClosed()"
+>
+    <ng-container *appDetailMeta>
+        @if (seasonCount() > 0) {
+            <span>
+                {{
+                    (seasonCount() === 1
+                        ? 'PORTALS.SEASON_COUNT_ONE'
+                        : 'PORTALS.SEASON_COUNT_OTHER'
+                    ) | translate: { count: seasonCount() }
+                }}
+            </span>
+        }
+        @if (episodeCount() > 0) {
+            <span>
+                {{
+                    (episodeCount() === 1
+                        ? 'PORTALS.EPISODE_COUNT_ONE'
+                        : 'PORTALS.EPISODE_COUNT_OTHER'
+                    ) | translate: { count: episodeCount() }
+                }}
+            </span>
+        }
+    </ng-container>
+
+    <div detail-player>
+        @if (playback(); as resolved) {
+            <app-portal-inline-player
+                [playbackSessionKey]="playbackSessionKey()"
+                [playback]="resolved"
+                [seriesTitle]="seriesTitle()"
+                [seriesEpisodes]="seasons()"
+                [episodePlaybackPositions]="playbackPositions()"
+                (closed)="onPlayerClosed()"
+                (timeUpdate)="onTimeUpdate($event)"
+            />
+        }
+    </div>
+
+    <div detail-episodes>
+        <app-season-container
+            [seasons]="seasons()"
+            [seriesId]="seriesId()"
+            [playlistId]="playlistId()"
+            [seriesTitle]="seriesTitle()"
+            [downloadAdapter]="null"
+            [downloadsEnabled]="false"
+            [hasUnloadedSeasons]="false"
+            [playingEpisodeId]="playingEpisodeId()"
+            [playbackPositions]="playbackPositions()"
+            (episodeClicked)="onEpisodeClicked($event)"
+            (playbackToggleRequested)="onEpisodeWatchToggled($event)"
+            (seasonPlaybackToggleRequested)="onBulkWatchToggled($event)"
+            (seriesPlaybackToggleRequested)="onBulkWatchToggled($event)"
+        />
+    </div>
+</app-portal-detail-shell>

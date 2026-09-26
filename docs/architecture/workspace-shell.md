@@ -46,7 +46,11 @@ Current workspace routes:
    `dashboardAccessGuard`)
 3. `/workspace/dashboard`
 4. `/workspace/sources`
-5. `/workspace/playlists/:id/:view` (plus `favorites` and `recent` siblings)
+5. `/workspace/playlists/:id/:view` (plus `favorites`, `recent`, `vod`,
+   `series` and `series/:seriesId` siblings, declared before the `:view`
+   catch-all; `M3uWorkspaceRouteSession.isLoadedSection` must name every
+   section that reads the channel array, or it opens permanently empty —
+   see "Content Catalog Sections" in `m3u-playlist-module.md`)
 6. `/workspace/global-favorites`
 7. `/workspace/global-recent`
 8. `/workspace/search`

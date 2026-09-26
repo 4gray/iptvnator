@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Weggevallen streams automatisch opnieuw verbinden",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Wanneer een stream tijdens het afspelen wegvalt, laadt de ingebedde speler deze opnieuw met steeds langere tussenpozen, tot maximaal 6 pogingen, voordat hij het opgeeft. Voor een stream die nooit is gestart, blijft handmatig Opnieuw proberen nodig.",
         "VOD_AUTO_FAILOVER": "Automatisch van bron wisselen bij een afspeelfout",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Als een film niet kan worden afgespeeld en dezelfde film in een andere afspeellijst staat, wordt daar automatisch naar overgeschakeld met behoud van de afspeelpositie. Standaard uitgeschakeld; de wissel wordt altijd gemeld, omdat een andere bron een andere nasynchronisatie kan hebben."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Als een film niet kan worden afgespeeld en dezelfde film in een andere afspeellijst staat, wordt daar automatisch naar overgeschakeld met behoud van de afspeelpositie. Standaard uitgeschakeld; de wissel wordt altijd gemeld, omdat een andere bron een andere nasynchronisatie kan hebben.",
+        "M3U_CATALOG_TABS": "Secties voor films en series",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Toon aparte secties voor films en series bij afspeellijsten met films of afleveringen, in plaats van elke vermelding als live kanaal te tonen."
     },
     "THEMES": {
         "DARK_THEME": "Donker",
@@ -829,6 +831,13 @@
             "SEARCH_PLACEHOLDER": "Zoek groepen...",
             "NO_RESULTS": "Geen overeenkomende groepen gevonden",
             "SAVE": "Opslaan"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "Geen films in deze afspeellijst",
+            "NO_SERIES": "Geen series in deze afspeellijst",
+            "EMPTY_HINT": "Deze afspeellijst bevat alleen live kanalen.",
+            "EMPTY_HINT_MOVIES": "De films van deze afspeellijst staan onder Films.",
+            "EMPTY_HINT_SERIES": "De series van deze afspeellijst staan onder Series."
         }
     },
     "TOP_MENU": {
@@ -1321,7 +1330,9 @@
             "LOADING_MORE": "Meer laden…",
             "LOAD_MORE_FAILED": "Kan geen extra items laden",
             "RETRY": "Opnieuw proberen"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 seizoen",
+        "SEASON_COUNT_OTHER": "{{count}} seizoenen"
     },
     "INFORMATION": "Informatie",
     "DOWNLOADS": {

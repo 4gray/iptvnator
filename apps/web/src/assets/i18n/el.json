@@ -548,7 +548,9 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "Αυτόματη επανασύνδεση σε ροές που διακόπηκαν",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "Όταν μια ροή που αναπαράγεται διακοπεί, το ενσωματωμένο πρόγραμμα αναπαραγωγής τη φορτώνει ξανά με αυξανόμενες καθυστερήσεις, έως 6 προσπάθειες, πριν τα παρατήσει. Μια ροή που δεν ξεκίνησε ποτέ εξακολουθεί να χρειάζεται χειροκίνητη Επανάληψη.",
         "VOD_AUTO_FAILOVER": "Αυτόματη αλλαγή πηγής σε σφάλμα αναπαραγωγής",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "Όταν μια ταινία δεν μπορεί να αναπαραχθεί και η ίδια ταινία υπάρχει σε άλλη λίστα αναπαραγωγής, γίνεται αυτόματη μετάβαση σε αυτήν με διατήρηση της θέσης αναπαραγωγής. Απενεργοποιημένο από προεπιλογή· η αλλαγή ανακοινώνεται πάντα, επειδή μια άλλη πηγή μπορεί να έχει διαφορετική μεταγλώττιση."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "Όταν μια ταινία δεν μπορεί να αναπαραχθεί και η ίδια ταινία υπάρχει σε άλλη λίστα αναπαραγωγής, γίνεται αυτόματη μετάβαση σε αυτήν με διατήρηση της θέσης αναπαραγωγής. Απενεργοποιημένο από προεπιλογή· η αλλαγή ανακοινώνεται πάντα, επειδή μια άλλη πηγή μπορεί να έχει διαφορετική μεταγλώττιση.",
+        "M3U_CATALOG_TABS": "Movies and series sections",
+        "M3U_CATALOG_TABS_DESCRIPTION": "Show separate Movies and Series sections for playlists that contain films or episodes, instead of listing every entry as a live channel."
     },
     "THEMES": {
         "DARK_THEME": "Σκούρο",
@@ -829,6 +831,13 @@
             "SEARCH_PLACEHOLDER": "Αναζήτηση ομάδων...",
             "NO_RESULTS": "Δεν βρέθηκαν αντίστοιχες ομάδες",
             "SAVE": "Αποθήκευση"
+        },
+        "CATALOG": {
+            "NO_MOVIES": "No movies in this playlist",
+            "NO_SERIES": "No series in this playlist",
+            "EMPTY_HINT": "This playlist only contains live channels.",
+            "EMPTY_HINT_MOVIES": "This playlist's movies are listed under Movies.",
+            "EMPTY_HINT_SERIES": "This playlist's series are listed under Series."
         }
     },
     "TOP_MENU": {
@@ -1321,7 +1330,9 @@
             "LOADING_MORE": "Φόρτωση περισσότερων…",
             "LOAD_MORE_FAILED": "Δεν ήταν δυνατή η φόρτωση περισσότερων στοιχείων",
             "RETRY": "Επανάληψη"
-        }
+        },
+        "SEASON_COUNT_ONE": "1 season",
+        "SEASON_COUNT_OTHER": "{{count}} seasons"
     },
     "INFORMATION": "Πληροφορίες",
     "DOWNLOADS": {
