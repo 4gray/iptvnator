@@ -151,7 +151,14 @@ on either side.
   in-portal search (`XtreamStore.refreshSearchResults`, the last
   `searchContent` call as issued) — `searchResults` is a separate array the
   search page renders directly and would otherwise keep locked titles until
-  the query changes. Both reloads fail closed: a category reload that
+  the query changes. A RELOCK fails closed at once rather than after the
+  database answers: the selected detail is stepped off synchronously when
+  the lock store already names its category (the pre-reload category list
+  maps Electron's row id to the provider id), then `withholdCatalog()`
+  empties every catalog list and `clearSearchResults()` the stored search
+  before the filtered reads refill them; both reloads take a publish guard
+  answered before every state patch, so a read issued under an older lock
+  version is dropped instead of published. Both reloads fail closed: a category reload that
   rejects empties the three category lists, and a per-type content reload
   that rejects empties that type and sets it back to `idle` so the next
   visit loads it again (filtered) — rows read under the previous lock state
@@ -246,7 +253,10 @@ on either side.
   its candidates through the capability-selected data source
   (`IXtreamDataSource.getAllCategories`, which the PWA source answers from
   its session cache or the API), so PWA users can set locks too; the
-  hide/show checkboxes remain Electron-only. The M3U dialog hands its lock
+  hide/show checkboxes remain Electron-only. The relock timeout persists
+  through the same undo-on-failure pattern as the switch
+  (`setRelockMinutes` reverts the in-memory value and the facade shows the
+  settings save-failure snackbar). The M3U dialog hands its lock
   list back to `ChannelListContainerComponent`, which awaits the write and
   reports a failed save in a snackbar (the dialog has closed by then). On
   Electron the `categories.locked` re-stamp (`setCategoryLocks`) clears and
@@ -267,6 +277,11 @@ on either side.
   `parental-unlock` palette commands.
 
 ## Backup
+
+M3U group titles travel verbatim (`normalizeParentalLockGroupTitles`, exact
+dedup): locks match `channel.group.title` exactly, so the trimming
+`uniqueStrings` used for favorites would weaken a lock on a title with
+surrounding whitespace.
 
 `lockedGroupTitles` (M3U), `lockedCategories` (Xtream `{categoryType,
 xtreamId}`, Stalker `{categoryType, categoryId}`) travel in each entry's

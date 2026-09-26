@@ -1,5 +1,6 @@
 import {
     isParentalLockPlaylistLocksEmpty,
+    normalizeParentalLockGroupTitles,
     isWellFormedParentalLockStore,
     lockedStalkerCategoryIds,
     lockedXtreamCategoryIds,
@@ -145,5 +146,13 @@ describe('isWellFormedParentalLockStore', () => {
         ],
     ])('rejects %s', (_, value) => {
         expect(isWellFormedParentalLockStore(value)).toBe(false);
+    });
+});
+
+describe('normalizeParentalLockGroupTitles', () => {
+    it('deduplicates exactly, keeping surrounding whitespace', () => {
+        expect(
+            normalizeParentalLockGroupTitles([' Adult ', ' Adult ', 'Adult', 7])
+        ).toEqual([' Adult ', 'Adult']);
     });
 });

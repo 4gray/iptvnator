@@ -91,19 +91,31 @@ export class ParentalLockEnforcementService {
         if (!playlistId) {
             return;
         }
-        await this.xtreamStore.reloadCategories();
-        await this.xtreamStore.reloadCachedContent();
-        if (this.parentalLock.version() !== version) {
+        const shouldPublish = (): boolean =>
+            this.parentalLock.version() === version;
+        const match = XTREAM_ROUTE.exec(this.router.url);
+        if (this.parentalLock.active()) {
+            // Relock: fail closed NOW, not after the database answers. The
+            // selected detail is judged against the lock store while the
+            // pre-reload category list can still map its category; the
+            // catalog lists and stored search results are emptied and
+            // refilled by the filtered reads below.
+            this.stepOffLockedXtreamSelection(playlistId, match);
+            this.xtreamStore.withholdCatalog?.();
+            this.xtreamStore.clearSearchResults?.();
+        }
+        await this.xtreamStore.reloadCategories(shouldPublish);
+        await this.xtreamStore.reloadCachedContent(shouldPublish);
+        if (!shouldPublish()) {
             return;
         }
         // Stored in-portal search results are a separate array the search
         // page renders directly; re-run the search so it reads filtered.
         await this.xtreamStore.refreshSearchResults?.();
-        if (this.parentalLock.version() !== version) {
+        if (!shouldPublish()) {
             return;
         }
 
-        const match = XTREAM_ROUTE.exec(this.router.url);
         const categoryType = toParentalLockXtreamCategoryType(match?.[2]);
         const categories = this.xtreamStore.getCategoriesBySelectedType();
         const isVisibleCategory = (categoryId: unknown): boolean =>
@@ -145,6 +157,56 @@ export class ParentalLockEnforcementService {
         this.xtreamStore.setSelectedItem(null);
         this.xtreamStore.setSelectedCategory(null);
         if (match && match[1] === playlistId && categoryType) {
+            void this.router.navigate([
+                '/workspace',
+                'xtreams',
+                match[1],
+                match[2],
+            ]);
+        }
+    }
+
+    /**
+     * Clears a selected Xtream item whose category the lock store already
+     * says is locked. Electron rows carry the SQLite category row id; the
+     * category list still on screen maps it to the provider id the store is
+     * keyed by, the PWA carries the provider id directly. An item that
+     * cannot be placed is left to the post-reload check.
+     */
+    private stepOffLockedXtreamSelection(
+        playlistId: string,
+        match: RegExpExecArray | null
+    ): void {
+        const categoryType = toParentalLockXtreamCategoryType(match?.[2]);
+        const selectedItem = this.xtreamStore.selectedItem?.() as {
+            category_id?: string | number;
+        } | null;
+        const categoryId = Number(selectedItem?.category_id);
+        if (!categoryType || !selectedItem || !Number.isFinite(categoryId)) {
+            return;
+        }
+        const category = this.xtreamStore
+            .getCategoriesBySelectedType()
+            .find(
+                (candidate) =>
+                    Number((candidate as { id?: number }).id) === categoryId ||
+                    Number(
+                        (candidate as { category_id?: string }).category_id
+                    ) === categoryId
+            ) as { xtream_id?: number; category_id?: string } | undefined;
+        const providerId = Number(category?.xtream_id ?? category?.category_id);
+        if (
+            !Number.isFinite(providerId) ||
+            !this.parentalLock.isXtreamCategoryLocked(
+                playlistId,
+                categoryType,
+                providerId
+            )
+        ) {
+            return;
+        }
+        this.xtreamStore.setSelectedItem(null);
+        if (match && match[1] === playlistId) {
             void this.router.navigate([
                 '/workspace',
                 'xtreams',

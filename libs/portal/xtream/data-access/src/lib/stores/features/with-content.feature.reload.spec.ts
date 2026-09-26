@@ -82,6 +82,27 @@ describe('withContent parental-lock reloads', () => {
 
     afterEach(() => localStorage.clear());
 
+    it('withholds every catalog list at once and drops reads whose guard says no', async () => {
+        dataSource.getCategories.mockResolvedValue([{ category_id: 'x' }]);
+        dataSource.getContent.mockResolvedValue([{ xtream_id: 1 }]);
+        await store.initializeContent();
+        expect(store.liveStreams()).toEqual([{ xtream_id: 1 }]);
+
+        store.withholdCatalog();
+        expect(store.liveCategories()).toEqual([]);
+        expect(store.vodStreams()).toEqual([]);
+        expect(store.serialStreams()).toEqual([]);
+        expect(store.contentLoadStateByType().live).toBe('ready');
+
+        await store.reloadCategories(() => false);
+        await store.reloadCachedContent(() => false);
+        expect(store.liveCategories()).toEqual([]);
+        expect(store.liveStreams()).toEqual([]);
+
+        await store.reloadCachedContent();
+        expect(store.liveStreams()).toEqual([{ xtream_id: 1 }]);
+    });
+
     it('empties the category lists when their reload fails', async () => {
         dataSource.getCategories.mockResolvedValue([{ category_id: 'x' }]);
         await store.reloadCategories();

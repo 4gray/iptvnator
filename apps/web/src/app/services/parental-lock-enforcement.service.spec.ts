@@ -18,7 +18,9 @@ describe('ParentalLockEnforcementService', () => {
     const lockedStalkerIds = new Set<string>();
     const parentalLock = {
         version: signal(0),
+        active: signal(false),
         registerBusyProbe: jest.fn(),
+        isXtreamCategoryLocked: jest.fn(() => false),
         isStalkerCategoryLocked: jest.fn(
             (_playlistId: string, _type: string, id: unknown) =>
                 id !== null &&
@@ -45,7 +47,12 @@ describe('ParentalLockEnforcementService', () => {
         reloadCategories: jest.fn(async () => undefined),
         reloadCachedContent: jest.fn(async () => undefined),
         refreshSearchResults: jest.fn(async () => undefined),
-        getCategoriesBySelectedType: jest.fn(() => [{ id: 7 }, { id: 8 }]),
+        withholdCatalog: jest.fn(),
+        clearSearchResults: jest.fn(),
+        getCategoriesBySelectedType: jest.fn(() => [
+            { id: 7, xtream_id: 70 },
+            { id: 8, xtream_id: 80 },
+        ]),
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
     };
@@ -55,6 +62,8 @@ describe('ParentalLockEnforcementService', () => {
         jest.clearAllMocks();
         lockedStalkerIds.clear();
         router.url = '/';
+        parentalLock.active.set(false);
+        parentalLock.isXtreamCategoryLocked.mockReturnValue(false);
         stalkerStore.selectedCategoryId.set('*');
         stalkerStore.selectedItem.set(null);
         xtreamStore.selectedCategoryId.set(null);
@@ -164,6 +173,59 @@ describe('ParentalLockEnforcementService', () => {
             ]);
         });
 
+        it('withholds the catalog and a locked detail before the reload on relock', async () => {
+            router.url = '/workspace/xtreams/xtream-1/vod/42';
+            parentalLock.active.set(true);
+            parentalLock.isXtreamCategoryLocked.mockImplementation(
+                (_p: string, _t: string, providerId: number) =>
+                    providerId === 70
+            );
+            xtreamStore.selectedItem.set({ category_id: 7 });
+            const order: string[] = [];
+            xtreamStore.withholdCatalog.mockImplementation(() =>
+                order.push('withhold')
+            );
+            xtreamStore.setSelectedItem.mockImplementation(() =>
+                order.push('step-off')
+            );
+            xtreamStore.reloadCategories.mockImplementation(async () => {
+                order.push('reload');
+            });
+
+            await service.applyXtream(parentalLock.version());
+
+            expect(order.slice(0, 3)).toEqual([
+                'step-off',
+                'withhold',
+                'reload',
+            ]);
+            expect(xtreamStore.clearSearchResults).toHaveBeenCalled();
+            expect(parentalLock.isXtreamCategoryLocked).toHaveBeenCalledWith(
+                'xtream-1',
+                'movies',
+                70
+            );
+            expect(router.navigate).toHaveBeenCalledWith([
+                '/workspace',
+                'xtreams',
+                'xtream-1',
+                'vod',
+            ]);
+        });
+
+        it('does not withhold on unlock, and hands the reloads a publish guard', async () => {
+            router.url = '/workspace/xtreams/xtream-1/vod';
+
+            await service.applyXtream(parentalLock.version());
+
+            expect(xtreamStore.withholdCatalog).not.toHaveBeenCalled();
+            const guard = xtreamStore.reloadCategories.mock.calls[0][0] as
+                (() => boolean) | undefined;
+            expect(guard?.()).toBe(true);
+            parentalLock.version.set(parentalLock.version() + 1);
+            expect(guard?.()).toBe(false);
+        });
+
         it('re-runs the stored in-portal search after the reload', async () => {
             router.url = '/workspace/xtreams/xtream-1/search';
 
@@ -224,6 +286,8 @@ describe('ParentalLockEnforcementService apply serialization', () => {
                     provide: ParentalLockService,
                     useValue: {
                         version,
+                        active: signal(true),
+                        isXtreamCategoryLocked: jest.fn(() => false),
                         registerBusyProbe: jest.fn(),
                         isStalkerCategoryLocked: jest.fn(() => false),
                         isM3uGroupLocked: jest.fn(() => false),

@@ -161,6 +161,11 @@ export function withSearch() {
                     }
                 },
 
+                /** Drops the stored results; term, filters and the last search stay. */
+                clearSearchResults(): void {
+                    patchState(store, { searchResults: [] });
+                },
+
                 /**
                  * Re-runs the last in-portal search with its own parameters,
                  * so stored results reflect the current read filters (the

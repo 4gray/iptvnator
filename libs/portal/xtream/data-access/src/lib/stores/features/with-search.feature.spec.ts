@@ -149,6 +149,18 @@ describe('withSearch refreshSearchResults', () => {
         expect(store.searchResults()).toEqual([]);
     });
 
+    it('clears stored results without forgetting the last search', async () => {
+        await store.searchContent('news', ['live']);
+        expect(store.searchResults()).toHaveLength(1);
+
+        store.clearSearchResults();
+        expect(store.searchResults()).toEqual([]);
+
+        await store.refreshSearchResults();
+        expect(searchContent).toHaveBeenCalledTimes(2);
+        expect(store.searchResults()).toHaveLength(1);
+    });
+
     it('does nothing without a previous search or after a reset', async () => {
         await store.refreshSearchResults();
         expect(searchContent).not.toHaveBeenCalled();

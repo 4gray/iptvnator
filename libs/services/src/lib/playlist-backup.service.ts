@@ -26,6 +26,7 @@ import {
     XtreamBackupSourcePin,
     XtreamPendingRestoreState,
     createRandomId,
+    normalizeParentalLockGroupTitles,
     normalizeParentalLockStalkerCategories,
     normalizeParentalLockXtreamCategories,
     ParentalLockPlaylistLocks,
@@ -1059,7 +1060,10 @@ export class PlaylistBackupService {
     private optionalLockedGroupTitles(playlistId: string): {
         lockedGroupTitles?: string[];
     } {
-        const locked = this.uniqueStrings(
+        // Exact titles: M3U locks match `channel.group.title` verbatim, so
+        // the trimming `uniqueStrings` would turn a lock on " Adult " into
+        // one on "Adult" and weaken the restored lock.
+        const locked = normalizeParentalLockGroupTitles(
             this.parentalLock.locksFor(playlistId).m3u
         );
         return locked.length > 0 ? { lockedGroupTitles: locked } : {};
@@ -1080,7 +1084,10 @@ export class PlaylistBackupService {
         if (entry.portalType === 'm3u') {
             const titles = entry.userState.lockedGroupTitles;
             if (Array.isArray(titles)) {
-                next = { ...current, m3u: this.uniqueStrings(titles) };
+                next = {
+                    ...current,
+                    m3u: normalizeParentalLockGroupTitles(titles),
+                };
             }
         } else if (entry.portalType === 'xtream') {
             const categories = entry.userState.lockedCategories;

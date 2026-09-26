@@ -54,7 +54,11 @@ export class SettingsParentalLockFacade {
     }
 
     async setRelockMinutes(minutes: ParentalLockRelockMinutes): Promise<void> {
-        await this.run(() => this.parentalLock.setRelockMinutes(minutes));
+        await this.run(async () => {
+            if (!(await this.parentalLock.setRelockMinutes(minutes))) {
+                this.snackbar.storageFailure('save');
+            }
+        });
     }
 
     lockNow(): void {

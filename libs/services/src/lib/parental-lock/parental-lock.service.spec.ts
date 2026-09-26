@@ -226,6 +226,21 @@ describe('ParentalLockService', () => {
         expect(updateBridgeSettings).not.toHaveBeenCalled();
     });
 
+    it('rolls the relock timeout back when it cannot be persisted', async () => {
+        updateSettings.mockImplementationOnce(async () => {
+            parentalLockRelockMinutes.set(30);
+            throw new Error('QuotaExceededError');
+        });
+        const service = await createService();
+
+        await expect(service.setRelockMinutes(30)).resolves.toBe(false);
+
+        expect(service.relockMinutes()).toBe(15);
+        expect(updateSettings).toHaveBeenLastCalledWith({
+            parentalLockRelockMinutes: 15,
+        });
+    });
+
     it('rolls the switch back when the Electron mirror cannot be written', async () => {
         prompt.requestPin.mockResolvedValue('1234');
         updateBridgeSettings.mockRejectedValueOnce(new Error('ipc'));

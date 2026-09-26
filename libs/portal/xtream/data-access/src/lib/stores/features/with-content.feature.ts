@@ -1461,7 +1461,32 @@ export function withContent() {
                 /**
                  * Reload categories from database (after visibility changes)
                  */
-                async reloadCategories(): Promise<void> {
+                /**
+                 * Empties every catalog list at once — the parental lock
+                 * relocking must not leave rows read while unlocked on
+                 * screen for the duration of the filtered reload. Load
+                 * states and import bookkeeping are untouched; the reload
+                 * refills the lists.
+                 */
+                withholdCatalog(): void {
+                    patchState(store, {
+                        liveCategories: [],
+                        vodCategories: [],
+                        serialCategories: [],
+                        liveStreams: [],
+                        vodStreams: [],
+                        serialStreams: [],
+                    });
+                },
+
+                /**
+                 * @param shouldPublish answered right before each state
+                 * patch; false drops the read (the caller's lock version
+                 * moved on while it was in flight).
+                 */
+                async reloadCategories(
+                    shouldPublish: () => boolean = () => true
+                ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
 
@@ -1484,6 +1509,7 @@ export function withContent() {
                             ),
                         ]);
 
+                        if (!shouldPublish()) return;
                         patchState(store, {
                             liveCategories: live,
                             vodCategories: vod,
@@ -1496,6 +1522,7 @@ export function withContent() {
                         // keep locked category names visible. They are
                         // rebuilt by the next category load.
                         logger.error('Error reloading categories', error);
+                        if (!shouldPublish()) return;
                         patchState(store, {
                             liveCategories: [],
                             vodCategories: [],
@@ -1511,7 +1538,9 @@ export function withContent() {
                  * the PWA data source filter locked categories at read time,
                  * so the in-memory catalog must be rebuilt from them.
                  */
-                async reloadCachedContent(): Promise<void> {
+                async reloadCachedContent(
+                    shouldPublish: () => boolean = () => true
+                ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx || !store.isContentInitialized()) {
                         return;
@@ -1530,9 +1559,11 @@ export function withContent() {
                                 ctx.credentials,
                                 'live'
                             )) as XtreamLiveStream[];
+                            if (!shouldPublish()) return;
                             patchState(store, { liveStreams: live });
                         } catch (error) {
                             logger.error('Error reloading live streams', error);
+                            if (!shouldPublish()) return;
                             patchState(store, { liveStreams: [] });
                             failed.push('live');
                         }
@@ -1544,12 +1575,14 @@ export function withContent() {
                                 ctx.credentials,
                                 'movie'
                             )) as XtreamVodStream[];
+                            if (!shouldPublish()) return;
                             patchState(store, {
                                 vodStreams: vod,
                                 vodStreamsPlaylistId: ctx.playlistId,
                             });
                         } catch (error) {
                             logger.error('Error reloading VOD streams', error);
+                            if (!shouldPublish()) return;
                             patchState(store, { vodStreams: [] });
                             failed.push('vod');
                         }
@@ -1561,9 +1594,11 @@ export function withContent() {
                                 ctx.credentials,
                                 'series'
                             )) as XtreamSerieItem[];
+                            if (!shouldPublish()) return;
                             patchState(store, { serialStreams: series });
                         } catch (error) {
                             logger.error('Error reloading series', error);
+                            if (!shouldPublish()) return;
                             patchState(store, { serialStreams: [] });
                             failed.push('series');
                         }

@@ -330,11 +330,26 @@ export class ParentalLockService {
         return pin !== null;
     }
 
-    async setRelockMinutes(minutes: number): Promise<void> {
-        await this.settingsStore.updateSettings({
-            parentalLockRelockMinutes:
-                normalizeParentalLockRelockMinutes(minutes),
-        });
+    /**
+     * False when the value could not be persisted; the in-memory patch
+     * `updateSettings` applied before the failed write is undone so the
+     * timer on screen never differs from the one the next launch uses.
+     */
+    async setRelockMinutes(minutes: number): Promise<boolean> {
+        const previous = this.relockMinutes();
+        try {
+            await this.settingsStore.updateSettings({
+                parentalLockRelockMinutes:
+                    normalizeParentalLockRelockMinutes(minutes),
+            });
+            return true;
+        } catch (error) {
+            console.error('Failed to persist the relock timeout.', error);
+            await this.settingsStore
+                .updateSettings({ parentalLockRelockMinutes: previous })
+                .catch(() => undefined);
+            return false;
+        }
     }
 
     // -- Lock store (ParentalLockLockStore; predicates add `active`) -------
