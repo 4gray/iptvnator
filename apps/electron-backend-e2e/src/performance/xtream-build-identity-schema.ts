@@ -11,6 +11,7 @@ const RENDERER_FILE =
 const BUILD_KEYS = ['electron', 'renderer'] as const;
 const ELECTRON_KEYS = [
     'databaseWorker',
+    'deferredEvents',
     'main',
     'playlistRefreshWorker',
     'preload',
@@ -26,6 +27,7 @@ const RENDERER_KEYS = [
 ] as const;
 const ELECTRON_PATHS = {
     databaseWorker: 'dist/apps/electron-backend/workers/database.worker.js',
+    deferredEvents: 'dist/apps/electron-backend/deferred-events.js',
     main: 'dist/apps/electron-backend/main.js',
     playlistRefreshWorker:
         'dist/apps/electron-backend/workers/playlist-refresh.worker.js',
@@ -43,6 +45,10 @@ export function parseXtreamBenchmarkBuildIdentity(
             databaseWorker: pair(
                 electronInput['databaseWorker'],
                 ELECTRON_PATHS.databaseWorker
+            ),
+            deferredEvents: pair(
+                electronInput['deferredEvents'],
+                ELECTRON_PATHS.deferredEvents
             ),
             main: pair(electronInput['main'], ELECTRON_PATHS.main),
             playlistRefreshWorker: pair(

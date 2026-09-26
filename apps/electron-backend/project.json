@@ -53,6 +53,7 @@
                 "outputPath": "dist/apps/electron-backend",
                 "main": "apps/electron-backend/src/main.ts",
                 "tsConfig": "apps/electron-backend/tsconfig.app.json",
+                "webpackConfig": "apps/electron-backend/webpack.config.cjs",
                 "assets": [
                     "apps/electron-backend/src/assets",
                     {
@@ -145,6 +146,7 @@
                 "outputPath": "dist/apps/electron-backend",
                 "main": "apps/electron-backend/src/main.ts",
                 "tsConfig": "apps/electron-backend/tsconfig.app.json",
+                "webpackConfig": "apps/electron-backend/webpack.config.cjs",
                 "assets": [
                     "apps/electron-backend/src/assets",
                     {
@@ -197,6 +199,13 @@
             "options": {
                 "name": "electron-backend",
                 "frontendProject": "web",
+                "files": [
+                    {
+                        "from": "electron-backend",
+                        "to": "electron-backend",
+                        "filter": ["deferred-events.js"]
+                    }
+                ],
                 "sourcePath": "dist/apps",
                 "outputPath": "dist/packages",
                 "prepackageOnly": true
@@ -211,6 +220,13 @@
             "options": {
                 "name": "electron-backend",
                 "frontendProject": "web",
+                "files": [
+                    {
+                        "from": "electron-backend",
+                        "to": "electron-backend",
+                        "filter": ["deferred-events.js"]
+                    }
+                ],
                 "sourcePath": "dist/apps",
                 "outputPath": "dist/executables"
             }

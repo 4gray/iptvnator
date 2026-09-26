@@ -93,8 +93,16 @@ classifying a zero rendered-frame signal as an infrastructure flake.
 
 ## Main-process ownership
 
-The entry point is `apps/electron-backend/src/main.ts`; it bootstraps the database,
-registers events and creates the main window. The preload is
+The entry point is `apps/electron-backend/src/main.ts`. Before the window loads it
+registers only what the renderer can call before its first paint (window state,
+the close guard, playlist-open requests, request-header shims); everything else,
+including the database, portal, EPG, download, player, remote-control and update
+IPC, lives in `apps/electron-backend/src/app/startup/deferred-events.ts`, built as
+the `deferred-events.js` chunk and loaded inside the window's `did-start-loading`
+listener. That import and its registrations finish within the same task, so no
+renderer `invoke` can find a missing handler (`app/startup/deferred-bootstrap.ts`
+holds the scheduler and its test). The startup trace reports the chunk as
+`deferred-events:start` and `deferred-events:done`. The preload is
 `apps/electron-backend/src/app/api/main.preload.ts`, with handlers under
 `apps/electron-backend/src/app/events/`. The window follows the saved startup mode
 (normal/maximized/fullscreen); `--fullscreen` overrides a single launch. Use
