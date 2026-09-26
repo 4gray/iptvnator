@@ -121,6 +121,13 @@ describe('withContent parental-lock reloads', () => {
                 calls <= 3 ? [{ xtream_id: 1 }] : [{ xtream_id: 2 }]
             );
         });
+        let categoryCalls = 0;
+        dataSource.getCategories.mockImplementation(async () => {
+            categoryCalls += 1;
+            return categoryCalls <= 3
+                ? [{ category_id: 'old' }]
+                : [{ category_id: 'new' }];
+        });
         const initialization = store.initializeContent();
         await waitForCondition(() => calls === 1);
 
@@ -131,6 +138,8 @@ describe('withContent parental-lock reloads', () => {
         await initialization;
 
         expect(calls).toBe(6);
+        expect(categoryCalls).toBe(6);
+        expect(store.liveCategories()).toEqual([{ category_id: 'new' }]);
         expect(store.liveStreams()).toEqual([{ xtream_id: 2 }]);
         expect(store.vodStreams()).toEqual([{ xtream_id: 2 }]);
         expect(store.serialStreams()).toEqual([{ xtream_id: 2 }]);

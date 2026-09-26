@@ -24,6 +24,7 @@ import {
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import { GridListComponent } from '@iptvnator/portal/shared/ui';
 import {
+    DatabaseService,
     ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -51,7 +52,11 @@ describe('LiveStreamLayoutComponent parental lock', () => {
     const emptyList = signal<unknown[]>([]);
     const parentalLock = {
         version: signal(0),
+        active: signal(false),
         isXtreamCategoryLocked: jest.fn(() => false),
+    };
+    const databaseService = {
+        getAllXtreamCategories: jest.fn(async () => [] as unknown[]),
     };
     const runtime = { supportsXtreamSqliteDataSource: false };
     const xtreamStore = {
@@ -82,8 +87,11 @@ describe('LiveStreamLayoutComponent parental lock', () => {
 
     beforeEach(async () => {
         parentalLock.version.set(0);
+        parentalLock.active.set(false);
         parentalLock.isXtreamCategoryLocked.mockReset();
         parentalLock.isXtreamCategoryLocked.mockReturnValue(false);
+        databaseService.getAllXtreamCategories.mockReset();
+        databaseService.getAllXtreamCategories.mockResolvedValue([]);
         runtime.supportsXtreamSqliteDataSource = false;
 
         await TestBed.configureTestingModule({
@@ -130,6 +138,7 @@ describe('LiveStreamLayoutComponent parental lock', () => {
                     },
                 },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
+                { provide: DatabaseService, useValue: databaseService },
                 {
                     provide: SettingsStore,
                     useValue: {
@@ -188,6 +197,7 @@ describe('LiveStreamLayoutComponent parental lock', () => {
     afterEach(() => fixture.destroy());
 
     function lock(categoryId: number): void {
+        parentalLock.active.set(true);
         parentalLock.isXtreamCategoryLocked.mockImplementation(
             (_playlistId: string, _type: string, id: number) =>
                 id === categoryId
@@ -222,6 +232,39 @@ describe('LiveStreamLayoutComponent parental lock', () => {
         lock(7);
 
         expect(component.activePlayback()).not.toBeNull();
+    });
+
+    it('resolves a hidden category through the unfiltered rows before judging it', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        // Row 99 is hidden: absent from liveCategories, present in the
+        // unfiltered table with provider id 9.
+        databaseService.getAllXtreamCategories.mockResolvedValue([
+            { id: 99, xtream_id: 9 },
+        ]);
+        component.playLive({ ...sampleChannel, category_id: 99 });
+        await fixture.whenStable();
+
+        expect(databaseService.getAllXtreamCategories).toHaveBeenCalledWith(
+            'playlist-1',
+            'live'
+        );
+        lock(7);
+        expect(component.activePlayback()).not.toBeNull();
+
+        lock(9);
+        expect(component.activePlayback()).toBeNull();
+    });
+
+    it('stops a channel whose category is still unresolved when the lock activates', () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        databaseService.getAllXtreamCategories.mockReturnValue(
+            new Promise(() => undefined)
+        );
+        component.playLive({ ...sampleChannel, category_id: 99 });
+
+        lock(7);
+
+        expect(component.activePlayback()).toBeNull();
     });
 
     it('maps the SQLite category row id to the provider id it is locked by', () => {

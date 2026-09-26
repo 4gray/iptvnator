@@ -231,6 +231,7 @@ export function withContent() {
                     return;
                 }
                 reloadAfterInitialization = false;
+                await methods.reloadCategories();
                 await methods.reloadCachedContent();
             };
             const dataService = inject(DataService);
@@ -648,6 +649,9 @@ export function withContent() {
                         // Read before the lock changed; the deferred reload
                         // below publishes the filtered rows instead.
                         for (const key of [
+                            'liveCategories',
+                            'vodCategories',
+                            'serialCategories',
                             'liveStreams',
                             'vodStreams',
                             'serialStreams',
@@ -1168,10 +1172,16 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_CATEGORIES,
                             () =>
                                 patchState(store, {
-                                    liveCategories: live,
-                                    vodCategories: vod,
+                                    liveCategories: reloadAfterInitialization
+                                        ? []
+                                        : live,
+                                    vodCategories: reloadAfterInitialization
+                                        ? []
+                                        : vod,
                                     vodCategoriesPlaylistId: ctx.playlistId,
-                                    serialCategories: series,
+                                    serialCategories: reloadAfterInitialization
+                                        ? []
+                                        : series,
                                     isLoadingCategories: false,
                                 }),
                             () => ({

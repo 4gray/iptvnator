@@ -95,6 +95,7 @@ import {
 } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import {
+    DatabaseService,
     ParentalLockService,
     RecordingsService,
     RuntimeCapabilitiesService,
@@ -170,6 +171,7 @@ export class LiveStreamLayoutComponent
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly databaseService = inject(DatabaseService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -419,8 +421,12 @@ export class LiveStreamLayoutComponent
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
     private readonly activeLiveItemId = signal<number | null>(null);
-    /** Provider category id of the playing channel, for the parental lock. */
-    private activeLiveProviderCategoryId: number | null = null;
+    /**
+     * Provider category id of the playing channel, for the parental lock.
+     * `null`: nothing playing (or no category); `'unknown'`: Electron has
+     * not resolved it yet (or cannot) — a relock then stops the channel.
+     */
+    private activeLiveProviderCategoryId: number | null | 'unknown' = null;
     readonly playbackSessionKey = computed(() => {
         const sourceId = this.xtreamStore.currentPlaylist()?.id;
         const contentId = this.activeLiveItemId();
@@ -454,15 +460,20 @@ export class LiveStreamLayoutComponent
             untracked(() => {
                 const categoryId = this.activeLiveProviderCategoryId;
                 const playlistId = this.xtreamStore.currentPlaylist()?.id;
-                if (
-                    categoryId === null ||
-                    !playlistId ||
-                    !this.parentalLock.isXtreamCategoryLocked(
-                        playlistId,
-                        'live',
-                        categoryId
-                    )
-                ) {
+                if (categoryId === null || !playlistId) {
+                    return;
+                }
+                // Unresolved category: fail closed while the lock is active
+                // rather than keep a possibly locked stream running.
+                const withheld =
+                    categoryId === 'unknown'
+                        ? this.parentalLock.active()
+                        : this.parentalLock.isXtreamCategoryLocked(
+                              playlistId,
+                              'live',
+                              categoryId
+                          );
+                if (!withheld) {
                     return;
                 }
                 this.playbackRequestId += 1;
@@ -851,7 +862,7 @@ export class LiveStreamLayoutComponent
      */
     private resolveLiveProviderCategoryId(
         item: XtreamLiveChannelItem
-    ): number | null {
+    ): number | null | 'unknown' {
         const categoryId = Number(item.category_id);
         if (!Number.isFinite(categoryId)) {
             return null;
@@ -864,7 +875,31 @@ export class LiveStreamLayoutComponent
                 Number((candidate as { id?: number }).id) === categoryId
         ) as { xtream_id?: number } | undefined;
         const providerId = Number(category?.xtream_id);
-        return Number.isFinite(providerId) ? providerId : null;
+        if (Number.isFinite(providerId)) {
+            return providerId;
+        }
+        // Not in the visible list — a hidden category (search can play its
+        // channels). Resolve through the unfiltered rows; until that lands
+        // the id is unknown and a relock stops the channel.
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (playlistId) {
+            void this.databaseService
+                .getAllXtreamCategories(playlistId, 'live')
+                .then((rows) => {
+                    if (this.activeLiveItemId() !== item.xtream_id) {
+                        return;
+                    }
+                    const row = rows.find(
+                        (candidate) => Number(candidate.id) === categoryId
+                    );
+                    const resolved = Number(row?.xtream_id);
+                    if (Number.isFinite(resolved)) {
+                        this.activeLiveProviderCategoryId = resolved;
+                    }
+                })
+                .catch(() => undefined);
+        }
+        return 'unknown';
     }
 
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {

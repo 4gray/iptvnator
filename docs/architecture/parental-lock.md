@@ -171,16 +171,20 @@ on either side.
   the INITIAL hydration (the content is not initialized yet, so the reload
   has nothing to re-read) sets a deferred-reload flag instead: the
   hydration then publishes empty lists in place of the rows it read under
-  the previous lock state, and the filtered reload runs as soon as the
-  hydration settles, on every path that marks the content initialized.
+  the previous lock state (categories included), and the filtered reload
+  of categories and content runs as soon as the hydration settles, on
+  every path that marks the content initialized.
   Both reloads fail closed: a category reload that
   rejects empties the three category lists, and a per-type content reload
   that rejects empties that type and sets it back to `idle` so the next
   visit loads it again (filtered) — rows read under the previous lock state
   are never kept. Live playback is stopped by the layout itself:
   `LiveStreamLayoutComponent` keeps the playing channel's provider category
-  id (mapped from the SQLite row id on Electron) and drops `activePlayback`
-  on a `version` change that locks it, because the player is gated on that
+  id (mapped from the SQLite row id on Electron — through the visible
+  category list, else through the unfiltered rows, since search can play a
+  channel of a HIDDEN category; until that lookup lands the id is unknown
+  and a relock stops the channel) and drops `activePlayback` on a `version`
+  change that locks it, because the player is gated on that
   signal, not on the store selection — which an ordinary category switch
   also clears while the channel keeps playing.
 - **Stalker:** the same service checks the selected genre through
