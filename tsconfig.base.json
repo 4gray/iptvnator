@@ -8,6 +8,7 @@
         "esModuleInterop": true,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
+        "isolatedModules": true,
         "importHelpers": true,
         "target": "es2015",
         "module": "esnext",

@@ -28,7 +28,7 @@ import {
     PortalStatusService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
-import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-playlist-item',
