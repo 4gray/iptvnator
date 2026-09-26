@@ -1,51 +1,24 @@
-import { registerM3uSourceProbe } from './app/events/m3u-source-probe';
-import { registerSourceProbeCancellation } from './app/events/source-probe-control';
 // Select persistence before eager imports (notably electron-conf) cache userData.
 import './app/services/electron-profile-bootstrap';
 import { app, BrowserWindow } from 'electron';
-import { autoUpdater } from 'electron-updater';
-import fixPath from 'fix-path';
 import App from './app/app';
-import { initDatabase } from './app/database/connection';
-import DatabaseEvents from './app/events/database.events';
-import {
-    resetStaleDownloads,
-    setMainWindow as setDownloadsMainWindow,
-} from './app/events/database/downloads.events';
-import { setRecordingsMainWindow } from './app/events/database/recording-broadcast';
-import { reconcileStaleRecordings } from './app/events/database/recording-recovery';
-import ElectronEvents from './app/events/electron.events';
-import EmbeddedMpvEvents, {
-    shutdownEmbeddedMpv,
-} from './app/events/embedded-mpv.events';
-import EpgEvents from './app/events/epg.events';
-import AppUpdateEvents from './app/events/app-update.events';
-import { shutdownMpvSession } from './app/events/mpv-session.service';
-import PlayerEvents from './app/events/player.events';
-import { shutdownVlcSession } from './app/events/vlc-session.service';
-import PlaylistEvents from './app/events/playlist.events';
 import PlaylistOpenEvents from './app/events/playlist-open.events';
-import RemoteControlEvents from './app/events/remote-control.events';
-import SettingsEvents from './app/events/settings.events';
-import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
-import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { readCompileCacheOutcome } from './app/services/compile-cache';
 import { applyElectronNetworkDefaults } from './app/util/network-defaults';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
-import { AppUpdateService } from './app/services/app-update.service';
-import {
-    onAppUpdateChannelChange,
-    readStoredAppUpdateChannel,
-} from './app/services/app-update-channel';
-import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import { bootstrapWindowCloseGuard } from './app/services/window-close-guard.service';
-import { registerStreamProbeHandlers } from './app/events/stream-probe';
-import { registerConnectivityGuardHandlers } from './app/events/connectivity-guard.events';
-import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
+import {
+    createDeferredBootstrap,
+    type DeferredBootstrap,
+} from './app/startup/deferred-bootstrap';
+import type {
+    DeferredEventsHandles,
+    DeferredEventsModule,
+} from './app/startup/deferred-events';
 import {
     isFrameCopyRuntimeUsable,
     shouldPromotePersistedFrameCopyOptIn,
@@ -104,33 +77,11 @@ if (
     process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
 }
 
-let fixPathScheduled = false;
-
-/**
- * Update process.env.PATH from the user's interactive login shell so that
- * spawned external players (MPV/VLC) can be resolved by binary name.
- *
- * Runs after window creation + IPC handler registration so the 50-300 ms
- * shell-spawn cost (bash/zsh -ilc env) doesn't block startup. Idempotent:
- * subsequent calls are no-ops.
- */
-function scheduleDeferredFixPath(): void {
-    if (fixPathScheduled || process.platform === 'win32') {
-        return;
-    }
-
-    fixPathScheduled = true;
-    setImmediate(() => {
-        try {
-            fixPath();
-            if (isStartupTraceEnabled()) {
-                trace('startup', 'fix-path:done');
-            }
-        } catch (error) {
-            console.warn('fix-path failed:', error);
-        }
-    });
-}
+/** Set once bootstrapAppEvents() arms the deferred group; read at quit. */
+let deferredEvents: DeferredBootstrap<
+    DeferredEventsModule,
+    DeferredEventsHandles
+> | null = null;
 
 export default class Main {
     static initialize() {
@@ -147,6 +98,13 @@ export default class Main {
         App.main(app, BrowserWindow);
     }
 
+    /**
+     * Everything the renderer may call before its first paint registers
+     * here, synchronously, before the window loads. The rest lives in
+     * app/startup/deferred-events.ts and is loaded inside the window's
+     * `did-start-loading` listener (see deferred-bootstrap.ts for why that
+     * still guarantees the handlers exist before any renderer invoke).
+     */
     static async bootstrapAppEvents() {
         if (isStartupTraceEnabled()) {
             trace('startup', 'bootstrap-events:start');
@@ -155,75 +113,62 @@ export default class Main {
         const windowCloseGuard = bootstrapWindowCloseGuard((listener) =>
             App.onMainWindowCreated(listener)
         );
-        const appUpdateService = new AppUpdateService({
-            app,
-            appVersion: environment.version,
-            channel: readStoredAppUpdateChannel(),
-            getMainWindow: () => App.mainWindow,
-            updater: () => autoUpdater,
-            // quitAndInstall() closes the windows before 'before-quit' fires
-            // (macOS), so without this an armed close guard would intercept
-            // the install's window close and strand the update.
-            prepareQuit: () => windowCloseGuard.allowNextClose(),
-            cancelPreparedQuit: () => windowCloseGuard.revokeAllowedClose(),
-        });
-        AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
-        onAppUpdateChannelChange((channel) =>
-            appUpdateService.setChannel(channel)
-        );
-
         registerStaticHeaderShims();
-        ElectronEvents.bootstrapElectronEvents();
         WindowEvents.bootstrapWindowEvents();
-        EmbeddedMpvEvents.bootstrapEmbeddedMpvEvents();
-        PlaylistEvents.bootstrapPlaylistEvents();
         PlaylistOpenEvents.bootstrapPlaylistOpenEvents();
-        SharedEvents.bootstrapSharedEvents();
-        PlayerEvents.bootstrapPlayerEvents();
-        SettingsEvents.bootstrapSettingsEvents();
-        StalkerEvents.bootstrapStalkerEvents();
-        XtreamEvents.bootstrapXtreamEvents();
-        registerStreamProbeHandlers();
-        registerM3uSourceProbe();
-        registerSourceProbeCancellation();
-        registerConnectivityGuardHandlers();
-        DatabaseEvents.bootstrapDatabaseEvents();
-        EpgEvents.bootstrapEpgEvents();
-        RemoteControlEvents.bootstrapRemoteControlEvents();
 
-        // Keep the downloads broadcaster bound to the live window. macOS can
-        // rebuild the window while the process runs, and a stale reference
-        // silently swallows every DOWNLOADS_UPDATE_EVENT.
-        App.onMainWindowCreated(setDownloadsMainWindow);
-        App.onMainWindowCreated(setRecordingsMainWindow);
+        const deferred = createDeferredBootstrap<
+            DeferredEventsModule,
+            DeferredEventsHandles
+        >({
+            load: () =>
+                import(
+                    /* webpackChunkName: "deferred-events" */ './app/startup/deferred-events.js'
+                ),
+            run: (module) =>
+                module.bootstrapDeferredEvents({
+                    appVersion: environment.version,
+                    windowCloseGuard,
+                }),
+            onTrigger: (source) => {
+                if (isStartupTraceEnabled()) {
+                    trace('startup', 'deferred-events:start', { source });
+                }
+            },
+            onDone: (durationMs) => {
+                if (isStartupTraceEnabled()) {
+                    trace('startup', 'deferred-events:done', { durationMs });
+                }
+            },
+            // The window is open by now; without this a missing chunk would
+            // only show up as an unhandled rejection with no context.
+            onError: (error) => {
+                console.error(
+                    'Deferred main-process startup failed; portal, EPG, database and download handlers are unavailable:',
+                    error
+                );
+                if (isStartupTraceEnabled()) {
+                    trace('startup', 'deferred-events:failed', error);
+                }
+            },
+        });
+        deferredEvents = deferred;
+        deferred.armOn(App.mainWindow?.webContents);
 
-        // Load the renderer only after IPC handlers are registered. On slower
-        // Linux CI hosts the renderer can otherwise invoke Electron bridge IPC
-        // before the main process has installed handlers.
-        await App.loadMainWindow();
-        void appUpdateService.checkForUpdatesOnStartup();
+        // Load the renderer only after the pre-paint handlers are registered.
+        // The deferred group registers as soon as the navigation starts; the
+        // fallback below covers a load that never gets that far. Its errors
+        // surface through the awaited trigger(), so they are swallowed here.
+        const loadingMainWindow = App.loadMainWindow();
+        void loadingMainWindow
+            .catch(() => undefined)
+            .then(() => deferred.trigger())
+            .catch(() => undefined);
+        await loadingMainWindow;
+        const { module, result } = await deferred.trigger();
+        void result.appUpdateService.checkForUpdatesOnStartup();
 
-        // Initialize the database after the first renderer load is underway so
-        // Linux Electron E2E can observe a BrowserWindow even when SQLite
-        // startup or download recovery is slow. IPC handlers call getDatabase()
-        // lazily and share the same initialization promise.
-        await initDatabase();
-
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'init-database:done');
-        }
-
-        await resetStaleDownloads();
-
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'reset-stale-downloads:done');
-        }
-
-        await reconcileStaleRecordings();
-
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'reconcile-stale-recordings:done');
-        }
+        await module.finishStartupAfterFirstLoad();
 
         if (isStartupTraceEnabled()) {
             trace('startup', 'bootstrap-events:done');
@@ -236,7 +181,7 @@ export default class Main {
         // takes to complete; the spawn would still find MPV/VLC at any of
         // the well-known paths checked by getDefault*Path before falling
         // back to bare-name PATH lookup.
-        scheduleDeferredFixPath();
+        module.scheduleDeferredFixPath();
     }
 }
 
@@ -307,9 +252,7 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
     // playback and database work destroyed. 'will-quit' only fires once
     // every window close was allowed through.
     app.on('will-quit', () => {
-        shutdownEmbeddedMpv();
-        shutdownMpvSession();
-        shutdownVlcSession();
-        void databaseWorkerClient.shutdown();
+        // Nothing to tear down when the deferred group never loaded.
+        deferredEvents?.module?.shutdownDeferredServices();
     });
 });

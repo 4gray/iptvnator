@@ -46,6 +46,11 @@ describe('Xtream benchmark build identity', () => {
             path: 'dist/apps/electron-backend/main.js',
             sha256: sha256('launcher'),
         });
+        assert.deepEqual(identity.electron.deferredEvents.javascript, {
+            bytes: 8,
+            path: 'dist/apps/electron-backend/deferred-events.js',
+            sha256: sha256('deferred'),
+        });
         assert.deepEqual(identity.electron.preload.sourceMap, {
             bytes: 11,
             path: 'dist/apps/electron-backend/main.preload.js.map',
@@ -224,6 +229,8 @@ async function buildFixture(): Promise<string> {
         mkdir(join(renderer, 'assets'), { recursive: true }),
     ]);
     await Promise.all([
+        writeFile(join(backend, 'deferred-events.js'), 'deferred'),
+        writeFile(join(backend, 'deferred-events.js.map'), 'deferred-map'),
         writeFile(join(backend, 'main.js'), 'launcher'),
         writeFile(join(backend, 'main.js.map'), 'launcher-map'),
         writeFile(join(backend, 'main.app.js'), 'main'),
