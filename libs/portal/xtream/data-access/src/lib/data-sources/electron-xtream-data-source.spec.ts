@@ -66,6 +66,12 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
             await expect(
                 harness.dataSource.searchContent(playlistId, 'news', ['live'])
             ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.getCachedCategories(playlistId, 'live')
+            ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.getCachedContent(playlistId, 'live')
+            ).resolves.toEqual([]);
             expect(
                 harness.dbService.getXtreamCategories
             ).not.toHaveBeenCalled();

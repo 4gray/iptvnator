@@ -273,6 +273,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         type: CategoryType
     ): Promise<XtreamCategoryFromDb[]> {
+        // Same fail-closed gate as the live reads: the warm-route hydration
+        // reads the cache directly and must not publish rows a stale index
+        // stamp still marks unlocked.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         return this.dbService.getXtreamCategories(
             playlistId,
             mapCategoryTypeToDbType(type)
@@ -403,6 +409,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         type: StreamType
     ): Promise<XtreamContentItem[]> {
+        // Same fail-closed gate as the live reads: the warm-route hydration
+        // reads the cache directly and must not publish rows a stale index
+        // stamp still marks unlocked.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         return this.dbService.getXtreamContent(playlistId, type);
     }
 

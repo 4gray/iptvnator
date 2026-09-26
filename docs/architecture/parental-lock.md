@@ -119,7 +119,8 @@ store), and while the lock is active with the store unreadable
 predicate answers true and the set-based filters (PWA Xtream, Stalker
 content and search, the M3U channel list) receive
 `ALL_CATEGORIES_WITHHELD`, and `ElectronXtreamDataSource` serves no
-categories, content or search hits either, since its SQLite index may still
+categories, content, cached categories/content (the warm-route hydration
+path) or search hits either, since its SQLite index may still
 carry a stale stamp — under which a row WITHOUT a genre is withheld
 too (`isStalkerItemWithheld`, `isStalkerCategoryLocked`), since "no genre"
 must not be the one row a withheld catalog still shows — so the whole
