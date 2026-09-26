@@ -537,9 +537,9 @@ describe('GroupsViewComponent', () => {
         ]);
     });
 
-    it('locks and unlocks one group from the right-click menu behind the PIN gate', async () => {
-        const lockedGroupTitlesChanged = jest.fn();
-        component.lockedGroupTitlesChanged.subscribe(lockedGroupTitlesChanged);
+    it('emits a single-group toggle from the right-click menu behind the PIN gate', async () => {
+        const groupLockToggled = jest.fn();
+        component.groupLockToggled.subscribe(groupLockToggled);
         fixture.componentRef.setInput('lockedGroupTitles', ['News']);
         fixture.detectChanges();
         const event = new MouseEvent('contextmenu', { cancelable: true });
@@ -547,19 +547,22 @@ describe('GroupsViewComponent', () => {
         component.onGroupContextMenu('Sports', event);
         expect(event.defaultPrevented).toBe(true);
         await component.onGroupLockToggle(true);
-        expect(lockedGroupTitlesChanged).toHaveBeenLastCalledWith([
-            'News',
-            'Sports',
-        ]);
+        expect(groupLockToggled).toHaveBeenLastCalledWith({
+            groupKey: 'Sports',
+            locked: true,
+        });
 
         component.onGroupContextMenu('News', event);
         await component.onGroupLockToggle(false);
-        expect(lockedGroupTitlesChanged).toHaveBeenLastCalledWith([]);
+        expect(groupLockToggled).toHaveBeenLastCalledWith({
+            groupKey: 'News',
+            locked: false,
+        });
 
         parentalLock.requestUnlock.mockResolvedValueOnce(false);
         component.onGroupContextMenu('Movies', event);
         await component.onGroupLockToggle(true);
-        expect(lockedGroupTitlesChanged).toHaveBeenCalledTimes(2);
+        expect(groupLockToggled).toHaveBeenCalledTimes(2);
     });
 
     it('offers no group lock menu while the feature is off', () => {

@@ -16,7 +16,10 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '../settings-store.service';
 import { ParentalLockIdleTimer } from './parental-lock-idle-timer';
-import { ParentalLockLockStore } from './parental-lock-lock-store.service';
+import {
+    LockListEdit,
+    ParentalLockLockStore,
+} from './parental-lock-lock-store.service';
 import {
     PARENTAL_LOCK_PROMPT,
     ParentalLockPromptRequest,
@@ -436,7 +439,7 @@ export class ParentalLockService {
     async setXtreamLocks(
         playlistId: string,
         categoryType: ParentalLockXtreamCategoryType,
-        xtreamIds: number[]
+        xtreamIds: LockListEdit<number>
     ): Promise<boolean> {
         await this.initialize();
         return this.locks.setXtreamLocks(playlistId, categoryType, xtreamIds);
@@ -445,7 +448,7 @@ export class ParentalLockService {
     async setStalkerLocks(
         playlistId: string,
         categoryType: ParentalLockStalkerCategoryType,
-        categoryIds: string[]
+        categoryIds: LockListEdit<string>
     ): Promise<boolean> {
         await this.initialize();
         return this.locks.setStalkerLocks(
@@ -457,7 +460,7 @@ export class ParentalLockService {
 
     async setM3uLocks(
         playlistId: string,
-        groupTitles: string[]
+        groupTitles: LockListEdit<string>
     ): Promise<boolean> {
         await this.initialize();
         return this.locks.setM3uLocks(playlistId, groupTitles);

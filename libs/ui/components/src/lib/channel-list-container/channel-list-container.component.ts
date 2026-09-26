@@ -595,6 +595,24 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     async onLockedGroupTitlesChanged(
         lockedGroupTitles: string[]
     ): Promise<void> {
+        await this.saveGroupLocks(lockedGroupTitles);
+    }
+
+    /** One group from the right-click menu, applied inside the store's queue. */
+    async onGroupLockToggled(change: {
+        groupKey: string;
+        locked: boolean;
+    }): Promise<void> {
+        await this.saveGroupLocks((current) =>
+            change.locked
+                ? [...new Set([...current, change.groupKey])]
+                : current.filter((title) => title !== change.groupKey)
+        );
+    }
+
+    private async saveGroupLocks(
+        groupTitles: string[] | ((current: readonly string[]) => string[])
+    ): Promise<void> {
         const playlistId = this.lockPlaylistId();
         if (!playlistId) {
             return;
@@ -604,7 +622,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         // user relocks believing the chosen groups are protected.
         const saved = await this.parentalLock.setM3uLocks(
             playlistId,
-            lockedGroupTitles
+            groupTitles
         );
         if (!saved) {
             this.snackBar.open(

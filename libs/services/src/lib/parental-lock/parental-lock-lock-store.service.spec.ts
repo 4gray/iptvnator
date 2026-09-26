@@ -212,6 +212,35 @@ describe('ParentalLockLockStore', () => {
         });
     });
 
+    it("applies back-to-back single-row edits to each other's result", async () => {
+        await store.load();
+        await store.ensureReadable();
+        let releaseFirst: (ok: boolean) => void = () => undefined;
+        storage.writeLocks.mockImplementationOnce(
+            () => new Promise<boolean>((resolve) => (releaseFirst = resolve))
+        );
+
+        const first = store.setStalkerLocks('pl-1', 'itv', (current) => [
+            ...current,
+            '1',
+        ]);
+        const second = store.setStalkerLocks('pl-1', 'itv', (current) => [
+            ...current,
+            '2',
+        ]);
+        for (
+            let i = 0;
+            i < 50 && storage.writeLocks.mock.calls.length === 0;
+            i += 1
+        ) {
+            await Promise.resolve();
+        }
+        releaseFirst(true);
+        await Promise.all([first, second]);
+
+        expect(store.lockedStalkerIds('pl-1', 'itv')).toEqual(['1', '2']);
+    });
+
     it('drops a deleted playlist from the store and empties it on clearAll', async () => {
         await store.load();
         await store.ensureReadable();

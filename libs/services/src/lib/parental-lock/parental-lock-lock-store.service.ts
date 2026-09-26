@@ -19,6 +19,20 @@ import {
     withXtreamLocks,
 } from './parental-lock-store.util';
 
+/**
+ * A full replacement list, or an edit of the CURRENT list. The edit form is
+ * evaluated inside the write queue, so single-row toggles issued back to
+ * back each see the previous toggle's result instead of one shared snapshot.
+ */
+export type LockListEdit<T> = readonly T[] | ((current: readonly T[]) => T[]);
+
+function applyLockListEdit<T>(
+    edit: LockListEdit<T>,
+    current: readonly T[]
+): T[] {
+    return typeof edit === 'function' ? edit(current) : [...edit];
+}
+
 const XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCategoryType[] = [
     'live',
     'movies',
@@ -197,14 +211,21 @@ export class ParentalLockLockStore {
     async setXtreamLocks(
         playlistId: string,
         categoryType: ParentalLockXtreamCategoryType,
-        xtreamIds: number[]
+        xtreamIds: LockListEdit<number>
     ): Promise<boolean> {
         return this.enqueue(async () => {
             if (!(await this.ensureReadable())) {
                 return false;
             }
             const previous = this.locksFor(playlistId);
-            const next = withXtreamLocks(previous, categoryType, xtreamIds);
+            const next = withXtreamLocks(
+                previous,
+                categoryType,
+                applyLockListEdit(
+                    xtreamIds,
+                    this.lockedXtreamIds(playlistId, categoryType)
+                )
+            );
             return this.commitLocks(playlistId, previous, next, [categoryType]);
         });
     }
@@ -212,7 +233,7 @@ export class ParentalLockLockStore {
     async setStalkerLocks(
         playlistId: string,
         categoryType: ParentalLockStalkerCategoryType,
-        categoryIds: string[]
+        categoryIds: LockListEdit<string>
     ): Promise<boolean> {
         return this.enqueue(async () => {
             if (!(await this.ensureReadable())) {
@@ -223,7 +244,10 @@ export class ParentalLockLockStore {
                 withStalkerLocks(
                     this.locksFor(playlistId),
                     categoryType,
-                    categoryIds
+                    applyLockListEdit(
+                        categoryIds,
+                        this.lockedStalkerIds(playlistId, categoryType)
+                    )
                 )
             );
         });
@@ -231,7 +255,7 @@ export class ParentalLockLockStore {
 
     async setM3uLocks(
         playlistId: string,
-        groupTitles: string[]
+        groupTitles: LockListEdit<string>
     ): Promise<boolean> {
         return this.enqueue(async () => {
             if (!(await this.ensureReadable())) {
@@ -239,7 +263,13 @@ export class ParentalLockLockStore {
             }
             return this.persistPlaylistLocks(
                 playlistId,
-                withM3uLocks(this.locksFor(playlistId), groupTitles)
+                withM3uLocks(
+                    this.locksFor(playlistId),
+                    applyLockListEdit(
+                        groupTitles,
+                        this.lockedGroupTitles(playlistId)
+                    )
+                )
             );
         });
     }

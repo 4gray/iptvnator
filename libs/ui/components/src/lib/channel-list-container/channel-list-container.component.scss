@@ -33,7 +33,11 @@
     height: 64px;
     border-radius: 20px;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.08),
+            rgba(255, 255, 255, 0)
+        ),
         rgba(127, 127, 127, 0.1);
     display: flex;
     align-items: center;

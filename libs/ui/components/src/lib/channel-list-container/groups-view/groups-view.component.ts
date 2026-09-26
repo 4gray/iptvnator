@@ -178,6 +178,8 @@ export class GroupsViewComponent {
     readonly sidebarWidthRequestEnded = output<number>();
     readonly hiddenGroupTitlesChanged = output<string[]>();
     readonly lockedGroupTitlesChanged = output<string[]>();
+    /** Right-click toggle of ONE group; the host applies it in the lock store's queue. */
+    readonly groupLockToggled = output<{ groupKey: string; locked: boolean }>();
 
     /** Emits when the user clicks the inline collapse toggle in the groups header */
     readonly sidebarToggleRequested = output<void>();
@@ -512,18 +514,13 @@ export class GroupsViewComponent {
     async onGroupLockToggle(lock: boolean): Promise<void> {
         const groupKey = this.groupLockKey;
         this.groupLockKey = null;
-        const current = this.lockedGroupTitles();
-        if (groupKey === null || current === null) {
+        if (groupKey === null || this.lockedGroupTitles() === null) {
             return;
         }
         if (!(await this.parentalLock.requestUnlock())) {
             return;
         }
-        this.lockedGroupTitlesChanged.emit(
-            lock
-                ? [...new Set([...current, groupKey])]
-                : current.filter((title) => title !== groupKey)
-        );
+        this.groupLockToggled.emit({ groupKey, locked: lock });
     }
 
     async openGroupManagement(): Promise<void> {

@@ -334,7 +334,11 @@ Every lock-store mutation runs through one write queue in
 `ParentalLockLockStore`: each rewrites the whole persisted store from the
 in-memory copy, so overlapping edits (two right-click toggles, a dialog
 save during a restore) would otherwise snapshot the same store and the
-later write would drop the earlier edit. A deleted playlist's locks leave
+later write would drop the earlier edit. Single-row changes (the
+right-click Lock/Unlock) are passed as an EDIT of the current list
+(`LockListEdit`), evaluated inside that queue, so two quick toggles each
+see the other's result instead of one shared snapshot; the dialogs pass a
+full list, which is the replacement they mean. A deleted playlist's locks leave
 the store through the `PLAYLIST_DELETE_CLEANUP` hook
 (`provideParentalLockPlaylistCleanup`, run by
 `PlaylistsService.deletePlaylist` for every single-playlist deletion; no

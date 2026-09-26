@@ -55,7 +55,7 @@ describe('WorkspaceCategoryLockActionService', () => {
         );
     });
 
-    it('adds and removes one Xtream category behind the PIN gate', async () => {
+    it('adds and removes one Xtream category as an edit of the current list', async () => {
         const target = {
             provider: 'xtreams' as const,
             playlistId: 'p',
@@ -63,21 +63,24 @@ describe('WorkspaceCategoryLockActionService', () => {
             item: { id: 2, xtream_id: 8 },
         };
         await expect(service.setLocked(target, true)).resolves.toBe(true);
-        expect(parentalLock.setXtreamLocks).toHaveBeenCalledWith(
-            'p',
-            'live',
-            [7, 8]
-        );
+        const [, type, edit] = parentalLock.setXtreamLocks.mock
+            .calls[0] as unknown as [
+            string,
+            string,
+            (current: number[]) => number[],
+        ];
+        expect(type).toBe('live');
+        // Applied inside the store's queue to whatever is current THEN.
+        expect(edit([7])).toEqual([7, 8]);
+        expect(edit([7, 8])).toEqual([7, 8]);
 
         await service.setLocked(
             { ...target, item: { id: 1, xtream_id: 7 } },
             false
         );
-        expect(parentalLock.setXtreamLocks).toHaveBeenLastCalledWith(
-            'p',
-            'live',
-            []
-        );
+        const unlock = parentalLock.setXtreamLocks.mock
+            .calls[1][2] as unknown as (current: number[]) => number[];
+        expect(unlock([7, 8])).toEqual([8]);
     });
 
     it('toggles a Stalker genre and never the All pseudo-category', async () => {
@@ -91,10 +94,9 @@ describe('WorkspaceCategoryLockActionService', () => {
             service.isLocked({ ...target, item: { category_id: '9' } })
         ).toBe(true);
         await expect(service.setLocked(target, true)).resolves.toBe(true);
-        expect(parentalLock.setStalkerLocks).toHaveBeenCalledWith('p', 'itv', [
-            '9',
-            '5',
-        ]);
+        const edit = parentalLock.setStalkerLocks.mock
+            .calls[0][2] as unknown as (current: string[]) => string[];
+        expect(edit(['9'])).toEqual(['9', '5']);
         await expect(
             service.setLocked({ ...target, item: { category_id: '*' } }, true)
         ).resolves.toBe(false);

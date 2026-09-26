@@ -89,16 +89,15 @@ export class WorkspaceCategoryLockActionService {
             if (!type || id === null) {
                 return Promise.resolve(false);
             }
-            const current = this.parentalLock.lockedXtreamIds(
-                target.playlistId,
-                type
-            );
+            // An edit, not a list: it is applied inside the lock store's
+            // write queue, so back-to-back toggles do not share a snapshot.
             return this.parentalLock.setXtreamLocks(
                 target.playlistId,
                 type,
-                locked
-                    ? [...current, id]
-                    : current.filter((entry) => entry !== id)
+                (current) =>
+                    locked
+                        ? [...new Set([...current, id])]
+                        : current.filter((entry) => entry !== id)
             );
         }
         const type = toParentalLockStalkerCategoryType(target.section);
@@ -106,14 +105,13 @@ export class WorkspaceCategoryLockActionService {
         if (!type || id === null) {
             return Promise.resolve(false);
         }
-        const current = this.parentalLock.lockedStalkerIds(
-            target.playlistId,
-            type
-        );
         return this.parentalLock.setStalkerLocks(
             target.playlistId,
             type,
-            locked ? [...current, id] : current.filter((entry) => entry !== id)
+            (current) =>
+                locked
+                    ? [...new Set([...current, id])]
+                    : current.filter((entry) => entry !== id)
         );
     }
 
