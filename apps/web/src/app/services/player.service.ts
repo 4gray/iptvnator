@@ -88,11 +88,22 @@ export class PlayerService {
      * both on the initial path. Playback does not wait for the dialog.
      */
     private showExternalPlayerInfoDialog(): void {
-        void import('./external-player-info-dialog.lazy').then(
-            ({ ExternalPlayerInfoDialogComponent }) =>
+        this.loadExternalPlayerInfoDialog()
+            .then(({ ExternalPlayerInfoDialogComponent }) =>
                 this.dialog.open(ExternalPlayerInfoDialogComponent)
-        );
+            )
+            .catch((error: unknown) => {
+                // Informational only: playback is already starting.
+                console.error(
+                    'Could not load the external player info dialog:',
+                    error
+                );
+            });
     }
+
+    /** The dynamic import; a field so specs can substitute it. */
+    loadExternalPlayerInfoDialog = () =>
+        import('./external-player-info-dialog.lazy');
 
     async openExternalPlayback(
         playback: ResolvedPortalPlayback,
