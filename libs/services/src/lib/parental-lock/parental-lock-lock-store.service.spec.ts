@@ -108,6 +108,36 @@ describe('ParentalLockLockStore', () => {
         );
     });
 
+    it('re-stamps every touched type from the restored store after a partial multi-type failure', async () => {
+        await store.load();
+        await store.ensureReadable();
+        setCategoryLocks.mockClear();
+        // live commits, movies fails: the index now carries the NEW live
+        // locks while the store is rolled back to the old ones.
+        setCategoryLocks
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(true);
+
+        await expect(
+            store.replacePlaylistLocks('pl-1', {
+                xtream: [{ categoryType: 'movies', xtreamId: 3 }],
+                stalker: [],
+                m3u: [],
+            })
+        ).resolves.toBe(false);
+
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
+        // Rollback re-stamps all three types from the restored store.
+        expect(setCategoryLocks.mock.calls.slice(3)).toEqual([
+            ['pl-1', 'live', [7]],
+            ['pl-1', 'movies', []],
+            ['pl-1', 'series', []],
+        ]);
+        expect(store.readable()).toBe(true);
+    });
+
     it('re-stamps on the next access when even the rollback write failed', async () => {
         await store.load();
         await store.ensureReadable();

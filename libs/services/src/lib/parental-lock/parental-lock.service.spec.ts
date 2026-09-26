@@ -226,6 +226,20 @@ describe('ParentalLockService', () => {
         expect(updateBridgeSettings).not.toHaveBeenCalled();
     });
 
+    it('rolls the switch back when the Electron mirror cannot be written', async () => {
+        prompt.requestPin.mockResolvedValue('1234');
+        updateBridgeSettings.mockRejectedValueOnce(new Error('ipc'));
+        const service = await createService();
+
+        await expect(service.setupPin()).resolves.toBe(false);
+
+        expect(service.enabled()).toBe(false);
+        expect(service.unlocked()).toBe(false);
+        expect(updateSettings).toHaveBeenLastCalledWith({
+            parentalLockEnabled: false,
+        });
+    });
+
     it('starts locked with the feature on and unlocks through the prompt', async () => {
         storage.pinHash = await hashParentalLockPin('1234');
         parentalLockEnabled.set(true);

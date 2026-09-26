@@ -267,7 +267,14 @@ export class ParentalLockService {
                 .catch(() => undefined);
             return false;
         }
-        mirrorParentalLockEnabledSetting(enabled);
+        // The mirror is what a reloaded renderer and a restarted worker
+        // start from; a switch persisted on one side only is undone.
+        if (!(await mirrorParentalLockEnabledSetting(enabled))) {
+            await this.settingsStore
+                .updateSettings({ parentalLockEnabled: !enabled })
+                .catch(() => undefined);
+            return false;
+        }
         return true;
     }
 

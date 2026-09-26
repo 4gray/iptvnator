@@ -106,8 +106,10 @@ the strength of default settings. The lock store itself fails closed the
 same way: `ParentalLockStorageService.readLocks()` reports a failed read as
 `null` (distinct from an absent store, `{}`; Electron reads through
 `DatabaseService.readAppState`, which keeps a rejected IPC apart from a
-missing key, and a stored payload that does not parse or is not an object
-is a failed read too — corruption never becomes an empty store), and while the lock is active with the store unreadable
+missing key, and a stored payload that does not parse or does not have the
+shape `writeLocks` produces — `isWellFormedParentalLockStore`, down to the
+nested entries — is a failed read too — corruption never becomes an empty
+store), and while the lock is active with the store unreadable
 `ParentalLockService.withholdsEverything` is true — every `is*Locked`
 predicate answers true and the set-based filters (PWA Xtream, Stalker
 content and search, the M3U channel list) receive
@@ -122,9 +124,11 @@ The window before the initial read settles is treated the same way
 (`ParentalLockLockStore.readable` is false until then): settings can report
 the feature as on before the locks are known. The feature switch itself is
 persisted through one guarded path (`persistEnabled`): `updateSettings`
-patches memory before it writes, so a failed write is undone in memory, the
-Electron mirror is left untouched and `setupPin`/`disable` report false —
-the toggle never shows a state the next launch will not have.
+patches memory before it writes, so a failed write is undone in memory and
+`setupPin`/`disable` report false; the Electron mirror write is awaited
+next, and a mirror that cannot be written undoes the settings write the
+same way — the toggle never shows a state the next launch will not have,
+on either side.
 
 ### In-memory catalogs
 
@@ -249,9 +253,11 @@ the toggle never shows a state the next launch will not have.
   re-locks one playlist/type inside ONE transaction, so a failed restamp
   keeps the previous index instead of leaving every category unlocked. The
   store commits BEFORE that re-stamp, so a failed re-stamp rolls the store
-  back to what the index reflects (a category must not be recorded and
-  shown as locked while Electron reads, which filter by the index alone,
-  still serve it); if the rollback write fails too, the playlist is
+  back to the previous locks AND re-stamps every touched type from them (a
+  backup restore stamps three types, and the ones before the failing type
+  already carry the new locks; a category must not be recorded and shown
+  as locked while Electron reads, which filter by the index alone, still
+  serve it); if the rollback write or its re-stamp fails too, the playlist is
   re-stamped on the next store access, and every launch re-derives the
   index from the store for each playlist that has locks — awaited inside
   the store's `load()`, so `readable` (and with it every catalog read the

@@ -1,5 +1,6 @@
 import {
     isParentalLockPlaylistLocksEmpty,
+    isWellFormedParentalLockStore,
     lockedStalkerCategoryIds,
     lockedXtreamCategoryIds,
     normalizeParentalLockPlaylistLocks,
@@ -107,5 +108,42 @@ describe('parental-lock.util', () => {
             expect(toParentalLockStalkerCategoryType('favorites')).toBeNull();
             expect(toParentalLockStalkerCategoryType(undefined)).toBeNull();
         });
+    });
+});
+
+describe('isWellFormedParentalLockStore', () => {
+    it('accepts what writeLocks produces, lists omitted or empty', () => {
+        expect(isWellFormedParentalLockStore({})).toBe(true);
+        expect(
+            isWellFormedParentalLockStore({
+                p: {
+                    xtream: [{ categoryType: 'live', xtreamId: 7 }],
+                    stalker: [{ categoryType: 'itv', categoryId: '9' }],
+                    m3u: ['Adult'],
+                },
+                q: { m3u: [] },
+            })
+        ).toBe(true);
+    });
+
+    it.each([
+        ['a non-object root', []],
+        ['a non-object playlist entry', { p: 'corrupt' }],
+        ['a non-list lock field', { p: { xtream: 'corrupt' } }],
+        ['a non-string group title', { p: { m3u: [1] } }],
+        [
+            'an unknown category type',
+            { p: { xtream: [{ categoryType: 'x', xtreamId: 1 }] } },
+        ],
+        [
+            'a non-numeric xtream id',
+            { p: { xtream: [{ categoryType: 'live', xtreamId: 'nope' }] } },
+        ],
+        [
+            'the Stalker "all" pseudo id',
+            { p: { stalker: [{ categoryType: 'itv', categoryId: '*' }] } },
+        ],
+    ])('rejects %s', (_, value) => {
+        expect(isWellFormedParentalLockStore(value)).toBe(false);
     });
 });

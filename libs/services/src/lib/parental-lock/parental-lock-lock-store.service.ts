@@ -189,7 +189,7 @@ export class ParentalLockLockStore {
         if (await this.stampXtreamLocks(playlistId, [categoryType])) {
             return true;
         }
-        await this.rollBack(playlistId, previous);
+        await this.rollBack(playlistId, previous, [categoryType]);
         return false;
     }
 
@@ -230,7 +230,7 @@ export class ParentalLockLockStore {
         if (await this.stampXtreamLocks(playlistId, XTREAM_CATEGORY_TYPES)) {
             return true;
         }
-        await this.rollBack(playlistId, previous);
+        await this.rollBack(playlistId, previous, XTREAM_CATEGORY_TYPES);
         return false;
     }
 
@@ -238,15 +238,23 @@ export class ParentalLockLockStore {
      * The store commits before the SQLite index is re-stamped; a failed
      * re-stamp would otherwise leave a category recorded (and shown) as
      * locked while Electron reads, which filter by the index alone, still
-     * serve it. The store goes back to what the index reflects; if even
-     * that write fails, the playlist is re-stamped on the next access.
+     * serve it. The store goes back to the previous locks and the touched
+     * types are re-stamped from it — a multi-type re-stamp may have
+     * committed some types before the failing one. If either step fails,
+     * the playlist is marked stale, which keeps the session fail-closed and
+     * re-stamps it on the next access.
      */
     private async rollBack(
         playlistId: string,
-        previous: ParentalLockPlaylistLocks
+        previous: ParentalLockPlaylistLocks,
+        categoryTypes: readonly ParentalLockXtreamCategoryType[]
     ): Promise<void> {
-        if (!(await this.persistPlaylistLocks(playlistId, previous))) {
-            console.error('Failed to roll back the parental lock store.');
+        const restored = await this.persistPlaylistLocks(playlistId, previous);
+        const restamped =
+            restored &&
+            (await this.stampXtreamLocks(playlistId, categoryTypes));
+        if (!restored || !restamped) {
+            console.error('Failed to roll back the parental lock index.');
             this.markIndexStale(playlistId);
             this.revisionState.update((value) => value + 1);
         }

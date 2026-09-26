@@ -152,6 +152,57 @@ export function normalizeParentalLockStalkerCategories(
     return result;
 }
 
+function isWellFormedList(
+    value: unknown,
+    isWellFormedEntry: (entry: unknown) => boolean
+): boolean {
+    return (
+        value === undefined ||
+        (Array.isArray(value) && value.every(isWellFormedEntry))
+    );
+}
+
+/**
+ * Whether a persisted store has the shape `writeLocks` produces: every
+ * playlist entry an object whose optional `xtream`/`stalker`/`m3u` lists
+ * hold only entries the normalizers accept. The normalizers DROP what they
+ * do not understand, which is right for user-supplied backups but turns a
+ * corrupted persisted store into "nothing is locked"; a store that fails
+ * this check is treated as unreadable instead.
+ */
+export function isWellFormedParentalLockStore(value: unknown): boolean {
+    if (!isRecord(value)) {
+        return false;
+    }
+    return Object.values(value).every(
+        (locks) =>
+            isRecord(locks) &&
+            isWellFormedList(
+                locks['xtream'],
+                (entry) =>
+                    isRecord(entry) &&
+                    PARENTAL_LOCK_XTREAM_CATEGORY_TYPES.includes(
+                        entry['categoryType'] as ParentalLockXtreamCategoryType
+                    ) &&
+                    normalizeNumericId(entry['xtreamId']) !== null
+            ) &&
+            isWellFormedList(
+                locks['stalker'],
+                (entry) =>
+                    isRecord(entry) &&
+                    PARENTAL_LOCK_STALKER_CATEGORY_TYPES.includes(
+                        entry['categoryType'] as ParentalLockStalkerCategoryType
+                    ) &&
+                    ((typeof entry['categoryId'] === 'string' &&
+                        entry['categoryId'].trim() !== '' &&
+                        entry['categoryId'].trim() !== '*') ||
+                        (typeof entry['categoryId'] === 'number' &&
+                            Number.isFinite(entry['categoryId'])))
+            ) &&
+            isWellFormedList(locks['m3u'], (entry) => typeof entry === 'string')
+    );
+}
+
 export function normalizeParentalLockGroupTitles(value: unknown): string[] {
     const seen = new Set<string>();
     for (const item of toArray(value)) {

@@ -46,6 +46,12 @@ describe('ParentalLockStorageService.readLocks', () => {
         ['truncated JSON', '{"p":{"m3u":["Adu'],
         ['an array payload', '[]'],
         ['a scalar payload', '"locks"'],
+        ['a corrupt nested list', '{"p":{"xtream":"corrupt"}}'],
+        ['a corrupt nested entry', '{"p":{"m3u":[1]}}'],
+        [
+            'an entry the normalizer would drop',
+            '{"p":{"xtream":[{"categoryType":"live","xtreamId":"nope"}]}}',
+        ],
     ])('treats %s as a failed read, not an empty store', async (_, raw) => {
         localStorage.setItem(PARENTAL_LOCK_STORE_KEY, raw);
         await expect(service.readLocks()).resolves.toBeNull();

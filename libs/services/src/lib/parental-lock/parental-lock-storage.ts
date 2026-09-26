@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    isWellFormedParentalLockStore,
     normalizeParentalLockStore,
     PARENTAL_LOCK_PIN_KEY,
     PARENTAL_LOCK_STORE_KEY,
@@ -55,7 +56,7 @@ export class ParentalLockStorageService {
         } catch {
             return null;
         }
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        if (!isWellFormedParentalLockStore(parsed)) {
             return null;
         }
         return normalizeParentalLockStore(parsed);

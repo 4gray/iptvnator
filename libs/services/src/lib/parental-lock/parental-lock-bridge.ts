@@ -16,14 +16,23 @@ export function syncParentalLockStateToMainProcess(active: boolean): void {
 
 /**
  * Mirrors the feature switch into electron-conf so a reloaded renderer and a
- * restarted worker start locked while the feature is on.
+ * restarted worker start locked while the feature is on. Resolves false
+ * when the main process could not persist it — the caller must then not
+ * report the switch as changed, or a reload would start from the old
+ * mirror. True in the PWA, which has no mirror.
  */
-export function mirrorParentalLockEnabledSetting(enabled: boolean): void {
+export async function mirrorParentalLockEnabledSetting(
+    enabled: boolean
+): Promise<boolean> {
     const bridge = window.electron;
     if (typeof bridge?.updateSettings !== 'function') {
-        return;
+        return true;
     }
-    void bridge
-        .updateSettings({ parentalLockEnabled: enabled })
-        .catch(() => undefined);
+    try {
+        await bridge.updateSettings({ parentalLockEnabled: enabled });
+        return true;
+    } catch (error) {
+        console.error('Failed to mirror the parental lock switch.', error);
+        return false;
+    }
 }
