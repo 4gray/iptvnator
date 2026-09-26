@@ -1,5 +1,9 @@
 import { Signal, computed, signal } from '@angular/core';
 import { formatTime } from './controls-format.utils';
+import {
+    findTimelineSegment,
+    type TimelineSegmentView,
+} from './controls-timeline-segments';
 
 /**
  * Projects a pointer's horizontal position over the timeline bar onto a
@@ -31,6 +35,8 @@ export interface ControlsTimelineHoverDeps {
     duration: Signal<number>;
     /** Whether the timeline accepts pointer interaction at all. */
     interactive: Signal<boolean>;
+    /** Drawn segments, for the title in the label; none means time only. */
+    segments?: Signal<readonly TimelineSegmentView[]>;
 }
 
 /**
@@ -52,9 +58,25 @@ export class ControlsTimelineHover {
         return Math.min(100, Math.max(0, (seconds / duration) * 100));
     });
 
+    /** The titled segment under the pointer, if any. */
+    readonly segmentTitle = computed(() => {
+        const seconds = this.seconds();
+        const segments = this.deps.segments?.();
+        if (seconds === null || !segments) {
+            return null;
+        }
+        return findTimelineSegment(segments, seconds)?.title ?? null;
+    });
+
+    /** `Chapter 2 · 12:40` over a titled segment, else the time alone. */
     readonly label = computed(() => {
         const seconds = this.seconds();
-        return seconds === null ? null : formatTime(seconds);
+        if (seconds === null) {
+            return null;
+        }
+        const time = formatTime(seconds);
+        const title = this.segmentTitle();
+        return title ? `${title} \u00b7 ${time}` : time;
     });
 
     /** Bound to `pointermove` on the bar element itself (`currentTarget`). */

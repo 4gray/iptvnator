@@ -336,6 +336,24 @@ app's `--app-selection-color` is a different blue that would fight the video.
   Material's `--mat-icon-button-*` tokens; their hover is a flat
   `rgba(255,255,255,.1)` layer.
 
+### Timeline segments
+
+The track is drawn as a row of segments, one flex item per segment with
+`flex-grow` equal to its share of the duration and its own accent fill, so
+a film's chapters or a catch-up recording's programmes read directly off
+the bar. The optional `timelineSegments` input
+(`PlayerTimelineSegment { startSeconds, endSeconds, title }`) supplies
+them; `normalizeTimelineSegments` (`controls-timeline-segments.ts`) clamps
+to the duration, orders, drops empty and reversed entries, cuts overlaps at
+the previous end and fills every gap with an untitled segment so the row
+always covers `[0, duration]`. Without segments — every host today — the
+row is one untitled segment, which is the plain bar. `ControlsTimeline`
+owns the normalized list and the per-segment fill for the current scrub or
+playback value; the hover label becomes `Chapter 2 · 12:40` over a titled
+segment. Producers (EPG programmes for catch-up and timeshift playback,
+mpv's chapter list) are separate follow-ups; the rendering, model and rules
+are in place for them.
+
 ### Settings panel
 
 Every track, quality, speed and aspect choice lives behind one **`tune`**
@@ -1495,6 +1513,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-format.utils.ts
 ├── controls-layout.ts
 ├── controls-timeline-hover.ts
+├── controls-timeline-segments.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
 ├── player-settings-panel.component.ts

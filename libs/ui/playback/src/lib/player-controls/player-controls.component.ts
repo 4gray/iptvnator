@@ -35,6 +35,7 @@ import { formatRemainingTime, formatTime } from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
+    PlayerTimelineSegment,
 } from './player-controls.model';
 import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
 
@@ -72,6 +73,10 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly showControls = input(true);
     readonly shortcutsEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** Chapters / programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly menus = new ControlsMenuState();
@@ -142,7 +147,7 @@ export class PlayerControlsComponent implements OnDestroy {
         reveal: (options) => this.reveal(options),
     });
     private readonly controllerVolume = computed(() => this.state().volume);
-    private readonly timeline = new ControlsTimeline(this.state);
+    readonly timeline = new ControlsTimeline(this.state, this.timelineSegments);
     readonly scrubPosition = this.timeline.scrubPosition;
     readonly timelineDuration = this.timeline.duration;
     readonly timelineValue = this.timeline.value;
@@ -152,6 +157,7 @@ export class PlayerControlsComponent implements OnDestroy {
         interactive: computed(
             () => this.capabilities().seek && this.state().canSeek
         ),
+        segments: this.timeline.segments,
     });
     /** `−7:03` while a finite duration is known; the dock prefers it to the total. */
     readonly remainingTimeText = computed(() =>

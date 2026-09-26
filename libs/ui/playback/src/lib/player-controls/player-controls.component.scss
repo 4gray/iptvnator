@@ -366,9 +366,13 @@
     transform: translateY(-50%);
 }
 
+// One flex item per segment; `flex-grow` carries the segment's share of the
+// duration, so widths are proportional to time. A tiny segment still gets a
+// visible sliver rather than vanishing between the 3px gaps.
 .player-controls__timeline-segment {
     position: relative;
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    min-width: 4px;
     overflow: hidden;
     border-radius: 3px;
     background: var(--pc-track);

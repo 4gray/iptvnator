@@ -296,6 +296,84 @@ describe('PlayerControlsComponent dock', () => {
             ).toBeNull();
         });
 
+        it('draws host segments proportionally with per-segment fills', () => {
+            setCapabilities({ seek: true });
+            setState({
+                canSeek: true,
+                durationSeconds: 400,
+                positionSeconds: 150,
+            });
+            fixture.componentRef.setInput('timelineSegments', [
+                { startSeconds: 100, endSeconds: 300, title: 'Chapter 2' },
+                { startSeconds: 0, endSeconds: 100, title: 'Chapter 1' },
+            ]);
+            fixture.detectChanges();
+
+            const segments = Array.from(
+                fixture.nativeElement.querySelectorAll(
+                    '.player-controls__timeline-segment'
+                ) as NodeListOf<HTMLElement>
+            );
+            expect(
+                segments.map((s) => s.dataset['segmentTitle'] ?? null)
+            ).toEqual(['Chapter 1', 'Chapter 2', null]);
+            expect(segments.map((s) => s.style.flexGrow)).toEqual([
+                '0.25',
+                '0.5',
+                '0.25',
+            ]);
+            expect(
+                segments.map(
+                    (s) =>
+                        (
+                            s.querySelector(
+                                '.player-controls__timeline-fill'
+                            ) as HTMLElement
+                        ).style.width
+                )
+            ).toEqual(['100%', '25%', '0%']);
+            // The knob still reads the overall progress.
+            expect(query('.player-controls__timeline-knob')?.style.left).toBe(
+                '37.5%'
+            );
+        });
+
+        it('names the hovered segment in the timeline label', () => {
+            setCapabilities({ seek: true });
+            setState({
+                canSeek: true,
+                durationSeconds: 400,
+                positionSeconds: 0,
+            });
+            fixture.componentRef.setInput('timelineSegments', [
+                { startSeconds: 0, endSeconds: 200, title: 'Intro' },
+            ]);
+            fixture.detectChanges();
+
+            const bar = query('.player-controls__timeline-bar') as HTMLElement;
+            bar.getBoundingClientRect = () =>
+                ({ left: 0, width: 400 }) as DOMRect;
+            bar.dispatchEvent(
+                new MouseEvent('pointermove', { clientX: 100, bubbles: true })
+            );
+            fixture.detectChanges();
+            expect(
+                query(
+                    '[data-test-id="player-controls-timeline-label"]'
+                )?.textContent?.trim()
+            ).toBe('Intro \u00b7 1:40');
+
+            bar.dispatchEvent(
+                new MouseEvent('pointermove', { clientX: 300, bubbles: true })
+            );
+            fixture.detectChanges();
+            expect(
+                query(
+                    '[data-test-id="player-controls-timeline-label"]'
+                )?.textContent?.trim()
+            ).toBe('5:00');
+        });
+
         it('does not hover-label a non-seekable timeline', () => {
             setCapabilities({ seek: true });
             setState({ canSeek: false, durationSeconds: 400 });

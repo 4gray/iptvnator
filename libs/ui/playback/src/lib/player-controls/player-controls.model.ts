@@ -3,12 +3,7 @@ import type { PlayerSubtitleStyle } from '@iptvnator/shared/interfaces';
 import type { PlayerStreamStatsSource } from './player-stream-stats.model';
 
 export type PlayerStatus =
-    | 'idle'
-    | 'loading'
-    | 'playing'
-    | 'paused'
-    | 'ended'
-    | 'error';
+    'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 
 /** Which controls an engine supports. A control is only rendered when its flag is true. */
 export interface PlayerControlsCapabilities {
@@ -60,6 +55,18 @@ export interface PlayerMediaTitle {
     primary: string;
     /** Optional second line, e.g. the "S01E03" label for series episodes. */
     secondary?: string | null;
+}
+
+/**
+ * One stretch of the timeline the track draws as its own segment — a chapter
+ * of a film, a programme of a catch-up recording. Hosts pass display-ready
+ * titles; the controls clamp, order and gap-fill the list themselves.
+ */
+export interface PlayerTimelineSegment {
+    startSeconds: number;
+    endSeconds: number;
+    /** Shown in the hover label as `Title · 12:40`; null for a plain gap. */
+    title: string | null;
 }
 
 export interface PlayerPreset<T> {

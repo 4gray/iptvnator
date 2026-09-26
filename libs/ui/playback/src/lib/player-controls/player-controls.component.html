@@ -154,12 +154,23 @@
                         class="player-controls__timeline-track"
                         aria-hidden="true"
                     >
-                        <div class="player-controls__timeline-segment">
+                        @for (segment of timeline.segments(); track $index) {
                             <div
-                                class="player-controls__timeline-fill"
-                                [style.width.%]="timelineProgress()"
-                            ></div>
-                        </div>
+                                class="player-controls__timeline-segment"
+                                [class.player-controls__timeline-segment--titled]="
+                                    segment.title !== null
+                                "
+                                [style.flex-grow]="segment.share"
+                                [attr.data-segment-title]="segment.title"
+                            >
+                                <div
+                                    class="player-controls__timeline-fill"
+                                    [style.width.%]="
+                                        timeline.fillPercent(segment)
+                                    "
+                                ></div>
+                            </div>
+                        }
                     </div>
                     @if (state().canSeek) {
                         <div
