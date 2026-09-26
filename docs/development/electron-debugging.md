@@ -32,6 +32,7 @@ IPTVNATOR_TRACE_STARTUP=1 pnpm nx serve electron-backend
     - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
     - `IPTVNATOR_PERF_CAPTURE=1` enables development/test-only, redacted M3U and Xtream preload IPC request/completion markers plus count-only M3U acquire/parse/normalize, Xtream main network/JSON-transform/success-response-ready/cancel-dispatch, and renderer store phase capture; renderer wrappers emit only while the benchmark installs its Symbol hook, benchmark tooling sets the flag explicitly, and production launches must leave it unset
     - `IPTVNATOR_PERF_WORKER_PROFILING=1` enables development/test-only, request-scoped worker receive/work/response-post timestamps, thread CPU, event-loop utilization/delay, count-only playlist serialization/SQLite write/read/deserialization plus Xtream category/content/cache-clear/delete/in-source-search phase events, profiling-only worker cancel-receipt acknowledgements, valid-sample-counted isolate peak memory, and the database worker's idle-only one-shot post-GC heap probe; overlapping database requests are explicitly invalidated instead of misattributed, the performance benchmark sets the flag automatically, and production launches must leave it unset
+    - `IPTVNATOR_DISABLE_COMPILE_CACHE=1` disables the main-process V8 compile cache; `IPTVNATOR_COMPILE_CACHE_DIR=<dir>` relocates it. The startup trace reports the outcome as `compile-cache`
 
 - Settings, portal request/response, and trace payloads must use
   `@iptvnator/shared/logging` or the redacting portal logger before reaching
@@ -93,16 +94,27 @@ classifying a zero rendered-frame signal as an infrastructure flake.
 
 ## Main-process ownership
 
-The entry point is `apps/electron-backend/src/main.ts`. Before the window loads it
-registers only what the renderer can call before its first paint (window state,
-the close guard, playlist-open requests, request-header shims); everything else,
-including the database, portal, EPG, download, player, remote-control and update
-IPC, lives in `apps/electron-backend/src/app/startup/deferred-events.ts`, built as
-the `deferred-events.js` chunk and loaded inside the window's `did-start-loading`
+The process entry is `apps/electron-backend/src/main.entry.ts` (built to
+`dist/apps/electron-backend/main.js`): it enables the V8 compile cache under
+`userData/v8-compile-cache` and then requires the application bundle,
+`main.app.js`, built from `apps/electron-backend/src/main.ts`. Before the window
+loads, `main.ts` registers only what the renderer can call before its first paint
+(window state, the close guard, playlist-open requests, request-header shims);
+everything else, including the database, portal, EPG, download, player,
+remote-control and update IPC, lives in
+`apps/electron-backend/src/app/startup/deferred-events.ts`, built as the
+`deferred-events.js` chunk and loaded inside the window's `did-start-loading`
 listener. That import and its registrations finish within the same task, so no
 renderer `invoke` can find a missing handler (`app/startup/deferred-bootstrap.ts`
-holds the scheduler and its test). The startup trace reports the chunk as
-`deferred-events:start` and `deferred-events:done`. The preload is
+holds the scheduler and its test); the startup trace reports it as
+`deferred-events:start` and `deferred-events:done`. The cache is
+disposable; `IPTVNATOR_DISABLE_COMPILE_CACHE=1` turns it off and
+`IPTVNATOR_COMPILE_CACHE_DIR` relocates it (E2E runs keep it inside
+`IPTVNATOR_E2E_DATA_DIR`). nx-electron packages the backend through an
+allowlist, so `apps/electron-backend/project.json` lists `main.app.js` and
+`deferred-events.js` under the `files` option of the `package` and `make`
+targets, and `verify:package-layout` fails when any of the entry files is missing
+from `app.asar`. The preload is
 `apps/electron-backend/src/app/api/main.preload.ts`, with handlers under
 `apps/electron-backend/src/app/events/`. The window follows the saved startup mode
 (normal/maximized/fullscreen); `--fullscreen` overrides a single launch. Use

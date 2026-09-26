@@ -473,13 +473,15 @@ function verifyPackagedPackageMetadata(resourceDir, errors) {
 }
 
 /**
- * nx-electron packages the backend through an allowlist (main.js, preloads,
- * assets), so a main-process file that only the `files` option ships would
- * otherwise surface as an uncaught "Cannot find module" at launch. The
- * deferred-events chunk is loaded by main.js once the window starts loading.
+ * The main-process entry is split: `main.js` enables the V8 compile cache and
+ * requires `main.app.js`, the application bundle, which loads the
+ * `deferred-events.js` chunk once the window starts loading. nx-electron packages the
+ * backend through an allowlist, so a missing bundle only surfaces as an
+ * uncaught "Cannot find module" at launch; fail the layout check instead.
  */
 const REQUIRED_MAIN_PROCESS_ENTRIES = [
     '/electron-backend/main.js',
+    '/electron-backend/main.app.js',
     '/electron-backend/deferred-events.js',
     '/electron-backend/main.preload.js',
 ];
