@@ -38,7 +38,9 @@ error, never zero bytes. The value is raw (uncompressed) size, which is what the
 renderer parses. It is Angular's "Initial total" plus `index.html` and
 `assets/app-config.js` (about 4 KB together), so it sits slightly above the
 rounded figure the build prints; never copy that figure into a baseline, use
-the script's output.
+the script's output. The bundle embeds only the app version from
+`package.json` (a named import, which esbuild tree-shakes), not the whole
+file, so editing scripts or dependencies does not move the counter.
 
 ```bash
 pnpm nx build web                                # production configuration
