@@ -1,5 +1,7 @@
 export * from './lib/account-info/account-info.interface';
 export * from './lib/data-sources';
+export * from './lib/playlist-comparison/xtream-playlist-comparison';
+export * from './lib/playlist-comparison/xtream-playlist-comparison.service';
 export * from './lib/services';
 export * from './lib/stores';
 export * from './lib/with-favorites.feature';

@@ -507,6 +507,8 @@ export interface ElectronBridgeXtreamContent {
     added: string;
     poster_url: string;
     backdrop_url?: string | null;
+    tmdb_id?: number | null;
+    release_year?: number | null;
     epg_channel_id?: string | null;
     tv_archive?: number | null;
     tv_archive_duration?: number | null;

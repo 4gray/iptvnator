@@ -19,6 +19,10 @@ describe('app routes', () => {
         runtime: { supportsRecordings: boolean },
         router: { parseUrl: (url: string) => unknown }
     ) => unknown;
+    let resolveXtreamComparisonRoute: (
+        runtime: { supportsXtreamSqliteDataSource: boolean },
+        router: { parseUrl: (url: string) => unknown }
+    ) => unknown;
 
     beforeAll(async () => {
         jest.unstable_mockModule(
@@ -61,6 +65,7 @@ describe('app routes', () => {
             appRoutes.resolveElectronOnlyGlobalSearchRoute;
         resolveRecordingsCapabilityRoute =
             appRoutes.resolveRecordingsCapabilityRoute;
+        resolveXtreamComparisonRoute = appRoutes.resolveXtreamComparisonRoute;
     });
 
     afterEach(() => {
@@ -207,6 +212,16 @@ describe('app routes', () => {
                 { parseUrl }
             )
         ).toBe(true);
+    });
+
+    it('guards playlist comparison behind the Xtream SQLite capability', () => {
+        const route = workspaceChildren.find(
+            (candidate) => candidate.path === 'playlist-comparison'
+        );
+        const parseUrl = jest.fn().mockReturnValue({ url: '/workspace/sources' });
+        expect(route?.canActivate).toHaveLength(1);
+        expect(resolveXtreamComparisonRoute({ supportsXtreamSqliteDataSource: false }, { parseUrl })).toEqual({ url: '/workspace/sources' });
+        expect(resolveXtreamComparisonRoute({ supportsXtreamSqliteDataSource: true }, { parseUrl })).toBe(true);
     });
 
     it('uses a dynamic redirect for the default /workspace child route', async () => {

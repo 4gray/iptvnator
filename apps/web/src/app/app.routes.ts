@@ -33,6 +33,22 @@ const electronOnlyGlobalSearchGuard = () => {
     );
 };
 
+export function resolveXtreamComparisonRoute(
+    runtime: Pick<RuntimeCapabilitiesService, 'supportsXtreamSqliteDataSource'>,
+    router: Pick<Router, 'parseUrl'>
+) {
+    return runtime.supportsXtreamSqliteDataSource
+        ? true
+        : router.parseUrl('/workspace/sources');
+}
+
+const xtreamComparisonGuard = () => {
+    return resolveXtreamComparisonRoute(
+        inject(RuntimeCapabilitiesService),
+        inject(Router)
+    );
+};
+
 /**
  * The focused recording detail depends on `RecordingsService`, whose list
  * never becomes authoritative without the recordings capability — the PWA
@@ -93,6 +109,11 @@ export const routes: Routes = [
                     import('@iptvnator/workspace/shell/feature').then(
                         (c) => c.WorkspaceSourcesComponent
                     ),
+            },
+            {
+                path: 'playlist-comparison',
+                canActivate: [xtreamComparisonGuard],
+                loadComponent: () => import('@iptvnator/portal/xtream/feature').then((c) => c.PlaylistComparisonComponent),
             },
             {
                 path: 'playlists/:id',

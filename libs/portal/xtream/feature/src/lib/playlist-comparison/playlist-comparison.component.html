@@ -1,0 +1,134 @@
+<section class="comparison app-scrollbar">
+    <header>
+        <h2>{{ 'PLAYLIST_COMPARISON.TITLE' | translate }}</h2>
+        <p>{{ 'PLAYLIST_COMPARISON.LOCAL_ONLY' | translate }}</p>
+    </header>
+    <div class="comparison__selectors">
+        <label
+            >{{ 'PLAYLIST_COMPARISON.PLAYLIST_A' | translate
+            }}<select
+                [value]="playlistA()"
+                (change)="updateSelection('a', $any($event.target).value)"
+            >
+                <option value="">
+                    {{ 'PLAYLIST_COMPARISON.CHOOSE' | translate }}
+                </option>
+                @for (playlist of playlists(); track playlist._id) {
+                    <option [value]="playlist._id">{{ playlist.title }}</option>
+                }
+            </select></label
+        >
+        <label
+            >{{ 'PLAYLIST_COMPARISON.PLAYLIST_B' | translate
+            }}<select
+                [value]="playlistB()"
+                (change)="updateSelection('b', $any($event.target).value)"
+            >
+                <option value="">
+                    {{ 'PLAYLIST_COMPARISON.CHOOSE' | translate }}
+                </option>
+                @for (playlist of playlists(); track playlist._id) {
+                    <option
+                        [value]="playlist._id"
+                        [disabled]="playlist._id === playlistA()"
+                    >
+                        {{ playlist.title }}
+                    </option>
+                }
+            </select></label
+        >
+    </div>
+    @if (playlistA() && playlistA() === playlistB()) {
+        <p class="comparison__notice">
+            {{ 'PLAYLIST_COMPARISON.SAME_PLAYLIST' | translate }}
+        </p>
+    }
+    <nav class="comparison__types">
+        @for (item of types; track item.type) {
+            <button
+                mat-stroked-button
+                type="button"
+                [class.selected]="type() === item.type"
+                (click)="selectType(item.type)"
+            >
+                {{ item.label | translate }}
+            </button>
+        }
+    </nav>
+    @if (loading()) {
+        <p>{{ 'PLAYLIST_COMPARISON.LOADING' | translate }}</p>
+    }
+    @if (unavailable()) {
+        <p class="comparison__notice">
+            {{ 'PLAYLIST_COMPARISON.UNAVAILABLE' | translate }}
+        </p>
+    }
+    @if (failed()) {
+        <p class="comparison__notice">
+            {{ 'PLAYLIST_COMPARISON.ERROR' | translate }}
+        </p>
+    }
+    @if (result(); as comparison) {
+        <div class="comparison__result">
+            <div class="comparison__summary">
+                <span>{{
+                    'PLAYLIST_COMPARISON.TOTAL_A'
+                        | translate: { count: comparison.totalA }
+                }}</span
+                ><span>{{
+                    'PLAYLIST_COMPARISON.TOTAL_B'
+                        | translate: { count: comparison.totalB }
+                }}</span
+                ><span
+                    >{{ 'PLAYLIST_COMPARISON.COMMON' | translate }}:
+                    {{ comparison.common.length }}</span
+                ><span
+                    >{{ 'PLAYLIST_COMPARISON.ONLY_A' | translate }}:
+                    {{ comparison.onlyA.length }}</span
+                ><span
+                    >{{ 'PLAYLIST_COMPARISON.ONLY_B' | translate }}:
+                    {{ comparison.onlyB.length }}</span
+                ><span
+                    >{{ 'PLAYLIST_COMPARISON.AMBIGUOUS' | translate }}:
+                    {{ comparison.ambiguous.length }}</span
+                >
+            </div>
+            <nav class="comparison__filters">
+                @for (
+                    item of [
+                        { key: 'common', label: 'PLAYLIST_COMPARISON.COMMON' },
+                        { key: 'only-a', label: 'PLAYLIST_COMPARISON.ONLY_A' },
+                        { key: 'only-b', label: 'PLAYLIST_COMPARISON.ONLY_B' },
+                        {
+                            key: 'ambiguous',
+                            label: 'PLAYLIST_COMPARISON.AMBIGUOUS',
+                        },
+                    ];
+                    track item.key
+                ) {
+                    <button
+                        mat-button
+                        type="button"
+                        [class.selected]="bucket() === item.key"
+                        (click)="setBucket($any(item.key))"
+                    >
+                        {{ item.label | translate }}
+                    </button>
+                }
+            </nav>
+            <ul class="comparison__rows">
+                @for (
+                    row of selectedRows();
+                    track row.a[0]?.id ?? row.b[0]?.id
+                ) {
+                    <li>
+                        <span>{{ rowTitles(row, 'a') }}</span
+                        ><span>{{ rowTitles(row, 'b') }}</span>
+                    </li>
+                } @empty {
+                    <li>{{ 'PLAYLIST_COMPARISON.EMPTY' | translate }}</li>
+                }
+            </ul>
+        </div>
+    }
+</section>

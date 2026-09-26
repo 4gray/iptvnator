@@ -1841,6 +1841,27 @@
             "checking": "Checking…"
         }
     },
+    "PLAYLIST_COMPARISON": {
+        "TITLE": "Compare playlists",
+        "LOCAL_ONLY": "Uses only catalogues already imported on this device.",
+        "PLAYLIST_A": "Playlist A",
+        "PLAYLIST_B": "Playlist B",
+        "TOTAL_A": "Playlist A: {{count}}",
+        "TOTAL_B": "Playlist B: {{count}}",
+        "CHOOSE": "Choose a playlist",
+        "SAME_PLAYLIST": "Choose two different playlists.",
+        "MOVIES": "Movies",
+        "SERIES": "Series",
+        "LIVE": "Live TV",
+        "COMMON": "Common",
+        "ONLY_A": "Only A",
+        "ONLY_B": "Only B",
+        "AMBIGUOUS": "Ambiguous",
+        "LOADING": "Loading local catalogue…",
+        "UNAVAILABLE": "This catalogue has not been imported locally for one of the selected playlists. No network request was made.",
+        "ERROR": "The local catalogue could not be read.",
+        "EMPTY": "No items in this group."
+    },
     "SOURCE_CLEANUP": {
         "TITLE": "Clean up inactive sources…",
         "SCOPE": "All network sources in your library, regardless of page filters.",

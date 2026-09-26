@@ -29,7 +29,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { RecentPlaylistsComponent } from '@iptvnator/playlist/shared/ui';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -74,11 +74,25 @@ export class WorkspaceSourcesComponent {
         optional: true,
     });
     private readonly sourceList = viewChild(RecentPlaylistsComponent);
+    private readonly router = inject(Router);
     readonly canCleanSources = computed(
         () =>
             this.runtime.supportsSourceHealth &&
             this.playlists().some((p) => sourceHealthType(p))
     );
+    readonly canCompareXtream = computed(
+        () =>
+            this.runtime.supportsXtreamSqliteDataSource &&
+            this.playlists().filter(
+                (playlist) =>
+                    !!playlist.serverUrl &&
+                    !!playlist.username &&
+                    !!playlist.password
+            ).length >= 2
+    );
+    openPlaylistComparison(): void {
+        void this.router.navigate(['/workspace/playlist-comparison']);
+    }
     openCleanup(): void {
         const dialogs = this.injector.get(MatDialog);
         const refresh = this.injector.get(PlaylistRefreshActionService);
