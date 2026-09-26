@@ -568,12 +568,20 @@ export class DatabaseService {
     }
 
     async getAppState(key: string): Promise<string | null> {
+        return (await this.readAppState(key))?.value ?? null;
+    }
+
+    /**
+     * Like {@link getAppState}, but a failed read (no bridge, rejected IPC)
+     * comes back as `null` instead of looking like an absent key.
+     */
+    async readAppState(key: string): Promise<{ value: string | null } | null> {
         if (typeof window.electron?.dbGetAppState !== 'function') {
             return null;
         }
 
         try {
-            return await window.electron.dbGetAppState(key);
+            return { value: await window.electron.dbGetAppState(key) };
         } catch (error) {
             console.error('Error getting app state:', error);
             return null;

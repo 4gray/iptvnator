@@ -26,7 +26,7 @@ export class ParentalLockStorageService {
     }
 
     async readPinHash(): Promise<string | null> {
-        const value = await this.read(PARENTAL_LOCK_PIN_KEY);
+        const value = (await this.read(PARENTAL_LOCK_PIN_KEY))?.value;
         return value && value.trim() !== '' ? value : null;
     }
 
@@ -34,13 +34,21 @@ export class ParentalLockStorageService {
         return this.write(PARENTAL_LOCK_PIN_KEY, hash);
     }
 
-    async readLocks(): Promise<ParentalLockStore> {
-        const raw = await this.read(PARENTAL_LOCK_STORE_KEY);
-        if (!raw) {
+    /**
+     * The lock store, or `null` when it could not be READ — distinct from an
+     * absent store, which is `{}`. A failed read must not look like "nothing
+     * is locked": the service withholds everything until it can read again.
+     */
+    async readLocks(): Promise<ParentalLockStore | null> {
+        const result = await this.read(PARENTAL_LOCK_STORE_KEY);
+        if (result === null) {
+            return null;
+        }
+        if (!result.value) {
             return {};
         }
         try {
-            return normalizeParentalLockStore(JSON.parse(raw));
+            return normalizeParentalLockStore(JSON.parse(result.value));
         } catch {
             return {};
         }
@@ -53,12 +61,13 @@ export class ParentalLockStorageService {
         );
     }
 
-    private async read(key: string): Promise<string | null> {
+    /** `null` when the read itself failed; an absent key is `{ value: null }`. */
+    private async read(key: string): Promise<{ value: string | null } | null> {
         if (this.usesAppState) {
-            return this.databaseService.getAppState(key);
+            return this.databaseService.readAppState(key);
         }
         try {
-            return localStorage.getItem(key);
+            return { value: localStorage.getItem(key) };
         } catch {
             return null;
         }

@@ -6,6 +6,8 @@ import {
     NavigationEnd,
     Router,
 } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, firstValueFrom, of, Subject } from 'rxjs';
@@ -126,6 +128,11 @@ describe('ChannelListContainerComponent', () => {
         await TestBed.configureTestingModule({
             imports: [ChannelListContainerComponent],
             providers: [
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: { instant: (key: string) => key },
+                },
                 {
                     provide: EpgService,
                     useValue: epgService,
@@ -297,7 +304,9 @@ describe('ChannelListContainerComponent', () => {
         });
         epgService.getCurrentProgramsForChannels
             .mockReturnValueOnce(first.asObservable())
-            .mockReturnValueOnce(of(new Map([['guide-news', program('Fresh')]])));
+            .mockReturnValueOnce(
+                of(new Map([['guide-news', program('Fresh')]]))
+            );
 
         fixture.detectChanges();
         const channels = [

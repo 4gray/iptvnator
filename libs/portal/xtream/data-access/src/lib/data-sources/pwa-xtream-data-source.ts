@@ -1,5 +1,6 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import {
+    ALL_CATEGORIES_WITHHELD,
     foldSearchText,
     ContentMetadataPatch,
     Playlist,
@@ -361,9 +362,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private withheldCategoryIds(
         playlistId: string,
         type: CategoryType | StreamType
-    ): Set<string> {
+    ): ReadonlySet<string> {
         if (!this.parentalLock.active()) {
             return new Set();
+        }
+        if (this.parentalLock.withholdsEverything?.()) {
+            return ALL_CATEGORIES_WITHHELD;
         }
         const dbType =
             type === 'vod' || type === 'movie'

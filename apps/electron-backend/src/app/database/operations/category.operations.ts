@@ -250,14 +250,22 @@ export async function setCategoryLocks(
         ...new Set(lockedXtreamIds.filter((id) => Number.isInteger(id))),
     ];
 
-    await db.update(schema.categories).set({ locked: false }).where(scope);
+    // One transaction: a re-stamp that fails after the clear would otherwise
+    // leave every category of this playlist/type unlocked while the lock
+    // store still lists the intended locks. `.run()` (synchronous), not
+    // `.execute()`: see playback-position.operations.ts.
+    await db.transaction(() => {
+        db.update(schema.categories).set({ locked: false }).where(scope).run();
 
-    if (lockedIds.length > 0) {
-        await db
-            .update(schema.categories)
-            .set({ locked: true })
-            .where(and(scope, inArray(schema.categories.xtreamId, lockedIds)));
-    }
+        if (lockedIds.length > 0) {
+            db.update(schema.categories)
+                .set({ locked: true })
+                .where(
+                    and(scope, inArray(schema.categories.xtreamId, lockedIds))
+                )
+                .run();
+        }
+    });
 
     return { success: true };
 }

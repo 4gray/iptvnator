@@ -19,7 +19,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe } from '@ngx-translate/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
@@ -51,6 +52,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    ALL_CATEGORIES_WITHHELD,
     foldSearchText,
     Channel,
     EpgProgram,
@@ -119,6 +121,8 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly epgService = inject(EpgService);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly router = inject(Router);
@@ -342,6 +346,9 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         const playlistId = this.lockPlaylistId();
         if (!playlistId || !this.parentalLock.active()) {
             return new Set<string>();
+        }
+        if (this.parentalLock.withholdsEverything?.()) {
+            return ALL_CATEGORIES_WITHHELD;
         }
         return new Set(this.parentalLock.lockedGroupTitles(playlistId));
     });
@@ -585,12 +592,27 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         );
     }
 
-    onLockedGroupTitlesChanged(lockedGroupTitles: string[]): void {
+    async onLockedGroupTitlesChanged(
+        lockedGroupTitles: string[]
+    ): Promise<void> {
         const playlistId = this.lockPlaylistId();
         if (!playlistId) {
             return;
         }
-        void this.parentalLock.setM3uLocks(playlistId, lockedGroupTitles);
+        // The dialog has closed by now, so a failed write (storage full or
+        // unavailable, app-state IPC failure) must be reported here, or the
+        // user relocks believing the chosen groups are protected.
+        const saved = await this.parentalLock.setM3uLocks(
+            playlistId,
+            lockedGroupTitles
+        );
+        if (!saved) {
+            this.snackBar.open(
+                this.translate.instant('PARENTAL_LOCK.SAVE_FAILED'),
+                this.translate.instant('CLOSE'),
+                { duration: 5000 }
+            );
+        }
     }
 
     onHiddenGroupTitlesChanged(hiddenGroupTitles: string[]): void {

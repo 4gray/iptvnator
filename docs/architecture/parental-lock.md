@@ -102,7 +102,18 @@ then unknown rather than off — a stored PIN stands in for it (`enabled`
 follows `hasPin`, so the session starts locked and one PIN entry unlocks
 it), and without a PIN the renderer does not report at all, leaving the
 main process on its mirrored default instead of announcing "unlocked" on
-the strength of default settings.
+the strength of default settings. The lock store itself fails closed the
+same way: `ParentalLockStorageService.readLocks()` reports a failed read as
+`null` (distinct from an absent store, `{}`; Electron reads through
+`DatabaseService.readAppState`, which keeps a rejected IPC apart from a
+missing key), and while the lock is active with the store unreadable
+`ParentalLockService.withholdsEverything` is true — every `is*Locked`
+predicate answers true and the set-based filters (PWA Xtream, Stalker
+content and search, the M3U channel list) receive
+`ALL_CATEGORIES_WITHHELD`, so the whole catalog is withheld until the PIN
+is entered or the store reads again (`requestUnlock` and every lock write
+retry the read first, and a write is refused while it still fails, since it
+would be built on an empty in-memory store and wipe the persisted locks).
 
 ### In-memory catalogs
 
@@ -211,7 +222,12 @@ the strength of default settings.
   its candidates through the capability-selected data source
   (`IXtreamDataSource.getAllCategories`, which the PWA source answers from
   its session cache or the API), so PWA users can set locks too; the
-  hide/show checkboxes remain Electron-only.
+  hide/show checkboxes remain Electron-only. The M3U dialog hands its lock
+  list back to `ChannelListContainerComponent`, which awaits the write and
+  reports a failed save in a snackbar (the dialog has closed by then). On
+  Electron the `categories.locked` re-stamp (`setCategoryLocks`) clears and
+  re-locks one playlist/type inside ONE transaction, so a failed restamp
+  keeps the previous index instead of leaving every category unlocked.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 
@@ -240,7 +256,9 @@ predicate is `ParentalLockService.is*Locked`.
 - Contracts: `libs/shared/interfaces/src/lib/parental-lock.util.ts`,
   `parental-lock-pin.util.ts`, `Settings.parentalLock*`,
   `PARENTAL_LOCK_SET_STATE`.
-- Renderer: `libs/services/src/lib/parental-lock/`,
+- Renderer: `libs/services/src/lib/parental-lock/` (`ParentalLockService`
+  owns the session state and PIN flows; `ParentalLockLockStore` owns the
+  persisted lock set, its unreadable state and the SQLite re-stamp),
   `apps/web/src/app/services/parental-lock-prompt.service.ts`,
   `parental-lock-enforcement.service.ts`,
   `apps/web/src/app/settings/settings-parental-lock*`,

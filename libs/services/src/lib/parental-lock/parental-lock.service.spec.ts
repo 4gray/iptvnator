@@ -153,6 +153,36 @@ describe('ParentalLockService', () => {
         expect(setParentalLockState).not.toHaveBeenCalled();
     });
 
+    it('withholds every category while the lock store cannot be read', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+        storage.readLocks.mockResolvedValue(null);
+
+        const service = await createService();
+
+        expect(service.active()).toBe(true);
+        expect(service.withholdsEverything()).toBe(true);
+        expect(service.isXtreamCategoryLocked('p', 'live', 1)).toBe(true);
+        expect(service.isStalkerCategoryLocked('p', 'itv', '1')).toBe(true);
+        expect(service.isM3uGroupLocked('p', 'News')).toBe(true);
+        // Nothing is known about the persisted locks: a write built on the
+        // empty in-memory store would wipe them.
+        await expect(service.setM3uLocks('p', ['Adult'])).resolves.toBe(false);
+        expect(storage.writeLocks).not.toHaveBeenCalled();
+
+        // The store reads again: the real locks apply and writes resume.
+        storage.readLocks.mockResolvedValue({
+            p: { xtream: [], stalker: [], m3u: ['Adult'] },
+        });
+        await expect(service.setM3uLocks('p', ['Adult', 'XXX'])).resolves.toBe(
+            true
+        );
+        TestBed.flushEffects();
+        expect(service.withholdsEverything()).toBe(false);
+        expect(service.isM3uGroupLocked('p', 'News')).toBe(false);
+        expect(service.isM3uGroupLocked('p', 'XXX')).toBe(true);
+    });
+
     it('starts locked with the feature on and unlocks through the prompt', async () => {
         storage.pinHash = await hashParentalLockPin('1234');
         parentalLockEnabled.set(true);

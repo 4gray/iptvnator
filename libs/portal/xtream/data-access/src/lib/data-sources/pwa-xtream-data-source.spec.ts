@@ -20,6 +20,7 @@ describe('PwaXtreamDataSource', () => {
     let parentalLock: {
         active: jest.Mock<boolean, []>;
         lockedXtreamIds: jest.Mock<number[], [string, string]>;
+        withholdsEverything: jest.Mock<boolean, []>;
     };
 
     const credentials: XtreamCredentials = {
@@ -41,6 +42,7 @@ describe('PwaXtreamDataSource', () => {
         parentalLock = {
             active: jest.fn(() => false),
             lockedXtreamIds: jest.fn(() => []),
+            withholdsEverything: jest.fn(() => false),
         };
 
         TestBed.configureTestingModule({
@@ -94,6 +96,27 @@ describe('PwaXtreamDataSource', () => {
             ['movie']
         );
         expect(unlocked).toHaveLength(2);
+    });
+
+    it('withholds everything while the lock store cannot be read', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'Family film', category_id: '5' },
+        ]);
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.withholdsEverything = jest.fn(() => true);
+
+        const content = await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        );
+        const found = await dataSource.searchContent('playlist-1', 'family', [
+            'movie',
+        ]);
+
+        expect(content).toEqual([]);
+        expect(found).toEqual([]);
+        expect(parentalLock.lockedXtreamIds).not.toHaveBeenCalled();
     });
 
     it('reports remote loading phases for API fetches but stays silent on cache hits', async () => {

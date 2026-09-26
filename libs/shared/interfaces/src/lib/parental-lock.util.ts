@@ -48,6 +48,22 @@ export const PARENTAL_LOCK_XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCat
 export const PARENTAL_LOCK_STALKER_CATEGORY_TYPES: readonly ParentalLockStalkerCategoryType[] =
     ['itv', 'vod', 'series', 'radio'];
 
+/**
+ * A "withheld categories" set that withholds EVERY category. Used while the
+ * lock is active but the lock store could not be read: consumers keep their
+ * `size`/`has` checks and simply find nothing they may show.
+ */
+export const ALL_CATEGORIES_WITHHELD: ReadonlySet<string> = Object.freeze(
+    new (class extends Set<string> {
+        override has(): boolean {
+            return true;
+        }
+        override get size(): number {
+            return 1;
+        }
+    })()
+);
+
 export function createEmptyParentalLockPlaylistLocks(): ParentalLockPlaylistLocks {
     return { xtream: [], stalker: [], m3u: [] };
 }

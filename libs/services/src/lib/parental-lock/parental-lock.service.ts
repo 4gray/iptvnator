@@ -7,23 +7,16 @@ import {
     untracked,
 } from '@angular/core';
 import {
-    createEmptyParentalLockPlaylistLocks,
     hashParentalLockPin,
-    isParentalLockPlaylistLocksEmpty,
-    lockedStalkerCategoryIds,
-    lockedXtreamCategoryIds,
-    normalizeParentalLockPlaylistLocks,
     normalizeParentalLockRelockMinutes,
     ParentalLockPlaylistLocks,
     ParentalLockStalkerCategoryType,
-    ParentalLockStore,
     ParentalLockXtreamCategoryType,
     verifyParentalLockPin,
 } from '@iptvnator/shared/interfaces';
-import { DatabaseService } from '../database-electron.service';
-import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { SettingsStore } from '../settings-store.service';
 import { ParentalLockIdleTimer } from './parental-lock-idle-timer';
+import { ParentalLockLockStore } from './parental-lock-lock-store.service';
 import {
     PARENTAL_LOCK_PROMPT,
     ParentalLockPromptRequest,
@@ -33,17 +26,6 @@ import {
     syncParentalLockStateToMainProcess,
 } from './parental-lock-bridge';
 import { ParentalLockStorageService } from './parental-lock-storage';
-import {
-    withM3uLocks,
-    withStalkerLocks,
-    withXtreamLocks,
-} from './parental-lock-store.util';
-
-const XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCategoryType[] = [
-    'live',
-    'movies',
-    'series',
-];
 
 /**
  * Parental lock: hides locked categories everywhere until the PIN is
@@ -64,13 +46,11 @@ const XTREAM_CATEGORY_TYPES: readonly ParentalLockXtreamCategoryType[] = [
 export class ParentalLockService {
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(ParentalLockStorageService);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly databaseService = inject(DatabaseService);
+    private readonly locks = inject(ParentalLockLockStore);
     private readonly prompt = inject(PARENTAL_LOCK_PROMPT, { optional: true });
 
     private readonly unlockedState = signal(false);
     private readonly pinHash = signal<string | null>(null);
-    private readonly lockStore = signal<ParentalLockStore>({});
     private readonly versionState = signal(0);
     // The main process starts LOCKED whenever the feature is on (mirrored
     // setting). Reporting our state before settings have loaded would send a
@@ -109,8 +89,20 @@ export class ParentalLockService {
     readonly active = computed(() => this.enabled() && !this.unlockedState());
     /** A PIN exists; enabling is only possible once this is true. */
     readonly hasPin = computed(() => this.pinHash() !== null);
+    /**
+     * Locked, and the lock store could not be read: which categories are
+     * locked is unknown, so EVERY category is withheld — the renderer-side
+     * filters treat every id as locked — until the PIN is entered or the
+     * store reads again. Failing toward "nothing is locked" would expose the
+     * protected content precisely during a storage failure.
+     */
+    readonly withholdsEverything = computed(
+        () => this.active() && this.locks.unreadable()
+    );
     /** Bumps whenever `active` or the lock store changes; consumers re-query. */
-    readonly version = this.versionState.asReadonly();
+    readonly version = computed(
+        () => this.versionState() + this.locks.revision()
+    );
     readonly relockMinutes = computed(() =>
         normalizeParentalLockRelockMinutes(
             this.settingsStore.parentalLockRelockMinutes?.()
@@ -153,13 +145,12 @@ export class ParentalLockService {
     initialize(): Promise<void> {
         if (!this.initialization) {
             this.initialization = (async () => {
-                const [pinHash, locks] = await Promise.all([
+                const [pinHash] = await Promise.all([
                     this.storage.readPinHash(),
-                    this.storage.readLocks(),
+                    this.locks.load(),
                     this.settingsStore.loadSettings(),
                 ]);
                 this.pinHash.set(pinHash);
-                this.lockStore.set(locks);
                 this.versionState.update((value) => value + 1);
                 this.settingsReady.set(true);
             })().catch((error) => {
@@ -196,6 +187,9 @@ export class ParentalLockService {
         if (!this.active()) {
             return true;
         }
+        // A store that failed to read at startup may read now; do not send
+        // the user through the PIN for categories that are not locked.
+        await this.locks.ensureReadable();
         if (this.pendingUnlock) {
             return this.pendingUnlock;
         }
@@ -316,37 +310,28 @@ export class ParentalLockService {
         });
     }
 
-    // -- Lock store -------------------------------------------------------
+    // -- Lock store (ParentalLockLockStore; predicates add `active`) -------
 
     locksFor(playlistId: string): ParentalLockPlaylistLocks {
-        return (
-            this.lockStore()[playlistId] ??
-            createEmptyParentalLockPlaylistLocks()
-        );
+        return this.locks.locksFor(playlistId);
     }
 
     lockedXtreamIds(
         playlistId: string,
         categoryType: ParentalLockXtreamCategoryType
     ): number[] {
-        return lockedXtreamCategoryIds(
-            this.lockStore()[playlistId],
-            categoryType
-        );
+        return this.locks.lockedXtreamIds(playlistId, categoryType);
     }
 
     lockedStalkerIds(
         playlistId: string,
         categoryType: ParentalLockStalkerCategoryType
     ): string[] {
-        return lockedStalkerCategoryIds(
-            this.lockStore()[playlistId],
-            categoryType
-        );
+        return this.locks.lockedStalkerIds(playlistId, categoryType);
     }
 
     lockedGroupTitles(playlistId: string): string[] {
-        return this.lockStore()[playlistId]?.m3u ?? [];
+        return this.locks.lockedGroupTitles(playlistId);
     }
 
     /** Whether the category is locked AND currently withheld. */
@@ -357,7 +342,10 @@ export class ParentalLockService {
     ): boolean {
         return (
             this.active() &&
-            this.lockedXtreamIds(playlistId, categoryType).includes(xtreamId)
+            (this.locks.unreadable() ||
+                this.lockedXtreamIds(playlistId, categoryType).includes(
+                    xtreamId
+                ))
         );
     }
 
@@ -371,16 +359,18 @@ export class ParentalLockService {
         }
         return (
             this.active() &&
-            this.lockedStalkerIds(playlistId, categoryType).includes(
-                String(categoryId)
-            )
+            (this.locks.unreadable() ||
+                this.lockedStalkerIds(playlistId, categoryType).includes(
+                    String(categoryId)
+                ))
         );
     }
 
     isM3uGroupLocked(playlistId: string, groupTitle: string): boolean {
         return (
             this.active() &&
-            this.lockedGroupTitles(playlistId).includes(groupTitle)
+            (this.locks.unreadable() ||
+                this.lockedGroupTitles(playlistId).includes(groupTitle))
         );
     }
 
@@ -389,15 +379,8 @@ export class ParentalLockService {
         categoryType: ParentalLockXtreamCategoryType,
         xtreamIds: number[]
     ): Promise<boolean> {
-        const next = withXtreamLocks(
-            this.locksFor(playlistId),
-            categoryType,
-            xtreamIds
-        );
-        if (!(await this.persistPlaylistLocks(playlistId, next))) {
-            return false;
-        }
-        return this.stampXtreamLocks(playlistId, [categoryType]);
+        await this.initialize();
+        return this.locks.setXtreamLocks(playlistId, categoryType, xtreamIds);
     }
 
     async setStalkerLocks(
@@ -405,13 +388,11 @@ export class ParentalLockService {
         categoryType: ParentalLockStalkerCategoryType,
         categoryIds: string[]
     ): Promise<boolean> {
-        return this.persistPlaylistLocks(
+        await this.initialize();
+        return this.locks.setStalkerLocks(
             playlistId,
-            withStalkerLocks(
-                this.locksFor(playlistId),
-                categoryType,
-                categoryIds
-            )
+            categoryType,
+            categoryIds
         );
     }
 
@@ -419,10 +400,8 @@ export class ParentalLockService {
         playlistId: string,
         groupTitles: string[]
     ): Promise<boolean> {
-        return this.persistPlaylistLocks(
-            playlistId,
-            withM3uLocks(this.locksFor(playlistId), groupTitles)
-        );
+        await this.initialize();
+        return this.locks.setM3uLocks(playlistId, groupTitles);
     }
 
     /** Backup restore: replaces every lock of one playlist. */
@@ -430,53 +409,19 @@ export class ParentalLockService {
         playlistId: string,
         locks: ParentalLockPlaylistLocks
     ): Promise<boolean> {
-        if (!(await this.persistPlaylistLocks(playlistId, locks))) {
-            return false;
-        }
-        return this.stampXtreamLocks(playlistId, XTREAM_CATEGORY_TYPES);
+        await this.initialize();
+        return this.locks.replacePlaylistLocks(playlistId, locks);
     }
 
     /**
      * Re-stamps the Electron `categories.locked` index for a playlist from
      * the store, e.g. after a refresh recreated the rows.
      */
-    async stampXtreamLocks(
+    stampXtreamLocks(
         playlistId: string,
-        categoryTypes: readonly ParentalLockXtreamCategoryType[] = XTREAM_CATEGORY_TYPES
+        categoryTypes?: readonly ParentalLockXtreamCategoryType[]
     ): Promise<boolean> {
-        if (!this.runtime.supportsXtreamSqliteDataSource) {
-            return true;
-        }
-        let success = true;
-        for (const categoryType of categoryTypes) {
-            success =
-                (await this.databaseService.setCategoryLocks(
-                    playlistId,
-                    categoryType,
-                    this.lockedXtreamIds(playlistId, categoryType)
-                )) && success;
-        }
-        return success;
-    }
-
-    private async persistPlaylistLocks(
-        playlistId: string,
-        locks: ParentalLockPlaylistLocks
-    ): Promise<boolean> {
-        await this.initialize();
-        const normalized = normalizeParentalLockPlaylistLocks(locks);
-        const next: ParentalLockStore = { ...this.lockStore() };
-        if (isParentalLockPlaylistLocksEmpty(normalized)) {
-            delete next[playlistId];
-        } else {
-            next[playlistId] = normalized;
-        }
-        if (!(await this.storage.writeLocks(next))) {
-            return false;
-        }
-        this.lockStore.set(next);
-        this.versionState.update((value) => value + 1);
-        return true;
+        return this.locks.stampXtreamLocks(playlistId, categoryTypes);
     }
 
     private async storePin(pin: string): Promise<boolean> {

@@ -15,6 +15,7 @@ import {
     resetHostConnectivityGuard,
 } from '@iptvnator/services';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { ALL_CATEGORIES_WITHHELD } from '@iptvnator/shared/interfaces';
 import {
     StalkerCategoryItem,
     StalkerContentItem,
@@ -47,10 +48,13 @@ function withheldStalkerCategoryIds(
     parentalLock: ParentalLockService,
     playlist: PlaylistMeta | undefined,
     contentType: StalkerContentType
-): Set<string> {
+): ReadonlySet<string> {
     const playlistId = playlist?._id;
     if (!playlistId || !parentalLock.active()) {
         return new Set();
+    }
+    if (parentalLock.withholdsEverything?.()) {
+        return ALL_CATEGORIES_WITHHELD;
     }
     return new Set(parentalLock.lockedStalkerIds(playlistId, contentType));
 }

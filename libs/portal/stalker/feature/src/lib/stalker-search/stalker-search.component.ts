@@ -30,6 +30,7 @@ import {
     resetHostConnectivityGuard,
 } from '@iptvnator/services';
 import {
+    ALL_CATEGORIES_WITHHELD,
     PlaybackPositionData,
     ResolvedPortalPlayback,
     StalkerPortalActions,
@@ -278,14 +279,17 @@ export class StalkerSearchComponent {
             // The dedicated search route has no category guard, so it filters
             // the portal's rows itself: a locked genre's title must not reach
             // the grid, its detail or playback through search.
-            const withheldCategoryIds = this.parentalLock.active()
-                ? new Set(
-                      this.parentalLock.lockedStalkerIds(
-                          playlist._id,
-                          contentType
-                      )
-                  )
-                : new Set<string>();
+            const withheldCategoryIds: ReadonlySet<string> =
+                !this.parentalLock.active()
+                    ? new Set<string>()
+                    : this.parentalLock.withholdsEverything?.()
+                      ? ALL_CATEGORIES_WITHHELD
+                      : new Set(
+                            this.parentalLock.lockedStalkerIds(
+                                playlist._id,
+                                contentType
+                            )
+                        );
             const lockVersionChanged =
                 this.searchResultsLockVersion !== null &&
                 this.searchResultsLockVersion !== params.parentalLockVersion;

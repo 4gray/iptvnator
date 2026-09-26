@@ -212,14 +212,28 @@ describe('category.operations parental lock', () => {
         ]);
     });
 
-    it('re-stamps one playlist/type: clears everything, then locks the listed ids', async () => {
-        const where = jest.fn().mockResolvedValue(undefined);
+    function lockIndexDb() {
+        const run = jest.fn();
+        const where = jest.fn().mockReturnValue({ run });
         const set = jest.fn().mockReturnValue({ where });
         const update = jest.fn().mockReturnValue({ set });
-        const db = { update } as unknown as AppDatabase;
+        const transaction = jest.fn((callback: () => void) => callback());
+        return {
+            db: { update, transaction } as unknown as AppDatabase,
+            run,
+            set,
+            transaction,
+            where,
+        };
+    }
+
+    it('re-stamps one playlist/type in one transaction: clears everything, then locks the listed ids', async () => {
+        const { db, run, set, transaction, where } = lockIndexDb();
 
         await setCategoryLocks(db, 'playlist-1', 'live', [5, 5, 7, 1.5]);
 
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(run).toHaveBeenCalledTimes(2);
         expect(set).toHaveBeenNthCalledWith(1, { locked: false });
         expect(set).toHaveBeenNthCalledWith(2, { locked: true });
         const lockScope = new SQLiteSyncDialect().sqlToQuery(
@@ -230,14 +244,31 @@ describe('category.operations parental lock', () => {
     });
 
     it('only clears when no id is locked', async () => {
-        const where = jest.fn().mockResolvedValue(undefined);
-        const set = jest.fn().mockReturnValue({ where });
-        const update = jest.fn().mockReturnValue({ set });
-        const db = { update } as unknown as AppDatabase;
+        const { db, set } = lockIndexDb();
 
         await setCategoryLocks(db, 'playlist-1', 'series', []);
 
         expect(set).toHaveBeenCalledTimes(1);
         expect(set).toHaveBeenCalledWith({ locked: false });
+    });
+});
+
+describe('setCategoryLocks atomicity', () => {
+    it('runs both statements inside the transaction callback', async () => {
+        const order: string[] = [];
+        const run = jest.fn(() => order.push('run'));
+        const where = jest.fn().mockReturnValue({ run });
+        const set = jest.fn().mockReturnValue({ where });
+        const update = jest.fn().mockReturnValue({ set });
+        const transaction = jest.fn((callback: () => void) => {
+            order.push('begin');
+            callback();
+            order.push('commit');
+        });
+        const db = { update, transaction } as unknown as AppDatabase;
+
+        await setCategoryLocks(db, 'playlist-1', 'live', [5]);
+
+        expect(order).toEqual(['begin', 'run', 'run', 'commit']);
     });
 });
