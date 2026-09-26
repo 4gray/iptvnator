@@ -1,0 +1,70 @@
+name: 🚀 Feature request
+description: Suggest a new feature or an improvement.
+title: '[Feature]: '
+labels: ['enhancement :magic_wand:']
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for the idea! If a similar request already exists, a 👍 and your use case there help more than a new issue.
+    - type: checkboxes
+      id: checks
+      attributes:
+          label: Before you submit
+          options:
+              - label: I searched the [existing issues](https://github.com/4gray/iptvnator/issues?q=is%3Aissue) and this hasn't been requested yet.
+                required: true
+    - type: textarea
+      id: problem
+      attributes:
+          label: What problem would this solve?
+          description: Describe what you're trying to do and what gets in the way today.
+      validations:
+          required: true
+    - type: textarea
+      id: solution
+      attributes:
+          label: What would you like to happen?
+          description: How should it work from your point of view? Mockups and examples from other apps are welcome.
+      validations:
+          required: true
+    - type: dropdown
+      id: area
+      attributes:
+          label: Area
+          multiple: true
+          options:
+              - Live TV and programme guide (EPG)
+              - Movies and series
+              - Playback and player controls
+              - Playlists and sources
+              - Favorites, history and downloads
+              - Search
+              - Settings, backup and sync
+              - Installation, updates and packaging
+              - Self-hosted web app (Docker)
+              - Other
+    - type: dropdown
+      id: source
+      attributes:
+          label: Source types
+          description: Which sources should this work with?
+          multiple: true
+          options:
+              - M3U playlists
+              - Xtream Codes
+              - Stalker portals
+              - All sources
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives you've considered
+          description: Workarounds you use today, or other ways to solve the problem.
+    - type: dropdown
+      id: contribute
+      attributes:
+          label: Would you like to help?
+          options:
+              - Yes, I'd like to open a pull request
+              - I can help test it
+              - Not right now
