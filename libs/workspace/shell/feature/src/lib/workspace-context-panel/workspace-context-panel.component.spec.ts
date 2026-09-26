@@ -62,7 +62,9 @@ function getCategoryLabels(
 
 describe('WorkspaceContextPanelComponent', () => {
     let fixture: ComponentFixture<WorkspaceContextPanelComponent>;
-    const xtreamCategories = signal([
+    const xtreamCategories = signal<
+        Array<{ id: number; name: string; xtream_id?: number }>
+    >([
         { id: 1, name: 'News' },
         { id: 2, name: 'Sports' },
     ]);
@@ -322,6 +324,59 @@ describe('WorkspaceContextPanelComponent', () => {
             'name-desc'
         );
     });
+
+    it.each([
+        { id: 7, name: 'Alpha', top: 520 },
+        { id: 8, name: 'Zulu', top: 2420 },
+    ])(
+        'scrolls to the selected local category $name when provider IDs collide after sorting',
+        async ({ id, name, top }) => {
+            fixture.componentRef.setInput('section', 'live');
+            xtreamSelectedTypeContentState.set('ready');
+            // SQLite IDs drive selection; provider IDs can belong to another row.
+            xtreamCategories.set([
+                { id: 8, xtream_id: 7, name: 'Zulu' },
+                { id: 50, xtream_id: 500, name: 'Middle' },
+                { id: 7, xtream_id: 8, name: 'Alpha' },
+            ]);
+            fixture.componentInstance.setCategorySortMode('name-asc');
+            fixture.detectChanges();
+
+            const container = fixture.nativeElement.querySelector(
+                'app-workspace-context-category-view'
+            ) as HTMLElement;
+            Object.defineProperties(container, {
+                clientHeight: { value: 400 },
+                scrollHeight: { value: 3000 },
+            });
+            container.scrollTop = 500;
+            container.getBoundingClientRect = () =>
+                new DOMRect(0, 100, 200, 400);
+            container.scrollTo = jest.fn();
+            const rows = Array.from(
+                container.querySelectorAll<HTMLButtonElement>('.category-item')
+            );
+            rows.forEach((row, index) => {
+                row.getBoundingClientRect = () =>
+                    new DOMRect(0, [300, 800, 2200][index], 200, 40);
+            });
+            const selected = rows.find((row) =>
+                row.textContent?.includes(name)
+            );
+            if (!selected) throw new Error(`Missing category ${name}`);
+            selected.click();
+            expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(id);
+            xtreamSelectedCategoryId.set(id);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(selected.getAttribute('aria-current')).toBe('true');
+            expect(container.scrollTo).toHaveBeenCalledWith({
+                behavior: 'smooth',
+                top,
+            });
+        }
+    );
 
     it('uses translated category sort labels and distinct mode icons', () => {
         fixture.componentRef.setInput('section', 'vod');
