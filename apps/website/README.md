@@ -74,11 +74,12 @@ resolves it at build time:
    options whose file is missing are dropped, sizes and the publish date come
    from the API. `deploy-website.yml` passes `GITHUB_TOKEN` to the build so
    the call is authenticated.
-2. Fallback: the root `package.json` version with the asset naming pattern
-   from `electron-builder.json`. This is deterministic but cannot prove the
-   files exist yet (a version bump lands on `master` before the release is
-   published), so a warning is printed. Set `WEBSITE_SKIP_RELEASE_FETCH=1` to
-   force it for offline or reproducible builds.
+2. Fallback: the published version pinned in `released-version.json` with
+   the asset naming pattern from `electron-builder.json`. Advance this pin
+   only after that GitHub release is public and its assets are verified, in
+   the follow-up commit that publishes the article. It must stay independent
+   of the root `package.json` development/nightly version. Set
+   `WEBSITE_SKIP_RELEASE_FETCH=1` to force it for offline or reproducible builds.
 
 Both paths produce the same page structure. Adding an artifact means adding a
 `DownloadOption` (matcher + fallback name) in `downloads.ts`; the pages and the
@@ -88,7 +89,9 @@ resolved version.
 `pnpm nx test website` builds the site and runs
 `tools/testing/website-download-pages.test.mjs`, which checks titles,
 canonicals, direct asset links, JSON-LD, cross-links and sitemap entries
-without depending on a specific version.
+without depending on a specific version. Resolver regression tests use the real
+Astro build constants and cover offline builds, rate limits and timeouts,
+ensuring each platform keeps links to the pinned published release.
 
 Two of the suites drive the built site in a real browser:
 `tools/testing/website-screenshot-showcase.test.mjs` (the home page channel

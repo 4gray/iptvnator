@@ -2,12 +2,12 @@
 title: v0.24 - Release Notes
 description: A rebuilt programme guide, channels and episodes within reach in fullscreen, and live stream information — plus more dependable sources, playback and upgrades.
 featured: true
-pubDate: 2026-09-21
+pubDate: 2026-09-24
 author: 4gray
 heroImage: /iptvnator/blog/v0-24/announce.png
 tags:
     - release
-draft: true
+draft: false
 ---
 
 import BlogImageSlider from '../../components/blog/BlogImageSlider.astro';
@@ -24,7 +24,7 @@ There is plenty around those three changes: local XMLTV files, catch-up download
 
 <ReleaseMeta
     version="v0.24.0"
-    releaseDate="September 21, 2026"
+    releaseDate="September 24, 2026"
     channels={['Desktop', 'PWA']}
 />
 
@@ -106,7 +106,7 @@ The player overlay now shows stream information: resolution, playback and source
 - **AppManager discovery.** AppImages include the repository metadata AppManager needs to find and download complete updates. ([#1559](https://github.com/4gray/iptvnator/pull/1559))
 - **Review inactive sources together.** Desktop users can select sources to remove, retain individual entries and see the result for each deletion. ([#1596](https://github.com/4gray/iptvnator/pull/1596))
 - **Check source availability.** Desktop playlist lists show background availability checks for Stalker portals and M3U links alongside Xtream accounts. ([#1592](https://github.com/4gray/iptvnator/pull/1592))
-- **Try the nightly channel.** Settings → About offers builds from master. Stable remains the default; returning from nightly waits for a newer stable release. ([#1608](https://github.com/4gray/iptvnator/pull/1608))
+- **Try the nightly channel.** Settings → About offers builds from master, also available in the [nightly repository](https://github.com/4gray/iptvnator-nightly/releases). Stable remains the default; returning from nightly waits for a newer stable release. ([#1608](https://github.com/4gray/iptvnator/pull/1608))
 
 ## Other changes
 
@@ -235,7 +235,11 @@ Please back up your playlists and important data before updating. Desktop startu
 
 ## Thanks
 
-Thank you to [@Bpl5966](https://github.com/Bpl5966) for embedded MPV reconnects and extra options ([#1515](https://github.com/4gray/iptvnator/pull/1515)), [@mark-jardine](https://github.com/mark-jardine) for the EPG time offset ([#1489](https://github.com/4gray/iptvnator/pull/1489)), and [@larsemig](https://github.com/larsemig) for stream information ([#1578](https://github.com/4gray/iptvnator/pull/1578)). Welcome to Bpl5966 and mark-jardine, whose first contributions are included in this release.
+Thank you to [@Bpl5966](https://github.com/Bpl5966) for embedded MPV reconnects and extra options ([#1515](https://github.com/4gray/iptvnator/pull/1515)), [@mark-jardine](https://github.com/mark-jardine) for the EPG time offset ([#1489](https://github.com/4gray/iptvnator/pull/1489)), and [@larsemig](https://github.com/larsemig) for stream information ([#1578](https://github.com/4gray/iptvnator/pull/1578)).
+
+Thank you also to [@thejdubb02](https://github.com/thejdubb02) for the original zoom-persistence, Turkish-search and Xtream EPG-refresh fixes ([#1613](https://github.com/4gray/iptvnator/pull/1613), [#1612](https://github.com/4gray/iptvnator/pull/1612), [#1610](https://github.com/4gray/iptvnator/pull/1610)). This work was incorporated and extended in [#1617](https://github.com/4gray/iptvnator/pull/1617), [#1640](https://github.com/4gray/iptvnator/pull/1640) and [#1647](https://github.com/4gray/iptvnator/pull/1647), with his co-authorship preserved.
+
+Welcome to Bpl5966, mark-jardine and thejdubb02, whose first contributions are included in this release.
 
 A warm thank-you to everyone who reported issues, tested builds and helped others in the [Telegram community](https://t.me/iptvnator), and to the sponsors and donors who make time for this project possible. 💙 If IPTVnator is useful to you, you can support its development through [GitHub Sponsors](https://github.com/sponsors/4gray) or [Ko-fi](https://ko-fi.com/4gray).
 
