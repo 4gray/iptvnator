@@ -45,6 +45,9 @@ describe('UnifiedRecentDataService', () => {
     const playlistMeta = {
         _id: 'm3u-1',
         title: 'M3U List',
+        count: 0,
+        importDate: '2026-01-01T00:00:00.000Z',
+        autoRefresh: false,
         recentlyViewed: [
             {
                 source: 'm3u',
@@ -225,7 +228,7 @@ describe('UnifiedRecentDataService', () => {
 
         expect(playlistsService.addM3uRecentlyViewed).toHaveBeenCalledWith(
             'm3u-1',
-            expect.objectContaining<M3uRecentlyViewedItem>({
+            expect.objectContaining<Partial<M3uRecentlyViewedItem>>({
                 source: 'm3u',
                 url: 'https://example.com/1.m3u8',
                 channel_id: 'channel-1',

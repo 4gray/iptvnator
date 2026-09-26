@@ -5,7 +5,11 @@ import { By } from '@angular/platform-browser';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
-import { of, Subject } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
+import type {
+    EpgItemDialogAction,
+    EpgItemDialogData,
+} from '../epg-item-description/epg-item-description.component';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { EpgGuideComponent } from './epg-guide.component';
 import {
@@ -65,7 +69,11 @@ describe('EpgGuideComponent', () => {
     const searchHits = signal<EpgGuideSearchHit[]>([]);
     const activate = jest.fn();
     const setScope = jest.fn();
-    const dialogOpen = jest.fn(() => of(undefined));
+    const dialogOpen = jest.fn(
+        (
+            _data: EpgItemDialogData
+        ): Observable<EpgItemDialogAction | undefined> => of(undefined)
+    );
 
     beforeEach(() => {
         localStorage.clear();

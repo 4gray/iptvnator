@@ -13,6 +13,10 @@ const active: SourceHealthResult = {
 };
 const playlist = (id: string, host = id): PlaylistMeta => ({
     _id: id,
+    title: id,
+    count: 0,
+    importDate: '2026-01-01T00:00:00.000Z',
+    autoRefresh: false,
     url: `https://${host}.test/list`,
 });
 

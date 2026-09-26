@@ -78,7 +78,8 @@ describe('Service: Settings', () => {
     ));
 
     describe('Test theme switch', () => {
-        let spyOnAdd, spyOnRemove;
+        let spyOnAdd: jest.SpyInstance<void, [...tokens: string[]]>;
+        let spyOnRemove: jest.SpyInstance<void, [...tokens: string[]]>;
         beforeEach(() => {
             spyOnAdd = jest.spyOn(document.body.classList, 'add');
             spyOnRemove = jest.spyOn(document.body.classList, 'remove');

@@ -7,12 +7,16 @@ import {
     PlaylistsService,
     SettingsStore,
 } from '@iptvnator/services';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
 
+/** Spec-only double: capability flags are read-only getters on the real class. */
+type WritablePartial<T> = { -readonly [K in keyof T]?: T[K] };
+
 describe('EpgService', () => {
     let service: EpgService;
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: WritablePartial<EpgRuntimeBridgeService>;
     let snackBar: { open: jest.Mock };
     let settingsStore: {
         loadSettings: jest.Mock;
@@ -164,7 +168,7 @@ describe('EpgService', () => {
                 new Promise((resolve) => {
                     complete = resolve;
                 }),
-        } as typeof window.electron;
+        } as Partial<typeof window.electron> as typeof window.electron;
         try {
             const sources = TestBed.inject(EpgSourceSettingsService);
             const reconciliation = sources.synchronize([
@@ -457,16 +461,7 @@ describe('EpgService', () => {
 
     it('deduplicates concurrent scoped current program lookups for the same source scope', async () => {
         epgBridge.supportsProgramLookup = true;
-        let resolvePrograms:
-            | ((
-                  programs: {
-                      channel: string;
-                      start: string;
-                      stop: string;
-                      title: string;
-                  }[]
-              ) => void)
-            | undefined;
+        let resolvePrograms: ((programs: EpgProgram[]) => void) | undefined;
         epgBridge.getChannelPrograms = jest.fn(
             () =>
                 new Promise((resolve) => {
@@ -495,6 +490,8 @@ describe('EpgService', () => {
                     start: '2026-05-23T10:00:00.000Z',
                     stop: '2026-05-23T11:00:00.000Z',
                     title: 'Playlist Guide Bulletin',
+                    desc: null,
+                    category: null,
                 },
             ]);
 
@@ -928,7 +925,7 @@ describe('EpgService', () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;
         const batchResolvers: Array<
-            (programs: Record<string, unknown>) => void
+            (programs: Record<string, EpgProgram | null>) => void
         > = [];
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
@@ -957,6 +954,8 @@ describe('EpgService', () => {
                         start: '2026-05-23T10:00:00.000Z',
                         stop: '2026-05-23T11:00:00.000Z',
                         title: 'Playlist Guide Bulletin',
+                        desc: null,
+                        category: null,
                     },
                 })
             );
@@ -981,7 +980,7 @@ describe('EpgService', () => {
         epgBridge.supportsProgramLookup = true;
         epgBridge.supportsCurrentProgramBatch = true;
         let resolveBatch:
-            ((programs: Record<string, unknown>) => void) | undefined;
+            ((programs: Record<string, EpgProgram | null>) => void) | undefined;
         epgBridge.getCurrentProgramsBatch = jest.fn(
             () =>
                 new Promise((resolve) => {
@@ -1010,12 +1009,16 @@ describe('EpgService', () => {
                     start: '2026-05-23T10:00:00.000Z',
                     stop: '2026-05-23T11:00:00.000Z',
                     title: 'Playlist Guide Bulletin',
+                    desc: null,
+                    category: null,
                 },
                 'guide-sports': {
                     channel: 'guide-sports',
                     start: '2026-05-23T10:00:00.000Z',
                     stop: '2026-05-23T11:00:00.000Z',
                     title: 'Playlist Sports Bulletin',
+                    desc: null,
+                    category: null,
                 },
             });
 

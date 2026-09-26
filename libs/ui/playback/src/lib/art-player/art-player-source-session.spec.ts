@@ -29,7 +29,8 @@ describe('ArtPlayerSourceSession', () => {
         session.attach(player);
         detach.mockClear();
 
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player
@@ -77,7 +78,8 @@ describe('ArtPlayerSourceSession', () => {
         const attach = jest.spyOn(adapter, 'attach');
         session.attach(player);
 
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player
@@ -105,7 +107,8 @@ describe('ArtPlayerSourceSession', () => {
             emitPlaybackIssue: (issue) => emitted.push(issue),
         });
         session.attach(player);
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player
@@ -145,7 +148,8 @@ describe('ArtPlayerSourceSession', () => {
             emitPlaybackIssue: (issue) => emitted.push(issue),
         });
         session.attach(player);
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player
@@ -187,7 +191,8 @@ describe('ArtPlayerSourceSession', () => {
         });
         session.attach(player);
 
-        session.customType['ts']?.(
+        session.customType['ts']?.call(
+            player,
             video,
             'https://example.test/movie.ts',
             player
@@ -218,7 +223,8 @@ describe('ArtPlayerSourceSession', () => {
         });
         session.attach(player);
 
-        session.customType['ts']?.(
+        session.customType['ts']?.call(
+            player,
             video,
             'https://example.test/movie.ts',
             player
@@ -239,7 +245,8 @@ describe('ArtPlayerSourceSession', () => {
         });
         session.attach(player);
 
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player
@@ -254,7 +261,8 @@ describe('ArtPlayerSourceSession', () => {
             error: new Error('unsupported codec'),
         });
 
-        session.customType['ts']?.(
+        session.customType['ts']?.call(
+            player,
             video,
             'https://example.test/live.ts',
             player
@@ -300,7 +308,8 @@ describe('ArtPlayerSourceSession', () => {
         });
         const secret = 'art-hls-secret-sentinel';
         session.attach(player);
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player
@@ -354,12 +363,14 @@ describe('ArtPlayerSourceSession', () => {
         session.attach(player);
         session.destroy();
 
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/stale.m3u8',
             player
         );
-        session.customType['ts']?.(
+        session.customType['ts']?.call(
+            player,
             video,
             'https://example.test/stale.ts',
             player

@@ -2,7 +2,11 @@ import {
     DEFAULT_PLAYER_CAPABILITIES,
     createEmptyControlsState,
 } from './player-controls-defaults';
-import { ControlsMenuState } from './controls-menu-state';
+import { ControlsMenu, ControlsMenuState } from './controls-menu-state';
+import type {
+    PlayerControlsCapabilities,
+    PlayerControlsState,
+} from './player-controls.model';
 
 describe('ControlsMenuState', () => {
     it('keeps only one menu open at a time', () => {
@@ -94,7 +98,13 @@ describe('ControlsMenuState', () => {
         expect(menus.anyOpen()).toBe(false);
     });
 
-    it.each([
+    it.each<
+        [
+            ControlsMenu,
+            Partial<PlayerControlsCapabilities>,
+            Partial<PlayerControlsState>,
+        ]
+    >([
         ['volume', { volume: false }, {}],
         ['audio', {}, { audioTracks: [] }],
         ['subtitle', {}, { subtitleTracks: [] }],
@@ -102,7 +112,7 @@ describe('ControlsMenuState', () => {
         ['speed', { playbackSpeed: false }, {}],
         ['aspect', { aspectRatio: false }, {}],
         ['stats', { streamStats: false }, {}],
-    ] as const)(
+    ])(
         'maps runtime controller state to %s menu availability',
         (menu, capabilityOverrides, stateOverrides) => {
             const menus = new ControlsMenuState();

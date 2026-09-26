@@ -16,7 +16,10 @@ import {
     XtreamPlaylistData,
 } from '../data-sources/xtream-data-source.interface';
 import { XtreamApiService } from '../services/xtream-api.service';
-import { resolveXtreamVodPlaybackSource } from '../services/xtream-vod-playback-source';
+import {
+    resolveXtreamVodPlaybackSource,
+    type XtreamVodPlaybackItem,
+} from '../services/xtream-vod-playback-source';
 import { XtreamUrlService } from '../services/xtream-url.service';
 import { XtreamXmltvFallbackService } from '../services/xtream-xmltv-fallback.service';
 import { XtreamStore } from './xtream.store';
@@ -135,7 +138,11 @@ describe('XtreamStore VOD details recovery', () => {
                 container_extension: null,
             })
         );
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toBeNull();
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toBeNull();
         expect(store.isLoadingDetails()).toBe(false);
 
         const publishedSelection = store.selectedItem();
@@ -152,11 +159,16 @@ describe('XtreamStore VOD details recovery', () => {
         } as XtreamVodStream);
         await waitForCondition(
             () =>
-                resolveXtreamVodPlaybackSource(store.selectedItem())
-                    ?.containerExtension === 'mkv'
+                resolveXtreamVodPlaybackSource(
+                    store.selectedItem() as XtreamVodPlaybackItem | null
+                )?.containerExtension === 'mkv'
         );
 
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toEqual({
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toEqual({
             streamId: 42,
             containerExtension: 'mkv',
         });
@@ -197,8 +209,9 @@ describe('XtreamStore VOD details recovery', () => {
         });
         await waitForCondition(
             () =>
-                resolveXtreamVodPlaybackSource(store.selectedItem())
-                    ?.streamId === 99
+                resolveXtreamVodPlaybackSource(
+                    store.selectedItem() as XtreamVodPlaybackItem | null
+                )?.streamId === 99
         );
 
         firstCatalogItem.resolve({
@@ -208,7 +221,11 @@ describe('XtreamStore VOD details recovery', () => {
         await Promise.resolve();
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toEqual({
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toEqual({
             streamId: 99,
             containerExtension: 'mp4',
         });
@@ -303,8 +320,9 @@ describe('XtreamStore VOD details recovery', () => {
         });
         await waitForCondition(
             () =>
-                resolveXtreamVodPlaybackSource(store.selectedItem())
-                    ?.streamId === 99
+                resolveXtreamVodPlaybackSource(
+                    store.selectedItem() as XtreamVodPlaybackItem | null
+                )?.streamId === 99
         );
 
         firstDetails.resolve({
@@ -315,7 +333,11 @@ describe('XtreamStore VOD details recovery', () => {
         await Promise.resolve();
         await new Promise((resolve) => setTimeout(resolve, 0));
 
-        expect(resolveXtreamVodPlaybackSource(store.selectedItem())).toEqual({
+        expect(
+            resolveXtreamVodPlaybackSource(
+                store.selectedItem() as XtreamVodPlaybackItem | null
+            )
+        ).toEqual({
             streamId: 99,
             containerExtension: 'mp4',
         });

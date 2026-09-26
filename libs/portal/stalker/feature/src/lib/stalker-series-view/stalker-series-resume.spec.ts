@@ -12,10 +12,12 @@ import {
 } from './stalker-series-resume';
 
 function episode(
-    overrides: Partial<StalkerMappedEpisode> & { id: number }
+    overrides: Partial<Omit<StalkerMappedEpisode, 'id'>> & { id: number }
 ): StalkerMappedEpisode {
+    const { id, ...rest } = overrides;
     return {
-        title: `Episode ${overrides.episode_num ?? 1}`,
+        id: String(id),
+        title: `Episode ${rest.episode_num ?? 1}`,
         container_extension: 'mpg',
         custom_sid: 'vod-series',
         added: '',
@@ -23,7 +25,7 @@ function episode(
         episode_num: 1,
         direct_source: '',
         info: {},
-        ...overrides,
+        ...rest,
     } as StalkerMappedEpisode;
 }
 

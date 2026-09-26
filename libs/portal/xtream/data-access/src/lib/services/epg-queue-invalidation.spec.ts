@@ -22,7 +22,7 @@ describe('EpgQueueService invalidation', () => {
 
     type ServicePrivates = {
         fetchEpg: (
-            credentials: typeof credentials,
+            portalCredentials: typeof credentials,
             streamId: number
         ) => Promise<void>;
         shouldFetch: (streamId: number) => boolean;
@@ -42,7 +42,9 @@ describe('EpgQueueService invalidation', () => {
                     provide: XtreamXmltvFallbackService,
                     useValue: {
                         getProgramsForChannel: jest.fn().mockResolvedValue([]),
-                        getCurrentProgramsBatch: jest.fn().mockResolvedValue({}),
+                        getCurrentProgramsBatch: jest
+                            .fn()
+                            .mockResolvedValue({}),
                     },
                 },
                 {

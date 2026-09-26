@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import type { RendererPerformancePhaseEvent } from '@iptvnator/shared/logging';
 import { PortalStatusType } from '../../xtream-state';
 import {
     createAbortError,
@@ -250,7 +251,10 @@ describe('withContent import state', () => {
                 type: ContentType,
                 onProgress?: (count: number) => void,
                 onTotal?: (total: number) => void,
-                options?: { onEvent?: (event: any) => void }
+                options?: {
+                    onEvent?: (event: any) => void;
+                    operationId?: string;
+                }
             ) => {
                 optionsByType.set(type, options);
                 onTotal?.(totals[type]);
@@ -1279,7 +1283,10 @@ describe('withContent import state', () => {
                 type: ContentType,
                 onProgress?: (count: number) => void,
                 onTotal?: (total: number) => void,
-                options?: { onEvent?: (event: any) => void }
+                options?: {
+                    onEvent?: (event: any) => void;
+                    operationId?: string;
+                }
             ) => {
                 optionsByType.set(type, options);
                 onTotal?.(5);

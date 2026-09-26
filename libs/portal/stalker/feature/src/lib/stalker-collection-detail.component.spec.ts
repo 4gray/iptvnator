@@ -411,16 +411,7 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('plays regular VOD collection details inline for embedded players instead of using the legacy play wrapper', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: {
-                name: 'Collection Movie',
-                movie_image: 'movie.jpg',
-            },
-        };
+        const sourceItem = createSourceItem();
         const playback: ResolvedPortalPlayback = {
             streamUrl: 'https://streams.example.test/movie.mp4',
             title: 'Collection Movie',
@@ -488,7 +479,10 @@ describe('StalkerCollectionDetailComponent', () => {
 
         fixture.componentRef.setInput('item', itemB);
         await settleDetail(fixture);
-        pendingA.resolve({ streamUrl: 'https://streams.test/a.mp4' });
+        pendingA.resolve({
+            streamUrl: 'https://streams.test/a.mp4',
+            title: 'Movie A',
+        });
         await settleDetail(fixture);
 
         expect(fixture.componentInstance.inlinePlayback()).toBeNull();
@@ -504,11 +498,15 @@ describe('StalkerCollectionDetailComponent', () => {
         fixture.componentInstance.onVodPlay(
             createStalkerVodItem(itemB.stalkerItem as never, itemB.playlistId)
         );
-        pendingB.resolve({ streamUrl: 'https://streams.test/b.mp4' });
+        pendingB.resolve({
+            streamUrl: 'https://streams.test/b.mp4',
+            title: 'Movie B',
+        });
         await settleDetail(fixture);
 
         expect(fixture.componentInstance.inlinePlayback()).toEqual({
             streamUrl: 'https://streams.test/b.mp4',
+            title: 'Movie B',
         });
     });
 
@@ -570,23 +568,21 @@ describe('StalkerCollectionDetailComponent', () => {
             stalkerItem: { ...(item.stalkerItem as object) },
         });
         await settleDetail(fixture);
-        pending.resolve({ streamUrl: 'https://streams.test/a.mp4' });
+        pending.resolve({
+            streamUrl: 'https://streams.test/a.mp4',
+            title: 'Movie A',
+        });
         await settleDetail(fixture);
 
         expect(fixture.componentInstance.inlinePlayback()).toEqual({
             streamUrl: 'https://streams.test/a.mp4',
+            title: 'Movie A',
         });
         expect(snackBar.open).not.toHaveBeenCalled();
     });
 
     it('marks a collection movie watched under its owning playlist', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         fixture.componentRef.setInput(
             'item',
             buildCollectionItem({
@@ -627,13 +623,7 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('blocks the watched toggle while a collection Play is still resolving', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         let resolve!: (value: ResolvedPortalPlayback) => void;
         stalkerStore.resolveVodPlayback.mockReturnValueOnce(
             new Promise<ResolvedPortalPlayback>((resolvePromise) => {
@@ -675,13 +665,7 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('does not carry a pending collection start over to the next item', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         let resolve!: (value: ResolvedPortalPlayback) => void;
         stalkerStore.resolveVodPlayback.mockReturnValueOnce(
             new Promise<ResolvedPortalPlayback>((resolvePromise) => {
@@ -729,13 +713,7 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('mirrors an external player position into the collection row', async () => {
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         playbackPositions.getPlaybackPosition.mockResolvedValueOnce({
             playlistId: 'stalker-1',
             contentXtreamId: 1701,
@@ -787,13 +765,7 @@ describe('StalkerCollectionDetailComponent', () => {
                 resolveRead = resolve;
             })
         );
-        const sourceItem = {
-            id: '1701',
-            title: 'Collection Movie',
-            category_id: 'vod',
-            cmd: '/media/file_1701.mpg',
-            info: { name: 'Collection Movie', movie_image: 'movie.jpg' },
-        };
+        const sourceItem = createSourceItem();
         fixture.componentRef.setInput(
             'item',
             buildCollectionItem({
@@ -834,9 +806,6 @@ describe('StalkerCollectionDetailComponent', () => {
     });
 
     it('does not load VOD playback position when the playlist id is missing', async () => {
-        const playlistsService = TestBed.inject(PlaylistsService) as {
-            getPlaylistById: jest.Mock;
-        };
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 ...playlist,
@@ -944,6 +913,27 @@ function buildVodSource(id: string, title: string) {
         category_id: 'vod',
         cmd: `/media/file_${id}.mpg`,
         info: { name: title },
+    };
+}
+
+/** Regular (non-series) Stalker VOD item as the collection grid hands it over. */
+function createSourceItem() {
+    return {
+        id: '1701',
+        title: 'Collection Movie',
+        category_id: 'vod',
+        cmd: '/media/file_1701.mpg',
+        info: {
+            name: 'Collection Movie',
+            movie_image: 'movie.jpg',
+            description: '',
+            actors: '',
+            director: '',
+            releasedate: '',
+            genre: '',
+            rating_imdb: '',
+            rating_kinopoisk: '',
+        },
     };
 }
 

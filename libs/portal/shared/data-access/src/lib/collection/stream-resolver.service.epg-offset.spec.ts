@@ -135,10 +135,15 @@ describe('StreamResolverService EPG display offset', () => {
         TestBed.inject(PlaylistsService).getPlaylistById = jest.fn(() =>
             of({
                 _id: 'stalker-1',
+                title: 'Stalker Portal',
+                importDate: '2026-01-01T00:00:00.000Z',
+                lastUsage: '2026-01-01T00:00:00.000Z',
+                count: 0,
+                autoRefresh: false,
                 portalUrl: 'https://stalker.example.com',
                 macAddress: '00:11:22:33:44:55',
                 isFullStalkerPortal: false,
-            } satisfies Partial<Playlist>)
+            } satisfies Playlist)
         );
         const nowSeconds = Math.floor(Date.now() / 1000);
         const entry = (id: string, name: string, startOffsetMin: number) => ({
@@ -192,10 +197,15 @@ describe('StreamResolverService EPG display offset', () => {
         TestBed.inject(PlaylistsService).getPlaylistById = jest.fn(() =>
             of({
                 _id: 'stalker-1',
+                title: 'Stalker Portal',
+                importDate: '2026-01-01T00:00:00.000Z',
+                lastUsage: '2026-01-01T00:00:00.000Z',
+                count: 0,
+                autoRefresh: false,
                 portalUrl: 'https://stalker.example.com',
                 macAddress: '00:11:22:33:44:55',
                 isFullStalkerPortal: false,
-            } satisfies Partial<Playlist>)
+            } satisfies Playlist)
         );
         const nowMs = Date.now();
         const entry = (id: string, name: string, startOffsetMin: number) => ({
@@ -322,10 +332,15 @@ describe('StreamResolverService EPG display offset', () => {
             epgOffsetMinutes = 0;
             return of({
                 _id: 'xtream-1',
+                title: 'Xtream Playlist',
+                importDate: '2026-01-01T00:00:00.000Z',
+                lastUsage: '2026-01-01T00:00:00.000Z',
+                count: 0,
+                autoRefresh: false,
                 serverUrl: 'https://xtream.example.com',
                 username: 'user',
                 password: 'pass',
-            } satisfies Partial<Playlist>);
+            } satisfies Playlist);
         });
         xtreamApi.getFullEpg.mockResolvedValue([
             listing('Really on air', -75, 60),

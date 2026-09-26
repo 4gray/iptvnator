@@ -40,7 +40,8 @@ describe('ArtPlayerSourceSession DASH (mpd custom type)', () => {
         });
         session.attach(player);
 
-        session.customType['mpd']?.(
+        session.customType['mpd']?.call(
+            player,
             video,
             'https://example.test/live.mpd',
             player
@@ -68,13 +69,15 @@ describe('ArtPlayerSourceSession DASH (mpd custom type)', () => {
         });
         session.attach(player);
 
-        session.customType['mpd']?.(
+        session.customType['mpd']?.call(
+            player,
             video,
             'https://example.test/live.mpd',
             player
         );
         await flushShakaMicrotasks();
-        session.customType['m3u8']?.(
+        session.customType['m3u8']?.call(
+            player,
             video,
             'https://example.test/live.m3u8',
             player
@@ -115,7 +118,8 @@ describe('ArtPlayerSourceSession DASH (mpd custom type)', () => {
         });
         session.attach(player);
 
-        session.customType['mpd']?.(
+        session.customType['mpd']?.call(
+            player,
             video,
             'https://example.test/failing.mpd',
             player

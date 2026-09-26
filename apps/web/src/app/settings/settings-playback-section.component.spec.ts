@@ -173,7 +173,9 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('form', form);
         fixture.detectChanges();
 
-        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
+        const checkbox = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLInputElement>(
             '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
         );
 
@@ -183,7 +185,9 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('labels the rendered native shared web controls checkbox', () => {
         fixture.detectChanges();
 
-        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
+        const checkbox = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLInputElement>(
             '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
         );
 
@@ -348,9 +352,10 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#mpvPlayerArguments'
-            )?.placeholder
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLTextAreaElement>('#mpvPlayerArguments')
+                ?.placeholder
         ).toBe(MPV_ARGUMENTS_PLACEHOLDER);
     });
 
@@ -369,9 +374,10 @@ describe('SettingsPlaybackSectionComponent', () => {
             'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
         );
         expect(
-            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
-                '#vlcPlayerArguments'
-            )?.placeholder
+            (
+                fixture.nativeElement as HTMLElement
+            ).querySelector<HTMLTextAreaElement>('#vlcPlayerArguments')
+                ?.placeholder
         ).toBe(VLC_ARGUMENTS_PLACEHOLDER);
     });
 

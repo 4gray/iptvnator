@@ -11,7 +11,10 @@ import { M3uEpgGuideSourceService } from './m3u-epg-guide-source.service';
 
 function makeChannel(
     id: string,
-    overrides: Partial<Channel> & { tvgId?: string; group?: string } = {}
+    overrides: Omit<Partial<Channel>, 'group'> & {
+        tvgId?: string;
+        group?: string;
+    } = {}
 ): Channel {
     return {
         id,

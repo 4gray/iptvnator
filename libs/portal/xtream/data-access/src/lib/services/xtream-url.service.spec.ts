@@ -223,7 +223,7 @@ describe('XtreamUrlService', () => {
             .mockResolvedValueOnce({ status: 206 });
         window.electron = {
             xtreamProbeUrl,
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
 
         const firstUrl = await service.resolveCatchupUrl(
             'playlist-1',
@@ -263,7 +263,7 @@ describe('XtreamUrlService', () => {
         }));
         window.electron = {
             xtreamProbeUrl,
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
 
         const initialUrl = await service.resolveCatchupUrl(
             'playlist-format-refresh',
@@ -306,7 +306,7 @@ describe('XtreamUrlService', () => {
         }));
         window.electron = {
             xtreamProbeUrl,
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
 
         const catchupUrl = await service.resolveCatchupUrl(
             'playlist-hls',
@@ -345,7 +345,7 @@ describe('XtreamUrlService', () => {
         }));
         window.electron = {
             xtreamProbeUrl,
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
 
         const catchupUrl = await service.resolveCatchupUrl(
             'playlist-hls-only',

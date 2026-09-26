@@ -209,7 +209,7 @@ export class SerialDetailsPlaybackService {
             return;
         }
 
-        this.addToRecentlyViewed(this.route.snapshot.params.serialId);
+        this.addToRecentlyViewed(this.route.snapshot.params['serialId']);
 
         const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
         const contentInfo: PlayerContentInfo = {

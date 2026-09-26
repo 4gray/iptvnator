@@ -12,6 +12,14 @@ import {
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { AddPlaylistDialogComponent } from './add-playlist-dialog.component';
 
+type ChildSignalKey =
+    | 'urlUpload'
+    | 'fileUpload'
+    | 'textImport'
+    | 'xtreamImport'
+    | 'stalkerImport'
+    | 'autoImport';
+
 describe('AddPlaylistDialogComponent', () => {
     let component: AddPlaylistDialogComponent;
     let dataService: { sendIpcEvent: jest.Mock };
@@ -67,8 +75,20 @@ describe('AddPlaylistDialogComponent', () => {
         );
     });
 
+    /**
+     * Replaces a read-only `viewChild` signal with a stub that resolves to a
+     * minimal structural double of the child component, or to `undefined`
+     * while the child is not rendered yet.
+     */
+    function stubChild(key: ChildSignalKey, child: object | undefined): void {
+        Object.defineProperty(component, key, {
+            value: jest.fn(() => child),
+            configurable: true,
+        });
+    }
+
     it('sends a trimmed custom title for URL playlists', () => {
-        (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
+        stubChild('urlUpload', {
             form: {
                 getRawValue: () => ({
                     playlistName: '  My Playlist  ',
@@ -76,7 +96,7 @@ describe('AddPlaylistDialogComponent', () => {
                     playlistUrl: ' https://example.com/list.m3u ',
                 }),
             },
-        }));
+        });
 
         component.submitUrlPlaylist();
 
@@ -92,7 +112,7 @@ describe('AddPlaylistDialogComponent', () => {
     });
 
     it('omits the title when the optional name is blank', () => {
-        (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
+        stubChild('urlUpload', {
             form: {
                 getRawValue: () => ({
                     playlistName: '   ',
@@ -100,7 +120,7 @@ describe('AddPlaylistDialogComponent', () => {
                     playlistUrl: 'https://example.com/list.m3u',
                 }),
             },
-        }));
+        });
 
         component.submitUrlPlaylist();
 
@@ -167,10 +187,7 @@ describe('AddPlaylistDialogComponent', () => {
         'clears the current $type import surface',
         ({ type, childAccessor, clearMethod }) => {
             const clear = jest.fn();
-            (component as unknown as Record<string, jest.Mock>)[childAccessor] =
-                jest.fn(() => ({
-                    [clearMethod]: clear,
-                }));
+            stubChild(childAccessor, { [clearMethod]: clear });
             selectType(type);
 
             component.clearCurrentForm();
@@ -180,10 +197,10 @@ describe('AddPlaylistDialogComponent', () => {
     );
 
     it('disables clear when a file upload has no selection', () => {
-        (component as { fileUpload: jest.Mock }).fileUpload = jest.fn(() => ({
+        stubChild('fileUpload', {
             isImporting: () => false,
             selectedFile: () => null,
-        }));
+        });
         selectType('file');
 
         expect(component.isClearDisabled()).toBeTruthy();
@@ -260,9 +277,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the xtream form once the child exists and clears the pending candidate', () => {
             const patchValue = jest.fn();
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => ({ form: { patchValue } })
-            );
+            stubChild('xtreamImport', { form: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'xtream',
@@ -288,9 +303,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('drops the candidate when the user switches to another method first', () => {
             const patchValue = jest.fn();
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => ({ form: { patchValue } })
-            );
+            stubChild('xtreamImport', { form: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'xtream',
@@ -309,9 +322,7 @@ describe('AddPlaylistDialogComponent', () => {
         });
 
         it('keeps the candidate pending while the target form does not exist yet', () => {
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => undefined
-            );
+            stubChild('xtreamImport', undefined);
             const patchValue = jest.fn();
 
             component.onCandidateSelected({
@@ -322,9 +333,7 @@ describe('AddPlaylistDialogComponent', () => {
             applyPrefill();
 
             // Child appears on a later change-detection pass.
-            (component as { xtreamImport: jest.Mock }).xtreamImport = jest.fn(
-                () => ({ form: { patchValue } })
-            );
+            stubChild('xtreamImport', { form: { patchValue } });
             applyPrefill();
 
             expect(patchValue).toHaveBeenCalledWith(
@@ -334,8 +343,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the stalker form including identity fields', () => {
             const patchValue = jest.fn();
-            (component as { stalkerImport: jest.Mock }).stalkerImport =
-                jest.fn(() => ({ form: { patchValue } }));
+            stubChild('stalkerImport', { form: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'stalker',
@@ -369,9 +377,9 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the URL form for an m3u-url candidate', () => {
             const patchValue = jest.fn();
-            (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
+            stubChild('urlUpload', {
                 form: { patchValue },
-            }));
+            });
 
             component.onCandidateSelected({
                 kind: 'm3u-url',
@@ -389,9 +397,7 @@ describe('AddPlaylistDialogComponent', () => {
 
         it('prefills the raw-text form for an m3u-text candidate', () => {
             const patchValue = jest.fn();
-            (component as { textImport: jest.Mock }).textImport = jest.fn(
-                () => ({ textForm: { patchValue } })
-            );
+            stubChild('textImport', { textForm: { patchValue } });
 
             component.onCandidateSelected({
                 kind: 'm3u-text',

@@ -445,7 +445,7 @@ function createPlayerHarness() {
         vhsActive: false,
         paused: true,
         pauseCompletesImmediately: true,
-        ready: () => undefined,
+        ready: (): void => undefined,
         play: jest.fn(() => Promise.resolve()),
         pause: jest.fn(() => {
             if (harness.pauseCompletesImmediately) {

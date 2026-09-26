@@ -182,8 +182,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
     });
 
     it('disposes a session whose creation resolves only after teardown', async () => {
-        let resolveCreate: ((session: EmbeddedMpvSession) => void) | null =
-            null;
+        let resolveCreate: ((session: EmbeddedMpvSession) => void) | undefined;
         electron.createEmbeddedMpvSession.mockImplementationOnce(
             () =>
                 new Promise((resolve) => {
@@ -198,7 +197,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
             0.5
         );
         await waitFor(
-            () => resolveCreate !== null,
+            () => resolveCreate !== undefined,
             'startup to reach createEmbeddedMpvSession'
         );
         teardown();
@@ -218,7 +217,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 
     it('does not continue frame setup when teardown happens during playback load', async () => {
         const frameCopySupport = createSupport('frame-copy');
-        let resolveLoad: (() => void) | null = null;
+        let resolveLoad: (() => void) | undefined;
         electron.getEmbeddedMpvSupport.mockResolvedValueOnce(frameCopySupport);
         electron.prepareEmbeddedMpv.mockResolvedValueOnce(frameCopySupport);
         electron.loadEmbeddedMpvPlayback.mockImplementationOnce(
@@ -258,7 +257,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
 
     it('does not schedule bounds after teardown during frame view attachment', async () => {
         const frameCopySupport = createSupport('frame-copy');
-        let resolveAttach: ((attached: boolean) => void) | null = null;
+        let resolveAttach: ((attached: boolean) => void) | undefined;
         electron.getEmbeddedMpvSupport.mockResolvedValueOnce(frameCopySupport);
         electron.prepareEmbeddedMpv.mockResolvedValueOnce(frameCopySupport);
         electron.attachEmbeddedMpvFrameView.mockImplementationOnce(

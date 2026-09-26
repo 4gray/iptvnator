@@ -112,7 +112,9 @@ describe('stalker-vod.utils regressions', () => {
                 cmd: '/media/file_42.mpg',
             })
         );
-        expect(state.vodDetailsItem?.data.id).toBe('42');
+        expect(state.vodDetailsItem?.data).toEqual(
+            expect.objectContaining({ id: '42' })
+        );
     });
 
     it('favorite toggle uses completion callback path without delayed state update', () => {

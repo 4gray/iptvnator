@@ -596,6 +596,7 @@ describe('UnifiedLiveTabComponent', () => {
                 code: 'network-error',
                 player: 'videojs',
                 source: 'hls',
+                sourceUrl: 'https://example.com/xtream.m3u8',
                 container: '',
                 mimeType: '',
                 videoCodecs: [],
