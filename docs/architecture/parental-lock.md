@@ -328,6 +328,20 @@ on either side.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 
+## Lock store lifetime
+
+Every lock-store mutation runs through one write queue in
+`ParentalLockLockStore`: each rewrites the whole persisted store from the
+in-memory copy, so overlapping edits (two right-click toggles, a dialog
+save during a restore) would otherwise snapshot the same store and the
+later write would drop the earlier edit. A deleted playlist's locks leave
+the store through the `PLAYLIST_DELETE_CLEANUP` hook
+(`provideParentalLockPlaylistCleanup`, run by
+`PlaylistsService.deletePlaylist` for every single-playlist deletion; no
+re-stamp, the category rows go with the playlist), and "Remove all
+playlists" empties it through `ParentalLockService.clearAllLocks` once the
+deletion has succeeded.
+
 ## Backup
 
 M3U group titles travel verbatim (`normalizeParentalLockGroupTitles`, exact

@@ -33,7 +33,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
-import { DataService } from '@iptvnator/services';
+import {
+    provideParentalLockPlaylistCleanup,
+    DataService,
+} from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
@@ -162,6 +165,7 @@ export const appConfig: ApplicationConfig = {
         },
         ...provideWorkspaceShellActions(),
         ...provideParentalLockPrompt(),
+        provideParentalLockPlaylistCleanup(),
         ...provideXtreamDataSource(),
         {
             provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,

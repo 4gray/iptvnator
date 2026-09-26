@@ -463,6 +463,18 @@ export class ParentalLockService {
         return this.locks.setM3uLocks(playlistId, groupTitles);
     }
 
+    /** Playlist deletion: its locks leave the store. */
+    async removePlaylistLocks(playlistId: string): Promise<boolean> {
+        await this.initialize();
+        return this.locks.removePlaylist(playlistId);
+    }
+
+    /** "Remove all playlists": the whole lock store is emptied. */
+    async clearAllLocks(): Promise<boolean> {
+        await this.initialize();
+        return this.locks.clearAll();
+    }
+
     /** Backup restore: replaces every lock of one playlist. */
     async replacePlaylistLocks(
         playlistId: string,

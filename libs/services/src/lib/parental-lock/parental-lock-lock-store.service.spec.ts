@@ -185,6 +185,48 @@ describe('ParentalLockLockStore', () => {
         expect(store.revision()).toBe(before + 1);
     });
 
+    it('serializes overlapping edits so neither overwrites the other', async () => {
+        await store.load();
+        await store.ensureReadable();
+        let releaseFirst: (ok: boolean) => void = () => undefined;
+        storage.writeLocks.mockImplementationOnce(
+            () => new Promise<boolean>((resolve) => (releaseFirst = resolve))
+        );
+
+        const first = store.setM3uLocks('pl-1', ['Adult']);
+        const second = store.setStalkerLocks('pl-1', 'itv', ['9']);
+        for (let i = 0; i < 20; i += 1) {
+            await Promise.resolve();
+        }
+        expect(storage.writeLocks).toHaveBeenCalledTimes(1);
+
+        releaseFirst(true);
+        await expect(first).resolves.toBe(true);
+        await expect(second).resolves.toBe(true);
+        expect(storage.writeLocks).toHaveBeenLastCalledWith({
+            'pl-1': {
+                xtream: [{ categoryType: 'live', xtreamId: 7 }],
+                stalker: [{ categoryType: 'itv', categoryId: '9' }],
+                m3u: ['Adult'],
+            },
+        });
+    });
+
+    it('drops a deleted playlist from the store and empties it on clearAll', async () => {
+        await store.load();
+        await store.ensureReadable();
+        setCategoryLocks.mockClear();
+
+        await expect(store.removePlaylist('missing')).resolves.toBe(true);
+        await expect(store.removePlaylist('pl-1')).resolves.toBe(true);
+        expect(storage.writeLocks).toHaveBeenLastCalledWith({});
+        expect(setCategoryLocks).not.toHaveBeenCalled();
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([]);
+
+        await expect(store.clearAll()).resolves.toBe(true);
+        expect(storage.writeLocks).toHaveBeenLastCalledWith({});
+    });
+
     it('rolls the store back when the index re-stamp fails', async () => {
         await store.load();
         setCategoryLocks.mockResolvedValue(false);

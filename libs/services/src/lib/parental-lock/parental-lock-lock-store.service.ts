@@ -45,6 +45,12 @@ export class ParentalLockLockStore {
     private readonly loadedState = signal(false);
     private loading: Promise<void> | null = null;
     /**
+     * Mutations run one at a time: each rewrites the WHOLE persisted store
+     * from the in-memory copy, so two overlapping edits would snapshot the
+     * same store and the later write would silently drop the earlier edit.
+     */
+    private writeQueue: Promise<unknown> = Promise.resolve();
+    /**
      * Playlists whose SQLite index could not be brought in line with the
      * store (a failed re-stamp whose rollback failed too); re-stamped on
      * the next store access.
@@ -193,12 +199,14 @@ export class ParentalLockLockStore {
         categoryType: ParentalLockXtreamCategoryType,
         xtreamIds: number[]
     ): Promise<boolean> {
-        if (!(await this.ensureReadable())) {
-            return false;
-        }
-        const previous = this.locksFor(playlistId);
-        const next = withXtreamLocks(previous, categoryType, xtreamIds);
-        return this.commitLocks(playlistId, previous, next, [categoryType]);
+        return this.enqueue(async () => {
+            if (!(await this.ensureReadable())) {
+                return false;
+            }
+            const previous = this.locksFor(playlistId);
+            const next = withXtreamLocks(previous, categoryType, xtreamIds);
+            return this.commitLocks(playlistId, previous, next, [categoryType]);
+        });
     }
 
     async setStalkerLocks(
@@ -206,30 +214,34 @@ export class ParentalLockLockStore {
         categoryType: ParentalLockStalkerCategoryType,
         categoryIds: string[]
     ): Promise<boolean> {
-        if (!(await this.ensureReadable())) {
-            return false;
-        }
-        return this.persistPlaylistLocks(
-            playlistId,
-            withStalkerLocks(
-                this.locksFor(playlistId),
-                categoryType,
-                categoryIds
-            )
-        );
+        return this.enqueue(async () => {
+            if (!(await this.ensureReadable())) {
+                return false;
+            }
+            return this.persistPlaylistLocks(
+                playlistId,
+                withStalkerLocks(
+                    this.locksFor(playlistId),
+                    categoryType,
+                    categoryIds
+                )
+            );
+        });
     }
 
     async setM3uLocks(
         playlistId: string,
         groupTitles: string[]
     ): Promise<boolean> {
-        if (!(await this.ensureReadable())) {
-            return false;
-        }
-        return this.persistPlaylistLocks(
-            playlistId,
-            withM3uLocks(this.locksFor(playlistId), groupTitles)
-        );
+        return this.enqueue(async () => {
+            if (!(await this.ensureReadable())) {
+                return false;
+            }
+            return this.persistPlaylistLocks(
+                playlistId,
+                withM3uLocks(this.locksFor(playlistId), groupTitles)
+            );
+        });
     }
 
     /** Backup restore: replaces every lock of one playlist. */
@@ -237,15 +249,58 @@ export class ParentalLockLockStore {
         playlistId: string,
         locks: ParentalLockPlaylistLocks
     ): Promise<boolean> {
-        if (!(await this.ensureReadable())) {
-            return false;
-        }
-        return this.commitLocks(
-            playlistId,
-            this.locksFor(playlistId),
-            locks,
-            XTREAM_CATEGORY_TYPES
-        );
+        return this.enqueue(async () => {
+            if (!(await this.ensureReadable())) {
+                return false;
+            }
+            return this.commitLocks(
+                playlistId,
+                this.locksFor(playlistId),
+                locks,
+                XTREAM_CATEGORY_TYPES
+            );
+        });
+    }
+
+    /**
+     * A deleted playlist's locks leave the store. No re-stamp: its category
+     * rows are deleted with it. True when there was nothing to remove.
+     */
+    removePlaylist(playlistId: string): Promise<boolean> {
+        return this.enqueue(async () => {
+            if (!(await this.ensureReadable())) {
+                return false;
+            }
+            if (!this.locks()[playlistId]) {
+                return true;
+            }
+            return this.persistPlaylistLocks(
+                playlistId,
+                createEmptyParentalLockPlaylistLocks()
+            );
+        });
+    }
+
+    /** "Remove all playlists": every lock goes with them. */
+    clearAll(): Promise<boolean> {
+        return this.enqueue(async () => {
+            await this.load();
+            if (!(await this.storage.writeLocks({}))) {
+                return false;
+            }
+            this.locks.set({});
+            this.unreadable.set(false);
+            this.staleIndexPlaylists.clear();
+            this.staleIndexCount.set(0);
+            this.revisionState.update((value) => value + 1);
+            return true;
+        });
+    }
+
+    private enqueue<T>(task: () => Promise<T>): Promise<T> {
+        const run = this.writeQueue.then(task, task);
+        this.writeQueue = run.catch(() => undefined);
+        return run;
     }
 
     /**
