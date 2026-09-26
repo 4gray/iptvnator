@@ -64,11 +64,11 @@ export const BUILD_IDENTITY: XtreamBenchmarkBuildIdentity = {
         },
         main: {
             javascript: buildFile(
-                'dist/apps/electron-backend/main.js',
+                'dist/apps/electron-backend/main.app.js',
                 'main-javascript'
             ),
             sourceMap: buildFile(
-                'dist/apps/electron-backend/main.js.map',
+                'dist/apps/electron-backend/main.app.js.map',
                 'main-source-map'
             ),
         },

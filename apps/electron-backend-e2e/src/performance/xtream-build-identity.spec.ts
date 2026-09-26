@@ -38,7 +38,7 @@ describe('Xtream benchmark build identity', () => {
 
         assert.deepEqual(identity.electron.main.javascript, {
             bytes: 4,
-            path: 'dist/apps/electron-backend/main.js',
+            path: 'dist/apps/electron-backend/main.app.js',
             sha256: sha256('main'),
         });
         assert.deepEqual(identity.electron.preload.sourceMap, {
@@ -112,7 +112,7 @@ describe('Xtream benchmark build identity', () => {
         const symlinkRoot = await buildFixture();
         const mainPath = join(
             symlinkRoot,
-            'dist/apps/electron-backend/main.js'
+            'dist/apps/electron-backend/main.app.js'
         );
         const external = join(symlinkRoot, 'external-main.js');
         await writeFile(external, 'main');
@@ -219,8 +219,8 @@ async function buildFixture(): Promise<string> {
         mkdir(join(renderer, 'assets'), { recursive: true }),
     ]);
     await Promise.all([
-        writeFile(join(backend, 'main.js'), 'main'),
-        writeFile(join(backend, 'main.js.map'), 'main-map'),
+        writeFile(join(backend, 'main.app.js'), 'main'),
+        writeFile(join(backend, 'main.app.js.map'), 'main-map'),
         writeFile(join(backend, 'main.preload.js'), 'preload'),
         writeFile(join(backend, 'main.preload.js.map'), 'preload-map'),
         writeFile(join(workers, 'database.worker.js'), 'database'),

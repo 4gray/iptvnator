@@ -26,7 +26,7 @@ const RENDERER_KEYS = [
 ] as const;
 const ELECTRON_PATHS = {
     databaseWorker: 'dist/apps/electron-backend/workers/database.worker.js',
-    main: 'dist/apps/electron-backend/main.js',
+    main: 'dist/apps/electron-backend/main.app.js',
     playlistRefreshWorker:
         'dist/apps/electron-backend/workers/playlist-refresh.worker.js',
     preload: 'dist/apps/electron-backend/main.preload.js',

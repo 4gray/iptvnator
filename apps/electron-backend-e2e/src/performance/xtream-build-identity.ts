@@ -35,7 +35,7 @@ const BACKEND_ROOT = 'dist/apps/electron-backend';
 const RENDERER_ROOT = 'dist/apps/web';
 const ELECTRON_PATHS = {
     databaseWorker: `${BACKEND_ROOT}/workers/database.worker.js`,
-    main: `${BACKEND_ROOT}/main.js`,
+    main: `${BACKEND_ROOT}/main.app.js`,
     playlistRefreshWorker: `${BACKEND_ROOT}/workers/playlist-refresh.worker.js`,
     preload: `${BACKEND_ROOT}/main.preload.js`,
 } as const;
