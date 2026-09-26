@@ -74,6 +74,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly contextDrawerTooltipKey = input('');
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<unknown>(null);
+    readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
@@ -84,6 +85,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
+    readonly parentalLockToggleRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
@@ -179,6 +181,8 @@ class MockWorkspaceShellFacade {
     readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = signal(null);
     toggleLiveSidebar = jest.fn();
+    readonly parentalLockState = signal<'off' | 'locked' | 'unlocked'>('off');
+    toggleParentalLock = jest.fn();
     readonly showContextPanel = signal(true);
     readonly hasContextPanelContent = signal(true);
     readonly contextDrawerLabelKeys = signal({

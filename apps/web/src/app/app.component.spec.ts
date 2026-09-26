@@ -17,9 +17,11 @@ import { EMPTY, of } from 'rxjs';
 import {
     DataService,
     EpgSourceSettingsService,
+    ParentalLockService,
     SettingsStore,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import {
     Language,
     Settings,
@@ -97,6 +99,14 @@ describe('AppComponent', () => {
             imports: [AppComponent],
             providers: [
                 provideMockStore(),
+                // The parental lock boots from AppComponent; its collaborators
+                // (Xtream/Stalker stores, SQLite bridge) are out of scope here.
+                MockProvider(ParentalLockService, {
+                    initialize: jest.fn().mockResolvedValue(undefined),
+                }),
+                MockProvider(ParentalLockEnforcementService, {
+                    start: jest.fn(),
+                }),
                 {
                     provide: Actions,
                     useValue: new Actions(EMPTY),

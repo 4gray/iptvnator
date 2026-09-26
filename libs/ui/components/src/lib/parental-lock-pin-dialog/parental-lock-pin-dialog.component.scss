@@ -1,0 +1,57 @@
+.pin-dialog__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pin-dialog__content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pin-dialog__description {
+    margin: 0;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.875rem;
+}
+
+.pin-dialog__field {
+    width: 100%;
+
+    input {
+        letter-spacing: 0.3em;
+        font-size: 1.1rem;
+    }
+}
+
+.pin-dialog__field--shake {
+    animation: pin-dialog-shake 0.4s ease;
+}
+
+.pin-dialog__error {
+    margin: 0;
+    color: var(--mat-sys-error);
+    font-size: 0.8125rem;
+}
+
+.pin-dialog__note {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--mat-sys-on-surface-variant);
+}
+
+@keyframes pin-dialog-shake {
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    20%,
+    60% {
+        transform: translateX(-6px);
+    }
+    40%,
+    80% {
+        transform: translateX(6px);
+    }
+}

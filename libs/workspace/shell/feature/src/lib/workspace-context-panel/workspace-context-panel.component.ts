@@ -30,7 +30,20 @@ import {
     sortPortalCategoryItems,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
+import { ParentalLockService } from '@iptvnator/services';
+import {
+    toParentalLockStalkerCategoryType,
+    toParentalLockXtreamCategoryType,
+} from '@iptvnator/shared/interfaces';
+import { CategoryLockMenuComponent } from '@iptvnator/ui/components';
+import {
+    WorkspaceCategoryViewItem,
+    WorkspaceContextCategoryViewComponent,
+} from './components/workspace-context-category-view.component';
+import {
+    CategoryLockTarget,
+    WorkspaceCategoryLockActionService,
+} from './workspace-category-lock-action.service';
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
@@ -58,6 +71,7 @@ interface WorkspaceCategoryLike {
 @Component({
     selector: 'app-workspace-context-panel',
     imports: [
+        CategoryLockMenuComponent,
         MatIconButton,
         MatIcon,
         MatMenuModule,
@@ -81,10 +95,20 @@ export class WorkspaceContextPanelComponent {
     // when the panel renders as the phone drawer. Some selections here (e.g.
     // Stalker ITV/radio) update the store without navigating, so the drawer's
     // NavigationEnd auto-close never fires for them.
-    private readonly contextDrawer = inject(WorkspaceShellContextDrawerService, {
-        optional: true,
-    });
+    private readonly contextDrawer = inject(
+        WorkspaceShellContextDrawerService,
+        {
+            optional: true,
+        }
+    );
     private readonly liveSidebarState = inject(LiveLayoutSidebarStateService);
+    private readonly parentalLock = inject(ParentalLockService);
+    private readonly categoryLockAction = inject(
+        WorkspaceCategoryLockActionService
+    );
+    private readonly categoryLockMenu =
+        viewChild<CategoryLockMenuComponent>('categoryLockMenu');
+    private categoryLockTarget: CategoryLockTarget | null = null;
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
@@ -120,10 +144,9 @@ export class WorkspaceContextPanelComponent {
                 ? this.xtreamSelectedCategoryId() !== null
                 : !!this.stalkerSelectedCategoryId())
     );
-    private readonly hideCategoriesButton = viewChild(
-        'hideCategoriesButton',
-        { read: ElementRef<HTMLElement> }
-    );
+    private readonly hideCategoriesButton = viewChild('hideCategoriesButton', {
+        read: ElementRef<HTMLElement>,
+    });
     private readonly firstHeaderAction = viewChild('firstHeaderAction', {
         read: ElementRef<HTMLElement>,
     });
@@ -172,6 +195,43 @@ export class WorkspaceContextPanelComponent {
     readonly canManageXtreamCategories = computed(
         () => this.isXtreamCategories() && this.xtreamSelectedTypeCountsReady()
     );
+    /**
+     * Stalker has no hide/show dialog, so its "Manage categories" is the
+     * lock dialog alone and exists only while the lock is on — same button,
+     * same icon as the Xtream rail, so the entry point is one pattern.
+     */
+    readonly canManageStalkerCategories = computed(
+        () =>
+            this.isStalkerCategories() &&
+            this.parentalLock.enabled() &&
+            !this.isStalkerCategoryLoading() &&
+            !this.isStalkerCategoryFailed()
+    );
+    /**
+     * Locked categories of the current section that are currently withheld.
+     * The rail shows one row for them so the parent can unlock from here;
+     * their names never reach the rail while locked.
+     */
+    readonly withheldCategoryCount = computed(() => {
+        this.parentalLock.version();
+        if (!this.parentalLock.active()) {
+            return 0;
+        }
+        const playlistId = this.context().playlistId;
+        if (this.isXtreamCategories()) {
+            const type = toParentalLockXtreamCategoryType(this.section());
+            return type
+                ? this.parentalLock.lockedXtreamIds(playlistId, type).length
+                : 0;
+        }
+        if (this.isStalkerCategories()) {
+            const type = toParentalLockStalkerCategoryType(this.section());
+            return type
+                ? this.parentalLock.lockedStalkerIds(playlistId, type).length
+                : 0;
+        }
+        return 0;
+    });
     readonly xtreamStatusText = computed(() => {
         if (
             !this.isXtreamCategories() ||
@@ -415,8 +475,83 @@ export class WorkspaceContextPanelComponent {
         this.categorySort.setMode(mode);
     }
 
-    openManageCategories(): void {
+    async requestParentalUnlock(): Promise<void> {
+        await this.parentalLock.requestUnlock();
+    }
+
+    /**
+     * Right-click accelerator: one row's lock toggled without the dialog.
+     * Silently no menu while the feature is off — the row keeps its
+     * ordinary behaviour.
+     */
+    onCategoryContextMenu(
+        provider: 'xtreams' | 'stalker',
+        request: { item: WorkspaceCategoryViewItem; event: MouseEvent }
+    ): void {
+        if (!this.categoryLockAction.enabled()) {
+            return;
+        }
+        const target: CategoryLockTarget = {
+            provider,
+            playlistId: this.context().playlistId,
+            section: this.section(),
+            item: request.item,
+        };
+        if (
+            provider === 'stalker' &&
+            String(request.item.category_id ?? request.item.id) === '*'
+        ) {
+            return;
+        }
+        this.categoryLockTarget = target;
+        this.categoryLockMenu()?.open(
+            request.event,
+            this.categoryLockAction.isLocked(target)
+        );
+    }
+
+    async onCategoryLockToggle(locked: boolean): Promise<void> {
+        const target = this.categoryLockTarget;
+        this.categoryLockTarget = null;
+        if (target) {
+            await this.categoryLockAction.setLocked(target, locked);
+        }
+    }
+
+    async openManageStalkerCategories(): Promise<void> {
+        if (!this.canManageStalkerCategories()) {
+            return;
+        }
+        if (!(await this.parentalLock.requestUnlock())) {
+            return;
+        }
+        const context = this.context();
+        const contentType = toParentalLockStalkerCategoryType(this.section());
+        if (!contentType) {
+            return;
+        }
+        const { StalkerCategoryLockDialogComponent } =
+            await import('@iptvnator/portal/stalker/feature');
+        this.dialog.open(StalkerCategoryLockDialogComponent, {
+            data: {
+                playlistId: context.playlistId,
+                contentType,
+                categories: this.stalkerStore
+                    .getAllCategoriesForSelectedType()
+                    .filter((category) => String(category.category_id) !== '*'),
+            },
+            width: '500px',
+            maxHeight: '90vh',
+        });
+    }
+
+    async openManageCategories(): Promise<void> {
         if (!this.canManageXtreamCategories()) {
+            return;
+        }
+        // Hidden AND locked categories are listed there by name, so the
+        // dialog itself sits behind the PIN while the lock is on.
+        if (!(await this.parentalLock.requestUnlock())) {
             return;
         }
 

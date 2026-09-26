@@ -176,9 +176,15 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
     },
     {
         method: 'dbSaveCategories',
-        args: [playlistId, categories, 'live', categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds],
         channel: 'DB_SAVE_CATEGORIES',
-        forwardedArgs: [playlistId, categories, 'live', categoryIds],
+        forwardedArgs: [
+            playlistId,
+            categories,
+            'live',
+            categoryIds,
+            categoryIds,
+        ],
     },
     {
         method: 'dbGetAllCategories',
@@ -191,6 +197,12 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [categoryIds, true],
         channel: 'DB_UPDATE_CATEGORY_VISIBILITY',
         forwardedArgs: [categoryIds, true],
+    },
+    {
+        method: 'dbSetCategoryLocks',
+        args: [playlistId, 'live', categoryIds],
+        channel: 'DB_SET_CATEGORY_LOCKS',
+        forwardedArgs: [playlistId, 'live', categoryIds],
     },
     {
         method: 'dbHasContent',

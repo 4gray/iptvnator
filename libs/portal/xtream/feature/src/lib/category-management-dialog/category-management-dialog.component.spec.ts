@@ -1,7 +1,14 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { DatabaseService, XCategoryFromDb } from '@iptvnator/services';
+import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
+import {
+    DatabaseService,
+    ParentalLockService,
+    RuntimeCapabilitiesService,
+    XCategoryFromDb,
+} from '@iptvnator/services';
 import {
     CategoryManagementDialogComponent,
     CategoryManagementDialogData,
@@ -17,16 +24,25 @@ const categories: XCategoryFromDb[] = [
     ...category,
     playlist_id: 'mock-playlist',
     type: 'live',
+    locked: false,
 }));
 
 describe('CategoryManagementDialogComponent', () => {
     let fixture: ComponentFixture<CategoryManagementDialogComponent>;
     let component: CategoryManagementDialogComponent;
     const db = {
-        getAllXtreamCategories: jest.fn(),
         updateCategoryVisibility: jest.fn(),
     };
+    const dataSource = {
+        getAllCategories: jest.fn(),
+    };
     const dialogRef = { close: jest.fn() };
+    const parentalLock = {
+        enabled: signal(false),
+        active: signal(false),
+        lockedXtreamIds: jest.fn(() => [] as number[]),
+        setXtreamLocks: jest.fn(),
+    };
     const data: CategoryManagementDialogData = {
         playlistId: 'mock-playlist',
         contentType: 'live',
@@ -35,8 +51,10 @@ describe('CategoryManagementDialogComponent', () => {
 
     beforeEach(async () => {
         jest.clearAllMocks();
-        db.getAllXtreamCategories.mockResolvedValue(categories);
+        dataSource.getAllCategories.mockResolvedValue(categories);
         db.updateCategoryVisibility.mockResolvedValue(undefined);
+        parentalLock.enabled.set(false);
+        parentalLock.active.set(false);
         data.contentType = 'live';
         await TestBed.configureTestingModule({
             imports: [
@@ -45,8 +63,14 @@ describe('CategoryManagementDialogComponent', () => {
             ],
             providers: [
                 { provide: DatabaseService, useValue: db },
+                { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsXtreamSqliteDataSource: true },
+                },
                 { provide: MatDialogRef, useValue: dialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: data },
+                { provide: ParentalLockService, useValue: parentalLock },
             ],
         }).compileComponents();
         fixture = TestBed.createComponent(CategoryManagementDialogComponent);
@@ -171,6 +195,19 @@ describe('CategoryManagementDialogComponent', () => {
         expect(dialogRef.close).toHaveBeenCalledWith(true);
     });
 
+    it('closes without saving when the session relocks while it is open', () => {
+        parentalLock.enabled.set(true);
+        fixture.detectChanges();
+        expect(dialogRef.close).not.toHaveBeenCalled();
+
+        parentalLock.active.set(true);
+        fixture.detectChanges();
+
+        expect(dialogRef.close).toHaveBeenCalledWith(false);
+        expect(db.updateCategoryVisibility).not.toHaveBeenCalled();
+        expect(parentalLock.setXtreamLocks).not.toHaveBeenCalled();
+    });
+
     it('discards pending bulk changes on cancel', () => {
         component.searchTerm.set('FR');
         component.selectAll();
@@ -194,7 +231,7 @@ describe('CategoryManagementDialogComponent', () => {
         async (contentType, dbType) => {
             data.contentType = contentType;
             await component.ngOnInit();
-            expect(db.getAllXtreamCategories).toHaveBeenLastCalledWith(
+            expect(dataSource.getAllCategories).toHaveBeenLastCalledWith(
                 'mock-playlist',
                 dbType
             );

@@ -144,6 +144,18 @@ Otherwise the app may still be using an older
 `dist/apps/electron-backend/workers/database.worker.js` bundle even though the
 TypeScript source has already been updated.
 
+### Parental Lock Toggles
+
+While the parental lock is enabled (`Settings → Parental lock`), the same
+dialog renders a lock toggle per row and the whole dialog opens only after the
+PIN. Locks are a separate concept from `hidden`: they live in the renderer's
+lock store keyed by provider category id and are mirrored into
+`categories.locked` through `DB_SET_CATEGORY_LOCKS`, so a refresh keeps them
+the same way it keeps `hidden`. The dialog is the one entry point on every
+portal type (Stalker's "Manage categories" button opens its lock-only
+dialog); a right-click on a category row offers a single-row Lock/Unlock
+through the same lock store. Contract: [parental lock](parental-lock.md).
+
 ## Files Changed
 
 ```

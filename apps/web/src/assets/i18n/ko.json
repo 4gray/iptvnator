@@ -548,7 +548,32 @@
         "EMBEDDED_MPV_AUTO_RECONNECT": "끊긴 스트림 자동 재연결",
         "EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION": "재생 중인 스트림이 끊기면 내장 플레이어가 점점 길어지는 간격으로 최대 6회까지 다시 불러온 뒤 포기합니다. 한 번도 시작되지 않은 스트림은 여전히 수동으로 다시 시도해야 합니다.",
         "VOD_AUTO_FAILOVER": "재생 오류 시 소스 자동 전환",
-        "VOD_AUTO_FAILOVER_DESCRIPTION": "영화 재생에 실패했을 때 같은 작품이 다른 재생목록에 있으면 재생 위치를 유지한 채 자동으로 전환합니다. 기본값은 꺼짐이며, 다른 소스는 더빙이 다를 수 있으므로 전환 시 항상 알려 드립니다."
+        "VOD_AUTO_FAILOVER_DESCRIPTION": "영화 재생에 실패했을 때 같은 작품이 다른 재생목록에 있으면 재생 위치를 유지한 채 자동으로 전환합니다. 기본값은 꺼짐이며, 다른 소스는 더빙이 다를 수 있으므로 전환 시 항상 알려 드립니다.",
+        "NAV_PARENTAL": "Parental lock",
+        "PARENTAL_LOCK": {
+            "TITLE": "Parental lock",
+            "DESCRIPTION": "Hide chosen categories behind a PIN. Locked categories, their channels and titles are removed from the whole app until the PIN is entered.",
+            "ENABLE": "Enable parental lock",
+            "ENABLE_DESCRIPTION": "Turning it on asks for a new PIN. Turning it off asks for the current PIN; your locks are kept for later.",
+            "STATUS": "Current state",
+            "STATUS_LOCKED": "Locked — locked categories are hidden.",
+            "STATUS_UNLOCKED": "Unlocked — locked categories are visible until the app locks again.",
+            "LOCK_NOW": "Lock now",
+            "UNLOCK": "Unlock",
+            "RELOCK": "Lock again after",
+            "RELOCK_DESCRIPTION": "Minutes without interaction before the app locks itself again. Playback counts as interaction. Restarting the app always locks.",
+            "RELOCK_NEVER": "Only when restarting the app",
+            "RELOCK_MINUTES": "{{minutes}} minutes of inactivity",
+            "CHANGE_PIN": "Change PIN",
+            "CHANGE_PIN_DESCRIPTION": "Asks for the current PIN first.",
+            "HOW_TO_LOCK": "Choosing what to lock",
+            "HOW_TO_LOCK_DESCRIPTION": "Open a source, then use “Manage categories” (the tune icon above the category list; “Manage groups” in an M3U playlist): every row has a lock toggle, and Stalker offers “Lock adult (18+)” for genres the portal flags. Right-click a category or group for a quick Lock / Unlock.",
+            "DISCLAIMER": "This is a child lock, not a security feature: the app's data files are readable by anyone with access to this computer.",
+            "ENABLED_TOAST": "Parental lock enabled",
+            "DISABLED_TOAST": "Parental lock disabled",
+            "PIN_CHANGED_TOAST": "PIN changed",
+            "LOCKED_TOAST": "Locked"
+        }
     },
     "THEMES": {
         "DARK_THEME": "어둡게",
@@ -1677,7 +1702,11 @@
                 "SWITCH_PLAYER_LABEL": "플레이어를 {{name}}(으)로 전환",
                 "SWITCH_PLAYER_DESCRIPTION": "{{name}}을(를) 활성 비디오 플레이어로 설정",
                 "SWITCH_PLAYER_FEEDBACK": "플레이어가 {{name}}(으)로 설정되었습니다",
-                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Stalker 포털 계정 정보 표시"
+                "ACCOUNT_INFO_DESCRIPTION_STALKER": "Stalker 포털 계정 정보 표시",
+                "PARENTAL_LOCK_NOW_LABEL": "Lock now",
+                "PARENTAL_LOCK_NOW_DESCRIPTION": "Hide the parental-locked categories again",
+                "PARENTAL_UNLOCK_LABEL": "Enter parental PIN",
+                "PARENTAL_UNLOCK_DESCRIPTION": "Show the parental-locked categories"
             },
             "XTREAM_REFRESH_TITLE": "재생목록 새로 고침 중",
             "XTREAM_REFRESH_COLLECTING_DATA": "라이브러리 데이터 보존 중...",
@@ -1867,5 +1896,39 @@
             "failed": "Deletion failed — select to retry"
         },
         "DELETE_PROGRESS": "Processed {{done}} of {{total}} selected sources"
+    },
+    "PARENTAL_LOCK": {
+        "PIN_DIALOG": {
+            "UNLOCK_TITLE": "Enter parental PIN",
+            "UNLOCK_DESCRIPTION": "Locked categories stay hidden until the PIN is entered.",
+            "SET_TITLE": "Set parental PIN",
+            "SET_DESCRIPTION": "Choose a PIN that will be required to show locked categories.",
+            "PIN_LABEL": "PIN",
+            "CONFIRM_LABEL": "Repeat PIN",
+            "PIN_HINT": "{{min}} to {{max}} digits",
+            "WRONG_PIN": "Wrong PIN. Try again.",
+            "MISMATCH": "The two PINs do not match.",
+            "COOLDOWN": "Too many attempts. Wait 30 seconds and try again.",
+            "NO_RECOVERY": "There is no way to recover a forgotten PIN — only resetting the app data removes it.",
+            "SAVE": "Save PIN",
+            "UNLOCK": "Unlock",
+            "CONFIRM_TITLE": "Confirm parental PIN",
+            "CONFIRM_DESCRIPTION": "Enter the current PIN to change this setting."
+        },
+        "LOCKED_COUNT": "Locked",
+        "LOCK_CATEGORY": "Lock category",
+        "UNLOCK_CATEGORY": "Unlock category",
+        "LOCK_GROUP": "Lock group",
+        "UNLOCK_GROUP": "Unlock group",
+        "MANAGE_LOCKS": "Lock categories",
+        "MANAGE_LOCKS_DESCRIPTION": "Locked categories and their channels disappear from the whole app until the parental PIN is entered.",
+        "LOCK_CENSORED": "Lock adult (18+)",
+        "UNLOCK_ALL": "Unlock all",
+        "CENSORED_HINT": "The portal flags this category as adult content",
+        "SAVE_FAILED": "Saving the category locks failed",
+        "LOCKED_CATEGORIES_ROW": "{{count}} locked",
+        "UNLOCK_TO_SHOW": "Enter PIN to show",
+        "HEADER_LOCK": "Lock now (parental lock)",
+        "HEADER_UNLOCK": "Enter parental PIN"
     }
 }

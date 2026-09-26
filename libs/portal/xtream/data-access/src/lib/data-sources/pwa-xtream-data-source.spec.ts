@@ -5,7 +5,7 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
-import { PlaylistsService } from '@iptvnator/services';
+import { ParentalLockService, PlaylistsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 
 describe('PwaXtreamDataSource', () => {
@@ -16,6 +16,11 @@ describe('PwaXtreamDataSource', () => {
     let playlistsService: {
         getPlaylistById: jest.Mock;
         transformPlaylistMeta: jest.Mock;
+    };
+    let parentalLock: {
+        active: jest.Mock<boolean, []>;
+        lockedXtreamIds: jest.Mock<number[], [string, string]>;
+        withholdsEverything: jest.Mock<boolean, []>;
     };
 
     const credentials: XtreamCredentials = {
@@ -34,10 +39,16 @@ describe('PwaXtreamDataSource', () => {
             getPlaylistById: jest.fn(() => of(undefined)),
             transformPlaylistMeta: jest.fn(() => of(null)),
         };
+        parentalLock = {
+            active: jest.fn(() => false),
+            lockedXtreamIds: jest.fn(() => []),
+            withholdsEverything: jest.fn(() => false),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 PwaXtreamDataSource,
+                { provide: ParentalLockService, useValue: parentalLock },
                 {
                     provide: XtreamApiService,
                     useValue: apiService,
@@ -54,6 +65,58 @@ describe('PwaXtreamDataSource', () => {
 
     afterEach(() => {
         localStorage.clear();
+    });
+
+    it('withholds locked categories from catalog reads and search while the lock is active', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'Family film', category_id: '5' },
+            { stream_id: 2, name: 'Family after dark', category_id: '9' },
+        ]);
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedXtreamIds.mockImplementation((_id, type) =>
+            type === 'movies' ? [9] : []
+        );
+
+        const content = await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        );
+        const found = await dataSource.searchContent('playlist-1', 'family', [
+            'movie',
+        ]);
+
+        expect(content.map((item) => item.name)).toEqual(['Family film']);
+        expect(found.map((item) => item.name)).toEqual(['Family film']);
+
+        parentalLock.active.mockReturnValue(false);
+        const unlocked = await dataSource.searchContent(
+            'playlist-1',
+            'family',
+            ['movie']
+        );
+        expect(unlocked).toHaveLength(2);
+    });
+
+    it('withholds everything while the lock store cannot be read', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'Family film', category_id: '5' },
+        ]);
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.withholdsEverything = jest.fn(() => true);
+
+        const content = await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        );
+        const found = await dataSource.searchContent('playlist-1', 'family', [
+            'movie',
+        ]);
+
+        expect(content).toEqual([]);
+        expect(found).toEqual([]);
+        expect(parentalLock.lockedXtreamIds).not.toHaveBeenCalled();
     });
 
     it('reports remote loading phases for API fetches but stays silent on cache hits', async () => {

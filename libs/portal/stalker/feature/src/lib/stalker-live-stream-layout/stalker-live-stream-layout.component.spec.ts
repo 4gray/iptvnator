@@ -20,6 +20,7 @@ import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
 import {
+    ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -283,6 +284,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                 },
                 { provide: PlaylistsService, useValue: playlistService },
                 { provide: SettingsStore, useValue: settingsStore },
+                {
+                    provide: ParentalLockService,
+                    useValue: { version: signal(0), active: signal(false) },
+                },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
                 {
                     provide: TranslateService,
@@ -782,35 +787,38 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         ).toEqual([]);
     });
 
-    it.each([true, false])('grows the render window for remote/numeric selection (cached=%s)', async (cached) => {
-        const full = Array.from({ length: 250 }, (_, index) => ({
-            id: `ch-${index}`,
-            cmd: `ffrt4://itv/${index}`,
-            name: `Channel ${index}`,
-            o_name: `Channel ${index}`,
-            logo: '',
-        }));
-        itvFullListActive.set(true);
-        itvSelectedCategoryFromCache.set(cached);
-        itvChannels.set(full);
-        itvFullChannelList.set(cached ? full : []);
-        searchPhrase.set('channel');
-        fixture.detectChanges();
+    it.each([true, false])(
+        'grows the render window for remote/numeric selection (cached=%s)',
+        async (cached) => {
+            const full = Array.from({ length: 250 }, (_, index) => ({
+                id: `ch-${index}`,
+                cmd: `ffrt4://itv/${index}`,
+                name: `Channel ${index}`,
+                o_name: `Channel ${index}`,
+                logo: '',
+            }));
+            itvFullListActive.set(true);
+            itvSelectedCategoryFromCache.set(cached);
+            itvChannels.set(full);
+            itvFullChannelList.set(cached ? full : []);
+            searchPhrase.set('channel');
+            fixture.detectChanges();
 
-        expect(component.visibleChannels()).toHaveLength(100);
+            expect(component.visibleChannels()).toHaveLength(100);
 
-        // Selecting channel index 150 (outside the 100-item window) must grow
-        // the window so it is rendered and can be highlighted/scrolled to.
-        await component.playChannel(full[150], false);
-        fixture.detectChanges();
+            // Selecting channel index 150 (outside the 100-item window) must grow
+            // the window so it is rendered and can be highlighted/scrolled to.
+            await component.playChannel(full[150], false);
+            fixture.detectChanges();
 
-        expect(component.visibleChannels().length).toBeGreaterThan(150);
-        expect(
-            component
-                .visibleChannels()
-                .some((channel) => channel.id === 'ch-150')
-        ).toBe(true);
-    });
+            expect(component.visibleChannels().length).toBeGreaterThan(150);
+            expect(
+                component
+                    .visibleChannels()
+                    .some((channel) => channel.id === 'ch-150')
+            ).toBe(true);
+        }
+    );
 
     it('does not clear cached channels when switching category in full-list mode', async () => {
         // Regression: the category-change reset effect used to setItvChannels([])

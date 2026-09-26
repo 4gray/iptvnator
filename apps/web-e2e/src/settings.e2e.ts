@@ -12,7 +12,9 @@ async function openSettings(page: Page) {
 
 /** Settings render one section page at a time — open it via the rail. */
 async function openSettingsSection(page: Page, sectionId: string) {
-    await page.locator(`[data-test-id="settings-section-${sectionId}"]`).click();
+    await page
+        .locator(`[data-test-id="settings-section-${sectionId}"]`)
+        .click();
     await page.waitForURL(new RegExp(`/workspace/settings/${sectionId}$`));
 }
 
@@ -41,11 +43,11 @@ test.describe('Settings', () => {
         await openSettings(page);
         await openSettingsSection(page, 'playback');
 
-        const playerSelect = page.locator('[data-test-id="select-video-player"]');
-
-        await expect(playerSelect).toContainText(
-            /Video\.js/i
+        const playerSelect = page.locator(
+            '[data-test-id="select-video-player"]'
         );
+
+        await expect(playerSelect).toContainText(/Video\.js/i);
         await playerSelect.click();
         await page.locator('mat-option[data-test-id="html5"]').click();
 
@@ -54,9 +56,7 @@ test.describe('Settings', () => {
         await openSettings(page);
         await openSettingsSection(page, 'playback');
 
-        await expect(playerSelect).toContainText(
-            /HTML5/i
-        );
+        await expect(playerSelect).toContainText(/HTML5/i);
     });
 
     test('@settings @web Opt out of shared web player controls', async ({
@@ -235,13 +235,71 @@ test.describe('Settings', () => {
         ).toHaveAttribute('aria-checked', 'true');
     });
 
+    test('@settings @web Parental lock — set a PIN, lock, survive a reload, unlock', async ({
+        page,
+    }) => {
+        await openSettings(page);
+        await openSettingsSection(page, 'parental');
+
+        const enableToggle = page.locator(
+            '[data-test-id="parental-lock-enabled"] button[role="switch"]'
+        );
+        const pinInput = page.locator('[data-test-id="parental-lock-pin"]');
+        const pinConfirm = page.locator(
+            '[data-test-id="parental-lock-pin-confirm"]'
+        );
+        const pinSubmit = page.locator(
+            '[data-test-id="parental-lock-pin-submit"]'
+        );
+        const lockNow = page.locator('[data-test-id="parental-lock-lock-now"]');
+        const unlock = page.locator('[data-test-id="parental-lock-unlock"]');
+        const headerLock = page.locator(
+            '[data-test-id="header-parental-lock"]'
+        );
+
+        // Enabling asks for a new PIN twice; the parent stays unlocked.
+        await expect(enableToggle).toHaveAttribute('aria-checked', 'false');
+        await enableToggle.click();
+        await expect(pinInput).toBeVisible();
+        await pinInput.fill('2468');
+        await pinConfirm.fill('2468');
+        await pinSubmit.click();
+        await expect(enableToggle).toHaveAttribute('aria-checked', 'true');
+        await expect(lockNow).toBeVisible();
+        await expect(headerLock).toBeVisible();
+
+        // Lock now flips the state; a reload keeps the lock (never persisted
+        // as unlocked).
+        await lockNow.click();
+        await expect(unlock).toBeVisible();
+        await page.reload();
+        await openSettings(page);
+        await openSettingsSection(page, 'parental');
+        await expect(enableToggle).toHaveAttribute('aria-checked', 'true');
+        await expect(unlock).toBeVisible();
+
+        // A wrong PIN is refused, the right one unlocks.
+        await unlock.click();
+        await expect(pinInput).toBeVisible();
+        await pinInput.fill('0000');
+        await pinSubmit.click();
+        await expect(
+            page.locator('[data-test-id="parental-lock-pin-error"]')
+        ).toBeVisible();
+        await pinInput.fill('2468');
+        await pinSubmit.click();
+        await expect(lockNow).toBeVisible();
+
+        // The header button locks from anywhere.
+        await headerLock.click();
+        await expect(unlock).toBeVisible();
+    });
+
     test('@settings @web Change app language', async ({ page }) => {
         await openSettings(page);
         const languageSelect = page.locator('[data-test-id="select-language"]');
 
-        await expect(languageSelect).toContainText(
-            'English'
-        );
+        await expect(languageSelect).toContainText('English');
         await languageSelect.click();
         await page.locator('mat-option[data-test-id="de"]').click();
 
@@ -249,9 +307,7 @@ test.describe('Settings', () => {
         await page.reload();
         await openSettings(page);
 
-        await expect(languageSelect).toContainText(
-            'Deutsch'
-        );
+        await expect(languageSelect).toContainText('Deutsch');
     });
 
     test.afterEach(async ({ page }, testInfo) => {

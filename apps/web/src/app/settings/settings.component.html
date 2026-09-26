@@ -65,6 +65,23 @@
                 @case ('tmdb') {
                     <app-settings-tmdb-section [form]="settingsForm" />
                 }
+                @case ('parental') {
+                    <app-settings-parental-lock-section
+                        [enabled]="parentalLock.enabled()"
+                        [unlocked]="parentalLock.unlocked()"
+                        [hasPin]="parentalLock.hasPin()"
+                        [relockMinutes]="parentalLock.relockMinutes()"
+                        [relockOptions]="parentalLock.relockOptions"
+                        [busy]="parentalLock.busy()"
+                        (toggleEnabled)="parentalLock.toggleEnabled($event)"
+                        (changePin)="parentalLock.changePin()"
+                        (relockMinutesChanged)="
+                            parentalLock.setRelockMinutes($event)
+                        "
+                        (lockNow)="parentalLock.lockNow()"
+                        (unlock)="parentalLock.unlock()"
+                    />
+                }
                 @case ('backup') {
                     <app-settings-backup-section
                         [isPwa]="isPwa"

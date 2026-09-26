@@ -40,6 +40,7 @@ import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { ExternalPlaybackService } from './services/external-playback.service';
 import { PlayerService } from './services/player.service';
+import { provideParentalLockPrompt } from './services/parental-lock-prompt.service';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
@@ -160,6 +161,7 @@ export const appConfig: ApplicationConfig = {
             useExisting: AppStalkerPlaylistConnectionEditorService,
         },
         ...provideWorkspaceShellActions(),
+        ...provideParentalLockPrompt(),
         ...provideXtreamDataSource(),
         {
             provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,

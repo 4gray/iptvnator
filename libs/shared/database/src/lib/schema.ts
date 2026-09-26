@@ -75,6 +75,11 @@ export const categories = sqliteTable(
         type: text('type', { enum: ['live', 'movies', 'series'] }).notNull(),
         xtreamId: integer('xtream_id').notNull(),
         hidden: integer('hidden', { mode: 'boolean' }).default(false),
+        // Parental lock index: derived from the renderer's lock store (the
+        // source of truth, keyed by provider category id) and re-stamped by
+        // DB_SET_CATEGORY_LOCKS. While the lock is active every content read
+        // in the worker filters on it — see parental-lock-state.ts.
+        locked: integer('locked', { mode: 'boolean' }).default(false),
     },
     (table) => ({
         playlistIdx: index('idx_categories_playlist').on(table.playlistId),

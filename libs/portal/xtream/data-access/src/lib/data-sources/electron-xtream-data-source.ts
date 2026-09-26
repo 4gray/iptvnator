@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import {
     DatabaseService,
+    ParentalLockService,
     PlaybackPositionService,
     XtreamPendingRestoreService,
     XtreamImportStatus,
@@ -46,6 +47,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         XtreamPendingRestoreService
     );
     private readonly apiService = inject(XtreamApiService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly categoryRequests = new Map<
         string,
         Promise<XtreamCategoryFromDb[]>
@@ -147,8 +149,17 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         type: CategoryType,
         options?: XtreamOperationOptions
     ): Promise<XtreamCategoryFromDb[]> {
+        // Fail closed with the renderer: while the lock store is loading,
+        // unreadable or its SQLite index not yet reconciled, the index may
+        // still carry a stale `locked = false` stamp, so nothing is served.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         const dbType = mapCategoryTypeToDbType(type);
-        const requestKey = `${playlistId}:${dbType}`;
+        // The lock version keys the share: a read issued under an older lock
+        // state (still unlocked, or locks since edited) answers with rows the
+        // caller under the newer state must not be handed.
+        const requestKey = `${playlistId}:${dbType}:${this.parentalLock.version()}`;
         const inFlightRequest = this.categoryRequests.get(requestKey);
 
         if (inFlightRequest) {
@@ -187,7 +198,14 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             playlistId,
             dbType
         );
-        if (importStatus === 'completed' && cached.length > 0) {
+        // The read is filtered by the parental lock, so an empty result is
+        // not proof of a cold cache: a type whose every category is locked
+        // is complete and must not be refetched from the provider.
+        if (
+            importStatus === 'completed' &&
+            (cached.length > 0 ||
+                (await this.dbService.hasXtreamCategories(playlistId, dbType)))
+        ) {
             return cached;
         }
 
@@ -213,7 +231,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
                 playlistId,
                 remoteData,
                 dbType,
-                hiddenCategoryXtreamIds
+                hiddenCategoryXtreamIds,
+                // Locks live in the renderer's store; the fresh rows get the
+                // SQLite mirror stamped on insert so a refresh keeps them.
+                this.parentalLock.lockedXtreamIds(playlistId, dbType)
             );
         }
 
@@ -252,6 +273,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         type: CategoryType
     ): Promise<XtreamCategoryFromDb[]> {
+        // Same fail-closed gate as the live reads: the warm-route hydration
+        // reads the cache directly and must not publish rows a stale index
+        // stamp still marks unlocked.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         return this.dbService.getXtreamCategories(
             playlistId,
             mapCategoryTypeToDbType(type)
@@ -292,7 +319,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         onTotal?: (total: number) => void,
         options?: XtreamOperationOptions
     ): Promise<XtreamContentItem[]> {
-        const requestKey = `${playlistId}:${type}`;
+        // Fail closed with the renderer: while the lock store is loading,
+        // unreadable or its SQLite index not yet reconciled, the index may
+        // still carry a stale `locked = false` stamp, so nothing is served.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
+        const requestKey = `${playlistId}:${type}:${this.parentalLock.version()}`;
         const inFlightRequest = this.contentRequests.get(requestKey);
 
         if (inFlightRequest) {
@@ -329,7 +362,13 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         // Fetch from DB directly — avoids a separate 'has' round-trip.
         // An empty result means the cache is cold; proceed to fetch from API.
         const cached = await this.dbService.getXtreamContent(playlistId, type);
-        if (importStatus === 'completed' && cached.length > 0) {
+        // Filtered by the parental lock like the category read: empty is not
+        // cold while unfiltered rows exist.
+        if (
+            importStatus === 'completed' &&
+            (cached.length > 0 ||
+                (await this.dbService.hasXtreamContent(playlistId, type)))
+        ) {
             return cached;
         }
 
@@ -370,6 +409,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         type: StreamType
     ): Promise<XtreamContentItem[]> {
+        // Same fail-closed gate as the live reads: the warm-route hydration
+        // reads the cache directly and must not publish rows a stale index
+        // stamp still marks unlocked.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         return this.dbService.getXtreamContent(playlistId, type);
     }
 
@@ -403,6 +448,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         types: string[],
         excludeHidden?: boolean
     ): Promise<XtreamContentItem[]> {
+        // Fail closed with the renderer: while the lock store is loading,
+        // unreadable or its SQLite index not yet reconciled, the index may
+        // still carry a stale `locked = false` stamp, so nothing is served.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         return this.dbService.searchXtreamContent(
             playlistId,
             searchTerm,

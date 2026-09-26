@@ -5,6 +5,7 @@ import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { of } from 'rxjs';
+import { ParentalLockService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { GroupManagementDialogComponent } from './group-management-dialog/group-management-dialog.component';
@@ -46,6 +47,7 @@ describe('GroupsViewComponent', () => {
     let fixture: ComponentFixture<GroupsViewComponent>;
     let component: GroupsViewComponent;
     let dialog: { open: jest.Mock };
+    let parentalLock: { requestUnlock: jest.Mock };
 
     const sportsCenter = createChannel(
         'sports-1',
@@ -102,6 +104,8 @@ describe('GroupsViewComponent', () => {
     beforeEach(async () => {
         localStorage.removeItem(GROUP_CHANNEL_SORT_STORAGE_KEY);
 
+        parentalLock = { requestUnlock: jest.fn().mockResolvedValue(true) };
+
         dialog = {
             open: jest.fn(),
         };
@@ -116,6 +120,10 @@ describe('GroupsViewComponent', () => {
                 {
                     provide: MatDialog,
                     useValue: dialog,
+                },
+                {
+                    provide: ParentalLockService,
+                    useValue: parentalLock,
                 },
             ],
         }).compileComponents();
@@ -426,9 +434,7 @@ describe('GroupsViewComponent', () => {
         const rail = fixture.nativeElement.querySelector(
             'aside.groups-nav-panel'
         ) as HTMLElement;
-        expect(rail.classList.contains('groups-nav-panel--compact')).toBe(
-            true
-        );
+        expect(rail.classList.contains('groups-nav-panel--compact')).toBe(true);
         expect(rail.style.width).toBe('148px');
         expect(localStorage.getItem('m3u-groups-nav-width')).toBe('320');
 
@@ -500,14 +506,14 @@ describe('GroupsViewComponent', () => {
         ).toEqual(['Movie Classic']);
     });
 
-    it('opens the manage-groups dialog with all groups and emits updated hidden titles on save', () => {
+    it('opens the manage-groups dialog with all groups and emits updated hidden titles on save', async () => {
         const hiddenGroupTitlesChanged = jest.fn();
         component.hiddenGroupTitlesChanged.subscribe(hiddenGroupTitlesChanged);
         dialog.open.mockReturnValue({
-            afterClosed: () => of(['News', 'Sports']),
+            afterClosed: () => of({ hiddenGroupTitles: ['News', 'Sports'] }),
         });
 
-        component.openGroupManagement();
+        await component.openGroupManagement();
 
         expect(dialog.open).toHaveBeenCalledWith(
             GroupManagementDialogComponent,
@@ -529,6 +535,46 @@ describe('GroupsViewComponent', () => {
             'News',
             'Sports',
         ]);
+    });
+
+    it('locks and unlocks one group from the right-click menu behind the PIN gate', async () => {
+        const lockedGroupTitlesChanged = jest.fn();
+        component.lockedGroupTitlesChanged.subscribe(lockedGroupTitlesChanged);
+        fixture.componentRef.setInput('lockedGroupTitles', ['News']);
+        fixture.detectChanges();
+        const event = new MouseEvent('contextmenu', { cancelable: true });
+
+        component.onGroupContextMenu('Sports', event);
+        expect(event.defaultPrevented).toBe(true);
+        await component.onGroupLockToggle(true);
+        expect(lockedGroupTitlesChanged).toHaveBeenLastCalledWith([
+            'News',
+            'Sports',
+        ]);
+
+        component.onGroupContextMenu('News', event);
+        await component.onGroupLockToggle(false);
+        expect(lockedGroupTitlesChanged).toHaveBeenLastCalledWith([]);
+
+        parentalLock.requestUnlock.mockResolvedValueOnce(false);
+        component.onGroupContextMenu('Movies', event);
+        await component.onGroupLockToggle(true);
+        expect(lockedGroupTitlesChanged).toHaveBeenCalledTimes(2);
+    });
+
+    it('offers no group lock menu while the feature is off', () => {
+        const event = new MouseEvent('contextmenu', { cancelable: true });
+        component.onGroupContextMenu('Sports', event);
+        expect(event.defaultPrevented).toBe(false);
+    });
+
+    it('keeps the manage-groups dialog closed when the parental PIN is refused', async () => {
+        // The dialog names every locked group and can rewrite the locks.
+        parentalLock.requestUnlock.mockResolvedValueOnce(false);
+
+        await component.openGroupManagement();
+
+        expect(dialog.open).not.toHaveBeenCalled();
     });
 
     it('drops the selected-group header in compact mode but keeps the groups rail header', () => {

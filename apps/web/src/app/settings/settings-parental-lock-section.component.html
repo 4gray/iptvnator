@@ -1,0 +1,145 @@
+<section class="settings-group" id="parental">
+    <header class="settings-group__header">
+        <div class="settings-group__header-icon">
+            <mat-icon>family_restroom</mat-icon>
+        </div>
+        <div class="settings-group__header-text">
+            <h3>{{ 'SETTINGS.PARENTAL_LOCK.TITLE' | translate }}</h3>
+            <p>{{ 'SETTINGS.PARENTAL_LOCK.DESCRIPTION' | translate }}</p>
+        </div>
+    </header>
+
+    <div class="setting-item">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.PARENTAL_LOCK.ENABLE' | translate }}</h4>
+            <p>{{ 'SETTINGS.PARENTAL_LOCK.ENABLE_DESCRIPTION' | translate }}</p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-slide-toggle
+                data-test-id="parental-lock-enabled"
+                [checked]="enabled()"
+                [disabled]="busy()"
+                (change)="toggleEnabled.emit($event.checked)"
+                [attr.aria-label]="'SETTINGS.PARENTAL_LOCK.ENABLE' | translate"
+            ></mat-slide-toggle>
+        </div>
+    </div>
+
+    @if (enabled()) {
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.PARENTAL_LOCK.STATUS' | translate }}</h4>
+                <p>
+                    {{
+                        (unlocked()
+                            ? 'SETTINGS.PARENTAL_LOCK.STATUS_UNLOCKED'
+                            : 'SETTINGS.PARENTAL_LOCK.STATUS_LOCKED'
+                        ) | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                @if (unlocked()) {
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        data-test-id="parental-lock-lock-now"
+                        [disabled]="busy()"
+                        (click)="lockNow.emit()"
+                    >
+                        <mat-icon>lock</mat-icon>
+                        {{ 'SETTINGS.PARENTAL_LOCK.LOCK_NOW' | translate }}
+                    </button>
+                } @else {
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        data-test-id="parental-lock-unlock"
+                        [disabled]="busy()"
+                        (click)="unlock.emit()"
+                    >
+                        <mat-icon>lock_open</mat-icon>
+                        {{ 'SETTINGS.PARENTAL_LOCK.UNLOCK' | translate }}
+                    </button>
+                }
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.PARENTAL_LOCK.RELOCK' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.PARENTAL_LOCK.RELOCK_DESCRIPTION' | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{
+                        'SETTINGS.PARENTAL_LOCK.RELOCK' | translate
+                    }}</mat-label>
+                    <mat-select
+                        data-test-id="parental-lock-relock"
+                        [value]="relockMinutes()"
+                        [disabled]="busy()"
+                        (selectionChange)="
+                            relockMinutesChanged.emit($event.value)
+                        "
+                    >
+                        @for (option of relockOptions(); track option) {
+                            <mat-option [value]="option">
+                                {{
+                                    relockLabelKey(option)
+                                        | translate: { minutes: option }
+                                }}
+                            </mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.PARENTAL_LOCK.CHANGE_PIN' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.PARENTAL_LOCK.CHANGE_PIN_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-test-id="parental-lock-change-pin"
+                    [disabled]="busy() || !hasPin()"
+                    (click)="changePin.emit()"
+                >
+                    <mat-icon>password</mat-icon>
+                    {{ 'SETTINGS.PARENTAL_LOCK.CHANGE_PIN' | translate }}
+                </button>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.PARENTAL_LOCK.HOW_TO_LOCK' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.PARENTAL_LOCK.HOW_TO_LOCK_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+        </div>
+    }
+
+    <div class="setting-item">
+        <div class="setting-item__meta">
+            <p>{{ 'SETTINGS.PARENTAL_LOCK.DISCLAIMER' | translate }}</p>
+        </div>
+    </div>
+</section>

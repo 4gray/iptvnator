@@ -37,6 +37,12 @@ export interface M3uPlaylistBackupEntry extends PlaylistBackupBaseEntry {
         favorites: string[];
         recentlyViewed: M3uRecentlyViewedItem[];
         hiddenGroupTitles: string[];
+        /**
+         * Parental-lock group titles. Optional: absent in archives written
+         * before the lock existed, and absence means "no opinion" — restore
+         * leaves the playlist's existing locks untouched.
+         */
+        lockedGroupTitles?: string[];
     };
 }
 
@@ -77,6 +83,12 @@ export interface XtreamBackupUserState {
     playbackPositions: PlaybackPositionData[];
     /** Optional: absent in archives written before multi-source existed. */
     sourcePins?: XtreamBackupSourcePin[];
+    /**
+     * Parental-lock categories, same shape as `hiddenCategories`. Optional
+     * like `sourcePins`: absence means the archive predates the lock and
+     * restore keeps the playlist's existing locks.
+     */
+    lockedCategories?: XtreamBackupHiddenCategory[];
 }
 
 export interface XtreamPlaylistBackupEntry extends PlaylistBackupBaseEntry {
@@ -109,7 +121,14 @@ export interface StalkerPlaylistBackupEntry extends PlaylistBackupBaseEntry {
     userState: {
         favorites: StalkerPortalItem[];
         recentlyViewed: StalkerPortalItem[];
+        /** Parental-lock genres; optional with the same absence rule as Xtream. */
+        lockedCategories?: StalkerBackupLockedCategory[];
     };
+}
+
+export interface StalkerBackupLockedCategory {
+    categoryType: 'itv' | 'vod' | 'series' | 'radio';
+    categoryId: string;
 }
 
 export type PlaylistBackupEntry =

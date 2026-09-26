@@ -86,6 +86,7 @@ describe('DatabaseWorkerClient', () => {
                 nativeModuleSearchPaths: [
                     '/mock/resources/app.asar.unpacked/node_modules',
                 ],
+                parentalLockActive: false,
             },
         });
 
