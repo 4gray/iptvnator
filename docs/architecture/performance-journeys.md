@@ -67,7 +67,7 @@ counter:
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 2739508,
+                "value": 2739510,
                 "unit": "bytes",
                 "updatedAt": "2026-09-26",
                 "evidencePr": 1693,
