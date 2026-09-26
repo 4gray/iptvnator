@@ -95,10 +95,17 @@ export function parentalLockXtreamCategoryGuard(
         let locked =
             Number.isFinite(routeCategoryId) && isLocked(routeCategoryId);
 
-        const itemId = Number(
-            route.paramMap.get('vodId') ?? route.paramMap.get('serialId')
-        );
-        if (!locked && section !== 'live' && Number.isFinite(itemId)) {
+        // Category-only routes carry no item: `Number(null)` would be 0 and
+        // send every unlocked category through the (failing) item check.
+        const rawItemId =
+            route.paramMap.get('vodId') ?? route.paramMap.get('serialId');
+        const itemId = rawItemId === null ? null : Number(rawItemId);
+        if (
+            !locked &&
+            section !== 'live' &&
+            itemId !== null &&
+            Number.isFinite(itemId)
+        ) {
             const contentType = section === 'vod' ? 'movie' : 'series';
             let item = await dataSource.getContentByXtreamId(
                 itemId,

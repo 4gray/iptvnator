@@ -219,6 +219,20 @@ export function withContent() {
 
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            /**
+             * A filtered reload was requested (parental lock changed) while
+             * the initial hydration was still publishing rows it read under
+             * the previous lock state: those publications are withheld and
+             * the reload runs once the hydration has settled.
+             */
+            let reloadAfterInitialization = false;
+            const runDeferredReload = async (): Promise<void> => {
+                if (!reloadAfterInitialization) {
+                    return;
+                }
+                reloadAfterInitialization = false;
+                await methods.reloadCachedContent();
+            };
             const dataService = inject(DataService);
             const databaseService = inject(DatabaseService);
             const pendingRestoreService = inject(XtreamPendingRestoreService);
@@ -630,8 +644,22 @@ export function withContent() {
                     }
 
                     updates.contentLoadStateByType = nextLoadStates;
+                    if (reloadAfterInitialization) {
+                        // Read before the lock changed; the deferred reload
+                        // below publishes the filtered rows instead.
+                        for (const key of [
+                            'liveStreams',
+                            'vodStreams',
+                            'serialStreams',
+                        ] as const) {
+                            if (key in updates) {
+                                updates[key] = [];
+                            }
+                        }
+                    }
                     return updates;
                 });
+                await runDeferredReload();
             };
 
             const hydrateCachedContentForScope = async (
@@ -652,6 +680,7 @@ export function withContent() {
                         isPendingRestoreBlocked: false,
                         contentInitBlockReason: null,
                     });
+                    await runDeferredReload();
                     return;
                 }
 
@@ -999,6 +1028,9 @@ export function withContent() {
                         isContentInitialized: true,
                         contentInitBlockReason: null,
                     });
+                    // A lock change during the hydration withheld the rows
+                    // it published; read them again under the current lock.
+                    await runDeferredReload();
                 } catch (error) {
                     if (store.isImporting()) {
                         await finalizePendingImportTypes(
@@ -1222,7 +1254,9 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_LIVE,
                             () =>
                                 patchState(store, {
-                                    liveStreams: live,
+                                    liveStreams: reloadAfterInitialization
+                                        ? []
+                                        : live,
                                 }),
                             () => ({ items: live.length })
                         );
@@ -1259,7 +1293,9 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_VOD,
                             () =>
                                 patchState(store, {
-                                    vodStreams: vod,
+                                    vodStreams: reloadAfterInitialization
+                                        ? []
+                                        : vod,
                                     vodStreamsPlaylistId: ctx.playlistId,
                                 }),
                             () => ({ items: vod.length })
@@ -1298,7 +1334,9 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_SERIES,
                             () =>
                                 patchState(store, {
-                                    serialStreams: series,
+                                    serialStreams: reloadAfterInitialization
+                                        ? []
+                                        : series,
                                     isLoadingContent: false,
                                 }),
                             () => ({ items: series.length })
@@ -1542,7 +1580,14 @@ export function withContent() {
                     shouldPublish: () => boolean = () => true
                 ): Promise<void> {
                     const ctx = getCredentialsFromStore();
-                    if (!ctx || !store.isContentInitialized()) {
+                    if (!ctx) {
+                        return;
+                    }
+                    if (!store.isContentInitialized()) {
+                        // The initial hydration is still publishing rows it
+                        // read under the previous lock state: withhold those
+                        // and reload once it has settled.
+                        reloadAfterInitialization = true;
                         return;
                     }
                     const loadStates = store.contentLoadStateByType();

@@ -3,7 +3,9 @@ import { PortalStatusType } from '../../xtream-state';
 import {
     createContentTestProviders,
     createContentTestStore,
+    createDeferred,
     createPendingRestoreServiceMock,
+    waitForCondition,
 } from './with-content.feature.spec-helpers';
 
 jest.mock('@iptvnator/portal/shared/util', () => ({
@@ -101,6 +103,38 @@ describe('withContent parental-lock reloads', () => {
 
         await store.reloadCachedContent();
         expect(store.liveStreams()).toEqual([{ xtream_id: 1 }]);
+    });
+
+    it('withholds rows published by a hydration a relock overtook and reloads them afterwards', async () => {
+        const live = createDeferred<unknown[]>();
+        let calls = 0;
+        dataSource.getContent.mockImplementation(() => {
+            calls += 1;
+            if (calls === 1) {
+                // The hydration's live read is held open; the relock lands
+                // while it is in flight.
+                return live.promise;
+            }
+            // Reads 2-3 still belong to the hydration, later ones to the
+            // deferred filtered reload.
+            return Promise.resolve(
+                calls <= 3 ? [{ xtream_id: 1 }] : [{ xtream_id: 2 }]
+            );
+        });
+        const initialization = store.initializeContent();
+        await waitForCondition(() => calls === 1);
+
+        await store.reloadCachedContent();
+        expect(calls).toBe(1);
+
+        live.resolve([{ xtream_id: 1 }]);
+        await initialization;
+
+        expect(calls).toBe(6);
+        expect(store.liveStreams()).toEqual([{ xtream_id: 2 }]);
+        expect(store.vodStreams()).toEqual([{ xtream_id: 2 }]);
+        expect(store.serialStreams()).toEqual([{ xtream_id: 2 }]);
+        expect(store.isContentInitialized()).toBe(true);
     });
 
     it('empties the category lists when their reload fails', async () => {

@@ -167,7 +167,13 @@ on either side.
   empties every catalog list and `clearSearchResults()` the stored search
   before the filtered reads refill them; both reloads take a publish guard
   answered before every state patch, so a read issued under an older lock
-  version is dropped instead of published. Both reloads fail closed: a category reload that
+  version is dropped instead of published. A lock change that overtakes
+  the INITIAL hydration (the content is not initialized yet, so the reload
+  has nothing to re-read) sets a deferred-reload flag instead: the
+  hydration then publishes empty lists in place of the rows it read under
+  the previous lock state, and the filtered reload runs as soon as the
+  hydration settles, on every path that marks the content initialized.
+  Both reloads fail closed: a category reload that
   rejects empties the three category lists, and a per-type content reload
   that rejects empties that type and sets it back to `idle` so the next
   visit loads it again (filtered) — rows read under the previous lock state

@@ -127,6 +127,14 @@ describe('parentalLockXtreamCategoryGuard', () => {
         expect(parentalLock.requestUnlock).not.toHaveBeenCalled();
     });
 
+    it('lets an unlocked category-only route through without an item check', async () => {
+        await expect(run('vod', '13')).resolves.toBe(true);
+        await expect(run('series', '13')).resolves.toBe(true);
+
+        expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
+        expect(parentalLock.requestUnlock).not.toHaveBeenCalled();
+    });
+
     it('passes through while the lock is inactive without touching the database', async () => {
         parentalLock.active.mockReturnValue(false);
 
