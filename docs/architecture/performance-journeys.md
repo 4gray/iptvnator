@@ -179,6 +179,35 @@ harness, which is what the ratchet needs. The main process start
 (`Date.now() - process.uptime()`) is recorded per iteration under
 `evidence.epochs` for cross-checks.
 
+### Startup work before the first card
+
+`renderer.ipcCallsToFirstCard` counts what the renderer asks of the main
+process before the first card. Only work that the first card needs may run
+before it:
+
+- `PlaylistsService.getAllPlaylists()` shares one in-flight SQLite read
+  between concurrent callers (`SharedInFlightRead`): at startup the playlist
+  effect and the XMLTV source reconciliation both read the inventory, and the
+  second caller joins the first read and receives a copy. A settled read is
+  never reused, and every SQLite write detaches the pending read, so a caller
+  that follows a write reads again.
+- `StartupDeferralService` (`@iptvnator/services`) holds work the first
+  screen does not need: the initial download list (the header badge), the
+  app update status (the update card), and the dashboard's recent items and
+  favorites. `app.config.ts` arms it with `STARTUP_WORK_DEFERRAL`, and
+  `AppStartupStatusComponent` opens it one task after the render that
+  reveals the routed content, so released work never lands in the task of
+  the first card. It opens on its own after 5 s if that render never
+  happens. Without the token (tests, other hosts) the gate is open.
+- `IPTVNATOR_DISABLE_STARTUP_DEFERRAL=1` (or `true`) is the short-lived kill
+  switch: the preload exposes it as `startupDeferralDisabled` and the gate
+  starts open. Remove it within two releases of the change that added it.
+- `reconcileEpgSources` stays before the first card on purpose: its
+  completion bumps `EpgSourceSettingsService.revision()`, the fence that
+  keeps XMLTV lookups from returning data of a removed source. Deferring it
+  would let dashboard EPG lookups start first and then be discarded and
+  requeued.
+
 ### Summary schema
 
 ```json

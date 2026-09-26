@@ -5,6 +5,10 @@ import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
+import {
+    STARTUP_WORK_DEFERRAL,
+    StartupDeferralService,
+} from '@iptvnator/services';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-release-notes-dialog.component';
 
@@ -164,5 +168,78 @@ describe('AppUpdateNotificationPanelComponent', () => {
             'noreferrer'
         );
         open.mockRestore();
+    });
+});
+
+describe('AppUpdateNotificationPanelComponent at startup', () => {
+    const originalElectron = window.electron;
+    let statusHandler: ((status: ElectronBridgeAppUpdateStatus) => void) | null;
+
+    function setup() {
+        statusHandler = null;
+        window.electron = {
+            getAppUpdateStatus: jest.fn().mockResolvedValue(availableStatus),
+            onAppUpdateStatusChange: jest.fn((handler) => {
+                statusHandler = handler;
+                return jest.fn();
+            }),
+        } as unknown as typeof window.electron;
+        TestBed.configureTestingModule({
+            imports: [
+                AppUpdateNotificationPanelComponent,
+                TranslateModule.forRoot(),
+            ],
+            providers: [
+                { provide: MatDialog, useValue: { open: jest.fn() } },
+                { provide: STARTUP_WORK_DEFERRAL, useValue: true },
+            ],
+        });
+        const fixture = TestBed.createComponent(
+            AppUpdateNotificationPanelComponent
+        );
+        fixture.detectChanges();
+        const openGate = async () => {
+            TestBed.inject(StartupDeferralService).markFirstContentRendered();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            await fixture.whenStable();
+            fixture.detectChanges();
+        };
+        return { fixture, openGate };
+    }
+
+    afterEach(() => {
+        window.electron = originalElectron;
+    });
+
+    it('reads the update status only after the first screen rendered', async () => {
+        const { fixture, openGate } = setup();
+        await fixture.whenStable();
+
+        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalled();
+        expect(window.electron.getAppUpdateStatus).not.toHaveBeenCalled();
+
+        await openGate();
+
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="app-update-notification"]'
+            )
+        ).not.toBeNull();
+    });
+
+    it('keeps a status pushed while the read waited', async () => {
+        const { fixture, openGate } = setup();
+        statusHandler?.({
+            ...availableStatus,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
+        });
+
+        await openGate();
+
+        expect(window.electron.getAppUpdateStatus).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.status()?.status).toBe(
+            ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+        );
     });
 });

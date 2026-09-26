@@ -6,6 +6,7 @@ import {
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { StartupDeferralService } from '@iptvnator/services';
 import { AppStartupStatusComponent } from './app-startup-status.component';
 
 describe('AppStartupStatusComponent', () => {
@@ -46,6 +47,28 @@ describe('AppStartupStatusComponent', () => {
         store.refreshState();
         fixture.detectChanges();
         expect(fixture.componentInstance.complete()).toBe(true);
+    });
+
+    it('releases deferred startup work only after the completing render', async () => {
+        const mark = jest.spyOn(
+            TestBed.inject(StartupDeferralService),
+            'markFirstContentRendered'
+        );
+        const fixture = TestBed.createComponent(AppStartupStatusComponent);
+        fixture.componentRef.setInput('routeReady', true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(mark).not.toHaveBeenCalled();
+
+        TestBed.inject(MockStore).overrideSelector(
+            selectPlaylistsLoadingFlag,
+            true
+        );
+        TestBed.inject(MockStore).refreshState();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(mark).toHaveBeenCalledTimes(1);
     });
 
     it('offers a retry on failure without rendering raw storage errors', () => {

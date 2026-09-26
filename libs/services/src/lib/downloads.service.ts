@@ -7,6 +7,7 @@ import { updateDownloadMetadata } from './downloads-metadata-update';
 import type { DownloadItem, DownloadStartInput } from './downloads.models';
 import { formatDownloadBytes } from './downloads.utils';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
+import { StartupDeferralService } from './startup-deferral.service';
 
 export type {
     DownloadItem,
@@ -17,6 +18,7 @@ export type {
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly startupDeferral = inject(StartupDeferralService);
     private unsubscribe?: () => void;
     private readonly downloadListLoadState = new DownloadListLoadState();
 
@@ -78,6 +80,10 @@ export class DownloadsService implements OnDestroy {
         this.unsubscribe = window.electron.onDownloadsUpdate(() => {
             this.loadDownloads();
         });
+
+        // The header badge is the only startup consumer; views that need
+        // the list load it themselves. Keep it off the first screen (J1).
+        await this.startupDeferral.whenFirstContentRendered();
 
         // Load initial download list
         await this.loadDownloads();

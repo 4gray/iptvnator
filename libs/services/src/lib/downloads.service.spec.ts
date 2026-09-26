@@ -15,6 +15,10 @@ import type {
 import { DownloadListLoadState } from './download-list-load-state';
 import { DownloadItem, DownloadsService } from './downloads.service';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
+import {
+    STARTUP_WORK_DEFERRAL,
+    StartupDeferralService,
+} from './startup-deferral.service';
 
 type TestDownloadsService = {
     downloads: WritableSignal<DownloadItem[]>;
@@ -150,6 +154,7 @@ describe('DownloadsService', () => {
         const injector = createEnvironmentInjector(
             [
                 DownloadsService,
+                StartupDeferralService,
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: { supportsDownloads: false },
@@ -167,6 +172,44 @@ describe('DownloadsService', () => {
             expect(service.isAvailable()).toBe(false);
         } finally {
             injector.destroy();
+        }
+    });
+
+    it('subscribes at once but loads the list after the first screen rendered', async () => {
+        jest.useFakeTimers();
+        const onDownloadsUpdate = jest.fn(() => () => undefined);
+        const electron = {
+            onDownloadsUpdate,
+            downloadsGetList: jest.fn(async () => []),
+            downloadsGetDefaultFolder: jest.fn(async () => '/downloads'),
+        };
+        testWindow.electron = electron as unknown as DownloadsElectronStub;
+        const injector = createEnvironmentInjector(
+            [
+                DownloadsService,
+                StartupDeferralService,
+                { provide: STARTUP_WORK_DEFERRAL, useValue: true },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsDownloads: true },
+                },
+            ],
+            Injector.NULL as unknown as EnvironmentInjector
+        );
+
+        try {
+            runInInjectionContext(injector, () => new DownloadsService());
+            await Promise.resolve();
+            expect(onDownloadsUpdate).toHaveBeenCalledTimes(1);
+            expect(electron.downloadsGetList).not.toHaveBeenCalled();
+
+            injector.get(StartupDeferralService).markFirstContentRendered();
+            await jest.advanceTimersByTimeAsync(0);
+
+            expect(electron.downloadsGetList).toHaveBeenCalledTimes(1);
+        } finally {
+            injector.destroy();
+            jest.useRealTimers();
         }
     });
 

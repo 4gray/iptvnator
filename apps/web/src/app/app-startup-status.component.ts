@@ -1,9 +1,13 @@
 import {
+    afterNextRender,
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
+    Injector,
     input,
+    untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -14,6 +18,7 @@ import {
     selectPlaylistsLoadFailed,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
+import { StartupDeferralService } from '@iptvnator/services';
 
 /** The first route also waits for settings and XMLTV source reconciliation. */
 @Component({
@@ -133,6 +138,22 @@ export class AppStartupStatusComponent {
     readonly complete = computed(
         () => this.routeReady() && this.sourcesReady()
     );
+
+    constructor() {
+        const injector = inject(Injector);
+        const startupDeferral = inject(StartupDeferralService);
+        // The routed content is revealed in the render that completes the
+        // startup status; deferred startup work may start after it.
+        effect(() => {
+            if (!this.complete()) return;
+            untracked(() =>
+                afterNextRender(
+                    () => startupDeferral.markFirstContentRendered(),
+                    { injector }
+                )
+            );
+        });
+    }
 
     retry(): void {
         this.store.dispatch(PlaylistActions.loadPlaylists());

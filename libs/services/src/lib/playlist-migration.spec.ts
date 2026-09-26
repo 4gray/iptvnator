@@ -1,5 +1,6 @@
 import { firstValueFrom, of } from 'rxjs';
 import { PlaylistsService } from './playlists.service';
+import { SharedInFlightRead } from './shared-in-flight-read';
 
 describe('Electron legacy playlist migration', () => {
     const original = window.electron;
@@ -38,6 +39,7 @@ describe('Electron legacy playlist migration', () => {
             dbService,
             runtime: { supportsSqlite: true },
             electronMigrationPromise: null,
+            sqliteInventoryRead: new SharedInFlightRead(),
         });
         return { playlists, dbService, electron, service };
     }

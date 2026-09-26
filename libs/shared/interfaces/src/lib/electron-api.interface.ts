@@ -710,6 +710,11 @@ export interface ElectronBridgeApi {
     ) => () => void;
     getAppVersion: () => Promise<string>;
     platform: string;
+    /**
+     * `IPTVNATOR_DISABLE_STARTUP_DEFERRAL=1` kill switch: issue deferred
+     * startup work immediately instead of after the first rendered screen.
+     */
+    startupDeferralDisabled?: boolean;
     getAppUpdateStatus: () => Promise<ElectronBridgeAppUpdateStatus>;
     checkForAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
     downloadAppUpdate: () => Promise<ElectronBridgeAppUpdateStatus>;
