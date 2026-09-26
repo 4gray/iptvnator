@@ -86,7 +86,10 @@ that file:
 - a wall-clock entry carries `toleranceRatio` and fails above
   `value × toleranceRatio`;
 - a baseline with no measurement in the summary fails, so dropping a
-  measurement cannot disable the ratchet;
+  measurement cannot disable the ratchet; a counter is read only from
+  `journeys.<journey>.counters` and a wall-clock entry (one with
+  `toleranceRatio`) only from `journeys.<journey>.wallClock`, so a value in
+  the wrong section also counts as missing;
 - a measurement below its baseline passes and prints a "tighten" hint;
 - a measured counter without a baseline is noted, not failed;
 - checking nothing fails: an empty baselines file, or `--only` naming an

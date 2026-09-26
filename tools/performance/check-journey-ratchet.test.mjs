@@ -146,6 +146,47 @@ test('a baseline without a measurement fails instead of being skipped', () => {
     );
 });
 
+test('a value in the wrong summary section counts as missing', () => {
+    const counterInWallClock = compareToBaselines({
+        baselines,
+        summary: {
+            journeys: {
+                launch: {
+                    counters: {},
+                    wallClock: {
+                        'renderer.initialBytes': 2750491,
+                        spawnToFirstCardMs: 1000,
+                    },
+                },
+            },
+        },
+    });
+    assert.equal(counterInWallClock.failures.length, 1);
+    assert.match(
+        counterInWallClock.failures[0],
+        /renderer\.initialBytes: baseline 2,750,491 bytes has no measurement under journeys\.launch\.counters/
+    );
+
+    const wallClockInCounters = compareToBaselines({
+        baselines,
+        summary: {
+            journeys: {
+                launch: {
+                    counters: {
+                        'renderer.initialBytes': 2750491,
+                        spawnToFirstCardMs: 1000,
+                    },
+                },
+            },
+        },
+    });
+    assert.equal(wallClockInCounters.failures.length, 1);
+    assert.match(
+        wallClockInCounters.failures[0],
+        /spawnToFirstCardMs: baseline 1,000 ms has no measurement under journeys\.launch\.wallClock/
+    );
+});
+
 test('an empty or malformed summary fails every baseline', () => {
     assert.equal(
         compareToBaselines({ baselines, summary: {} }).failures.length,

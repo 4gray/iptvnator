@@ -74,11 +74,19 @@ export function validateBaselines(baselines) {
     return baselines;
 }
 
-function measuredValue(summaryJourney, name) {
+/**
+ * A baseline entry is either a counter (exact) or a wall-clock entry (carries
+ * `toleranceRatio`), and each is read only from its own summary section. A
+ * value that moved to the other section is treated as missing, so a summary
+ * schema regression fails the ratchet instead of slipping through it.
+ */
+function summarySection(entry) {
+    return entry.toleranceRatio !== undefined ? 'wallClock' : 'counters';
+}
+
+function measuredValue(summaryJourney, name, entry) {
     if (!isPlainObject(summaryJourney)) return undefined;
-    const counter = summaryJourney.counters?.[name];
-    if (counter !== undefined) return counter;
-    return summaryJourney.wallClock?.[name];
+    return summaryJourney[summarySection(entry)]?.[name];
 }
 
 /**
@@ -114,11 +122,15 @@ export function compareToBaselines({ baselines, summary, only = [] }) {
             if (selected.size > 0 && !selected.has(label)) continue;
             evaluated += 1;
             const unit = entry.unit ? ` ${entry.unit}` : '';
-            const measured = measuredValue(summaryJourneys[journey], name);
+            const measured = measuredValue(
+                summaryJourneys[journey],
+                name,
+                entry
+            );
 
             if (measured === undefined) {
                 result.failures.push(
-                    `${label}: baseline ${formatNumber(entry.value)}${unit} has no measurement in the summary. The ratchet cannot be bypassed by dropping a measurement; restore it.`
+                    `${label}: baseline ${formatNumber(entry.value)}${unit} has no measurement under journeys.${journey}.${summarySection(entry)} in the summary. The ratchet cannot be bypassed by dropping a measurement; restore it.`
                 );
                 continue;
             }
