@@ -1,4 +1,6 @@
 import { formatDate } from '@angular/common';
+import { TestBed } from '@angular/core/testing';
+import { TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { Language } from '@iptvnator/shared/interfaces';
 import {
@@ -42,14 +44,14 @@ describe('registerAppDateLocale', () => {
         expect(formatDate(sampleDate, 'MMMM', 'be')).toBe('студзеня');
     });
 
-    it('resolves on a failed import and retries on the next call', async () => {
+    it('falls back to English formatting on a failed import and retries on the next call', async () => {
         const failing = jest.fn(() => Promise.reject(new Error('offline')));
         const working = jest.fn(() => import('@angular/common/locales/pl'));
 
         await expect(
             registerAppDateLocale('pl', { pl: failing })
         ).resolves.toBeUndefined();
-        expect(() => formatDate(sampleDate, 'MMMM', 'pl')).toThrow();
+        expect(formatDate(sampleDate, 'MMMM', 'pl')).toBe('January');
 
         await registerAppDateLocale('pl', { pl: working });
 
@@ -84,10 +86,38 @@ describe('registerAppDateLocale', () => {
 });
 
 describe('AppDateLocaleService', () => {
-    it('delegates to registerAppDateLocale', async () => {
+    let translate: { use: jest.Mock };
+    let service: AppDateLocaleService;
+
+    beforeEach(() => {
+        translate = { use: jest.fn() };
+        TestBed.configureTestingModule({
+            providers: [{ provide: TranslateService, useValue: translate }],
+        });
+        service = TestBed.inject(AppDateLocaleService);
+    });
+
+    it('delegates register to registerAppDateLocale', async () => {
         await expect(
-            new AppDateLocaleService().register(Language.GERMAN)
+            service.register(Language.GERMAN)
         ).resolves.toBeUndefined();
         expect(formatDate(sampleDate, 'MMMM', 'de')).toBe('Januar');
+    });
+
+    it('registers the locale data before switching the language', async () => {
+        await service.use(Language.HUNGARIAN);
+
+        expect(translate.use).toHaveBeenCalledWith(Language.HUNGARIAN);
+        expect(formatDate(sampleDate, 'MMMM', 'hu')).toBe('január');
+    });
+
+    it('applies only the language requested last when switches overlap', async () => {
+        await Promise.all([
+            service.use(Language.ITALIAN),
+            service.use(Language.TURKISH),
+        ]);
+
+        expect(translate.use).toHaveBeenCalledTimes(1);
+        expect(translate.use).toHaveBeenCalledWith(Language.TURKISH);
     });
 });

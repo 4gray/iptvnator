@@ -1,5 +1,7 @@
 import { registerLocaleData } from '@angular/common';
-import { Injectable } from '@angular/core';
+import localeEn from '@angular/common/locales/en';
+import { inject, Injectable } from '@angular/core';
+import { TranslateService } from '@ngx-translate/core';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { createDevLogger } from '@iptvnator/shared/interfaces';
 
@@ -49,8 +51,11 @@ const pendingLocales = new Map<string, Promise<void>>();
  * new locale, and a locale whose data has not arrived throws. English resolves
  * immediately, as does a locale that is already registered or in flight.
  *
- * A failed load resolves rather than rejects so the language switch still
- * happens; the next call for that locale retries the import.
+ * A failed load resolves rather than rejects, but never leaves the locale
+ * without data: English formatting is registered under the requested id so
+ * `DatePipe` keeps rendering instead of throwing in every template that passes
+ * the locale. The locale is not marked registered, so the next call retries
+ * the import and a success replaces the fallback.
  */
 export function registerAppDateLocale(
     language: string | null | undefined,
@@ -78,7 +83,12 @@ export function registerAppDateLocale(
             registeredLocales.add(locale);
         })
         .catch((error: unknown) => {
-            debug('Loading Angular locale data failed', locale, error);
+            debug(
+                'Loading Angular locale data failed; using English formatting for',
+                locale,
+                error
+            );
+            registerLocaleData(localeEn, locale);
         })
         .finally(() => {
             pendingLocales.delete(locale);
@@ -87,10 +97,27 @@ export function registerAppDateLocale(
     return load;
 }
 
-/** Injectable wrapper so components can gate a language switch on the data. */
+/** Gates UI language switches on the locale data they render with. */
 @Injectable({ providedIn: 'root' })
 export class AppDateLocaleService {
+    private readonly translate = inject(TranslateService);
+    private latestRequest = 0;
+
     register(language: string | null | undefined): Promise<void> {
         return registerAppDateLocale(language);
+    }
+
+    /**
+     * Registers the locale data, then switches the UI language. Switches are
+     * ordered by request, not by completion: a switch whose data arrives
+     * after a newer request was made is dropped, so the language chosen last
+     * is the one that ends up active.
+     */
+    async use(language: string): Promise<void> {
+        const request = ++this.latestRequest;
+        await registerAppDateLocale(language);
+        if (request === this.latestRequest) {
+            this.translate.use(language);
+        }
     }
 }

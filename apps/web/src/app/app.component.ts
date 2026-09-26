@@ -153,9 +153,7 @@ export class AppComponent implements OnInit {
                     const resolvedLang = settings.language ?? this.DEFAULT_LANG;
                     // The switch re-renders every date with the new locale;
                     // its data is a lazy chunk that must be registered first.
-                    void this.dateLocales
-                        .register(resolvedLang)
-                        .then(() => this.translate.use(resolvedLang));
+                    void this.dateLocales.use(resolvedLang);
                     // Mirror the active language to localStorage so the next
                     // cold start can read it synchronously in app.config.ts's
                     // getInitialLanguage() and avoid the English-then-localized

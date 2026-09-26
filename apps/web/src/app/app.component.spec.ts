@@ -140,7 +140,7 @@ describe('AppComponent', () => {
                 // The real service imports locale chunks; the language switch
                 // is gated on it, so it must resolve deterministically here.
                 MockProvider(AppDateLocaleService, {
-                    register: jest.fn().mockResolvedValue(undefined),
+                    use: jest.fn().mockResolvedValue(undefined),
                 }),
                 {
                     provide: WORKSPACE_SHELL_ACTIONS,
@@ -229,12 +229,12 @@ describe('AppComponent', () => {
         });
         settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
         jest.spyOn(settingsService, 'changeTheme');
-        jest.spyOn(translateService, 'use');
+        const dateLocales = TestBed.inject(AppDateLocaleService);
 
         component.initSettings();
         await fixture.whenStable();
 
-        expect(translateService.use).toHaveBeenCalledWith(Language.SPANISH);
+        expect(dateLocales.use).toHaveBeenCalledWith(Language.SPANISH);
         expect(settingsService.changeTheme).toHaveBeenCalledWith(
             Theme.DarkTheme
         );
