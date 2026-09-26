@@ -191,6 +191,14 @@ test('template contents are inert and character references are decoded', () => {
     );
 });
 
+test('SVG script elements are not HTML scripts, HTML inside foreignObject is', () => {
+    const html = `<svg><script src="icon.js"></script><script href="icon2.js"></script><foreignObject><script src="html-in-svg.js"></script></foreignObject></svg><script src="main.js"></script>`;
+    assert.deepEqual(
+        extractInitialResources(html).map((resource) => resource.url),
+        ['html-in-svg.js', 'main.js']
+    );
+});
+
 test('counts a file once per distinct request URL', async () => {
     const distDir = await writeDist('cache-busted', {
         indexHtml: `<link rel="modulepreload" href="chunk-a.js"><link rel="modulepreload" href="chunk-a.js?v=2">`,

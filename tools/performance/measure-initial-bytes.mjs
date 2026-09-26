@@ -23,6 +23,7 @@ export const INITIAL_BYTES_COUNTER = 'renderer.initialBytes';
 export const LAUNCH_JOURNEY = 'launch';
 
 const EXTERNAL_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+const HTML_NAMESPACE = 'http://www.w3.org/1999/xhtml';
 
 /**
  * A resource only counts when the browser fetches it on the initial path from
@@ -51,13 +52,19 @@ function classify(tag, attributes) {
  * browser uses (parse5, scripting enabled): comments, doctype and bogus
  * comments are not elements, script/style/noscript/textarea/title bodies are
  * text, `<template>` contents are inert and live in a separate fragment,
- * and attribute values arrive with character references decoded.
+ * attribute values arrive with character references decoded, and an SVG
+ * `<script>` inside inline SVG is in another namespace (it uses `href`, and
+ * the HTML parser does not fetch it), while HTML inside `<foreignObject>`
+ * is back in the HTML namespace.
  */
 export function scanLiveTags(html) {
     const tags = [];
     const visit = (node) => {
         for (const child of node.childNodes ?? []) {
-            if (child.nodeName === 'script' || child.nodeName === 'link') {
+            if (
+                child.namespaceURI === HTML_NAMESPACE &&
+                (child.nodeName === 'script' || child.nodeName === 'link')
+            ) {
                 tags.push({
                     tag: child.nodeName,
                     attributes: Object.fromEntries(
