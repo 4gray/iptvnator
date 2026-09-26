@@ -182,11 +182,20 @@ export class ParentalLockLockStore {
         return this.locks()[playlistId]?.m3u ?? [];
     }
 
+    /**
+     * Every mutation re-reads a store that failed to read BEFORE building
+     * the edit: `locksFor` on the empty fail-closed store would otherwise
+     * turn one type's edit into the playlist's entire lock set once the
+     * write goes through, discarding its other locks.
+     */
     async setXtreamLocks(
         playlistId: string,
         categoryType: ParentalLockXtreamCategoryType,
         xtreamIds: number[]
     ): Promise<boolean> {
+        if (!(await this.ensureReadable())) {
+            return false;
+        }
         const previous = this.locksFor(playlistId);
         const next = withXtreamLocks(previous, categoryType, xtreamIds);
         return this.commitLocks(playlistId, previous, next, [categoryType]);
@@ -197,6 +206,9 @@ export class ParentalLockLockStore {
         categoryType: ParentalLockStalkerCategoryType,
         categoryIds: string[]
     ): Promise<boolean> {
+        if (!(await this.ensureReadable())) {
+            return false;
+        }
         return this.persistPlaylistLocks(
             playlistId,
             withStalkerLocks(
@@ -211,6 +223,9 @@ export class ParentalLockLockStore {
         playlistId: string,
         groupTitles: string[]
     ): Promise<boolean> {
+        if (!(await this.ensureReadable())) {
+            return false;
+        }
         return this.persistPlaylistLocks(
             playlistId,
             withM3uLocks(this.locksFor(playlistId), groupTitles)
@@ -222,6 +237,9 @@ export class ParentalLockLockStore {
         playlistId: string,
         locks: ParentalLockPlaylistLocks
     ): Promise<boolean> {
+        if (!(await this.ensureReadable())) {
+            return false;
+        }
         return this.commitLocks(
             playlistId,
             this.locksFor(playlistId),

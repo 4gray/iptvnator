@@ -41,8 +41,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
 
         const backup = await service.exportBackup();
 
-        const entry = backup.manifest
-            .playlists[0] as XtreamPlaylistBackupEntry;
+        const entry = backup.manifest.playlists[0] as XtreamPlaylistBackupEntry;
         const expectedHiddenCategories = [
             { categoryType: 'live', xtreamId: 101 },
             { categoryType: 'movies', xtreamId: 201 },
@@ -92,9 +91,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
             'xtream-1',
             expect.objectContaining({
                 state: expect.objectContaining({
-                    hiddenCategories: [
-                        { categoryType: 'live', xtreamId: 101 },
-                    ],
+                    hiddenCategories: [{ categoryType: 'live', xtreamId: 101 }],
                 }),
             }),
             expect.any(Function)
@@ -107,11 +104,21 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         );
     });
 
+    it('rejects a damaged parental lock list instead of erasing the persisted locks', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService(collaborators);
+        const manifest = createXtreamManifest([]);
+        (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories = [{}];
 
-
-
-
-
+        await expect(
+            service.importBackup(JSON.stringify(manifest))
+        ).rejects.toThrow(/invalid parental locks/);
+        expect(
+            collaborators.databaseService.updateCategoryVisibility
+        ).not.toHaveBeenCalled();
+    });
 
     it('rejects entries with missing user-state collections instead of wiping user data', async () => {
         const collaborators = createRestoreCollaborators();
@@ -121,9 +128,8 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         // treated as an authoritative "empty" state: the merge path would
         // unhide every category and delete favorites/recent/positions.
         const manifest = createXtreamManifest([]);
-        delete (
-            manifest.playlists[0] as unknown as { userState?: unknown }
-        ).userState;
+        delete (manifest.playlists[0] as unknown as { userState?: unknown })
+            .userState;
 
         await expect(
             service.importBackup(JSON.stringify(manifest))

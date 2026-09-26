@@ -26,6 +26,9 @@ import {
     XtreamBackupSourcePin,
     XtreamPendingRestoreState,
     createRandomId,
+    isWellFormedParentalLockGroupTitles,
+    isWellFormedParentalLockStalkerCategories,
+    isWellFormedParentalLockXtreamCategories,
     normalizeParentalLockGroupTitles,
     normalizeParentalLockStalkerCategories,
     normalizeParentalLockXtreamCategories,
@@ -525,6 +528,19 @@ export class PlaylistBackupService {
                         `M3U backup "${entry.title}" is missing raw playlist data.`
                     );
                 }
+                // Restore replaces the playlist's locks with the archive's,
+                // and the normalizer drops what it does not understand — a
+                // damaged lock list would erase the persisted protection.
+                if (
+                    entry.userState?.lockedGroupTitles !== undefined &&
+                    !isWellFormedParentalLockGroupTitles(
+                        entry.userState.lockedGroupTitles
+                    )
+                ) {
+                    throw new PlaylistBackupError(
+                        `M3U backup "${entry.title}" has invalid parental locks.`
+                    );
+                }
                 break;
             case 'xtream':
                 if (
@@ -554,7 +570,9 @@ export class PlaylistBackupService {
 
                 if (
                     entry.userState.lockedCategories !== undefined &&
-                    !Array.isArray(entry.userState.lockedCategories)
+                    !isWellFormedParentalLockXtreamCategories(
+                        entry.userState.lockedCategories
+                    )
                 ) {
                     throw new PlaylistBackupError(
                         `Xtream backup "${entry.title}" has invalid parental locks.`
@@ -579,6 +597,16 @@ export class PlaylistBackupService {
                 ) {
                     throw new PlaylistBackupError(
                         `Stalker backup "${entry.title}" is missing connection metadata.`
+                    );
+                }
+                if (
+                    entry.userState?.lockedCategories !== undefined &&
+                    !isWellFormedParentalLockStalkerCategories(
+                        entry.userState.lockedCategories
+                    )
+                ) {
+                    throw new PlaylistBackupError(
+                        `Stalker backup "${entry.title}" has invalid parental locks.`
                     );
                 }
                 break;

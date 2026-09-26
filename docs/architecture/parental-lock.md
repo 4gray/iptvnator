@@ -129,7 +129,13 @@ retry the read first, and a write is refused while it still fails, since it
 would be built on an empty in-memory store and wipe the persisted locks).
 The window before the initial read settles is treated the same way
 (`ParentalLockLockStore.readable` is false until then): settings can report
-the feature as on before the locks are known. The feature switch itself is
+the feature as on before the locks are known — and the workspace route's
+`settingsReady` resolver awaits `ParentalLockService.initialize()` next to
+the settings load, so no route or catalog activates before the PIN and the
+lock store are known (in the PWA the settings read can be the slower one).
+Every lock write re-reads a failed store BEFORE building its edit, so a
+recovered store is edited, never overwritten by an edit built on the empty
+fail-closed one. The feature switch itself is
 persisted through one guarded path (`persistEnabled`): `updateSettings`
 patches memory before it writes, so a failed write is undone in memory and
 `setupPin`/`disable` report false (whether to persist is decided from the
@@ -178,7 +184,8 @@ on either side.
   hydration then publishes empty lists in place of the rows it read under
   the previous lock state (categories included), and the filtered reload
   of categories and content runs as soon as the hydration settles, on
-  every path that marks the content initialized.
+  every path that marks the content initialized, under the publish guard
+  of the request that deferred it.
   Both reloads fail closed: a category reload that
   rejects empties the three category lists, and a per-type content reload
   that rejects empties that type and sets it back to `idle` so the next
@@ -310,7 +317,11 @@ on either side.
 M3U group titles travel verbatim (`normalizeParentalLockGroupTitles`, exact
 dedup): locks match `channel.group.title` exactly, so the trimming
 `uniqueStrings` used for favorites would weaken a lock on a title with
-surrounding whitespace.
+surrounding whitespace. A backup's lock lists are validated entry by entry
+on import (`isWellFormedParentalLock*` in the shared contract): restore
+treats them as authoritative and the normalizer drops what it does not
+understand, so a damaged list is rejected rather than erasing the
+playlist's persisted protection.
 
 `lockedGroupTitles` (M3U), `lockedCategories` (Xtream `{categoryType,
 xtreamId}`, Stalker `{categoryType, categoryId}`) travel in each entry's

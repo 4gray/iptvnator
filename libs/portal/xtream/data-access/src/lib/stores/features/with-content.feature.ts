@@ -226,13 +226,20 @@ export function withContent() {
              * the reload runs once the hydration has settled.
              */
             let reloadAfterInitialization = false;
+            /** The publish guard of the LATEST deferred request (see below). */
+            let deferredPublishGuard: () => boolean = () => true;
             const runDeferredReload = async (): Promise<void> => {
                 if (!reloadAfterInitialization) {
                     return;
                 }
                 reloadAfterInitialization = false;
-                await methods.reloadCategories();
-                await methods.reloadCachedContent();
+                // The requester's guard travels with the deferred reload: a
+                // relock during these reads supersedes them exactly as it
+                // would an ordinary reload.
+                const shouldPublish = deferredPublishGuard;
+                deferredPublishGuard = () => true;
+                await methods.reloadCategories(shouldPublish);
+                await methods.reloadCachedContent(shouldPublish);
             };
             const dataService = inject(DataService);
             const databaseService = inject(DatabaseService);
@@ -1598,6 +1605,7 @@ export function withContent() {
                         // read under the previous lock state: withhold those
                         // and reload once it has settled.
                         reloadAfterInitialization = true;
+                        deferredPublishGuard = shouldPublish;
                         return;
                     }
                     const loadStates = store.contentLoadStateByType();

@@ -146,6 +146,33 @@ describe('withContent parental-lock reloads', () => {
         expect(store.isContentInitialized()).toBe(true);
     });
 
+    it("carries the deferred request's publish guard into the reload", async () => {
+        const live = createDeferred<unknown[]>();
+        let calls = 0;
+        dataSource.getContent.mockImplementation(() => {
+            calls += 1;
+            return calls === 1
+                ? live.promise
+                : Promise.resolve([{ xtream_id: calls }]);
+        });
+        const initialization = store.initializeContent();
+        await waitForCondition(() => calls === 1);
+
+        let current = true;
+        await store.reloadCachedContent(() => current);
+        // The lock moved on again before the hydration settled.
+        current = false;
+        live.resolve([{ xtream_id: 1 }]);
+        await initialization;
+
+        // The reload stops at its first guard check instead of publishing
+        // the older rows; the superseding apply reads everything again.
+        expect(calls).toBe(4);
+        expect(store.liveStreams()).toEqual([]);
+        expect(store.vodStreams()).toEqual([]);
+        expect(store.serialStreams()).toEqual([]);
+    });
+
     it('empties the category lists when their reload fails', async () => {
         dataSource.getCategories.mockResolvedValue([{ category_id: 'x' }]);
         await store.reloadCategories();

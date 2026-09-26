@@ -80,6 +80,21 @@ describe('ParentalLockLockStore', () => {
         expect(store.readable()).toBe(true);
     });
 
+    it('builds an edit on the recovered store, never on the empty fail-closed one', async () => {
+        storage.readLocks.mockResolvedValueOnce(null);
+        await store.load();
+
+        await expect(store.setM3uLocks('pl-1', ['Adult'])).resolves.toBe(true);
+
+        expect(storage.writeLocks).toHaveBeenLastCalledWith({
+            'pl-1': {
+                xtream: [{ categoryType: 'live', xtreamId: 7 }],
+                stalker: [],
+                m3u: ['Adult'],
+            },
+        });
+    });
+
     it('re-derives the index from a store recovered after a failed read', async () => {
         storage.readLocks.mockResolvedValueOnce(null);
         await store.load();
