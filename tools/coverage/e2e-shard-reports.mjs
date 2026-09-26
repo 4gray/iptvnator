@@ -30,18 +30,25 @@ export function findPlaywrightJsonReports(rootDir) {
     return found.sort();
 }
 
-/** Parses each report and extracts its shard descriptor (`null` when unsharded). */
+/**
+ * Parses each report and extracts its shard descriptor: `null` when the run
+ * was not sharded (`config.shard` absent or `null`). A descriptor that is
+ * present but malformed is kept as `malformedShard` so verification rejects
+ * it instead of mistaking a partial run for a complete unsharded one.
+ */
 export function loadPlaywrightReports(reportPaths) {
     return reportPaths.map((reportPath) => {
         const report = JSON.parse(readFileSync(reportPath, 'utf8'));
         const shard = report.config?.shard ?? null;
+        const wellFormed =
+            shard !== null &&
+            Number.isInteger(shard.current) &&
+            Number.isInteger(shard.total);
         return {
             path: reportPath,
             report,
-            shard:
-                shard && Number.isInteger(shard.current) && Number.isInteger(shard.total)
-                    ? { current: shard.current, total: shard.total }
-                    : null,
+            shard: wellFormed ? { current: shard.current, total: shard.total } : null,
+            malformedShard: shard !== null && !wellFormed,
         };
     });
 }
@@ -57,7 +64,14 @@ export function verifyShardReports(reports) {
         return { ok: false, problems };
     }
 
-    const unsharded = reports.filter((entry) => entry.shard === null);
+    const malformed = reports.filter((entry) => entry.malformedShard);
+    if (malformed.length > 0) {
+        problems.push(`malformed config.shard descriptor: ${describePaths(malformed)}`);
+    }
+
+    const unsharded = reports.filter(
+        (entry) => entry.shard === null && !entry.malformedShard
+    );
     const sharded = reports.filter((entry) => entry.shard !== null);
 
     if (unsharded.length > 0 && sharded.length > 0) {

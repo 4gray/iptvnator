@@ -88,7 +88,7 @@ describe('findPlaywrightJsonReports', () => {
 });
 
 describe('loadPlaywrightReports', () => {
-    it('extracts a shard descriptor and treats malformed ones as unsharded', () => {
+    it('extracts a shard descriptor and flags malformed ones', () => {
         const root = makeTemporaryDir('iptvnator-shard-load-');
         const sharded = writeReport(root, 'sharded', {
             config: { shard: { current: 2, total: 3 } },
@@ -101,8 +101,11 @@ describe('loadPlaywrightReports', () => {
         const loaded = loadPlaywrightReports([sharded, unsharded, malformed]);
 
         assert.deepEqual(loaded[0].shard, { current: 2, total: 3 });
+        assert.equal(loaded[0].malformedShard, false);
         assert.equal(loaded[1].shard, null);
+        assert.equal(loaded[1].malformedShard, false);
         assert.equal(loaded[2].shard, null);
+        assert.equal(loaded[2].malformedShard, true);
     });
 });
 
@@ -119,6 +122,17 @@ describe('verifyShardReports', () => {
         ];
 
         assert.deepEqual(verifyShardReports(reports), { ok: true, problems: [] });
+    });
+
+    it('rejects a malformed shard descriptor even as the only report', () => {
+        const result = verifyShardReports([
+            { ...entry(null, 'broken.json'), malformedShard: true },
+        ]);
+
+        assert.equal(result.ok, false);
+        assert.deepEqual(result.problems, [
+            'malformed config.shard descriptor: broken.json',
+        ]);
     });
 
     it('rejects an empty set', () => {
@@ -290,6 +304,31 @@ describe('e2e-semantic-summary CLI', () => {
         assert.equal(result.status, 1);
         assert.match(result.stderr, /missing shards: 2\/3/);
         assert.match(result.stepSummary, /not written.*missing shards: 2\/3/);
+        assert.equal(existsSync(result.summaryPath), false);
+    });
+
+    it('refuses an explicit input path that does not exist', () => {
+        const root = makeWorkspace();
+
+        const result = runSummary(root, ['--input=dist/e2e-shards']);
+
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /input does not exist/);
+        assert.match(result.stepSummary, /not written.*input does not exist/);
+        assert.equal(existsSync(result.summaryPath), false);
+    });
+
+    it('refuses a single report whose shard descriptor is malformed', () => {
+        const root = makeWorkspace();
+        writeReport(root, 'shards/one', {
+            config: { shard: { current: 'x', total: 3 } },
+            suites: [],
+        });
+
+        const result = runSummary(root, ['--input=shards']);
+
+        assert.equal(result.status, 1);
+        assert.match(result.stderr, /malformed config\.shard descriptor/);
         assert.equal(existsSync(result.summaryPath), false);
     });
 

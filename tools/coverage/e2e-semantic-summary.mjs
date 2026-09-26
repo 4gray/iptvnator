@@ -166,8 +166,10 @@ function defaultInputFor(projectName) {
  *
  * `--input` may name one Playwright JSON report or a directory that holds the
  * `results.json` of every shard (as downloaded from the per-shard CI
- * artifacts). A directory without any report, or an incomplete or duplicated
- * shard set, aborts instead of writing a partial summary.
+ * artifacts). An explicit input that does not exist, a directory without any
+ * report, or an incomplete or duplicated shard set aborts instead of writing
+ * a partial summary. Only the implicit default falls back to scanning the
+ * spec sources.
  */
 function resolveReportPaths(projectName) {
     const inputPath = inputArg
@@ -175,6 +177,9 @@ function resolveReportPaths(projectName) {
         : defaultInputFor(projectName);
 
     if (!existsSync(inputPath)) {
+        if (inputArg) {
+            fail(`Playwright JSON report input does not exist: ${inputPath}`);
+        }
         return [];
     }
     if (!statSync(inputPath).isDirectory()) {
