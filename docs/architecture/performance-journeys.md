@@ -57,6 +57,48 @@ The measurement script is `tools/performance/measure-initial-bytes.mjs`; its
 Node tests run with `pnpm nx test performance-tools` (Tier B in the coverage
 policy) and lint with `pnpm nx lint performance-tools`.
 
+## Ratchet
+
+`tools/performance/journey-baselines.json` holds one entry per journey and
+counter:
+
+```json
+{
+    "journeys": {
+        "launch": {
+            "renderer.initialBytes": {
+                "value": 2750491,
+                "unit": "bytes",
+                "updatedAt": "2026-09-26",
+                "evidencePr": 1693,
+                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
+            }
+        }
+    }
+}
+```
+
+`tools/performance/check-journey-ratchet.mjs` compares a journey summary with
+that file:
+
+- a counter above its `value` fails; counters are exact, there is no slack;
+- a wall-clock entry carries `toleranceRatio` and fails above
+  `value × toleranceRatio`;
+- a baseline with no measurement in the summary fails, so dropping a
+  measurement cannot disable the ratchet;
+- a measurement below its baseline passes and prints a "tighten" hint;
+- a measured counter without a baseline is noted, not failed.
+
+```bash
+pnpm run perf:initial-bytes:check   # measure dist/apps/web, then check
+pnpm run perf:ratchet:check         # check an existing dist/performance/journey-summary.json
+```
+
+Baselines only move down. Lower `value` in the same PR as the change that
+earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
+into the PR. Never raise a value to make a PR pass: if growth is a deliberate
+trade-off, say so in the PR and let the maintainer decide.
+
 ## Adding a counter
 
 1. Produce the value from the built output or from a deterministic probe, not

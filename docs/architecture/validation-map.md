@@ -157,12 +157,15 @@ audit.
 
 ```bash
 pnpm nx build web
-pnpm run perf:initial-bytes
+pnpm run perf:initial-bytes         # breakdown only
+pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
 ```
 
 `perf:initial-bytes` reads the built `dist/apps/web/index.html` and sums the
-bytes on the initial path (the J1 counter `renderer.initialBytes`). The
+bytes on the initial path (the J1 counter `renderer.initialBytes`).
+`perf:initial-bytes:check` then fails if the value exceeds
+`tools/performance/journey-baselines.json`; baselines only move down. The
 contract, what counts and how to add a counter are in the
 [performance journeys](performance-journeys.md) document.
 

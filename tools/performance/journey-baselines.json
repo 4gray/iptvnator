@@ -1,0 +1,14 @@
+{
+    "version": 1,
+    "journeys": {
+        "launch": {
+            "renderer.initialBytes": {
+                "value": 2750491,
+                "unit": "bytes",
+                "updatedAt": "2026-09-26",
+                "evidencePr": null,
+                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
+            }
+        }
+    }
+}
