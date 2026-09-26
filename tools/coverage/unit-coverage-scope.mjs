@@ -107,13 +107,32 @@ export function isSkippable(file) {
     return SKIPPABLE_PATTERNS.some((pattern) => pattern.test(file));
 }
 
-function globToRegExp(glob) {
-    const escaped = glob
-        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-        .replace(/\*\*\//g, '(?:.*/)?')
-        .replace(/\*\*/g, '.*')
-        .replace(/\*/g, '[^/]*');
-    return new RegExp(`^${escaped}$`);
+/**
+ * Converts an Nx input glob to a regular expression. The glob is tokenised
+ * rather than rewritten with chained replaces, so the `.*` produced for `**`
+ * cannot be rewritten again by the single-`*` rule.
+ */
+export function globToRegExp(glob) {
+    let pattern = '';
+    for (let index = 0; index < glob.length; index += 1) {
+        const char = glob[index];
+        if (char === '*' && glob[index + 1] === '*') {
+            if (glob[index + 2] === '/') {
+                pattern += '(?:.*/)?';
+                index += 2;
+            } else {
+                pattern += '.*';
+                index += 1;
+            }
+        } else if (char === '*') {
+            pattern += '[^/]*';
+        } else if (char === '?') {
+            pattern += '[^/]';
+        } else {
+            pattern += char.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+        }
+    }
+    return new RegExp(`^${pattern}$`);
 }
 
 export function decideUnitCoverageScope(

@@ -11,6 +11,7 @@ import { tierAExternalReferences } from './tier-a-external-references.mjs';
 import {
     declaredWorkspaceInputs,
     decideUnitCoverageScope,
+    globToRegExp,
     isScriptsOnlyChange,
     isSkippable,
 } from './unit-coverage-scope.mjs';
@@ -122,6 +123,27 @@ test('Tier A test targets declare their workspace inputs and they always block',
             declaredInputs: ['tools/foo/**/*.ts'],
         }).blocking,
         ['tools/foo/sub/b.ts']
+    );
+});
+
+test('declared-input globs keep ** recursive and * within one segment', () => {
+    const deep = globToRegExp('tools/foo/**/*.ts');
+    for (const file of ['tools/foo/a.ts', 'tools/foo/a/b.ts', 'tools/foo/a/b/c/d.ts']) {
+        assert.ok(deep.test(file), file);
+    }
+    assert.equal(deep.test('tools/foo/a/b.js'), false);
+    assert.equal(deep.test('tools/foobar/a.ts'), false);
+    const single = globToRegExp('tools/foo/*.cjs');
+    assert.ok(single.test('tools/foo/a.cjs'));
+    assert.equal(single.test('tools/foo/a/b.cjs'), false);
+    assert.ok(globToRegExp('tools/foo/**').test('tools/foo/a/b/c'));
+    assert.ok(globToRegExp('a.b+c').test('a.b+c'));
+    assert.equal(globToRegExp('a.b').test('axb'), false);
+    assert.equal(
+        decideUnitCoverageScope(['tools/release/a/b/c.ts'], {
+            declaredInputs: ['tools/release/**/*.ts'],
+        }).run,
+        true
     );
 });
 
