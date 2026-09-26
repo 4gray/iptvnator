@@ -25,7 +25,12 @@ const inputArg = valueFor('--input');
 const policy = JSON.parse(
     readFileSync(path.join(workspaceRoot, 'tools/coverage/coverage-policy.json'), 'utf8')
 );
-const outputDir = path.join(workspaceRoot, policy.reporting.e2eSummaryDir);
+const outputDirArg = valueFor('--output-dir');
+const outputDir = path.resolve(
+    workspaceRoot,
+    outputDirArg ?? policy.reporting.e2eSummaryDir
+);
+const outputDirLabel = outputDirArg ?? policy.reporting.e2eSummaryDir;
 
 function valueFor(flag) {
     const prefixed = args.find((arg) => arg.startsWith(`${flag}=`));
@@ -156,6 +161,9 @@ function defaultInputFor(projectName) {
 }
 
 /**
+ * `--output-dir` overrides the policy's summary directory so several runs
+ * (one per OS in CI) can be summarized side by side in one job.
+ *
  * `--input` may name one Playwright JSON report or a directory that holds the
  * `results.json` of every shard (as downloaded from the per-shard CI
  * artifacts). A directory without any report, or an incomplete or duplicated
@@ -295,7 +303,7 @@ if (projectArg) {
     if (process.env.GITHUB_STEP_SUMMARY) {
         writeFileSync(process.env.GITHUB_STEP_SUMMARY, `\n${content}\n`, { flag: 'a' });
     }
-    console.log(`Wrote ${policy.reporting.e2eSummaryDir}/${projectArg}-semantic-summary.md`);
+    console.log(`Wrote ${outputDirLabel}/${projectArg}-semantic-summary.md`);
 } else {
     const content = markdownFor(undefined, allTests, reportsLabel);
     writeFileSync(path.join(outputDir, 'semantic-summary.md'), content);
@@ -306,5 +314,5 @@ if (projectArg) {
     if (process.env.GITHUB_STEP_SUMMARY) {
         writeFileSync(process.env.GITHUB_STEP_SUMMARY, `\n${content}\n`, { flag: 'a' });
     }
-    console.log(`Wrote ${policy.reporting.e2eSummaryDir}/semantic-summary.md`);
+    console.log(`Wrote ${outputDirLabel}/semantic-summary.md`);
 }

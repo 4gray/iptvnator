@@ -106,16 +106,12 @@ jobs:
                   retention-days: 7
 
     electron-e2e-summary:
-        name: Electron E2E summary on ${{ matrix.os }}
+        name: Electron E2E summary
         runs-on: ubuntu-latest
         needs: electron-e2e-tests
         # Summarize failed shards too, but not a cancelled (superseded) run.
         if: ${{ !cancelled() }}
         timeout-minutes: 10
-        strategy:
-            fail-fast: false
-            matrix:
-                os: [ubuntu-latest, macos-latest, windows-latest]
 
         steps:
             - uses: actions/checkout@v7
@@ -125,22 +121,42 @@ jobs:
               with:
                   node-version-file: '.nvmrc'
 
-            - name: Download shard reports
+            # One download per OS keeps each OS's shards in their own directory
+            # (the artifact paths inside the shards are identical).
+            - name: Download shard reports (Ubuntu)
               uses: actions/download-artifact@v8
               with:
-                  pattern: playwright-report-electron-${{ matrix.os }}-*
-                  path: dist/e2e-shards
+                  pattern: playwright-report-electron-ubuntu-latest-*
+                  path: dist/e2e-shards/ubuntu-latest
 
-            # Fails when a shard's results.json is missing or duplicated, so a
-            # partial run is never summarized as complete.
-            - name: Summarize Electron E2E semantic coverage
-              run: node tools/coverage/e2e-semantic-summary.mjs --project=electron-backend-e2e --input=dist/e2e-shards
+            - name: Download shard reports (macOS)
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: playwright-report-electron-macos-latest-*
+                  path: dist/e2e-shards/macos-latest
 
-            - name: Upload Electron semantic summary
+            - name: Download shard reports (Windows)
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: playwright-report-electron-windows-latest-*
+                  path: dist/e2e-shards/windows-latest
+
+            # The script fails when a shard's results.json is missing or
+            # duplicated, so a partial run is never summarized as complete.
+            - name: Summarize Electron E2E semantic coverage per OS
+              run: |
+                  status=0
+                  for os in ubuntu-latest macos-latest windows-latest; do
+                      echo "## Electron E2E on $os" >> "$GITHUB_STEP_SUMMARY"
+                      node tools/coverage/e2e-semantic-summary.mjs --project=electron-backend-e2e --input="dist/e2e-shards/$os" --output-dir="coverage/e2e/$os" || status=1
+                  done
+                  exit "$status"
+
+            - name: Upload Electron semantic summaries
               if: always()
               uses: actions/upload-artifact@v7
               with:
-                  name: e2e-semantic-summary-electron-${{ matrix.os }}
+                  name: e2e-semantic-summary-electron
                   path: coverage/e2e/
                   retention-days: 7
 

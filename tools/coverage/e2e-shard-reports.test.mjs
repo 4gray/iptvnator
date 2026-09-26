@@ -325,6 +325,30 @@ describe('e2e-semantic-summary CLI', () => {
         assert.match(readFileSync(implicit.summaryPath, 'utf8'), /Total tracked tests: 1/);
     });
 
+    it('writes into --output-dir instead of the policy directory', () => {
+        const root = makeWorkspace();
+        writeReport(
+            root,
+            'dist/test-results/electron-backend-e2e',
+            playwrightReport({
+                shard: null,
+                file: 'src/smoke.e2e.ts',
+                titles: ['boots @critical'],
+            })
+        );
+
+        const result = runSummary(root, ['--output-dir=coverage/e2e/macos-latest']);
+
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(existsSync(result.summaryPath), false);
+        const summaryPath = path.join(
+            root,
+            'coverage/e2e/macos-latest/electron-backend-e2e-semantic-summary.md'
+        );
+        assert.match(readFileSync(summaryPath, 'utf8'), /Total tracked tests: 1/);
+        assert.match(result.stdout, /Wrote coverage\/e2e\/macos-latest\//);
+    });
+
     it('falls back to the spec source scan when no report exists', () => {
         const root = makeWorkspace();
         mkdirSync(path.join(root, 'apps/electron-backend-e2e/src'), { recursive: true });
