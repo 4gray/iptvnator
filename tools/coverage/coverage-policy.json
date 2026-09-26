@@ -318,6 +318,12 @@
                 "reason": "Node tests assert the committed max-lines baseline still matches what the generator produces; the scripts are lint tooling, not shipped source, and percentage coverage over a generated list would not mean anything."
             },
             {
+                "name": "performance-tools",
+                "root": "tools/performance",
+                "validationCommand": "pnpm nx test performance-tools",
+                "reason": "Node tests validate the initial-bytes measurement over synthetic build output; the scripts are performance tooling, not shipped source."
+            },
+            {
                 "name": "shared-marketing-fixtures",
                 "root": "libs/shared/marketing-fixtures",
                 "validationCommand": "pnpm nx test shared-marketing-fixtures",
