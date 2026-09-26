@@ -287,5 +287,8 @@ if (outcome.skipped.length > 0) {
 }
 if (outcome.failed) {
     const first = outcome.results.find((entry) => entry.status !== 0);
-    process.exit(first?.status && first.status !== 0 ? first.status : 1);
+    // Set the exit code instead of calling process.exit(): the failing
+    // project's buffered output may still be queued on a stdout pipe, and an
+    // immediate exit would truncate exactly the log that explains the failure.
+    process.exitCode = first?.status && first.status !== 0 ? first.status : 1;
 }
