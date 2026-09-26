@@ -223,6 +223,10 @@ on either side.
   whenever the store selection is cleared: its template mounts the player
   only with a selection, and the held stream must not resurface with the
   next one.
+- **M3U groups rail:** `ChannelListContainerComponent` derives
+  `withheldGroupCount` (groups of the playlist the active lock withholds)
+  and the groups rail renders the same "N locked · Enter PIN to show" row
+  as the portal category rail, so locked groups do not simply vanish.
 - **Xtream (PWA):** `PwaXtreamDataSource` drops withheld categories,
   streams and search hits at read time; the same reloads apply.
 - **Warm-cache detection (Electron):** the filtered category/content reads

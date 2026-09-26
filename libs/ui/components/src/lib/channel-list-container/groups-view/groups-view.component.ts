@@ -157,6 +157,8 @@ export class GroupsViewComponent {
     readonly managementGroups = input<GroupManagementDialogGroup[] | null>(
         null
     );
+    /** Groups the active lock withholds; > 0 renders the unlock row. */
+    readonly withheldGroupCount = input(0);
 
     /** Current outer sidebar width */
     readonly sidebarWidth = input<number | null>(null);
@@ -521,6 +523,10 @@ export class GroupsViewComponent {
             return;
         }
         this.groupLockToggled.emit({ groupKey, locked: lock });
+    }
+
+    async requestParentalUnlock(): Promise<void> {
+        await this.parentalLock.requestUnlock();
     }
 
     async openGroupManagement(): Promise<void> {

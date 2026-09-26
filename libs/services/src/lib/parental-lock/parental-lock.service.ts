@@ -335,7 +335,7 @@ export class ParentalLockService {
         return persistParentalLockRelockMinutes(
             this.settingsStore,
             minutes,
-            this.relockMinutes()
+            () => this.relockMinutes()
         );
     }
 

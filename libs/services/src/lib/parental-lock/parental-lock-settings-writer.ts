@@ -64,11 +64,14 @@ export async function persistParentalLockEnabled(
 export async function persistParentalLockRelockMinutes(
     settings: SettingsWriter,
     minutes: number,
-    previous: number
+    readCurrent: () => number
 ): Promise<boolean> {
     if (!(await ensureParentalLockSettingsReadable(settings))) {
         return false;
     }
+    // Read AFTER the retry: a recovered read replaces the defaults, and a
+    // rollback to the pre-retry value would write the default back.
+    const previous = readCurrent();
     try {
         await settings.updateSettings({
             parentalLockRelockMinutes:

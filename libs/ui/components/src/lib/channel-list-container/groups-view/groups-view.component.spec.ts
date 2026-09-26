@@ -565,6 +565,21 @@ describe('GroupsViewComponent', () => {
         expect(groupLockToggled).toHaveBeenCalledTimes(2);
     });
 
+    it('shows the locked-groups row while groups are withheld and unlocks from it', async () => {
+        const row = () =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="groups-locked-row"]'
+            ) as HTMLButtonElement | null;
+        expect(row()).toBeNull();
+
+        fixture.componentRef.setInput('withheldGroupCount', 2);
+        fixture.detectChanges();
+        expect(row()).not.toBeNull();
+
+        row()?.click();
+        expect(parentalLock.requestUnlock).toHaveBeenCalled();
+    });
+
     it('offers no group lock menu while the feature is off', () => {
         const event = new MouseEvent('contextmenu', { cancelable: true });
         component.onGroupContextMenu('Sports', event);

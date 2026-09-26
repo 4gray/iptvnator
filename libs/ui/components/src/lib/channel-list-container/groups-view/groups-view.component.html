@@ -170,6 +170,29 @@
                             }
                         </div>
                     }
+                    @if (withheldGroupCount() > 0) {
+                        <button
+                            type="button"
+                            class="groups-locked-row"
+                            data-test-id="groups-locked-row"
+                            (click)="requestParentalUnlock()"
+                            [attr.aria-label]="
+                                'PARENTAL_LOCK.UNLOCK_TO_SHOW' | translate
+                            "
+                        >
+                            <mat-icon>lock</mat-icon>
+                            <span class="groups-locked-row__label">
+                                {{
+                                    'PARENTAL_LOCK.LOCKED_CATEGORIES_ROW'
+                                        | translate
+                                            : { count: withheldGroupCount() }
+                                }}
+                            </span>
+                            <span class="groups-locked-row__hint">
+                                {{ 'PARENTAL_LOCK.UNLOCK_TO_SHOW' | translate }}
+                            </span>
+                        </button>
+                    }
                 </div>
             </div>
         </aside>

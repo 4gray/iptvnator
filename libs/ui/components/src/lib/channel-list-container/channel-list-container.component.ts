@@ -340,6 +340,20 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         }
         return this.parentalLock.lockedGroupTitles(playlistId);
     });
+    /**
+     * Groups of this playlist the lock currently withholds; the groups rail
+     * shows one "N locked · Enter PIN to show" row for them, as the portal
+     * category rail does.
+     */
+    readonly withheldGroupCount = computed(() => {
+        const withheld = this.withheldGroupTitles();
+        if (withheld.size === 0) {
+            return 0;
+        }
+        return this.managementGroups().filter((group) =>
+            withheld.has(group.key)
+        ).length;
+    });
     /** Group titles currently withheld: locked AND the lock is active. */
     private readonly withheldGroupTitles = computed(() => {
         this.parentalLock.version();

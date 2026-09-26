@@ -248,6 +248,27 @@ describe('ParentalLockService', () => {
         });
     });
 
+    it('rolls a failed relock write back to the value recovered by the retry', async () => {
+        storageFailure.set('load');
+        const service = await createService();
+        const loadSettings = TestBed.inject(SettingsStore)
+            .loadSettings as jest.Mock;
+        loadSettings.mockImplementationOnce(async () => {
+            storageFailure.set(null);
+            parentalLockRelockMinutes.set(60);
+        });
+        updateSettings.mockImplementationOnce(async () => {
+            parentalLockRelockMinutes.set(30);
+            throw new Error('QuotaExceededError');
+        });
+
+        await expect(service.setRelockMinutes(30)).resolves.toBe(false);
+
+        expect(updateSettings).toHaveBeenLastCalledWith({
+            parentalLockRelockMinutes: 60,
+        });
+    });
+
     it('refuses parental-lock settings writes while settings stay unreadable', async () => {
         storageFailure.set('load');
         prompt.requestPin.mockResolvedValue('1234');
