@@ -116,9 +116,11 @@ byte for byte. (An apparent 556-byte platform difference during the first
 measurements was `package.json` text embedded in `main.js`, which moved with
 every script edit; #1692 fixed that by importing only the version.)
 
-The job also refuses a weakened baselines file: on a pull request,
+The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
-`journey-baselines.json` with the target branch's copy and fails when any
+`journey-baselines.json` with the revision the change is measured against
+(the target branch of a pull request, the previous head of a `master` push,
+`master` for a manual dispatch) and fails when any
 entry's enforced limit (`value × toleranceRatio`) went up, a tolerance widened
 or an entry disappeared, so a PR cannot grow the payload and raise the
 baseline to match. Lowered limits and new entries pass.

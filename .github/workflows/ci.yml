@@ -148,16 +148,34 @@ jobs:
               run: pnpm install --frozen-lockfile
 
             # The ratchet below compares a measurement with the baselines file
-            # of the same commit, so it cannot see a PR that grows the payload
-            # and raises the baseline to match. Compare the file with the
-            # target branch instead: any raised or removed entry fails.
-            - name: Refuse baseline increases against the target branch
-              if: github.event_name == 'pull_request'
+            # of the same commit, so it cannot see a change that grows the
+            # payload and raises the baseline to match. Compare the file with
+            # the revision this one is measured against instead: the target
+            # branch for a pull request, the previous head for a master push,
+            # master for a manual dispatch. Any raised limit, widened tolerance
+            # or removed entry fails.
+            - name: Refuse baseline increases against the previous revision
               env:
+                  EVENT_NAME: ${{ github.event_name }}
                   BASE_REF: ${{ github.base_ref }}
+                  BEFORE_SHA: ${{ github.event.before }}
               run: |
                   set -euo pipefail
-                  git fetch --no-tags --depth=1 origin "$BASE_REF"
+                  case "$EVENT_NAME" in
+                      pull_request)
+                          git fetch --no-tags --depth=1 origin "$BASE_REF"
+                          ;;
+                      push)
+                          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                              echo "No previous revision for this push; nothing to compare against."
+                              exit 0
+                          fi
+                          git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+                          ;;
+                      *)
+                          git fetch --no-tags --depth=1 origin master
+                          ;;
+                  esac
                   git show "FETCH_HEAD:tools/performance/journey-baselines.json" > /tmp/base-journey-baselines.json 2>/dev/null ||
                       rm -f /tmp/base-journey-baselines.json
                   node tools/performance/check-baseline-direction.mjs \
