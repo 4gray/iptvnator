@@ -378,6 +378,26 @@ test('rejects a probe that was installed after the document started', async () =
     );
 });
 
+test('rejects a probe whose performance observers were unavailable instead of reporting zeros', async () => {
+    const fixture = createFixture();
+    const state = fixture.rawState() as {
+        capabilities: { layoutShift: boolean; longTask: boolean };
+    };
+    state.capabilities.longTask = false;
+    renderFirstCard(fixture);
+    await settle();
+    assert.equal(fixture.state().counters.longTasks, 0);
+    assert.throws(
+        () => assertJourneyRendererProbeState(fixture.state()),
+        /observer-unavailable: longTask/
+    );
+    state.capabilities.layoutShift = false;
+    assert.throws(
+        () => assertJourneyRendererProbeState(fixture.state()),
+        /observer-unavailable: layoutShift, longTask/
+    );
+});
+
 test('launch options target the workspace source cards and the shared sentinel', () => {
     const options = createLaunchJourneyProbeOptions();
     assert.equal(options.stateKey, JOURNEY_PROBE_STATE_KEY);

@@ -363,5 +363,16 @@ export function assertJourneyRendererProbeState(
             `journey-renderer-probe-sentinel-${state.sentinel.status}`
         );
     }
+    // A zero from an observer that never ran is not a measurement; a build
+    // without these entry types must fail the iteration, never lower a
+    // baseline.
+    const missing = (['layoutShift', 'longTask'] as const).filter(
+        (capability) => !state.capabilities[capability]
+    );
+    if (missing.length > 0) {
+        throw new Error(
+            `journey-renderer-probe-observer-unavailable: ${missing.join(', ')}`
+        );
+    }
     return state;
 }
