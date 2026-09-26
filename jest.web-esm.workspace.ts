@@ -37,6 +37,7 @@ export default {
         tslib: 'tslib/tslib.es6.js',
         '^iptv-playlist-parser$':
             '<rootDir>/apps/web/src/test-stubs/iptv-playlist-parser.mjs',
+        '^@package$': '<rootDir>/apps/web/src/test-stubs/package.mjs',
         '^shaka-player$': '<rootDir>/apps/web/src/test-stubs/shaka-player.js',
         '^rxjs': '<rootDir>/node_modules/rxjs/dist/bundles/rxjs.umd.js',
         '^uuid$': '<rootDir>/node_modules/uuid/wrapper.mjs',

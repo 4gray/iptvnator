@@ -1,6 +1,57 @@
 import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 
+const PUBLISH_UPLOAD_WORKSPACE_STEP_CONTRACT = Object.freeze({
+    name: 'Prepare Snapcraft upload workspace',
+    shell: 'bash',
+    run: [
+        'set -euo pipefail',
+        '',
+        'VERIFIED_ASSET_DIRECTORY="/var/lib/iptvnator-snap-release/assets"',
+        'UPLOAD_DIRECTORY="/var/lib/iptvnator-snap-upload"',
+        'sudo test ! -e "${UPLOAD_DIRECTORY}"',
+        'sudo install -d -m 0700 -o root -g root "${UPLOAD_DIRECTORY}"',
+        'shopt -s nullglob dotglob',
+        'SNAP_FILES=("${VERIFIED_ASSET_DIRECTORY}"/*.snap)',
+        'test "${#SNAP_FILES[@]}" -gt 0',
+        'for SNAP_FILE in "${SNAP_FILES[@]}"; do',
+        '    sudo ln -- "${SNAP_FILE}" "${UPLOAD_DIRECTORY}/${SNAP_FILE##*/}"',
+        'done',
+        '# Snapcraft extracts metadata beside the input file. Root-owned',
+        '# hard links remain read-only; the sticky bit prevents replacement.',
+        'sudo chmod 1777 "${UPLOAD_DIRECTORY}"',
+        'shopt -u nullglob dotglob',
+        '',
+    ].join('\n'),
+});
+const PUBLISH_RESOLVE_STEP_CONTRACT = Object.freeze({
+    name: 'Resolve public release',
+    id: 'resolve-release',
+    shell: 'bash',
+    env: {
+        GH_TOKEN: '${{ github.token }}',
+        REQUESTED_TAG: '${{ inputs.tag || github.event.release.tag_name }}',
+        EVENT_RELEASE_ID: '${{ github.event.release.id }}',
+    },
+    run: [
+        'set -euo pipefail',
+        '',
+        '[[ "${REQUESTED_TAG}" =~ ^v[0-9]+\\.[0-9]+\\.[0-9]+$ ]]',
+        'RELEASE_JSON="${RUNNER_TEMP}/snap-public-release.json"',
+        'gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${REQUESTED_TAG}" > "${RELEASE_JSON}"',
+        '/usr/bin/jq --exit-status --arg tag "${REQUESTED_TAG}" \'',
+        '    .tag_name == $tag and .draft == false and .prerelease == false and',
+        '    (.published_at | type == "string" and length > 0) and',
+        '    (.id | type == "number" and . > 0 and . == floor)',
+        '\' "${RELEASE_JSON}" > /dev/null',
+        'RELEASE_ID="$(/usr/bin/jq --raw-output \'.id\' "${RELEASE_JSON}")"',
+        'if [[ -n "${EVENT_RELEASE_ID}" ]]; then',
+        '    test "${RELEASE_ID}" = "${EVENT_RELEASE_ID}"',
+        'fi',
+        'printf \'tag=%s\\nrelease-id=%s\\n\' "${REQUESTED_TAG}" "${RELEASE_ID}" >> "${GITHUB_OUTPUT}"',
+        '',
+    ].join('\n'),
+});
 const PINNED_CHECKOUT_ACTION =
     'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1';
 const PINNED_UPLOAD_ARTIFACT_ACTION =
@@ -27,9 +78,8 @@ const BUILD_ACTION_ALLOWLIST = Object.freeze([
 const VERIFY_JOB_ID = 'verify-snap';
 const PUBLISH_JOB_ID = 'publish-snap';
 const VERIFY_JOB_CONDITION =
-    "${{ startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false }}";
-const PUBLISH_JOB_CONDITION =
-    "${{ needs.verify-snap.result == 'success' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false }}";
+    "${{ (github.event_name == 'release' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master') }}";
+const PUBLISH_JOB_CONDITION = "${{ needs.verify-snap.result == 'success' }}";
 const VERIFIED_RELEASE_ARTIFACT_NAME = 'verified-snap-release-assets';
 const PUBLISH_STEP_NAME = 'Publish all public-release snaps to edge';
 const PUBLISH_CHECKOUT_STEP_NAME = 'Checkout released tooling';
@@ -37,7 +87,7 @@ const PUBLISH_CHECKOUT_STEP_CONTRACT = Object.freeze({
     name: PUBLISH_CHECKOUT_STEP_NAME,
     uses: PINNED_CHECKOUT_ACTION,
     with: {
-        ref: '${{ github.event.release.tag_name }}',
+        ref: 'refs/tags/${{ steps.resolve-release.outputs.tag }}',
         'persist-credentials': false,
     },
 });
@@ -217,6 +267,7 @@ const PUBLISH_STEP_CONTRACT = Object.freeze({
         'set -euo pipefail',
         '',
         'VERIFIED_ASSET_DIRECTORY="/var/lib/iptvnator-snap-release/assets"',
+        'UPLOAD_DIRECTORY="/var/lib/iptvnator-snap-upload"',
         'STORE_CREDENTIALS="${SNAPCRAFT_STORE_CREDENTIALS}"',
         'unset SNAPCRAFT_STORE_CREDENTIALS',
         'shopt -s nullglob dotglob',
@@ -227,7 +278,7 @@ const PUBLISH_STEP_CONTRACT = Object.freeze({
         '    echo "Publishing public release asset: ${SNAP_NAME}"',
         '    # Candidate/stable promotion is manual after installed-Snap frame-copy and missing-runtime fallback smoke.',
         '    # GitHub Actions never promotes automatically.',
-        '    SNAPCRAFT_STORE_CREDENTIALS="${STORE_CREDENTIALS}" /snap/bin/snapcraft upload --release=edge "${SNAP_FILE}"',
+        '    SNAPCRAFT_STORE_CREDENTIALS="${STORE_CREDENTIALS}" /snap/bin/snapcraft upload --release=edge "${UPLOAD_DIRECTORY}/${SNAP_NAME}"',
         'done',
         'unset STORE_CREDENTIALS',
         'shopt -u nullglob dotglob',
@@ -404,8 +455,20 @@ export function assertPublishSnapWorkflowPolicy(workflowText) {
     assertWorkflowExecutionShape(policyInputs);
     assert.deepEqual(
         workflow.on,
-        { release: { types: ['published'] } },
-        'the publish workflow must retain its exact release trigger'
+        {
+            workflow_dispatch: {
+                inputs: {
+                    tag: {
+                        description:
+                            'Existing public stable release tag to retry (for example v0.24.0)',
+                        required: true,
+                        type: 'string',
+                    },
+                },
+            },
+            release: { types: ['published'] },
+        },
+        'the publish workflow must retain its public-release and explicit recovery triggers'
     );
     assert.deepEqual(
         Object.keys(workflow).sort(),
@@ -492,6 +555,11 @@ export function assertPublishSnapWorkflowPolicy(workflowText) {
         'the publish job must retain its exact verified-release condition'
     );
     assert.deepEqual(
+        verifyJob.steps.filter((step) => step.id === 'resolve-release'),
+        [PUBLISH_RESOLVE_STEP_CONTRACT],
+        'resolve and validate the public release before executing released tooling'
+    );
+    assert.deepEqual(
         verifyJob.steps.filter(
             (step) => step.name === PUBLISH_CHECKOUT_STEP_NAME
         ),
@@ -524,6 +592,7 @@ export function assertPublishSnapWorkflowPolicy(workflowText) {
         [
             PUBLISH_ARTIFACT_DOWNLOAD_STEP_CONTRACT,
             PUBLISH_TRANSFER_VERIFY_STEP_CONTRACT,
+            PUBLISH_UPLOAD_WORKSPACE_STEP_CONTRACT,
             PUBLISH_SNAPCRAFT_SETUP_STEP_CONTRACT,
             PUBLISH_STEP_CONTRACT,
         ],

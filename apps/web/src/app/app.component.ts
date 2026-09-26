@@ -39,6 +39,7 @@ import {
     Theme,
     createDevLogger,
 } from '@iptvnator/shared/interfaces';
+import { AppDateLocaleService } from './app-date-locales';
 import { SettingsService } from './services/settings.service';
 import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service';
@@ -71,6 +72,7 @@ export class AppComponent implements OnInit {
     }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);
+    private readonly dateLocales = inject(AppDateLocaleService);
     private epgBridge = inject(EpgRuntimeBridgeService);
     private epgService = inject(EpgService);
     private snackBar = inject(MatSnackBar);
@@ -160,7 +162,9 @@ export class AppComponent implements OnInit {
                     // Only specific Electron settings (MPV/VLC paths) are sent when changed in settings component
 
                     const resolvedLang = settings.language ?? this.DEFAULT_LANG;
-                    this.translate.use(resolvedLang);
+                    // The switch re-renders every date with the new locale;
+                    // its data is a lazy chunk that must be registered first.
+                    void this.dateLocales.use(resolvedLang);
                     // Mirror the active language to localStorage so the next
                     // cold start can read it synchronously in app.config.ts's
                     // getInitialLanguage() and avoid the English-then-localized
