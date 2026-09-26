@@ -1491,7 +1491,16 @@ export function withContent() {
                             serialCategories: series,
                         });
                     } catch (error) {
+                        // Fail closed: the lists on screen were read under
+                        // the previous lock state, so keeping them would
+                        // keep locked category names visible. They are
+                        // rebuilt by the next category load.
                         logger.error('Error reloading categories', error);
+                        patchState(store, {
+                            liveCategories: [],
+                            vodCategories: [],
+                            serialCategories: [],
+                        });
                     }
                 },
 
@@ -1508,16 +1517,28 @@ export function withContent() {
                         return;
                     }
                     const loadStates = store.contentLoadStateByType();
-                    try {
-                        if (loadStates.live === 'ready') {
+                    // Each type on its own: one failing read must neither
+                    // skip the remaining types nor keep its own rows, which
+                    // were read under the previous lock state. A failed type
+                    // is emptied and set back to `idle`, so the next visit
+                    // loads it again (filtered) instead of showing a gap.
+                    const failed: ContentType[] = [];
+                    if (loadStates.live === 'ready') {
+                        try {
                             const live = (await dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
                                 'live'
                             )) as XtreamLiveStream[];
                             patchState(store, { liveStreams: live });
+                        } catch (error) {
+                            logger.error('Error reloading live streams', error);
+                            patchState(store, { liveStreams: [] });
+                            failed.push('live');
                         }
-                        if (loadStates.vod === 'ready') {
+                    }
+                    if (loadStates.vod === 'ready') {
+                        try {
                             const vod = (await dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
@@ -1527,17 +1548,32 @@ export function withContent() {
                                 vodStreams: vod,
                                 vodStreamsPlaylistId: ctx.playlistId,
                             });
+                        } catch (error) {
+                            logger.error('Error reloading VOD streams', error);
+                            patchState(store, { vodStreams: [] });
+                            failed.push('vod');
                         }
-                        if (loadStates.series === 'ready') {
+                    }
+                    if (loadStates.series === 'ready') {
+                        try {
                             const series = (await dataSource.getContent(
                                 ctx.playlistId,
                                 ctx.credentials,
                                 'series'
                             )) as XtreamSerieItem[];
                             patchState(store, { serialStreams: series });
+                        } catch (error) {
+                            logger.error('Error reloading series', error);
+                            patchState(store, { serialStreams: [] });
+                            failed.push('series');
                         }
-                    } catch (error) {
-                        logger.error('Error reloading cached content', error);
+                    }
+                    if (failed.length > 0) {
+                        const next = { ...store.contentLoadStateByType() };
+                        for (const type of failed) {
+                            next[type] = 'idle';
+                        }
+                        patchState(store, { contentLoadStateByType: next });
                     }
                 },
 

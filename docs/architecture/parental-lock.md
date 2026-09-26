@@ -115,6 +115,13 @@ content and search, the M3U channel list) receive
 is entered or the store reads again (`requestUnlock` and every lock write
 retry the read first, and a write is refused while it still fails, since it
 would be built on an empty in-memory store and wipe the persisted locks).
+The window before the initial read settles is treated the same way
+(`ParentalLockLockStore.readable` is false until then): settings can report
+the feature as on before the locks are known. The feature switch itself is
+persisted through one guarded path (`persistEnabled`): `updateSettings`
+patches memory before it writes, so a failed write is undone in memory, the
+Electron mirror is left untouched and `setupPin`/`disable` report false —
+the toggle never shows a state the next launch will not have.
 
 ### In-memory catalogs
 
@@ -137,7 +144,11 @@ would be built on an empty in-memory store and wipe the persisted locks).
   in-portal search (`XtreamStore.refreshSearchResults`, the last
   `searchContent` call as issued) — `searchResults` is a separate array the
   search page renders directly and would otherwise keep locked titles until
-  the query changes. Live playback is stopped by the layout itself:
+  the query changes. Both reloads fail closed: a category reload that
+  rejects empties the three category lists, and a per-type content reload
+  that rejects empties that type and sets it back to `idle` so the next
+  visit loads it again (filtered) — rows read under the previous lock state
+  are never kept. Live playback is stopped by the layout itself:
   `LiveStreamLayoutComponent` keeps the playing channel's provider category
   id (mapped from the SQLite row id on Electron) and drops `activePlayback`
   on a `version` change that locks it, because the player is gated on that
@@ -233,7 +244,13 @@ would be built on an empty in-memory store and wipe the persisted locks).
   reports a failed save in a snackbar (the dialog has closed by then). On
   Electron the `categories.locked` re-stamp (`setCategoryLocks`) clears and
   re-locks one playlist/type inside ONE transaction, so a failed restamp
-  keeps the previous index instead of leaving every category unlocked.
+  keeps the previous index instead of leaving every category unlocked. The
+  store commits BEFORE that re-stamp, so a failed re-stamp rolls the store
+  back to what the index reflects (a category must not be recorded and
+  shown as locked while Electron reads, which filter by the index alone,
+  still serve it); if the rollback write fails too, the playlist is
+  re-stamped on the next store access, and every launch re-derives the
+  index from the store for each playlist that has locks.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 

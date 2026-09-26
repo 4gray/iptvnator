@@ -97,7 +97,7 @@ export class ParentalLockService {
      * protected content precisely during a storage failure.
      */
     readonly withholdsEverything = computed(
-        () => this.active() && this.locks.unreadable()
+        () => this.active() && !this.locks.readable()
     );
     /** Bumps whenever `active` or the lock store changes; consumers re-query. */
     readonly version = computed(
@@ -241,12 +241,33 @@ export class ParentalLockService {
             return false;
         }
         this.unlockedState.set(true);
-        if (!this.enabled()) {
-            await this.settingsStore.updateSettings({
-                parentalLockEnabled: true,
-            });
-            mirrorParentalLockEnabledSetting(true);
+        if (!this.enabled() && !(await this.persistEnabled(true))) {
+            this.unlockedState.set(false);
+            return false;
         }
+        return true;
+    }
+
+    /**
+     * Persists the feature switch. `updateSettings` patches the in-memory
+     * value before the write; on a failed write that patch is undone (the
+     * second write fails the same way and is ignored), so the toggle
+     * cannot show a state the next launch will not have, and the Electron
+     * mirror is only updated for a persisted switch.
+     */
+    private async persistEnabled(enabled: boolean): Promise<boolean> {
+        try {
+            await this.settingsStore.updateSettings({
+                parentalLockEnabled: enabled,
+            });
+        } catch (error) {
+            console.error('Failed to persist the parental lock switch.', error);
+            await this.settingsStore
+                .updateSettings({ parentalLockEnabled: !enabled })
+                .catch(() => undefined);
+            return false;
+        }
+        mirrorParentalLockEnabledSetting(enabled);
         return true;
     }
 
@@ -274,10 +295,9 @@ export class ParentalLockService {
         if (!(await this.verifyCurrentPin())) {
             return false;
         }
-        await this.settingsStore.updateSettings({
-            parentalLockEnabled: false,
-        });
-        mirrorParentalLockEnabledSetting(false);
+        if (!(await this.persistEnabled(false))) {
+            return false;
+        }
         this.unlockedState.set(false);
         return true;
     }
@@ -342,7 +362,7 @@ export class ParentalLockService {
     ): boolean {
         return (
             this.active() &&
-            (this.locks.unreadable() ||
+            (!this.locks.readable() ||
                 this.lockedXtreamIds(playlistId, categoryType).includes(
                     xtreamId
                 ))
@@ -359,7 +379,7 @@ export class ParentalLockService {
         }
         return (
             this.active() &&
-            (this.locks.unreadable() ||
+            (!this.locks.readable() ||
                 this.lockedStalkerIds(playlistId, categoryType).includes(
                     String(categoryId)
                 ))
@@ -369,7 +389,7 @@ export class ParentalLockService {
     isM3uGroupLocked(playlistId: string, groupTitle: string): boolean {
         return (
             this.active() &&
-            (this.locks.unreadable() ||
+            (!this.locks.readable() ||
                 this.lockedGroupTitles(playlistId).includes(groupTitle))
         );
     }

@@ -183,6 +183,46 @@ describe('ParentalLockService', () => {
         expect(service.isM3uGroupLocked('p', 'XXX')).toBe(true);
     });
 
+    it('withholds everything while the initial lock store read is in flight', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+        let resolveLocks: (locks: Record<string, unknown>) => void = () =>
+            undefined;
+        storage.readLocks.mockReturnValue(
+            new Promise((resolve) => (resolveLocks = resolve))
+        );
+
+        const service = TestBed.inject(ParentalLockService);
+        const initialization = service.initialize();
+        await Promise.resolve();
+
+        expect(service.active()).toBe(true);
+        expect(service.withholdsEverything()).toBe(true);
+        expect(service.isM3uGroupLocked('p', 'News')).toBe(true);
+
+        resolveLocks({});
+        await initialization;
+        expect(service.withholdsEverything()).toBe(false);
+        expect(service.isM3uGroupLocked('p', 'News')).toBe(false);
+    });
+
+    it('rolls the switch back when enabling cannot be persisted', async () => {
+        prompt.requestPin.mockResolvedValue('1234');
+        updateSettings.mockImplementationOnce(async () => {
+            // updateSettings patches memory before the write fails.
+            parentalLockEnabled.set(true);
+            throw new Error('QuotaExceededError');
+        });
+        const service = await createService();
+
+        await expect(service.setupPin()).resolves.toBe(false);
+
+        expect(service.hasPin()).toBe(true);
+        expect(service.enabled()).toBe(false);
+        expect(service.unlocked()).toBe(false);
+        expect(updateBridgeSettings).not.toHaveBeenCalled();
+    });
+
     it('starts locked with the feature on and unlocks through the prompt', async () => {
         storage.pinHash = await hashParentalLockPin('1234');
         parentalLockEnabled.set(true);

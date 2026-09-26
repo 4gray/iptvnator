@@ -42,24 +42,51 @@ export class ParentalLockLockStore {
 
     private readonly locks = signal<ParentalLockStore>({});
     private readonly revisionState = signal(0);
+    private readonly loadedState = signal(false);
     private loading: Promise<void> | null = null;
+    /**
+     * Playlists whose SQLite index could not be brought in line with the
+     * store (a failed re-stamp whose rollback failed too); re-stamped on
+     * the next store access.
+     */
+    private readonly staleIndexPlaylists = new Set<string>();
 
     /** The persisted store could not be read; see `ensureReadable()`. */
     readonly unreadable = signal(false);
+    /**
+     * The store has been read and is trustworthy. False while the initial
+     * read is still in flight — the settings can report the feature as on
+     * before the locks are known, and an empty in-memory store must not
+     * read as "nothing is locked" in that window.
+     */
+    readonly readable = computed(
+        () => this.loadedState() && !this.unreadable()
+    );
     /** Bumps whenever the lock set changes; consumers re-query. */
     readonly revision = this.revisionState.asReadonly();
     readonly isEmpty = computed(() => Object.keys(this.locks()).length === 0);
 
-    /** Reads the persisted store once. */
+    /**
+     * Reads the persisted store once. On Electron the `categories.locked`
+     * index is then re-derived from it for every playlist that has locks:
+     * the store is authoritative, and a re-stamp that failed in an earlier
+     * session (or a database restored beside a newer store) must not leave
+     * the index behind indefinitely.
+     */
     load(): Promise<void> {
         if (!this.loading) {
             this.loading = this.storage.readLocks().then((locks) => {
                 if (locks === null) {
                     console.error('The parental lock store could not be read.');
                     this.unreadable.set(true);
-                    return;
+                } else {
+                    this.locks.set(locks);
+                    for (const playlistId of Object.keys(locks)) {
+                        this.staleIndexPlaylists.add(playlistId);
+                    }
                 }
-                this.locks.set(locks);
+                this.loadedState.set(true);
+                void this.reconcileXtreamIndex();
             });
         }
         return this.loading;
@@ -72,6 +99,7 @@ export class ParentalLockLockStore {
     async ensureReadable(): Promise<boolean> {
         await this.load();
         if (!this.unreadable()) {
+            await this.reconcileXtreamIndex();
             return true;
         }
         const locks = await this.storage.readLocks();
@@ -82,6 +110,26 @@ export class ParentalLockLockStore {
         this.unreadable.set(false);
         this.revisionState.update((value) => value + 1);
         return true;
+    }
+
+    /** Re-stamps every playlist whose index may lag behind the store. */
+    private async reconcileXtreamIndex(): Promise<void> {
+        if (!this.runtime.supportsXtreamSqliteDataSource) {
+            this.staleIndexPlaylists.clear();
+            return;
+        }
+        for (const playlistId of [...this.staleIndexPlaylists]) {
+            try {
+                if (await this.stampXtreamLocks(playlistId)) {
+                    this.staleIndexPlaylists.delete(playlistId);
+                }
+            } catch (error) {
+                console.error(
+                    'Failed to reconcile the parental lock index.',
+                    error
+                );
+            }
+        }
     }
 
     locksFor(playlistId: string): ParentalLockPlaylistLocks {
@@ -113,15 +161,16 @@ export class ParentalLockLockStore {
         categoryType: ParentalLockXtreamCategoryType,
         xtreamIds: number[]
     ): Promise<boolean> {
-        const next = withXtreamLocks(
-            this.locksFor(playlistId),
-            categoryType,
-            xtreamIds
-        );
+        const previous = this.locksFor(playlistId);
+        const next = withXtreamLocks(previous, categoryType, xtreamIds);
         if (!(await this.persistPlaylistLocks(playlistId, next))) {
             return false;
         }
-        return this.stampXtreamLocks(playlistId, [categoryType]);
+        if (await this.stampXtreamLocks(playlistId, [categoryType])) {
+            return true;
+        }
+        await this.rollBack(playlistId, previous);
+        return false;
     }
 
     async setStalkerLocks(
@@ -154,10 +203,32 @@ export class ParentalLockLockStore {
         playlistId: string,
         locks: ParentalLockPlaylistLocks
     ): Promise<boolean> {
+        const previous = this.locksFor(playlistId);
         if (!(await this.persistPlaylistLocks(playlistId, locks))) {
             return false;
         }
-        return this.stampXtreamLocks(playlistId, XTREAM_CATEGORY_TYPES);
+        if (await this.stampXtreamLocks(playlistId, XTREAM_CATEGORY_TYPES)) {
+            return true;
+        }
+        await this.rollBack(playlistId, previous);
+        return false;
+    }
+
+    /**
+     * The store commits before the SQLite index is re-stamped; a failed
+     * re-stamp would otherwise leave a category recorded (and shown) as
+     * locked while Electron reads, which filter by the index alone, still
+     * serve it. The store goes back to what the index reflects; if even
+     * that write fails, the playlist is re-stamped on the next access.
+     */
+    private async rollBack(
+        playlistId: string,
+        previous: ParentalLockPlaylistLocks
+    ): Promise<void> {
+        if (!(await this.persistPlaylistLocks(playlistId, previous))) {
+            console.error('Failed to roll back the parental lock store.');
+            this.staleIndexPlaylists.add(playlistId);
+        }
     }
 
     /**
