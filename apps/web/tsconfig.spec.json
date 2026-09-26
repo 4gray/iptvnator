@@ -6,10 +6,20 @@
         "module": "ESNext",
         "target": "ESNext",
         "esModuleInterop": true,
-        "types": ["jest", "node"],
-        "moduleResolution": "bundler"
+        "types": [
+            "jest",
+            "node"
+        ],
+        "moduleResolution": "bundler",
+        "lib": [
+            "es2022",
+            "dom"
+        ]
     },
-    "files": ["src/test-setup.ts", "../../global.d.ts"],
+    "files": [
+        "src/test-setup.ts",
+        "../../global.d.ts"
+    ],
     "include": [
         "jest.config.ts",
         "src/**/*.test.ts",
@@ -23,6 +33,12 @@
         "../../libs/ui/components/src/**/*.d.ts",
         "../../libs/ui/pipes/src/**/*.test.ts",
         "../../libs/ui/pipes/src/**/*.spec.ts",
-        "../../libs/ui/pipes/src/**/*.d.ts"
+        "../../libs/ui/pipes/src/**/*.d.ts",
+        "../../libs/ui/epg/src/**/*.test.ts",
+        "../../libs/ui/epg/src/**/*.spec.ts",
+        "../../libs/ui/epg/src/**/*.d.ts",
+        "../../libs/ui/playback/src/**/*.test.ts",
+        "../../libs/ui/playback/src/**/*.spec.ts",
+        "../../libs/ui/playback/src/**/*.d.ts"
     ]
 }
