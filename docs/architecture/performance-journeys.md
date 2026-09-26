@@ -110,14 +110,18 @@ pushes to `master`; a stacked PR that targets another branch gets no run until
 it is retargeted, so dispatch one with `gh workflow run ci.yml --ref <branch>`
 when you need the number. A PR that grows the counter fails that job.
 
+That runner is the canonical measurer: take baseline values from its output,
+not from a local build, even though local macOS builds have so far matched it
+byte for byte. (An apparent 556-byte platform difference during the first
+measurements was `package.json` text embedded in `main.js`, which moved with
+every script edit; #1692 fixed that by importing only the version.)
+
 The job also refuses a weakened baselines file: on a pull request,
 `tools/performance/check-baseline-direction.mjs` compares
 `journey-baselines.json` with the target branch's copy and fails when any
-entry's value went up or an entry disappeared, so a PR cannot grow the payload
-and raise the baseline to match. Lowered values and new entries pass. That runner is the canonical measurer: take baseline values from its
-output, not from a local build. A local build is a preview; before #1695 a
-macOS build of the same commit differed from the runner by a few hundred
-bytes in `main.js`, and since then the two have been byte-identical.
+entry's enforced limit (`value × toleranceRatio`) went up, a tolerance widened
+or an entry disappeared, so a PR cannot grow the payload and raise the
+baseline to match. Lowered limits and new entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
