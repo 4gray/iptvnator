@@ -132,7 +132,13 @@ test('ignores commented-out tags and tag-like text inside inline scripts and sty
         extractInitialResources(html).map((resource) => resource.url),
         ['assets/app-config.js', 'main.js']
     );
-    assert.equal(stripInertHtml('<script>1 < 2</script>'), '<script></script>');
+    assert.equal(stripInertHtml('<script>1 < 2</script>'), '<script></script>'); // Pieces around a removed comment must not assemble into a live tag.
+    assert.deepEqual(
+        extractInitialResources(
+            '<!<!-- a -->-- <script src="x.js"></script> -->'
+        ),
+        []
+    );
 });
 
 test('counts a file once per distinct request URL', async () => {

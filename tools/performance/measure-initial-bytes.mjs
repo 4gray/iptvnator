@@ -66,7 +66,17 @@ function classify(tag, attributes) {
  * inline script element is still seen.
  */
 export function stripInertHtml(html) {
-    return html.replace(HTML_COMMENT, '').replace(INLINE_ELEMENT_BODY, '$1$3');
+    // Repeat until nothing changes: a single pass can expose a new comment or
+    // element body assembled from the pieces around a removed one.
+    let previous;
+    let stripped = html;
+    do {
+        previous = stripped;
+        stripped = stripped
+            .replace(HTML_COMMENT, '')
+            .replace(INLINE_ELEMENT_BODY, '$1$3');
+    } while (stripped !== previous);
+    return stripped;
 }
 
 /**
