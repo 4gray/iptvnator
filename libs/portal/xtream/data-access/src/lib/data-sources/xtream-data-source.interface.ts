@@ -16,7 +16,7 @@ import {
 } from '../services/xtream-api.service';
 
 // Re-export for backward compatibility
-export { PlaybackPositionData };
+export type { PlaybackPositionData };
 
 /**
  * Playlist representation in the data source

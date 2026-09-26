@@ -1,5 +1,5 @@
 export {
     buildFavoriteUid,
-    FavoriteSourceType,
-    UnifiedFavoriteChannel,
+    type FavoriteSourceType,
+    type UnifiedFavoriteChannel,
 } from '@iptvnator/portal/shared/util';
