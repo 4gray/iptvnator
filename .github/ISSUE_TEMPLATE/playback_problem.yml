@@ -8,7 +8,9 @@ body:
           value: |
               Thanks for reporting a playback problem!
 
-              **Quick check first:** the built-in HTML5, Video.js and ArtPlayer players can't decode some codecs, for example HEVC/4K, AC3 or MPEG-2 video. Such streams usually play with **Embedded MPV** or an external **MPV** or **VLC** (**Settings → Playback → Video player**). Whether the stream plays there tells us a lot, so please mention it below.
+              **Quick check first:** the built-in HTML5, Video.js and ArtPlayer players can't decode some codecs, for example HEVC/4K, AC3 or MPEG-2 video.
+              - **Desktop app:** such streams usually play with **Embedded MPV** or an external **MPV** or **VLC** (**Settings → Playback → Video player**). Whether the stream plays there tells us a lot, so please mention it below.
+              - **Self-hosted web app:** only the browser players are available, and the browser also blocks streams without CORS headers or `http://` streams on an `https://` page. Trying the same stream in the desktop app or in VLC helps us narrow it down.
     - type: checkboxes
       id: checks
       attributes:
@@ -88,6 +90,7 @@ body:
               - Embedded MPV with the frame-copy engine
               - MPV player (external)
               - VLC (external)
+              - Audio player (radio station)
       validations:
           required: true
     - type: dropdown
@@ -122,24 +125,19 @@ body:
       id: regression
       attributes:
           label: Did this work in an earlier version?
+          description: If it did, please name the last version that worked under **What happened?**.
           options:
               - Yes, it worked in an earlier version
               - No, it never worked for me
               - I don't know
       validations:
           required: true
-    - type: input
-      id: last-working-version
-      attributes:
-          label: Last version where it worked
-          description: Only if it worked before.
-          placeholder: 0.23.0
     - type: textarea
       id: what-happened
       attributes:
           label: What happened?
           description: |
-              Describe what you see and when. If it stops, roughly after how long?
+              Describe what you see and when. If it stops, roughly after how long? If it worked before, which version was the last one that worked?
               Mention the stream format if you know it (HLS .m3u8, MPEG-TS .ts, DASH .mpd, MKV…). Please don't paste full stream URLs that contain credentials or tokens.
       validations:
           required: true
