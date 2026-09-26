@@ -13,7 +13,7 @@ import {
     formatReport,
     measureInitialBytes,
     parseArgs,
-    stripInertHtml,
+    scanLiveTags,
     toJourneySummary,
 } from './measure-initial-bytes.mjs';
 
@@ -132,11 +132,34 @@ test('ignores commented-out tags and tag-like text inside inline scripts and sty
         extractInitialResources(html).map((resource) => resource.url),
         ['assets/app-config.js', 'main.js']
     );
-    assert.equal(stripInertHtml('<script>1 < 2</script>'), '<script></script>'); // Pieces around a removed comment must not assemble into a live tag.
+    assert.deepEqual(
+        scanLiveTags('<script>1 < 2</script><LINK rel=x>').map((t) => t.tag),
+        ['script', 'link']
+    );
+    // '<!' that is not '<!--' opens a bogus comment up to the next '>', so
+    // the script after it is live, exactly as the HTML tokenizer sees it.
     assert.deepEqual(
         extractInitialResources(
-            '<!<!-- a -->-- <script src="x.js"></script> -->'
-        ),
+            '<!doctype html><!<!-- a -->-- <script src="x.js"></script> -->'
+        ).map((resource) => resource.url),
+        ['x.js']
+    );
+});
+
+test('a comment opener inside a script body does not swallow later live tags', () => {
+    const html = `<script>const x='<!--';</script><script src="main.js"></script><!-- real --><link rel="modulepreload" href="chunk.js">`;
+    assert.deepEqual(
+        extractInitialResources(html).map((resource) => resource.url),
+        ['main.js', 'chunk.js']
+    );
+    const reverse = `<!-- <script>x</script> --><style>a::before{content:'<!--'}</style><script src="live.js"></script>`;
+    assert.deepEqual(
+        extractInitialResources(reverse).map((resource) => resource.url),
+        ['live.js']
+    );
+    // Unterminated raw text swallows the rest, as it does in a browser.
+    assert.deepEqual(
+        extractInitialResources('<script>x<script src="a.js"></script'),
         []
     );
 });

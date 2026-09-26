@@ -20,9 +20,8 @@ export const DEFAULT_DIST_DIR = 'dist/apps/web';
 export const INITIAL_BYTES_COUNTER = 'renderer.initialBytes';
 export const LAUNCH_JOURNEY = 'launch';
 
-const TAG_PATTERN = /<(script|link)\b([^>]*)>/gi;
-const HTML_COMMENT = /<!--[\s\S]*?-->/g;
-const INLINE_ELEMENT_BODY = /(<(script|style)\b[^>]*>)[\s\S]*?(<\/\2\s*>)/gi;
+const OPEN_TAG = /^<([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>/;
+const RAW_TEXT_ELEMENTS = new Set(['script', 'style']);
 const ATTRIBUTE_PATTERN =
     /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 const EXTERNAL_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
@@ -59,24 +58,53 @@ function classify(tag, attributes) {
 }
 
 /**
- * Removes the parts of the document the browser never treats as markup: HTML
- * comments (a commented-out `<script>` is not a request) and the bodies of
- * inline `<script>`/`<style>` elements (a string literal that looks like a tag
- * is not one either). The opening tags themselves are kept so a `src` on an
- * inline script element is still seen.
+ * Walks the document once, the way a tokenizer does, and yields the opening
+ * tags the browser would actually see: an HTML comment is skipped as a unit
+ * (a commented-out `<script>` is not a request), and the body of a `<script>`
+ * or `<style>` element is skipped up to its closing tag (a string literal that
+ * looks like a tag, or a `<!--` inside a script, is not markup). Regex
+ * replacement cannot get this right, because comment markers inside raw text
+ * and raw-text markers inside comments have to be resolved in document order.
  */
-export function stripInertHtml(html) {
-    // Repeat until nothing changes: a single pass can expose a new comment or
-    // element body assembled from the pieces around a removed one.
-    let previous;
-    let stripped = html;
-    do {
-        previous = stripped;
-        stripped = stripped
-            .replace(HTML_COMMENT, '')
-            .replace(INLINE_ELEMENT_BODY, '$1$3');
-    } while (stripped !== previous);
-    return stripped;
+export function scanLiveTags(html) {
+    const lower = html.toLowerCase();
+    const tags = [];
+    let index = 0;
+    while (index < html.length) {
+        const lt = html.indexOf('<', index);
+        if (lt === -1) break;
+        if (html.startsWith('<!--', lt)) {
+            const close = html.indexOf('-->', lt + 4);
+            index = close === -1 ? html.length : close + 3;
+            continue;
+        }
+        if (html.startsWith('<!', lt) || html.startsWith('<?', lt)) {
+            // Doctype, CDATA or a "bogus comment": the tokenizer swallows it
+            // up to the next '>' and nothing inside it is a tag.
+            const close = html.indexOf('>', lt + 2);
+            index = close === -1 ? html.length : close + 1;
+            continue;
+        }
+        const match = OPEN_TAG.exec(html.slice(lt, lt + 4096));
+        if (!match) {
+            index = lt + 1;
+            continue;
+        }
+        const name = match[1].toLowerCase();
+        const afterTag = lt + match[0].length;
+        if (name === 'script' || name === 'link') {
+            tags.push({ tag: name, rawAttributes: match[2] });
+        }
+        if (RAW_TEXT_ELEMENTS.has(name)) {
+            const closeTag = lower.indexOf(`</${name}`, afterTag);
+            if (closeTag === -1) break;
+            const closeEnd = lower.indexOf('>', closeTag);
+            index = closeEnd === -1 ? html.length : closeEnd + 1;
+            continue;
+        }
+        index = afterTag;
+    }
+    return tags;
 }
 
 /**
@@ -89,13 +117,8 @@ export function stripInertHtml(html) {
 export function extractInitialResources(html) {
     const seen = new Set();
     const resources = [];
-    for (const [, tag, rawAttributes] of stripInertHtml(html).matchAll(
-        TAG_PATTERN
-    )) {
-        const resource = classify(
-            tag.toLowerCase(),
-            parseAttributes(rawAttributes)
-        );
+    for (const { tag, rawAttributes } of scanLiveTags(html)) {
+        const resource = classify(tag, parseAttributes(rawAttributes));
         if (!resource || EXTERNAL_URL.test(resource.url)) continue;
         const url = resource.url.replace(/#.*$/, '').replace(/^\.?\//, '');
         const file = url.replace(/\?.*$/, '');
