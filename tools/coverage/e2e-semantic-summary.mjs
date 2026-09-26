@@ -82,24 +82,24 @@ function fail(message) {
 }
 
 const FAILURE_STATUSES = new Set(['failed', 'timedOut']);
-const STATUS_PRECEDENCE = ['failed', 'skipped', 'flaky'];
+// A spec runs once per Playwright project (browser). Flaky outranks skipped so
+// a retried test in one browser is not hidden by a skip in another.
+const STATUS_PRECEDENCE = ['failed', 'flaky', 'skipped'];
 
-// Playwright retries a failing test and records every attempt; only the final
-// attempt decides the outcome. A pass after earlier failures is flaky, which
-// Playwright itself does not count as unexpected.
+// Playwright retries a failing test and records every attempt. Only a final
+// pass turns earlier failures into flaky, which Playwright itself does not
+// count as unexpected; any other ending after a failure stays failed.
 function attemptsStatus(results) {
     const statuses = results.map((result) => result.status);
     const finalStatus = statuses.at(-1);
     if (finalStatus === undefined) {
         return 'unknown';
     }
-    if (FAILURE_STATUSES.has(finalStatus)) {
-        return 'failed';
+    const anyFailure = statuses.some((status) => FAILURE_STATUSES.has(status));
+    if (finalStatus === 'passed') {
+        return anyFailure ? 'flaky' : 'passed';
     }
-    if (finalStatus === 'passed' && statuses.some((status) => FAILURE_STATUSES.has(status))) {
-        return 'flaky';
-    }
-    return finalStatus;
+    return anyFailure ? 'failed' : finalStatus;
 }
 
 function specStatus(spec) {

@@ -40,7 +40,16 @@ function makeTemporaryDir(prefix) {
 
 // `results` lists the status of every Playwright attempt (retries included)
 // and applies to each title; `status` is the single-attempt shorthand.
-function playwrightReport({ shard, file, titles, status = 'passed', results = [status] }) {
+// `projectResults` holds one such attempt list per Playwright project, for
+// specs that run in several browsers.
+function playwrightReport({
+    shard,
+    file,
+    titles,
+    status = 'passed',
+    results = [status],
+    projectResults = [results],
+}) {
     return {
         config: { shard },
         suites: [
@@ -49,7 +58,9 @@ function playwrightReport({ shard, file, titles, status = 'passed', results = [s
                 specs: titles.map((title) => ({
                     title,
                     tags: [],
-                    tests: [{ results: results.map((attempt) => ({ status: attempt })) }],
+                    tests: projectResults.map((attempts) => ({
+                        results: attempts.map((attempt) => ({ status: attempt })),
+                    })),
                 })),
             },
         ],
@@ -327,6 +338,52 @@ describe('e2e-semantic-summary CLI', () => {
             tests.map((test) => test.status),
             ['failed']
         );
+    });
+
+    it('keeps a failure followed by a non-passing retry as failed', () => {
+        for (const finalStatus of ['skipped', 'interrupted']) {
+            const root = makeWorkspace();
+            const reportPath = writeReport(
+                root,
+                'dist/test-results/electron-backend-e2e',
+                playwrightReport({
+                    file: 'src/search.e2e.ts',
+                    titles: ['finds @search'],
+                    results: ['failed', finalStatus],
+                })
+            );
+
+            const result = runSummary(root, [`--input=${reportPath}`]);
+
+            assert.equal(result.status, 0, result.stderr);
+            const markdown = readFileSync(result.summaryPath, 'utf8');
+            assert.match(markdown, /Statuses: failed: 1/, finalStatus);
+            assert.match(
+                markdown,
+                /\| Workspace search across providers \| @search \| 1 \| failing \|/,
+                finalStatus
+            );
+        }
+    });
+
+    it('reports a spec skipped in one browser and flaky in another as flaky', () => {
+        const root = makeWorkspace();
+        const reportPath = writeReport(
+            root,
+            'dist/test-results/electron-backend-e2e',
+            playwrightReport({
+                file: 'src/search.e2e.ts',
+                titles: ['finds @search'],
+                projectResults: [['skipped'], ['failed', 'passed']],
+            })
+        );
+
+        const result = runSummary(root, [`--input=${reportPath}`]);
+
+        assert.equal(result.status, 0, result.stderr);
+        const markdown = readFileSync(result.summaryPath, 'utf8');
+        assert.match(markdown, /Statuses: flaky: 1/);
+        assert.match(markdown, /\| Workspace search across providers \| @search \| 1 \| covered \|/);
     });
 
     it('refuses to summarize an incomplete shard set', () => {
