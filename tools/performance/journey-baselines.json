@@ -3,7 +3,7 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 2739510,
+                "value": 2715087,
                 "unit": "bytes",
                 "updatedAt": "2026-09-26",
                 "evidencePr": 1695,
