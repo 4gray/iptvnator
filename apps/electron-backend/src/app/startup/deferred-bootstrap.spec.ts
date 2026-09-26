@@ -94,9 +94,11 @@ describe('deferred main-process bootstrap', () => {
 
     it('surfaces a failed load to every awaiting caller without running handlers', async () => {
         const run = jest.fn();
+        const onError = jest.fn();
         const bootstrap = createDeferredBootstrap({
             load: () => Promise.reject(new Error('chunk missing')),
             run,
+            onError,
         });
 
         const first = bootstrap.trigger();
@@ -106,5 +108,38 @@ describe('deferred main-process bootstrap', () => {
         await expect(second).rejects.toThrow('chunk missing');
         expect(run).not.toHaveBeenCalled();
         expect(bootstrap.module).toBeNull();
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(expect.any(Error));
+    });
+
+    it('reports a failure fired by the window event instead of leaving it unhandled', async () => {
+        const unhandled = jest.fn();
+        process.on('unhandledRejection', unhandled);
+        try {
+            const onError = jest.fn();
+            const webContents = new EventEmitter();
+            const bootstrap = createDeferredBootstrap({
+                load: loadResolved,
+                run: () => {
+                    throw new Error('handler registration failed');
+                },
+                onError,
+            });
+            bootstrap.armOn(webContents);
+
+            webContents.emit('did-start-loading');
+            await macrotask();
+            await macrotask();
+
+            expect(onError).toHaveBeenCalledTimes(1);
+            expect(unhandled).not.toHaveBeenCalled();
+            // A later awaiting caller still sees the failure.
+            await expect(bootstrap.trigger()).rejects.toThrow(
+                'handler registration failed'
+            );
+            expect(onError).toHaveBeenCalledTimes(1);
+        } finally {
+            process.off('unhandledRejection', unhandled);
+        }
     });
 });

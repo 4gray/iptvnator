@@ -140,6 +140,17 @@ export default class Main {
                     trace('startup', 'deferred-events:done', { durationMs });
                 }
             },
+            // The window is open by now; without this a missing chunk would
+            // only show up as an unhandled rejection with no context.
+            onError: (error) => {
+                console.error(
+                    'Deferred main-process startup failed; portal, EPG, database and download handlers are unavailable:',
+                    error
+                );
+                if (isStartupTraceEnabled()) {
+                    trace('startup', 'deferred-events:failed', error);
+                }
+            },
         });
         deferredEvents = deferred;
         deferred.armOn(App.mainWindow?.webContents);

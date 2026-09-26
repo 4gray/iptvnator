@@ -15,6 +15,13 @@ export interface DeferredBootstrapOptions<TModule, TResult> {
     readonly run: (module: TModule) => TResult;
     readonly onTrigger?: (source: DeferredBootstrapTrigger) => void;
     readonly onDone?: (durationMs: number) => void;
+    /**
+     * Called once when the load or the registration fails. The event
+     * listener has no caller to report to, so without this a failure would
+     * only surface as an unhandled rejection; the promise returned by
+     * `trigger()` still rejects for callers that await it.
+     */
+    readonly onError?: (error: unknown) => void;
 }
 
 export type DeferredBootstrapTrigger = 'did-start-loading' | 'explicit';
@@ -61,6 +68,7 @@ export function createDeferredBootstrap<TModule, TResult>(
             options.onDone?.(performance.now() - startedAt);
             return { module, result };
         });
+        started.catch((error: unknown) => options.onError?.(error));
         return started;
     };
 
@@ -70,7 +78,9 @@ export function createDeferredBootstrap<TModule, TResult>(
         },
         armOn(webContents) {
             webContents?.once('did-start-loading', () => {
-                void trigger('did-start-loading');
+                // Rejections are reported through onError and re-surface to
+                // whoever awaits trigger(); nothing to handle here.
+                trigger('did-start-loading').catch(() => undefined);
             });
         },
         trigger,
