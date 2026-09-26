@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.IPTVnatorTv" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">#B6C8FF</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#101217</item>
+        <item name="android:navigationBarColor">#101217</item>
+    </style>
+</resources>
