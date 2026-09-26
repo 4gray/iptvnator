@@ -151,7 +151,12 @@ on either side.
   "All", recently added or search has no selected category to vanish
   with, so its row disappearing from a list is not enough — the item is
   cleared and the route returns to the section root while the (still
-  readable) selected category stays. Applies run one at a time and each is
+  readable) selected category stays. Within one apply the synchronous
+  surfaces (the M3U active channel, the Stalker selection) are stepped off
+  BEFORE the Xtream reloads are awaited, so a playing M3U channel never
+  waits behind a slow portal read — the Xtream store stays populated after
+  leaving that portal, so its reload runs on every apply. Applies run one
+  at a time and each is
   abandoned once a newer `version` exists (the queued apply reads the latest
   state): `ElectronXtreamDataSource` shares in-flight category/content
   reads per playlist and type, and its share key carries the lock version,

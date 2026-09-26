@@ -9,12 +9,15 @@ import { ParentalLockEnforcementService } from './parental-lock-enforcement.serv
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 interface Applier {
+    apply(): Promise<void>;
     applyXtream(version: number): Promise<void>;
     applyStalker(): Promise<void>;
 }
 
 describe('ParentalLockEnforcementService', () => {
     const router = { url: '/', navigate: jest.fn() };
+    const activeChannel = signal<{ group?: { title: string } } | null>(null);
+    const dispatch = jest.fn();
     const lockedStalkerIds = new Set<string>();
     const parentalLock = {
         version: signal(0),
@@ -76,10 +79,7 @@ describe('ParentalLockEnforcementService', () => {
                 { provide: Router, useValue: router },
                 {
                     provide: Store,
-                    useValue: {
-                        selectSignal: () => signal(null),
-                        dispatch: jest.fn(),
-                    },
+                    useValue: { selectSignal: () => activeChannel, dispatch },
                 },
                 {
                     provide: PlaybackKeepAwakeService,
@@ -87,9 +87,36 @@ describe('ParentalLockEnforcementService', () => {
                 },
             ],
         });
+        activeChannel.set(null);
         service = TestBed.inject(
             ParentalLockEnforcementService
         ) as unknown as Applier;
+    });
+
+    describe('M3U', () => {
+        it('resets a locked playing channel before awaiting the portal reloads', async () => {
+            router.url = '/workspace/playlists/m3u-1';
+            activeChannel.set({ group: { title: 'Adult' } });
+            parentalLock.isM3uGroupLocked.mockReturnValue(true);
+            let releaseReload: () => void = () => undefined;
+            xtreamStore.reloadCategories.mockImplementationOnce(
+                () => new Promise<void>((resolve) => (releaseReload = resolve))
+            );
+
+            const applying = service.apply();
+            await Promise.resolve();
+
+            expect(parentalLock.isM3uGroupLocked).toHaveBeenCalledWith(
+                'm3u-1',
+                'Adult'
+            );
+            expect(dispatch).toHaveBeenCalledTimes(1);
+            expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
+
+            releaseReload();
+            await applying;
+            parentalLock.isM3uGroupLocked.mockReturnValue(false);
+        });
     });
 
     describe('Stalker', () => {

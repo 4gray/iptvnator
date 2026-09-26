@@ -79,11 +79,13 @@ export class ParentalLockEnforcementService {
 
     private async apply(): Promise<void> {
         const version = this.parentalLock.version();
-        await Promise.all([this.applyXtream(version), this.applyStalker()]);
-        if (this.parentalLock.version() !== version) {
-            return;
-        }
+        // The synchronous surfaces first: an M3U channel or a Stalker
+        // selection must not keep playing behind a slow Xtream database or
+        // provider reload — the Xtream store stays populated after leaving
+        // that portal, so its reload runs on every apply.
         this.applyM3u();
+        await this.applyStalker();
+        await this.applyXtream(version);
     }
 
     private async applyXtream(version: number): Promise<void> {
