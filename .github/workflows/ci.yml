@@ -126,6 +126,85 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
+    initial-bytes-ratchet:
+        name: Initial bytes ratchet
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.0.10
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # The ratchet below compares a measurement with the baselines file
+            # of the same commit, so it cannot see a change that grows the
+            # payload and raises the baseline to match. Compare the file with
+            # the revision this one is measured against instead: the target
+            # branch for a pull request, the previous head for a master push,
+            # master for a manual dispatch. Any raised limit, widened tolerance
+            # or removed entry fails.
+            - name: Refuse baseline increases against the previous revision
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  BASE_REF: ${{ github.base_ref }}
+                  BEFORE_SHA: ${{ github.event.before }}
+              run: |
+                  set -euo pipefail
+                  case "$EVENT_NAME" in
+                      pull_request)
+                          git fetch --no-tags --depth=1 origin "$BASE_REF"
+                          ;;
+                      push)
+                          if [ -z "$BEFORE_SHA" ] || [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+                              echo "No previous revision for this push; nothing to compare against."
+                              exit 0
+                          fi
+                          git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+                          ;;
+                      *)
+                          git fetch --no-tags --depth=1 origin master
+                          ;;
+                  esac
+                  git show "FETCH_HEAD:tools/performance/journey-baselines.json" > /tmp/base-journey-baselines.json 2>/dev/null ||
+                      rm -f /tmp/base-journey-baselines.json
+                  node tools/performance/check-baseline-direction.mjs \
+                      --base /tmp/base-journey-baselines.json \
+                      --head tools/performance/journey-baselines.json
+
+            # The production configuration is what users download; measuring
+            # any other build would ratchet a number nobody ships.
+            - name: Build web app (production)
+              run: pnpm nx build web --skip-nx-cache
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            # Fails when renderer.initialBytes exceeds the value committed in
+            # tools/performance/journey-baselines.json. Baselines only move
+            # down, with the printed measurement as evidence; the contract is
+            # docs/architecture/performance-journeys.md.
+            - name: Check renderer.initialBytes against the baseline
+              run: pnpm run perf:initial-bytes:check
+
+            - name: Upload journey summary
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: performance-journey-summary
+                  path: dist/performance/
+                  retention-days: 14
+
     unit-and-typecheck:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest

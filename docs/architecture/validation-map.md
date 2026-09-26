@@ -120,7 +120,6 @@ and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 | Web app browser flows | `pnpm nx run web-e2e:e2e -- --project=chromium` |
 | Electron flows        | `pnpm nx run electron-backend-e2e:e2e`          |
 | VOD multi-source      | `pnpm nx run electron-backend-e2e:e2e-ci--src/vod-multi-source.e2e.ts` |
-| Performance journeys  | `pnpm run perf:journeys` (see [performance journeys](performance-journeys.md)) |
 
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
@@ -153,6 +152,28 @@ The i18n check is non-mutating. It compares every locale file in
 Identical English fallback values are reported as warnings by default; use
 `node tools/i18n/check-drift.mjs --fail-on-identical` for a stricter translation
 audit.
+
+## Performance
+
+```bash
+pnpm nx build web
+pnpm run perf:initial-bytes         # breakdown only
+pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
+pnpm nx test performance-tools
+pnpm run perf:journeys              # J1 launch benchmark, writes dist/performance/journeys/<timestamp>/summary.json
+```
+
+`perf:initial-bytes` reads the built `dist/apps/web/index.html` and sums the
+bytes on the initial path (the J1 counter `renderer.initialBytes`).
+`perf:initial-bytes:check` then fails if the value exceeds
+`tools/performance/journey-baselines.json`; baselines only move down. CI runs
+the same check in the `Initial bytes ratchet` job of `ci.yml` for PRs that
+target `master` and for `master` pushes (dispatch it with
+`gh workflow run ci.yml --ref <branch>` for a stacked branch). `perf:journeys` builds the `electron-performance` configuration and runs the
+J1 launch benchmark against the Xtream mock; its probe specs run with
+`pnpm nx run electron-backend-e2e:test-performance-harness`. The contract, what
+counts and how to add a counter or a journey are in the
+[performance journeys](performance-journeys.md) document.
 
 ## Logging
 

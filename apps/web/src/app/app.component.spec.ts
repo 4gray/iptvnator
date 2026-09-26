@@ -31,6 +31,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { AppComponent } from './app.component';
+import { AppDateLocaleService } from './app-date-locales';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
 
@@ -136,6 +137,11 @@ describe('AppComponent', () => {
                     setDefaultLang: jest.fn(),
                     use: jest.fn(),
                 }),
+                // The real service imports locale chunks; the language switch
+                // is gated on it, so it must resolve deterministically here.
+                MockProvider(AppDateLocaleService, {
+                    use: jest.fn().mockResolvedValue(undefined),
+                }),
                 {
                     provide: WORKSPACE_SHELL_ACTIONS,
                     useValue: {
@@ -223,12 +229,12 @@ describe('AppComponent', () => {
         });
         settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
         jest.spyOn(settingsService, 'changeTheme');
-        jest.spyOn(translateService, 'use');
+        const dateLocales = TestBed.inject(AppDateLocaleService);
 
         component.initSettings();
         await fixture.whenStable();
 
-        expect(translateService.use).toHaveBeenCalledWith(Language.SPANISH);
+        expect(dateLocales.use).toHaveBeenCalledWith(Language.SPANISH);
         expect(settingsService.changeTheme).toHaveBeenCalledWith(
             Theme.DarkTheme
         );

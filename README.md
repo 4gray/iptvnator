@@ -376,6 +376,17 @@ To run only the Angular app without Electron, use:
 $ pnpm run serve:frontend
 ```
 
+To see how many bytes the built web app puts on the initial load path (the
+number the CI ratchet guards), build it and run the measurement:
+
+```
+$ pnpm nx build web
+$ pnpm run perf:initial-bytes
+```
+
+The contract behind that number is in
+[docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
+
 To benchmark the "launch to usable" journey (fresh Electron process on a
 seeded profile, exact renderer counters plus wall-clock), run:
 
