@@ -160,6 +160,7 @@ pnpm nx build web
 pnpm run perf:initial-bytes         # breakdown only
 pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
+pnpm run perf:journeys              # J1 launch benchmark, writes dist/performance/journeys/<timestamp>/summary.json
 ```
 
 `perf:initial-bytes` reads the built `dist/apps/web/index.html` and sums the
@@ -168,7 +169,10 @@ bytes on the initial path (the J1 counter `renderer.initialBytes`).
 `tools/performance/journey-baselines.json`; baselines only move down. CI runs
 the same check in the `Initial bytes ratchet` job of `ci.yml` for PRs that
 target `master` and for `master` pushes (dispatch it with
-`gh workflow run ci.yml --ref <branch>` for a stacked branch). The contract, what counts and how to add a counter are in the
+`gh workflow run ci.yml --ref <branch>` for a stacked branch). `perf:journeys` builds the `electron-performance` configuration and runs the
+J1 launch benchmark against the Xtream mock; its probe specs run with
+`pnpm nx run electron-backend-e2e:test-performance-harness`. The contract, what
+counts and how to add a counter or a journey are in the
 [performance journeys](performance-journeys.md) document.
 
 ## Logging

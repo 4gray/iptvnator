@@ -387,6 +387,17 @@ $ pnpm run perf:initial-bytes
 The contract behind that number is in
 [docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
 
+To benchmark the "launch to usable" journey (fresh Electron process on a
+seeded profile, exact renderer counters plus wall-clock), run:
+
+```
+$ pnpm run perf:journeys
+```
+
+The journeys, their counters and the summary written under
+`dist/performance/journeys/` are described in
+[docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
+
 ## Disclaimer
 
 **IPTVnator doesn't provide any playlists or other digital content.**
