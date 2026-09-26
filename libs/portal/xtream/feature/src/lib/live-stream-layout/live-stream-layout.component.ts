@@ -427,6 +427,8 @@ export class LiveStreamLayoutComponent
      * not resolved it yet (or cannot) — a relock then stops the channel.
      */
     private activeLiveProviderCategoryId: number | null | 'unknown' = null;
+    /** Bumped per resolution so a slow hidden-category lookup cannot land on a later playback. */
+    private liveCategoryLookupGeneration = 0;
     readonly playbackSessionKey = computed(() => {
         const sourceId = this.xtreamStore.currentPlaylist()?.id;
         const contentId = this.activeLiveItemId();
@@ -863,6 +865,9 @@ export class LiveStreamLayoutComponent
     private resolveLiveProviderCategoryId(
         item: XtreamLiveChannelItem
     ): number | null | 'unknown' {
+        // Every resolution retires the lookups before it, including one for
+        // a same-id channel of another playlist that resolved synchronously.
+        const generation = ++this.liveCategoryLookupGeneration;
         const categoryId = Number(item.category_id);
         if (!Number.isFinite(categoryId)) {
             return null;
@@ -886,7 +891,11 @@ export class LiveStreamLayoutComponent
             void this.databaseService
                 .getAllXtreamCategories(playlistId, 'live')
                 .then((rows) => {
-                    if (this.activeLiveItemId() !== item.xtream_id) {
+                    if (
+                        generation !== this.liveCategoryLookupGeneration ||
+                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        this.activeLiveItemId() !== item.xtream_id
+                    ) {
                         return;
                     }
                     const row = rows.find(

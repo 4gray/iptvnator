@@ -255,6 +255,33 @@ describe('LiveStreamLayoutComponent parental lock', () => {
         expect(component.activePlayback()).toBeNull();
     });
 
+    it('ignores a hidden-category lookup that lands after a later playback', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+        let resolveLookup: (rows: unknown[]) => void = () => undefined;
+        databaseService.getAllXtreamCategories.mockReturnValueOnce(
+            new Promise<unknown[]>((resolve) => (resolveLookup = resolve))
+        );
+        // Playlist 1: hidden category 99, lookup in flight.
+        component.playLive({ ...sampleChannel, category_id: 99 });
+
+        // Playlist 2: a channel with the same provider id whose category is
+        // visible (row 41 → provider 7) resolves synchronously.
+        xtreamStore.currentPlaylist.set({ ...playlist, id: 'playlist-2' });
+        fixture.detectChanges();
+        component.playLive({ ...sampleChannel, category_id: 41 });
+        expect(component.activePlayback()).not.toBeNull();
+
+        // The stale lookup answers for playlist 1 with provider 9.
+        resolveLookup([{ id: 99, xtream_id: 9 }]);
+        await fixture.whenStable();
+
+        lock(9);
+        expect(component.activePlayback()).not.toBeNull();
+        lock(7);
+        expect(component.activePlayback()).toBeNull();
+        xtreamStore.currentPlaylist.set(playlist);
+    });
+
     it('stops a channel whose category is still unresolved when the lock activates', () => {
         runtime.supportsXtreamSqliteDataSource = true;
         databaseService.getAllXtreamCategories.mockReturnValue(

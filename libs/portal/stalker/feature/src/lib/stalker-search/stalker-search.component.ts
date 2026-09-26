@@ -21,6 +21,7 @@ import {
     executeStalkerRequest,
     StalkerPortalRepairService,
     StalkerSessionService,
+    stalkerWithheldRowKey,
     withoutWithheldStalkerItems,
 } from '@iptvnator/portal/stalker/data-access';
 import {
@@ -389,7 +390,7 @@ export class StalkerSearchComponent {
                 if (items.length < rawItems.length) {
                     const kept = new Set(items);
                     for (const item of rawItems) {
-                        const id = String(item.id ?? '');
+                        const id = stalkerWithheldRowKey(item);
                         if (
                             !kept.has(item) &&
                             !this.searchWithheldIds.has(id)

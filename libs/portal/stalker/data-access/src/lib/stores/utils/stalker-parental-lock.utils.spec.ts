@@ -1,5 +1,6 @@
 import {
     isStalkerItemWithheld,
+    stalkerWithheldRowKey,
     withoutWithheldStalkerItems,
 } from './stalker-parental-lock.utils';
 import { ALL_CATEGORIES_WITHHELD } from '@iptvnator/shared/interfaces';
@@ -62,5 +63,17 @@ describe('isStalkerItemWithheld in fail-closed mode', () => {
                 ALL_CATEGORIES_WITHHELD
             )
         ).toEqual([]);
+    });
+});
+
+describe('stalkerWithheldRowKey', () => {
+    it('keys rows by whichever id field they carry, never by a shared empty string', () => {
+        expect(stalkerWithheldRowKey({ id: 5 })).toBe('id:5');
+        expect(stalkerWithheldRowKey({ stream_id: '6' })).toBe('id:6');
+        expect(stalkerWithheldRowKey({ movie_id: 7 })).toBe('id:7');
+        expect(stalkerWithheldRowKey({ series_id: 8 })).toBe('id:8');
+        expect(stalkerWithheldRowKey({ cmd: 'ffmpeg http://a' })).not.toBe(
+            stalkerWithheldRowKey({ cmd: 'ffmpeg http://b' })
+        );
     });
 });

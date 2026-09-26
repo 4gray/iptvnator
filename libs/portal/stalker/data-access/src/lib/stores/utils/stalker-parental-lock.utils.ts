@@ -5,6 +5,27 @@ import type { StalkerContentType } from '../stalker-store.contracts';
 export interface StalkerLockableItem {
     tv_genre_id?: string | number;
     category_id?: string | number;
+    id?: string | number;
+    stream_id?: string | number;
+    movie_id?: string | number;
+    series_id?: string | number;
+    cmd?: string;
+    name?: string;
+}
+
+/**
+ * The key the paging bookkeeping records a withheld row under. Stalker rows
+ * carry their id in one of several fields; keying every id-less row under
+ * `''` would count only the first of them as new, and a page of new locked
+ * rows would then look like a stalled portal and end paging short of later
+ * visible matches.
+ */
+export function stalkerWithheldRowKey(item: StalkerLockableItem): string {
+    const id = item.id ?? item.stream_id ?? item.movie_id ?? item.series_id;
+    if (id !== undefined && id !== null && String(id) !== '') {
+        return `id:${String(id)}`;
+    }
+    return `row:${String(item.cmd ?? item.name ?? '')}`;
 }
 
 /**

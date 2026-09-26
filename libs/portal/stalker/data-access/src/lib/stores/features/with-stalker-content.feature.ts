@@ -37,6 +37,7 @@ import {
     filterItvChannelsByGenre,
     toStalkerContentItem,
     toStalkerItvChannel,
+    stalkerWithheldRowKey,
     withoutWithheldStalkerItems,
 } from '../utils';
 
@@ -739,7 +740,7 @@ export function withStalkerContent() {
                                         if (kept.has(item)) {
                                             continue;
                                         }
-                                        const id = String(item.id ?? '');
+                                        const id = stalkerWithheldRowKey(item);
                                         if (!withheldSeenIds.has(id)) {
                                             withheldSeenIds.add(id);
                                             newWithheldCount += 1;

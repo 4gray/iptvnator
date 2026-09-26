@@ -195,7 +195,8 @@ on either side.
   id (mapped from the SQLite row id on Electron — through the visible
   category list, else through the unfiltered rows, since search can play a
   channel of a HIDDEN category; until that lookup lands the id is unknown
-  and a relock stops the channel) and drops `activePlayback` on a `version`
+  and a relock stops the channel, and a lookup that lands after a later
+  playback — same provider id, other playlist — is discarded) and drops `activePlayback` on a `version`
   change that locks it, because the player is gated on that
   signal, not on the store selection — which an ordinary category switch
   also clears while the channel keeps playing.
@@ -230,6 +231,11 @@ on either side.
   passing as unlocked. Electron routes carry SQLite row ids, so
   the Xtream guard maps them through the unfiltered category read; Stalker
   routes already carry the genre id.
+- **Stalker withheld-row bookkeeping:** the paging logic that advances past
+  a page made only of withheld rows keys those rows by
+  `stalkerWithheldRowKey` (`id`, else `stream_id`/`movie_id`/`series_id`,
+  else the row's `cmd`/`name`), never by a shared `''`, so a page of new
+  locked rows is not mistaken for a stalled portal.
 - **Stalker search staleness:** portal requests are not aborted, so a
   search page issued before a relock can finish after it, filtered with the
   pre-relock withheld set; `isStalkerSearchRequestCurrent` keys the
