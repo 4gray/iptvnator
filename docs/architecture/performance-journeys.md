@@ -31,9 +31,12 @@ The bytes a browser fetches before Angular can bootstrap, read from the built
 - every `<link rel="modulepreload">` chunk.
 
 Manifest, icons, external URLs, commented-out tags and lazy chunks are not
-counted. A file that `index.html` references but the build did not emit is an
-error, never zero bytes. The value is raw (uncompressed) size, which is what the
-renderer parses. It is Angular's "Initial total" plus `index.html` and
+counted, so the value is the same for every language: a non-English launch
+additionally fetches that language's Angular locale chunk (about 2 KB), which
+belongs to the per-profile J1 benchmark rather than to this counter. A file
+that `index.html` references but the build did not emit is an error, never
+zero bytes. The value is raw (uncompressed) size, which is what the renderer
+parses. It is Angular's "Initial total" plus `index.html` and
 `assets/app-config.js` (about 4 KB together), so it sits slightly above the
 rounded figure the build prints; never copy that figure into a baseline, use
 the script's output. The bundle embeds only the app version from
