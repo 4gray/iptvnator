@@ -115,7 +115,7 @@ describe('PlayerControlsComponent capability contract', () => {
             )?.at(-1) ?? '';
 
         expect(PLAYER_CONTROLS_STYLE_SOURCE).toContain(
-            '@container player-controls (max-width: 640px)'
+            '@container player-controls (max-width: 719px)'
         );
         expect(narrowActionsRule).toContain('flex-wrap: wrap');
         expect(narrowActionsRule).toContain('overflow: visible');
@@ -348,7 +348,7 @@ describe('PlayerControlsComponent capability contract', () => {
 
         const root = fixture.nativeElement as HTMLElement;
         expect(
-            root.querySelector('.player-controls__timeline > input')
+            root.querySelector('.player-controls__slider--timeline')
         ).toBeNull();
         expect(
             root.querySelector('.player-controls__live-badge')

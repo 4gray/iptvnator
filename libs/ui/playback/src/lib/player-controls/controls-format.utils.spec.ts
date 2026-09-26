@@ -1,4 +1,5 @@
 import {
+    formatRemainingTime,
     formatTime,
     persistVolume,
     readStoredVolume,
@@ -16,6 +17,20 @@ describe('controls format utilities', () => {
         expect(formatTime(-30)).toBe('0:00');
         expect(formatTime(75.9)).toBe('1:15');
         expect(formatTime(3661)).toBe('1:01:01');
+    });
+
+    it('formats the remaining time with a minus sign, rounding up', () => {
+        expect(formatRemainingTime(30, 600)).toBe('−9:30');
+        expect(formatRemainingTime(599.2, 600)).toBe('−0:01');
+        expect(formatRemainingTime(700, 600)).toBe('−0:00');
+        expect(formatRemainingTime(-5, 60)).toBe('−1:00');
+    });
+
+    it('has no remaining time without a finite positive duration', () => {
+        expect(formatRemainingTime(30, null)).toBeNull();
+        expect(formatRemainingTime(30, undefined)).toBeNull();
+        expect(formatRemainingTime(30, 0)).toBeNull();
+        expect(formatRemainingTime(30, Number.POSITIVE_INFINITY)).toBeNull();
     });
 
     it('clamps stored volume reads and persists raw volume values', () => {

@@ -416,6 +416,16 @@ describe('PlayerControlsComponent interactions', () => {
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
         });
 
+        it('mutes on a tap when the slider is already inline (wide dock)', () => {
+            component.volumeInteractions.buttonClick(
+                pointerTypedEvent('click', 'touch'),
+                { inlineSlider: true }
+            );
+
+            expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
+            expect(component.menus.volumeOpen()).toBe(false);
+        });
+
         it('mutes directly on a mouse click without opening the popover', () => {
             component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'mouse'));
 

@@ -287,8 +287,49 @@ It owns only transient presentation behavior:
   controller state;
 - `ControlsShortcuts` — document keyboard routing;
 - `ControlsSurface` — pointer/click/double-click surface interactions;
-- `ControlsTimeline` — scrub state and timeline projections; and
+- `ControlsTimeline` — scrub state and timeline projections;
+- `ControlsTimelineHover` — the time under the pointer over the timeline;
+- `ControlsLayout` — the compact/wide dock mode from the host's width; and
 - `controls-view-model.ts` — derived display state.
+
+### The dock
+
+The controls render as a **dock** (`.player-controls__bar`) with no surface
+of its own: a timeline row above a three-column control row, sitting
+directly on the video over the bottom scrim. The palette is a fixed set of
+`--pc-*` custom properties on `:host` — accent blue `#4f8eff` for the
+primary action and progress, cyan `#5cd6ff` for "something is on", violet
+`#b599ff` for "a value was changed", and the `#e7ecf3` / `#9aa3b2` /
+`#6b7384` text ramp. They are literal on purpose: the overlay is
+theme-independent (see the UI guidelines' player theme boundary), and the
+app's `--app-selection-color` is a different blue that would fight the video.
+
+- **Timeline row**: current time (`--pc-font-mono`, tabular) · drawn track
+  (`.player-controls__timeline-track` with one segment and an accent fill,
+  a white knob ringed in translucent blue) · remaining time as `−7:03`
+  (`formatRemainingTime`; the LIVE badge replaces it on live streams and
+  `--:--` stands in while no duration is known) · the recording status.
+  The `<input type="range">` stays as the interaction and accessibility
+  layer, invisible and full-size over the drawn track: dragging, arrow
+  keys, `aria-valuetext` and the focus ring (drawn on the track through
+  `:has(:focus-visible)`) all belong to it, so scrubbing semantics are
+  unchanged. Hovering the bar with a mouse shows a white marker and a
+  `1:40` label above the pointer (`ControlsTimelineHover`); touch never
+  hovers and a non-seekable timeline never labels.
+- **Control row**: `minmax(0,1fr) auto minmax(0,1fr)`. Left: the volume
+  button, with the slider **inline** (72px) in the wide mode and behind
+  the hover/tap popover in the compact mode — inline, the button is a
+  plain mute toggle for every pointer type (`buttonClick(event,
+  { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
+  +10s · next episode. Right: the capability actions, end-aligned.
+- **Play button** (`.player-controls__play`, `data-test-id
+  ="player-controls-play"`): a 52px filled accent circle with a white glyph,
+  not a Material icon button. Hover darkens the fill rather than lightening
+  it so the glyph keeps ≥3:1 against it — `player-theme.e2e.ts` rasterizes
+  exactly the hovered and focused states.
+- **Icon buttons** are 40px with a 12px radius (32px / 9px compact) through
+  Material's `--mat-icon-button-*` tokens; their hover is a flat
+  `rgba(255,255,255,.1)` layer.
 
 ### Stream info popover
 
@@ -360,13 +401,18 @@ Per engine:
   no info affordance, though its backends plumb the properties for parity. See
   [embedded-mpv-native.md](./embedded-mpv-native.md#stream-stats-properties).
 
-### Top scrim
+### Scrims
 
 `.player-controls__top-scrim` is a single pointer-transparent gradient at the
-top of the player, mirroring the bottom bar's stops so both edges read as one
-system. It renders whenever there is top chrome to back — the fullscreen media
-title or the corner buttons — and fades with the controls without sliding (a
-moving scrim edge is visible against video in a way a moving control is not).
+top of the player (`max(28%, 112px)` tall), and
+`.player-controls__bottom-scrim` its mirror behind the dock (55% tall, from
+`rgba(4,7,11,.92)` at the edge through `.55` to transparent). Both read as
+one system. The top one renders whenever there is top chrome to back — the
+fullscreen media title or the corner buttons — the bottom one with the dock;
+both fade with the controls without sliding (a moving scrim edge is visible
+against video in a way a moving control is not). The dock itself has no
+background: the bottom scrim is the only thing between the controls and the
+picture.
 
 One element, not a background per consumer: the title and the corner overlap,
 and two gradients would darken the overlap twice. The title therefore carries
@@ -882,24 +928,30 @@ the last second (`wasTouchInteraction`). Three behaviors diverge from mouse:
   popover close (outside taps and other menu buttons dismiss it), and neither
   does the `focusout` of a pointer focus release.
 - **Coarse-pointer scrub sizing.** Under `@media (pointer: coarse)` the
-  timeline/volume sliders grow their input hit strip to 28px and the thumb to
-  18px; the 4px visual track is unchanged.
+  timeline bar and the volume slider grow their hit strip to 28px and the
+  volume thumb to 16px; the drawn tracks are unchanged.
 
-### Narrow-player layout
+### Compact and wide layout
 
-The controls host is a size query container (`player-controls`). At container
-widths of 640px and below — phone-sized PWA viewports, but also small inline
-players inside wide desktop windows — the single-row bar reflows to two rows:
-the timeline takes a full-width first row, and the transport and actions
-clusters split the second. The actions cluster's width is content-dependent
-(volume, audio, subtitles, quality, speed, aspect, recording, PiP, and
-fullscreen are all conditional), so in the narrow layout the cluster is
-end-aligned, capped at the row width, and wraps when even a dedicated row cannot
-hold it. Its popover anchors become static at this breakpoint so capability
-panels position against the unclipped actions cluster and remain accessible
-above every wrapped row. Icon buttons compact from 48px to 40px in this layout.
-Between ~640px and the 720px viewport media query, the legacy single-row squeeze
-(timeline absorbs the shrink) still applies.
+The controls host is a size query container (`player-controls`), and the
+dock has two modes split at **720px of container width**: `compact` at
+719px and below — phone-sized PWA viewports, but also small inline players
+inside wide desktop windows — and `wide` above. The split lives in two
+places that must agree: the `@container player-controls (max-width: 719px)`
+block in the stylesheet sizes the compact dock (14px gutters, 32px buttons,
+36px play circle, 5px track), and `ControlsLayout`
+(`COMPACT_LAYOUT_MAX_WIDTH`, a `ResizeObserver` on the host) drives the
+template branches CSS cannot express — today the inline volume slider versus
+its popover. Without `ResizeObserver` (unit tests) the mode stays `wide`.
+Episode navigation stays in the compact transport: the series hosts rely on
+those buttons, and the inline series player is often narrower than 720px.
+
+The actions cluster's width is content-dependent (audio, subtitles, quality,
+speed, aspect, recording, PiP, and fullscreen are all conditional), so in
+the compact layout the cluster is end-aligned, capped at the row width, and
+wraps when the row cannot hold it. Its popover anchors become static at this
+breakpoint so capability panels position against the unclipped actions
+cluster and remain accessible above every wrapped row.
 
 When a volume-capable controller first attaches, an existing `localStorage`
 volume preference is applied before the first controller snapshot can reconcile
@@ -1385,6 +1437,8 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-controls.component.scss
 ├── controls-feedback.ts
 ├── controls-format.utils.ts
+├── controls-layout.ts
+├── controls-timeline-hover.ts
 ├── controls-fullscreen.ts
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts

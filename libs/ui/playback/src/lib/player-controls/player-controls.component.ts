@@ -17,18 +17,24 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ControlsChromeInteractions } from './controls-chrome-interactions';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
+import { ControlsLayout } from './controls-layout';
 import { ControlsMenuSelection } from './controls-menu-selection';
 import { type ControlsMenu, ControlsMenuState } from './controls-menu-state';
 import { ControlsShortcuts } from './controls-shortcuts';
 import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
+import { ControlsTimelineHover } from './controls-timeline-hover';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
 import { ControlsVolumeInteractions } from './controls-volume-interactions';
 import { ControlsSubtitleSettings } from './controls-subtitle-settings';
-import { formatTime, speedLabel } from './controls-format.utils';
+import {
+    formatRemainingTime,
+    formatTime,
+    speedLabel,
+} from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
@@ -74,6 +80,9 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly feedback = new ControlsFeedback();
     readonly anyMenuOpen = this.menus.anyOpen;
     private readonly shortcuts = new ControlsShortcuts();
+    private readonly layout = new ControlsLayout();
+    /** Compact dock: narrow inline players and phone-sized viewports. */
+    readonly isCompact = computed(() => this.layout.mode() === 'compact');
     private readonly visibility = new ControlsVisibility(() => this.canHide());
     private readonly fullscreen = new ControlsFullscreen(
         () => this.fullscreenTarget() ?? this.playerSurface(),
@@ -134,6 +143,16 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly timelineDuration = this.timeline.duration;
     readonly timelineValue = this.timeline.value;
     readonly timelineProgress = this.timeline.progress;
+    readonly timelineHover = new ControlsTimelineHover({
+        duration: this.timelineDuration,
+        interactive: computed(
+            () => this.capabilities().seek && this.state().canSeek
+        ),
+    });
+    /** `−7:03` while a finite duration is known; the dock prefers it to the total. */
+    readonly remainingTimeText = computed(() =>
+        formatRemainingTime(this.timelineValue(), this.timelineDuration())
+    );
 
     readonly displayVolume = this.volume.value;
     readonly isFullscreen = this.fullscreen.isFullscreen;
@@ -189,6 +208,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly controlsAreVisible = this.vm.controlsAreVisible;
     readonly hideCursor = this.vm.hideCursor;
     constructor() {
+        this.layout.attach(this.host);
         this.shortcuts.attach({
             isAvailable: () => this.shortcutsEnabled() && this.showControls(),
             hostElement: () => this.host,
@@ -282,6 +302,7 @@ export class PlayerControlsComponent implements OnDestroy {
         });
     }
     ngOnDestroy(): void {
+        this.layout.dispose();
         this.shortcuts.detach();
         this.feedback.dispose();
         this.visibility.dispose();
