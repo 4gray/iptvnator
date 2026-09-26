@@ -38,6 +38,8 @@ export class ParentalLockStorageService {
      * The lock store, or `null` when it could not be READ — distinct from an
      * absent store, which is `{}`. A failed read must not look like "nothing
      * is locked": the service withholds everything until it can read again.
+     * A stored payload that does not parse, or is not an object, counts as
+     * a failed read too: corruption must not become an empty store.
      */
     async readLocks(): Promise<ParentalLockStore | null> {
         const result = await this.read(PARENTAL_LOCK_STORE_KEY);
@@ -47,11 +49,16 @@ export class ParentalLockStorageService {
         if (!result.value) {
             return {};
         }
+        let parsed: unknown;
         try {
-            return normalizeParentalLockStore(JSON.parse(result.value));
+            parsed = JSON.parse(result.value);
         } catch {
-            return {};
+            return null;
         }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return null;
+        }
+        return normalizeParentalLockStore(parsed);
     }
 
     async writeLocks(store: ParentalLockStore): Promise<boolean> {

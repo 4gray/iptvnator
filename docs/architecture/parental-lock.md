@@ -106,7 +106,8 @@ the strength of default settings. The lock store itself fails closed the
 same way: `ParentalLockStorageService.readLocks()` reports a failed read as
 `null` (distinct from an absent store, `{}`; Electron reads through
 `DatabaseService.readAppState`, which keeps a rejected IPC apart from a
-missing key), and while the lock is active with the store unreadable
+missing key, and a stored payload that does not parse or is not an object
+is a failed read too — corruption never becomes an empty store), and while the lock is active with the store unreadable
 `ParentalLockService.withholdsEverything` is true — every `is*Locked`
 predicate answers true and the set-based filters (PWA Xtream, Stalker
 content and search, the M3U channel list) receive
@@ -173,6 +174,11 @@ would be built on an empty in-memory store and wipe the persisted locks).
   passing as unlocked. Electron routes carry SQLite row ids, so
   the Xtream guard maps them through the unfiltered category read; Stalker
   routes already carry the genre id.
+- **Stalker search staleness:** portal requests are not aborted, so a
+  search page issued before a relock can finish after it, filtered with the
+  pre-relock withheld set; `isStalkerSearchRequestCurrent` keys the
+  response on the parental lock version as well as term/type/page/portal,
+  so such a page is dropped instead of repopulating the grid.
 - **Stalker search route** (`/workspace/stalker/:id/search`, no category
   in the URL): `StalkerSearchComponent` filters each portal page through the
   same withheld-genre predicate, carries `parentalLockVersion` in its

@@ -69,6 +69,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { isStalkerSearchRequestCurrent } from './stalker-search-request.util';
 
 interface StalkerFilter {
     key: StalkerSearchContentType;
@@ -340,13 +341,18 @@ export class StalkerSearchComponent {
                 ...(contentType === 'vod' ? { genre: '0' } : {}),
             };
 
-            // A stale response (term/filter/page/portal moved on while this
-            // page was in flight) must not clobber the accumulated list.
+            // A stale response (term/filter/page/portal — or the parental
+            // lock — moved on while this page was in flight) must not clobber
+            // the accumulated list: the request is not aborted, and a
+            // pre-relock response was filtered with the pre-relock set.
             const isCurrent = (): boolean =>
-                params.search === this.searchTerm() &&
-                params.contentType === this.selectedFilterType() &&
-                params.page === this.searchPage() &&
-                params.playlistId === (this.currentPlaylist()?._id ?? null);
+                isStalkerSearchRequestCurrent(params, {
+                    search: this.searchTerm(),
+                    contentType: this.selectedFilterType(),
+                    page: this.searchPage(),
+                    playlistId: this.currentPlaylist()?._id ?? null,
+                    parentalLockVersion: this.parentalLock.version(),
+                });
 
             try {
                 // executeStalkerRequest owns the portal-mode decision (shared
