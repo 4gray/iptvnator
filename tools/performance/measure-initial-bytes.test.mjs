@@ -164,6 +164,25 @@ test('a comment opener inside a script body does not swallow later live tags', (
     );
 });
 
+test('raw text ends only at an exact end tag, and noscript/title bodies are text', () => {
+    const lookalike = `<script>const a='</scriptlet>', b='<script src="fake.js">';</script><script src="real.js"></script>`;
+    assert.deepEqual(
+        extractInitialResources(lookalike).map((resource) => resource.url),
+        ['real.js']
+    );
+    const fallback = `<noscript><script src="fallback.js"></script><link rel="stylesheet" href="noscript.css"></noscript><title><script src="t.js"></script></title><textarea><link rel="modulepreload" href="ta.js"></textarea><script src="app.js"></script>`;
+    assert.deepEqual(
+        extractInitialResources(fallback).map((resource) => resource.url),
+        ['app.js']
+    );
+    assert.deepEqual(
+        extractInitialResources(
+            '<script>x</script\t><script src="y.js"></script >'
+        ).map((r) => r.url),
+        ['y.js']
+    );
+});
+
 test('counts a file once per distinct request URL', async () => {
     const distDir = await writeDist('cache-busted', {
         indexHtml: `<link rel="modulepreload" href="chunk-a.js"><link rel="modulepreload" href="chunk-a.js?v=2">`,

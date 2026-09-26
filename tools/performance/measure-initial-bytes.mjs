@@ -21,7 +21,23 @@ export const INITIAL_BYTES_COUNTER = 'renderer.initialBytes';
 export const LAUNCH_JOURNEY = 'launch';
 
 const OPEN_TAG = /^<([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>/;
-const RAW_TEXT_ELEMENTS = new Set(['script', 'style']);
+/**
+ * Elements whose body the HTML tokenizer reads as text up to the matching end
+ * tag: raw text (script, style, xmp, iframe, noembed, noframes), escapable raw
+ * text (textarea, title) and, with scripting enabled as it is in every
+ * browser that can bootstrap Angular, noscript. Nothing inside them is a tag.
+ */
+const RAW_TEXT_ELEMENTS = new Set([
+    'script',
+    'style',
+    'noscript',
+    'textarea',
+    'title',
+    'xmp',
+    'iframe',
+    'noembed',
+    'noframes',
+]);
 const ATTRIBUTE_PATTERN =
     /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 const EXTERNAL_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
@@ -66,6 +82,21 @@ function classify(tag, attributes) {
  * replacement cannot get this right, because comment markers inside raw text
  * and raw-text markers inside comments have to be resolved in document order.
  */
+/**
+ * An end tag closes raw text only when the exact name is followed by
+ * whitespace, `/` or `>`: `</scriptlet>` inside a script is still script.
+ */
+function findEndTag(lower, name, from) {
+    const needle = `</${name}`;
+    let at = lower.indexOf(needle, from);
+    while (at !== -1) {
+        const next = lower[at + needle.length];
+        if (next === undefined || /[\s/>]/.test(next)) return at;
+        at = lower.indexOf(needle, at + 1);
+    }
+    return -1;
+}
+
 export function scanLiveTags(html) {
     const lower = html.toLowerCase();
     const tags = [];
@@ -96,7 +127,7 @@ export function scanLiveTags(html) {
             tags.push({ tag: name, rawAttributes: match[2] });
         }
         if (RAW_TEXT_ELEMENTS.has(name)) {
-            const closeTag = lower.indexOf(`</${name}`, afterTag);
+            const closeTag = findEndTag(lower, name, afterTag);
             if (closeTag === -1) break;
             const closeEnd = lower.indexOf('>', closeTag);
             index = closeEnd === -1 ? html.length : closeEnd + 1;
