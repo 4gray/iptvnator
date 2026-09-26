@@ -58,7 +58,12 @@ export class WorkspaceShellCommandPaletteService {
         ].filter((load): load is Promise<void> => load !== undefined);
         if (embeddedMpvSupportLoads.length > 0) {
             this.commandPaletteOpening = true;
-            void Promise.allSettled(embeddedMpvSupportLoads).finally(() => {
+            // A failed probe only hides its commands; it must not block opening.
+            void Promise.all(
+                embeddedMpvSupportLoads.map((load) =>
+                    load.catch(() => undefined)
+                )
+            ).finally(() => {
                 this.commandPaletteOpening = false;
                 this.openResolvedCommandPalette(ctx, initialQuery);
             });
