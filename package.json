@@ -74,7 +74,7 @@
         "perf:initial-bytes": "node tools/performance/measure-initial-bytes.mjs",
         "perf:initial-bytes:check": "node tools/performance/measure-initial-bytes.mjs --summary dist/performance/initial-bytes.summary.json && node tools/performance/check-journey-ratchet.mjs --summary dist/performance/initial-bytes.summary.json --only launch/renderer.initialBytes",
         "perf:ratchet:check": "node tools/performance/check-journey-ratchet.mjs --summary dist/performance/journey-summary.json",
-        "perf:tools:test": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs",
+        "perf:tools:test": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs tools/performance/check-baseline-direction.test.mjs",
         "agents:validate": "node tools/skills/validate-agent-guidance.mjs",
         "skills:validate": "node tools/skills/validate-repository-skills.mjs",
         "release:artwork:dry-run": "tsx --tsconfig tsconfig.base.json tools/release/generate-marketing-artwork.ts --dry-run",

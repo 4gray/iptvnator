@@ -14,7 +14,7 @@
                 { "externalDependencies": ["parse5"] }
             ],
             "options": {
-                "command": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs",
+                "command": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs tools/performance/check-baseline-direction.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },

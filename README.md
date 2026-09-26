@@ -377,7 +377,7 @@ $ pnpm run serve:frontend
 ```
 
 To see how many bytes the built web app puts on the initial load path (the
-number the performance ratchet guards), build it and run the measurement:
+number the CI ratchet guards), build it and run the measurement:
 
 ```
 $ pnpm nx build web

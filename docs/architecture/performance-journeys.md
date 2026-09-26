@@ -2,12 +2,10 @@
 
 IPTVnator measures performance through a small set of everyday user journeys.
 Each journey has deterministic counters that are asserted exactly, and
-wall-clock timings that are recorded as evidence. Counters are meant to be
-ratcheted in CI: a committed baseline that may only be lowered, and only with
-the measured output as evidence. This document is the contract for that loop;
-`tools/performance/` holds the scripts. The measurement script lands first;
-the baseline file and the CI job follow in their own PRs (#1693, #1694), so
-until they merge the reported number is informational, not enforced.
+wall-clock timings that are recorded as evidence. Counters are ratcheted in CI:
+a committed baseline may only be lowered, and only with the measured output as
+evidence. This document is the contract for that loop; `tools/performance/`
+holds the scripts.
 
 ## Journeys
 
@@ -103,6 +101,31 @@ summary nor fails the other baselines as unmeasured.
 pnpm run perf:initial-bytes:check   # measure dist/apps/web into dist/performance/initial-bytes.summary.json, check only that counter
 pnpm run perf:ratchet:check         # check every baseline against dist/performance/journey-summary.json
 ```
+
+CI runs `perf:initial-bytes:check` in the `Initial bytes ratchet` job of
+`.github/workflows/ci.yml` after a production build of `apps/web`, and uploads
+`dist/performance/` as the `performance-journey-summary` artifact. Like the
+rest of that workflow it runs for pull requests that target `master` and for
+pushes to `master`; a stacked PR that targets another branch gets no run until
+it is retargeted, so dispatch one with `gh workflow run ci.yml --ref <branch>`
+when you need the number. A PR that grows the counter fails that job.
+
+That runner is the canonical measurer: take baseline values from its output,
+not from a local build. A local macOS build of the code before #1695 is 2
+bytes smaller in `main.js` (the eager locale imports); since #1695 the two
+have been byte-identical. (An apparent 556-byte platform difference during
+the first measurements was otherwise `package.json` text embedded in
+`main.js`, which moved with every script edit; #1692 fixed that by importing
+only the version.)
+
+The job also refuses a weakened baselines file:
+`tools/performance/check-baseline-direction.mjs` compares
+`journey-baselines.json` with the revision the change is measured against
+(the target branch of a pull request, the previous head of a `master` push,
+`master` for a manual dispatch) and fails when any
+entry's enforced limit (`value × toleranceRatio`) went up, a tolerance widened
+or an entry disappeared, so a PR cannot grow the payload and raise the
+baseline to match. Lowered limits and new entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
