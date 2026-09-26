@@ -152,7 +152,7 @@ export async function measureLaunchJourney(
                 sentinelMethod: probeOptions.sentinelMethod,
                 stateKey: JOURNEY_MAIN_IPC_STATE_KEY,
             });
-            const gate = await readJourneyRendererGate(
+            await readJourneyRendererGate(
                 electronApp,
                 JOURNEY_RENDERER_GATE_KEY,
                 'release'
@@ -172,7 +172,17 @@ export async function measureLaunchJourney(
                 probeOptions.stateKey,
                 timeoutMs
             );
-            assertJourneyRendererGate(gate, renderer.installed.epochMs);
+            // Re-read after the probe finished: a reload or recovery
+            // navigation during startup shows up as a pass-through load
+            // only in the live state, and such an iteration is invalid.
+            const gate = assertJourneyRendererGate(
+                await readJourneyRendererGate(
+                    electronApp,
+                    JOURNEY_RENDERER_GATE_KEY,
+                    'read'
+                ),
+                renderer.installed.epochMs
+            );
             const ipc = await readJourneyMainIpcCapture(
                 electronApp,
                 JOURNEY_MAIN_IPC_STATE_KEY,
