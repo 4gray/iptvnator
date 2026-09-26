@@ -37,11 +37,13 @@ import {
     ResizableDirective,
 } from '@iptvnator/ui/components';
 import {
+    ParentalLockService,
     PlaylistsService,
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
+import { isStalkerPlaybackRequestLockCurrent } from './stalker-live-lock-guard';
 import {
     foldSearchText,
     buildStalkerEpgMappingKey,
@@ -125,6 +127,8 @@ interface StalkerPlaybackResolutionOwner {
     readonly sourceId: string;
     readonly contentType: string;
     readonly channelId: string;
+    /** `ParentalLockService.version` when the request was issued. */
+    readonly lockVersion: number;
 }
 
 /** Channels rendered per "page" when the full list is served from the cache. */
@@ -181,6 +185,7 @@ export class StalkerLiveStreamLayoutComponent
     implements OnDestroy, FullscreenChannelPanelHost
 {
     readonly stalkerStore = inject(StalkerStore);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly playlistService = inject(PlaylistsService);
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dialog = inject(MatDialog);
@@ -930,6 +935,7 @@ export class StalkerLiveStreamLayoutComponent
             this.stalkerStore.currentPlaylist()?._id
         );
         const contentType = this.stalkerStore.selectedContentType();
+        const lockVersion = this.parentalLock.version();
         const isRadioMode = this.isRadioMode();
         const deferSelection = !isRadioMode && this.usesEmbeddedPlayer();
         // Inline video retains its stream during resolution. Keep selection,
@@ -947,10 +953,10 @@ export class StalkerLiveStreamLayoutComponent
         try {
             const playback = await this.resolvePlaybackForChannel(
                 item,
-                { sourceId, contentType, channelId },
+                { sourceId, contentType, channelId, lockVersion },
                 isRadioMode
             );
-            const owner = { sourceId, contentType, channelId };
+            const owner = { sourceId, contentType, channelId, lockVersion };
             if (
                 !this.isPlaybackRequestCurrent(
                     requestId,
@@ -1012,7 +1018,7 @@ export class StalkerLiveStreamLayoutComponent
             if (
                 !this.isPlaybackRequestCurrent(
                     requestId,
-                    { sourceId, contentType, channelId },
+                    { sourceId, contentType, channelId, lockVersion },
                     expectedSelectedId
                 )
             ) {
@@ -1062,6 +1068,13 @@ export class StalkerLiveStreamLayoutComponent
     ): boolean {
         return (
             requestId === this.playbackRequestId &&
+            // A relock while the stream resolved: the deferred selection
+            // means the enforcement service had nothing to clear yet.
+            isStalkerPlaybackRequestLockCurrent(
+                owner.lockVersion,
+                this.parentalLock.version(),
+                this.parentalLock.active()
+            ) &&
             this.selectedChannelId() === expectedSelectedId &&
             normalizeStalkerEntityId(
                 this.stalkerStore.currentPlaylist()?._id

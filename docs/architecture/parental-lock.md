@@ -209,7 +209,12 @@ on either side.
   from `*` (All) or search is withheld by its genre even though `*` itself
   can never be locked. A withheld item is cleared and the section root is
   navigated to; the category selection is reset only when the genre itself
-  is locked. `StalkerLiveStreamLayoutComponent` drops its `activePlayback`
+  is locked. A stream still RESOLVING at relock time is retired too: the
+  embedded player defers selecting the channel until resolution, so the
+  cleared selection cannot retire it — the playback request carries the
+  lock version it was issued under (`isStalkerPlaybackRequestLockCurrent`)
+  and is dropped when the session relocked meanwhile (an unlock lets it
+  complete). `StalkerLiveStreamLayoutComponent` drops its `activePlayback`
   whenever the store selection is cleared: its template mounts the player
   only with a selection, and the held stream must not resurface with the
   next one.
