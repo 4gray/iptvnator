@@ -335,9 +335,12 @@ app's `--app-selection-color` is a different blue that would fight the video.
   recording, picture-in-picture and fullscreen, end-aligned.
 - **Play button** (`.player-controls__play`, `data-test-id
   ="player-controls-play"`): a 52px filled accent circle with a white glyph,
-  not a Material icon button. Hover darkens the fill rather than lightening
-  it so the glyph keeps ≥3:1 against it — `player-theme.e2e.ts` rasterizes
-  exactly the hovered and focused states.
+  not a Material icon button. Fills under a white glyph (play, active
+  `tune`) use `--pc-accent-blue-strong` `#3474e8` (4.4:1) rather than the
+  `#4f8eff` accent (3.2:1), and hover darkens to `#2a66d6` (5.3:1) without
+  scaling — `player-theme.e2e.ts` rasterizes the hovered and focused
+  states, and on a 1x Windows display the antialiased or resampled glyph
+  measured below 3:1 against the lighter fills.
 - **Icon buttons** are 40px with a 12px radius (32px / 9px compact) through
   Material's `--mat-icon-button-*` tokens; their hover is a flat
   `rgba(255,255,255,.1)` layer.

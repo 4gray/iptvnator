@@ -5,7 +5,11 @@
     // tokens of the "Hybrid" controls concept (accent blue = primary action
     // and progress; cyan = something is on; violet = a value was changed).
     --pc-accent-blue: #4f8eff;
-    --pc-accent-blue-hover: #3f7ef5;
+    // Fills that carry a white glyph (play, active tune) use deeper blues:
+    // white on #4f8eff is only 3.2:1, too close to the 3:1 floor once a
+    // 1x display antialiases the glyph. These give 4.4:1 and 5.3:1.
+    --pc-accent-blue-strong: #3474e8;
+    --pc-accent-blue-hover: #2a66d6;
     --pc-accent-cyan: #5cd6ff;
     --pc-accent-violet: #b599ff;
     --pc-text: #e7ecf3;
@@ -389,7 +393,7 @@
 :host :is(.player-controls__tune--active),
 :host :is(.player-controls__tune--active:hover) {
     color: #ffffff;
-    background: var(--pc-accent-blue);
+    background: var(--pc-accent-blue-strong);
     --mat-icon-button-icon-color: #ffffff;
 }
 
@@ -431,14 +435,12 @@
     border: 0;
     border-radius: 50%;
     color: #ffffff;
-    background: var(--pc-accent-blue);
+    background: var(--pc-accent-blue-strong);
     box-shadow:
         0 0 0 6px rgba(79, 142, 255, 0.18),
         0 6px 20px rgba(79, 142, 255, 0.35);
     cursor: pointer;
-    transition:
-        background 120ms ease-out,
-        transform 120ms ease-out;
+    transition: background 120ms ease-out;
 }
 
 .player-controls__play mat-icon {
@@ -448,11 +450,11 @@
     color: #ffffff;
 }
 
-// Hover darkens rather than lightens: the white glyph keeps its contrast
-// against the fill (the theme E2E rasterizes exactly this state).
+// Hover darkens rather than lightens, and does not scale: the white glyph
+// keeps its contrast against the fill, and a scaled glyph is resampled and
+// blurred on 1x displays (the theme E2E rasterizes exactly this state).
 .player-controls__play:hover:not(:disabled) {
     background: var(--pc-accent-blue-hover);
-    transform: scale(1.04);
 }
 
 .player-controls__play:focus-visible {
