@@ -5,16 +5,10 @@
         "outDir": "../../../dist/out-tsc",
         "module": "preserve",
         "target": "es2016",
-        "types": [
-            "jest",
-            "node"
-        ],
+        "types": ["jest", "node"],
         "moduleResolution": "bundler"
     },
-    "files": [
-        "src/test-setup.ts",
-        "../../../global.d.ts"
-    ],
+    "files": ["src/test-setup.ts", "../../../global.d.ts"],
     "include": [
         "jest.config.ts",
         "src/**/*.test.ts",

@@ -5,15 +5,9 @@
         "outDir": "../../../../dist/out-tsc",
         "module": "preserve",
         "moduleResolution": "bundler",
-        "types": [
-            "jest",
-            "node"
-        ]
+        "types": ["jest", "node"]
     },
-    "files": [
-        "src/test-setup.ts",
-        "../../../../global.d.ts"
-    ],
+    "files": ["src/test-setup.ts", "../../../../global.d.ts"],
     "include": [
         "jest.config.ts",
         "src/**/*.test.ts",

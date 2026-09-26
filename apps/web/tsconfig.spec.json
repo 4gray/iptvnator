@@ -6,20 +6,11 @@
         "module": "ESNext",
         "target": "ESNext",
         "esModuleInterop": true,
-        "types": [
-            "jest",
-            "node"
-        ],
+        "types": ["jest", "node"],
         "moduleResolution": "bundler",
-        "lib": [
-            "es2022",
-            "dom"
-        ]
+        "lib": ["es2022", "dom"]
     },
-    "files": [
-        "src/test-setup.ts",
-        "../../global.d.ts"
-    ],
+    "files": ["src/test-setup.ts", "../../global.d.ts"],
     "include": [
         "jest.config.ts",
         "src/**/*.test.ts",
