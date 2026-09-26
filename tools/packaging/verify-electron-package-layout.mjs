@@ -492,10 +492,14 @@ function verifyPackagedMainProcessEntries(resourceDir, errors) {
 
     let entries;
     try {
+        // @electron/asar lists entries with the host separator on Windows.
         entries = new Set(
-            listPackage(asarPath).map((entry) =>
-                entry.startsWith('/') ? entry : `/${entry}`
-            )
+            listPackage(asarPath).map((entry) => {
+                const normalized = entry.replace(/\\/g, '/');
+                return normalized.startsWith('/')
+                    ? normalized
+                    : `/${normalized}`;
+            })
         );
     } catch (error) {
         errors.push(
