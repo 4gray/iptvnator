@@ -27,6 +27,7 @@ interface RuntimeStub {
     supportsPortalConnectivityGuard: boolean;
     supportsManagedExternalPlayers: boolean;
     supportsExternalPlayerPathSettings: boolean;
+    supportsEmbeddedMpv: boolean;
 }
 
 function setup(runtime: Partial<RuntimeStub> = {}) {
@@ -44,6 +45,7 @@ function setup(runtime: Partial<RuntimeStub> = {}) {
                     supportsPortalConnectivityGuard: false,
                     supportsManagedExternalPlayers: false,
                     supportsExternalPlayerPathSettings: false,
+                    supportsEmbeddedMpv: false,
                     ...runtime,
                 },
             },
@@ -116,7 +118,7 @@ describe('SettingsSearchService', () => {
         expect(service.search('guide')).toEqual([]);
     });
 
-    it('offers every row on a fully capable desktop runtime except gated VOD failover', () => {
+    it('offers the desktop rows that need no probe on a capable runtime', () => {
         const { service } = setup(DESKTOP);
 
         const entries = service.visibleEntries().map(({ id }) => id);
@@ -125,7 +127,72 @@ describe('SettingsSearchService', () => {
         expect(entries).toContain('remote-control-port');
         expect(entries).toContain('mpv-player-path');
         expect(entries).not.toContain('vod-auto-failover');
-        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 1);
+        // Embedded MPV rows wait for the support probe.
+        expect(entries).not.toContain('embedded-mpv-extra-options');
+        expect(entries).not.toContain('embedded-mpv-frame-copy');
+        expect(entries.length).toBe(SETTINGS_SEARCH_ENTRIES.length - 4);
+    });
+
+    describe('embedded MPV probe', () => {
+        const originalElectron = window.electron;
+
+        afterEach(() => {
+            window.electron = originalElectron;
+        });
+
+        function probeWith(support: {
+            supported: boolean;
+            frameCopyAvailable?: boolean;
+        }) {
+            const getEmbeddedMpvSupport = jest
+                .fn()
+                .mockResolvedValue({ platform: 'darwin', ...support });
+            window.electron = {
+                getEmbeddedMpvSupport,
+            } as unknown as typeof window.electron;
+            return getEmbeddedMpvSupport;
+        }
+
+        it('reveals embedded MPV rows once support resolves, frame copy only when available', async () => {
+            const getEmbeddedMpvSupport = probeWith({ supported: true });
+            const { service } = setup({
+                ...DESKTOP,
+                supportsEmbeddedMpv: true,
+            });
+
+            await service.ensureEmbeddedMpvSupportLoaded();
+            const entries = service.visibleEntries().map(({ id }) => id);
+
+            expect(entries).toContain('embedded-mpv-extra-options');
+            expect(entries).toContain('embedded-mpv-auto-reconnect');
+            // Frame copy is not available on this machine, so the row the
+            // settings page never renders must not be offered either.
+            expect(entries).not.toContain('embedded-mpv-frame-copy');
+            expect(service.ensureEmbeddedMpvSupportLoaded()).toBeUndefined();
+            expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(1);
+        });
+
+        it('offers frame copy where the machine can run it', async () => {
+            probeWith({ supported: true, frameCopyAvailable: true });
+            const { service } = setup({
+                ...DESKTOP,
+                supportsEmbeddedMpv: true,
+            });
+
+            await service.ensureEmbeddedMpvSupportLoaded();
+
+            expect(service.visibleEntries().map(({ id }) => id)).toContain(
+                'embedded-mpv-frame-copy'
+            );
+        });
+
+        it('does not probe where the runtime has no embedded MPV bridge', () => {
+            const getEmbeddedMpvSupport = probeWith({ supported: true });
+            const { service } = setup(DESKTOP);
+
+            expect(service.ensureEmbeddedMpvSupportLoaded()).toBeUndefined();
+            expect(getEmbeddedMpvSupport).not.toHaveBeenCalled();
+        });
     });
 
     it('returns translated, ranked results with their section', () => {
@@ -185,6 +252,22 @@ describe('SettingsSearchService', () => {
                 fallbackId: 'tmdb-enable',
             })
         );
+    });
+
+    it('notifies reveal listeners before navigating, until unsubscribed', () => {
+        const { service, router } = setup();
+        const calls: string[] = [];
+        router.navigate.mockImplementation(() => {
+            calls.push('navigate');
+            return Promise.resolve(true);
+        });
+        const stop = service.onReveal(() => calls.push('listener'));
+
+        service.reveal(SETTINGS_SEARCH_ENTRIES[0]);
+        stop();
+        service.reveal(SETTINGS_SEARCH_ENTRIES[1]);
+
+        expect(calls).toEqual(['listener', 'navigate', 'navigate']);
     });
 
     it('completes only the reveal request that is still pending', () => {

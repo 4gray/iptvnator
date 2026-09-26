@@ -93,8 +93,7 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             labelKey: 'SETTINGS.EMBEDDED_MPV_FRAME_COPY',
             descriptionKey: 'SETTINGS.EMBEDDED_MPV_FRAME_COPY_DESCRIPTION',
             keywords: ['mpv', 'gpu', 'rendering', 'compatibility'],
-            requires: ['desktop'],
-            fallbackId: 'video-player',
+            requires: ['embedded-mpv-frame-copy'],
         },
         {
             id: 'embedded-mpv-extra-options',
@@ -102,7 +101,7 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             labelKey: 'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS',
             descriptionKey: 'SETTINGS.EMBEDDED_MPV_EXTRA_OPTIONS_DESCRIPTION',
             keywords: ['mpv', 'options', 'config', 'hwdec', 'arguments'],
-            requires: ['desktop'],
+            requires: ['embedded-mpv'],
             fallbackId: 'video-player',
         },
         {
@@ -111,7 +110,7 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             labelKey: 'SETTINGS.EMBEDDED_MPV_AUTO_RECONNECT',
             descriptionKey: 'SETTINGS.EMBEDDED_MPV_AUTO_RECONNECT_DESCRIPTION',
             keywords: ['mpv', 'reconnect', 'retry', 'buffering'],
-            requires: ['desktop'],
+            requires: ['embedded-mpv'],
             fallbackId: 'video-player',
         },
         {

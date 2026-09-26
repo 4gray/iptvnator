@@ -66,6 +66,8 @@ export class SettingsSearchFacade {
     });
 
     constructor() {
+        void this.settingsSearch.ensureEmbeddedMpvSupportLoaded();
+
         effect(() => {
             if (!this.isSearching()) {
                 this.settingsCtx.setMatchCounts(null);

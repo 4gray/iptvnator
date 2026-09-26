@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { VodSourceDiscoveryService } from '@iptvnator/portal/shared/data-access';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { EmbeddedMpvSupport } from '@iptvnator/shared/interfaces';
 import { SETTINGS_SEARCH_ENTRIES } from './settings-search-entries';
 import { rankSearchMatch, tokenizeSearchQuery } from './settings-search-rank';
 import {
@@ -32,6 +33,12 @@ export class SettingsSearchService {
 
     private readonly revealRequest = signal<SettingsRevealRequest | null>(null);
     private revealNonce = 0;
+    private readonly revealListeners = new Set<() => void>();
+    private readonly embeddedMpvSupport = signal<EmbeddedMpvSupport | null>(
+        null
+    );
+    private embeddedMpvSupportChecked = false;
+    private embeddedMpvSupportLoad: Promise<void> | undefined;
 
     /** Row the settings page should scroll to and highlight next. */
     readonly pendingReveal = this.revealRequest.asReadonly();
@@ -48,7 +55,52 @@ export class SettingsSearchService {
             'managed-external-players': runtime.supportsManagedExternalPlayers,
             'external-player-paths': runtime.supportsExternalPlayerPathSettings,
             'vod-multi-source': this.vodSourceDiscovery.isAvailable,
+            'embedded-mpv': !!this.embeddedMpvSupport()?.supported,
+            'embedded-mpv-frame-copy':
+                !!this.embeddedMpvSupport()?.frameCopyAvailable,
         };
+    }
+
+    /**
+     * Probes embedded MPV support once so rows that need it become
+     * searchable. Returns the pending probe, or `undefined` when there is
+     * nothing to wait for. Call it lazily (palette open, settings page),
+     * never from shell bootstrap: supported desktop builds may load the
+     * native addon while answering.
+     */
+    ensureEmbeddedMpvSupportLoaded(): Promise<void> | undefined {
+        if (this.embeddedMpvSupportChecked) {
+            return undefined;
+        }
+
+        const electron =
+            typeof window === 'undefined' ? undefined : window.electron;
+        if (
+            !this.runtime.supportsEmbeddedMpv ||
+            typeof electron?.getEmbeddedMpvSupport !== 'function'
+        ) {
+            this.embeddedMpvSupportChecked = true;
+            return undefined;
+        }
+
+        this.embeddedMpvSupportLoad ??= electron
+            .getEmbeddedMpvSupport()
+            .then((support) => this.embeddedMpvSupport.set(support))
+            .catch(() => this.embeddedMpvSupport.set(null))
+            .finally(() => {
+                this.embeddedMpvSupportChecked = true;
+            });
+        return this.embeddedMpvSupportLoad;
+    }
+
+    /**
+     * Runs `listener` synchronously before every reveal navigation, so the
+     * shell can drop a search keystroke still waiting for its debounce: if
+     * it applied later, its `q` navigation would supersede the reveal.
+     */
+    onReveal(listener: () => void): () => void {
+        this.revealListeners.add(listener);
+        return () => this.revealListeners.delete(listener);
     }
 
     visibleSections(): SettingsSectionDefinition[] {
@@ -121,6 +173,7 @@ export class SettingsSearchService {
 
     /** Opens the row's section page and asks it to highlight the row. */
     reveal(entry: SettingsSearchEntry): void {
+        this.revealListeners.forEach((listener) => listener());
         this.revealNonce += 1;
         this.revealRequest.set({
             id: entry.id,

@@ -31,7 +31,6 @@ describe('WorkspaceShellSearchService on settings routes', () => {
         searchQuery: ReturnType<typeof signal<string>>;
         appliedSearchQuery: ReturnType<typeof signal<string>>;
         applySearchQuery: jest.Mock;
-        discardPendingInput: jest.Mock;
     };
     let settingsSearch: { search: jest.Mock; reveal: jest.Mock };
 
@@ -43,7 +42,6 @@ describe('WorkspaceShellSearchService on settings routes', () => {
             searchQuery: signal(''),
             appliedSearchQuery: signal(''),
             applySearchQuery: jest.fn(),
-            discardPendingInput: jest.fn(),
         };
         settingsSearch = {
             search: jest.fn((query: string) =>
@@ -112,7 +110,6 @@ describe('WorkspaceShellSearchService on settings routes', () => {
 
         expect(settingsSearch.search).toHaveBeenCalledWith('theme', 1);
         expect(settingsSearch.reveal).toHaveBeenCalledWith(THEME);
-        expect(searchSync.discardPendingInput).toHaveBeenCalled();
         // Applying would start the `q` sync navigation and supersede the
         // reveal navigation.
         expect(searchSync.applySearchQuery).not.toHaveBeenCalled();

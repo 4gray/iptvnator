@@ -270,6 +270,10 @@ and from the command palette. Both use the same index and ranking.
    description of the current language plus the keywords; every query token
    must match (AND), and a label prefix outranks a word start, which outranks
    an inner match. Rows whose `requires` the runtime lacks are never returned.
+   Embedded MPV rows depend on a lazy support probe
+   (`ensureEmbeddedMpvSupportLoaded()`), run when the settings page or the
+   command palette opens, never from shell bootstrap; frame copy also needs
+   `frameCopyAvailable`, matching the settings page gate.
 5. Settings routes use `local-filter` search mode, so the term lives in `q`.
    While `q` is set, the settings page shows ranked results in place of the
    section page and the settings context panel shows per-section match
@@ -280,9 +284,12 @@ and from the command palette. Both use the same index and ranking.
    to the section page without `q` (which clears the box) and the page
    scrolls to, focuses, and briefly highlights the row once the form is
    hydrated. A row hidden by the current form state falls back to its
-   `fallbackId`, the control that makes it appear. Enter deliberately does
-   not apply the term first, because the `q` sync navigation would supersede
-   the reveal navigation.
+   `fallbackId`, the control that makes it appear. A reveal must win over the
+   typed term: `WorkspaceShellSearchSyncService` drops a keystroke still
+   waiting for its debounce through `onReveal()`, and Enter does not apply
+   the term first, because either `q` sync navigation would supersede the
+   reveal navigation. Keyboard users keep a `:focus-visible` ring on the row
+   after the highlight fades.
 7. `Ctrl/Cmd+F` on settings focuses the header search instead of opening
    global search.
 

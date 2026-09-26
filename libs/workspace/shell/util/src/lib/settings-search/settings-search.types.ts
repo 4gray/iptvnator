@@ -11,7 +11,10 @@ export type SettingsSearchRequirement =
     | 'portal-connectivity-guard'
     | 'managed-external-players'
     | 'external-player-paths'
-    | 'vod-multi-source';
+    | 'vod-multi-source'
+    /** Probed lazily; false until `ensureEmbeddedMpvSupportLoaded` resolves. */
+    | 'embedded-mpv'
+    | 'embedded-mpv-frame-copy';
 
 export type SettingsSearchCapabilities = Readonly<
     Record<SettingsSearchRequirement, boolean>

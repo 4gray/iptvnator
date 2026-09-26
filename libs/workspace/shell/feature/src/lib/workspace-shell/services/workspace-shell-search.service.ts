@@ -189,11 +189,11 @@ export class WorkspaceShellSearchService {
         // Enter on settings jumps to the best match, like picking the first
         // result. The reveal navigation drops `q`, which clears the box. The
         // term is deliberately not applied: applying would make the `q` sync
-        // start its own navigation, superseding the reveal navigation.
+        // start its own navigation, superseding the reveal navigation (the
+        // reveal also cancels a keystroke still waiting for its debounce).
         if (this.routeState.currentRoute().kind === 'settings') {
             const [bestMatch] = this.settingsSearch.search(trimmedValue, 1);
             if (bestMatch) {
-                this.searchSync.discardPendingInput();
                 this.settingsSearch.reveal(bestMatch.entry);
             } else {
                 this.searchSync.applySearchQuery(trimmedValue);

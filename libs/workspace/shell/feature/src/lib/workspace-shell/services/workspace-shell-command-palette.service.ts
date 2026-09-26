@@ -52,11 +52,13 @@ export class WorkspaceShellCommandPaletteService {
             return;
         }
 
-        const embeddedMpvSupportLoad =
-            this.playerCommands.ensureEmbeddedMpvSupportLoaded();
-        if (embeddedMpvSupportLoad) {
+        const embeddedMpvSupportLoads = [
+            this.playerCommands.ensureEmbeddedMpvSupportLoaded(),
+            this.settingsSearch.ensureEmbeddedMpvSupportLoaded(),
+        ].filter((load): load is Promise<void> => load !== undefined);
+        if (embeddedMpvSupportLoads.length > 0) {
             this.commandPaletteOpening = true;
-            void embeddedMpvSupportLoad.finally(() => {
+            void Promise.allSettled(embeddedMpvSupportLoads).finally(() => {
                 this.commandPaletteOpening = false;
                 this.openResolvedCommandPalette(ctx, initialQuery);
             });
