@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv generator-info-name="IPTVnator TV test">
+  <channel id="demo.one"><display-name>Demo One</display-name></channel>
+  <channel id="demo.two"><display-name>Demo Two</display-name></channel>
+  <programme channel="demo.one" start="20260920180000 +0000" stop="20260920190000 +0000">
+    <title>Programa de prueba</title>
+    <desc>Guía XMLTV local para validar el flujo Android TV.</desc>
+  </programme>
+</tv>

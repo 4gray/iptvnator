@@ -243,4 +243,105 @@ describe('PlaylistBackupService export → import round-trip', () => {
             normalizeManifest(firstExport.manifest)
         );
     });
+
+    it('accepts the Android TV v1 export shape and ignores its TV-only extension', async () => {
+        const state = seedState();
+        state.playlists = [];
+        state.rawM3uByPlaylistId.clear();
+        state.xtreamCategories = [];
+        state.xtreamFavorites = [];
+        state.xtreamRecent = [];
+        state.playbackPositions = [];
+        state.sourcePins = [];
+        state.epgUrls = [];
+
+        const androidTvManifest = {
+            kind: 'iptvnator-playlist-backup',
+            version: 1,
+            exportedAt: '2026-09-24T00:00:00.000Z',
+            includeSecrets: true,
+            playlists: [
+                {
+                    portalType: 'm3u',
+                    exportedId: 'tv-m3u',
+                    title: 'TV M3U',
+                    autoRefresh: false,
+                    position: 0,
+                    source: {
+                        kind: 'file',
+                        rawM3u: '#EXTM3U\n#EXTINF:-1,TV News\nhttps://tv.example/live.m3u8',
+                    },
+                    userState: {
+                        favorites: ['https://tv.example/live.m3u8'],
+                        recentlyViewed: [],
+                        hiddenGroupTitles: [],
+                    },
+                    androidTvState: {
+                        sourcePosition: 0,
+                        epgSources: [{ url: 'https://tv.example/epg.xml', enabled: true, detected: true }],
+                    },
+                },
+                {
+                    portalType: 'xtream',
+                    exportedId: 'tv-xtream',
+                    title: 'TV Xtream',
+                    autoRefresh: false,
+                    position: 1,
+                    connection: {
+                        serverUrl: 'https://xtream.example',
+                        username: 'tv-user',
+                        password: 'tv-password',
+                    },
+                    userState: {
+                        hiddenCategories: [],
+                        favorites: [],
+                        recentlyViewed: [],
+                        playbackPositions: [],
+                    },
+                    androidTvState: {
+                        sourcePosition: 1,
+                        episodeProgress: [{ seriesId: 7, episodeId: 9, positionMs: 1000 }],
+                    },
+                },
+                {
+                    portalType: 'stalker',
+                    exportedId: 'tv-stalker',
+                    title: 'TV Stalker',
+                    autoRefresh: false,
+                    position: 2,
+                    connection: {
+                        portalUrl: 'https://stalker.example/server/load.php',
+                        macAddress: '00:1A:79:AA:BB:CC',
+                        stalkerDeviceId1: 'device-1',
+                    },
+                    userState: { favorites: [], recentlyViewed: [] },
+                    androidTvState: {
+                        sourcePosition: 2,
+                        hiddenGroupTitles: ['Local TV group'],
+                    },
+                },
+            ],
+        };
+        const service = createPlaylistBackupService(
+            createStatefulBackupCollaborators(state)
+        );
+
+        const summary = await service.importBackup(
+            JSON.stringify(androidTvManifest)
+        );
+
+        expect(summary).toEqual({
+            imported: 3,
+            merged: 0,
+            skipped: 0,
+            failed: 0,
+            errors: [],
+        });
+        expect(state.playlists.map((playlist) => playlist._id)).toEqual([
+            'tv-m3u',
+            'tv-xtream',
+            'tv-stalker',
+        ]);
+        expect(state.rawM3uByPlaylistId.get('tv-m3u')).toContain('TV News');
+    });
 });

@@ -95,6 +95,7 @@ contracts below before changing a subsystem; do not load every document.
 | UI, keyboard, detail navigation, remote control | [UI guidelines](docs/architecture/iptvnator-ui-guidelines.md), then matching topic in context map |
 | PWA, backend networking, connectivity guard | [PWA contract](docs/architecture/pwa-self-hosted.md), [host connectivity](docs/architecture/host-connectivity-guard.md) |
 | Downloads, TMDB, multi-source, workspace, backup, website | [Context map](docs/maintenance/agent-context-map.md) |
+| Experimental Android TV / Google TV port (standalone Gradle, outside Nx) | [android-tv README](android-tv/README.md) |
 | Release or packaging metadata | [Release pipeline](docs/architecture/release-pipeline.md), release-cut skill |
 
 Repository skills live in `.codex/skills/`. Their frontmatter owns trigger

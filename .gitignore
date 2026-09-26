@@ -29,6 +29,13 @@ server.js
 
 # dependencies 
 node_modules
+
+# Android Studio / Gradle machine-local configuration
+android-tv/local.properties
+android-tv/.gradle/
+android-tv/build/
+android-tv/.kotlin/
+android-tv/app/build/
 package-lock.json
 
 # IDEs and editors 

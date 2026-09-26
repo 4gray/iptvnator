@@ -1,0 +1,16 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="0"
+                android:endColor="#171B24"
+                android:startColor="#30306F" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <item
+        android:drawable="@drawable/ic_launcher"
+        android:gravity="center"
+        android:height="72dp"
+        android:width="72dp" />
+</layer-list>
