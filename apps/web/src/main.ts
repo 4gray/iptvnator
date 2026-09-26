@@ -1,10 +1,8 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { resolveRestoredRendererRoute } from '@iptvnator/shared/interfaces';
-import { registerAppDateLocales } from './app/app-date-locales';
+import { registerAppDateLocale } from './app/app-date-locales';
 import { AppComponent } from './app/app.component';
-import { appConfig } from './app/app.config';
-
-registerAppDateLocales();
+import { appConfig, getInitialLanguage } from './app/app.config';
 
 // A reloaded packaged renderer arrives on index.html with the route it was
 // on carried in the query string (the Electron main process recovers the
@@ -18,7 +16,12 @@ if (restoredHref !== null) {
     window.history.replaceState(window.history.state, '', restoredHref);
 }
 
-bootstrapApplication(AppComponent, appConfig)
+// Angular ships only English locale data; the preferred language's data is a
+// lazy chunk. It is awaited before bootstrapping because the first route
+// renders dates with that locale, and a locale without data throws. English
+// (the default) resolves immediately.
+registerAppDateLocale(getInitialLanguage())
+    .then(() => bootstrapApplication(AppComponent, appConfig))
     .then(() => {
         // Splash is rendered eagerly by index.html so the user sees something
         // immediately instead of a blank Material-grey background. Once Angular

@@ -12,7 +12,7 @@
 
 - Date display should follow the user-selected app language from `TranslateService`.
 - When a template renders localized month or weekday names, pass the normalized app locale explicitly to `DatePipe`.
-- Angular locale data is registered in [apps/web/src/app/app-date-locales.ts](/apps/web/src/app/app-date-locales.ts).
+- Angular locale data is loaded lazily per language by `registerAppDateLocale()` in [apps/web/src/app/app-date-locales.ts](/apps/web/src/app/app-date-locales.ts): `main.ts` awaits the initial language's data before bootstrapping, and every `TranslateService.use()` call site registers the data first (through `AppDateLocaleService`), because the switch re-renders dates with the new locale and a locale without data throws. English needs no data.
 - App language aliases are normalized in [libs/ui/pipes/src/lib/date-format.util.ts](/libs/ui/pipes/src/lib/date-format.util.ts):
     - `ary` -> `ar-MA`
     - `by` -> `be`

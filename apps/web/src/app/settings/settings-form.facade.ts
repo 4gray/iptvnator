@@ -16,6 +16,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
+import { AppDateLocaleService } from '../app-date-locales';
 import {
     applyEpgUrlsToFormArray,
     createEpgUrlControl,
@@ -32,6 +33,7 @@ type SettingsFormPatch = Parameters<SettingsForm['patchValue']>[0];
  */
 @Injectable()
 export class SettingsFormFacade {
+    private readonly dateLocales = inject(AppDateLocaleService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly formBuilder = inject(FormBuilder);
@@ -192,7 +194,12 @@ export class SettingsFormFacade {
     /** Applies the saved language/theme and resets the dirty state */
     applySavedSettings(): void {
         this.form.markAsPristine();
-        this.translate.use(this.form.value.language ?? Language.ENGLISH);
+        const language = this.form.value.language ?? Language.ENGLISH;
+        // The switch re-renders every date with the new locale; its data is
+        // a lazy chunk that must be registered first.
+        void this.dateLocales
+            .register(language)
+            .then(() => this.translate.use(language));
         this.settingsService.changeTheme(
             this.form.value.theme ?? Theme.SystemTheme
         );

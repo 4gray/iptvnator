@@ -31,6 +31,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { AppComponent } from './app.component';
+import { AppDateLocaleService } from './app-date-locales';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
 
@@ -135,6 +136,11 @@ describe('AppComponent', () => {
                     instant: jest.fn((key: string) => key),
                     setDefaultLang: jest.fn(),
                     use: jest.fn(),
+                }),
+                // The real service imports locale chunks; the language switch
+                // is gated on it, so it must resolve deterministically here.
+                MockProvider(AppDateLocaleService, {
+                    register: jest.fn().mockResolvedValue(undefined),
                 }),
                 {
                     provide: WORKSPACE_SHELL_ACTIONS,
