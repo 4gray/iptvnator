@@ -28,7 +28,7 @@ import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import type { PlaybackDiagnosticCode } from '@iptvnator/playback/util';
 import { SettingsStore } from '@iptvnator/services';
 import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
-import type { PlayerMediaTitle } from '../player-controls';
+import type { PlayerMediaTitle, PlayerUpNextItem } from '../player-controls';
 import {
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
@@ -224,6 +224,21 @@ export class PortalInlinePlayerComponent {
     readonly upNextRailItems = computed<UpNextRailItem[]>(
         () => this.upNextEpisodes() ?? []
     );
+    /** The episode after the playing one, for the controls' "Up next" card. */
+    readonly playerUpNext = computed<PlayerUpNextItem | null>(() => {
+        const items = this.upNextEpisodes() ?? [];
+        const playing = items.findIndex((item) => item.isPlaying);
+        const next = playing >= 0 ? items[playing + 1] : undefined;
+        if (!next || this.playback()?.contentInfo?.contentType !== 'episode') {
+            return null;
+        }
+        return {
+            label: next.label,
+            title: next.title,
+            thumbnailUrl: next.thumbnailUrl,
+            progressPercent: next.progressPercent,
+        };
+    });
 
     private readonly fullscreenEpisodePanelTemplate = viewChild<
         TemplateRef<FullscreenChannelPanelContext>

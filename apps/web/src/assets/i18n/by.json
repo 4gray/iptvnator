@@ -622,6 +622,8 @@
             "CLEAR_SEARCH": "Ачысціць пошук",
             "LOAD_SUBTITLE_FILE": "Загрузіць файл субтытраў…",
             "SETTINGS": "Налады",
+            "UP_NEXT": "Далей",
+            "UP_NEXT_IN": "праз {{minutes}} хв",
             "CLOSE_SETTINGS": "Закрыць налады",
             "SUBTITLE_DELAY": "Затрымка субтытраў",
             "SUBTITLE_DELAY_DECREASE": "Паказваць субтытры раней",

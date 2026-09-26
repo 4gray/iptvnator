@@ -622,6 +622,8 @@
             "CLEAR_SEARCH": "Clear search",
             "LOAD_SUBTITLE_FILE": "Load subtitle file…",
             "SETTINGS": "Settings",
+            "UP_NEXT": "Up next",
+            "UP_NEXT_IN": "in {{minutes}} min",
             "CLOSE_SETTINGS": "Close settings",
             "SUBTITLE_DELAY": "Subtitle delay",
             "SUBTITLE_DELAY_DECREASE": "Show subtitles earlier",

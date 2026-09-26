@@ -69,6 +69,19 @@ export interface PlayerTimelineSegment {
     title: string | null;
 }
 
+/**
+ * The episode after the current one, for the "Up next" card. Series hosts
+ * build it from their episode list; the controls decide when to show it.
+ */
+export interface PlayerUpNextItem {
+    /** `S01E03`. */
+    label: string;
+    title: string;
+    thumbnailUrl: string | null;
+    /** Watch progress in percent (0–100); null when never started. */
+    progressPercent: number | null;
+}
+
 export interface PlayerPreset<T> {
     value: T;
     label: string;

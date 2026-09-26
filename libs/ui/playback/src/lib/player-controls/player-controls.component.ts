@@ -26,6 +26,7 @@ import { ControlsStreamStats } from './controls-stream-stats';
 import { ControlsSurface } from './controls-surface';
 import { ControlsTimeline } from './controls-timeline';
 import { ControlsTimelineHover } from './controls-timeline-hover';
+import { ControlsUpNext } from './controls-up-next';
 import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
@@ -36,8 +37,10 @@ import type {
     PlayerController,
     PlayerMediaTitle,
     PlayerTimelineSegment,
+    PlayerUpNextItem,
 } from './player-controls.model';
 import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
+import { PlayerUpNextCardComponent } from './player-up-next-card.component';
 
 @Component({
     selector: 'app-player-controls',
@@ -49,6 +52,7 @@ import { PlayerSettingsPanelComponent } from './player-settings-panel.component'
         MatTooltipModule,
         TranslatePipe,
         PlayerSettingsPanelComponent,
+        PlayerUpNextCardComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
@@ -77,6 +81,8 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
         null
     );
+    /** The next episode, for the "Up next" card near the end of this one. */
+    readonly upNext = input<PlayerUpNextItem | null>(null);
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
     readonly menus = new ControlsMenuState();
@@ -146,6 +152,13 @@ export class PlayerControlsComponent implements OnDestroy {
         commands: () => this.controller().commands,
         reveal: (options) => this.reveal(options),
     });
+    readonly upNextCard = new ControlsUpNext({
+        item: this.upNext,
+        state: this.state,
+        capabilities: this.capabilities,
+        showControls: this.showControls,
+        settingsOpen: this.settings.isOpen,
+    });
     private readonly controllerVolume = computed(() => this.state().volume);
     readonly timeline = new ControlsTimeline(this.state, this.timelineSegments);
     readonly scrubPosition = this.timeline.scrubPosition;
@@ -204,9 +217,6 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly isPaused = this.vm.isPaused;
     readonly isPlaying = this.vm.isPlaying;
     readonly canTogglePlay = this.vm.canTogglePlay;
-    readonly hasAudioTracks = this.vm.hasAudioTracks;
-    readonly hasSubtitleTracks = this.vm.hasSubtitleTracks;
-    readonly hasQualityLevels = this.vm.hasQualityLevels;
     readonly canRecord = this.vm.canRecord;
     readonly isRecording = this.vm.isRecording;
     readonly recordingStatusText = this.vm.recordingStatusText;

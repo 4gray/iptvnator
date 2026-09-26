@@ -622,6 +622,8 @@
             "CLEAR_SEARCH": "검색 지우기",
             "LOAD_SUBTITLE_FILE": "자막 파일 불러오기…",
             "SETTINGS": "설정",
+            "UP_NEXT": "다음 에피소드",
+            "UP_NEXT_IN": "{{minutes}}분 후",
             "CLOSE_SETTINGS": "설정 닫기",
             "SUBTITLE_DELAY": "자막 지연",
             "SUBTITLE_DELAY_DECREASE": "자막을 더 빨리 표시",

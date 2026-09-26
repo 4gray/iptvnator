@@ -622,6 +622,8 @@
             "CLEAR_SEARCH": "Cancella ricerca",
             "LOAD_SUBTITLE_FILE": "Carica file sottotitoli…",
             "SETTINGS": "Impostazioni",
+            "UP_NEXT": "Prossimo",
+            "UP_NEXT_IN": "tra {{minutes}} min",
             "CLOSE_SETTINGS": "Chiudi impostazioni",
             "SUBTITLE_DELAY": "Ritardo sottotitoli",
             "SUBTITLE_DELAY_DECREASE": "Mostra i sottotitoli prima",

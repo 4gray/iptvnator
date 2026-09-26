@@ -287,6 +287,23 @@
     animation: player-controls-sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+// "Up next" card: bottom-right, above the dock. It does not fade with the
+// controls — near the end of an episode it is the thing worth seeing.
+.player-controls__up-next {
+    position: absolute;
+    right: 32px;
+    bottom: 136px;
+    z-index: 3;
+    max-width: calc(100cqw - 64px);
+    animation: player-controls-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.player-controls__up-next--compact {
+    right: 12px;
+    bottom: 92px;
+    max-width: calc(100cqw - 24px);
+}
+
 @keyframes player-controls-panel-in {
     from {
         opacity: 0;

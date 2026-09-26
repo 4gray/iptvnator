@@ -293,7 +293,9 @@ It owns only transient presentation behavior:
 - `ControlsSettings` — the settings panel's groups, on/modified state and
   open/close transitions (`controls-settings-groups.ts` holds the pure
   group-availability rule);
-- `app-player-settings-panel` — the panel / bottom sheet presentation; and
+- `app-player-settings-panel` — the panel / bottom sheet presentation;
+- `ControlsUpNext` and `app-player-up-next-card` — the "Up next" card's
+  gate and presentation; and
 - `controls-view-model.ts` — derived display state.
 
 ### The dock
@@ -353,6 +355,28 @@ playback value; the hover label becomes `Chapter 2 · 12:40` over a titled
 segment. Producers (EPG programmes for catch-up and timeshift playback,
 mpv's chapter list) are separate follow-ups; the rendering, model and rules
 are in place for them.
+
+### Up next card
+
+Near the end of a series episode the dock shows an **"Up next" card**
+(`app-player-up-next-card`, `data-test-id="player-controls-up-next"`) in the
+bottom-right corner above the controls: the next episode's still (or its
+`S01E03` label as a tile), a 3px accent progress line when it was partly
+watched, "Up next · in 7 min" and the title. The host supplies the item
+through the optional `upNext` input (`PlayerUpNextItem { label, title,
+thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
+`seriesNavigation` capability, `canNextEpisode`, a finite duration with at
+most `UP_NEXT_THRESHOLD_SECONDS` (8 min) left, not live, controls shown,
+settings panel closed — and how many minutes remain (never below one). A
+click emits `nextEpisodeRequested`, the same output the hosts already
+handle, so the switch keeps fullscreen exactly like the transport button.
+The card is a glass surface that does not fade with the controls; the
+compact dock uses a smaller variant without the trailing icon.
+
+Plumbing mirrors `mediaTitle`: `PortalInlinePlayerComponent.playerUpNext`
+derives the item after the playing one from its `upNextEpisodes` input
+(episodes only) → `WebPlayerViewComponent.upNext` → the four engine hosts →
+`app-player-controls`. Movie and live hosts pass nothing.
 
 ### Settings panel
 
@@ -1516,6 +1540,10 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-timeline-segments.ts
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
+├── controls-up-next.ts
+├── player-up-next-card.component.ts
+├── player-up-next-card.component.html
+├── player-up-next-card.component.scss
 ├── player-settings-panel.component.ts
 ├── player-settings-panel.component.html
 ├── player-settings-panel.component.scss

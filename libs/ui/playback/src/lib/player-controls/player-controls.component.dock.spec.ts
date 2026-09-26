@@ -393,6 +393,90 @@ describe('PlayerControlsComponent dock', () => {
         });
     });
 
+    describe('up next card', () => {
+        const nearTheEnd = () =>
+            setState({
+                canSeek: true,
+                canNextEpisode: true,
+                durationSeconds: 1200,
+                positionSeconds: 1200 - 5 * 60,
+            });
+
+        beforeEach(() => {
+            setCapabilities({
+                seek: true,
+                seriesNavigation: true,
+                playbackSpeed: true,
+            });
+            fixture.componentRef.setInput('upNext', {
+                label: 'S01E03',
+                title: 'The Third One',
+                thumbnailUrl: null,
+                progressPercent: null,
+            });
+            fixture.detectChanges();
+        });
+
+        it('appears within the last minutes and plays the next episode on click', () => {
+            setState({
+                canSeek: true,
+                canNextEpisode: true,
+                durationSeconds: 1200,
+                positionSeconds: 60,
+            });
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).toBeNull();
+
+            nearTheEnd();
+            fixture.detectChanges();
+            const card = query('[data-test-id="player-controls-up-next"]');
+            expect(card).not.toBeNull();
+            expect(card?.textContent).toContain('The Third One');
+
+            const next = jest.fn();
+            component.nextEpisodeRequested.subscribe(next);
+            card?.click();
+            expect(next).toHaveBeenCalledTimes(1);
+        });
+
+        it('yields to the settings panel and needs a next episode', () => {
+            nearTheEnd();
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).not.toBeNull();
+
+            component.settings.open('speed');
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).toBeNull();
+            component.settings.close();
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).not.toBeNull();
+
+            fixture.componentRef.setInput('upNext', null);
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).toBeNull();
+        });
+
+        it('uses the compact card on a compact dock', () => {
+            nearTheEnd();
+            resizeTo(400);
+            expect(
+                query('[data-test-id="player-controls-up-next"]')?.closest(
+                    '.player-controls__up-next--compact'
+                )
+            ).not.toBeNull();
+        });
+    });
+
     describe('layout modes', () => {
         beforeEach(() => {
             setCapabilities({ volume: true });

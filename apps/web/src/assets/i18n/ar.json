@@ -622,6 +622,8 @@
             "CLEAR_SEARCH": "مسح البحث",
             "LOAD_SUBTITLE_FILE": "تحميل ملف الترجمة…",
             "SETTINGS": "الإعدادات",
+            "UP_NEXT": "التالي",
+            "UP_NEXT_IN": "خلال {{minutes}} دقيقة",
             "CLOSE_SETTINGS": "إغلاق الإعدادات",
             "SUBTITLE_DELAY": "تأخير الترجمة",
             "SUBTITLE_DELAY_DECREASE": "عرض الترجمة مبكرًا",

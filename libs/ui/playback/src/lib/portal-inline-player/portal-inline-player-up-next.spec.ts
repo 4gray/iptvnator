@@ -22,6 +22,7 @@ class StubWebPlayerViewComponent {
     readonly streamUrl = input.required<string>();
     readonly title = input('');
     readonly mediaTitle = input<unknown>(null);
+    readonly upNext = input<unknown>(null);
     readonly playback = input<unknown>(null);
     readonly volume = input(1);
     readonly playerOverride = input<unknown>(null);
@@ -114,6 +115,39 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             episode: { id: '13' },
         },
     ];
+
+    it('hands the episode after the playing one to the player as "up next"', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.detectChanges();
+
+        expect(component.playerUpNext()).toEqual({
+            label: 'S01E03',
+            title: 'Episode 3',
+            thumbnailUrl: null,
+            progressPercent: null,
+        });
+
+        // The last episode of the list has nothing after it.
+        fixture.componentRef.setInput('upNextEpisodes', [
+            { ...upNextItems[1], isPlaying: true },
+        ]);
+        fixture.detectChanges();
+        expect(component.playerUpNext()).toBeNull();
+
+        // Only episodes get a card: a movie never has a "next".
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.componentRef.setInput('playback', {
+            ...seriesPlayback,
+            contentInfo: {
+                ...seriesPlayback.contentInfo,
+                contentType: 'movie',
+            },
+        });
+        fixture.detectChanges();
+        expect(component.playerUpNext()).toBeNull();
+    });
 
     /** Renders, then feeds a stage size as the ResizeObserver would. */
     function renderWithStage(width: number, height: number): void {

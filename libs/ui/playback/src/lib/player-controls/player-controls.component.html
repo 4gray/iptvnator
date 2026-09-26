@@ -689,4 +689,22 @@
             (focusout)="chrome.onFocusOut($event)"
         />
     }
+
+    @if (upNextCard.item(); as item) {
+        <app-player-up-next-card
+            class="player-controls__up-next"
+            [class.player-controls__up-next--compact]="isCompact()"
+            [item]="item"
+            [minutesLeft]="upNextCard.minutesLeft()"
+            [compact]="isCompact()"
+            (selected)="requestNextEpisode()"
+            (pointerenter)="chrome.onPointerEnter()"
+            (pointerleave)="chrome.onPointerLeave()"
+            (pointerdown)="chrome.onPointerDown()"
+            (click)="chrome.onClick($event)"
+            (keydown)="chrome.onKeyDown()"
+            (focusin)="chrome.onFocusIn($event)"
+            (focusout)="chrome.onFocusOut($event)"
+        />
+    }
 }
