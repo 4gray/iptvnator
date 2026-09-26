@@ -81,6 +81,34 @@ function fail(message) {
     process.exit(1);
 }
 
+const FAILURE_STATUSES = new Set(['failed', 'timedOut']);
+const STATUS_PRECEDENCE = ['failed', 'skipped', 'flaky'];
+
+// Playwright retries a failing test and records every attempt; only the final
+// attempt decides the outcome. A pass after earlier failures is flaky, which
+// Playwright itself does not count as unexpected.
+function attemptsStatus(results) {
+    const statuses = results.map((result) => result.status);
+    const finalStatus = statuses.at(-1);
+    if (finalStatus === undefined) {
+        return 'unknown';
+    }
+    if (FAILURE_STATUSES.has(finalStatus)) {
+        return 'failed';
+    }
+    if (finalStatus === 'passed' && statuses.some((status) => FAILURE_STATUSES.has(status))) {
+        return 'flaky';
+    }
+    return finalStatus;
+}
+
+function specStatus(spec) {
+    const statuses = (spec.tests ?? []).map((test) => attemptsStatus(test.results ?? []));
+    return (
+        STATUS_PRECEDENCE.find((status) => statuses.includes(status)) ?? statuses[0] ?? 'unknown'
+    );
+}
+
 function collectFromPlaywrightJson(report, projectName) {
     const tests = [];
 
@@ -92,18 +120,7 @@ function collectFromPlaywrightJson(report, projectName) {
                 ...(spec.tags ?? []).map(normalizeTag),
                 ...tagsFromTitle(title),
             ]);
-            const statuses = (spec.tests ?? []).flatMap((test) =>
-                (test.results ?? []).map((result) => result.status)
-            );
-            const status = statuses.includes('failed')
-                ? 'failed'
-                : statuses.includes('timedOut')
-                  ? 'failed'
-                  : statuses.includes('skipped')
-                    ? 'skipped'
-                    : statuses.length > 1 && statuses.includes('passed')
-                      ? 'flaky'
-                      : statuses[0] ?? 'unknown';
+            const status = specStatus(spec);
 
             tests.push({
                 project: projectName,
