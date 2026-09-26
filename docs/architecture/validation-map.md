@@ -71,6 +71,17 @@ behavior.
 Tier A coverage is fail-closed. `coverage:unit:ci` relays Jest output but exits
 nonzero on a `Failed to collect coverage` marker, a missing or invalid project
 report, or a runtime-owning production TypeScript file absent from that report.
+It runs projects a few at a time, largest first, with a bounded Jest worker
+count per project (defaults: `min(3, cores - 1)` in flight and
+`ceil(cores / concurrency)` workers each; override with `--concurrency=N`,
+`--max-workers=N` or `TIER_A_CONCURRENCY` / `TIER_A_MAX_WORKERS`). Each
+project's output is printed as one block when it finishes, and the run ends
+with the wall-clock total and the longest projects. Spec `tsconfig`s set
+`isolatedModules: true`, so ts-jest transpiles files one at a time instead of
+type-checking each through a language service; spec type errors therefore do
+not fail Jest (the web configs already ran with `diagnostics: false`), while
+`isolatedModules`-incompatible syntax such as a type re-export without
+`export type` still fails at load time.
 `coverage:merge` requires every configured Tier A report before replacing the
 merged output. Strict health validation also requires the merged Istanbul map
 itself to contain usable instrumentation for every runtime-owning Tier A file,
