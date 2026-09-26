@@ -544,7 +544,7 @@ test('Linux CI verifies every package family and exercises intended environments
     );
     assert.match(
         flatpakVerificationStep,
-        /flatpak run\s+\\\s+--env=LIBGL_ALWAYS_SOFTWARE=1\s+\\\s+com\.fourgray\.iptvnator\s+\\\s+--embedded-mpv-runtime-probe/
+        /flatpak run\s+\\\s+--env=LIBGL_ALWAYS_SOFTWARE=1\s+\\\s+--env=ELECTRON_ENABLE_LOGGING=1\s+\\\s+com\.fourgray\.iptvnator\s+\\\s+--embedded-mpv-runtime-probe/
     );
     assert.doesNotMatch(
         flatpakVerificationStep,
@@ -561,7 +561,7 @@ test('Flatpak application runtime probe runs under an isolated D-Bus session', (
 
     assert.match(
         flatpakVerificationStep,
-        /xvfb-run -a dbus-run-session -- flatpak run\s+\\\s+--env=LIBGL_ALWAYS_SOFTWARE=1\s+\\\s+com\.fourgray\.iptvnator\s+\\\s+--embedded-mpv-runtime-probe/
+        /xvfb-run -a dbus-run-session -- timeout -k 10 300 flatpak run\s+\\\s+--env=LIBGL_ALWAYS_SOFTWARE=1\s+\\\s+--env=ELECTRON_ENABLE_LOGGING=1\s+\\\s+com\.fourgray\.iptvnator\s+\\\s+--embedded-mpv-runtime-probe/
     );
     assert.match(installStep, /^\s+dbus-daemon\s+\\$/m);
     assert.match(
@@ -602,7 +602,7 @@ test('Flatpak CI verifies the direct Zypak ELF and preserves probe status', () =
 
     assert.match(
         flatpakVerificationStep,
-        /set \+e[\s\S]*PROBE_OUTPUT="\$\([\s\S]*xvfb-run -a dbus-run-session -- flatpak run[\s\S]*--embedded-mpv-runtime-probe 2>&1[\s\S]*\)"[\s\S]*PROBE_STATUS=\$\?[\s\S]*set -e/
+        /set \+e[\s\S]*PROBE_OUTPUT="\$\([\s\S]*xvfb-run -a dbus-run-session -- timeout -k 10 300 flatpak run[\s\S]*--embedded-mpv-runtime-probe 2>&1[\s\S]*\)"[\s\S]*PROBE_STATUS=\$\?[\s\S]*set -e/
     );
     assert.match(
         flatpakVerificationStep,
@@ -613,6 +613,72 @@ test('Flatpak CI verifies the direct Zypak ELF and preserves probe status', () =
     assert.match(
         flatpakVerificationStep,
         /if \[ "\$\{PROBE_STATUS\}" -ne 0 \]; then[\s\S]*exit "\$\{PROBE_STATUS\}"/
+    );
+});
+
+test('packaged runtime probes are time-boxed and report a hung app distinctly', () => {
+    const snapStep = workflowStep(
+        'Verify Snap payloads and strict-confinement runtime'
+    );
+    const flatpakVerificationStep = workflowStep(
+        'Verify Flatpak payload, launcher, and sandboxed runtime'
+    );
+    const probeInvocation =
+        /timeout -k 10 300 \\\s+snap run iptvnator --embedded-mpv-runtime-probe 2>&1/g;
+    const timeoutFailure =
+        /if \[ "\$\{(\w+)\}" -eq 124 \]; then\s+echo "::error::[^"]*did not exit within 300 seconds[^"]*"\s+exit 1\s+fi/g;
+
+    // Every `snap run` probe is wrapped by GNU timeout and captured, so a
+    // blocked uncaught-exception dialog cannot hold the job until its
+    // 120-minute limit and the output still reaches the log.
+    assert.equal(
+        snapStep.match(/snap run iptvnator --embedded-mpv-runtime-probe/g)
+            .length,
+        2
+    );
+    assert.equal(snapStep.match(probeInvocation).length, 2);
+    assert.match(
+        snapStep,
+        /disconnected_probe="\$\([\s\S]*ELECTRON_ENABLE_LOGGING=1[\s\S]*timeout -k 10 300[\s\S]*\)"\s+disconnected_status=\$\?\s+set -e\s+printf '%s\\n' "\$\{disconnected_probe\}"/
+    );
+    assert.match(
+        snapStep,
+        /hostile_probe="\$\([\s\S]*ELECTRON_ENABLE_LOGGING=1[\s\S]*timeout -k 10 300[\s\S]*\)"\s+hostile_status=\$\?\s+set -e\s+printf '%s\\n' "\$\{hostile_probe\}"/
+    );
+    assert.deepEqual(
+        [...snapStep.matchAll(timeoutFailure)].map(([, variable]) => variable),
+        ['disconnected_status', 'hostile_status']
+    );
+    assert.ok(
+        snapStep.indexOf('-eq 124') <
+            snapStep.indexOf('test "${disconnected_status}" -eq 1'),
+        'the disconnected probe must reject a timeout before asserting exit 1'
+    );
+    assert.match(
+        snapStep,
+        /if \[ "\$\{hostile_status\}" -ne 0 \]; then[\s\S]*exit "\$\{hostile_status\}"/
+    );
+    assert.ok(
+        snapStep.includes(
+            `grep -Fx '{"usable":false,"reason":"snap-graphics-provider-unavailable"}'`
+        ),
+        'logging must not relax the exact JSON verdict line match'
+    );
+
+    assert.equal(
+        flatpakVerificationStep.match(/timeout -k 10 300 flatpak run/g).length,
+        1
+    );
+    assert.deepEqual(
+        [...flatpakVerificationStep.matchAll(timeoutFailure)].map(
+            ([, variable]) => variable
+        ),
+        ['PROBE_STATUS']
+    );
+    assert.ok(
+        flatpakVerificationStep.indexOf('-eq 124') <
+            flatpakVerificationStep.indexOf('if [ "${PROBE_STATUS}" -ne 0 ]'),
+        'the timeout verdict must precede the generic non-zero status handling'
     );
 });
 

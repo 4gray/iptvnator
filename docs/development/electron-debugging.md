@@ -91,6 +91,12 @@ exit. The retained handle still provides the actual exit code and signal.
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before
 classifying a zero rendered-frame signal as an infrastructure flake.
+The Snap and Flatpak `--embedded-mpv-runtime-probe` launches in
+`build-and-make.yaml` run under GNU `timeout -k 10 300` with
+`ELECTRON_ENABLE_LOGGING=1`, so a main process that throws before app ready
+and blocks on Electron's uncaught-exception dialog under xvfb fails within
+five minutes with a distinct `::error::` for exit 124 and its stderr in the
+step log, instead of holding the job until the 120-minute limit.
 
 ## Main-process ownership
 
