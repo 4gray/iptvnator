@@ -462,46 +462,6 @@ describe('withContent import state', () => {
         expect(store.isContentInitialized()).toBe(true);
     });
 
-    it('empties the category lists when their reload fails', async () => {
-        dataSource.getCategories.mockResolvedValue([{ category_id: 'x' }]);
-        await store.reloadCategories();
-        expect(store.liveCategories()).toEqual([{ category_id: 'x' }]);
-
-        dataSource.getCategories.mockRejectedValue(new Error('db'));
-        await store.reloadCategories();
-
-        expect(store.liveCategories()).toEqual([]);
-        expect(store.vodCategories()).toEqual([]);
-        expect(store.serialCategories()).toEqual([]);
-    });
-
-    it('empties a type whose cached reload fails and lets the others reload', async () => {
-        dataSource.getContent.mockResolvedValue([{ xtream_id: 1 }]);
-        await store.initializeContent();
-        expect(store.contentLoadStateByType()).toEqual({
-            live: 'ready',
-            vod: 'ready',
-            series: 'ready',
-        });
-
-        dataSource.getContent.mockImplementation(
-            (_playlistId: string, _credentials: unknown, type: ContentType) =>
-                type === 'movie'
-                    ? Promise.reject(new Error('db'))
-                    : Promise.resolve([{ xtream_id: 2 }])
-        );
-        await store.reloadCachedContent();
-
-        expect(store.vodStreams()).toEqual([]);
-        expect(store.liveStreams()).toEqual([{ xtream_id: 2 }]);
-        expect(store.serialStreams()).toEqual([{ xtream_id: 2 }]);
-        expect(store.contentLoadStateByType()).toEqual({
-            live: 'ready',
-            vod: 'idle',
-            series: 'ready',
-        });
-    });
-
     it('records the VOD category owner when categories are reloaded', async () => {
         dataSource.getCategories.mockImplementation(
             (

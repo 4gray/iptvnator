@@ -1,0 +1,124 @@
+import { TestBed } from '@angular/core/testing';
+import { PortalStatusType } from '../../xtream-state';
+import {
+    createContentTestProviders,
+    createContentTestStore,
+    createPendingRestoreServiceMock,
+} from './with-content.feature.spec-helpers';
+
+jest.mock('@iptvnator/portal/shared/util', () => ({
+    createLogger: () => ({
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+    }),
+}));
+
+type ContentType = 'live' | 'movie' | 'series';
+
+const TestContentStore = createContentTestStore(() =>
+    Promise.resolve('active' as PortalStatusType)
+);
+
+/**
+ * Parental-lock reloads (`reloadCategories` / `reloadCachedContent`) fail
+ * closed. Split from `with-content.feature.spec.ts`, which sits at the spec
+ * line cap.
+ */
+describe('withContent parental-lock reloads', () => {
+    let store: InstanceType<typeof TestContentStore>;
+    let dataSource: {
+        getCategories: jest.Mock;
+        getCachedCategories: jest.Mock;
+        getContent: jest.Mock;
+        getCachedContent: jest.Mock;
+        hasCategories: jest.Mock;
+        hasContent: jest.Mock;
+        restoreUserData: jest.Mock;
+    };
+
+    beforeEach(() => {
+        localStorage.clear();
+        dataSource = {
+            getCategories: jest.fn().mockResolvedValue([]),
+            getCachedCategories: jest.fn().mockResolvedValue([]),
+            getContent: jest.fn().mockResolvedValue([]),
+            getCachedContent: jest.fn().mockResolvedValue([]),
+            hasCategories: jest.fn().mockResolvedValue(true),
+            hasContent: jest.fn().mockResolvedValue(false),
+            restoreUserData: jest.fn().mockResolvedValue(undefined),
+        };
+        TestBed.configureTestingModule({
+            providers: createContentTestProviders(TestContentStore, {
+                dataSource,
+                databaseService: {
+                    clearXtreamImportCache: jest.fn().mockResolvedValue(true),
+                    cancelOperation: jest.fn().mockResolvedValue(true),
+                    createOperationId: jest.fn(
+                        (prefix?: string) => `${prefix ?? 'db-op'}-1`
+                    ),
+                    getXtreamImportStatus: jest
+                        .fn()
+                        .mockResolvedValue('completed'),
+                    setXtreamImportStatus: jest.fn().mockResolvedValue(true),
+                    supportsDbOperationCancellation: jest
+                        .fn()
+                        .mockReturnValue(true),
+                },
+                xtreamApiService: {
+                    cancelSession: jest.fn().mockResolvedValue(true),
+                },
+                pendingRestoreService: createPendingRestoreServiceMock(),
+                dataService: {
+                    sendIpcEvent: jest
+                        .fn()
+                        .mockResolvedValue({ success: true }),
+                },
+            }),
+        });
+        store = TestBed.inject(TestContentStore);
+    });
+
+    afterEach(() => localStorage.clear());
+
+    it('empties the category lists when their reload fails', async () => {
+        dataSource.getCategories.mockResolvedValue([{ category_id: 'x' }]);
+        await store.reloadCategories();
+        expect(store.liveCategories()).toEqual([{ category_id: 'x' }]);
+
+        dataSource.getCategories.mockRejectedValue(new Error('db'));
+        await store.reloadCategories();
+
+        expect(store.liveCategories()).toEqual([]);
+        expect(store.vodCategories()).toEqual([]);
+        expect(store.serialCategories()).toEqual([]);
+    });
+
+    it('empties a type whose cached reload fails and lets the others reload', async () => {
+        dataSource.getContent.mockResolvedValue([{ xtream_id: 1 }]);
+        await store.initializeContent();
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+
+        dataSource.getContent.mockImplementation(
+            (_playlistId: string, _credentials: unknown, type: ContentType) =>
+                type === 'movie'
+                    ? Promise.reject(new Error('db'))
+                    : Promise.resolve([{ xtream_id: 2 }])
+        );
+        await store.reloadCachedContent();
+
+        expect(store.vodStreams()).toEqual([]);
+        expect(store.liveStreams()).toEqual([{ xtream_id: 2 }]);
+        expect(store.serialStreams()).toEqual([{ xtream_id: 2 }]);
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'idle',
+            series: 'ready',
+        });
+    });
+});
