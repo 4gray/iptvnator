@@ -188,9 +188,14 @@ function spawnCoverage(args, scanner, output) {
     });
 }
 
-async function collectProjectCoverage(project) {
+async function collectProjectCoverage(project, specCount) {
     const args = buildNxArgs(project);
     const output = [];
+    // The start line goes out immediately so a stalled project is visible in
+    // the log before the job times out; its full output follows on completion.
+    console.log(
+        `==> Started ${project.name} (${specCount} spec files): pnpm ${args.join(' ')}`
+    );
     const lines = [`\n==> Coverage for ${project.name}`, `pnpm ${args.join(' ')}`];
 
     const scanner = createCoverageOutputScanner();
@@ -242,8 +247,14 @@ if (requestedProjects.size === 0) {
     }
 }
 
+const specCounts = new Map(
+    tierAProjects.map((project) => [
+        project.name,
+        countSpecFiles(path.join(workspaceRoot, project.sourceRoot)),
+    ])
+);
 const ordered = orderLongestFirst(tierAProjects, (project) =>
-    countSpecFiles(path.join(workspaceRoot, project.sourceRoot))
+    specCounts.get(project.name)
 );
 console.log(
     `Tier A coverage: ${ordered.length} projects, ${concurrency} in flight, ${workersPerProject} Jest workers each (${cpuCount} cores).`
@@ -252,7 +263,8 @@ const startedAt = Date.now();
 const outcome = await runWithConcurrency(
     ordered.map((project) => ({
         name: project.name,
-        run: () => collectProjectCoverage(project),
+        run: () =>
+            collectProjectCoverage(project, specCounts.get(project.name)),
     })),
     {
         concurrency,

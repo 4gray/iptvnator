@@ -130,5 +130,10 @@ test('formats durations and parses integer flags', () => {
     assert.equal(integerEnv({}, 'TIER_A_CONCURRENCY'), undefined);
     assert.equal(integerEnv({ TIER_A_CONCURRENCY: '' }, 'TIER_A_CONCURRENCY'), undefined);
     assert.equal(integerEnv({ TIER_A_CONCURRENCY: '2' }, 'TIER_A_CONCURRENCY'), 2);
-    assert.throws(() => integerEnv({ TIER_A_CONCURRENCY: 'x' }, 'TIER_A_CONCURRENCY'), /positive integer/);
+    assert.throws(() => integerEnv({ TIER_A_CONCURRENCY: 'x' }, 'TIER_A_CONCURRENCY'), /positive integer/);    // Prefixes and fractions are rejected, not truncated.
+    assert.throws(() => integerFlag(['--concurrency=3oops'], 'concurrency'), /positive integer/);
+    assert.throws(() => integerFlag(['--concurrency=2.5'], 'concurrency'), /positive integer/);
+    assert.throws(() => integerEnv({ TIER_A_MAX_WORKERS: '2.5' }, 'TIER_A_MAX_WORKERS'), /positive integer/);
+    assert.throws(() => integerEnv({ TIER_A_MAX_WORKERS: '-1' }, 'TIER_A_MAX_WORKERS'), /positive integer/);
+    assert.equal(integerEnv({ TIER_A_MAX_WORKERS: ' 4 ' }, 'TIER_A_MAX_WORKERS'), 4);
 });

@@ -124,17 +124,24 @@ export function formatDuration(ms) {
     return minutes > 0 ? `${minutes}m ${String(seconds % 60).padStart(2, '0')}s` : `${seconds}s`;
 }
 
+/**
+ * Whole positive integers only: `3oops` and `2.5` are rejected rather than
+ * truncated, so a typo cannot silently apply a different resource budget.
+ */
+function parsePositiveInteger(raw, what) {
+    if (!/^\d+$/.test(raw.trim()) || Number.parseInt(raw, 10) < 1) {
+        throw new Error(
+            `${what} expects a positive integer, received "${raw}".`
+        );
+    }
+    return Number.parseInt(raw, 10);
+}
+
 /** Reads a positive integer from the environment; unset or empty means absent. */
 export function integerEnv(env, name) {
     const raw = env[name];
     if (raw === undefined || raw.trim() === '') return undefined;
-    const value = Number.parseInt(raw, 10);
-    if (!Number.isInteger(value) || value < 1) {
-        throw new Error(
-            `${name} expects a positive integer, received "${raw}".`
-        );
-    }
-    return value;
+    return parsePositiveInteger(raw, name);
 }
 
 /** Parses `--flag=value` style integers; returns undefined when absent. */
@@ -142,9 +149,5 @@ export function integerFlag(argv, name) {
     const prefix = `--${name}=`;
     const raw = argv.find((argument) => argument.startsWith(prefix));
     if (raw === undefined) return undefined;
-    const value = Number.parseInt(raw.slice(prefix.length), 10);
-    if (!Number.isInteger(value) || value < 1) {
-        throw new Error(`${prefix} expects a positive integer, received "${raw.slice(prefix.length)}".`);
-    }
-    return value;
+    return parsePositiveInteger(raw.slice(prefix.length), prefix);
 }
