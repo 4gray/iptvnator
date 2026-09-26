@@ -104,6 +104,12 @@ pnpm run perf:initial-bytes:check   # measure dist/apps/web into dist/performanc
 pnpm run perf:ratchet:check         # check every baseline against dist/performance/journey-summary.json
 ```
 
+CI runs `perf:initial-bytes:check` in the `Initial bytes ratchet` job of
+`.github/workflows/ci.yml` on every pull request and master push, after a
+production build of `apps/web`, and uploads `dist/performance/` as the
+`performance-journey-summary` artifact. A PR that grows the counter fails that
+job.
+
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
 into the PR. Never raise a value to make a PR pass: if growth is a deliberate

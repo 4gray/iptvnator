@@ -126,6 +126,50 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
+    initial-bytes-ratchet:
+        name: Initial bytes ratchet
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.0.10
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # The production configuration is what users download; measuring
+            # any other build would ratchet a number nobody ships.
+            - name: Build web app (production)
+              run: pnpm nx build web --skip-nx-cache
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            # Fails when renderer.initialBytes exceeds the value committed in
+            # tools/performance/journey-baselines.json. Baselines only move
+            # down, with the printed measurement as evidence; the contract is
+            # docs/architecture/performance-journeys.md.
+            - name: Check renderer.initialBytes against the baseline
+              run: pnpm run perf:initial-bytes:check
+
+            - name: Upload journey summary
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: performance-journey-summary
+                  path: dist/performance/
+                  retention-days: 14
+
     unit-and-typecheck:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest

@@ -165,7 +165,8 @@ pnpm nx test performance-tools
 `perf:initial-bytes` reads the built `dist/apps/web/index.html` and sums the
 bytes on the initial path (the J1 counter `renderer.initialBytes`).
 `perf:initial-bytes:check` then fails if the value exceeds
-`tools/performance/journey-baselines.json`; baselines only move down. The
+`tools/performance/journey-baselines.json`; baselines only move down. CI runs
+the same check in the `Initial bytes ratchet` job of `ci.yml` on every PR. The
 contract, what counts and how to add a counter are in the
 [performance journeys](performance-journeys.md) document.
 
