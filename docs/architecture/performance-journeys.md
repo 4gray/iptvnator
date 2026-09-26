@@ -63,25 +63,34 @@ longer in the DOM, and a source card has a non-empty client rect. Counters are
 frozen at that microtask checkpoint, so bridge calls and mutations issued
 later in the same task are included and everything after it is not.
 
-Two probes are injected from the test side; production code is not changed:
+Three test-side pieces are injected; production code is not changed:
 
-- `journey-renderer-probe.ts` is registered with `addInitScript` right after
-  `electron.launch`, before the window exists, and records that it ran while
-  the document was still `loading` with zero scripts. It emits one JSON blob
-  under `window.__iptvnatorJourneyProbe`.
+- `journey-renderer-gate.cjs` is loaded into the main process with `-r`, the
+  mechanism Playwright uses for its own loader. Playwright resolves
+  `electron.launch()` while the app is already creating its window, and
+  Electron reports no page until a navigation commits, so an init script
+  registered afterwards would race the first document. The gate makes the
+  first `loadFile` navigate to `about:blank` and holds the real load until
+  the test releases it. A 15 s safety timeout releases it on its own and the
+  iteration is then invalid.
+- `journey-renderer-probe.ts` is registered with `addInitScript` on that
+  `about:blank` page, so it runs at the start of the real document. It
+  records that it ran while the document was still `loading` with zero
+  scripts and emits one JSON blob under `window.__iptvnatorJourneyProbe`.
 - `journey-main-ipc-capture.ts` subscribes to the preload's renderer-API trace
   channel (`IPTVNATOR_DEBUG_TRACE_EVENT`, enabled with
-  `IPTVNATOR_TRACE_IPC=1`) through `electronApp.evaluate` and records that it
-  was installed before the renderer probe ran.
+  `IPTVNATOR_TRACE_IPC=1`) through `electronApp.evaluate`, also before the
+  release. The record refuses an iteration whose gate timed out, saw a second
+  load, or released before the probe was in place.
 
 ### Counters
 
-| Counter                            | Source                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `renderer.ipcCallsToFirstCard`     | `start` trace events the preload emits for every bridge invocation (listener registrations `on*`/`remove*` excluded, as in `wrapElectronApi`). The renderer probe fires one sentinel `dbGetAppPlaylist('__iptvnator-journey-sentinel__')` at the terminal moment; renderer-to-main IPC is ordered, so events before the sentinel are the exact count. |
-| `renderer.domMutationsToFirstCard` | `MutationRecord`s (not callback batches) from a `MutationObserver` on the document element with `childList`, `attributes`, `characterData` and `subtree`. When the init script runs before `<html>` exists the observer watches `document`, which the blob reports in `capabilities.observedTarget`.                                                  |
-| `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to four decimals, up to the first frame painted after the terminal batch.                                                                                                                                                                                                      |
-| `renderer.longTasks`               | `longtask` entries over 50 ms up to that same frame. The count depends on machine speed, so it is evidence until a run shows it is stable on the CI runner.                                                                                                                                                                                           |
+| Counter                            | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderer.ipcCallsToFirstCard`     | `start` trace events the preload emits for every bridge invocation (listener registrations `on*`/`remove*` excluded, as in `wrapElectronApi`). The renderer probe fires one sentinel `dbGetAppPlaylist('__iptvnator-journey-sentinel__')` at the terminal moment; renderer-to-main IPC is ordered, so events before the sentinel are the exact count.                                                                                                                                                                                                 |
+| `renderer.domMutationsToFirstCard` | `MutationRecord`s (not callback batches) from a `MutationObserver` on the document element with `childList`, `attributes`, `characterData` and `subtree`. When the init script runs before `<html>` exists the observer watches `document`, which the blob reports in `capabilities.observedTarget`.                                                                                                                                                                                                                                                  |
+| `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to three decimals (a shift of 0.0001 flips in and out of the cutoff between runs; the CLS "good" threshold is 0.1, so three decimals keep the counter exact without hiding anything a user could see). The cutoff is sampled in a timer queued from the first `requestAnimationFrame` after the terminal batch, that is after the frame that paints the card has been committed; entries delivered live after the terminal batch are buffered and filtered by the same cutoff. |
+| `renderer.longTasks`               | `longtask` entries over 50 ms up to that same cutoff, which includes the task that rendered the card. The count depends on machine speed, so it is evidence until a run shows it is stable on the CI runner.                                                                                                                                                                                                                                                                                                                                          |
 
 Counters are exact: the summary carries the value shared by every measured
 iteration. When iterations disagree, the summary reports the maximum and marks
@@ -109,9 +118,10 @@ instead of being faked:
 | `spawnToFirstCardMs.p50/.p90`     | Terminal epoch of the renderer probe minus the same spawn timestamp.                                                                                                                                  |
 
 Percentiles use linear interpolation over the five measured iterations. The
-spawn timestamp includes Playwright's own launch overhead: Playwright holds
-`app.whenReady()` until its CDP session is attached, so absolute values are
-larger than a bare launch. They are comparable between runs of the same
+spawn timestamp includes Playwright's own launch overhead and the gate's
+`about:blank` detour: Playwright holds `app.whenReady()` until its CDP session
+is attached, and the real document loads only after the probes are in place,
+so absolute values are larger than a bare launch. They are comparable between runs of the same
 harness, which is what the ratchet needs. The main process start
 (`Date.now() - process.uptime()`) is recorded per iteration under
 `evidence.epochs` for cross-checks.
@@ -207,17 +217,17 @@ counter:
 
 ```json
 {
-    "journeys": {
-        "launch": {
-            "renderer.initialBytes": {
-                "value": 2739510,
-                "unit": "bytes",
-                "updatedAt": "2026-09-26",
-                "evidencePr": 1693,
-                "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
-            }
-        }
+  "journeys": {
+    "launch": {
+      "renderer.initialBytes": {
+        "value": 2739510,
+        "unit": "bytes",
+        "updatedAt": "2026-09-26",
+        "evidencePr": 1693,
+        "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
+      }
     }
+  }
 }
 ```
 

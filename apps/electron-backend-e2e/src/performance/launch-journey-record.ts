@@ -1,3 +1,4 @@
+import type { JourneyRendererGateState } from '../journeys/journey-renderer-gate-client';
 import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
 import type { JourneyRendererProbeState } from './journey-renderer-probe';
 import type { JourneyIterationRecord } from './journey-summary';
@@ -35,6 +36,7 @@ export const LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
 
 export interface LaunchJourneyMeasurement {
     readonly electronVersion: string;
+    readonly gate: JourneyRendererGateState;
     readonly ipc: JourneyMainIpcCaptureState;
     readonly pid: number;
     readonly renderer: JourneyRendererProbeState;
@@ -77,8 +79,7 @@ export function toLaunchIterationRecord(
                 renderer.counters.domMutations,
             [LAUNCH_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
             [LAUNCH_JOURNEY_COUNTER.LAYOUT_SHIFT_SCORE]:
-                Math.round(renderer.counters.layoutShiftScore * 10_000) /
-                10_000,
+                Math.round(renderer.counters.layoutShiftScore * 1_000) / 1_000,
             [LAUNCH_JOURNEY_COUNTER.LONG_TASKS]: renderer.counters.longTasks,
         }),
         evidence: Object.freeze({
@@ -90,6 +91,8 @@ export function toLaunchIterationRecord(
                 loadEventEnd: renderer.navigation.loadEventEndEpochMs,
                 mainIpcCaptureInstalled: ipc.installedEpochMs,
                 mainProcessStart: ipc.processStartEpochMs,
+                rendererGateBlankLoaded: measurement.gate.blankLoadedEpochMs,
+                rendererGateReleased: measurement.gate.releasedEpochMs,
                 rendererProbeInstalled: renderer.installed.epochMs,
                 spawn: spawnEpochMs,
             }),

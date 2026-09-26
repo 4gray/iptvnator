@@ -238,7 +238,7 @@ test('counts mutation records until the first card is visible after the splash i
     assert.doesNotThrow(() => assertJourneyRendererProbeState(fixture.state()));
 });
 
-test('sums layout shifts without recent input and counts long tasks over 50 ms until the first painted frame', async () => {
+test('sums layout shifts without recent input and counts long tasks over 50 ms up to the post-paint cutoff', async () => {
     const fixture = createFixture();
     const [layoutShift, longTask] = fixture.observers as [
         FakeObserver,
@@ -283,12 +283,39 @@ test('sums layout shifts without recent input and counts long tasks over 50 ms u
         { duration: 300, entryType: 'longtask', startTime: now() + 60_000 }
     );
     renderFirstCard(fixture);
+    await new Promise((resolve) => queueMicrotask(() => resolve(undefined)));
+    // Delivered after the terminal batch, before the post-paint cutoff.
+    assert.ok(fixture.rawState().terminal, 'terminal must be set');
+    assert.equal(fixture.rawState().final, false);
+    layoutShift.emit([
+        {
+            entryType: 'layout-shift',
+            hadRecentInput: false,
+            startTime: now(),
+            value: 0.125,
+        },
+        {
+            entryType: 'layout-shift',
+            hadRecentInput: false,
+            startTime: now() + 60_000,
+            value: 7,
+        },
+    ]);
+    longTask.emit([
+        { duration: 64, entryType: 'longtask', startTime: now() },
+        { duration: 500, entryType: 'longtask', startTime: now() + 60_000 },
+    ]);
     await settle();
     const state = fixture.state();
     assert.equal(state.final, true);
-    assert.equal(state.counters.layoutShiftScore, 0.75);
-    assert.equal(state.counters.longTasks, 2);
-    assert.deepEqual(state.longTaskDurationsMs, [80, 120]);
+    assert.ok(
+        (state.firstCardPaintEpochMs ?? 0) >
+            (state.terminal?.epochMs ?? Number.POSITIVE_INFINITY),
+        'the cutoff is sampled after the terminal batch'
+    );
+    assert.equal(state.counters.layoutShiftScore, 0.875);
+    assert.equal(state.counters.longTasks, 3);
+    assert.deepEqual(state.longTaskDurationsMs, [80, 64, 120]);
 
     layoutShift.emit([
         {
@@ -299,8 +326,8 @@ test('sums layout shifts without recent input and counts long tasks over 50 ms u
         },
     ]);
     longTask.emit([{ duration: 99, entryType: 'longtask', startTime: now() }]);
-    assert.equal(fixture.state().counters.layoutShiftScore, 0.75);
-    assert.equal(fixture.state().counters.longTasks, 2);
+    assert.equal(fixture.state().counters.layoutShiftScore, 0.875);
+    assert.equal(fixture.state().counters.longTasks, 3);
 });
 
 test('does not end while the splash is present, off the workspace route, or before a card is visible', async () => {

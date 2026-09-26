@@ -61,6 +61,15 @@ function measurement(
     };
     return {
         electronVersion: '43.3.0',
+        gate: {
+            blankLoadedEpochMs: 1_050,
+            errors: [],
+            gatedEpochMs: 1_020,
+            gatedMethod: 'loadFile',
+            passThroughLoads: 0,
+            releasedEpochMs: 1_150,
+            timedOut: false,
+        },
         ipc,
         pid: 4242,
         renderer,
@@ -77,7 +86,7 @@ test('maps the probe and IPC capture to exact counters and spawn-relative wall-c
     assert.deepEqual(record.counters, {
         'renderer.domMutationsToFirstCard': 480,
         'renderer.ipcCallsToFirstCard': 14,
-        'renderer.layoutShiftScore': 0.1235,
+        'renderer.layoutShiftScore': 0.123,
         'renderer.longTasks': 2,
     });
     assert.deepEqual(record.wallClock, {
@@ -96,6 +105,8 @@ test('maps the probe and IPC capture to exact counters and spawn-relative wall-c
         loadEventEnd: 1_400.26,
         mainIpcCaptureInstalled: 1_100,
         mainProcessStart: 900,
+        rendererGateBlankLoaded: 1_050,
+        rendererGateReleased: 1_150,
         rendererProbeInstalled: 1_200,
         spawn: 1_000,
     });

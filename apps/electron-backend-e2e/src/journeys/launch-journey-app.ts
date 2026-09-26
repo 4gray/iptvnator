@@ -1,8 +1,8 @@
 import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
-import { _electron as electron } from '@playwright/test';
+import { _electron as electron, type Page } from '@playwright/test';
 
 import { captureElectronProcess } from '../electron-process-lifecycle';
 import {
@@ -29,6 +29,11 @@ import {
     installJourneyRendererProbe,
     waitForJourneyRendererProbe,
 } from '../performance/journey-renderer-probe';
+import {
+    assertJourneyRendererGate,
+    JOURNEY_RENDERER_GATE_KEY,
+    readJourneyRendererGate,
+} from './journey-renderer-gate-client';
 import type { LaunchJourneyMeasurement } from '../performance/launch-journey-record';
 
 /**
@@ -40,6 +45,11 @@ import type { LaunchJourneyMeasurement } from '../performance/launch-journey-rec
 export const LAUNCH_JOURNEY_XTREAM_MOCK_PORT =
     process.env['IPTVNATOR_JOURNEY_XTREAM_MOCK_PORT'] ?? '3231';
 export const LAUNCH_JOURNEY_MOCK_ORIGIN = `http://127.0.0.1:${LAUNCH_JOURNEY_XTREAM_MOCK_PORT}`;
+/** Main-process hook loaded with `-r`; see journey-renderer-gate.cjs. */
+export const JOURNEY_RENDERER_GATE_PATH = resolve(
+    __dirname,
+    '../performance/journey-renderer-gate.cjs'
+);
 
 function launchOptions(
     env: Record<string, string> = {}
@@ -98,10 +108,12 @@ export function removeLaunchJourneyProfile(directory: string): Promise<void> {
 }
 
 /**
- * Spawns a fresh Electron process on a copy of the seeded profile, installs
- * the renderer probe before the window exists and the main-process IPC
- * capture before the renderer runs any script, then waits for the journey's
- * terminal condition.
+ * Spawns a fresh Electron process on a copy of the seeded profile. The gate
+ * hook parks the first renderer load on `about:blank`, which gives Playwright
+ * a page to attach the renderer probe to; the main-process IPC capture is
+ * installed next, and only then is the real load released. Both captures are
+ * therefore in place before the renderer runs any script, and the probe,
+ * capture and gate records still prove it.
  */
 export async function measureLaunchJourney(
     templateDirectory: string,
@@ -116,28 +128,51 @@ export async function measureLaunchJourney(
             dataDirectory,
             launchOptions({ IPTVNATOR_TRACE_IPC: '1' })
         );
-        const args = buildElectronLaunchArgs();
+        const args = buildElectronLaunchArgs([
+            '-r',
+            JOURNEY_RENDERER_GATE_PATH,
+        ]);
         const spawnEpochMs = Date.now();
         const electronApp = await electron.launch({ args, env });
         captureElectronProcess(electronApp);
         try {
             const probeOptions = createLaunchJourneyProbeOptions();
-            await installJourneyRendererProbe(
-                electronApp.context(),
-                probeOptions
-            );
+            // The gate parks the window on about:blank, so this resolves
+            // before the real document exists.
+            const mainWindow = await electronApp.firstWindow();
+            if (mainWindow.url() !== 'about:blank') {
+                throw new Error(
+                    `journey-renderer-gate-missing: first document is ${mainWindow.url()}`
+                );
+            }
+            await installJourneyRendererProbe(mainWindow, probeOptions);
             await installJourneyMainIpcCapture(electronApp, {
                 channel: JOURNEY_RENDERER_API_TRACE_CHANNEL,
                 sentinelId: probeOptions.sentinelId,
                 sentinelMethod: probeOptions.sentinelMethod,
                 stateKey: JOURNEY_MAIN_IPC_STATE_KEY,
             });
-            const mainWindow = await electronApp.firstWindow();
+            const gate = await readJourneyRendererGate(
+                electronApp,
+                JOURNEY_RENDERER_GATE_KEY,
+                'release'
+            );
+            // The page object is still on about:blank; wait for the real
+            // document to commit before touching its execution context.
+            await mainWindow.waitForURL((url) => url.href !== 'about:blank', {
+                timeout: timeoutMs,
+                waitUntil: 'commit',
+            });
+            await assertJourneyRendererProbeInstalled(
+                mainWindow,
+                probeOptions.stateKey
+            );
             const renderer = await waitForJourneyRendererProbe(
                 mainWindow,
                 probeOptions.stateKey,
                 timeoutMs
             );
+            assertJourneyRendererGate(gate, renderer.installed.epochMs);
             const ipc = await readJourneyMainIpcCapture(
                 electronApp,
                 JOURNEY_MAIN_IPC_STATE_KEY,
@@ -151,6 +186,7 @@ export async function measureLaunchJourney(
             );
             return {
                 electronVersion,
+                gate,
                 ipc,
                 pid: electronApp.process().pid ?? -1,
                 renderer,
@@ -164,5 +200,20 @@ export async function measureLaunchJourney(
         }
     } finally {
         await removeDirectory(dataDirectory);
+    }
+}
+
+async function assertJourneyRendererProbeInstalled(
+    mainWindow: Page,
+    stateKey: string
+): Promise<void> {
+    const installed = await mainWindow.evaluate(
+        (key) =>
+            (globalThis as unknown as Record<string, unknown>)[key] !==
+            undefined,
+        stateKey
+    );
+    if (!installed) {
+        throw new Error('journey-renderer-probe-not-installed');
     }
 }

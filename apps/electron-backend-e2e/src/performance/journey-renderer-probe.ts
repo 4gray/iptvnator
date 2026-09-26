@@ -1,10 +1,12 @@
-import type { BrowserContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 /**
  * Renderer-side probe for the performance journeys (J1 "Launch to usable").
  *
- * The probe is injected from the test side through `addInitScript`, so it
- * runs before any renderer script and never touches production code. It
+ * The probe is injected from the test side through `addInitScript` while the
+ * journey gate (`journey-renderer-gate.cjs`) parks the window on
+ * `about:blank`, so it runs before any renderer script and never touches
+ * production code. It
  * counts DOM mutations, layout shifts and long tasks until the journey's
  * terminal condition and then emits one JSON blob under
  * `window.__iptvnatorJourneyProbe`.
@@ -160,13 +162,22 @@ export function journeyRendererProbeScript(
             state.longTaskDurationsMs.push(entry.duration);
         }
     };
+    // Entries delivered between the terminal batch and the post-paint
+    // cutoff wait here so the cutoff applies to them as well.
+    const pendingLayoutShifts: PerformanceEntry[] = [];
+    const pendingLongTasks: PerformanceEntry[] = [];
     const observe = (
         type: string,
-        accept: (entries: readonly PerformanceEntry[], until: number) => void
+        accept: (entries: readonly PerformanceEntry[], until: number) => void,
+        pending: PerformanceEntry[]
     ): PerformanceObserver | null => {
         try {
             const observer = new PerformanceObserver((list) => {
                 if (state.final) return;
+                if (state.terminal !== null) {
+                    pending.push(...list.getEntries());
+                    return;
+                }
                 accept(list.getEntries(), Number.POSITIVE_INFINITY);
             });
             observer.observe({ type, buffered: true });
@@ -175,18 +186,32 @@ export function journeyRendererProbeScript(
             return null;
         }
     };
-    const layoutShiftObserver = observe('layout-shift', acceptLayoutShift);
-    const longTaskObserver = observe('longtask', acceptLongTasks);
+    const layoutShiftObserver = observe(
+        'layout-shift',
+        acceptLayoutShift,
+        pendingLayoutShifts
+    );
+    const longTaskObserver = observe(
+        'longtask',
+        acceptLongTasks,
+        pendingLongTasks
+    );
     state.capabilities.layoutShift = layoutShiftObserver !== null;
     state.capabilities.longTask = longTaskObserver !== null;
 
     const finalize = (untilEpochMs: number): void => {
         if (layoutShiftObserver) {
-            acceptLayoutShift(layoutShiftObserver.takeRecords(), untilEpochMs);
+            acceptLayoutShift(
+                [...pendingLayoutShifts, ...layoutShiftObserver.takeRecords()],
+                untilEpochMs
+            );
             layoutShiftObserver.disconnect();
         }
         if (longTaskObserver) {
-            acceptLongTasks(longTaskObserver.takeRecords(), untilEpochMs);
+            acceptLongTasks(
+                [...pendingLongTasks, ...longTaskObserver.takeRecords()],
+                untilEpochMs
+            );
             longTaskObserver.disconnect();
         }
         state.firstCardPaintEpochMs = untilEpochMs;
@@ -252,12 +277,12 @@ export function journeyRendererProbeScript(
             typeof ng?.['ɵsetProfiler'] === 'function'
                 ? 'hook-present-not-counted'
                 : 'unavailable-ng-global-not-published';
-        // Let the frame that paints the card land, then close the
-        // performance observers at that frame's timestamp so the render
-        // task's own long task and layout shift are included.
+        // A rAF callback runs before that frame's style, layout and paint,
+        // so the cutoff is sampled in a timer queued from it: by then the
+        // frame that paints the card has been committed, and the render
+        // task's own long task and layout shift fall inside the cutoff.
         requestAnimationFrame(() => {
-            const frameEpochMs = epoch();
-            setTimeout(() => finalize(frameEpochMs), 0);
+            setTimeout(() => finalize(epoch()), 0);
         });
     });
     mutationObserver.observe(document.documentElement ?? document, {
@@ -281,11 +306,15 @@ export function createLaunchJourneyProbeOptions(): JourneyRendererProbeOptions {
     };
 }
 
+/**
+ * Registers the probe on a page that is still parked on `about:blank` by the
+ * journey gate, so it is guaranteed to run at the start of the next document.
+ */
 export async function installJourneyRendererProbe(
-    context: BrowserContext,
+    page: Page,
     options: JourneyRendererProbeOptions
 ): Promise<void> {
-    await context.addInitScript(journeyRendererProbeScript, options);
+    await page.addInitScript(journeyRendererProbeScript, options);
 }
 
 export async function waitForJourneyRendererProbe(
