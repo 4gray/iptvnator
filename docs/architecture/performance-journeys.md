@@ -108,7 +108,10 @@ CI runs `perf:initial-bytes:check` in the `Initial bytes ratchet` job of
 `.github/workflows/ci.yml` on every pull request and master push, after a
 production build of `apps/web`, and uploads `dist/performance/` as the
 `performance-journey-summary` artifact. A PR that grows the counter fails that
-job.
+job. That runner is the canonical measurer: take baseline values from its
+output, not from a local build. A local build is a preview; before #1695 a
+macOS build of the same commit differed from the runner by a few hundred
+bytes in `main.js`, and since then the two have been byte-identical.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
