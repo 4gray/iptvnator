@@ -1,6 +1,5 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
-import { ExternalPlayerInfoDialogComponent } from '@iptvnator/ui/playback/external-player-info-dialog';
 import { DataService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
@@ -70,12 +69,12 @@ export class PlayerService {
 
         if (player === VideoPlayer.MPV) {
             if (!hideExternalInfoDialog) {
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
+                this.showExternalPlayerInfoDialog();
             }
             return await this.openExternalPlayback(playback, 'mpv');
         } else if (player === VideoPlayer.VLC) {
             if (!hideExternalInfoDialog) {
-                this.dialog.open(ExternalPlayerInfoDialogComponent);
+                this.showExternalPlayerInfoDialog();
             }
             return await this.openExternalPlayback(playback, 'vlc');
         }
@@ -83,12 +82,23 @@ export class PlayerService {
         return;
     }
 
+    /**
+     * Loaded on demand: the dialog's Material checkbox brings @angular/forms,
+     * and this service is created with the app, so a static import would put
+     * both on the initial path. Playback does not wait for the dialog.
+     */
+    private showExternalPlayerInfoDialog(): void {
+        void import('./external-player-info-dialog.lazy').then(
+            ({ ExternalPlayerInfoDialogComponent }) =>
+                this.dialog.open(ExternalPlayerInfoDialogComponent)
+        );
+    }
+
     async openExternalPlayback(
         playback: ResolvedPortalPlayback,
         player: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> {
-        const ipcEvent =
-            player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
+        const ipcEvent = player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER;
 
         return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
             ipcEvent,

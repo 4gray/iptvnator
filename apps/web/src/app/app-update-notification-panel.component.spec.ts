@@ -73,7 +73,7 @@ describe('AppUpdateNotificationPanelComponent', () => {
         ).not.toBeNull();
     });
 
-    it('opens release notes without dismissing the notification', () => {
+    it('opens release notes without dismissing the notification', async () => {
         statusHandler?.(availableStatus);
         fixture.detectChanges();
 
@@ -82,6 +82,9 @@ describe('AppUpdateNotificationPanelComponent', () => {
                 '[data-test-id="app-update-notification-release-notes"]'
             ) as HTMLButtonElement
         ).click();
+        // The dialog component is imported on demand (it pulls in `marked`).
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(TestBed.inject(MatDialog).open).toHaveBeenCalledWith(
             AppUpdateReleaseNotesDialogComponent,

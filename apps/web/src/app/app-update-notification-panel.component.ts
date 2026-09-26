@@ -16,7 +16,6 @@ import {
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
 import { AppUpdateInstallService } from './services/app-update-install.service';
-import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-release-notes-dialog.component';
 
 @Component({
     selector: 'app-update-notification-panel',
@@ -239,8 +238,12 @@ export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
         this.unsubscribeStatus = null;
     }
 
-    openReleaseNotes(): void {
+    async openReleaseNotes(): Promise<void> {
         const latestVersion = this.status()?.latestVersion;
+        // Loaded on demand: the dialog renders Markdown with `marked`, which
+        // this always-mounted panel would otherwise put on the initial path.
+        const { AppUpdateReleaseNotesDialogComponent } =
+            await import('./settings/app-update-release-notes-dialog.component');
 
         this.dialog.open(AppUpdateReleaseNotesDialogComponent, {
             autoFocus: false,
