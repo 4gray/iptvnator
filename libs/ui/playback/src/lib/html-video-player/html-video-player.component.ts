@@ -17,7 +17,7 @@ import {
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
+import { type Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
 import {
     InlinePlaybackPlayer,
