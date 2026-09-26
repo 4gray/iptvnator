@@ -550,12 +550,30 @@ The mock server is listed as a third `webServer` entry:
 
 ```typescript
 {
-  command: 'pnpm nx run xtream-mock-server:serve',
-  url: 'http://localhost:3211/health',
+  command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
+  env: {
+    NODE_ENV: 'development',
+    TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+  },
+  url: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
   reuseExistingServer: !process.env['CI'],
   cwd: workspaceRoot,
 }
 ```
+
+Every Playwright config (web, Electron, Xtream benchmark, journeys) starts the
+Xtream and Stalker mocks this way, never through `pnpm nx run …:serve`.
+Playwright stops a `webServer` by sending `SIGKILL` to the process group it
+spawned (`taskkill /T /F` on Windows), and Nx `run-commands` starts its command
+in a detached process group of its own. The kill therefore reached only
+`pnpm`/`nx`, and the `tsx` server was reparented and kept the port, which made
+the next run fail with "…/health is already used" or, with
+`reuseExistingServer`, silently reuse a stale server. `node --import tsx` keeps
+the server a single process in Playwright's group. `TSX_TSCONFIG_PATH` stands in
+for the serve target's `--tsconfig` flag and is required for the `@iptvnator/*`
+path aliases. `project-config.spec.ts` guards every `playwright*.config.ts`
+against regressing to the Nx launch. The `serve` targets remain the entry point
+for starting a mock by hand.
 
 ### Request Interception
 
