@@ -1,0 +1,126 @@
+name: 🐞 Bug report
+description: Something in IPTVnator doesn't work as expected.
+title: '[Bug]: '
+labels: ['bug :bug:']
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Thanks for taking the time to report a bug! The details below help us reproduce it on the first try.
+
+              - **A channel, movie or episode doesn't play or stops?** The **Playback problem** form asks the right questions for that.
+              - **A question or an idea?** Please use [Discussions](https://github.com/4gray/iptvnator/discussions) or the **Feature request** form.
+    - type: checkboxes
+      id: checks
+      attributes:
+          label: Before you submit
+          options:
+              - label: I'm on the latest release (or a nightly build) and the problem still happens there.
+                required: true
+              - label: I searched the [existing issues](https://github.com/4gray/iptvnator/issues?q=is%3Aissue) and this hasn't been reported yet.
+                required: true
+              - label: I removed usernames, passwords, MAC addresses, tokens and private URLs from everything I paste below.
+                required: true
+    - type: input
+      id: version
+      attributes:
+          label: IPTVnator version
+          description: Shown in **Settings → About**. For a nightly build, add the commit shown there too.
+          placeholder: 0.24.0
+      validations:
+          required: true
+    - type: dropdown
+      id: install
+      attributes:
+          label: How do you run IPTVnator?
+          options:
+              - Windows installer (.exe)
+              - macOS app (.dmg or .zip)
+              - macOS via Homebrew
+              - Linux AppImage
+              - Linux .deb, .rpm or pacman package
+              - Linux Snap
+              - Linux Flatpak
+              - Arch Linux AUR (iptvnator-bin)
+              - Self-hosted web app (Docker)
+              - Built from source
+      validations:
+          required: true
+    - type: input
+      id: os
+      attributes:
+          label: Operating system and version
+          description: For the self-hosted web app, add the browser you use as well.
+          placeholder: Windows 11 24H2 · macOS 26.6 on Apple Silicon · Ubuntu 24.04 · Docker on Unraid + Firefox
+      validations:
+          required: true
+    - type: dropdown
+      id: source
+      attributes:
+          label: Source type
+          description: Which kind of source is affected? Pick all that apply.
+          multiple: true
+          options:
+              - M3U playlist added by URL
+              - M3U playlist added from a file or text
+              - Xtream Codes
+              - Stalker portal
+              - Not related to a source
+      validations:
+          required: true
+    - type: dropdown
+      id: player
+      attributes:
+          label: Video player
+          description: The player selected in **Settings → Playback → Video player**.
+          options:
+              - HTML5 video player
+              - Video.js player
+              - ArtPlayer
+              - Embedded MPV (Experimental)
+              - Embedded MPV with the frame-copy engine
+              - MPV player (external)
+              - VLC (external)
+              - Not related to playback
+      validations:
+          required: true
+    - type: dropdown
+      id: regression
+      attributes:
+          label: Did this work in an earlier version?
+          options:
+              - Yes, it worked in an earlier version
+              - No, it never worked for me
+              - I don't know
+      validations:
+          required: true
+    - type: input
+      id: last-working-version
+      attributes:
+          label: Last version where it worked
+          description: Only if it worked before.
+          placeholder: 0.23.0
+    - type: textarea
+      id: what-happened
+      attributes:
+          label: What happened?
+          description: What did you see, and what did you expect to happen instead?
+      validations:
+          required: true
+    - type: textarea
+      id: steps
+      attributes:
+          label: Steps to reproduce
+          placeholder: |
+              1. Open an Xtream Codes playlist
+              2. Go to Live TV and pick a category
+              3. …
+      validations:
+          required: true
+    - type: textarea
+      id: diagnostics
+      attributes:
+          label: Diagnostics, logs and screenshots
+          description: |
+              If an error screen appears during playback, click **Copy diagnostics** and paste the report here; it contains no stream URLs or credentials.
+              You can also drag screenshots or a short screen recording into this field.
