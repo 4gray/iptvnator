@@ -183,6 +183,14 @@ test('raw text ends only at an exact end tag, and noscript/title bodies are text
     );
 });
 
+test('template contents are inert and character references are decoded', () => {
+    const html = `<template><script src="fallback.js"></script><link rel="stylesheet" href="t.css"></template><script src="chunk.js?a=1&amp;b=2"></script><link rel="modulepreload" href="chunk.js?a=1&b=2"><script src="main.js"></script>`;
+    assert.deepEqual(
+        extractInitialResources(html).map((resource) => resource.url),
+        ['chunk.js?a=1&b=2', 'main.js']
+    );
+});
+
 test('counts a file once per distinct request URL', async () => {
     const distDir = await writeDist('cache-busted', {
         indexHtml: `<link rel="modulepreload" href="chunk-a.js"><link rel="modulepreload" href="chunk-a.js?v=2">`,

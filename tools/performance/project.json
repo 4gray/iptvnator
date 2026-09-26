@@ -8,7 +8,11 @@
         "test": {
             "executor": "nx:run-commands",
             "cache": true,
-            "inputs": ["{projectRoot}/*.mjs", "{projectRoot}/*.json"],
+            "inputs": [
+                "{projectRoot}/*.mjs",
+                "{projectRoot}/*.json",
+                { "externalDependencies": ["parse5"] }
+            ],
             "options": {
                 "command": "node --test tools/performance/measure-initial-bytes.test.mjs",
                 "cwd": "{workspaceRoot}"

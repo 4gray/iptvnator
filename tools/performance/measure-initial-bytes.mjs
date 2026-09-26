@@ -16,41 +16,13 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { parse } from 'parse5';
+
 export const DEFAULT_DIST_DIR = 'dist/apps/web';
 export const INITIAL_BYTES_COUNTER = 'renderer.initialBytes';
 export const LAUNCH_JOURNEY = 'launch';
 
-const OPEN_TAG = /^<([a-zA-Z][a-zA-Z0-9-]*)([^>]*)>/;
-/**
- * Elements whose body the HTML tokenizer reads as text up to the matching end
- * tag: raw text (script, style, xmp, iframe, noembed, noframes), escapable raw
- * text (textarea, title) and, with scripting enabled as it is in every
- * browser that can bootstrap Angular, noscript. Nothing inside them is a tag.
- */
-const RAW_TEXT_ELEMENTS = new Set([
-    'script',
-    'style',
-    'noscript',
-    'textarea',
-    'title',
-    'xmp',
-    'iframe',
-    'noembed',
-    'noframes',
-]);
-const ATTRIBUTE_PATTERN =
-    /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 const EXTERNAL_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
-
-function parseAttributes(raw) {
-    const attributes = {};
-    for (const match of raw.matchAll(ATTRIBUTE_PATTERN)) {
-        const [, name, doubleQuoted, singleQuoted, bare] = match;
-        attributes[name.toLowerCase()] =
-            doubleQuoted ?? singleQuoted ?? bare ?? '';
-    }
-    return attributes;
-}
 
 /**
  * A resource only counts when the browser fetches it on the initial path from
@@ -74,67 +46,32 @@ function classify(tag, attributes) {
 }
 
 /**
- * Walks the document once, the way a tokenizer does, and yields the opening
- * tags the browser would actually see: an HTML comment is skipped as a unit
- * (a commented-out `<script>` is not a request), and the body of a `<script>`
- * or `<style>` element is skipped up to its closing tag (a string literal that
- * looks like a tag, or a `<!--` inside a script, is not markup). Regex
- * replacement cannot get this right, because comment markers inside raw text
- * and raw-text markers inside comments have to be resolved in document order.
+ * Yields the `script` and `link` elements the browser actually creates, in
+ * document order, by parsing `index.html` with the same HTML5 algorithm the
+ * browser uses (parse5, scripting enabled): comments, doctype and bogus
+ * comments are not elements, script/style/noscript/textarea/title bodies are
+ * text, `<template>` contents are inert and live in a separate fragment,
+ * and attribute values arrive with character references decoded.
  */
-/**
- * An end tag closes raw text only when the exact name is followed by
- * whitespace, `/` or `>`: `</scriptlet>` inside a script is still script.
- */
-function findEndTag(lower, name, from) {
-    const needle = `</${name}`;
-    let at = lower.indexOf(needle, from);
-    while (at !== -1) {
-        const next = lower[at + needle.length];
-        if (next === undefined || /[\s/>]/.test(next)) return at;
-        at = lower.indexOf(needle, at + 1);
-    }
-    return -1;
-}
-
 export function scanLiveTags(html) {
-    const lower = html.toLowerCase();
     const tags = [];
-    let index = 0;
-    while (index < html.length) {
-        const lt = html.indexOf('<', index);
-        if (lt === -1) break;
-        if (html.startsWith('<!--', lt)) {
-            const close = html.indexOf('-->', lt + 4);
-            index = close === -1 ? html.length : close + 3;
-            continue;
+    const visit = (node) => {
+        for (const child of node.childNodes ?? []) {
+            if (child.nodeName === 'script' || child.nodeName === 'link') {
+                tags.push({
+                    tag: child.nodeName,
+                    attributes: Object.fromEntries(
+                        child.attrs.map((attribute) => [
+                            attribute.name.toLowerCase(),
+                            attribute.value,
+                        ])
+                    ),
+                });
+            }
+            visit(child);
         }
-        if (html.startsWith('<!', lt) || html.startsWith('<?', lt)) {
-            // Doctype, CDATA or a "bogus comment": the tokenizer swallows it
-            // up to the next '>' and nothing inside it is a tag.
-            const close = html.indexOf('>', lt + 2);
-            index = close === -1 ? html.length : close + 1;
-            continue;
-        }
-        const match = OPEN_TAG.exec(html.slice(lt, lt + 4096));
-        if (!match) {
-            index = lt + 1;
-            continue;
-        }
-        const name = match[1].toLowerCase();
-        const afterTag = lt + match[0].length;
-        if (name === 'script' || name === 'link') {
-            tags.push({ tag: name, rawAttributes: match[2] });
-        }
-        if (RAW_TEXT_ELEMENTS.has(name)) {
-            const closeTag = findEndTag(lower, name, afterTag);
-            if (closeTag === -1) break;
-            const closeEnd = lower.indexOf('>', closeTag);
-            index = closeEnd === -1 ? html.length : closeEnd + 1;
-            continue;
-        }
-        index = afterTag;
-    }
+    };
+    visit(parse(html, { scriptingEnabled: true }));
     return tags;
 }
 
@@ -148,8 +85,8 @@ export function scanLiveTags(html) {
 export function extractInitialResources(html) {
     const seen = new Set();
     const resources = [];
-    for (const { tag, rawAttributes } of scanLiveTags(html)) {
-        const resource = classify(tag, parseAttributes(rawAttributes));
+    for (const { tag, attributes } of scanLiveTags(html)) {
+        const resource = classify(tag, attributes);
         if (!resource || EXTERNAL_URL.test(resource.url)) continue;
         const url = resource.url.replace(/#.*$/, '').replace(/^\.?\//, '');
         const file = url.replace(/\?.*$/, '');
