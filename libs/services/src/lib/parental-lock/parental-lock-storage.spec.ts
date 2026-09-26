@@ -35,7 +35,9 @@ describe('ParentalLockStorageService.readLocks', () => {
     it('normalizes a stored store', async () => {
         localStorage.setItem(
             PARENTAL_LOCK_STORE_KEY,
-            JSON.stringify({ p: { m3u: ['Adult'], junk: 1 } })
+            JSON.stringify({
+                p: { xtream: [], stalker: [], m3u: ['Adult'], junk: 1 },
+            })
         );
         await expect(service.readLocks()).resolves.toEqual({
             p: { xtream: [], stalker: [], m3u: ['Adult'] },
@@ -46,11 +48,18 @@ describe('ParentalLockStorageService.readLocks', () => {
         ['truncated JSON', '{"p":{"m3u":["Adu'],
         ['an array payload', '[]'],
         ['a scalar payload', '"locks"'],
-        ['a corrupt nested list', '{"p":{"xtream":"corrupt"}}'],
-        ['a corrupt nested entry', '{"p":{"m3u":[1]}}'],
+        [
+            'a corrupt nested list',
+            '{"p":{"xtream":"corrupt","stalker":[],"m3u":[]}}',
+        ],
+        [
+            'a corrupt nested entry',
+            '{"p":{"xtream":[],"stalker":[],"m3u":[1]}}',
+        ],
+        ['a playlist entry missing a list', '{"p":{}}'],
         [
             'an entry the normalizer would drop',
-            '{"p":{"xtream":[{"categoryType":"live","xtreamId":"nope"}]}}',
+            '{"p":{"xtream":[{"categoryType":"live","xtreamId":"nope"}],"stalker":[],"m3u":[]}}',
         ],
     ])('treats %s as a failed read, not an empty store', async (_, raw) => {
         localStorage.setItem(PARENTAL_LOCK_STORE_KEY, raw);

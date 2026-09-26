@@ -226,6 +226,21 @@ describe('ParentalLockService', () => {
         expect(updateBridgeSettings).not.toHaveBeenCalled();
     });
 
+    it('still persists the switch when settings could not be read', async () => {
+        storageFailure.set('load');
+        prompt.requestPin.mockResolvedValue('1234');
+        const service = await createService();
+
+        await expect(service.setupPin()).resolves.toBe(true);
+
+        expect(updateSettings).toHaveBeenCalledWith({
+            parentalLockEnabled: true,
+        });
+        expect(updateBridgeSettings).toHaveBeenCalledWith({
+            parentalLockEnabled: true,
+        });
+    });
+
     it('keeps the session locked on a failed PIN read and retries before unlocking', async () => {
         storage.pinHash = await hashParentalLockPin('1234');
         parentalLockEnabled.set(true);

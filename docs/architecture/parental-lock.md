@@ -112,13 +112,15 @@ same way: `ParentalLockStorageService.readLocks()` reports a failed read as
 `null` (distinct from an absent store, `{}`; Electron reads through
 `DatabaseService.readAppState`, which keeps a rejected IPC apart from a
 missing key, and a stored payload that does not parse or does not have the
-shape `writeLocks` produces — `isWellFormedParentalLockStore`, down to the
-nested entries — is a failed read too — corruption never becomes an empty
+shape `writeLocks` produces — `isWellFormedParentalLockStore`, all three
+lists present, down to the nested entries — is a failed read too — corruption never becomes an empty
 store), and while the lock is active with the store unreadable
 `ParentalLockService.withholdsEverything` is true — every `is*Locked`
 predicate answers true and the set-based filters (PWA Xtream, Stalker
 content and search, the M3U channel list) receive
-`ALL_CATEGORIES_WITHHELD` — under which a row WITHOUT a genre is withheld
+`ALL_CATEGORIES_WITHHELD`, and `ElectronXtreamDataSource` serves no
+categories, content or search hits either, since its SQLite index may still
+carry a stale stamp — under which a row WITHOUT a genre is withheld
 too (`isStalkerItemWithheld`, `isStalkerCategoryLocked`), since "no genre"
 must not be the one row a withheld catalog still shows — so the whole
 catalog is withheld until the PIN
@@ -130,7 +132,9 @@ The window before the initial read settles is treated the same way
 the feature as on before the locks are known. The feature switch itself is
 persisted through one guarded path (`persistEnabled`): `updateSettings`
 patches memory before it writes, so a failed write is undone in memory and
-`setupPin`/`disable` report false; the Electron mirror write is awaited
+`setupPin`/`disable` report false (whether to persist is decided from the
+settings switch BEFORE the PIN is stored, since `enabled` follows `hasPin`
+while the switch is unknown); the Electron mirror write is awaited
 next, and a mirror that cannot be written undoes the settings write the
 same way — the toggle never shows a state the next launch will not have,
 on either side.
@@ -278,7 +282,8 @@ on either side.
   write that removes a playlist's LAST lock clears the index first and
   drops the key afterwards (the reconcile finds playlists only through
   their key; an interruption then leaves store-with-lock and index-without,
-  which the next reconcile repairs toward locked) — awaited inside
+  which the next reconcile repairs toward locked; a store recovered by a
+  later successful read marks its playlists stale the same way) — awaited inside
   the store's `load()`, so `readable` (and with it every catalog read the
   renderer gates) stays false until the index agrees with the store; a
   re-stamp that keeps failing keeps the session fail-closed.

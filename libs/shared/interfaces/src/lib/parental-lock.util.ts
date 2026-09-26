@@ -156,16 +156,14 @@ function isWellFormedList(
     value: unknown,
     isWellFormedEntry: (entry: unknown) => boolean
 ): boolean {
-    return (
-        value === undefined ||
-        (Array.isArray(value) && value.every(isWellFormedEntry))
-    );
+    return Array.isArray(value) && value.every(isWellFormedEntry);
 }
 
 /**
  * Whether a persisted store has the shape `writeLocks` produces: every
- * playlist entry an object whose optional `xtream`/`stalker`/`m3u` lists
- * hold only entries the normalizers accept. The normalizers DROP what they
+ * playlist entry an object whose `xtream`/`stalker`/`m3u` lists are all
+ * present (a missing list is corruption, not "empty") and hold only
+ * entries the normalizers accept. The normalizers DROP what they
  * do not understand, which is right for user-supplied backups but turns a
  * corrupted persisted store into "nothing is locked"; a store that fails
  * this check is treated as unreadable instead.

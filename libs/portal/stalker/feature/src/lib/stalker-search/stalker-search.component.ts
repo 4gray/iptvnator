@@ -378,6 +378,13 @@ export class StalkerSearchComponent {
                     contentType,
                     withheldCategoryIds
                 );
+                // Before the withheld-id bookkeeping: a stale page must not
+                // pre-record ids into a set a newer relock request cleared,
+                // or that request's page counts no new withheld rows and
+                // stops paging short of later visible matches.
+                if (!isCurrent()) {
+                    return items;
+                }
                 let newWithheldCount = 0;
                 if (items.length < rawItems.length) {
                     const kept = new Set(items);
@@ -391,10 +398,6 @@ export class StalkerSearchComponent {
                             newWithheldCount += 1;
                         }
                     }
-                }
-
-                if (!isCurrent()) {
-                    return items;
                 }
 
                 const merged = this.applySearchPageSuccess(

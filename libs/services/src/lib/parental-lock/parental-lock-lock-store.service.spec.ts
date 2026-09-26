@@ -80,6 +80,18 @@ describe('ParentalLockLockStore', () => {
         expect(store.readable()).toBe(true);
     });
 
+    it('re-derives the index from a store recovered after a failed read', async () => {
+        storage.readLocks.mockResolvedValueOnce(null);
+        await store.load();
+        expect(store.readable()).toBe(false);
+        expect(setCategoryLocks).not.toHaveBeenCalled();
+
+        await expect(store.ensureReadable()).resolves.toBe(true);
+
+        expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'live', [7]);
+        expect(store.readable()).toBe(true);
+    });
+
     it('re-derives the SQLite index from the store on load', async () => {
         await store.load();
         // ensureReadable awaits the reconcile that load() started.

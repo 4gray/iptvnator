@@ -149,6 +149,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         type: CategoryType,
         options?: XtreamOperationOptions
     ): Promise<XtreamCategoryFromDb[]> {
+        // Fail closed with the renderer: while the lock store is loading,
+        // unreadable or its SQLite index not yet reconciled, the index may
+        // still carry a stale `locked = false` stamp, so nothing is served.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         const dbType = mapCategoryTypeToDbType(type);
         // The lock version keys the share: a read issued under an older lock
         // state (still unlocked, or locks since edited) answers with rows the
@@ -307,6 +313,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         onTotal?: (total: number) => void,
         options?: XtreamOperationOptions
     ): Promise<XtreamContentItem[]> {
+        // Fail closed with the renderer: while the lock store is loading,
+        // unreadable or its SQLite index not yet reconciled, the index may
+        // still carry a stale `locked = false` stamp, so nothing is served.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         const requestKey = `${playlistId}:${type}:${this.parentalLock.version()}`;
         const inFlightRequest = this.contentRequests.get(requestKey);
 
@@ -424,6 +436,12 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         types: string[],
         excludeHidden?: boolean
     ): Promise<XtreamContentItem[]> {
+        // Fail closed with the renderer: while the lock store is loading,
+        // unreadable or its SQLite index not yet reconciled, the index may
+        // still carry a stale `locked = false` stamp, so nothing is served.
+        if (this.parentalLock.withholdsEverything?.()) {
+            return [];
+        }
         return this.dbService.searchXtreamContent(
             playlistId,
             searchTerm,

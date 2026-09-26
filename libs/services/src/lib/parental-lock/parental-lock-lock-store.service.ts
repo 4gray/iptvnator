@@ -116,6 +116,12 @@ export class ParentalLockLockStore {
             }
             this.locks.set(locks);
             this.unreadable.set(false);
+            // The index may carry stamps from a write that failed before
+            // the read did; re-derive it from the recovered store as load()
+            // does.
+            for (const playlistId of Object.keys(locks)) {
+                this.markIndexStale(playlistId);
+            }
             this.revisionState.update((value) => value + 1);
         }
         await this.reconcileXtreamIndex();

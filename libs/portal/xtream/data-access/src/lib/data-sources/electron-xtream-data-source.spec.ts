@@ -1,3 +1,5 @@
+import { TestBed } from '@angular/core/testing';
+import { ParentalLockService } from '@iptvnator/services';
 import {
     credentials,
     ElectronXtreamDataSourceHarness,
@@ -32,6 +34,42 @@ describe('ElectronXtreamDataSource (DB-first strategy)', () => {
 
     beforeEach(() => {
         harness = setupElectronXtreamDataSource();
+    });
+
+    describe('withholding everything', () => {
+        it('serves no categories, content or search hits while the lock store withholds everything', async () => {
+            const parentalLock = TestBed.inject(ParentalLockService);
+            Object.defineProperty(parentalLock, 'withholdsEverything', {
+                configurable: true,
+                value: () => true,
+            });
+            harness.dbService.getXtreamImportStatus.mockResolvedValue(
+                'completed'
+            );
+            harness.dbService.getXtreamCategories.mockResolvedValue([
+                dbCategory,
+            ]);
+            harness.dbService.getXtreamContent.mockResolvedValue([
+                dbContentItem,
+            ]);
+
+            await expect(
+                harness.dataSource.getCategories(
+                    playlistId,
+                    credentials,
+                    'live'
+                )
+            ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.getContent(playlistId, credentials, 'live')
+            ).resolves.toEqual([]);
+            await expect(
+                harness.dataSource.searchContent(playlistId, 'news', ['live'])
+            ).resolves.toEqual([]);
+            expect(
+                harness.dbService.getXtreamCategories
+            ).not.toHaveBeenCalled();
+        });
     });
 
     describe('getCategories', () => {

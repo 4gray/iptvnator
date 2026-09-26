@@ -238,6 +238,12 @@ export class ParentalLockService {
         if (!this.prompt) {
             return false;
         }
+        // Decided BEFORE the PIN is stored: with the settings switch
+        // unknown, `enabled` follows `hasPin`, and would read as on the
+        // moment the PIN lands — skipping the persistence the next launch
+        // depends on.
+        const needsPersist =
+            this.settingsStore.parentalLockEnabled?.() !== true;
         const pin = await this.prompt.requestPin({ mode: 'set' });
         if (pin === null) {
             return false;
@@ -246,7 +252,7 @@ export class ParentalLockService {
             return false;
         }
         this.unlockedState.set(true);
-        if (!this.enabled() && !(await this.persistEnabled(true))) {
+        if (needsPersist && !(await this.persistEnabled(true))) {
             this.unlockedState.set(false);
             return false;
         }
