@@ -43,7 +43,7 @@ import StalkerEvents from '../events/stalker.events';
 import XtreamEvents from '../events/xtream.events';
 import { registerStreamProbeHandlers } from '../events/stream-probe';
 import { registerConnectivityGuardHandlers } from '../events/connectivity-guard.events';
-import { isStartupTraceEnabled, trace } from '../services/debug-trace';
+import { traceStartupPhase } from '../services/debug-trace';
 import { AppUpdateService } from '../services/app-update.service';
 import {
     onAppUpdateChannelChange,
@@ -115,21 +115,15 @@ export function bootstrapDeferredEvents(
 export async function finishStartupAfterFirstLoad(): Promise<void> {
     await initDatabase();
 
-    if (isStartupTraceEnabled()) {
-        trace('startup', 'init-database:done');
-    }
+    traceStartupPhase('init-database:done');
 
     await resetStaleDownloads();
 
-    if (isStartupTraceEnabled()) {
-        trace('startup', 'reset-stale-downloads:done');
-    }
+    traceStartupPhase('reset-stale-downloads:done');
 
     await reconcileStaleRecordings();
 
-    if (isStartupTraceEnabled()) {
-        trace('startup', 'reconcile-stale-recordings:done');
-    }
+    traceStartupPhase('reconcile-stale-recordings:done');
 }
 
 let fixPathScheduled = false;
@@ -153,9 +147,7 @@ export function scheduleDeferredFixPath(): void {
         import('fix-path')
             .then(({ default: fixPath }) => {
                 fixPath();
-                if (isStartupTraceEnabled()) {
-                    trace('startup', 'fix-path:done');
-                }
+                traceStartupPhase('fix-path:done');
             })
             .catch((error) => {
                 console.warn('fix-path failed:', error);

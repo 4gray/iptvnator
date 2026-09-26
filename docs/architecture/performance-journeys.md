@@ -63,7 +63,8 @@ longer in the DOM, and a source card has a non-empty client rect. Counters are
 frozen at that microtask checkpoint, so bridge calls and mutations issued
 later in the same task are included and everything after it is not.
 
-Three test-side pieces are injected; production code is not changed:
+Three test-side pieces are injected. The app itself only contributes the
+main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
 
 - `journey-renderer-gate.cjs` is loaded into the main process with `-r`, the
   mechanism Playwright uses for its own loader. Playwright resolves
@@ -72,7 +73,15 @@ Three test-side pieces are injected; production code is not changed:
   registered afterwards would race the first document. The gate makes the
   first `loadFile` navigate to `about:blank` and holds the real load until
   the test releases it. A 15 s safety timeout releases it on its own and the
-  iteration is then invalid.
+  iteration is then invalid. Electron emits `ready-to-show` for the first
+  paint of a hidden window, and `about:blank` paints too, so the gate drops
+  that event while the window shows `about:blank`; otherwise the app would
+  show a blank window and freeze its `ready-to-show` counter before its own
+  document exists. Electron emits the event again for the real document's
+  first paint because the window is still hidden, which is the moment
+  production sees. The gate also keeps the listener the app registers with
+  `ipcMain.handle('performance:read-counters')`, so the test can call it from
+  the main process.
 - `journey-renderer-probe.ts` is registered with `addInitScript` on that
   `about:blank` page, so it runs at the start of the real document. It
   records that it ran while the document was still `loading` with zero
@@ -92,12 +101,54 @@ Three test-side pieces are injected; production code is not changed:
 | `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to three decimals (a shift of 0.0001 flips in and out of the cutoff between runs; the CLS "good" threshold is 0.1, so three decimals keep the counter exact without hiding anything a user could see). The cutoff is sampled in a timer queued from the first `requestAnimationFrame` after the terminal batch, that is after the frame that paints the card has been committed; entries delivered live after the terminal batch are buffered and filtered by the same cutoff. |
 | `renderer.longTasks`               | `longtask` entries over 50 ms up to that same cutoff, which includes the task that rendered the card. The count depends on machine speed, so it is evidence until a run shows it is stable on the CI runner.                                                                                                                                                                                                                                                                                                                                          |
 
+#### Main-process counters
+
+With `IPTVNATOR_PERF_CAPTURE=1`, which the journey sets,
+`apps/electron-backend/src/app/services/debug-trace.ts` keeps named counters
+in the main process (`services/performance-counters.ts`) and `main.ts`
+registers the `performance:read-counters` IPC handler. Without the flag
+nothing is counted, no listener is attached and the handler does not exist;
+the preload never exposes the channel. After the renderer probe completes,
+`journey-main-counters.ts` calls the handler through `electronApp.evaluate`
+and the gate's tap.
+
+| Counter                               | Source                                                                                                                                                                                                                                                                                   |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main.modulesRegisteredBeforeWindow`  | `main.startupPhases`, one per `traceStartupPhase` call (the phases printed as `[startup]` trace lines), frozen right after the first main window is constructed.                                                                                                                         |
+| `main.sqlStatementsBeforeReadyToShow` | `main.sqlStatements`, frozen at the first main window's `ready-to-show`. It counts the statements of the main-thread connection (`sql-main`, schema creation and migrations) and of the database worker, which posts its count over its message port ([DB worker](sqlite-db-worker.md)). |
+
+Main-thread statements are counted synchronously. The worker flushes its
+count before every other message it posts, so every worker statement whose
+response the main process has handled is included. The worker count is
+ordered against the worker's responses, not against wall-clock: statements
+whose count is still in flight when `ready-to-show` is dispatched are not.
+One call of `run`, `get`, `all`, `iterate` or `exec` that returns normally is
+one statement; on the launch workloads this matches the number of SQL trace
+lines exactly.
+
+`main.sqlStatementsBeforeReadyToShow` is not yet deterministic. The main
+thread runs the shared connection's schema creation and migrations (about 90
+statements on the J1 profile) in one synchronous block after the load event,
+and `ready-to-show` is dispatched after it. The stale-download and
+stale-recording recovery that follows (one statement each) races the event,
+so iterations differ by two and the summary marks the counter
+`stable: false`. The database worker runs no statement before the first
+paint.
+Each frozen counter carries its epoch. The record refuses an iteration whose
+window counter was frozen after the gate saw the first load, or whose
+`ready-to-show` counter was frozen before the gate released the real
+document. Running totals at read time are kept under
+`evidence.mainCountersAtRead`, the freeze epochs under
+`evidence.epochs.mainWindowCreated` and `evidence.epochs.mainReadyToShow`, and
+the number of dropped blank `ready-to-show` events under
+`evidence.rendererGateReadyToShowHeldOnBlank`.
+
 Counters are exact: the summary carries the value shared by every measured
 iteration. When iterations disagree, the summary reports the maximum and marks
 the counter `stable: false` under `counterStability`; such a counter is not
 promoted to a guardrail until it is deterministic.
 
-Two counters from the plan are listed under `unavailable` with the reason
+One counter from the plan is listed under `unavailable` with the reason
 instead of being faked:
 
 - `renderer.cdTicksToFirstCard`: the `electron-performance` build optimizes
@@ -105,10 +156,6 @@ instead of being faked:
   `window.ng` and `ɵsetProfiler` is unavailable. The probe checks this at the
   terminal moment and the record refuses a build where the hook exists but was
   not counted.
-- `main.sqlStatementsBeforeReadyToShow`: SQL statements are only visible as
-  worker-thread trace lines on stdout, which Node forwards asynchronously, so
-  they cannot be ordered against `ready-to-show`. Plan item A2 adds a channel
-  that can be counted.
 
 ### Wall-clock
 

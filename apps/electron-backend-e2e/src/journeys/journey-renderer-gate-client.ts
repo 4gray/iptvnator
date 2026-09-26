@@ -12,6 +12,8 @@ export interface JourneyRendererGateState {
     readonly gatedEpochMs: number | null;
     readonly gatedMethod: string | null;
     readonly passThroughLoads: number;
+    /** `ready-to-show` events dropped while the window was on about:blank. */
+    readonly readyToShowHeldOnBlank: number;
     readonly releasedEpochMs: number | null;
     readonly timedOut: boolean;
 }

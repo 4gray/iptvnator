@@ -11,10 +11,16 @@ import type {
 } from '../workers/database-worker.types';
 import {
     isDbTraceEnabled,
+    performanceCounters,
     roundTraceDuration,
     summarizeForTrace,
     trace,
 } from './debug-trace';
+import { PERFORMANCE_COUNTER } from './performance-counters';
+import {
+    DB_WORKER_SQL_STATEMENTS_MESSAGE_TYPE,
+    readSqlStatementsMessageCount,
+} from '../workers/database-worker-sql-statement-count';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
 type PendingRequest = {
@@ -219,6 +225,17 @@ export class DatabaseWorkerClient {
         }
 
         if (message.type === 'performance-cancel-received') {
+            return;
+        }
+
+        if (message.type === DB_WORKER_SQL_STATEMENTS_MESSAGE_TYPE) {
+            const count = readSqlStatementsMessageCount(message);
+            if (count !== null) {
+                performanceCounters.increment(
+                    PERFORMANCE_COUNTER.SQL_STATEMENTS,
+                    count
+                );
+            }
             return;
         }
 

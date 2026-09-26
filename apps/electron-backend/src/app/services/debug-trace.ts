@@ -2,6 +2,10 @@ import {
     redactSensitiveData,
     summarizeSqlStatementForTrace,
 } from '@iptvnator/shared/logging';
+import {
+    createPerformanceCounterRegistry,
+    PERFORMANCE_COUNTER,
+} from './performance-counters';
 
 const TRACE_ENV_TRUE_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const TRACE_PREFIX = '[IPTVnator Trace]';
@@ -58,6 +62,14 @@ export function isRendererApiTraceEnabled(): boolean {
 export function isPerformanceCaptureEnabled(): boolean {
     return readFlag('IPTVNATOR_PERF_CAPTURE');
 }
+
+/**
+ * Process-wide performance counters (see `performance-counters.ts`). Every
+ * call is a no-op unless `IPTVNATOR_PERF_CAPTURE=1`.
+ */
+export const performanceCounters = createPerformanceCounterRegistry(
+    isPerformanceCaptureEnabled
+);
 
 export function isDbTraceEnabled(): boolean {
     return isStartupTraceEnabled() || readFlag('IPTVNATOR_TRACE_DB');
@@ -178,4 +190,19 @@ export function trace(scope: string, message: string, payload?: unknown): void {
 
 export function traceSqlStatement(scope: string, sql: unknown): void {
     trace(scope, 'query', summarizeSqlStatementForTrace(sql));
+}
+
+/**
+ * One main-process startup phase: counted under `main.startupPhases` when
+ * performance capture is on, traced as `[startup] <phase>` when startup
+ * tracing is on. The payload is a thunk so it is only built for the trace.
+ */
+export function traceStartupPhase(
+    phase: string,
+    payload?: () => unknown
+): void {
+    performanceCounters.increment(PERFORMANCE_COUNTER.STARTUP_PHASES);
+    if (isStartupTraceEnabled()) {
+        trace('startup', phase, payload?.());
+    }
 }
