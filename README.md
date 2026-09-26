@@ -376,6 +376,17 @@ To run only the Angular app without Electron, use:
 $ pnpm run serve:frontend
 ```
 
+To benchmark the "launch to usable" journey (fresh Electron process on a
+seeded profile, exact renderer counters plus wall-clock), run:
+
+```
+$ pnpm run perf:journeys
+```
+
+The journeys, their counters and the summary written under
+`dist/performance/journeys/` are described in
+[docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
+
 ## Disclaimer
 
 **IPTVnator doesn't provide any playlists or other digital content.**

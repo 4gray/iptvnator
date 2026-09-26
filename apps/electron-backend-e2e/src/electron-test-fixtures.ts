@@ -30,6 +30,7 @@ import {
 import {
     captureElectronProcess,
     closeElectronApplicationAndConfirmExit,
+    type ElectronExitConfirmationOptions,
     prepareElectronApplication,
 } from './electron-process-lifecycle';
 
@@ -200,7 +201,7 @@ export { expect };
  * helper that spawns the app itself has to use the same list. `appArgs` land
  * after the entry point, which is where the OS puts an opened file's path.
  */
-function buildElectronLaunchArgs(
+export function buildElectronLaunchArgs(
     extraArgs: readonly string[] = [],
     appArgs: readonly string[] = [],
     entryPoint = electronMainPath
@@ -577,10 +578,18 @@ export async function closeElectronApp(
 export async function closeElectronAppAndConfirmExit(
     app: LaunchedElectronApp
 ): Promise<void> {
-    await closeElectronApplicationAndConfirmExit(app.electronApp, {
+    await closeElectronApplicationAndConfirmExit(
+        app.electronApp,
+        electronAppExitConfirmationOptions()
+    );
+}
+
+/** The close/exit timeouts the shared fixture applies to every launch. */
+export function electronAppExitConfirmationOptions(): ElectronExitConfirmationOptions {
+    return {
         closeTimeoutMs: electronAppCloseTimeoutMs,
         exitTimeoutMs: electronAppKillWaitMs,
-    });
+    };
 }
 
 function assertPackagedRendererBuildIsElectronSafe(): void {

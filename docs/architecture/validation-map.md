@@ -120,6 +120,7 @@ and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 | Web app browser flows | `pnpm nx run web-e2e:e2e -- --project=chromium` |
 | Electron flows        | `pnpm nx run electron-backend-e2e:e2e`          |
 | VOD multi-source      | `pnpm nx run electron-backend-e2e:e2e-ci--src/vod-multi-source.e2e.ts` |
+| Performance journeys  | `pnpm run perf:journeys` (see [performance journeys](performance-journeys.md)) |
 
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
