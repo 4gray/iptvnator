@@ -472,6 +472,52 @@ function verifyPackagedPackageMetadata(resourceDir, errors) {
     }
 }
 
+/**
+ * The main-process entry is split: `main.js` enables the V8 compile cache and
+ * requires `main.app.js`, the application bundle. nx-electron packages the
+ * backend through an allowlist, so a missing bundle only surfaces as an
+ * uncaught "Cannot find module" at launch; fail the layout check instead.
+ */
+const REQUIRED_MAIN_PROCESS_ENTRIES = [
+    '/electron-backend/main.js',
+    '/electron-backend/main.app.js',
+    '/electron-backend/main.preload.js',
+];
+
+function verifyPackagedMainProcessEntries(resourceDir, errors) {
+    const asarPath = path.join(resourceDir, 'app.asar');
+    if (!fileExists(asarPath)) {
+        return;
+    }
+
+    let entries;
+    try {
+        // @electron/asar lists entries with the host separator on Windows.
+        entries = new Set(
+            listPackage(asarPath).map((entry) => {
+                const normalized = entry.replace(/\\/g, '/');
+                return normalized.startsWith('/')
+                    ? normalized
+                    : `/${normalized}`;
+            })
+        );
+    } catch (error) {
+        errors.push(
+            `Unable to list main-process entries in ${asarPath}: ${error.message}`
+        );
+        return;
+    }
+
+    const missing = REQUIRED_MAIN_PROCESS_ENTRIES.filter(
+        (entry) => !entries.has(entry)
+    );
+    if (missing.length > 0) {
+        errors.push(
+            `Packaged app.asar is missing main-process entry files in ${asarPath}: ${missing.join(', ')}`
+        );
+    }
+}
+
 function verifyLinuxLauncher(resourceDir, targetNames, errors) {
     let launcherLayout;
     try {
@@ -711,6 +757,7 @@ function verifyResourceDir(resourceDir) {
     let linuxTargetNames;
 
     verifyPackagedPackageMetadata(resourceDir, errors);
+    verifyPackagedMainProcessEntries(resourceDir, errors);
     verifyPackagedDependencyClosure(resourceDir, errors);
     verifyNoEmbeddedMpvNativeArchiveEntries(resourceDir, errors);
 

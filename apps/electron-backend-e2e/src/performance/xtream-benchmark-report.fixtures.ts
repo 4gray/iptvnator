@@ -62,13 +62,23 @@ export const BUILD_IDENTITY: XtreamBenchmarkBuildIdentity = {
                 'database-worker-source-map'
             ),
         },
-        main: {
+        launcher: {
             javascript: buildFile(
                 'dist/apps/electron-backend/main.js',
-                'main-javascript'
+                'launcher-javascript'
             ),
             sourceMap: buildFile(
                 'dist/apps/electron-backend/main.js.map',
+                'launcher-source-map'
+            ),
+        },
+        main: {
+            javascript: buildFile(
+                'dist/apps/electron-backend/main.app.js',
+                'main-javascript'
+            ),
+            sourceMap: buildFile(
+                'dist/apps/electron-backend/main.app.js.map',
                 'main-source-map'
             ),
         },

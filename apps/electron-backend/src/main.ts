@@ -31,6 +31,7 @@ import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
+import { readCompileCacheOutcome } from './app/services/compile-cache';
 import { applyElectronNetworkDefaults } from './app/util/network-defaults';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
 import { AppUpdateService } from './app/services/app-update.service';
@@ -60,6 +61,10 @@ import {
 import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
+
+if (isStartupTraceEnabled()) {
+    trace('startup', 'compile-cache', readCompileCacheOutcome());
+}
 
 // Before the first portal, playlist or update request leaves this process.
 applyElectronNetworkDefaults((line) => {
