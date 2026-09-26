@@ -11,7 +11,7 @@ this marker — see `.changes/README.md`.
 
 <!-- next-release -->
 
-# [0.24.0](https://github.com/4gray/iptvnator/compare/v0.23.0...v0.24.0) (2026-09-21)
+# [0.24.0](https://github.com/4gray/iptvnator/compare/v0.23.0...v0.24.0) (2026-09-24)
 
 
 ![IPTVnator 0.24.0 — programme guide, fullscreen browsing and stream info](https://raw.githubusercontent.com/4gray/iptvnator/v0.24.0/apps/website/public/blog/v0-24/announce.png)
