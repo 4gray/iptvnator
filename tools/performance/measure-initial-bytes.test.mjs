@@ -13,6 +13,7 @@ import {
     formatReport,
     measureInitialBytes,
     parseArgs,
+    stripInertHtml,
     toJourneySummary,
 } from './measure-initial-bytes.mjs';
 
@@ -115,6 +116,23 @@ test('deduplicates by request URL, ignores fragments and normalizes relative URL
         { path: 'chunk-b.js', url: 'chunk-b.js', kind: 'modulepreload' },
         { path: 'main.js', url: 'main.js', kind: 'script' },
     ]);
+});
+
+test('ignores commented-out tags and tag-like text inside inline scripts and styles', () => {
+    const html = `
+        <!-- <script src="old.js"></script> -->
+        <!--
+            <link rel="stylesheet" href="legacy.css">
+        -->
+        <script>const markup = '<script src="fake.js"><\\/script><link rel="modulepreload" href="fake-chunk.js">';</script>
+        <style>/* <link rel="stylesheet" href="fake.css"> */ body { color: red; }</style>
+        <script src="assets/app-config.js" defer></script>
+        <script src="main.js" type="module"></script>`;
+    assert.deepEqual(
+        extractInitialResources(html).map((resource) => resource.url),
+        ['assets/app-config.js', 'main.js']
+    );
+    assert.equal(stripInertHtml('<script>1 < 2</script>'), '<script></script>');
 });
 
 test('counts a file once per distinct request URL', async () => {

@@ -21,6 +21,8 @@ export const INITIAL_BYTES_COUNTER = 'renderer.initialBytes';
 export const LAUNCH_JOURNEY = 'launch';
 
 const TAG_PATTERN = /<(script|link)\b([^>]*)>/gi;
+const HTML_COMMENT = /<!--[\s\S]*?-->/g;
+const INLINE_ELEMENT_BODY = /(<(script|style)\b[^>]*>)[\s\S]*?(<\/\2\s*>)/gi;
 const ATTRIBUTE_PATTERN =
     /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
 const EXTERNAL_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
@@ -57,6 +59,17 @@ function classify(tag, attributes) {
 }
 
 /**
+ * Removes the parts of the document the browser never treats as markup: HTML
+ * comments (a commented-out `<script>` is not a request) and the bodies of
+ * inline `<script>`/`<style>` elements (a string literal that looks like a tag
+ * is not one either). The opening tags themselves are kept so a `src` on an
+ * inline script element is still seen.
+ */
+export function stripInertHtml(html) {
+    return html.replace(HTML_COMMENT, '').replace(INLINE_ELEMENT_BODY, '$1$3');
+}
+
+/**
  * Lists the same-origin resources `index.html` puts on the initial path, in
  * document order. Duplicates are collapsed by request URL, not by file: the
  * browser fetches `chunk.js?v=1` and `chunk.js?v=2` separately, so both count,
@@ -66,7 +79,9 @@ function classify(tag, attributes) {
 export function extractInitialResources(html) {
     const seen = new Set();
     const resources = [];
-    for (const [, tag, rawAttributes] of html.matchAll(TAG_PATTERN)) {
+    for (const [, tag, rawAttributes] of stripInertHtml(html).matchAll(
+        TAG_PATTERN
+    )) {
         const resource = classify(
             tag.toLowerCase(),
             parseAttributes(rawAttributes)

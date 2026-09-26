@@ -32,16 +32,19 @@ The bytes a browser fetches before Angular can bootstrap, read from the built
 - every `<link rel="stylesheet">`,
 - every `<link rel="modulepreload">` chunk.
 
-Manifest, icons, external URLs and lazy chunks are not counted. A file that
-`index.html` references but the build did not emit is an error, never zero
-bytes. The value is raw (uncompressed) size, which is what the renderer parses;
-it matches the "Initial total" line of the Angular build output.
+Manifest, icons, external URLs, commented-out tags and lazy chunks are not
+counted. A file that `index.html` references but the build did not emit is an
+error, never zero bytes. The value is raw (uncompressed) size, which is what the
+renderer parses. It is Angular's "Initial total" plus `index.html` and
+`assets/app-config.js` (about 4 KB together), so it sits slightly above the
+rounded figure the build prints; never copy that figure into a baseline, use
+the script's output.
 
 ```bash
-pnpm nx build web                       # production configuration
-pnpm run perf:initial-bytes             # human-readable breakdown
-pnpm run perf:initial-bytes -- --json   # machine-readable breakdown
-pnpm run perf:initial-bytes -- --summary dist/performance/journey-summary.json
+pnpm nx build web                                # production configuration
+pnpm run perf:initial-bytes                      # human-readable breakdown
+pnpm --silent run perf:initial-bytes -- --json   # machine-readable; --silent keeps pnpm's headers out of stdout
+node tools/performance/measure-initial-bytes.mjs --summary dist/performance/journey-summary.json
 ```
 
 `--summary` writes the journey summary shape (`journeys.<journey>.counters`)
