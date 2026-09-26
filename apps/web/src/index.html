@@ -26,10 +26,7 @@
         <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico" />
         <script src="assets/app-config.js" defer></script>
         <style>
-            /* Inline splash — paints immediately while the JS bundle and the
-               styles.css (~300KB) are still downloading and Angular is
-               bootstrapping. Removed from the DOM by main.ts after
-               bootstrapApplication() resolves. No assets, zero extra HTTP. */
+            /* Asset-free splash while bundles load; main.ts removes it after bootstrap. */
             #initial-splash {
                 position: fixed;
                 inset: 0;
