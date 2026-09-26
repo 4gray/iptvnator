@@ -82,6 +82,22 @@ type-checking each through a language service; spec type errors therefore do
 not fail Jest (the web configs already ran with `diagnostics: false`), while
 `isolatedModules`-incompatible syntax such as a type re-export without
 `export type` still fails at load time.
+
+In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
+when every changed file is outside Tier A test inputs:
+`tools/coverage/unit-coverage-scope.mjs` holds the allowlist (Markdown, `docs/`,
+notes and plans, agent guidance, workflows other than `ci.yml`, the website,
+E2E and mock-server apps, release/packaging/skills/performance tooling, and a
+`package.json` edit confined to `scripts`). Anything else, including files no
+Nx project owns such as `jest.preset.js` or `tsconfig.base.json`, runs the full
+suite, and master pushes always run it; `nx affected` is deliberately not used
+for this decision because a change to an unowned file affects no project.
+Jest's transform cache is kept in `JEST_CACHE_DIRECTORY` and persisted with
+`actions/cache`: pull requests restore it, while only master pushes (starting
+from an empty cache, so it holds exactly the current tree) and maintainer
+dispatches save it. A shared Nx task cache is not used: Nx indexes its local
+cache in a machine-specific database, so a restored cache folder is never hit,
+and sharing it safely needs Nx Cloud or another supported remote cache.
 `coverage:merge` requires every configured Tier A report before replacing the
 merged output. Strict health validation also requires the merged Istanbul map
 itself to contain usable instrumentation for every runtime-owning Tier A file,

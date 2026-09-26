@@ -21,6 +21,10 @@ const collectCoverageFrom = [
 export default {
   ...nxPreset,
   ...angularEsmPreset,
+  // See jest.preset.js: CI persists the transform cache from this directory.
+  ...(process.env.JEST_CACHE_DIRECTORY
+    ? { cacheDirectory: process.env.JEST_CACHE_DIRECTORY }
+    : {}),
   displayName: 'web',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
   coverageDirectory: '../../coverage/apps/web',

@@ -209,6 +209,10 @@ jobs:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
         timeout-minutes: 45
+        permissions:
+            contents: read
+            # The scope step lists the PR's changed files through the API.
+            pull-requests: read
 
         steps:
             - name: Checkout code
@@ -247,11 +251,67 @@ jobs:
             - name: Check i18n drift
               run: pnpm run i18n:check
 
+            # A pull request whose changes cannot reach any Tier A test (docs,
+            # notes, other workflows, website, E2E and mock-server apps, release
+            # and packaging tooling, a scripts-only package.json edit) skips the
+            # suite. The allowlist lives in a unit-tested script; anything it
+            # does not know runs everything, and master always runs everything.
+            - name: Decide unit coverage scope
+              id: scope
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+              run: |
+                  set -euo pipefail
+                  if [ "$EVENT_NAME" != "pull_request" ]; then
+                      echo "Not a pull request; running the full suite."
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  git fetch --no-tags --depth=1 origin "$BASE_SHA"
+                  gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+                      --paginate --jq '.[] | .filename, (.previous_filename // empty)' |
+                      node tools/coverage/unit-coverage-scope.mjs --base FETCH_HEAD --github-output
+
+            # Jest's transform cache (TypeScript/Angular transpilation plus
+            # coverage instrumentation, keyed by file content) is persisted
+            # between runs. Only master pushes and maintainer dispatches save
+            # it; pull requests restore it and never write, so a PR cannot plant
+            # an entry that a later master run would read.
+            - name: Restore Jest transform cache
+              if: steps.scope.outputs.run == 'true' && github.event_name != 'push'
+              uses: actions/cache/restore@v6
+              with:
+                  path: ${{ runner.temp }}/jest-cache
+                  key: jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-${{ github.run_id }}
+                  restore-keys: |
+                      jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-
+
             - name: Run Tier A unit coverage suite
+              if: steps.scope.outputs.run == 'true'
               run: pnpm run coverage:ci
               env:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+                  JEST_CACHE_DIRECTORY: ${{ runner.temp }}/jest-cache
+
+            - name: Validate coverage tooling (suite skipped)
+              if: steps.scope.outputs.run != 'true'
+              run: pnpm run coverage:tools:test && pnpm run coverage:policy:check
+
+            # Master pushes start from an empty cache, so the saved cache holds
+            # exactly the current tree and does not grow run over run.
+            - name: Save Jest transform cache
+              if: >-
+                  steps.scope.outputs.run == 'true' &&
+                  (github.event_name == 'workflow_dispatch' ||
+                  (github.event_name == 'push' && github.ref == 'refs/heads/master'))
+              uses: actions/cache/save@v6
+              with:
+                  path: ${{ runner.temp }}/jest-cache
+                  key: jest-transform-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'tsconfig.base.json', 'jest.preset.js', 'jest.web-esm.workspace.ts', 'apps/web/jest.config.ts') }}-${{ github.run_id }}
 
             - name: Run Tier B/C validation commands
               run: node tools/coverage/check-coverage-policy.mjs --run-non-tier-a
@@ -260,7 +320,7 @@ jobs:
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
             - name: Upload unit coverage artifact
-              if: always()
+              if: always() && steps.scope.outputs.run == 'true'
               uses: actions/upload-artifact@v7
               with:
                   name: unit-coverage
@@ -269,7 +329,7 @@ jobs:
                   retention-days: 14
 
             - name: Upload unit coverage to Codecov
-              if: always()
+              if: always() && steps.scope.outputs.run == 'true'
               uses: codecov/codecov-action@v7
               with:
                   files: ./coverage/merged/lcov.info,./coverage/merged/cobertura-coverage.xml
