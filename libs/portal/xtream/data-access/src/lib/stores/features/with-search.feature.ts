@@ -161,8 +161,14 @@ export function withSearch() {
                     }
                 },
 
-                /** Drops the stored results; term, filters and the last search stay. */
+                /**
+                 * Drops the stored results; term, filters and the last search
+                 * stay. Also retires a search still in flight: it was issued
+                 * under the previous lock state and must not republish what
+                 * was just cleared.
+                 */
                 clearSearchResults(): void {
+                    searchRequestVersion++;
                     patchState(store, { searchResults: [] });
                 },
 

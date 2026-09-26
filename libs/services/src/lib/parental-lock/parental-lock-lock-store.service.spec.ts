@@ -155,6 +155,36 @@ describe('ParentalLockLockStore', () => {
         expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
     });
 
+    it('publishes the revision only after every type is stamped', async () => {
+        await store.load();
+        await store.ensureReadable();
+        const before = store.revision();
+        let resolveStamp: (ok: boolean) => void = () => undefined;
+        setCategoryLocks.mockImplementation(
+            () => new Promise<boolean>((resolve) => (resolveStamp = resolve))
+        );
+
+        const writing = store.replacePlaylistLocks('pl-1', {
+            xtream: [{ categoryType: 'movies', xtreamId: 3 }],
+            stalker: [],
+            m3u: [],
+        });
+        for (
+            let i = 0;
+            i < 50 && storage.writeLocks.mock.calls.length === 0;
+            i += 1
+        ) {
+            await Promise.resolve();
+        }
+        expect(storage.writeLocks).toHaveBeenCalled();
+        expect(store.revision()).toBe(before);
+
+        setCategoryLocks.mockResolvedValue(true);
+        resolveStamp(true);
+        await expect(writing).resolves.toBe(true);
+        expect(store.revision()).toBe(before + 1);
+    });
+
     it('rolls the store back when the index re-stamp fails', async () => {
         await store.load();
         setCategoryLocks.mockResolvedValue(false);

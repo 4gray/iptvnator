@@ -285,10 +285,19 @@ export class ParentalLockLockStore {
             this.revisionState.update((value) => value + 1);
             return false;
         }
-        if (!(await this.persistPlaylistLocks(playlistId, next))) {
+        // The revision is published only once every type is stamped: a
+        // consumer reloading on the revision while the stamps are still
+        // running would read a later type through its old stamps, and a
+        // successful stamp emits nothing afterwards to reload it.
+        if (
+            !(await this.persistPlaylistLocks(playlistId, next, {
+                publish: false,
+            }))
+        ) {
             return false;
         }
         if (await this.stampXtreamLocks(playlistId, categoryTypes)) {
+            this.revisionState.update((value) => value + 1);
             return true;
         }
         await this.rollBack(playlistId, previous, categoryTypes);
@@ -347,7 +356,8 @@ export class ParentalLockLockStore {
 
     private async persistPlaylistLocks(
         playlistId: string,
-        locks: ParentalLockPlaylistLocks
+        locks: ParentalLockPlaylistLocks,
+        options: { publish?: boolean } = {}
     ): Promise<boolean> {
         if (!(await this.ensureReadable())) {
             return false;
@@ -363,7 +373,9 @@ export class ParentalLockLockStore {
             return false;
         }
         this.locks.set(next);
-        this.revisionState.update((value) => value + 1);
+        if (options.publish !== false) {
+            this.revisionState.update((value) => value + 1);
+        }
         return true;
     }
 }

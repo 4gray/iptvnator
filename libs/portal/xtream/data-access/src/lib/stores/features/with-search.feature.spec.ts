@@ -161,6 +161,18 @@ describe('withSearch refreshSearchResults', () => {
         expect(store.searchResults()).toHaveLength(1);
     });
 
+    it('retires a search still in flight when the results are cleared', async () => {
+        const pending = createDeferred<unknown[]>();
+        searchContent.mockReturnValueOnce(pending.promise);
+        const running = store.searchContent('news', ['live']);
+
+        store.clearSearchResults();
+        pending.resolve([{ xtream_id: 1 }]);
+        await running;
+
+        expect(store.searchResults()).toEqual([]);
+    });
+
     it('does nothing without a previous search or after a reset', async () => {
         await store.refreshSearchResults();
         expect(searchContent).not.toHaveBeenCalled();

@@ -177,7 +177,8 @@ on either side.
   the lock store already names its category (the pre-reload category list
   maps Electron's row id to the provider id), then `withholdCatalog()`
   empties every catalog list and `clearSearchResults()` the stored search
-  before the filtered reads refill them; both reloads take a publish guard
+  (retiring a search still in flight, which was issued under the previous
+  lock state) before the filtered reads refill them; both reloads take a publish guard
   answered before every state patch, so a read issued under an older lock
   version is dropped instead of published. A lock change that overtakes
   the INITIAL hydration (the content is not initialized yet, so the reload
@@ -305,7 +306,9 @@ on either side.
   backup restore stamps three types, and the ones before the failing type
   already carry the new locks; a category must not be recorded and shown
   as locked while Electron reads, which filter by the index alone, still
-  serve it); if the rollback write or its re-stamp fails too, the playlist is
+  serve it), and the store revision consumers reload on is published only
+  once every touched type is stamped, so a reload cannot read a later type
+  through its old stamps; if the rollback write or its re-stamp fails too, the playlist is
   re-stamped on the next store access, and every launch re-derives the
   index from the store for each playlist that has locks — which is why a
   write that removes a playlist's LAST lock clears the index first and
