@@ -181,6 +181,48 @@ test('a measured counter without a baseline is reported but does not fail', () =
     );
 });
 
+test('an empty baselines file fails instead of passing vacuously', () => {
+    const result = compareToBaselines({
+        baselines: { journeys: {} },
+        summary: summaryWith(2750491),
+    });
+    assert.equal(result.failures.length, 1);
+    assert.match(result.failures[0], /No baselines were checked/);
+    assert.match(
+        formatResult(result),
+        /Journey ratchet failed: 1 of 1 baselines exceeded/
+    );
+});
+
+test('--only restricts the check to the named baselines', () => {
+    const result = compareToBaselines({
+        baselines,
+        summary: {
+            journeys: {
+                launch: { counters: { 'renderer.initialBytes': 2750491 } },
+            },
+        },
+        only: ['launch/renderer.initialBytes'],
+    });
+    assert.deepEqual(result.failures, []);
+    assert.equal(result.passed.length, 1);
+    assert.match(result.passed[0], /launch\/renderer\.initialBytes/);
+});
+
+test('--only naming a missing baseline fails rather than checking nothing', () => {
+    const result = compareToBaselines({
+        baselines,
+        summary: summaryWith(2750491),
+        only: ['launch/does.notExist'],
+    });
+    assert.equal(result.failures.length, 2);
+    assert.match(
+        result.failures[0],
+        /launch\/does\.notExist: --only names a baseline that does not exist/
+    );
+    assert.match(result.failures[1], /No baselines were checked/);
+});
+
 test('rejects malformed baseline files', () => {
     assert.throws(() => validateBaselines({}), /object with a "journeys" map/);
     assert.throws(
@@ -228,13 +270,30 @@ test('parses CLI arguments and requires --summary', () => {
     assert.deepEqual(parseArgs(['--summary', 's.json']), {
         summary: 's.json',
         baselines: DEFAULT_BASELINES_PATH,
+        only: [],
     });
     assert.deepEqual(
-        parseArgs(['--', '--summary=s.json', '--baselines=b.json']),
+        parseArgs([
+            '--',
+            '--summary=s.json',
+            '--baselines=b.json',
+            '--only',
+            'launch/a',
+            '--only=search/b',
+        ]),
         {
             summary: 's.json',
             baselines: 'b.json',
+            only: ['launch/a', 'search/b'],
         }
+    );
+    assert.throws(
+        () => parseArgs(['--summary', 's', '--only', 'launch']),
+        /--only expects <journey>\/<counter>/
+    );
+    assert.throws(
+        () => parseArgs(['--summary', 's', '--only']),
+        /Missing value for --only/
     );
     assert.throws(
         () => parseArgs([]),
@@ -255,6 +314,10 @@ test('the committed baselines file is valid and every entry names its evidence f
         await readFile(committedBaselinesPath, 'utf8')
     );
     validateBaselines(committed);
+    assert.ok(
+        committed.journeys.launch?.['renderer.initialBytes'],
+        'the launch/renderer.initialBytes baseline must stay committed; the CI ratchet guards it'
+    );
     for (const entries of Object.values(committed.journeys)) {
         for (const entry of Object.values(entries)) {
             assert.match(entry.updatedAt, /^\d{4}-\d{2}-\d{2}$/);

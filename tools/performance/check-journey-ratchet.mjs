@@ -10,10 +10,17 @@
  *   never silently disable the ratchet.
  * - A measurement below its baseline prints a "can tighten" hint. Baselines
  *   are lowered by hand, with the measured output as evidence, never raised.
+ * - Checking nothing is a failure: an empty baselines file, or `--only`
+ *   naming an entry that does not exist, must not exit 0.
+ *
+ * `--only <journey>/<counter>` (repeatable) restricts the check to the named
+ * baselines, so a script that measures one counter can check that counter
+ * without every other baseline failing as unmeasured.
  *
  * Usage:
  *   node tools/performance/check-journey-ratchet.mjs --summary <summary.json>
  *       [--baselines tools/performance/journey-baselines.json]
+ *       [--only launch/renderer.initialBytes ...]
  */
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -78,7 +85,7 @@ function measuredValue(summaryJourney, name) {
  * Pure comparison. Returns every outcome so the CLI and tests can render it;
  * `failures` non-empty means the ratchet is broken.
  */
-export function compareToBaselines({ baselines, summary }) {
+export function compareToBaselines({ baselines, summary, only = [] }) {
     validateBaselines(baselines);
     const summaryJourneys = isPlainObject(summary?.journeys)
         ? summary.journeys
@@ -89,10 +96,23 @@ export function compareToBaselines({ baselines, summary }) {
         passed: [],
         unbaselined: [],
     };
+    const selected = new Set(only);
+    let evaluated = 0;
+
+    for (const target of only) {
+        const [journey, ...rest] = target.split('/');
+        if (baselines.journeys[journey]?.[rest.join('/')] === undefined) {
+            result.failures.push(
+                `${target}: --only names a baseline that does not exist in the baselines file.`
+            );
+        }
+    }
 
     for (const [journey, entries] of Object.entries(baselines.journeys)) {
         for (const [name, entry] of Object.entries(entries)) {
             const label = `${journey}/${name}`;
+            if (selected.size > 0 && !selected.has(label)) continue;
+            evaluated += 1;
             const unit = entry.unit ? ` ${entry.unit}` : '';
             const measured = measuredValue(summaryJourneys[journey], name);
 
@@ -148,6 +168,12 @@ export function compareToBaselines({ baselines, summary }) {
         }
     }
 
+    if (evaluated === 0) {
+        result.failures.push(
+            `No baselines were checked. ${DEFAULT_BASELINES_PATH} must keep at least one entry; a ratchet that guards nothing must not pass.`
+        );
+    }
+
     return result;
 }
 
@@ -170,7 +196,11 @@ export function formatResult(result) {
 }
 
 export function parseArgs(argv) {
-    const options = { summary: null, baselines: DEFAULT_BASELINES_PATH };
+    const options = {
+        summary: null,
+        baselines: DEFAULT_BASELINES_PATH,
+        only: [],
+    };
     for (let index = 0; index < argv.length; index += 1) {
         const argument = argv[index];
         if (argument === '--') continue;
@@ -182,11 +212,26 @@ export function parseArgs(argv) {
             options.baselines = argv[++index];
         } else if (argument.startsWith('--baselines=')) {
             options.baselines = argument.slice('--baselines='.length);
+        } else if (argument === '--only') {
+            options.only.push(argv[++index]);
+        } else if (argument.startsWith('--only=')) {
+            options.only.push(argument.slice('--only='.length));
         } else {
             throw new Error(`Unknown argument: ${argument}`);
         }
-        if (options.summary === undefined || options.baselines === undefined) {
+        if (
+            options.summary === undefined ||
+            options.baselines === undefined ||
+            options.only.includes(undefined)
+        ) {
             throw new Error(`Missing value for ${argument}`);
+        }
+    }
+    for (const target of options.only) {
+        if (!/^[^/]+\/.+$/.test(target)) {
+            throw new Error(
+                `--only expects <journey>/<counter>, received "${target}".`
+            );
         }
     }
     if (!options.summary) {
@@ -221,7 +266,11 @@ if (isMain) {
             path.resolve(options.summary),
             'journey summary'
         );
-        const result = compareToBaselines({ baselines, summary });
+        const result = compareToBaselines({
+            baselines,
+            summary,
+            only: options.only,
+        });
         const output = formatResult(result);
         if (result.failures.length > 0) {
             console.error(output);

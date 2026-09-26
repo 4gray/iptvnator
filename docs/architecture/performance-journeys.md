@@ -88,11 +88,18 @@ that file:
 - a baseline with no measurement in the summary fails, so dropping a
   measurement cannot disable the ratchet;
 - a measurement below its baseline passes and prints a "tighten" hint;
-- a measured counter without a baseline is noted, not failed.
+- a measured counter without a baseline is noted, not failed;
+- checking nothing fails: an empty baselines file, or `--only` naming an
+  entry that does not exist, cannot exit 0.
+
+`--only <journey>/<counter>` (repeatable) restricts the check to the named
+baselines. A script that measures one counter writes its own summary file
+and checks only its counter, so it neither overwrites another measurement's
+summary nor fails the other baselines as unmeasured.
 
 ```bash
-pnpm run perf:initial-bytes:check   # measure dist/apps/web, then check
-pnpm run perf:ratchet:check         # check an existing dist/performance/journey-summary.json
+pnpm run perf:initial-bytes:check   # measure dist/apps/web into dist/performance/initial-bytes.summary.json, check only that counter
+pnpm run perf:ratchet:check         # check every baseline against dist/performance/journey-summary.json
 ```
 
 Baselines only move down. Lower `value` in the same PR as the change that

@@ -72,7 +72,7 @@
         "build:website": "nx build website",
         "i18n:check": "node tools/i18n/check-drift.mjs",
         "perf:initial-bytes": "node tools/performance/measure-initial-bytes.mjs",
-        "perf:initial-bytes:check": "node tools/performance/measure-initial-bytes.mjs --summary dist/performance/journey-summary.json && node tools/performance/check-journey-ratchet.mjs --summary dist/performance/journey-summary.json",
+        "perf:initial-bytes:check": "node tools/performance/measure-initial-bytes.mjs --summary dist/performance/initial-bytes.summary.json && node tools/performance/check-journey-ratchet.mjs --summary dist/performance/initial-bytes.summary.json --only launch/renderer.initialBytes",
         "perf:ratchet:check": "node tools/performance/check-journey-ratchet.mjs --summary dist/performance/journey-summary.json",
         "perf:tools:test": "node --test tools/performance/measure-initial-bytes.test.mjs tools/performance/check-journey-ratchet.test.mjs",
         "agents:validate": "node tools/skills/validate-agent-guidance.mjs",
