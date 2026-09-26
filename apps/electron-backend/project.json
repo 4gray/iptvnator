@@ -209,6 +209,13 @@
             "options": {
                 "name": "electron-backend",
                 "frontendProject": "web",
+                "files": [
+                    {
+                        "from": "electron-backend",
+                        "to": "electron-backend",
+                        "filter": ["main.app.js"]
+                    }
+                ],
                 "sourcePath": "dist/apps",
                 "outputPath": "dist/packages",
                 "prepackageOnly": true
@@ -223,6 +230,13 @@
             "options": {
                 "name": "electron-backend",
                 "frontendProject": "web",
+                "files": [
+                    {
+                        "from": "electron-backend",
+                        "to": "electron-backend",
+                        "filter": ["main.app.js"]
+                    }
+                ],
                 "sourcePath": "dist/apps",
                 "outputPath": "dist/executables"
             }

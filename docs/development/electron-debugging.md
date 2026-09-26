@@ -101,7 +101,10 @@ The process entry is `apps/electron-backend/src/main.entry.ts` (built to
 the database, registers events and creates the main window. The cache is
 disposable; `IPTVNATOR_DISABLE_COMPILE_CACHE=1` turns it off and
 `IPTVNATOR_COMPILE_CACHE_DIR` relocates it (E2E runs keep it inside
-`IPTVNATOR_E2E_DATA_DIR`). The preload is
+`IPTVNATOR_E2E_DATA_DIR`). nx-electron packages the backend through an
+allowlist, so `apps/electron-backend/project.json` lists `main.app.js` under the
+`files` option of the `package` and `make` targets, and `verify:package-layout`
+fails when either entry file is missing from `app.asar`. The preload is
 `apps/electron-backend/src/app/api/main.preload.ts`, with handlers under
 `apps/electron-backend/src/app/events/`. The window follows the saved startup mode
 (normal/maximized/fullscreen); `--fullscreen` overrides a single launch. Use
