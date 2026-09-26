@@ -57,7 +57,7 @@ describe('ParentalLockService', () => {
         storage = {
             pinHash: null,
             locks: {},
-            readPinHash: jest.fn(async () => storage.pinHash),
+            readPinHash: jest.fn(async () => ({ hash: storage.pinHash })),
             writePinHash: jest.fn(async (hash: string) => {
                 storage.pinHash = hash;
                 return true;
@@ -224,6 +224,25 @@ describe('ParentalLockService', () => {
         expect(service.enabled()).toBe(false);
         expect(service.unlocked()).toBe(false);
         expect(updateBridgeSettings).not.toHaveBeenCalled();
+    });
+
+    it('keeps the session locked on a failed PIN read and retries before unlocking', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+        storage.readPinHash.mockResolvedValueOnce(null);
+        prompt.requestPin.mockImplementation(
+            async (request: ParentalLockPromptRequest) =>
+                (await request.verify?.('1234')) ? '1234' : null
+        );
+
+        const service = await createService();
+
+        expect(service.active()).toBe(true);
+        expect(service.hasPin()).toBe(false);
+
+        await expect(service.requestUnlock()).resolves.toBe(true);
+        expect(service.hasPin()).toBe(true);
+        expect(service.unlocked()).toBe(true);
     });
 
     it('rolls the relock timeout back when it cannot be persisted', async () => {

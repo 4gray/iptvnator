@@ -76,6 +76,15 @@ export class PlaylistBackupService {
     private backupImportTail?: Promise<void>;
 
     async exportBackup(): Promise<PlaylistBackupExportPayload> {
+        // Locks are written only when present, and an absent field means
+        // "no opinion" on restore — so an export must never run against an
+        // empty in-memory store that merely has not loaded, or could not.
+        await this.parentalLock.initialize();
+        if (!this.parentalLock.locksReadable()) {
+            throw new Error(
+                'The parental lock store could not be read; the backup would omit its locks.'
+            );
+        }
         const playlists = await firstValueFrom(
             this.playlistsService.getAllData()
         );

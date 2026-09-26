@@ -51,6 +51,8 @@ export class ParentalLockService {
 
     private readonly unlockedState = signal(false);
     private readonly pinHash = signal<string | null>(null);
+    /** The PIN hash could not be read; retried before PIN-protected steps. */
+    private readonly pinUnreadable = signal(false);
     private readonly versionState = signal(0);
     // The main process starts LOCKED whenever the feature is on (mirrored
     // setting). Reporting our state before settings have loaded would send a
@@ -80,7 +82,7 @@ export class ParentalLockService {
      */
     readonly enabled = computed(() =>
         this.switchUnknown()
-            ? this.pinHash() !== null
+            ? this.pinHash() !== null || this.pinUnreadable()
             : this.settingsStore.parentalLockEnabled?.() === true
     );
     /** Feature on and the PIN has been entered this session. */
@@ -89,6 +91,8 @@ export class ParentalLockService {
     readonly active = computed(() => this.enabled() && !this.unlockedState());
     /** A PIN exists; enabling is only possible once this is true. */
     readonly hasPin = computed(() => this.pinHash() !== null);
+    /** The lock store is read and trustworthy; backups must not run without it. */
+    readonly locksReadable = computed(() => this.locks.readable());
     /**
      * Locked, and the lock store could not be read: which categories are
      * locked is unknown, so EVERY category is withheld — the renderer-side
@@ -145,12 +149,12 @@ export class ParentalLockService {
     initialize(): Promise<void> {
         if (!this.initialization) {
             this.initialization = (async () => {
-                const [pinHash] = await Promise.all([
+                const [pinRead] = await Promise.all([
                     this.storage.readPinHash(),
                     this.locks.load(),
                     this.settingsStore.loadSettings(),
                 ]);
-                this.pinHash.set(pinHash);
+                this.applyPinRead(pinRead);
                 this.versionState.update((value) => value + 1);
                 this.settingsReady.set(true);
             })().catch((error) => {
@@ -202,6 +206,7 @@ export class ParentalLockService {
     private async promptForUnlock(
         options: Pick<ParentalLockPromptRequest, 'titleKey' | 'descriptionKey'>
     ): Promise<boolean> {
+        await this.ensurePin();
         const hash = this.pinHash();
         if (!this.prompt || !hash) {
             return false;
@@ -281,6 +286,7 @@ export class ParentalLockService {
     /** Verifies the current PIN, then replaces it. */
     async changePin(): Promise<boolean> {
         await this.initialize();
+        await this.ensurePin();
         if (!this.prompt || !this.hasPin()) {
             return false;
         }
@@ -317,6 +323,7 @@ export class ParentalLockService {
      */
     private async verifyCurrentPin(): Promise<boolean> {
         await this.initialize();
+        await this.ensurePin();
         const hash = this.pinHash();
         if (!this.prompt || !hash) {
             return false;
@@ -470,6 +477,29 @@ export class ParentalLockService {
         return this.locks.stampXtreamLocks(playlistId, categoryTypes);
     }
 
+    private applyPinRead(read: { hash: string | null } | null): void {
+        if (read === null) {
+            console.error('The parental lock PIN could not be read.');
+            this.pinUnreadable.set(true);
+            return;
+        }
+        this.pinHash.set(read.hash);
+        this.pinUnreadable.set(false);
+    }
+
+    /**
+     * Retries a PIN read that failed at startup. A failed read is not an
+     * absent PIN: the session stays locked (`enabled` treats it as set),
+     * and every PIN-protected step re-reads first so the parent can still
+     * unlock, change the PIN or switch the feature off once storage answers.
+     */
+    private async ensurePin(): Promise<void> {
+        if (!this.pinUnreadable()) {
+            return;
+        }
+        this.applyPinRead(await this.storage.readPinHash());
+    }
+
     private async storePin(pin: string): Promise<boolean> {
         try {
             const hash = await hashParentalLockPin(pin);
@@ -477,6 +507,7 @@ export class ParentalLockService {
                 return false;
             }
             this.pinHash.set(hash);
+            this.pinUnreadable.set(false);
             return true;
         } catch (error) {
             console.error('Failed to store the parental lock PIN.', error);

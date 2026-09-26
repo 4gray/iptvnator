@@ -45,7 +45,12 @@ The PIN is hashed with PBKDF2-SHA256 through WebCrypto
 (`parental-lock-pin.util.ts`, format `v1$<iterations>$<salt>$<hash>`), so
 Electron and PWA share one implementation. The hash is deliberately not part
 of `Settings`: settings are logged, backed up and mirrored to the main
-process.
+process. A hash that could not be READ is not an absent PIN:
+`ParentalLockStorageService.readPinHash()` reports the failure as `null`
+(an absent PIN is `{hash: null}`), the session then stays locked (`enabled`
+treats an unreadable PIN as set while the switch is unknown) and every
+PIN-protected step — unlock, change PIN, disable — re-reads it first, so
+storage answering later is enough to recover without a restart.
 
 The lock store (`ParentalLockStore` in `parental-lock.util.ts`) is keyed by
 playlist id and holds, per playlist, Xtream `{categoryType, xtreamId}`
@@ -269,7 +274,11 @@ on either side.
   as locked while Electron reads, which filter by the index alone, still
   serve it); if the rollback write or its re-stamp fails too, the playlist is
   re-stamped on the next store access, and every launch re-derives the
-  index from the store for each playlist that has locks — awaited inside
+  index from the store for each playlist that has locks — which is why a
+  write that removes a playlist's LAST lock clears the index first and
+  drops the key afterwards (the reconcile finds playlists only through
+  their key; an interruption then leaves store-with-lock and index-without,
+  which the next reconcile repairs toward locked) — awaited inside
   the store's `load()`, so `readable` (and with it every catalog read the
   renderer gates) stays false until the index agrees with the store; a
   re-stamp that keeps failing keeps the session fail-closed.

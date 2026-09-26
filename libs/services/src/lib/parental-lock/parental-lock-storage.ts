@@ -26,9 +26,18 @@ export class ParentalLockStorageService {
         return this.runtime.supportsAppStateStorage;
     }
 
-    async readPinHash(): Promise<string | null> {
-        const value = (await this.read(PARENTAL_LOCK_PIN_KEY))?.value;
-        return value && value.trim() !== '' ? value : null;
+    /**
+     * The stored PIN hash (`hash: null` when none was set up), or `null`
+     * when the read itself failed — the service then retries before every
+     * PIN-protected operation instead of treating the PIN as absent.
+     */
+    async readPinHash(): Promise<{ hash: string | null } | null> {
+        const result = await this.read(PARENTAL_LOCK_PIN_KEY);
+        if (result === null) {
+            return null;
+        }
+        const value = result.value;
+        return { hash: value && value.trim() !== '' ? value : null };
     }
 
     async writePinHash(hash: string): Promise<boolean> {

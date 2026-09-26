@@ -90,6 +90,44 @@ describe('ParentalLockLockStore', () => {
         expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'series', []);
     });
 
+    it('clears the index before the last lock leaves the store', async () => {
+        await store.load();
+        await store.ensureReadable();
+        setCategoryLocks.mockClear();
+        storage.writeLocks.mockClear();
+        const order: string[] = [];
+        setCategoryLocks.mockImplementation(async () => {
+            order.push('stamp');
+            return true;
+        });
+        storage.writeLocks.mockImplementation(async () => {
+            order.push('persist');
+            return true;
+        });
+
+        await expect(store.setXtreamLocks('pl-1', 'live', [])).resolves.toBe(
+            true
+        );
+
+        expect(order).toEqual(['stamp', 'persist']);
+        expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'live', []);
+        expect(storage.writeLocks).toHaveBeenLastCalledWith({});
+    });
+
+    it('does not drop the key when clearing the index fails', async () => {
+        await store.load();
+        await store.ensureReadable();
+        storage.writeLocks.mockClear();
+        setCategoryLocks.mockResolvedValue(false);
+
+        await expect(store.setXtreamLocks('pl-1', 'live', [])).resolves.toBe(
+            false
+        );
+
+        expect(storage.writeLocks).not.toHaveBeenCalled();
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
+    });
+
     it('rolls the store back when the index re-stamp fails', async () => {
         await store.load();
         setCategoryLocks.mockResolvedValue(false);

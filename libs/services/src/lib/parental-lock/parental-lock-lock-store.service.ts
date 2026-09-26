@@ -183,14 +183,7 @@ export class ParentalLockLockStore {
     ): Promise<boolean> {
         const previous = this.locksFor(playlistId);
         const next = withXtreamLocks(previous, categoryType, xtreamIds);
-        if (!(await this.persistPlaylistLocks(playlistId, next))) {
-            return false;
-        }
-        if (await this.stampXtreamLocks(playlistId, [categoryType])) {
-            return true;
-        }
-        await this.rollBack(playlistId, previous, [categoryType]);
-        return false;
+        return this.commitLocks(playlistId, previous, next, [categoryType]);
     }
 
     async setStalkerLocks(
@@ -223,14 +216,58 @@ export class ParentalLockLockStore {
         playlistId: string,
         locks: ParentalLockPlaylistLocks
     ): Promise<boolean> {
-        const previous = this.locksFor(playlistId);
-        if (!(await this.persistPlaylistLocks(playlistId, locks))) {
+        return this.commitLocks(
+            playlistId,
+            this.locksFor(playlistId),
+            locks,
+            XTREAM_CATEGORY_TYPES
+        );
+    }
+
+    /**
+     * Persists `next` and re-stamps the touched types. Order matters for a
+     * playlist whose LAST lock goes away: its key leaves the store, and the
+     * startup reconcile finds playlists only through their key — a crash
+     * between the two writes would strand stamped rows for good. That case
+     * clears the index first (from `next`) and persists afterwards, so an
+     * interruption leaves the store with the lock and the index without it,
+     * which the next reconcile repairs toward locked. Every other write
+     * persists first and rolls back on a failed re-stamp.
+     */
+    private async commitLocks(
+        playlistId: string,
+        previous: ParentalLockPlaylistLocks,
+        next: ParentalLockPlaylistLocks,
+        categoryTypes: readonly ParentalLockXtreamCategoryType[]
+    ): Promise<boolean> {
+        const normalizedNext = normalizeParentalLockPlaylistLocks(next);
+        if (isParentalLockPlaylistLocksEmpty(normalizedNext)) {
+            if (!(await this.ensureReadable())) {
+                return false;
+            }
+            if (
+                !(await this.stampXtreamLocks(
+                    playlistId,
+                    categoryTypes,
+                    normalizedNext
+                ))
+            ) {
+                return false;
+            }
+            if (await this.persistPlaylistLocks(playlistId, normalizedNext)) {
+                return true;
+            }
+            this.markIndexStale(playlistId);
+            this.revisionState.update((value) => value + 1);
             return false;
         }
-        if (await this.stampXtreamLocks(playlistId, XTREAM_CATEGORY_TYPES)) {
+        if (!(await this.persistPlaylistLocks(playlistId, next))) {
+            return false;
+        }
+        if (await this.stampXtreamLocks(playlistId, categoryTypes)) {
             return true;
         }
-        await this.rollBack(playlistId, previous, XTREAM_CATEGORY_TYPES);
+        await this.rollBack(playlistId, previous, categoryTypes);
         return false;
     }
 
@@ -266,7 +303,8 @@ export class ParentalLockLockStore {
      */
     async stampXtreamLocks(
         playlistId: string,
-        categoryTypes: readonly ParentalLockXtreamCategoryType[] = XTREAM_CATEGORY_TYPES
+        categoryTypes: readonly ParentalLockXtreamCategoryType[] = XTREAM_CATEGORY_TYPES,
+        locks: ParentalLockPlaylistLocks = this.locksFor(playlistId)
     ): Promise<boolean> {
         if (!this.runtime.supportsXtreamSqliteDataSource) {
             return true;
@@ -277,7 +315,7 @@ export class ParentalLockLockStore {
                 (await this.databaseService.setCategoryLocks(
                     playlistId,
                     categoryType,
-                    this.lockedXtreamIds(playlistId, categoryType)
+                    lockedXtreamCategoryIds(locks, categoryType)
                 )) && success;
         }
         return success;
