@@ -81,6 +81,67 @@ test('a removed baseline fails; a new one is reported and passes', () => {
     assert.deepEqual(added.added, ['launch/cdTicks']);
 });
 
+test('a widened or newly added tolerance fails even when the value went down', () => {
+    const widened = compareBaselineDirection({
+        base: file(100, {
+            firstCardMs: { value: 100, unit: 'ms', toleranceRatio: 1.1 },
+        }),
+        head: file(100, {
+            firstCardMs: { value: 99, unit: 'ms', toleranceRatio: 2 },
+        }),
+    });
+    assert.equal(widened.failures.length, 1);
+    assert.match(
+        widened.failures[0],
+        /firstCardMs: toleranceRatio widened from 1\.1 to 2/
+    );
+
+    const added = compareBaselineDirection({
+        base: file(100),
+        head: file(100, undefined) && {
+            version: 1,
+            journeys: {
+                launch: {
+                    'renderer.initialBytes': {
+                        value: 100,
+                        unit: 'bytes',
+                        toleranceRatio: 1.25,
+                    },
+                },
+            },
+        },
+    });
+    assert.equal(added.failures.length, 1);
+    assert.match(added.failures[0], /toleranceRatio widened from 1 to 1\.25/);
+});
+
+test('the enforced limit is what is compared for wall-clock entries', () => {
+    const narrowed = compareBaselineDirection({
+        base: file(100, {
+            firstCardMs: { value: 100, unit: 'ms', toleranceRatio: 1.25 },
+        }),
+        head: file(100, {
+            firstCardMs: { value: 110, unit: 'ms', toleranceRatio: 1 },
+        }),
+    });
+    assert.deepEqual(narrowed.failures, []);
+    assert.match(narrowed.lowered[0], /firstCardMs: 125 -> 110 ms/);
+
+    const raisedLimit = compareBaselineDirection({
+        base: file(100, {
+            firstCardMs: { value: 100, unit: 'ms', toleranceRatio: 1.25 },
+        }),
+        head: file(100, {
+            firstCardMs: { value: 130, unit: 'ms', toleranceRatio: 1.25 },
+        }),
+    });
+    assert.equal(raisedLimit.failures.length, 1);
+    assert.match(
+        raisedLimit.failures[0],
+        /firstCardMs: baseline raised from 125 to 162\.5 ms/
+    );
+});
+
 test('an empty target-branch file cannot be weakened', () => {
     const result = compareBaselineDirection({
         base: { journeys: {} },

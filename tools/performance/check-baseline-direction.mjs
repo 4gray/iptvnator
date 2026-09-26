@@ -5,8 +5,9 @@
  * commit, so on its own it cannot tell a genuine payload reduction from a PR
  * that grows the payload and raises the baseline by the same amount. This
  * check closes that gap: given the baselines file of the target branch and
- * the one of the PR, any entry whose value went up, or that disappeared, is a
- * failure. New entries and lowered values pass.
+ * the one of the PR, any entry whose enforced limit (`value × toleranceRatio`)
+ * went up, whose tolerance widened, or that disappeared, is a failure. New
+ * entries and lowered limits pass.
  *
  * Usage:
  *   node tools/performance/check-baseline-direction.mjs \
@@ -39,6 +40,15 @@ function formatNumber(value) {
     return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
 
+/**
+ * What the ratchet actually enforces: `value × toleranceRatio` for a
+ * wall-clock entry, the bare value for a counter. Comparing values alone would
+ * let a PR lower a value while widening the tolerance.
+ */
+function effectiveLimit(entry) {
+    return entry.value * (entry.toleranceRatio ?? 1);
+}
+
 /** Pure comparison; `failures` non-empty means the change weakens the ratchet. */
 export function compareBaselineDirection({ base, head }) {
     validateBaselines(base);
@@ -53,13 +63,23 @@ export function compareBaselineDirection({ base, head }) {
             result.failures.push(
                 `${label}: baseline ${formatNumber(baseEntry.value)}${unit} was removed. Baselines are retired only by a maintainer decision recorded in the PR, not by deleting the entry.`
             );
-        } else if (headEntry.value > baseEntry.value) {
+            continue;
+        }
+        const baseTolerance = baseEntry.toleranceRatio ?? 1;
+        const headTolerance = headEntry.toleranceRatio ?? 1;
+        const baseLimit = effectiveLimit(baseEntry);
+        const headLimit = effectiveLimit(headEntry);
+        if (headTolerance > baseTolerance) {
             result.failures.push(
-                `${label}: baseline raised from ${formatNumber(baseEntry.value)} to ${formatNumber(headEntry.value)}${unit}. Baselines only move down; bring the measurement back under ${formatNumber(baseEntry.value)} or make the case for the increase in the PR.`
+                `${label}: toleranceRatio widened from ${baseTolerance} to ${headTolerance}. Tolerances are a maintainer decision; a PR may only narrow them.`
             );
-        } else if (headEntry.value < baseEntry.value) {
+        } else if (headLimit > baseLimit) {
+            result.failures.push(
+                `${label}: baseline raised from ${formatNumber(baseLimit)} to ${formatNumber(headLimit)}${unit}. Baselines only move down; bring the measurement back under ${formatNumber(baseLimit)} or make the case for the increase in the PR.`
+            );
+        } else if (headLimit < baseLimit) {
             result.lowered.push(
-                `${label}: ${formatNumber(baseEntry.value)} -> ${formatNumber(headEntry.value)}${unit}.`
+                `${label}: ${formatNumber(baseLimit)} -> ${formatNumber(headLimit)}${unit}.`
             );
         } else {
             result.unchanged.push(label);
