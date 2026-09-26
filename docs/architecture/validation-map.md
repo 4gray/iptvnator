@@ -135,6 +135,16 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
+CI runs the Electron suite as three Playwright shards per OS
+(`--shard=<n>/3`, split by spec file because the suite is sequential). Each
+shard uploads `playwright-report-electron-<os>-<n>`; the follow-up
+`Electron E2E summary` job downloads the shards of each OS into their own
+directory and runs the summary per OS with `--input=<directory>` and
+`--output-dir=coverage/e2e/<os>`. A directory input merges every
+`results.json` beneath it and fails when a shard is missing or duplicated, so
+the summary never reports a partial run as complete. Tests for that merge live
+in `tools/coverage/e2e-shard-reports.test.mjs` (`pnpm run coverage:tools:test`).
+
 For local investigation only, Chromium browser V8 coverage can be explored with:
 
 ```bash

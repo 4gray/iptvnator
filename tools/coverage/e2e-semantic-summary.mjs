@@ -11,6 +11,13 @@ import {
 import path from 'node:path';
 import process from 'node:process';
 
+import {
+    describeShardReports,
+    findPlaywrightJsonReports,
+    loadPlaywrightReports,
+    verifyShardReports,
+} from './e2e-shard-reports.mjs';
+
 const workspaceRoot = process.cwd();
 const args = process.argv.slice(2);
 const projectArg = valueFor('--project');
@@ -18,7 +25,12 @@ const inputArg = valueFor('--input');
 const policy = JSON.parse(
     readFileSync(path.join(workspaceRoot, 'tools/coverage/coverage-policy.json'), 'utf8')
 );
-const outputDir = path.join(workspaceRoot, policy.reporting.e2eSummaryDir);
+const outputDirArg = valueFor('--output-dir');
+const outputDir = path.resolve(
+    workspaceRoot,
+    outputDirArg ?? policy.reporting.e2eSummaryDir
+);
+const outputDirLabel = outputDirArg ?? policy.reporting.e2eSummaryDir;
 
 function valueFor(flag) {
     const prefixed = args.find((arg) => arg.startsWith(`${flag}=`));
@@ -57,8 +69,19 @@ function tagsFromTitle(title) {
     );
 }
 
-function collectFromPlaywrightJson(filePath, projectName) {
-    const report = JSON.parse(readFileSync(filePath, 'utf8'));
+function fail(message) {
+    console.error(`e2e-semantic-summary: ${message}`);
+    if (process.env.GITHUB_STEP_SUMMARY) {
+        writeFileSync(
+            process.env.GITHUB_STEP_SUMMARY,
+            `\n> **E2E semantic summary not written:** ${message}\n`,
+            { flag: 'a' }
+        );
+    }
+    process.exit(1);
+}
+
+function collectFromPlaywrightJson(report, projectName) {
     const tests = [];
 
     function walkSuite(suite, inheritedFile) {
@@ -137,16 +160,58 @@ function defaultInputFor(projectName) {
     return path.join(workspaceRoot, 'dist/test-results', projectName, 'results.json');
 }
 
-function collectTests(projectName) {
+/**
+ * `--output-dir` overrides the policy's summary directory so several runs
+ * (one per OS in CI) can be summarized side by side in one job.
+ *
+ * `--input` may name one Playwright JSON report or a directory that holds the
+ * `results.json` of every shard (as downloaded from the per-shard CI
+ * artifacts). An explicit input that does not exist, a directory without any
+ * report, or an incomplete or duplicated shard set aborts instead of writing
+ * a partial summary. Only the implicit default falls back to scanning the
+ * spec sources.
+ */
+function resolveReportPaths(projectName) {
     const inputPath = inputArg
         ? path.resolve(workspaceRoot, inputArg)
         : defaultInputFor(projectName);
 
-    if (existsSync(inputPath)) {
-        return collectFromPlaywrightJson(inputPath, projectName);
+    if (!existsSync(inputPath)) {
+        if (inputArg) {
+            fail(`Playwright JSON report input does not exist: ${inputPath}`);
+        }
+        return [];
+    }
+    if (!statSync(inputPath).isDirectory()) {
+        return [inputPath];
+    }
+    const found = findPlaywrightJsonReports(inputPath);
+    if (found.length === 0) {
+        fail(`no Playwright JSON reports (results.json) found under ${inputPath}`);
+    }
+    return found;
+}
+
+function collectTests(projectName) {
+    const reportPaths = resolveReportPaths(projectName);
+    if (reportPaths.length === 0) {
+        return { tests: collectFromSource(projectName), reports: [] };
     }
 
-    return collectFromSource(projectName);
+    const reports = loadPlaywrightReports(reportPaths);
+    const verification = verifyShardReports(reports);
+    if (!verification.ok) {
+        fail(
+            `${projectName} reports do not form one complete run: ${verification.problems.join('; ')}`
+        );
+    }
+
+    return {
+        tests: reports.flatMap((entry) =>
+            collectFromPlaywrightJson(entry.report, projectName)
+        ),
+        reports,
+    };
 }
 
 function statusCounts(tests) {
@@ -174,7 +239,7 @@ function journeyMatches(journey, tests) {
     );
 }
 
-function markdownFor(projectName, tests) {
+function markdownFor(projectName, tests, reportsLabel) {
     const counts = statusCounts(tests);
     const countsText = Object.entries(counts)
         .map(([status, count]) => `${status}: ${count}`)
@@ -197,6 +262,8 @@ function markdownFor(projectName, tests) {
 
 Source: ${tests.some((test) => test.status === 'not-run') ? 'spec source scan' : 'Playwright JSON report'}
 
+Reports: ${reportsLabel}
+
 Total tracked tests: ${tests.length}
 
 Statuses: ${countsText || 'none'}
@@ -216,12 +283,23 @@ ${journeys || '| _none_ | _n/a_ | 0 | missing |'}
 }
 
 const projects = projectArg ? [projectArg] : ['web-e2e', 'electron-backend-e2e'];
-const allTests = projects.flatMap((projectName) => collectTests(projectName));
+const collected = projects.map((projectName) => ({
+    projectName,
+    ...collectTests(projectName),
+}));
+const allTests = collected.flatMap((entry) => entry.tests);
+const reportsLabel = collected
+    .map((entry) =>
+        projectArg
+            ? describeShardReports(entry.reports)
+            : `${entry.projectName}: ${describeShardReports(entry.reports)}`
+    )
+    .join('; ');
 
 mkdirSync(outputDir, { recursive: true });
 
 if (projectArg) {
-    const content = markdownFor(projectArg, allTests);
+    const content = markdownFor(projectArg, allTests, reportsLabel);
     writeFileSync(path.join(outputDir, `${projectArg}-semantic-summary.md`), content);
     writeFileSync(
         path.join(outputDir, `${projectArg}-semantic-summary.json`),
@@ -230,9 +308,9 @@ if (projectArg) {
     if (process.env.GITHUB_STEP_SUMMARY) {
         writeFileSync(process.env.GITHUB_STEP_SUMMARY, `\n${content}\n`, { flag: 'a' });
     }
-    console.log(`Wrote ${policy.reporting.e2eSummaryDir}/${projectArg}-semantic-summary.md`);
+    console.log(`Wrote ${outputDirLabel}/${projectArg}-semantic-summary.md`);
 } else {
-    const content = markdownFor(undefined, allTests);
+    const content = markdownFor(undefined, allTests, reportsLabel);
     writeFileSync(path.join(outputDir, 'semantic-summary.md'), content);
     writeFileSync(
         path.join(outputDir, 'semantic-summary.json'),
@@ -241,5 +319,5 @@ if (projectArg) {
     if (process.env.GITHUB_STEP_SUMMARY) {
         writeFileSync(process.env.GITHUB_STEP_SUMMARY, `\n${content}\n`, { flag: 'a' });
     }
-    console.log(`Wrote ${policy.reporting.e2eSummaryDir}/semantic-summary.md`);
+    console.log(`Wrote ${outputDirLabel}/semantic-summary.md`);
 }
