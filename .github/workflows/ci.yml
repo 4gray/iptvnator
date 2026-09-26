@@ -147,6 +147,23 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            # The ratchet below compares a measurement with the baselines file
+            # of the same commit, so it cannot see a PR that grows the payload
+            # and raises the baseline to match. Compare the file with the
+            # target branch instead: any raised or removed entry fails.
+            - name: Refuse baseline increases against the target branch
+              if: github.event_name == 'pull_request'
+              env:
+                  BASE_REF: ${{ github.base_ref }}
+              run: |
+                  set -euo pipefail
+                  git fetch --no-tags --depth=1 origin "$BASE_REF"
+                  git show "FETCH_HEAD:tools/performance/journey-baselines.json" > /tmp/base-journey-baselines.json 2>/dev/null ||
+                      rm -f /tmp/base-journey-baselines.json
+                  node tools/performance/check-baseline-direction.mjs \
+                      --base /tmp/base-journey-baselines.json \
+                      --head tools/performance/journey-baselines.json
+
             # The production configuration is what users download; measuring
             # any other build would ratchet a number nobody ships.
             - name: Build web app (production)

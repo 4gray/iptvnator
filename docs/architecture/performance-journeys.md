@@ -108,7 +108,13 @@ CI runs `perf:initial-bytes:check` in the `Initial bytes ratchet` job of
 rest of that workflow it runs for pull requests that target `master` and for
 pushes to `master`; a stacked PR that targets another branch gets no run until
 it is retargeted, so dispatch one with `gh workflow run ci.yml --ref <branch>`
-when you need the number. A PR that grows the counter fails that job. That runner is the canonical measurer: take baseline values from its
+when you need the number. A PR that grows the counter fails that job.
+
+The job also refuses a weakened baselines file: on a pull request,
+`tools/performance/check-baseline-direction.mjs` compares
+`journey-baselines.json` with the target branch's copy and fails when any
+entry's value went up or an entry disappeared, so a PR cannot grow the payload
+and raise the baseline to match. Lowered values and new entries pass. That runner is the canonical measurer: take baseline values from its
 output, not from a local build. A local build is a preview; before #1695 a
 macOS build of the same commit differed from the runner by a few hundred
 bytes in `main.js`, and since then the two have been byte-identical.
