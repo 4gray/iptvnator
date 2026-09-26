@@ -6,7 +6,7 @@
                 "value": 2750491,
                 "unit": "bytes",
                 "updatedAt": "2026-09-26",
-                "evidencePr": null,
+                "evidencePr": 1693,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
             }
         }
