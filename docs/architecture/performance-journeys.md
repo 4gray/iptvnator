@@ -67,11 +67,10 @@ counter:
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 2751047,
+                "value": 2739508,
                 "unit": "bytes",
                 "updatedAt": "2026-09-26",
                 "evidencePr": 1693,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/36222771094",
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
             }
         }
