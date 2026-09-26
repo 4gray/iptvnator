@@ -127,6 +127,9 @@
                                         : null
                                 "
                                 (click)="selectGroup(group.key)"
+                                (contextmenu)="
+                                    onGroupContextMenu(group.key, $event)
+                                "
                             >
                                 <span class="nav-item-label">
                                     @if (group.key) {
@@ -354,3 +357,10 @@
         <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
     </button>
 </mat-menu>
+
+<app-category-lock-menu
+    #groupLockMenu
+    lockLabelKey="PARENTAL_LOCK.LOCK_GROUP"
+    unlockLabelKey="PARENTAL_LOCK.UNLOCK_GROUP"
+    (toggleRequested)="onGroupLockToggle($event)"
+/>

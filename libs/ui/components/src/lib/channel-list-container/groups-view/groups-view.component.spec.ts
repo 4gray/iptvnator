@@ -537,6 +537,37 @@ describe('GroupsViewComponent', () => {
         ]);
     });
 
+    it('locks and unlocks one group from the right-click menu behind the PIN gate', async () => {
+        const lockedGroupTitlesChanged = jest.fn();
+        component.lockedGroupTitlesChanged.subscribe(lockedGroupTitlesChanged);
+        fixture.componentRef.setInput('lockedGroupTitles', ['News']);
+        fixture.detectChanges();
+        const event = new MouseEvent('contextmenu', { cancelable: true });
+
+        component.onGroupContextMenu('Sports', event);
+        expect(event.defaultPrevented).toBe(true);
+        await component.onGroupLockToggle(true);
+        expect(lockedGroupTitlesChanged).toHaveBeenLastCalledWith([
+            'News',
+            'Sports',
+        ]);
+
+        component.onGroupContextMenu('News', event);
+        await component.onGroupLockToggle(false);
+        expect(lockedGroupTitlesChanged).toHaveBeenLastCalledWith([]);
+
+        parentalLock.requestUnlock.mockResolvedValueOnce(false);
+        component.onGroupContextMenu('Movies', event);
+        await component.onGroupLockToggle(true);
+        expect(lockedGroupTitlesChanged).toHaveBeenCalledTimes(2);
+    });
+
+    it('offers no group lock menu while the feature is off', () => {
+        const event = new MouseEvent('contextmenu', { cancelable: true });
+        component.onGroupContextMenu('Sports', event);
+        expect(event.defaultPrevented).toBe(false);
+    });
+
     it('keeps the manage-groups dialog closed when the parental PIN is refused', async () => {
         // The dialog names every locked group and can rewrite the locks.
         parentalLock.requestUnlock.mockResolvedValueOnce(false);

@@ -284,46 +284,47 @@ on either side.
   disclaimer. Everything applies immediately (it gates on the PIN), outside
   the shared dirty form; `createSettingsFromFormValue` carries both values
   from the current settings so Save cannot undo them.
-- Lock toggles in the Xtream category-management dialog and the M3U group
-  dialog (rendered only while the feature is on), plus a new Stalker
-  `StalkerCategoryLockDialogComponent` reached from a lock button above the
-  categories rail; it offers "Lock adult (18+)" for genres the portal flags
-  `censored`. All three list the locked names and can rewrite the locks, so
-  each opens only after `requestUnlock()` succeeds — and closes itself,
-  discarding the draft, the moment `active` becomes true again (idle relock,
-  Lock now), since the PIN gate covers only the opening. The M3U group
-  dialog does this only while it carries lock toggles; the plain hide/show
-  editor is not behind the PIN. The Xtream dialog loads
-  its candidates through the capability-selected data source
-  (`IXtreamDataSource.getAllCategories`, which the PWA source answers from
-  its session cache or the API), so PWA users can set locks too; the
-  hide/show checkboxes remain Electron-only. The relock timeout persists
-  through the same undo-on-failure pattern as the switch
-  (`setRelockMinutes` reverts the in-memory value and the facade shows the
-  settings save-failure snackbar). The M3U dialog hands its lock
-  list back to `ChannelListContainerComponent`, which awaits the write and
-  reports a failed save in a snackbar (the dialog has closed by then). On
-  Electron the `categories.locked` re-stamp (`setCategoryLocks`) clears and
-  re-locks one playlist/type inside ONE transaction, so a failed restamp
-  keeps the previous index instead of leaving every category unlocked. The
-  store commits BEFORE that re-stamp, so a failed re-stamp rolls the store
-  back to the previous locks AND re-stamps every touched type from them (a
-  backup restore stamps three types, and the ones before the failing type
-  already carry the new locks; a category must not be recorded and shown
-  as locked while Electron reads, which filter by the index alone, still
-  serve it), and the store revision consumers reload on is published only
-  once every touched type is stamped, so a reload cannot read a later type
-  through its old stamps; if the rollback write or its re-stamp fails too, the playlist is
-  re-stamped on the next store access, and every launch re-derives the
-  index from the store for each playlist that has locks — which is why a
-  write that removes a playlist's LAST lock clears the index first and
-  drops the key afterwards (the reconcile finds playlists only through
-  their key; an interruption then leaves store-with-lock and index-without,
-  which the next reconcile repairs toward locked; a store recovered by a
-  later successful read marks its playlists stale the same way) — awaited inside
-  the store's `load()`, so `readable` (and with it every catalog read the
-  renderer gates) stays false until the index agrees with the store; a
-  re-stamp that keeps failing keeps the session fail-closed.
+- One entry point per rail, the same on every portal type: the "Manage
+  categories" button (`tune` icon; "Manage groups" on an M3U playlist).
+  Xtream and M3U render lock toggles inside their existing hide/show
+  dialogs while the feature is on; Stalker has no hide/show dialog, so its
+  button — shown only while the feature is on — opens the lock-only
+  `StalkerCategoryLockDialogComponent`, which also offers "Lock adult
+  (18+)" for genres the portal flags `censored`. All three list the locked
+  names and can rewrite the locks, so each opens only after
+  `requestUnlock()` succeeds — and closes itself, discarding the draft, the
+  moment `active` becomes true again (idle relock, Lock now), since the
+  PIN gate covers only the opening. The M3U group dialog does this only
+  while it carries lock toggles; the plain hide/show editor is not behind
+  the PIN. The Xtream dialog loads its candidates through the
+  capability-selected data source (`IXtreamDataSource.getAllCategories`,
+  which the PWA source answers from its session cache or the API), so PWA
+  users can set locks too; the hide/show checkboxes remain Electron-only.
+  A deliberate non-choice: no dedicated lock button in the rail header
+  (the header already carries search, sort and manage, and the lock is a
+  category-management concern) and no keyword-based "adult" recognition
+  for Xtream/M3U (provider naming is arbitrary; the only automation is the
+  portal's own `censored` flag on Stalker).
+- Right-click accelerator: a `contextmenu` on a category row (Xtream and
+  Stalker rail, `WorkspaceContextCategoryViewComponent`) or an M3U group
+  row opens the shared `CategoryLockMenuComponent` (`libs/ui/components`)
+  with one "Lock / Unlock category (group)" item, only while the feature
+  is on. The portal rail persists through
+  `WorkspaceCategoryLockActionService` (PIN gate, then one-id edit of the
+  lock store, failure snackbar); the M3U rail emits the edited list to
+  `ChannelListContainerComponent`, which persists it like the dialog's
+  result. Bulk actions stay in the dialog, and while the session is locked
+  a locked category is not in the rail, so unlocking always goes through
+  the "N locked · Enter PIN to show" row or the dialog. The M3U dialog
+  hands its lock list back to `ChannelListContainerComponent`, which
+  awaits the write and reports a failed save in a snackbar (the dialog has
+  closed by then). On Electron the `categories.locked` re-stamp
+  (`setCategoryLocks`) clears and re-locks one playlist/type inside ONE
+  transaction, so a failed restamp keeps the previous index instead of
+  leaving every category unlocked. The relock timeout persists through the
+  same undo-on-failure pattern as the switch (`setRelockMinutes` reverts
+  the in-memory value and the facade shows the settings save-failure
+  snackbar).
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 

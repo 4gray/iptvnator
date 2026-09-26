@@ -78,19 +78,21 @@
                         <mat-icon>tune</mat-icon>
                     </button>
                 }
-                @if (canLockStalkerCategories()) {
+                @if (canManageStalkerCategories()) {
                     <button
                         type="button"
                         mat-icon-button
                         class="context-header__action"
-                        data-test-id="context-lock-categories"
-                        (click)="openLockStalkerCategories()"
-                        [matTooltip]="'PARENTAL_LOCK.MANAGE_LOCKS' | translate"
+                        data-test-id="context-manage-categories"
+                        (click)="openManageStalkerCategories()"
+                        [matTooltip]="
+                            'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
+                        "
                         [attr.aria-label]="
-                            'PARENTAL_LOCK.MANAGE_LOCKS' | translate
+                            'WORKSPACE.CONTEXT.MANAGE_CATEGORIES' | translate
                         "
                     >
-                        <mat-icon>lock</mat-icon>
+                        <mat-icon>tune</mat-icon>
                     </button>
                 }
                 @if (canHideCategories()) {
@@ -170,6 +172,9 @@
                 [interactionEnabled]="isXtreamCategoryInteractionEnabled()"
                 [statusText]="xtreamStatusText()"
                 (categoryClicked)="onXtreamCategoryClicked($event)"
+                (categoryContextMenuRequested)="
+                    onCategoryContextMenu('xtreams', $event)
+                "
             />
         }
     } @else if (isStalkerCategories()) {
@@ -202,6 +207,9 @@
                 [countDisplayMode]="stalkerCountDisplayMode()"
                 [omitMissingCounts]="true"
                 (categoryClicked)="onStalkerCategoryClicked($any($event))"
+                (categoryContextMenuRequested)="
+                    onCategoryContextMenu('stalker', $event)
+                "
             />
         }
     }
@@ -227,3 +235,8 @@
         </button>
     }
 </div>
+
+<app-category-lock-menu
+    #categoryLockMenu
+    (toggleRequested)="onCategoryLockToggle($event)"
+/>

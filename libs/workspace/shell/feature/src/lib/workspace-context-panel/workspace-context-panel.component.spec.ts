@@ -473,9 +473,9 @@ describe('WorkspaceContextPanelComponent', () => {
             el.textContent?.includes('For adults')
         );
 
-        expect(documentary?.querySelector('.item-count')?.textContent).toContain(
-            '190'
-        );
+        expect(
+            documentary?.querySelector('.item-count')?.textContent
+        ).toContain('190');
         expect(adults?.querySelector('.item-count')).toBeNull();
     });
 
@@ -527,7 +527,9 @@ describe('WorkspaceContextPanelComponent', () => {
 
             button?.click();
 
-            expect(liveSidebarService.stateOf('portal')()).toBe('categories-hidden');
+            expect(liveSidebarService.stateOf('portal')()).toBe(
+                'categories-hidden'
+            );
         });
 
         it('offers it for Stalker itv and radio too', () => {
@@ -826,7 +828,9 @@ describe('WorkspaceContextPanelComponent', () => {
                 ) as never
             );
 
-            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
+            expect(
+                fixture.componentInstance.stalkerCategoryErrorDescription()
+            ).toBe(
                 'PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT device conflict - device_id mismatch — Your STB is damaged.'
             );
         });
@@ -836,9 +840,9 @@ describe('WorkspaceContextPanelComponent', () => {
                 new StalkerPortalError('blocked', 'Account disabled') as never
             );
 
-            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
-                'Account disabled'
-            );
+            expect(
+                fixture.componentInstance.stalkerCategoryErrorDescription()
+            ).toBe('Account disabled');
         });
     });
 });

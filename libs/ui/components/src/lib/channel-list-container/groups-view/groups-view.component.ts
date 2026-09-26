@@ -41,6 +41,7 @@ import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
+import { CategoryLockMenuComponent } from '../../category-lock-menu/category-lock-menu.component';
 import { ResizableDirective } from '../../resizable/resizable.directive';
 import {
     GroupManagementDialogComponent,
@@ -70,6 +71,7 @@ interface FilteredGroupView {
     styleUrls: ['./groups-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        CategoryLockMenuComponent,
         ChannelScrollFocusDirective,
         ChannelListItemComponent,
         MatButtonModule,
@@ -187,6 +189,10 @@ export class GroupsViewComponent {
      * guide's initial scope from it.
      */
     readonly selectedGroupChange = output<string | null>();
+
+    private readonly groupLockMenu =
+        viewChild<CategoryLockMenuComponent>('groupLockMenu');
+    private groupLockKey: string | null = null;
 
     readonly isGroupSearchOpen = signal(false);
     readonly localGroupSearchTerm = signal('');
@@ -487,6 +493,37 @@ export class GroupsViewComponent {
 
     updateGroupSearchTerm(value: string): void {
         this.localGroupSearchTerm.set(value);
+    }
+
+    /**
+     * Right-click accelerator of the parental lock for one group; the host
+     * persists the emitted list exactly as it does for the dialog. No menu
+     * while the feature is off (`lockedGroupTitles` is null then).
+     */
+    onGroupContextMenu(groupKey: string, event: MouseEvent): void {
+        const locked = this.lockedGroupTitles();
+        if (locked === null) {
+            return;
+        }
+        this.groupLockKey = groupKey;
+        this.groupLockMenu()?.open(event, locked.includes(groupKey));
+    }
+
+    async onGroupLockToggle(lock: boolean): Promise<void> {
+        const groupKey = this.groupLockKey;
+        this.groupLockKey = null;
+        const current = this.lockedGroupTitles();
+        if (groupKey === null || current === null) {
+            return;
+        }
+        if (!(await this.parentalLock.requestUnlock())) {
+            return;
+        }
+        this.lockedGroupTitlesChanged.emit(
+            lock
+                ? [...new Set([...current, groupKey])]
+                : current.filter((title) => title !== groupKey)
+        );
     }
 
     async openGroupManagement(): Promise<void> {

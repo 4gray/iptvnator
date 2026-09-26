@@ -35,7 +35,15 @@ import {
     toParentalLockStalkerCategoryType,
     toParentalLockXtreamCategoryType,
 } from '@iptvnator/shared/interfaces';
-import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
+import { CategoryLockMenuComponent } from '@iptvnator/ui/components';
+import {
+    WorkspaceCategoryViewItem,
+    WorkspaceContextCategoryViewComponent,
+} from './components/workspace-context-category-view.component';
+import {
+    CategoryLockTarget,
+    WorkspaceCategoryLockActionService,
+} from './workspace-category-lock-action.service';
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
 import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
@@ -63,6 +71,7 @@ interface WorkspaceCategoryLike {
 @Component({
     selector: 'app-workspace-context-panel',
     imports: [
+        CategoryLockMenuComponent,
         MatIconButton,
         MatIcon,
         MatMenuModule,
@@ -94,6 +103,12 @@ export class WorkspaceContextPanelComponent {
     );
     private readonly liveSidebarState = inject(LiveLayoutSidebarStateService);
     private readonly parentalLock = inject(ParentalLockService);
+    private readonly categoryLockAction = inject(
+        WorkspaceCategoryLockActionService
+    );
+    private readonly categoryLockMenu =
+        viewChild<CategoryLockMenuComponent>('categoryLockMenu');
+    private categoryLockTarget: CategoryLockTarget | null = null;
 
     readonly context = input.required<WorkspaceContextRoute>();
     readonly section = input.required<string>();
@@ -180,8 +195,12 @@ export class WorkspaceContextPanelComponent {
     readonly canManageXtreamCategories = computed(
         () => this.isXtreamCategories() && this.xtreamSelectedTypeCountsReady()
     );
-    /** Stalker has no hide/show dialog; its lock dialog exists only with the lock on. */
-    readonly canLockStalkerCategories = computed(
+    /**
+     * Stalker has no hide/show dialog, so its "Manage categories" is the
+     * lock dialog alone and exists only while the lock is on — same button,
+     * same icon as the Xtream rail, so the entry point is one pattern.
+     */
+    readonly canManageStalkerCategories = computed(
         () =>
             this.isStalkerCategories() &&
             this.parentalLock.enabled() &&
@@ -460,8 +479,47 @@ export class WorkspaceContextPanelComponent {
         await this.parentalLock.requestUnlock();
     }
 
-    async openLockStalkerCategories(): Promise<void> {
-        if (!this.canLockStalkerCategories()) {
+    /**
+     * Right-click accelerator: one row's lock toggled without the dialog.
+     * Silently no menu while the feature is off — the row keeps its
+     * ordinary behaviour.
+     */
+    onCategoryContextMenu(
+        provider: 'xtreams' | 'stalker',
+        request: { item: WorkspaceCategoryViewItem; event: MouseEvent }
+    ): void {
+        if (!this.categoryLockAction.enabled()) {
+            return;
+        }
+        const target: CategoryLockTarget = {
+            provider,
+            playlistId: this.context().playlistId,
+            section: this.section(),
+            item: request.item,
+        };
+        if (
+            provider === 'stalker' &&
+            String(request.item.category_id ?? request.item.id) === '*'
+        ) {
+            return;
+        }
+        this.categoryLockTarget = target;
+        this.categoryLockMenu()?.open(
+            request.event,
+            this.categoryLockAction.isLocked(target)
+        );
+    }
+
+    async onCategoryLockToggle(locked: boolean): Promise<void> {
+        const target = this.categoryLockTarget;
+        this.categoryLockTarget = null;
+        if (target) {
+            await this.categoryLockAction.setLocked(target, locked);
+        }
+    }
+
+    async openManageStalkerCategories(): Promise<void> {
+        if (!this.canManageStalkerCategories()) {
             return;
         }
         if (!(await this.parentalLock.requestUnlock())) {

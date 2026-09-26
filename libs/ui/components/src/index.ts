@@ -32,3 +32,4 @@ export * from './lib/watched-badge/watched-badge.component';
 export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
+export * from './lib/category-lock-menu/category-lock-menu.component';
