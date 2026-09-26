@@ -1,8 +1,38 @@
-// Glass card; the controls host positions it (bottom-right, above the dock)
-// and reads the `--pc-*` palette it declares.
+// Glass card, bottom-right above the dock, inside the controls host (the
+// `player-controls` container) whose `--pc-*` palette it reads. It does not
+// fade with the controls: near the end of an episode it is worth seeing.
 :host {
+    position: absolute;
+    right: 32px;
+    bottom: 136px;
+    z-index: 3;
     display: block;
+    max-width: calc(100cqw - 64px);
     pointer-events: auto;
+    animation: player-up-next-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:host(.player-up-next--compact) {
+    right: 12px;
+    bottom: 92px;
+    max-width: calc(100cqw - 24px);
+}
+
+@keyframes player-up-next-in {
+    from {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        animation: none;
+    }
 }
 
 .player-up-next__button {

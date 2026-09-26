@@ -1,0 +1,98 @@
+<span class="player-controls__time player-controls__time--current">{{
+    formatTime(timeline().value())
+}}</span>
+@if (seekable()) {
+    <div
+        class="player-controls__timeline-bar"
+        [class.player-controls__timeline-bar--disabled]="!canSeek()"
+        (pointermove)="hover().move($event)"
+        (pointerleave)="hover().clear()"
+    >
+        <div class="player-controls__timeline-track" aria-hidden="true">
+            @for (segment of timeline().segments(); track $index) {
+                <div
+                    class="player-controls__timeline-segment"
+                    [class.player-controls__timeline-segment--titled]="
+                        segment.title !== null
+                    "
+                    [style.left.%]="segment.startPercent"
+                    [style.width]="segment.width"
+                    [attr.data-segment-title]="segment.title"
+                >
+                    <div
+                        class="player-controls__timeline-fill"
+                        [style.width.%]="timeline().fillPercent(segment)"
+                    ></div>
+                </div>
+            }
+        </div>
+        @if (canSeek()) {
+            <div
+                class="player-controls__timeline-knob"
+                [style.left.%]="timeline().progress()"
+                aria-hidden="true"
+            ></div>
+        }
+        @if (hover().percent() !== null) {
+            <div
+                class="player-controls__timeline-marker"
+                [style.left.%]="hover().percent()"
+                aria-hidden="true"
+            ></div>
+            <div
+                class="player-controls__timeline-label"
+                [style.--hover-x.%]="hover().percent()"
+                data-test-id="player-controls-timeline-label"
+                aria-hidden="true"
+            >
+                {{ hover().label() }}
+            </div>
+        }
+        <input
+            class="player-controls__slider player-controls__slider--timeline"
+            [style.--slider-progress.%]="timeline().progress()"
+            type="range"
+            min="0"
+            [max]="timeline().duration()"
+            [value]="timeline().value()"
+            [disabled]="!canSeek()"
+            [attr.aria-label]="
+                'EMBEDDED_MPV.PLAYER.PLAYBACK_POSITION' | translate
+            "
+            [attr.aria-valuetext]="formatTime(timeline().value())"
+            (input)="scrubInput.emit($event)"
+            (change)="scrubCommit.emit($event)"
+        />
+    </div>
+} @else {
+    <div class="player-controls__timeline-spacer"></div>
+}
+@if (canSeek() && remaining(); as remaining) {
+    <span
+        class="player-controls__time player-controls__time--end"
+        data-test-id="player-controls-remaining-time"
+        >{{ remaining }}</span
+    >
+} @else if (isLive()) {
+    <span
+        class="player-controls__live-badge"
+        [attr.aria-label]="'EMBEDDED_MPV.PLAYER.LIVE_STREAM' | translate"
+    >
+        <span class="player-controls__live-dot" aria-hidden="true"></span>
+        LIVE
+    </span>
+} @else {
+    <span class="player-controls__time player-controls__time--end">--:--</span>
+}
+@if (recordingStatus(); as status) {
+    <div
+        class="player-controls__recording-status"
+        [class.player-controls__recording-status--active]="recording()"
+        [attr.aria-live]="recording() ? 'off' : 'polite'"
+    >
+        <mat-icon>{{
+            recording() ? 'fiber_manual_record' : 'check_circle'
+        }}</mat-icon>
+        <span>{{ status }}</span>
+    </div>
+}

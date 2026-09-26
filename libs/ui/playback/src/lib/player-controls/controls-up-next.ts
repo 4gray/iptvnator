@@ -18,9 +18,10 @@ export interface ControlsUpNextDeps {
 }
 
 /**
- * When the "Up next" card shows: a series host supplied the next episode,
- * the engine can actually switch to it, the episode has a known length,
- * and no more than the threshold of it is left. Live streams and open-ended
+ * When the "Up next" card shows: a series host supplied the next episode
+ * (possibly the first of the following season, which the transport's
+ * season-local `canNextEpisode` does not cover), the engine plays series,
+ * the episode has a known length, and no more than the threshold is left. Live streams and open-ended
  * VOD never qualify because they have no remaining time to count down.
  */
 export class ControlsUpNext {
@@ -50,7 +51,6 @@ export class ControlsUpNext {
             // An ended episode with autoplay off schedules no switch: a
             // countdown would promise one. Autoplay replaces the playback.
             state.status === 'ended' ||
-            !state.canNextEpisode ||
             !this.deps.capabilities().seriesNavigation ||
             !this.deps.showControls() ||
             this.deps.settingsOpen()

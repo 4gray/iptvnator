@@ -32,7 +32,7 @@ import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
 import { ControlsVolumeInteractions } from './controls-volume-interactions';
 import { ControlsSubtitleSettings } from './controls-subtitle-settings';
-import { formatRemainingTime, formatTime } from './controls-format.utils';
+import { formatRemainingTime } from './controls-format.utils';
 import type {
     PlayerController,
     PlayerMediaTitle,
@@ -40,6 +40,7 @@ import type {
     PlayerUpNextItem,
 } from './player-controls.model';
 import { PlayerSettingsPanelComponent } from './player-settings-panel.component';
+import { PlayerTimelineComponent } from './player-timeline.component';
 import { PlayerUpNextCardComponent } from './player-up-next-card.component';
 
 @Component({
@@ -52,6 +53,7 @@ import { PlayerUpNextCardComponent } from './player-up-next-card.component';
         MatTooltipModule,
         TranslatePipe,
         PlayerSettingsPanelComponent,
+        PlayerTimelineComponent,
         PlayerUpNextCardComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -162,11 +164,8 @@ export class PlayerControlsComponent implements OnDestroy {
     private readonly controllerVolume = computed(() => this.state().volume);
     readonly timeline = new ControlsTimeline(this.state, this.timelineSegments);
     readonly scrubPosition = this.timeline.scrubPosition;
-    readonly timelineDuration = this.timeline.duration;
-    readonly timelineValue = this.timeline.value;
-    readonly timelineProgress = this.timeline.progress;
     readonly timelineHover = new ControlsTimelineHover({
-        duration: this.timelineDuration,
+        duration: this.timeline.duration,
         interactive: computed(
             () => this.capabilities().seek && this.state().canSeek
         ),
@@ -174,7 +173,7 @@ export class PlayerControlsComponent implements OnDestroy {
     });
     /** `−7:03` while a finite duration is known; the dock prefers it to the total. */
     readonly remainingTimeText = computed(() =>
-        formatRemainingTime(this.timelineValue(), this.timelineDuration())
+        formatRemainingTime(this.timeline.value(), this.timeline.duration())
     );
 
     readonly displayVolume = this.volume.value;
@@ -331,7 +330,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.surface.dispose();
         this.streamStats.dispose();
     }
-    formatTime = formatTime;
     togglePlay(): void {
         this.reveal();
         if (!this.canTogglePlay()) {

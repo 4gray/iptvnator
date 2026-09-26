@@ -149,6 +149,36 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         expect(component.playerUpNext()).toBeNull();
     });
 
+    it('plays the next season through the rail path once the season is over', async () => {
+        await setup(true);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        const selected = jest.fn();
+        const next = jest.fn();
+        component.upNextEpisodeSelected.subscribe(selected);
+        component.nextEpisodeRequested.subscribe(next);
+
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: false,
+        });
+        fixture.detectChanges();
+        component.onNextEpisodeRequested();
+        expect(selected).toHaveBeenCalledWith(upNextItems[1]);
+        expect(next).not.toHaveBeenCalled();
+
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: true,
+            autoplayEnabled: false,
+        });
+        fixture.detectChanges();
+        component.onNextEpisodeRequested();
+        expect(next).toHaveBeenCalledTimes(1);
+        expect(selected).toHaveBeenCalledTimes(1);
+    });
+
     /** Renders, then feeds a stage size as the ResizeObserver would. */
     function renderWithStage(width: number, height: number): void {
         fixture.detectChanges();

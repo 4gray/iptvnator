@@ -108,7 +108,7 @@ describe('PlayerControlsComponent capability contract', () => {
         return event.defaultPrevented;
     }
 
-    it('keeps narrow-player popovers outside clipping scroll containers', () => {
+    it('lets the compact action cluster wrap instead of clipping or scrolling', () => {
         const narrowActionsRule =
             PLAYER_CONTROLS_STYLE_SOURCE.match(
                 /\.player-controls__actions\s*\{([\s\S]*?)\}/g
@@ -120,9 +120,6 @@ describe('PlayerControlsComponent capability contract', () => {
         expect(narrowActionsRule).toContain('flex-wrap: wrap');
         expect(narrowActionsRule).toContain('overflow: visible');
         expect(narrowActionsRule).not.toContain('overflow-x: auto');
-        expect(PLAYER_CONTROLS_STYLE_SOURCE).toMatch(
-            /\.player-controls__actions \.player-controls__popover-anchor\s*\{\s*position:\s*static;/
-        );
     });
 
     it('routes shortcuts to the player the user interacted with most recently', () => {

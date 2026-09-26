@@ -2,6 +2,8 @@ import {
     ChangeDetectionStrategy,
     Component,
     ElementRef,
+    OnDestroy,
+    afterNextRender,
     computed,
     effect,
     inject,
@@ -42,11 +44,14 @@ export type PlayerSettingsPanelMode = 'panel' | 'sheet';
     host: {
         class: 'player-settings',
         role: 'dialog',
+        tabindex: '-1',
         '[class.player-settings--sheet]': 'mode() === "sheet"',
         '[attr.aria-label]': 'title()',
+        '(focusin)': 'focusInside = true',
+        '(focusout)': 'onFocusOut($event)',
     },
 })
-export class PlayerSettingsPanelComponent {
+export class PlayerSettingsPanelComponent implements OnDestroy {
     private readonly host: HTMLElement =
         inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     readonly controller = input.required<PlayerController>();
@@ -68,7 +73,27 @@ export class PlayerSettingsPanelComponent {
     readonly subtitleDelayStep = SUBTITLE_DELAY_STEP_SECONDS;
     readonly subtitleDelayLabel = subtitleDelayLabel;
 
+    /** The control that opened the panel, and whether the keyboard did. */
+    private readonly opener = document.activeElement;
+    private readonly openedByKeyboard =
+        this.opener instanceof HTMLElement &&
+        this.opener !== document.body &&
+        !!this.opener.closest('.player-controls-host') &&
+        matchesFocusVisible(this.opener);
+    focusInside = false;
+    /** Recorded after render: on destroy the panel is already detached. */
+    private controlsHost: Element | null = null;
+
     constructor() {
+        // Keyboard users land inside the dialog; a pointer open leaves focus
+        // alone (a focused control would capture Space from the shortcuts).
+        afterNextRender(() => {
+            this.controlsHost = this.host.closest('.player-controls-host');
+            if (this.openedByKeyboard) {
+                this.host.focus({ preventScroll: true });
+                this.focusInside = this.host.contains(document.activeElement);
+            }
+        });
         // A chip click opens the panel on its group: bring that group into
         // view so a long audio list cannot push the speed row off-screen.
         effect(() => {
@@ -78,6 +103,30 @@ export class PlayerSettingsPanelComponent {
             }
             queueMicrotask(() => this.scrollGroupIntoView(group));
         });
+    }
+
+    onFocusOut(event: FocusEvent): void {
+        const next = event.relatedTarget;
+        this.focusInside = next instanceof Node && this.host.contains(next);
+    }
+
+    /**
+     * Closing with focus inside (Escape, the close button by keyboard)
+     * returns it to the `tune` button rather than dropping it on the page.
+     * The chip that may have opened the panel is re-rendered on close, so
+     * `tune` is the stable target. Tracked by flag, not `activeElement`:
+     * the view's DOM is already detached when this hook runs.
+     */
+    ngOnDestroy(): void {
+        if (!this.focusInside) {
+            return;
+        }
+        const controls = this.controlsHost;
+        queueMicrotask(() =>
+            controls
+                ?.querySelector<HTMLElement>('.player-controls__tune')
+                ?.focus({ preventScroll: true })
+        );
     }
 
     isFocused(group: SettingsGroup): boolean {
@@ -99,5 +148,15 @@ export class PlayerSettingsPanelComponent {
         ) {
             element.scrollIntoView({ block: 'nearest' });
         }
+    }
+}
+
+function matchesFocusVisible(element: Element | null): boolean {
+    try {
+        return (
+            element instanceof HTMLElement && element.matches(':focus-visible')
+        );
+    } catch {
+        return false;
     }
 }

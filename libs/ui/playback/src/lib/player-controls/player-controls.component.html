@@ -125,6 +125,7 @@
         [class.player-controls__bar--panel-open]="
             settings.isOpen() && layout.roomy()
         "
+        [attr.inert]="settings.isOpen() && !layout.roomy() ? '' : null"
         [class.player-controls__bar--sheet-open]="
             settings.isOpen() && !layout.roomy()
         "
@@ -136,123 +137,18 @@
         (focusin)="chrome.onFocusIn($event)"
         (focusout)="chrome.onFocusOut($event)"
     >
-        <div class="player-controls__timeline">
-            <span
-                class="player-controls__time player-controls__time--current"
-                >{{ formatTime(timelineValue()) }}</span
-            >
-            @if (capabilities().seek) {
-                <div
-                    class="player-controls__timeline-bar"
-                    [class.player-controls__timeline-bar--disabled]="
-                        !state().canSeek
-                    "
-                    (pointermove)="timelineHover.move($event)"
-                    (pointerleave)="timelineHover.clear()"
-                >
-                    <div
-                        class="player-controls__timeline-track"
-                        aria-hidden="true"
-                    >
-                        @for (segment of timeline.segments(); track $index) {
-                            <div
-                                class="player-controls__timeline-segment"
-                                [class.player-controls__timeline-segment--titled]="
-                                    segment.title !== null
-                                "
-                                [style.left.%]="segment.startPercent"
-                                [style.width]="segment.width"
-                                [attr.data-segment-title]="segment.title"
-                            >
-                                <div
-                                    class="player-controls__timeline-fill"
-                                    [style.width.%]="
-                                        timeline.fillPercent(segment)
-                                    "
-                                ></div>
-                            </div>
-                        }
-                    </div>
-                    @if (state().canSeek) {
-                        <div
-                            class="player-controls__timeline-knob"
-                            [style.left.%]="timelineProgress()"
-                            aria-hidden="true"
-                        ></div>
-                    }
-                    @if (timelineHover.percent() !== null) {
-                        <div
-                            class="player-controls__timeline-marker"
-                            [style.left.%]="timelineHover.percent()"
-                            aria-hidden="true"
-                        ></div>
-                        <div
-                            class="player-controls__timeline-label"
-                            [style.--hover-x.%]="timelineHover.percent()"
-                            data-test-id="player-controls-timeline-label"
-                            aria-hidden="true"
-                        >
-                            {{ timelineHover.label() }}
-                        </div>
-                    }
-                    <input
-                        class="player-controls__slider player-controls__slider--timeline"
-                        [style.--slider-progress.%]="timelineProgress()"
-                        type="range"
-                        min="0"
-                        [max]="timelineDuration()"
-                        [value]="timelineValue()"
-                        [disabled]="!state().canSeek"
-                        [attr.aria-label]="
-                            'EMBEDDED_MPV.PLAYER.PLAYBACK_POSITION' | translate
-                        "
-                        [attr.aria-valuetext]="formatTime(timelineValue())"
-                        (input)="onTimelineInput($event)"
-                        (change)="onTimelineCommit($event)"
-                    />
-                </div>
-            } @else {
-                <div class="player-controls__timeline-spacer"></div>
-            }
-            @if (state().canSeek && remainingTimeText(); as remaining) {
-                <span
-                    class="player-controls__time player-controls__time--end"
-                    data-test-id="player-controls-remaining-time"
-                    >{{ remaining }}</span
-                >
-            } @else if (state().isLive) {
-                <span
-                    class="player-controls__live-badge"
-                    [attr.aria-label]="
-                        'EMBEDDED_MPV.PLAYER.LIVE_STREAM' | translate
-                    "
-                >
-                    <span
-                        class="player-controls__live-dot"
-                        aria-hidden="true"
-                    ></span>
-                    LIVE
-                </span>
-            } @else {
-                <span class="player-controls__time player-controls__time--end"
-                    >--:--</span
-                >
-            }
-            @if (recordingStatusText(); as recordingStatus) {
-                <div
-                    class="player-controls__recording-status"
-                    [class.player-controls__recording-status--active]="
-                        isRecording()
-                    "
-                    [attr.aria-live]="isRecording() ? 'off' : 'polite'"
-                >
-                    <mat-icon>{{
-                        isRecording() ? 'fiber_manual_record' : 'check_circle'
-                    }}</mat-icon>
-                    <span>{{ recordingStatus }}</span>
-                </div>
-            }
-        </div>
+        <app-player-timeline
+            [timeline]="timeline"
+            [hover]="timelineHover"
+            [seekable]="capabilities().seek"
+            [canSeek]="state().canSeek"
+            [isLive]="state().isLive"
+            [remaining]="remainingTimeText()"
+            [recordingStatus]="recordingStatusText()"
+            [recording]="isRecording()"
+            (scrubInput)="onTimelineInput($event)"
+            (scrubCommit)="onTimelineCommit($event)"
+        />
 
         <div class="player-controls__row">
             <div class="player-controls__left">
@@ -698,7 +594,7 @@
             [item]="item"
             [minutesLeft]="upNextCard.minutesLeft()"
             [compact]="isCompact()"
-            (selected)="requestNextEpisode()"
+            (selected)="reveal(); nextEpisodeRequested.emit()"
             (pointerenter)="chrome.onPointerEnter()"
             (pointerleave)="chrome.onPointerLeave()"
             (pointerdown)="chrome.onPointerDown()"

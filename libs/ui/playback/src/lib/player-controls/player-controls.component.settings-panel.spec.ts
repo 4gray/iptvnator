@@ -396,6 +396,57 @@ describe('PlayerControlsComponent settings panel', () => {
             ).not.toBeNull();
         });
 
+        it('makes the hidden dock inert and moves keyboard focus into the sheet and back', async () => {
+            const tune = query(
+                '[data-test-id="player-controls-settings-button"]'
+            ) as HTMLButtonElement;
+            document.body.appendChild(fixture.nativeElement);
+            tune.focus();
+            const matches = tune.matches.bind(tune);
+            tune.matches = (selector: string) =>
+                selector === ':focus-visible' || matches(selector);
+
+            tune.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const sheet = query(
+                '[data-test-id="player-controls-settings-panel"]'
+            ) as HTMLElement;
+            expect(query('.player-controls__bar')?.hasAttribute('inert')).toBe(
+                true
+            );
+            expect(document.activeElement).toBe(sheet);
+
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+            );
+            fixture.detectChanges();
+            await fixture.whenStable();
+            await Promise.resolve();
+
+            expect(
+                query('[data-test-id="player-controls-settings-panel"]')
+            ).toBeNull();
+            expect(query('.player-controls__bar')?.hasAttribute('inert')).toBe(
+                false
+            );
+            expect(document.activeElement).toBe(
+                query('[data-test-id="player-controls-settings-button"]')
+            );
+            fixture.nativeElement.remove();
+        });
+
+        it('leaves focus alone when a pointer opens the sheet', async () => {
+            query('[data-test-id="player-controls-settings-button"]')?.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(document.activeElement).not.toBe(
+                query('[data-test-id="player-controls-settings-panel"]')
+            );
+        });
+
         it('opens a bottom sheet that replaces the dock and keeps PiP reachable after close', () => {
             query('[data-test-id="player-controls-settings-button"]')?.click();
             fixture.detectChanges();

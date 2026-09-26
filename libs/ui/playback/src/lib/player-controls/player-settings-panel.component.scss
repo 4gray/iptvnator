@@ -1,8 +1,16 @@
 // The settings panel / bottom sheet. Reads the `--pc-*` palette that the
-// controls host declares; the host also positions this element, so nothing
-// here knows whether it sits beside the video or rises from its bottom edge
-// beyond the `--sheet` modifier's density changes.
+// controls host declares and places itself inside that host (the
+// `player-controls` container): beside the video as a panel, or rising from
+// the bottom edge as a sheet.
 :host {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    z-index: 4;
+    width: 330px;
+    max-width: calc(100cqw - 32px);
+    animation: player-settings-panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
     display: flex;
     flex-direction: column;
     gap: 18px;
@@ -18,7 +26,25 @@
     pointer-events: auto;
 }
 
+:host(:focus) {
+    outline: none;
+}
+
+:host(:focus-visible) {
+    box-shadow:
+        0 0 0 2px var(--pc-text, #e7ecf3),
+        0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
 :host(.player-settings--sheet) {
+    top: auto;
+    right: 8px;
+    bottom: 0;
+    left: 8px;
+    width: auto;
+    max-width: none;
+    max-height: min(70%, calc(100cqh - 24px));
+    animation-name: player-settings-sheet-in;
     gap: 9px;
     padding: 10px 14px 12px;
     border-bottom: 0;
@@ -59,14 +85,10 @@
     height: 32px;
     padding: 4px;
     color: var(--pc-text, #e7ecf3);
-    --mdc-icon-button-icon-color: var(--pc-text, #e7ecf3);
     --mat-icon-button-icon-color: var(--pc-text, #e7ecf3);
     --mat-icon-button-state-layer-size: 32px;
-    --mdc-icon-button-state-layer-size: 32px;
     --mat-icon-button-container-shape: 10px;
-    --mdc-icon-button-container-shape: 10px;
     --mat-icon-button-icon-size: 20px;
-    --mdc-icon-button-icon-size: 20px;
     --mat-icon-button-hover-state-layer-opacity: 0;
     border-radius: 10px;
 }
@@ -85,7 +107,6 @@
 :host :is(button[mat-icon-button][disabled]),
 :host :is(button[mat-icon-button][disabled]) mat-icon {
     color: var(--pc-text-tertiary, #6b7384);
-    --mdc-icon-button-icon-color: var(--pc-text-tertiary, #6b7384);
     --mat-icon-button-icon-color: var(--pc-text-tertiary, #6b7384);
 }
 
@@ -94,7 +115,6 @@
     height: 26px;
     padding: 3px;
     --mat-icon-button-state-layer-size: 26px;
-    --mdc-icon-button-state-layer-size: 26px;
 }
 
 // Single scroll owner: on a short player the whole content scrolls, never
@@ -399,4 +419,30 @@
     grid-column: 1 / -1;
     margin-top: 2px;
     padding-top: 6px;
+}
+
+@keyframes player-settings-panel-in {
+    from {
+        opacity: 0;
+        transform: translateX(24px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes player-settings-sheet-in {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :host {
+        animation: none;
+    }
 }

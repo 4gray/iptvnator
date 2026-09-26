@@ -289,6 +289,10 @@ It owns only transient presentation behavior:
 - `ControlsSurface` — pointer/click/double-click surface interactions;
 - `ControlsTimeline` — scrub state and timeline projections;
 - `ControlsTimelineHover` — the time under the pointer over the timeline;
+- `app-player-timeline` — presentation of the timeline row (current time,
+  segment track, knob, hover label, remaining time / LIVE, recording
+  status); scrub `input`/`change` events go back to the controls component,
+  which owns reveal and seeking;
 - `ControlsLayout` — the compact/wide dock mode from the host's width;
 - `ControlsSettings` — the settings panel's groups, on/modified state and
   open/close transitions (`controls-settings-groups.ts` holds the pure
@@ -369,13 +373,18 @@ bottom-right corner above the controls: the next episode's still (or its
 watched, "Up next · in 7 min" and the title. The host supplies the item
 through the optional `upNext` input (`PlayerUpNextItem { label, title,
 thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
-`seriesNavigation` capability, `canNextEpisode`, a finite duration with at
+`seriesNavigation` capability, a finite duration with at
 most `UP_NEXT_THRESHOLD_SECONDS` (8 min) left, not live, not `ended` (with
 autoplay off nothing is scheduled, so no countdown), controls shown,
 settings panel closed — and how many minutes remain (never below one). A
 still that fails to load falls back to the label tile. A
-click emits `nextEpisodeRequested`, the same output the hosts already
-handle, so the switch keeps fullscreen exactly like the transport button.
+click emits `nextEpisodeRequested` directly — not through the
+transport's `canNextEpisode` guard, which is season-local — so the card
+also works at a season's last episode. `PortalInlinePlayerComponent`
+routes such a request through the Up Next rail selection
+(`upNextEpisodeSelected`) whenever `seriesNavigation.canNext` is false, which
+plays the next season's first episode; either path keeps fullscreen exactly
+like the transport button.
 The card is a glass surface that does not fade with the controls; the
 compact dock uses a smaller variant without the trailing icon.
 
@@ -426,7 +435,12 @@ the panel the moment the last group disappears.
   the load-file action and the delay / size / color sections that the
   popover used to hold (same `player-controls-load-subtitle`,
   `player-controls-subtitle-delay`, `player-controls-subtitle-style` test
-  ids). A choice applies immediately and **keeps the panel open** —
+  ids). The panel is a `role="dialog"` with `tabindex="-1"`: opened from
+  the keyboard (the opener is `:focus-visible`) it takes focus, a pointer
+  open leaves focus alone (a focused control would capture Space from the
+  shortcuts), and closing with focus inside returns it to `tune`. While
+  the compact sheet replaces the dock, the dock is `inert`, so hidden
+  controls leave the tab order. A choice applies immediately and **keeps the panel open** —
   `ControlsMenuSelection` no longer closes anything — so alternatives can be
   compared against the running video; Escape, the close button, the `tune`
   button, a click on the video surface or an outside pointerdown close it.
@@ -1558,6 +1572,9 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-settings.ts
 ├── controls-settings-groups.ts
 ├── controls-up-next.ts
+├── player-timeline.component.ts
+├── player-timeline.component.html
+├── player-timeline.component.scss
 ├── player-up-next-card.component.ts
 ├── player-up-next-card.component.html
 ├── player-up-next-card.component.scss

@@ -80,17 +80,19 @@ describe('ControlsUpNext', () => {
         expect(upNext.minutesLeft()).toBe(1);
     });
 
-    it('needs a next episode, a finite duration and a series-capable engine', () => {
+    it('needs a supplied episode, a finite duration and a series-capable engine', () => {
         item.set(null);
         expect(upNext.visible()).toBe(false);
         item.set(next);
 
+        // The host's item is authoritative: at a season's last episode the
+        // transport cannot step forward, but the next season's first can.
         setState({
             canNextEpisode: false,
             durationSeconds: 1200,
             positionSeconds: 1100,
         });
-        expect(upNext.visible()).toBe(false);
+        expect(upNext.visible()).toBe(true);
 
         setState({
             canNextEpisode: true,

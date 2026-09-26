@@ -443,6 +443,31 @@ describe('PlayerControlsComponent dock', () => {
             expect(next).toHaveBeenCalledTimes(1);
         });
 
+        it('offers the next season across the season boundary', () => {
+            setState({
+                canSeek: true,
+                canNextEpisode: false,
+                durationSeconds: 1200,
+                positionSeconds: 1200 - 5 * 60,
+            });
+            fixture.detectChanges();
+            const card = query('[data-test-id="player-controls-up-next"]');
+            expect(card).not.toBeNull();
+            // The transport's next button is disabled, but the card still
+            // hands the request to the host, which picks the next season.
+            expect(
+                (
+                    query(
+                        '[data-test-id="player-controls-next-episode"]'
+                    ) as HTMLButtonElement
+                ).disabled
+            ).toBe(true);
+            const next = jest.fn();
+            component.nextEpisodeRequested.subscribe(next);
+            card?.click();
+            expect(next).toHaveBeenCalledTimes(1);
+        });
+
         it('yields to the settings panel and needs a next episode', () => {
             nearTheEnd();
             fixture.detectChanges();
