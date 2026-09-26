@@ -37,11 +37,13 @@ permissions:
 
 jobs:
     electron-e2e-tests:
-        name: Electron E2E on ${{ matrix.os }}
+        name: Electron E2E on ${{ matrix.os }} (${{ matrix.shard }}/${{ matrix.shard-total }})
         runs-on: ${{ matrix.os }}
-        # macOS's sequential Electron suite exceeded 45m while still passing
-        # tests; retain the full suite with room for setup and retries.
-        timeout-minutes: ${{ matrix.os == 'macos-latest' && 60 || 45 }}
+        # The sequential Electron suite is split into Playwright shards (one
+        # runner each, split by spec file). Measured on 2026-09-26, a third of
+        # the suite is 6-12 minutes of test time on top of 3-7 minutes of
+        # setup, so 30 minutes leaves room for retries on every OS.
+        timeout-minutes: 30
         env:
             IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS: '1'
             NX_SKIP_NX_CACHE: true
@@ -49,6 +51,8 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, macos-latest, windows-latest]
+                shard: [1, 2, 3]
+                shard-total: [3]
 
         steps:
             - uses: actions/checkout@v7
@@ -68,7 +72,10 @@ jobs:
             - name: Build Backend
               run: pnpm nx build electron-backend
 
+            # Process-lifecycle checks are independent of the shard split;
+            # run them once per OS.
             - name: Verify Electron process cleanup
+              if: matrix.shard == 1
               run: pnpm exec tsx --test apps/electron-backend-e2e/src/performance/electron-process-lifecycle.spec.ts apps/electron-backend-e2e/src/performance/electron-process-termination.spec.ts
 
             - name: Install Playwright Browsers
@@ -76,29 +83,81 @@ jobs:
 
             - name: Run Electron E2E Tests (Linux)
               if: runner.os == 'Linux'
-              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm nx run electron-backend-e2e:e2e
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm nx run electron-backend-e2e:e2e -- --shard=${{ matrix.shard }}/${{ matrix.shard-total }}
               env:
                   CI: true
 
             - name: Run Electron E2E Tests (Windows/Mac)
               if: runner.os != 'Linux'
-              run: pnpm nx run electron-backend-e2e:e2e
+              run: pnpm nx run electron-backend-e2e:e2e -- --shard=${{ matrix.shard }}/${{ matrix.shard-total }}
               env:
                   CI: true
 
-            - name: Summarize Electron E2E semantic coverage
-              if: always()
-              run: pnpm run coverage:e2e:summary -- --project=electron-backend-e2e
-
+            # Each shard's results.json carries config.shard; the summary job
+            # below merges the shards of one OS into a single semantic summary.
             - name: Upload Electron Test Results
               if: always()
               uses: actions/upload-artifact@v7
               with:
-                  name: playwright-report-electron-${{ matrix.os }}
+                  name: playwright-report-electron-${{ matrix.os }}-${{ matrix.shard }}
                   path: |
                       dist/playwright-report/electron-backend-e2e/
                       dist/test-results/electron-backend-e2e/
-                      coverage/e2e/
+                  retention-days: 7
+
+    electron-e2e-summary:
+        name: Electron E2E summary
+        runs-on: ubuntu-latest
+        needs: electron-e2e-tests
+        # Summarize failed shards too, but not a cancelled (superseded) run.
+        if: ${{ !cancelled() }}
+        timeout-minutes: 10
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+
+            # One download per OS keeps each OS's shards in their own directory
+            # (the artifact paths inside the shards are identical).
+            - name: Download shard reports (Ubuntu)
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: playwright-report-electron-ubuntu-latest-*
+                  path: dist/e2e-shards/ubuntu-latest
+
+            - name: Download shard reports (macOS)
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: playwright-report-electron-macos-latest-*
+                  path: dist/e2e-shards/macos-latest
+
+            - name: Download shard reports (Windows)
+              uses: actions/download-artifact@v8
+              with:
+                  pattern: playwright-report-electron-windows-latest-*
+                  path: dist/e2e-shards/windows-latest
+
+            # The script fails when a shard's results.json is missing or
+            # duplicated, so a partial run is never summarized as complete.
+            - name: Summarize Electron E2E semantic coverage per OS
+              run: |
+                  status=0
+                  for os in ubuntu-latest macos-latest windows-latest; do
+                      echo "## Electron E2E on $os" >> "$GITHUB_STEP_SUMMARY"
+                      node tools/coverage/e2e-semantic-summary.mjs --project=electron-backend-e2e --input="dist/e2e-shards/$os" --output-dir="coverage/e2e/$os" || status=1
+                  done
+                  exit "$status"
+
+            - name: Upload Electron semantic summaries
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: e2e-semantic-summary-electron
+                  path: coverage/e2e/
                   retention-days: 7
 
     web-e2e-tests:

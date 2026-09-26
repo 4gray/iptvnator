@@ -87,6 +87,11 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 - **No content deletion**: Hiding a category only affects sidebar visibility; the category and its content remain in the database
 - **Display order**: The sidebar defaults to server order. Users can switch the
   category panel to `A-Z` or `Z-A` from the sort menu next to category search.
+- **Selection scrolling**: The panel centers the rendered selected row after
+  selection changes. Electron selects by local SQLite category ID; the row's
+  `data-category-id` can contain its provider ID. Those IDs are not
+  interchangeable when locating the scroll target, including after filtering
+  hidden categories or sorting.
 - **All-hidden recovery**: Once the selected Xtream type is loaded, the manage
   categories button remains available even if every visible category has been
   hidden. The sidebar category list is filtered, but the dialog reads all

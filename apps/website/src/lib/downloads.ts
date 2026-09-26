@@ -7,13 +7,13 @@ import type { DownloadPlatform } from './platforms';
  * *published* release so that every direct link points at an asset that
  * exists, and so file sizes and the publish date can be shown. When the API
  * is unreachable (offline build, rate limit, `WEBSITE_SKIP_RELEASE_FETCH=1`)
- * the pages fall back to the repository version from the root `package.json`
- * — injected as `__IPTVNATOR_VERSION__` by `astro.config.mjs`, since a
- * relative import of the root manifest violates the Nx module boundaries —
- * and the known asset naming pattern from `electron-builder.json`.
+ * the pages fall back to the published version in `released-version.json`,
+ * injected as `__IPTVNATOR_RELEASED_VERSION__` by `astro.config.mjs`, and the
+ * known asset naming pattern from `electron-builder.json`. The development
+ * version in the root package manifest must never select download assets.
  */
 
-const FALLBACK_VERSION = __IPTVNATOR_VERSION__;
+const FALLBACK_VERSION = __IPTVNATOR_RELEASED_VERSION__;
 
 export const GITHUB_REPO = '4gray/iptvnator';
 export const REPO_URL = `https://github.com/${GITHUB_REPO}`;
@@ -38,8 +38,8 @@ export interface ResolvedRelease {
   url: string;
   publishedAt: Date | null;
   assets: ReleaseAsset[];
-  /** Where the data came from; the fallback cannot promise that the files exist yet. */
-  source: 'github-api' | 'package-json';
+  /** Whether the API or the pinned published version supplied the release. */
+  source: 'github-api' | 'published-version';
 }
 
 export interface DownloadOption {
@@ -321,10 +321,10 @@ function fallbackRelease(): ResolvedRelease {
     url: `${RELEASES_URL}/tag/${tag}`,
     publishedAt: null,
     assets,
-    source: 'package-json',
+    source: 'published-version',
   };
 }
 
 function warnFallback(reason: string): void {
-  console.warn(`[website] Latest release lookup failed (${reason}); using package.json version ${FALLBACK_VERSION}.`);
+  console.warn(`[website] Latest release lookup failed (${reason}); using pinned published version ${FALLBACK_VERSION}.`);
 }

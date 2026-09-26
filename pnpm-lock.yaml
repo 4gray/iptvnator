@@ -338,6 +338,9 @@ importers:
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
+      '@types/jsdom':
+        specifier: 21.1.7
+        version: 21.1.7
       '@types/mocha':
         specifier: 9.0.0
         version: 9.0.0
@@ -437,6 +440,9 @@ importers:
       jest-util:
         specifier: ^30.5.1
         version: 30.5.1
+      jsdom:
+        specifier: 26.1.0
+        version: 26.1.0
       jsonc-eslint-parser:
         specifier: ^2.1.0
         version: 2.4.2

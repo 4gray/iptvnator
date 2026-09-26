@@ -135,6 +135,16 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
+CI runs the Electron suite as three Playwright shards per OS
+(`--shard=<n>/3`, split by spec file because the suite is sequential). Each
+shard uploads `playwright-report-electron-<os>-<n>`; the follow-up
+`Electron E2E summary` job downloads the shards of each OS into their own
+directory and runs the summary per OS with `--input=<directory>` and
+`--output-dir=coverage/e2e/<os>`. A directory input merges every
+`results.json` beneath it and fails when a shard is missing or duplicated, so
+the summary never reports a partial run as complete. Tests for that merge live
+in `tools/coverage/e2e-shard-reports.test.mjs` (`pnpm run coverage:tools:test`).
+
 For local investigation only, Chromium browser V8 coverage can be explored with:
 
 ```bash
@@ -160,6 +170,7 @@ pnpm nx build web
 pnpm run perf:initial-bytes         # breakdown only
 pnpm run perf:initial-bytes:check   # measure, then compare with the committed baseline
 pnpm nx test performance-tools
+pnpm run perf:journeys              # J1 launch benchmark, writes dist/performance/journeys/<timestamp>/summary.json
 ```
 
 `perf:initial-bytes` reads the built `dist/apps/web/index.html` and sums the
@@ -168,7 +179,10 @@ bytes on the initial path (the J1 counter `renderer.initialBytes`).
 `tools/performance/journey-baselines.json`; baselines only move down. CI runs
 the same check in the `Initial bytes ratchet` job of `ci.yml` for PRs that
 target `master` and for `master` pushes (dispatch it with
-`gh workflow run ci.yml --ref <branch>` for a stacked branch). The contract, what counts and how to add a counter are in the
+`gh workflow run ci.yml --ref <branch>` for a stacked branch). `perf:journeys` builds the `electron-performance` configuration and runs the
+J1 launch benchmark against the Xtream mock; its probe specs run with
+`pnpm nx run electron-backend-e2e:test-performance-harness`. The contract, what
+counts and how to add a counter or a journey are in the
 [performance journeys](performance-journeys.md) document.
 
 ## Logging

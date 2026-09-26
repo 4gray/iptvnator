@@ -436,8 +436,13 @@ Publishing the GitHub release is manual. That publication automatically
 verifies its Snap assets and uploads them to `edge`; installed-Snap smoke and
 candidate/stable promotion remain manual (see
 `tools/packaging/validate-snap-release-boundary.mjs`). Keep the blog post a
-draft during artifact verification, then publish it in a follow-up commit and
-verify the website deployment.
+draft during artifact verification. After the release is public and its assets
+are verified, publish the blog and advance
+`apps/website/released-version.json` to that published version in the same
+follow-up commit. Run `WEBSITE_SKIP_RELEASE_FETCH=1 pnpm nx test website --skip-nx-cache`,
+compare the generated download links with the public release assets, and
+verify the website deployment. The fallback pin must never follow the
+development/nightly version in the root `package.json`.
 
 If a Store upload fails after publication, run `publish-snap.yaml` from
 `master` with its `tag` input set to the existing public stable tag, for example

@@ -49,6 +49,16 @@
                 "command": "pnpm exec playwright test --config=playwright.xtream-performance.config.ts src/xtream.performance.ts"
             }
         },
+        "journeys": {
+            "dependsOn": ["electron-backend:build-performance"],
+            "executor": "nx:run-commands",
+            "cache": false,
+            "parallelism": false,
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "pnpm exec playwright test --config=playwright.journeys.config.ts"
+            }
+        },
         "packaged-frame-copy-smoke": {
             "dependsOn": ["test-packaged-frame-copy-fixtures"],
             "executor": "nx:run-commands",
