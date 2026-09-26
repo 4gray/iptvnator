@@ -86,12 +86,18 @@ not fail Jest (the web configs already ran with `diagnostics: false`), while
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:
 `tools/coverage/unit-coverage-scope.mjs` holds the allowlist (Markdown, `docs/`,
-notes and plans, agent guidance, workflows other than `ci.yml`, the website,
-E2E and mock-server apps, release/packaging/skills/performance tooling, and a
-`package.json` edit confined to `scripts`). Anything else, including files no
-Nx project owns such as `jest.preset.js` or `tsconfig.base.json`, runs the full
-suite, and master pushes always run it; `nx affected` is deliberately not used
-for this decision because a change to an unowned file affects no project.
+notes and plans, agent guidance, workflows other than `ci.yml` and
+`build-and-make.yaml`, the website, E2E and mock-server apps,
+release/packaging/skills/performance tooling, and a `package.json` edit
+confined to non-`coverage:*` scripts). Anything else, including files no Nx
+project owns such as `jest.preset.js` or `tsconfig.base.json`, and every
+`{workspaceRoot}` input a Tier A test target declares, runs the full suite;
+master pushes always run it. `nx affected` is deliberately not used for this
+decision because a change to an unowned file affects no project. A node test
+parses every Tier A source for string literals that point at repository files
+outside the owning project (`tier-a-external-references.mjs`) and fails if the
+allowlist would skip any of them, so a new cross-project read cannot be
+silently exempted.
 Jest's transform cache is kept in `JEST_CACHE_DIRECTORY` and persisted with
 `actions/cache`: pull requests restore it, while only master pushes (starting
 from an empty cache, so it holds exactly the current tree) and maintainer

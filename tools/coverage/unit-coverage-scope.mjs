@@ -34,8 +34,9 @@ export const SKIPPABLE_PATTERNS = [
     /^\.plans\//,
     /^\.codex\//,
     /^\.claude\//,
-    // Workflows other than this one; ci.yml itself always runs everything.
-    /^\.github\/(?!workflows\/ci\.yml$)/,
+    // Workflows other than ci.yml (which runs everything) and build-and-make
+    // (an electron-backend spec asserts its embedded-MPV steps).
+    /^\.github\/(?!workflows\/(ci\.yml|build-and-make\.yaml)$)/,
     // Apps outside Tier A with their own validation.
     /^apps\/website\//,
     /^apps\/web-e2e\//,
@@ -43,7 +44,9 @@ export const SKIPPABLE_PATTERNS = [
     /^apps\/xtream-mock-server\//,
     /^apps\/stalker-mock-server\//,
     // Tooling with its own Tier B tests or checks that run in every job.
-    /^tools\/(release|packaging|embedded-mpv|skills|performance|i18n|eslint|dependencies|nx)\//,
+    // tools/embedded-mpv is deliberately absent: electron-backend imports its
+    // runtime contracts and its specs read the staging scripts.
+    /^tools\/(release|packaging|skills|performance|i18n|eslint|dependencies|nx)\//,
     // Website tests and the packaged-app smoke launcher; run-web-esm-lib-tests.mjs
     // in the same directory is a Tier A input and stays out of this list.
     /^tools\/testing\/(website-|launch-packaged-electron\.mjs$)/,
@@ -52,8 +55,9 @@ export const SKIPPABLE_PATTERNS = [
 
 /**
  * `package.json` feeds Tier A through dependencies, the `@package` version
- * import and Jest/Nx configuration, but not through `scripts`. A change that
- * only edits scripts (the usual case in a tooling PR) cannot reach a test.
+ * import and Jest/Nx configuration, but not through `scripts`, with one
+ * exception: the `coverage:*` scripts are the Tier A invocation itself, and a
+ * skipped suite would never exercise an edit to them.
  */
 export function isScriptsOnlyChange(basePackageJson, headPackageJson) {
     let base;
@@ -65,20 +69,58 @@ export function isScriptsOnlyChange(basePackageJson, headPackageJson) {
         return false;
     }
     const withoutScripts = ({ scripts: _scripts, ...rest }) => rest;
-    return (
-        JSON.stringify(withoutScripts(base)) ===
+    if (
+        JSON.stringify(withoutScripts(base)) !==
         JSON.stringify(withoutScripts(head))
+    ) {
+        return false;
+    }
+    const baseScripts = base.scripts ?? {};
+    const headScripts = head.scripts ?? {};
+    const changedScripts = new Set(
+        [...Object.keys(baseScripts), ...Object.keys(headScripts)].filter(
+            (name) => baseScripts[name] !== headScripts[name]
+        )
     );
+    return ![...changedScripts].some((name) => name.startsWith('coverage:'));
+}
+
+/**
+ * Files outside a project that a Tier A test target declares as inputs
+ * (`{workspaceRoot}/...` in its project.json). Nx already knows the test
+ * reads them, so they always need the suite, whatever the allowlist says.
+ */
+export function declaredWorkspaceInputs(tierAProjects, readProjectJson) {
+    const inputs = [];
+    for (const project of tierAProjects) {
+        const testTarget = readProjectJson(project)?.targets?.test;
+        for (const input of testTarget?.inputs ?? []) {
+            if (typeof input !== 'string') continue;
+            const match = /^\{workspaceRoot\}\/(.+)$/.exec(input);
+            if (match) inputs.push(match[1]);
+        }
+    }
+    return inputs;
 }
 
 export function isSkippable(file) {
     return SKIPPABLE_PATTERNS.some((pattern) => pattern.test(file));
 }
 
+function globToRegExp(glob) {
+    const escaped = glob
+        .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+        .replace(/\*\*\//g, '(?:.*/)?')
+        .replace(/\*\*/g, '.*')
+        .replace(/\*/g, '[^/]*');
+    return new RegExp(`^${escaped}$`);
+}
+
 export function decideUnitCoverageScope(
     files,
-    { packageJsonScriptsOnly = false } = {}
+    { packageJsonScriptsOnly = false, declaredInputs = [] } = {}
 ) {
+    const declared = declaredInputs.map(globToRegExp);
     const changed = files.map((file) => file.trim()).filter(Boolean);
     if (changed.length === 0) {
         return {
@@ -89,8 +131,9 @@ export function decideUnitCoverageScope(
     }
     const blocking = changed.filter(
         (file) =>
-            !isSkippable(file) &&
-            !(file === 'package.json' && packageJsonScriptsOnly)
+            declared.some((pattern) => pattern.test(file)) ||
+            (!isSkippable(file) &&
+                !(file === 'package.json' && packageJsonScriptsOnly))
     );
     if (blocking.length > 0) {
         return {
@@ -137,7 +180,20 @@ if (isMain) {
             `package.json changed ${packageJsonScriptsOnly ? 'only in scripts' : 'outside scripts'} relative to ${base}.`
         );
     }
-    const decision = decideUnitCoverageScope(files, { packageJsonScriptsOnly });
+    const policy = JSON.parse(
+        readFileSync('tools/coverage/coverage-policy.json', 'utf8')
+    );
+    const declaredInputs = declaredWorkspaceInputs(
+        policy.unitCoverage.tierA,
+        (project) =>
+            JSON.parse(
+                readFileSync(path.join(project.root, 'project.json'), 'utf8')
+            )
+    );
+    const decision = decideUnitCoverageScope(files, {
+        packageJsonScriptsOnly,
+        declaredInputs,
+    });
     console.log(`Tier A unit coverage: ${decision.run ? 'run' : 'skip'}. ${decision.reason}`);
     for (const file of decision.blocking.slice(0, 20)) {
         console.log(`  needs tests: ${file}`);

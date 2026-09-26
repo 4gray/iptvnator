@@ -1,16 +1,28 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { after, before, test } from 'node:test';
 
+import { tierAExternalReferences } from './tier-a-external-references.mjs';
 import {
+    declaredWorkspaceInputs,
     decideUnitCoverageScope,
     isScriptsOnlyChange,
     isSkippable,
 } from './unit-coverage-scope.mjs';
+
+const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url));
+const policy = JSON.parse(
+    await readFile(path.join(workspaceRoot, 'tools/coverage/coverage-policy.json'), 'utf8')
+);
+const readProjectJson = (project) =>
+    JSON.parse(
+        readFileSync(path.join(workspaceRoot, project.root, 'project.json'), 'utf8')
+    );
 
 const scriptPath = fileURLToPath(
     new URL('./unit-coverage-scope.mjs', import.meta.url)
@@ -59,6 +71,8 @@ test('runs when any file can reach a Tier A test', () => {
         'pnpm-lock.yaml',
         'patches/vite.patch',
         'electron-builder.json',
+        '.github/workflows/build-and-make.yaml',
+        'tools/embedded-mpv/stage-runtime.mjs',
         'nx.json',
         'package.json',
         'some-new-root-file.json',
@@ -67,6 +81,48 @@ test('runs when any file can reach a Tier A test', () => {
         assert.equal(decision.run, true, file);
         assert.deepEqual(decision.blocking, [file]);
     }
+});
+
+test('every file outside a project that Tier A code refers to keeps the suite running', () => {
+    const references = tierAExternalReferences({
+        workspaceRoot,
+        tierAProjects: policy.unitCoverage.tierA,
+    });
+    const declaredInputs = declaredWorkspaceInputs(
+        policy.unitCoverage.tierA,
+        readProjectJson
+    );
+    // The scan must see the known cross-project reads, or it proves nothing.
+    assert.ok(references.has('.github/workflows/build-and-make.yaml'));
+    assert.ok(references.has('tools/embedded-mpv/runtime-probe-contract.cjs'));
+    const skippable = [...references.keys()].filter(
+        (file) => !decideUnitCoverageScope([file], { declaredInputs }).run
+    );
+    assert.deepEqual(
+        skippable.map((file) => `${file} <- ${[...references.get(file)].join(', ')}`),
+        [],
+        'Tier A code reads these files, so the scope allowlist must not skip them'
+    );
+});
+
+test('Tier A test targets declare their workspace inputs and they always block', () => {
+    const declaredInputs = declaredWorkspaceInputs(
+        policy.unitCoverage.tierA,
+        readProjectJson
+    );
+    assert.ok(declaredInputs.includes('tools/embedded-mpv/runtime-probe-contract.cjs'));
+    assert.equal(
+        decideUnitCoverageScope(['tools/embedded-mpv/runtime-probe-contract.cjs'], {
+            declaredInputs,
+        }).run,
+        true
+    );
+    assert.deepEqual(
+        decideUnitCoverageScope(['tools/release/a.mjs', 'tools/foo/sub/b.ts'], {
+            declaredInputs: ['tools/foo/**/*.ts'],
+        }).blocking,
+        ['tools/foo/sub/b.ts']
+    );
 });
 
 test('an empty file list runs the suite rather than skipping it', () => {
@@ -112,6 +168,13 @@ test('detects a scripts-only package.json change', () => {
     assert.equal(isScriptsOnlyChange(base, dependency), false);
     assert.equal(isScriptsOnlyChange(base, version), false);
     assert.equal(isScriptsOnlyChange(base, '{not json'), false);
+    const coverageScript = JSON.stringify({
+        name: 'x',
+        version: '1.0.0',
+        scripts: { a: 'node a', 'coverage:ci': 'true' },
+        devDependencies: { jest: '1' },
+    });
+    assert.equal(isScriptsOnlyChange(base, coverageScript), false);
 });
 
 test('CLI prints the decision and writes run=false to GITHUB_OUTPUT', async () => {
