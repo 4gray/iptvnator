@@ -144,11 +144,10 @@ test('fails when index.html is missing instead of reporting zero bytes', async (
 });
 
 test('fails and names every referenced file that is missing from the build', async () => {
-    const {
-        'chunk-Cn2Agfvf.js': _dropped,
-        'main-EI6PCDGR.js': _alsoDropped,
-        ...files
-    } = BUILT_FILES;
+    const dropped = ['chunk-Cn2Agfvf.js', 'main-EI6PCDGR.js'];
+    const files = Object.fromEntries(
+        Object.entries(BUILT_FILES).filter(([file]) => !dropped.includes(file))
+    );
     const distDir = await writeDist('missing-chunk', { files });
     await assert.rejects(
         measureInitialBytes({ distDir }),
