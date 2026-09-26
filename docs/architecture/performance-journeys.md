@@ -2,12 +2,10 @@
 
 IPTVnator measures performance through a small set of everyday user journeys.
 Each journey has deterministic counters that are asserted exactly, and
-wall-clock timings that are recorded as evidence. Counters are meant to be
-ratcheted in CI: a committed baseline that may only be lowered, and only with
-the measured output as evidence. This document is the contract for that loop;
-`tools/performance/` holds the scripts. The measurement script lands first;
-the baseline file and the CI job follow in their own PRs (#1693, #1694), so
-until they merge the reported number is informational, not enforced.
+wall-clock timings that are recorded as evidence. Counters are ratcheted in CI:
+a committed baseline may only be lowered, and only with the measured output as
+evidence. This document is the contract for that loop; `tools/performance/`
+holds the scripts.
 
 ## Journeys
 
@@ -105,10 +103,12 @@ pnpm run perf:ratchet:check         # check every baseline against dist/performa
 ```
 
 CI runs `perf:initial-bytes:check` in the `Initial bytes ratchet` job of
-`.github/workflows/ci.yml` on every pull request and master push, after a
-production build of `apps/web`, and uploads `dist/performance/` as the
-`performance-journey-summary` artifact. A PR that grows the counter fails that
-job. That runner is the canonical measurer: take baseline values from its
+`.github/workflows/ci.yml` after a production build of `apps/web`, and uploads
+`dist/performance/` as the `performance-journey-summary` artifact. Like the
+rest of that workflow it runs for pull requests that target `master` and for
+pushes to `master`; a stacked PR that targets another branch gets no run until
+it is retargeted, so dispatch one with `gh workflow run ci.yml --ref <branch>`
+when you need the number. A PR that grows the counter fails that job. That runner is the canonical measurer: take baseline values from its
 output, not from a local build. A local build is a preview; before #1695 a
 macOS build of the same commit differed from the runner by a few hundred
 bytes in `main.js`, and since then the two have been byte-identical.
