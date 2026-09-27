@@ -10,7 +10,7 @@ import {
     registerNativeModuleSearchPaths,
 } from './worker-runtime-paths';
 import {
-    isPerformanceCaptureEnabled,
+    isSqlStatementCountEnabled,
     isSqlTraceEnabled,
     trace,
     traceSqlStatement,
@@ -64,8 +64,9 @@ const Database = loadBetterSqlite3();
 let db: AppDatabase | null = null;
 let sqlite: BetterSqlite3.Database | null = null;
 
-// IPTVNATOR_PERF_CAPTURE=1 only: the main process keeps the running total.
-const sqlStatementCount = isPerformanceCaptureEnabled()
+// IPTVNATOR_PERF_CAPTURE=1 with IPTVNATOR_PERF_COUNT_SQL=1 only: the main
+// process keeps the running total.
+const sqlStatementCount = isSqlStatementCountEnabled()
     ? createSqlStatementCountReporter((message) =>
           parentPort?.postMessage(message)
       )

@@ -131,3 +131,33 @@ describe('startup phase counting', () => {
         ]);
     });
 });
+
+describe('SQL statement count opt-in', () => {
+    const FLAGS = ['IPTVNATOR_PERF_CAPTURE', 'IPTVNATOR_PERF_COUNT_SQL'];
+    const original = FLAGS.map((name) => [name, process.env[name]] as const);
+
+    afterEach(() => {
+        for (const [name, value] of original) {
+            if (value === undefined) {
+                delete process.env[name];
+            } else {
+                process.env[name] = value;
+            }
+        }
+    });
+
+    it.each([
+        [{}, false],
+        [{ IPTVNATOR_PERF_CAPTURE: '1' }, false],
+        [{ IPTVNATOR_PERF_COUNT_SQL: '1' }, false],
+        [{ IPTVNATOR_PERF_CAPTURE: '1', IPTVNATOR_PERF_COUNT_SQL: '1' }, true],
+    ])('needs both flags: %j -> %s', async (env, expected) => {
+        for (const name of FLAGS) {
+            delete process.env[name];
+        }
+        Object.assign(process.env, env);
+        const { isSqlStatementCountEnabled } = await import('./debug-trace');
+
+        expect(isSqlStatementCountEnabled()).toBe(expected);
+    });
+});

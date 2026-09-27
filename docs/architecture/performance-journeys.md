@@ -108,7 +108,11 @@ With `IPTVNATOR_PERF_CAPTURE=1`, which the journey sets,
 in the main process (`services/performance-counters.ts`) and `main.ts`
 registers the `performance:read-counters` IPC handler. Without the flag
 nothing is counted, no listener is attached and the handler does not exist;
-the preload never exposes the channel. After the renderer probe completes,
+the preload never exposes the channel. SQL statements are counted only with
+`IPTVNATOR_PERF_COUNT_SQL=1` as well, because the hook wraps every statement
+execution: the journey sets both, while the M3U, refresh and Xtream
+benchmarks run with the capture flag alone and keep measuring unwrapped
+statements. A harness test fails if any other source sets the SQL flag. After the renderer probe completes,
 `journey-main-counters.ts` calls the handler through `electronApp.evaluate`
 and the gate's tap.
 

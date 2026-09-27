@@ -7,7 +7,8 @@ import { PERFORMANCE_COUNTER } from './performance-counters';
 import type { PerformanceCounterRegistry } from './performance-counters';
 
 /**
- * With IPTVNATOR_PERF_CAPTURE=1, counts the SQL statements the main process
+ * With IPTVNATOR_PERF_CAPTURE=1 and IPTVNATOR_PERF_COUNT_SQL=1, counts the
+ * SQL statements the main process
  * executes into `main.sqlStatements`, next to the database worker's
  * statements that `DatabaseWorkerClient` adds. The shared connection
  * (`initDatabase`, the `sql-main` trace) runs schema creation and migrations

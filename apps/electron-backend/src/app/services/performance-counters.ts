@@ -91,23 +91,35 @@ export function registerPerformanceCountersHandler(
     return true;
 }
 
+export interface MainWindowPerformanceCounterFlags {
+    /** IPTVNATOR_PERF_CAPTURE=1. */
+    readonly capture: boolean;
+    /** IPTVNATOR_PERF_COUNT_SQL=1 as well; SQL is not counted otherwise. */
+    readonly sqlStatements: boolean;
+}
+
 /**
  * Freezes the window-relative counters: the startup phases that ran before
- * this window existed, and the database statements that ran before its first
- * `ready-to-show`. Call right after the window is constructed.
+ * this window existed and, when SQL is counted, the database statements that
+ * ran before its first `ready-to-show`. Without SQL counting no listener is
+ * attached, so a zero is never reported for statements nobody counted. Call
+ * right after the window is constructed.
  */
 export function attachMainWindowPerformanceCounters(
     window: { once(event: 'ready-to-show', listener: () => void): unknown },
     registry: PerformanceCounterRegistry,
-    enabled: boolean
+    flags: MainWindowPerformanceCounterFlags
 ): void {
-    if (!enabled) {
+    if (!flags.capture) {
         return;
     }
     registry.freeze(
         PERFORMANCE_COUNTER.STARTUP_PHASES,
         PERFORMANCE_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW
     );
+    if (!flags.sqlStatements) {
+        return;
+    }
     window.once('ready-to-show', () => {
         registry.freeze(
             PERFORMANCE_COUNTER.SQL_STATEMENTS,

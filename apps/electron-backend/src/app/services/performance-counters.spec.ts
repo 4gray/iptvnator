@@ -113,14 +113,37 @@ describe('performance:read-counters handler', () => {
 });
 
 describe('main window performance counters', () => {
+    const BOTH_FLAGS = { capture: true, sqlStatements: true };
+
     it('attaches nothing without the capture flag', () => {
         const window = new EventEmitter();
         const { registry } = createRegistry();
 
-        attachMainWindowPerformanceCounters(window, registry, false);
+        attachMainWindowPerformanceCounters(window, registry, {
+            capture: false,
+            sqlStatements: false,
+        });
 
         expect(window.listenerCount('ready-to-show')).toBe(0);
         expect(registry.read().counters).toEqual({});
+    });
+
+    it('freezes only the startup phases when SQL is not counted', () => {
+        const window = new EventEmitter();
+        const { registry } = createRegistry();
+        registry.increment(PERFORMANCE_COUNTER.STARTUP_PHASES, 2);
+
+        attachMainWindowPerformanceCounters(window, registry, {
+            capture: true,
+            sqlStatements: false,
+        });
+        window.emit('ready-to-show');
+
+        expect(window.listenerCount('ready-to-show')).toBe(0);
+        expect(registry.read().counters).toEqual({
+            'main.modulesRegisteredBeforeWindow': 2,
+            'main.startupPhases': 2,
+        });
     });
 
     it('freezes startup phases at creation and SQL at ready-to-show', () => {
@@ -129,7 +152,7 @@ describe('main window performance counters', () => {
         registry.increment(PERFORMANCE_COUNTER.STARTUP_PHASES, 2);
         registry.increment(PERFORMANCE_COUNTER.SQL_STATEMENTS, 3);
 
-        attachMainWindowPerformanceCounters(window, registry, true);
+        attachMainWindowPerformanceCounters(window, registry, BOTH_FLAGS);
         registry.increment(PERFORMANCE_COUNTER.STARTUP_PHASES);
         registry.increment(PERFORMANCE_COUNTER.SQL_STATEMENTS, 4);
         window.emit('ready-to-show');
@@ -154,12 +177,12 @@ describe('main window performance counters', () => {
         const second = new EventEmitter();
         const { registry } = createRegistry();
         registry.increment(PERFORMANCE_COUNTER.STARTUP_PHASES, 2);
-        attachMainWindowPerformanceCounters(first, registry, true);
+        attachMainWindowPerformanceCounters(first, registry, BOTH_FLAGS);
         first.emit('ready-to-show');
 
         registry.increment(PERFORMANCE_COUNTER.STARTUP_PHASES, 5);
         registry.increment(PERFORMANCE_COUNTER.SQL_STATEMENTS, 5);
-        attachMainWindowPerformanceCounters(second, registry, true);
+        attachMainWindowPerformanceCounters(second, registry, BOTH_FLAGS);
         second.emit('ready-to-show');
 
         expect(registry.read().counters).toMatchObject({

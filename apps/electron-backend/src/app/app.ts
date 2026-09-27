@@ -9,6 +9,7 @@ import { rendererAppName, rendererAppPort } from './constants';
 import {
     isPerformanceCaptureEnabled,
     isRendererConsoleTraceEnabled,
+    isSqlStatementCountEnabled,
     isWindowTraceEnabled,
     performanceCounters,
     trace,
@@ -523,7 +524,10 @@ export default class App {
         attachMainWindowPerformanceCounters(
             App.mainWindow,
             performanceCounters,
-            isPerformanceCaptureEnabled()
+            {
+                capture: isPerformanceCaptureEnabled(),
+                sqlStatements: isSqlStatementCountEnabled(),
+            }
         );
         attachWindowTrace(App.mainWindow);
         App.attachWindowStateEvents(App.mainWindow);

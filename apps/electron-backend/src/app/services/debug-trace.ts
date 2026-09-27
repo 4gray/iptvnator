@@ -64,6 +64,18 @@ export function isPerformanceCaptureEnabled(): boolean {
 }
 
 /**
+ * SQL statement counting wraps every statement execution, including each
+ * row of a bulk insert, so it has its own opt-in on top of the capture flag:
+ * only the launch journey sets it, and the import benchmarks that also run
+ * with IPTVNATOR_PERF_CAPTURE=1 keep measuring the unwrapped workload.
+ */
+export function isSqlStatementCountEnabled(): boolean {
+    return (
+        isPerformanceCaptureEnabled() && readFlag('IPTVNATOR_PERF_COUNT_SQL')
+    );
+}
+
+/**
  * Process-wide performance counters (see `performance-counters.ts`). Every
  * call is a no-op unless `IPTVNATOR_PERF_CAPTURE=1`.
  */

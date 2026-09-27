@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -123,4 +125,23 @@ test('rejects snapshots that were not frozen at the moments they claim', () => {
             ),
         /total-below-frozen: main.startupPhases/
     );
+});
+
+test('only the launch journey opts into SQL statement counting', () => {
+    // The import benchmarks also run with IPTVNATOR_PERF_CAPTURE=1; the SQL
+    // hook wraps every row of a bulk insert, so they must not enable it.
+    const sourceRoot = resolve(__dirname, '..');
+    const files = readdirSync(sourceRoot, { recursive: true })
+        .map(String)
+        .filter(
+            (file) => /\.(ts|cjs)$/.test(file) && !/\.spec\.ts$/.test(file)
+        );
+    const optedIn = files
+        .filter((file) =>
+            readFileSync(join(sourceRoot, file), 'utf8').includes(
+                'IPTVNATOR_PERF_COUNT_SQL'
+            )
+        )
+        .map((file) => relative(sourceRoot, join(sourceRoot, file)));
+    assert.deepEqual(optedIn, [join('journeys', 'launch-journey-app.ts')]);
 });

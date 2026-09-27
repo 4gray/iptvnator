@@ -6,6 +6,7 @@ import PlaylistOpenEvents from './app/events/playlist-open.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import {
     isPerformanceCaptureEnabled,
+    isSqlStatementCountEnabled,
     isStartupTraceEnabled,
     performanceCounters,
     traceStartupPhase,
@@ -46,7 +47,7 @@ traceStartupPhase('compile-cache', () => readCompileCacheOutcome());
 // Before anything can open the shared database connection.
 countMainProcessSqlStatements(
     performanceCounters,
-    isPerformanceCaptureEnabled()
+    isSqlStatementCountEnabled()
 );
 
 // Before the first portal, playlist or update request leaves this process.

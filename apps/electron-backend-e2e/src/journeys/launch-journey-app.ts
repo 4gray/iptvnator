@@ -129,11 +129,14 @@ export async function measureLaunchJourney(
     try {
         await cp(templateDirectory, dataDirectory, { recursive: true });
         // IPTVNATOR_PERF_CAPTURE turns on the main-process counters and
-        // their read handler; see journey-main-counters.ts.
+        // their read handler, IPTVNATOR_PERF_COUNT_SQL the SQL statement
+        // count behind main.sqlStatementsBeforeReadyToShow; only this journey
+        // sets it. See journey-main-counters.ts.
         const env = buildElectronLaunchEnvironment(
             dataDirectory,
             launchOptions({
                 IPTVNATOR_PERF_CAPTURE: '1',
+                IPTVNATOR_PERF_COUNT_SQL: '1',
                 IPTVNATOR_TRACE_IPC: '1',
             })
         );

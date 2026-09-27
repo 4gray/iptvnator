@@ -7,11 +7,16 @@ import { DB_WORKER_SQL_STATEMENTS_MESSAGE_TYPE } from './database-worker-sql-sta
 
 /**
  * Pins the worker wiring of `database-worker-sql-statement-count.ts`: with
- * IPTVNATOR_PERF_CAPTURE=1 the real worker connection reports its statements
- * over the parent port, without the flag it reports nothing, and the worker
- * flushes the count before any response it posts.
+ * IPTVNATOR_PERF_CAPTURE=1 and IPTVNATOR_PERF_COUNT_SQL=1 the real worker
+ * connection reports its statements over the parent port, with the capture
+ * flag alone (the import benchmarks) or without flags it reports nothing,
+ * and the worker flushes the count before any response it posts.
  */
-const ENV_NAMES = ['IPTVNATOR_PERF_CAPTURE', 'IPTVNATOR_E2E_DATA_DIR'] as const;
+const ENV_NAMES = [
+    'IPTVNATOR_PERF_CAPTURE',
+    'IPTVNATOR_PERF_COUNT_SQL',
+    'IPTVNATOR_E2E_DATA_DIR',
+] as const;
 const EXECUTION_METHODS = ['run', 'get', 'all', 'iterate'] as const;
 
 describe('database worker SQL statement count wiring', () => {
@@ -69,16 +74,14 @@ describe('database worker SQL statement count wiring', () => {
     }
 
     async function openConnection(
-        captureFlag: string | undefined,
+        flags: Partial<Record<(typeof ENV_NAMES)[number], string>>,
         expectedMessages: number
     ) {
         dataDirectory = mkdtempSync(join(tmpdir(), 'iptvnator-sql-count-'));
+        delete process.env['IPTVNATOR_PERF_CAPTURE'];
+        delete process.env['IPTVNATOR_PERF_COUNT_SQL'];
+        Object.assign(process.env, flags);
         process.env['IPTVNATOR_E2E_DATA_DIR'] = dataDirectory;
-        if (captureFlag === undefined) {
-            delete process.env['IPTVNATOR_PERF_CAPTURE'];
-        } else {
-            process.env['IPTVNATOR_PERF_CAPTURE'] = captureFlag;
-        }
         const { messages } = connectPorts();
         const connection = await import('./database.worker-connection');
         await connection.getWorkerDatabase();
@@ -94,8 +97,11 @@ describe('database worker SQL statement count wiring', () => {
         return messages;
     }
 
-    it('reports the connection setup statements when capture is on', async () => {
-        const messages = await openConnection('1', 2);
+    it('reports the connection setup statements when SQL counting is on', async () => {
+        const messages = await openConnection(
+            { IPTVNATOR_PERF_CAPTURE: '1', IPTVNATOR_PERF_COUNT_SQL: '1' },
+            2
+        );
 
         // Seven PRAGMAs on open, then `PRAGMA optimize` on close.
         expect(messages).toEqual([
@@ -105,14 +111,23 @@ describe('database worker SQL statement count wiring', () => {
         expect(JSON.stringify(messages)).not.toMatch(/PRAGMA|journal_mode/i);
     });
 
-    it('reports nothing and leaves better-sqlite3 alone without the flag', async () => {
-        const messages = await openConnection(undefined, 0);
+    it.each([
+        ['without flags', {}],
+        [
+            'with the capture flag alone, as the import benchmarks run',
+            { IPTVNATOR_PERF_CAPTURE: '1' },
+        ],
+    ])(
+        'reports nothing and leaves better-sqlite3 alone %s',
+        async (_label, flags) => {
+            const messages = await openConnection(flags, 0);
 
-        expect(messages).toEqual([]);
-        for (const [method, original] of originalMethods) {
-            expect(statementPrototype[method]).toBe(original);
+            expect(messages).toEqual([]);
+            for (const [method, original] of originalMethods) {
+                expect(statementPrototype[method]).toBe(original);
+            }
         }
-    });
+    );
 
     it('flushes the count before the worker posts a response', async () => {
         const { messages, workerPort } = connectPorts();

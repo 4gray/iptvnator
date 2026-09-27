@@ -4,7 +4,9 @@ import type BetterSqlite3 from 'better-sqlite3';
  * Counts the SQL statements the database worker executes and reports the
  * count to the main process, where `main.sqlStatements` is kept (see
  * `services/performance-counters.ts`). Only active with
- * `IPTVNATOR_PERF_CAPTURE=1`.
+ * `IPTVNATOR_PERF_CAPTURE=1` and `IPTVNATOR_PERF_COUNT_SQL=1`, which only the
+ * launch journey sets: the import benchmarks run with the capture flag alone
+ * and keep measuring unwrapped statements.
  *
  * The count travels over the worker's message port, which is ordered with
  * the worker's responses, instead of the stdout trace lines Node forwards
