@@ -89,6 +89,10 @@ refresh deletes and re-inserts the rows.
    reached through the `PARENTAL_LOCK_PROMPT` token, provided by the app
    (`AppParentalLockPromptService` → `ParentalLockPinDialogComponent` in
    `libs/ui/components`), so the data-access lib stays free of UI.
+   Five wrong PINs pause the prompt for 30 seconds. The count and the
+   pause live in the service (`createParentalLockPinThrottle`, handed to
+   every unlock prompt), so dismissing the dialog and opening it again
+   does not reset them.
 
 The renderer reports `active` to the main process over
 `PARENTAL_LOCK_SET_STATE` (`apps/electron-backend/src/app/events/parental-lock.events.ts`),
@@ -431,7 +435,12 @@ never runs against the empty fail-closed snapshot.
 
 A backup carrying lock lists replaces the matching playlists' locks,
 possibly with an emptier set, so the import asks for the PIN first (after
-the file was chosen) and aborts when it is refused. Locks are restored LAST
+the file was chosen) and aborts when it is refused. That answer can go
+stale during a long import (idle relock, "Lock now"), so each merge asks
+again right before it replaces locks if the app has relocked; a refusal
+fails that entry and keeps its previous locks. A newly created playlist
+starts without locks, so its restore can only add some and is not asked
+again. Locks are restored LAST
 for each entry, after the Xtream data restore, so a
 failed merge leaves the playlist's previous locks in place. M3U group titles
 travel verbatim (`normalizeParentalLockGroupTitles`, exact

@@ -195,6 +195,45 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         ).not.toHaveBeenCalled();
     });
 
+    it('asks again before a merge replaces locks once the app relocked mid-import', async () => {
+        const collaborators = createRestoreCollaborators();
+        // Accepted at the start, refused after an idle relock or "Lock now"
+        // landed while the import was running.
+        const requestUnlock = jest
+            .fn()
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(false);
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock,
+                locksFor: jest.fn(() => ({
+                    xtream: [{ categoryType: 'live', xtreamId: 1 }],
+                    stalker: [],
+                    m3u: [],
+                })),
+                replacePlaylistLocks,
+            },
+        });
+        const manifest = createXtreamManifest([]);
+        (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories = [];
+
+        const summary = await service.importBackup(JSON.stringify(manifest));
+
+        expect(requestUnlock).toHaveBeenCalledTimes(2);
+        expect(replacePlaylistLocks).not.toHaveBeenCalled();
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 0, failed: 1 })
+        );
+        expect(summary.errors[0]).toMatch(/locked again/);
+    });
+
     it('rejects a damaged parental lock list instead of erasing the persisted locks', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService(collaborators);

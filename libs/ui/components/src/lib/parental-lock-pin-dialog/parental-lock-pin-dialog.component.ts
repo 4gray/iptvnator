@@ -20,7 +20,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
+    createParentalLockPinThrottle,
     isValidParentalLockPin,
+    ParentalLockPinThrottle,
     PARENTAL_LOCK_PIN_MAX_LENGTH,
     PARENTAL_LOCK_PIN_MIN_LENGTH,
 } from '@iptvnator/shared/interfaces';
@@ -31,13 +33,15 @@ export interface ParentalLockPinDialogData {
     mode: ParentalLockPinDialogMode;
     /** Unlock only: whether the typed PIN is the right one. */
     verify?: (pin: string) => Promise<boolean>;
+    /**
+     * Unlock only: wrong-PIN count and cooldown owned by the caller, so a
+     * dismissed and reopened prompt keeps them. A local one is used when
+     * absent.
+     */
+    throttle?: ParentalLockPinThrottle;
     titleKey?: string;
     descriptionKey?: string;
 }
-
-/** Failed attempts before the prompt pauses for {@link COOLDOWN_MS}. */
-const MAX_ATTEMPTS_BEFORE_COOLDOWN = 5;
-const COOLDOWN_MS = 30_000;
 
 /**
  * PIN prompt for the parental lock. Pure UI: the caller supplies `verify`
@@ -75,7 +79,8 @@ export class ParentalLockPinDialogComponent {
     readonly error = signal<string | null>(null);
     readonly shake = signal(false);
     readonly cooldownUntil = signal(0);
-    private failedAttempts = 0;
+    private readonly throttle =
+        this.data.throttle ?? createParentalLockPinThrottle();
     private cooldownTimer: number | null = null;
 
     readonly isSetMode = computed(() => this.data.mode === 'set');
@@ -101,6 +106,15 @@ export class ParentalLockPinDialogComponent {
             isValidParentalLockPin(this.pin()) &&
             (!this.isSetMode() || this.confirmation() === this.pin())
     );
+
+    constructor() {
+        // Reopened during a cooldown: the pause carries on where it was.
+        const until = this.throttle.cooldownUntil();
+        if (until > 0) {
+            this.startCooldown(until);
+            this.error.set('PARENTAL_LOCK.PIN_DIALOG.COOLDOWN');
+        }
+    }
 
     static open(
         dialog: MatDialog,
@@ -144,14 +158,13 @@ export class ParentalLockPinDialogComponent {
         try {
             const accepted = (await this.data.verify?.(pin)) === true;
             if (accepted) {
+                this.throttle.recordSuccess();
                 this.dialogRef.close(pin);
                 return;
             }
-            this.failedAttempts += 1;
             this.pin.set('');
-            if (this.failedAttempts >= MAX_ATTEMPTS_BEFORE_COOLDOWN) {
-                this.failedAttempts = 0;
-                this.startCooldown();
+            if (this.throttle.recordFailure()) {
+                this.startCooldown(this.throttle.cooldownUntil());
                 this.fail('PARENTAL_LOCK.PIN_DIALOG.COOLDOWN');
             } else {
                 this.fail('PARENTAL_LOCK.PIN_DIALOG.WRONG_PIN');
@@ -172,17 +185,20 @@ export class ParentalLockPinDialogComponent {
         window.setTimeout(() => this.shake.set(false), 400);
     }
 
-    private startCooldown(): void {
-        this.cooldownUntil.set(Date.now() + COOLDOWN_MS);
+    private startCooldown(until: number): void {
+        this.cooldownUntil.set(until);
         if (this.cooldownTimer !== null) {
             window.clearTimeout(this.cooldownTimer);
         }
-        this.cooldownTimer = window.setTimeout(() => {
-            this.cooldownTimer = null;
-            // `inCooldown` compares against the clock only when a signal it
-            // reads changes; resetting the deadline is that change.
-            this.cooldownUntil.set(0);
-            this.error.set(null);
-        }, COOLDOWN_MS);
+        this.cooldownTimer = window.setTimeout(
+            () => {
+                this.cooldownTimer = null;
+                // `inCooldown` compares against the clock only when a signal it
+                // reads changes; resetting the deadline is that change.
+                this.cooldownUntil.set(0);
+                this.error.set(null);
+            },
+            Math.max(0, until - Date.now())
+        );
     }
 }

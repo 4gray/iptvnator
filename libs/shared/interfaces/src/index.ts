@@ -29,6 +29,7 @@ export * from './lib/language.enum';
 export * from './lib/m3u-favorite-channel.interface';
 export * from './lib/parental-lock.util';
 export * from './lib/parental-lock-pin.util';
+export * from './lib/parental-lock-pin-throttle.util';
 export * from './lib/parsed-playlist.interface';
 export * from './lib/performance-phase.interface';
 export * from './lib/playback-position.interface';

@@ -41,6 +41,7 @@ export class AppParentalLockPromptService implements ParentalLockPrompt {
             {
                 mode: request.mode,
                 verify: request.verify,
+                throttle: request.throttle,
                 titleKey: request.titleKey,
                 descriptionKey: request.descriptionKey,
             }

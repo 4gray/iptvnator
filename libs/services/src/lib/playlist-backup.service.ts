@@ -1186,6 +1186,20 @@ export class PlaylistBackupService {
             };
         }
 
+        // A merge REPLACES the playlist's locks, possibly with fewer. The PIN
+        // asked at the start may be stale by now (idle relock or "Lock now"
+        // during a long import): ask again if the session relocked. A new
+        // playlist starts without locks, so its restore can only add some.
+        if (
+            next &&
+            isMerge &&
+            !staleOnNewId &&
+            !(await this.parentalLock.requestUnlock())
+        ) {
+            throw new PlaylistBackupError(
+                `Restoring the parental locks for "${playlistId}" needs the parental PIN: the app locked again during the restore.`
+            );
+        }
         if (
             next &&
             !(await this.parentalLock.replacePlaylistLocks(playlistId, next))

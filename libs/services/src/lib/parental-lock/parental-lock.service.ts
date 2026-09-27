@@ -7,6 +7,7 @@ import {
     untracked,
 } from '@angular/core';
 import {
+    createParentalLockPinThrottle,
     hashParentalLockPin,
     normalizeParentalLockRelockMinutes,
     ParentalLockPlaylistLocks,
@@ -55,6 +56,8 @@ export class ParentalLockService {
     private readonly prompt = inject(PARENTAL_LOCK_PROMPT, { optional: true });
 
     private readonly unlockedState = signal(false);
+    /** Shared by every unlock prompt: a reopened dialog keeps the cooldown. */
+    private readonly pinThrottle = createParentalLockPinThrottle();
     private readonly pinHash = signal<string | null>(null);
     /** The PIN hash could not be read; retried before PIN-protected steps. */
     private readonly pinUnreadable = signal(false);
@@ -219,6 +222,7 @@ export class ParentalLockService {
         const pin = await this.prompt.requestPin({
             mode: 'unlock',
             verify: (candidate) => verifyParentalLockPin(candidate, hash),
+            throttle: this.pinThrottle,
             ...options,
         });
         if (pin === null) {
@@ -320,6 +324,7 @@ export class ParentalLockService {
         const pin = await this.prompt.requestPin({
             mode: 'unlock',
             verify: (candidate) => verifyParentalLockPin(candidate, hash),
+            throttle: this.pinThrottle,
             titleKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_TITLE',
             descriptionKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_DESCRIPTION',
         });

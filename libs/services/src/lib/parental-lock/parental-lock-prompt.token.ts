@@ -1,4 +1,5 @@
 import { InjectionToken } from '@angular/core';
+import type { ParentalLockPinThrottle } from '@iptvnator/shared/interfaces';
 
 export type ParentalLockPromptMode = 'unlock' | 'set';
 
@@ -10,6 +11,11 @@ export interface ParentalLockPromptRequest {
      * asking on a mismatch and applies its own attempt cooldown.
      */
     verify?: (pin: string) => Promise<boolean>;
+    /**
+     * Unlock only: the wrong-PIN count and cooldown, owned by the lock
+     * service so they survive the prompt being dismissed and reopened.
+     */
+    throttle?: ParentalLockPinThrottle;
     /** Optional translation key overriding the mode's default title. */
     titleKey?: string;
     /** Optional translation key overriding the mode's default description. */
