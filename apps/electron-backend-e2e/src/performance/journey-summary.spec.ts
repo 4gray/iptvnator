@@ -1,18 +1,22 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import {
     formatJourneyOutputTimestamp,
+    JOURNEY_RUN_STARTED_AT_ENV,
     JOURNEY_SUMMARY_SCHEMA_VERSION,
     percentile,
+    recordJourneySummaryEntry,
+    resolveJourneyRunSummaryPath,
     resolveJourneySummaryPath,
     summarizeJourneyIterations,
     writeJourneySummary,
     type JourneyIterationRecord,
     type JourneySummary,
+    type JourneySummaryHarness,
 } from './journey-summary';
 
 function iteration(
@@ -192,6 +196,102 @@ test('writes the summary below dist/performance/journeys/<timestamp> and never o
             writeJourneySummary(summaryPath, summary),
             /EEXIST/
         );
+    } finally {
+        await rm(root, { force: true, recursive: true });
+    }
+});
+
+const HARNESS: JourneySummaryHarness = {
+    arch: 'arm64',
+    ci: false,
+    electron: '43.0.0',
+    electronMain: 'dist/apps/electron-backend/main.js',
+    measuredIterations: 1,
+    node: 'v22',
+    platform: 'darwin',
+    rendererIndex: 'dist/apps/web/index.html',
+    warmupIterations: 0,
+};
+
+test('one journey run resolves to one summary path from its start time', () => {
+    const root = '/repo';
+    assert.equal(
+        resolveJourneyRunSummaryPath(root, {
+            [JOURNEY_RUN_STARTED_AT_ENV]: '2026-09-27T09:14:01.999Z',
+        }),
+        join(
+            root,
+            'dist',
+            'performance',
+            'journeys',
+            '20260927T091401Z',
+            'summary.json'
+        )
+    );
+    assert.throws(
+        () =>
+            resolveJourneyRunSummaryPath(root, {
+                [JOURNEY_RUN_STARTED_AT_ENV]: 'not a date',
+            }),
+        /invalid-date/
+    );
+});
+
+test('journeys of one run are merged into one summary and never replaced', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'iptvnator-journey-run-'));
+    try {
+        const summaryPath = resolveJourneySummaryPath(
+            root,
+            new Date('2026-09-27T09:14:01Z')
+        );
+        const launch = summarizeJourneyIterations(
+            [iteration(0, { a: 1 }, { w: 1 })],
+            {}
+        );
+        const openSource = summarizeJourneyIterations(
+            [iteration(0, { b: 2 }, { v: 3 })],
+            { c: 'reason' }
+        );
+        await recordJourneySummaryEntry(summaryPath, HARNESS, 'launch', launch);
+        const merged = await recordJourneySummaryEntry(
+            summaryPath,
+            HARNESS,
+            'open-source',
+            openSource
+        );
+        const written = JSON.parse(
+            await readFile(summaryPath, 'utf8')
+        ) as JourneySummary;
+        assert.deepEqual(Object.keys(written.journeys), [
+            'launch',
+            'open-source',
+        ]);
+        assert.deepEqual(written, JSON.parse(JSON.stringify(merged)));
+        assert.equal(written.journeys['open-source']?.counters['b'], 2);
+        assert.equal(written.journeys['launch']?.counters['a'], 1);
+        assert.deepEqual(written.harness, HARNESS);
+        // No temporary file is left next to the summary.
+        assert.deepEqual(await readdir(join(summaryPath, '..')), [
+            'summary.json',
+        ]);
+
+        await assert.rejects(
+            recordJourneySummaryEntry(summaryPath, HARNESS, 'launch', launch),
+            /merge-duplicate-launch/
+        );
+        await assert.rejects(
+            recordJourneySummaryEntry(
+                summaryPath,
+                { ...HARNESS, electron: '44.0.0' },
+                'playback',
+                launch
+            ),
+            /merge-harness-mismatch/
+        );
+        const unchanged = JSON.parse(
+            await readFile(summaryPath, 'utf8')
+        ) as JourneySummary;
+        assert.deepEqual(unchanged, written);
     } finally {
         await rm(root, { force: true, recursive: true });
     }

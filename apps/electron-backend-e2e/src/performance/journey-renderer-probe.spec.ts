@@ -6,8 +6,12 @@ import { JSDOM } from 'jsdom';
 import {
     assertJourneyRendererProbeState,
     createLaunchJourneyProbeOptions,
+    createOpenSourceJourneyProbeOptions,
     JOURNEY_IPC_SENTINEL_ID,
     JOURNEY_IPC_SENTINEL_METHOD,
+    JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+    JOURNEY_OPEN_SOURCE_PROBE_STATE_KEY,
+    JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
     JOURNEY_PROBE_STATE_KEY,
     journeyRendererProbeScript,
     type JourneyRendererProbeOptions,
@@ -108,6 +112,18 @@ function createFixture(
         runScripts: 'outside-only',
         url,
     });
+    return createFixtureFromDom(
+        dom,
+        { ...createLaunchJourneyProbeOptions(), ...optionOverrides },
+        bridge
+    );
+}
+
+function createFixtureFromDom(
+    dom: JSDOM,
+    options: JourneyRendererProbeOptions,
+    bridge: boolean
+): Fixture {
     const { window } = dom;
     const observers: FakeObserver[] = [];
     const bridgeCalls: unknown[] = [];
@@ -132,10 +148,6 @@ function createFixture(
             }),
         });
     }
-    const options = {
-        ...createLaunchJourneyProbeOptions(),
-        ...optionOverrides,
-    };
     window.eval(
         `(${journeyRendererProbeScript.toString()})(${JSON.stringify(options)})`
     );
@@ -406,4 +418,252 @@ test('launch options target the workspace source cards and the shared sentinel',
     assert.equal(options.routeFragment, '/workspace');
     assert.match(options.cardSelector, /dashboard-recent-sources-rail-card/);
     assert.match(options.cardSelector, /app-playlist-item/);
+});
+
+// J2 "Open a source": the probe is armed in a loaded document and starts at
+// the click on the portal card.
+
+const DASHBOARD_URL = 'http://localhost/workspace/dashboard';
+
+function createOpenSourceFixture(
+    overrides: { bridge?: boolean } = {}
+): Fixture & { readonly card: HTMLElement } {
+    const dom = new JSDOM(
+        `<!doctype html><html><body><app-root>
+<app-workspace-context-panel></app-workspace-context-panel>
+<main></main></app-root></body></html>`,
+        {
+            pretendToBeVisual: true,
+            runScripts: 'outside-only',
+            url: DASHBOARD_URL,
+        }
+    );
+    const card = dom.window.document.createElement('div');
+    card.setAttribute('data-test-id', 'dashboard-recent-sources-rail-card');
+    card.innerHTML = '<a><span class="title">Mock Xtream Portal</span></a>';
+    dom.window.document.querySelector('main')?.append(card);
+    const fixture = createFixtureFromDom(
+        dom,
+        createOpenSourceJourneyProbeOptions(),
+        overrides.bridge ?? true
+    );
+    return { ...fixture, card };
+}
+
+function openSource(
+    fixture: Fixture,
+    parts: { categories?: boolean; items?: boolean } = {}
+): void {
+    const { categories = true, items = true } = parts;
+    const { document, history } = fixture.window;
+    history.pushState({}, '', '/workspace/xtreams/playlist-1/vod');
+    document.querySelector('main')?.replaceChildren();
+    if (categories) {
+        const category = document.createElement('div');
+        category.className = 'category-item';
+        document.querySelector('app-workspace-context-panel')?.append(category);
+    }
+    if (items) {
+        const grid = document.createElement('app-grid-list');
+        grid.append(
+            document.createElement('mat-card'),
+            document.createElement('mat-card')
+        );
+        document.querySelector('main')?.append(grid);
+    }
+}
+
+test('a click-started probe only tracks activity before the click inside the start selector', async () => {
+    const fixture = createOpenSourceFixture();
+    const { document } = fixture.window;
+    assert.deepEqual(fixture.state().invalidReasons, []);
+    assert.equal(fixture.state().start, null);
+
+    document.body.append(document.createElement('div'));
+    await settle();
+    document.body.click();
+    await settle();
+    const before = fixture.state();
+    assert.equal(before.start, null);
+    assert.equal(before.counters.domMutations, 0);
+    assert.equal(before.preStart.domMutations, 1);
+    assert.equal(typeof before.preStart.lastMutationEpochMs, 'number');
+    assert.deepEqual(fixture.bridgeCalls, []);
+    // Already on a page with cards and categories: nothing ends before the
+    // start.
+    assert.equal(before.terminal, null);
+});
+
+test('the click sends the start sentinel before the app sees it and the end sentinel when the first page is visible', async () => {
+    const fixture = createOpenSourceFixture();
+    const { document } = fixture.window;
+    const order: string[] = [];
+    fixture.card.addEventListener('click', () => {
+        order.push(`app:${fixture.bridgeCalls.length}`);
+        openSource(fixture);
+    });
+    (fixture.card.querySelector('.title') as HTMLElement).click();
+    await settle();
+    const state = fixture.state();
+    assert.deepEqual(order, ['app:1']);
+    assert.deepEqual(fixture.bridgeCalls, [
+        JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
+        JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+    ]);
+    assert.ok(state.start, 'start must be recorded');
+    assert.equal(state.start.sentinelStatus, 'sent');
+    assert.equal(
+        state.start.targetTestId,
+        'dashboard-recent-sources-rail-card'
+    );
+    assert.equal(state.start.pathname, '/workspace/dashboard');
+    assert.ok(state.start.epochMs <= state.start.listenerEpochMs);
+    assert.ok(state.terminal, 'terminal must be recorded');
+    assert.equal(state.terminal.pathname, '/workspace/xtreams/playlist-1/vod');
+    assert.equal(state.terminal.cardTag, 'mat-card');
+    assert.equal(state.terminal.cardCount, 2);
+    assert.deepEqual(state.terminal.companionCounts, [1]);
+    // main emptied (1) + category (1) + grid (1)
+    assert.equal(state.counters.domMutations, 3);
+    assert.equal(state.navigation, null);
+    assert.equal(state.final, true);
+    assert.ok(state.terminal.epochMs >= state.start.epochMs);
+    assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
+
+    // One start per armed probe.
+    document.body.append(document.createElement('div'));
+    fixture.card.click();
+    await settle();
+    assert.equal(fixture.bridgeCalls.length, 2);
+});
+
+test('the first page needs the category list as well as the items', async () => {
+    const fixture = createOpenSourceFixture();
+    fixture.card.addEventListener('click', () =>
+        openSource(fixture, { categories: false })
+    );
+    fixture.card.click();
+    await settle();
+    assert.equal(fixture.state().terminal, null);
+    const category = fixture.window.document.createElement('div');
+    category.className = 'category-item';
+    fixture.window.document
+        .querySelector('app-workspace-context-panel')
+        ?.append(category);
+    await settle();
+    const state = fixture.state();
+    assert.ok(state.terminal);
+    assert.equal(state.counters.domMutations, 3);
+
+    const skeletons = createOpenSourceFixture();
+    skeletons.card.addEventListener('click', () => {
+        openSource(skeletons, { items: false });
+        const skeleton = skeletons.window.document.createElement('div');
+        skeleton.className = 'grid-skeleton-card';
+        skeletons.window.document.querySelector('main')?.append(skeleton);
+    });
+    skeletons.card.click();
+    await settle();
+    assert.equal(skeletons.state().terminal, null);
+});
+
+test('drops performance entries from before the click and keeps recent-input shifts apart', async () => {
+    const fixture = createOpenSourceFixture();
+    const [layoutShift, longTask] = fixture.observers as [
+        FakeObserver,
+        FakeObserver,
+    ];
+    const now = () => fixture.window.performance.now();
+    const beforeClick = now() - 1;
+    layoutShift.emit([
+        {
+            entryType: 'layout-shift',
+            hadRecentInput: false,
+            startTime: beforeClick,
+            value: 3,
+        },
+    ]);
+    longTask.emit([
+        { duration: 400, entryType: 'longtask', startTime: beforeClick },
+    ]);
+    fixture.card.click();
+    await settle(5);
+    // Delivered after the click but started before it (buffered J1 entries).
+    layoutShift.emit([
+        {
+            entryType: 'layout-shift',
+            hadRecentInput: false,
+            startTime: beforeClick,
+            value: 2,
+        },
+        {
+            entryType: 'layout-shift',
+            hadRecentInput: true,
+            startTime: now(),
+            value: 0.25,
+        },
+        {
+            entryType: 'layout-shift',
+            hadRecentInput: false,
+            startTime: now(),
+            value: 0.125,
+        },
+    ]);
+    longTask.emit([
+        { duration: 250, entryType: 'longtask', startTime: beforeClick },
+        { duration: 90, entryType: 'longtask', startTime: now() },
+    ]);
+    openSource(fixture);
+    await settle();
+    const state = fixture.state();
+    assert.equal(state.final, true);
+    assert.equal(state.counters.layoutShiftScore, 0.125);
+    assert.equal(state.counters.recentInputLayoutShiftScore, 0.25);
+    assert.equal(state.counters.longTasks, 1);
+    assert.deepEqual(state.longTaskDurationsMs, [90]);
+});
+
+test('rejects a click start whose sentinel could not be sent', async () => {
+    const fixture = createOpenSourceFixture({ bridge: false });
+    fixture.card.addEventListener('click', () => openSource(fixture));
+    fixture.card.click();
+    await settle();
+    const state = fixture.state();
+    assert.equal(state.start?.sentinelStatus, 'bridge-missing');
+    assert.throws(
+        () => assertJourneyRendererProbeState(state),
+        /sentinel-bridge-missing/
+    );
+    const started = {
+        ...state,
+        sentinel: { epochMs: 1, status: 'sent' as const },
+    };
+    assert.throws(
+        () => assertJourneyRendererProbeState(started),
+        /start-sentinel-bridge-missing/
+    );
+});
+
+test('open-source options start at the portal card and end on the source route', () => {
+    const options = createOpenSourceJourneyProbeOptions();
+    assert.equal(options.journey, 'open-source');
+    assert.equal(options.stateKey, JOURNEY_OPEN_SOURCE_PROBE_STATE_KEY);
+    assert.notEqual(options.stateKey, JOURNEY_PROBE_STATE_KEY);
+    assert.equal(options.sentinelId, JOURNEY_OPEN_SOURCE_END_SENTINEL_ID);
+    assert.equal(
+        options.startClick?.sentinelId,
+        JOURNEY_OPEN_SOURCE_START_SENTINEL_ID
+    );
+    assert.notEqual(options.sentinelId, JOURNEY_IPC_SENTINEL_ID);
+    assert.match(
+        options.startClick?.selector ?? '',
+        /dashboard-recent-sources-rail-card/
+    );
+    assert.match(options.startClick?.selector ?? '', /app-playlist-item/);
+    assert.equal(options.routeFragment, '/workspace/xtreams/');
+    assert.match(options.cardSelector, /app-grid-list mat-card/);
+    assert.match(options.cardSelector, /channel-item/);
+    assert.deepEqual(options.companionSelectors, [
+        'app-workspace-context-panel .category-item',
+    ]);
 });

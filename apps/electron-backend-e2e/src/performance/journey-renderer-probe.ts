@@ -1,32 +1,54 @@
 import type { Page } from '@playwright/test';
 
 /**
- * Renderer-side probe for the performance journeys (J1 "Launch to usable").
+ * Renderer-side probe for the performance journeys.
  *
- * The probe is injected from the test side through `addInitScript` while the
- * journey gate (`journey-renderer-gate.cjs`) parks the window on
- * `about:blank`, so it runs before any renderer script and never touches
- * production code. It
- * counts DOM mutations, layout shifts and long tasks until the journey's
- * terminal condition and then emits one JSON blob under
- * `window.__iptvnatorJourneyProbe`.
+ * J1 "Launch to usable" starts at document start: the probe is injected from
+ * the test side through `addInitScript` while the journey gate
+ * (`journey-renderer-gate.cjs`) parks the window on `about:blank`, so it runs
+ * before any renderer script and never touches production code. Journeys that
+ * start with a click (J2 "Open a source") pass `startClick`: the probe is
+ * evaluated in the loaded document, arms a capture-phase `click` listener on
+ * `window` (which runs before any listener of the app) and starts counting at
+ * the first click inside `startClick.selector`. It counts DOM mutations,
+ * layout shifts and long tasks until the journey's terminal condition and
+ * then emits one JSON blob under `options.stateKey`.
  *
  * IPC invocations are not counted here: the bridge object exposed by
  * `contextBridge` is frozen, so the probe cannot wrap it. Instead the probe
- * fires one sentinel bridge call at the terminal moment; the main-process
+ * fires one sentinel bridge call at the terminal moment (and, for a click
+ * start, one start sentinel before the app sees the click); the main-process
  * capture (`journey-main-ipc-capture.ts`) counts the preload's renderer-API
- * trace events received before that sentinel. Renderer-to-main IPC is
- * ordered, so the count is exact regardless of clock skew.
+ * trace events received between the two. Renderer-to-main IPC is ordered, so
+ * the count is exact regardless of clock skew.
  */
 export const JOURNEY_PROBE_STATE_KEY = '__iptvnatorJourneyProbe';
 export const JOURNEY_PROBE_SCHEMA_VERSION = 1;
 export const JOURNEY_IPC_SENTINEL_ID = '__iptvnator-journey-sentinel__';
+export const JOURNEY_OPEN_SOURCE_PROBE_STATE_KEY =
+    '__iptvnatorJourneyOpenSourceProbe';
+export const JOURNEY_OPEN_SOURCE_START_SENTINEL_ID =
+    '__iptvnator-journey-open-source-start__';
+export const JOURNEY_OPEN_SOURCE_END_SENTINEL_ID =
+    '__iptvnator-journey-open-source-end__';
+/** The Xtream portal card on the dashboard or its row on /workspace/sources. */
+export const JOURNEY_OPEN_SOURCE_START_SELECTOR =
+    '[data-test-id="dashboard-recent-sources-rail-card"], app-playlist-item';
 /** Bridge method used for the sentinel: a read-only lookup by id. */
 export const JOURNEY_IPC_SENTINEL_METHOD = 'dbGetAppPlaylist';
+
+export interface JourneyRendererProbeStartClick {
+    /** The journey starts at the first click inside this selector. */
+    readonly selector: string;
+    /** Id of the start sentinel sent before the app handles the click. */
+    readonly sentinelId: string;
+}
 
 export interface JourneyRendererProbeOptions {
     /** Selector for the element whose visibility ends the journey. */
     readonly cardSelector: string;
+    /** Further selectors that must each match a visible element as well. */
+    readonly companionSelectors?: readonly string[];
     readonly journey: string;
     /** Pathname fragment the terminal route must contain. */
     readonly routeFragment: string;
@@ -34,13 +56,21 @@ export interface JourneyRendererProbeOptions {
     readonly sentinelMethod: string;
     /** Element id of the inline splash that must be gone at the end. */
     readonly splashId: string;
+    /** Absent: the journey starts at document start (J1). */
+    readonly startClick?: JourneyRendererProbeStartClick;
     readonly stateKey: string;
 }
 
 export interface JourneyRendererProbeCounters {
     domMutations: number;
+    /** Shifts with `hadRecentInput === false` (the CLS definition). */
     layoutShiftScore: number;
     longTasks: number;
+    /**
+     * Shifts with `hadRecentInput === true`. Zero for J1, which has no
+     * input; a click-started journey runs inside the 500 ms input window.
+     */
+    recentInputLayoutShiftScore: number;
 }
 
 export interface JourneyRendererProbeState {
@@ -67,14 +97,30 @@ export interface JourneyRendererProbeState {
         readonly domContentLoadedEpochMs: number;
         readonly loadEventEndEpochMs: number;
     } | null;
+    /** Click-started journeys: activity before the click, for settling. */
+    readonly preStart: {
+        domMutations: number;
+        lastMutationEpochMs: number | null;
+    };
     readonly schemaVersion: number;
     sentinel: {
         readonly epochMs: number | null;
         readonly status: 'bridge-missing' | 'failed' | 'not-sent' | 'sent';
     };
+    start: {
+        /** `min(event.timeStamp, listener time)` as epoch milliseconds. */
+        readonly epochMs: number;
+        readonly listenerEpochMs: number;
+        readonly pathname: string;
+        readonly sentinelStatus: 'bridge-missing' | 'failed' | 'sent';
+        readonly targetTag: string;
+        readonly targetTestId: string | null;
+    } | null;
     terminal: {
+        readonly cardCount: number;
         readonly cardTag: string;
         readonly cardTestId: string | null;
+        readonly companionCounts: readonly number[];
         readonly epochMs: number;
         readonly pathname: string;
     } | null;
@@ -92,6 +138,8 @@ export function journeyRendererProbeScript(
         return;
     }
     const epoch = (): number => performance.timeOrigin + performance.now();
+    const startClick = options.startClick ?? null;
+    const companionSelectors = options.companionSelectors ?? [];
     const bridge = target['electron'] as Record<string, unknown> | undefined;
     const state: JourneyRendererProbeState = {
         capabilities: {
@@ -102,7 +150,12 @@ export function journeyRendererProbeScript(
                 ? 'documentElement'
                 : 'document',
         },
-        counters: { domMutations: 0, layoutShiftScore: 0, longTasks: 0 },
+        counters: {
+            domMutations: 0,
+            layoutShiftScore: 0,
+            longTasks: 0,
+            recentInputLayoutShiftScore: 0,
+        },
         final: false,
         firstCardPaintEpochMs: null,
         installed: {
@@ -116,17 +169,30 @@ export function journeyRendererProbeScript(
         journey: options.journey,
         longTaskDurationsMs: [],
         navigation: null,
+        preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: null, status: 'not-sent' },
+        start: null,
         terminal: null,
     };
     target[options.stateKey] = state;
     if (
-        state.installed.scriptCount > 0 ||
-        state.installed.readyState !== 'loading'
+        startClick === null &&
+        (state.installed.scriptCount > 0 ||
+            state.installed.readyState !== 'loading')
     ) {
         state.invalidReasons.push('probe-installed-after-document-start');
     }
+    // Performance entries before the journey's start belong to an earlier
+    // journey (buffered entries included) and are dropped.
+    let fromEpochMs =
+        startClick === null
+            ? Number.NEGATIVE_INFINITY
+            : Number.POSITIVE_INFINITY;
+    const inWindow = (entry: PerformanceEntry, untilEpochMs: number) => {
+        const entryEpochMs = performance.timeOrigin + entry.startTime;
+        return entryEpochMs >= fromEpochMs && entryEpochMs <= untilEpochMs;
+    };
 
     const acceptLayoutShift = (
         entries: readonly PerformanceEntry[],
@@ -138,10 +204,13 @@ export function journeyRendererProbeScript(
                 value?: number;
             };
             if (
-                shift.hadRecentInput === true ||
                 typeof shift.value !== 'number' ||
-                performance.timeOrigin + shift.startTime > untilEpochMs
+                !inWindow(entry, untilEpochMs)
             ) {
+                continue;
+            }
+            if (shift.hadRecentInput === true) {
+                state.counters.recentInputLayoutShiftScore += shift.value;
                 continue;
             }
             state.counters.layoutShiftScore += shift.value;
@@ -152,10 +221,7 @@ export function journeyRendererProbeScript(
         untilEpochMs: number
     ): void => {
         for (const entry of entries) {
-            if (
-                entry.duration <= 50 ||
-                performance.timeOrigin + entry.startTime > untilEpochMs
-            ) {
+            if (entry.duration <= 50 || !inWindow(entry, untilEpochMs)) {
                 continue;
             }
             state.counters.longTasks += 1;
@@ -217,19 +283,25 @@ export function journeyRendererProbeScript(
         state.firstCardPaintEpochMs = untilEpochMs;
         state.final = true;
     };
-    const sendSentinel = (): void => {
+    const callSentinel = (id: string): 'bridge-missing' | 'failed' | 'sent' => {
         const method = bridge?.[options.sentinelMethod];
         if (typeof method !== 'function') {
-            state.sentinel = { epochMs: null, status: 'bridge-missing' };
-            return;
+            return 'bridge-missing';
         }
         try {
-            const result: unknown = method.call(bridge, options.sentinelId);
-            state.sentinel = { epochMs: epoch(), status: 'sent' };
+            const result: unknown = method.call(bridge, id);
             void Promise.resolve(result).catch(() => undefined);
+            return 'sent';
         } catch {
-            state.sentinel = { epochMs: null, status: 'failed' };
+            return 'failed';
         }
+    };
+    const sendSentinel = (): void => {
+        const status = callSentinel(options.sentinelId);
+        state.sentinel = {
+            epochMs: status === 'sent' ? epoch() : null,
+            status,
+        };
     };
     const isVisible = (element: Element | null): element is HTMLElement =>
         element instanceof HTMLElement && element.getClientRects().length > 0;
@@ -249,8 +321,17 @@ export function journeyRendererProbeScript(
         };
     };
 
+    const countPreStart = (count: number): void => {
+        if (count === 0) return;
+        state.preStart.domMutations += count;
+        state.preStart.lastMutationEpochMs = epoch();
+    };
     const mutationObserver = new MutationObserver((records) => {
         if (state.terminal !== null) return;
+        if (startClick !== null && state.start === null) {
+            countPreStart(records.length);
+            return;
+        }
         state.counters.domMutations += records.length;
         if (
             !location.pathname.includes(options.routeFragment) ||
@@ -260,17 +341,28 @@ export function journeyRendererProbeScript(
         }
         const card = document.querySelector(options.cardSelector);
         if (!isVisible(card)) return;
+        const companionCounts: number[] = [];
+        for (const selector of companionSelectors) {
+            if (!isVisible(document.querySelector(selector))) return;
+            companionCounts.push(document.querySelectorAll(selector).length);
+        }
         state.terminal = {
+            cardCount: document.querySelectorAll(options.cardSelector).length,
             cardTag: card.tagName.toLowerCase(),
             cardTestId: card.getAttribute('data-test-id'),
+            companionCounts,
             epochMs: epoch(),
             pathname: location.pathname,
         };
         mutationObserver.disconnect();
         sendSentinel();
-        state.navigation = readNavigation();
-        if (state.navigation === null) {
-            state.invalidReasons.push('load-event-not-finished-at-first-card');
+        if (startClick === null) {
+            state.navigation = readNavigation();
+            if (state.navigation === null) {
+                state.invalidReasons.push(
+                    'load-event-not-finished-at-first-card'
+                );
+            }
         }
         const ng = target['ng'] as Record<string, unknown> | undefined;
         state.capabilities.changeDetectionTicks =
@@ -291,6 +383,37 @@ export function journeyRendererProbeScript(
         childList: true,
         subtree: true,
     });
+    if (startClick === null) return;
+
+    // Capture phase on window runs before every listener of the app, so the
+    // start sentinel precedes any bridge call the click causes and the
+    // mutation count starts before the app touches the DOM.
+    const onClick = (event: Event): void => {
+        if (state.start !== null) return;
+        const origin =
+            event.target instanceof Element
+                ? event.target.closest(startClick.selector)
+                : null;
+        if (origin === null) return;
+        const listenerEpochMs = epoch();
+        const eventEpochMs = performance.timeOrigin + event.timeStamp;
+        countPreStart(mutationObserver.takeRecords().length);
+        const sentinelStatus = callSentinel(startClick.sentinelId);
+        state.start = {
+            epochMs:
+                Number.isFinite(eventEpochMs) && eventEpochMs <= listenerEpochMs
+                    ? eventEpochMs
+                    : listenerEpochMs,
+            listenerEpochMs,
+            pathname: location.pathname,
+            sentinelStatus,
+            targetTag: origin.tagName.toLowerCase(),
+            targetTestId: origin.getAttribute('data-test-id'),
+        };
+        fromEpochMs = state.start.epochMs;
+        window.removeEventListener('click', onClick, true);
+    };
+    window.addEventListener('click', onClick, true);
 }
 
 export function createLaunchJourneyProbeOptions(): JourneyRendererProbeOptions {
@@ -307,6 +430,31 @@ export function createLaunchJourneyProbeOptions(): JourneyRendererProbeOptions {
 }
 
 /**
+ * Options for J2 "Open a source": the click on the Xtream portal card (or its
+ * source row) starts the journey; it ends when the section's category list in
+ * the context panel and the first page of its items are visible.
+ */
+export function createOpenSourceJourneyProbeOptions(): JourneyRendererProbeOptions {
+    return {
+        // Grid cards (VOD/series, the section a portal opens on), content
+        // cards and live channel rows; skeleton cards are not matched.
+        cardSelector:
+            'app-grid-list mat-card, .content-card, [data-test-id="channel-item"]',
+        companionSelectors: ['app-workspace-context-panel .category-item'],
+        journey: 'open-source',
+        routeFragment: '/workspace/xtreams/',
+        sentinelId: JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+        sentinelMethod: JOURNEY_IPC_SENTINEL_METHOD,
+        splashId: 'initial-splash',
+        startClick: {
+            selector: JOURNEY_OPEN_SOURCE_START_SELECTOR,
+            sentinelId: JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
+        },
+        stateKey: JOURNEY_OPEN_SOURCE_PROBE_STATE_KEY,
+    };
+}
+
+/**
  * Registers the probe on a page that is still parked on `about:blank` by the
  * journey gate, so it is guaranteed to run at the start of the next document.
  */
@@ -315,6 +463,20 @@ export async function installJourneyRendererProbe(
     options: JourneyRendererProbeOptions
 ): Promise<void> {
     await page.addInitScript(journeyRendererProbeScript, options);
+}
+
+/**
+ * Arms a click-started probe in the current document. Playwright serializes
+ * the same self-contained script as for `addInitScript`.
+ */
+export async function armJourneyRendererProbe(
+    page: Page,
+    options: JourneyRendererProbeOptions
+): Promise<void> {
+    if (!options.startClick) {
+        throw new Error('journey-renderer-probe-arm-needs-start-click');
+    }
+    await page.evaluate(journeyRendererProbeScript, options);
 }
 
 export async function waitForJourneyRendererProbe(
@@ -361,6 +523,11 @@ export function assertJourneyRendererProbeState(
     if (state.sentinel.status !== 'sent') {
         throw new Error(
             `journey-renderer-probe-sentinel-${state.sentinel.status}`
+        );
+    }
+    if (state.start !== null && state.start.sentinelStatus !== 'sent') {
+        throw new Error(
+            `journey-renderer-probe-start-sentinel-${state.start.sentinelStatus}`
         );
     }
     // A zero from an observer that never ran is not a measurement; a build

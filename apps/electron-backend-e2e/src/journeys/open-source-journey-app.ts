@@ -1,0 +1,198 @@
+import type { ElectronApplication, Page } from '@playwright/test';
+
+import { defaultXtreamPortalName } from '../electron-test-fixtures';
+import {
+    installJourneyMainIpcCapture,
+    JOURNEY_RENDERER_API_TRACE_CHANNEL,
+    peekJourneyMainIpcCapture,
+    readJourneyMainIpcCapture,
+} from '../performance/journey-main-ipc-capture';
+import type { JourneyMockRequestLedger } from '../performance/journey-mock-request-ledger';
+import {
+    armJourneyRendererProbe,
+    createOpenSourceJourneyProbeOptions,
+    waitForJourneyRendererProbe,
+    type JourneyRendererProbeState,
+} from '../performance/journey-renderer-probe';
+import type {
+    OpenSourceJourneyMeasurement,
+    OpenSourceJourneySettle,
+} from '../performance/open-source-journey-record';
+import type { LaunchJourneySession } from './launch-journey-app';
+
+/**
+ * J2 "Open a source": runs inside a process that J1 has just launched, after
+ * J1's counters are final. The app is first allowed to settle (no DOM
+ * mutation, bridge call or mock request for `QUIET_MS`), so leftovers of the
+ * startup are not attributed to the click. Then the Xtream portal card on
+ * the dashboard is clicked and the probe, the IPC capture and the mock
+ * request ledger measure until the category list and the first page of
+ * items are painted.
+ */
+export const OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY =
+    '__iptvnatorJourneyOpenSourceMainIpcCapture';
+const QUIET_MS = 1_000;
+const POLL_MS = 100;
+const SETTLE_TIMEOUT_MS = 30_000;
+
+interface ActivitySample {
+    readonly domMutations: number;
+    readonly httpRequests: number;
+    readonly ipcCalls: number;
+}
+
+async function readPreStartMutations(
+    page: Page,
+    stateKey: string
+): Promise<number> {
+    return page.evaluate((key) => {
+        const state = (globalThis as unknown as Record<string, unknown>)[
+            key
+        ] as { preStart?: { domMutations?: number } } | undefined;
+        const count = state?.preStart?.domMutations;
+        if (typeof count !== 'number') {
+            throw new Error('journey-renderer-probe-not-armed');
+        }
+        return count;
+    }, stateKey);
+}
+
+/**
+ * Waits until DOM, bridge and mock traffic have all been unchanged for
+ * `QUIET_MS`. An app that never settles fails the iteration instead of
+ * producing a count that includes its background work.
+ */
+async function waitForQuiet(
+    electronApp: ElectronApplication,
+    page: Page,
+    ledger: JourneyMockRequestLedger,
+    probeStateKey: string
+): Promise<OpenSourceJourneySettle> {
+    const startedMs = Date.now();
+    const armMark = ledger.mark();
+    const sample = async (): Promise<ActivitySample> => ({
+        domMutations: await readPreStartMutations(page, probeStateKey),
+        httpRequests: ledger.mark(),
+        ipcCalls: (
+            await peekJourneyMainIpcCapture(
+                electronApp,
+                OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY
+            )
+        ).callsBeforeStart,
+    });
+    let last = await sample();
+    let quietSinceMs = Date.now();
+    for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+        const next = await sample();
+        const now = Date.now();
+        if (
+            next.domMutations !== last.domMutations ||
+            next.httpRequests !== last.httpRequests ||
+            next.ipcCalls !== last.ipcCalls
+        ) {
+            last = next;
+            quietSinceMs = now;
+        } else if (now - quietSinceMs >= QUIET_MS) {
+            return {
+                preStartDomMutations: next.domMutations,
+                preStartHttpRequests: next.httpRequests - armMark,
+                preStartIpcCalls: next.ipcCalls,
+                quietMs: QUIET_MS,
+                waitedMs: now - startedMs,
+            };
+        }
+        if (now - startedMs > SETTLE_TIMEOUT_MS) {
+            throw new Error(
+                `open-source-journey-not-quiet: ${JSON.stringify(next)}`
+            );
+        }
+    }
+}
+
+/** Waits until the mock has seen no request for `QUIET_MS`. */
+async function waitForMockQuiet(
+    ledger: JourneyMockRequestLedger
+): Promise<void> {
+    const startedMs = Date.now();
+    let count = ledger.mark();
+    let quietSinceMs = Date.now();
+    for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+        const now = Date.now();
+        if (ledger.mark() !== count) {
+            count = ledger.mark();
+            quietSinceMs = now;
+        } else if (now - quietSinceMs >= QUIET_MS) {
+            return;
+        }
+        if (now - startedMs > SETTLE_TIMEOUT_MS) {
+            throw new Error('open-source-journey-mock-not-quiet');
+        }
+    }
+}
+
+/**
+ * `spawnLedgerMark` is the ledger position taken before the process was
+ * spawned, so the launch's own mock traffic is kept as evidence.
+ */
+export async function measureOpenSourceJourney(
+    session: LaunchJourneySession,
+    ledger: JourneyMockRequestLedger,
+    spawnLedgerMark: number,
+    timeoutMs: number
+): Promise<OpenSourceJourneyMeasurement> {
+    const { electronApp, mainWindow } = session;
+    const probeOptions = createOpenSourceJourneyProbeOptions();
+    const startClick = probeOptions.startClick;
+    if (!startClick) {
+        throw new Error('open-source-journey-probe-without-start');
+    }
+    await installJourneyMainIpcCapture(electronApp, {
+        channel: JOURNEY_RENDERER_API_TRACE_CHANNEL,
+        sentinelId: probeOptions.sentinelId,
+        sentinelMethod: probeOptions.sentinelMethod,
+        startSentinelId: startClick.sentinelId,
+        stateKey: OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY,
+    });
+    await armJourneyRendererProbe(mainWindow, probeOptions);
+    const card = mainWindow
+        .locator(startClick.selector)
+        .filter({ hasText: defaultXtreamPortalName })
+        .first();
+    // Hover first so hover effects (and anything they trigger) happen
+    // before the app settles, not inside the measured window.
+    await card.hover({ timeout: timeoutMs });
+    const settle = await waitForQuiet(
+        electronApp,
+        mainWindow,
+        ledger,
+        probeOptions.stateKey
+    );
+    const ledgerMark = ledger.mark();
+    await card.click({ timeout: timeoutMs });
+    const renderer: JourneyRendererProbeState =
+        await waitForJourneyRendererProbe(
+            mainWindow,
+            probeOptions.stateKey,
+            timeoutMs
+        );
+    const ipc = await readJourneyMainIpcCapture(
+        electronApp,
+        OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY,
+        10_000
+    );
+    await waitForMockQuiet(ledger);
+    return {
+        http: {
+            beforeClick: ledger
+                .since(spawnLedgerMark)
+                .slice(0, ledgerMark - spawnLedgerMark),
+            requests: ledger.since(ledgerMark),
+        },
+        ipc,
+        pid: session.launch.pid,
+        renderer,
+        settle,
+    };
+}

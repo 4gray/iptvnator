@@ -2,7 +2,11 @@ import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { _electron as electron, type Page } from '@playwright/test';
+import {
+    _electron as electron,
+    type ElectronApplication,
+    type Page,
+} from '@playwright/test';
 
 import { captureElectronProcess } from '../electron-process-lifecycle';
 import {
@@ -111,18 +115,42 @@ export function removeLaunchJourneyProfile(directory: string): Promise<void> {
     return removeDirectory(directory);
 }
 
+/** The running app after J1 ended, for journeys that continue from there. */
+export interface LaunchJourneySession {
+    readonly electronApp: ElectronApplication;
+    readonly launch: LaunchJourneyMeasurement;
+    readonly mainWindow: Page;
+}
+
+export async function measureLaunchJourney(
+    templateDirectory: string,
+    timeoutMs: number
+): Promise<LaunchJourneyMeasurement> {
+    const { launch } = await runLaunchJourney(
+        templateDirectory,
+        timeoutMs,
+        async () => undefined
+    );
+    return launch;
+}
+
 /**
  * Spawns a fresh Electron process on a copy of the seeded profile. The gate
  * hook parks the first renderer load on `about:blank`, which gives Playwright
  * a page to attach the renderer probe to; the main-process IPC capture is
  * installed next, and only then is the real load released. Both captures are
  * therefore in place before the renderer runs any script, and the probe,
- * capture and gate records still prove it.
+ * capture and gate records still prove it. `continueJourney` runs in the
+ * same process after J1's counters are final, before the app is closed.
  */
-export async function measureLaunchJourney(
+export async function runLaunchJourney<T>(
     templateDirectory: string,
-    timeoutMs: number
-): Promise<LaunchJourneyMeasurement> {
+    timeoutMs: number,
+    continueJourney: (session: LaunchJourneySession) => Promise<T>
+): Promise<{
+    readonly continuation: T;
+    readonly launch: LaunchJourneyMeasurement;
+}> {
     const dataDirectory = await mkdtemp(
         join(tmpdir(), 'iptvnator-journey-launch-')
     );
@@ -214,7 +242,7 @@ export async function measureLaunchJourney(
             const electronVersion = await electronApp.evaluate(
                 () => process.versions.electron
             );
-            return {
+            const launch: LaunchJourneyMeasurement = {
                 electronVersion,
                 gate,
                 ipc,
@@ -223,6 +251,12 @@ export async function measureLaunchJourney(
                 renderer,
                 spawnEpochMs,
             };
+            const continuation = await continueJourney({
+                electronApp,
+                launch,
+                mainWindow,
+            });
+            return { continuation, launch };
         } finally {
             await closeElectronApplicationAndConfirmExit(
                 electronApp,

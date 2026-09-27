@@ -23,6 +23,7 @@ function measurement(
             domMutations: 480,
             layoutShiftScore: 0.123456789,
             longTasks: 2,
+            recentInputLayoutShiftScore: 0,
         },
         final: true,
         firstCardPaintEpochMs: 2_650,
@@ -40,17 +41,22 @@ function measurement(
             domContentLoadedEpochMs: 1_300,
             loadEventEndEpochMs: 1_400.26,
         },
+        preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: 2_601, status: 'sent' },
+        start: null,
         terminal: {
+            cardCount: 2,
             cardTag: 'div',
             cardTestId: 'dashboard-recent-sources-rail-card',
+            companionCounts: [],
             epochMs: 2_600.04,
             pathname: '/dist/apps/web/workspace/dashboard',
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
         callsAfterSentinel: 3,
+        callsBeforeStart: 0,
         callsBeforeSentinel: 14,
         callsByMethod: { dbGetAppPlaylists: 1, getSettings: 13 },
         installedEpochMs: 1_100,
@@ -58,6 +64,7 @@ function measurement(
         processStartEpochMs: 900,
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 2_602 },
+        start: null,
     };
     return {
         electronVersion: '43.3.0',

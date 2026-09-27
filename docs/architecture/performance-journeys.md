@@ -14,14 +14,14 @@ live in `tools/performance/`.
 | Journey          | Start                                        | End                                                                           |
 | ---------------- | -------------------------------------------- | ----------------------------------------------------------------------------- |
 | J1 `launch`      | Electron process spawn                       | first playlist or portal card rendered on `/workspace`, inline splash removed |
-| J2 `open-source` | click on a portal card                       | live category list and first channel page painted                             |
+| J2 `open-source` | click on the Xtream portal card              | category list and first page of the opened section painted                    |
 | J3 `playback`    | click on a channel                           | HTML5 `playing` event                                                         |
 | J4 `search`      | six-character query typed into global search | results list settled                                                          |
 
-J1 is instrumented today: `renderer.initialBytes` from the built output, and
-the runtime counters of the launch benchmark below. J2 to J4 follow the plan
-in `.plans/` and are added one thread at a time; each thread names its journey
-and counter in the PR description.
+J1 is instrumented: `renderer.initialBytes` from the built output, and the
+runtime counters of the launch benchmark below. J2 is instrumented by its own
+spec (below). J3 and J4 follow the plan in `.plans/` and are added one thread
+at a time; each thread names its journey and counter in the PR description.
 
 ## Running the journeys
 
@@ -39,7 +39,14 @@ first, starts the Xtream mock server on the dedicated loopback port
 dist/performance/journeys/<YYYYMMDDTHHMMSSZ>/summary.json
 ```
 
-The file is never overwritten; a second run in the same second fails instead.
+Every journey spec (`src/journeys/*.journey.ts`) adds its own
+`journeys.<id>` entry to that file. The config pins the timestamp to the start
+of the invocation (`IPTVNATOR_JOURNEY_RUN_STARTED_AT`, set in the runner before
+the worker forks), so all specs of one run share the directory. The first spec
+creates the file; a later one merges into it only when the `harness` block is
+identical, through a temporary file and a rename. A journey that is already
+present fails, so no measurement is ever overwritten and a second run in the
+same second fails instead.
 `IPTVNATOR_JOURNEY_MEASURED_ITERATIONS` lowers the five measured iterations
 for a quick local check; the warm-up iteration always runs. Numbers from a
 laptop are previews: the Linux CI runner is the canonical measurer for
@@ -225,6 +232,81 @@ numbers so `tools/performance/check-journey-ratchet.mjs` can compare them with
 `tools/performance/journey-baselines.json`. A J1 runtime baseline is added
 once its counter is deterministic on the CI runner; the launch counters are
 not yet (see [Ratchet](#ratchet)), so the summary is evidence only.
+
+## J2 `open-source`: open a source to a browsable list
+
+`open-source.journey.ts` reuses the J1 profile and process pattern: the
+profile is seeded once through the "Add playlist" dialogs, and every
+iteration copies it and spawns a fresh process through `runLaunchJourney`,
+which measures J1 as usual (gate, probe, IPC capture) and then hands the
+running app to `measureOpenSourceJourney` in
+`src/journeys/open-source-journey-app.ts`. The click therefore happens after
+J1's terminal condition and its counters are final, and the two journeys never
+overlap. One warm-up and five measured iterations, as for J1; the J1 numbers
+of these launches are not reported again.
+
+**Start.** The click on the dashboard card of the Xtream portal
+(`dashboard-recent-sources-rail-card` with the portal's name; the probe also
+accepts an `app-playlist-item` row on `/workspace/sources`). Before the
+click the test hovers the card and waits until the app has been quiet for
+1 s: no DOM mutation, no bridge call and no request to the mock (30 s
+timeout, which fails the iteration). The settle wait and what happened during
+it are kept under `evidence.settle`. The renderer probe is armed in the
+loaded document with `page.evaluate` (the same self-contained script as J1,
+with `startClick` set). It registers a capture-phase `click` listener on
+`window`, which runs before every listener of the app. On the first click
+inside the start selector it stamps the start at the event's timestamp (or
+the listener's time if that is earlier) and sends the start sentinel
+`dbGetAppPlaylist('__iptvnator-journey-open-source-start__')`. Only then do
+the counters start.
+
+**End.** The first `MutationObserver` batch after the start in which the
+path contains `/workspace/xtreams/`, an item of the first page is visible
+(`app-grid-list mat-card, .content-card, [data-test-id="channel-item"]`;
+skeleton cards do not match) and a category of the context panel is visible
+(`app-workspace-context-panel .category-item`). The probe then sends the end
+sentinel `dbGetAppPlaylist('__iptvnator-journey-open-source-end__')` and closes
+the observers at the same post-paint cutoff as J1. A portal card opens the
+source's default section, which is VOD (`getPlaylistLink` links to
+`/workspace/xtreams/<id>/vod`): the category list is the movie category list
+and the first page is the "All items" grid. The plan's "live category list"
+would need a second click and is not measured; the landed section is
+recorded under `evidence.firstPage.section`.
+
+**HTTP requests to the mock.** The J2 profile is seeded with the origin of a
+loopback proxy in the test process
+(`src/performance/journey-mock-request-ledger.ts`) that forwards to the mock
+and records every request, so requests from the main process (Xtream API,
+M3U) and from the renderer (artwork served by the mock) are all counted. The
+default fixture's posters point at `picsum.photos`, so they are neither
+counted nor blocked: they load after the first page is painted, and on an
+offline runner they fail instead. Blocking them with `page.route` would put
+request interception on every renderer request, including the lazy chunks
+the journey loads. The mock's own
+`/__control/state` ledger is not used: it exists only in performance-control
+mode, which disables `/playlist.m3u` and tracks only the 100k scenario, and a
+Playwright request listener would see renderer traffic only. The ledger stores
+the method, the path and, for `player_api.php`, the `action` parameter; query
+strings and stream paths carry credentials and are never stored.
+
+### Counters
+
+| Counter                            | Source                                                                                                                                                                                                                                                                                                                                          |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderer.ipcCallsToFirstPage`     | Bridge `start` trace events between the start and end sentinels, counted by a second `journey-main-ipc-capture.ts` instance installed with `startSentinelId`. Calls before the start marker are tallied separately (`callsBeforeStart`); a start marker that is missing, repeated or received after the end sentinel fails the iteration.       |
+| `renderer.domMutationsToFirstPage` | `MutationRecord`s from the click until the terminal batch. Records produced before the click (hover, settling) are taken from the observer at the start and counted under `evidence.settle` instead.                                                                                                                                            |
+| `renderer.layoutShiftScore`        | Sum of all `layout-shift` entries from the click until the post-paint cutoff, rounded to three decimals. Unlike J1 it includes entries with `hadRecentInput === true`: the journey is a response to the click and runs inside the 500 ms input window, so the CLS filter would always read 0. The split is under `evidence.layoutShift`.        |
+| `renderer.longTasks`               | `longtask` entries over 50 ms that started at or after the click (buffered entries from J1 are dropped) and before the cutoff. Evidence until it is shown to be stable on the CI runner, as for J1.                                                                                                                                             |
+| `main.mockHttpRequestsToSettled`   | Requests the proxy received from the click until the mock had been quiet for 1 s after the terminal batch. Bounding by the terminal would compare the test process's clock with the renderer's, so the count up to the terminal epoch is evidence only (`evidence.httpRequestsToFirstPage`); `evidence.httpRequestsByRoute` names the requests. |
+
+`renderer.cdTicksToFirstPage` and `main.sqlStatementsToFirstPage` are listed
+under `unavailable` for the same reasons as their J1 counterparts.
+
+### Wall-clock
+
+| Entry                         | Derivation                                                                                                                                          |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `clickToFirstPageMs.p50/.p90` | Terminal epoch minus start epoch, both taken in the renderer, so there is no cross-process clock. The post-paint cutoff is under `evidence.epochs`. |
 
 ## `renderer.initialBytes`
 
@@ -466,17 +548,22 @@ reports slow imports of non-Latin playlists.
 1. Add `apps/electron-backend-e2e/src/journeys/<journey>.journey.ts`. Seed the
    profile through the app's dialogs, spawn a fresh process per iteration
    with `measureLaunchJourney` as the model, and drive the journey's start
-   action with Playwright.
-2. Give the journey its own probe options (`cardSelector`, `routeFragment`,
-   terminal condition) or extend `journey-renderer-probe.ts` when the end
-   condition is not "an element became visible". Keep the probe
-   self-contained: Playwright serializes it with `toString()`.
+   action with Playwright. A journey that starts inside the running app
+   continues from J1 with `runLaunchJourney` and lets the app settle first,
+   as `open-source-journey-app.ts` does.
+2. Give the journey its own probe options (`cardSelector`,
+   `companionSelectors`, `routeFragment`, `startClick` for a click start) or
+   extend `journey-renderer-probe.ts` when the end condition is not "elements
+   became visible". Use a state key and sentinel ids of its own. Keep the
+   probe self-contained: Playwright serializes it with `toString()`.
 3. Map the measurement to a `JourneyIterationRecord` in a
    `<journey>-journey-record.ts` under `src/performance/`; name counters
    `renderer.*` or `main.*`, and list counters you cannot measure under
    `unavailable` with the reason.
-4. Add the journey under `journeys.<id>` in the summary through
-   `summarizeJourneyIterations`; the schema needs no change.
+4. Add the journey under `journeys.<id>` in the run's summary with
+   `writeJourneyRunEntry` (`src/journeys/journey-run.ts`), which calls
+   `summarizeJourneyIterations` and merges the entry; the schema needs no
+   change.
 5. Cover the probe with jsdom fixtures and the record and summary code with
    `node:test` (`pnpm nx run electron-backend-e2e:test-performance-harness`).
 6. Validate a counter before it becomes a guardrail: one PR must show that

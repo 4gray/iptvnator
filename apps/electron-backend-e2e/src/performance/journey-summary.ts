@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 /**
@@ -190,6 +190,81 @@ export function resolveJourneySummaryPath(
         formatJourneyOutputTimestamp(date),
         'summary.json'
     );
+}
+
+/**
+ * Environment variable that pins one `perf:journeys` invocation to one
+ * summary directory. `playwright.journeys.config.ts` sets it in the runner
+ * before the worker starts, so every journey spec of the run writes to the
+ * same file.
+ */
+export const JOURNEY_RUN_STARTED_AT_ENV = 'IPTVNATOR_JOURNEY_RUN_STARTED_AT';
+
+export function resolveJourneyRunSummaryPath(
+    repositoryRoot: string,
+    environment: NodeJS.ProcessEnv = process.env
+): string {
+    const raw = environment[JOURNEY_RUN_STARTED_AT_ENV];
+    const startedAt = raw ? new Date(raw) : new Date();
+    return resolveJourneySummaryPath(repositoryRoot, startedAt);
+}
+
+function isFileExistsError(error: unknown): boolean {
+    return (
+        typeof error === 'object' &&
+        error !== null &&
+        (error as { code?: unknown }).code === 'EEXIST'
+    );
+}
+
+/**
+ * Adds one journey to the run's summary. The first journey creates the
+ * file; later journeys of the same run merge into it when the harness is
+ * identical. A journey that is already present fails, so a second run in
+ * the same second can never overwrite a measurement.
+ */
+export async function recordJourneySummaryEntry(
+    summaryPath: string,
+    harness: JourneySummaryHarness,
+    journeyId: string,
+    entry: JourneySummaryEntry
+): Promise<JourneySummary> {
+    const created: JourneySummary = {
+        generatedAt: new Date().toISOString(),
+        harness,
+        journeys: { [journeyId]: entry },
+        schemaVersion: JOURNEY_SUMMARY_SCHEMA_VERSION,
+    };
+    try {
+        await writeJourneySummary(summaryPath, created);
+        return created;
+    } catch (error) {
+        if (!isFileExistsError(error)) throw error;
+    }
+    const existing = JSON.parse(
+        await readFile(summaryPath, 'utf8')
+    ) as JourneySummary;
+    if (existing.schemaVersion !== JOURNEY_SUMMARY_SCHEMA_VERSION) {
+        throw new Error('journey-summary-merge-schema-mismatch');
+    }
+    if (JSON.stringify(existing.harness) !== JSON.stringify(harness)) {
+        throw new Error('journey-summary-merge-harness-mismatch');
+    }
+    if (Object.prototype.hasOwnProperty.call(existing.journeys, journeyId)) {
+        throw new Error(`journey-summary-merge-duplicate-${journeyId}`);
+    }
+    const merged: JourneySummary = {
+        ...existing,
+        generatedAt: created.generatedAt,
+        journeys: { ...existing.journeys, [journeyId]: entry },
+    };
+    const temporaryPath = `${summaryPath}.${process.pid}.tmp`;
+    await writeFile(temporaryPath, `${JSON.stringify(merged, null, 2)}\n`, {
+        encoding: 'utf8',
+        flag: 'wx',
+    });
+    await rename(temporaryPath, summaryPath);
+    return merged;
 }
 
 export async function writeJourneySummary(

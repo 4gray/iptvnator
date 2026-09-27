@@ -4,7 +4,7 @@ import { defineConfig } from '@playwright/test';
 /**
  * Performance journeys (docs/architecture/performance-journeys.md). One
  * worker, no retries: every journey spawns its own Electron processes and
- * writes one summary per run. The Xtream mock serves both the M3U playlist
+ * adds its entry to the run's single summary file. The Xtream mock serves both the M3U playlist
  * and the portal on a dedicated loopback port so a normal E2E server on
  * 3211 cannot be reused by accident. The mock runs as one node process
  * rather than through `nx run …:serve`, whose detached process group outlived
@@ -14,6 +14,10 @@ import { defineConfig } from '@playwright/test';
  */
 const xtreamMockPort =
     process.env['IPTVNATOR_JOURNEY_XTREAM_MOCK_PORT'] ?? '3231';
+
+// One summary file per invocation: the runner loads this config before it
+// forks the worker, so every journey spec sees the same start time.
+process.env['IPTVNATOR_JOURNEY_RUN_STARTED_AT'] ??= new Date().toISOString();
 
 export default defineConfig({
     fullyParallel: false,
