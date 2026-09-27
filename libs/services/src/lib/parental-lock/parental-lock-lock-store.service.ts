@@ -481,7 +481,7 @@ export class ParentalLockLockStore {
      */
     private markStaleWhileStamping(playlistId: string): void {
         if (this.runtime.supportsXtreamSqliteDataSource) {
-            this.staleIndex.mark(playlistId);
+            this.staleIndex.markInFlight(playlistId);
         }
     }
 

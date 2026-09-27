@@ -144,7 +144,12 @@ lacks the worker filter (`supportsParentalLockSqliteFilter`:
 preload): the worker would never learn the lock state, so it cannot
 withhold locked rows itself. The direct worker consumers
 (`CatalogTitleMatchService`, `VodSourceDiscoveryService`) ask the worker
-nothing while `withholdsEverything` is true, in either case.
+nothing while `withholdsEverything` is true, in either case. The VOD
+multi-source host keys its discovery session to the lock version: a lock
+change drops the discovered sources, retires discoveries and switches in
+flight, and rediscovers through the worker's new lock state. Title-match
+results cached by the Actor/Discover routes and dashboard services are not
+yet retired on relock (tracked in #1723).
 The window before the initial read settles is treated the same way
 (`ParentalLockLockStore.readable` is false until then): settings can report
 the feature as on before the locks are known — and the workspace route's
@@ -409,7 +414,10 @@ by the index alone:
   failed edit cannot take effect through that re-stamp. For the whole
   re-stamp window — store changed, stamps not yet landed — the playlist
   counts as stale, so `readable` is false and a relock inside the window
-  reloads fail-closed instead of through the old stamps.
+  reloads fail-closed instead of through the old stamps. Such in-flight
+  entries are not retried by a reconcile running beside the write (a PIN
+  prompt or backup calling `ensureReadable()`): it would stamp from a store
+  the write has not committed yet. Only failed stamps are retryable.
 - A write that removes a playlist's LAST lock clears the index first and
   drops the key afterwards: the launch-time reconcile finds playlists only
   through their key, so an interruption must leave store-with-lock and

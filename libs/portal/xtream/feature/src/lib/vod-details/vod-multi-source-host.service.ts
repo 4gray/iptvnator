@@ -14,6 +14,7 @@ import {
     VodSourceResolverService,
 } from '@iptvnator/portal/shared/data-access';
 import {
+    ParentalLockService,
     SettingsStore,
     StreamProbeService,
     VodSourcePinService,
@@ -97,6 +98,7 @@ export class VodMultiSourceHostService {
     private readonly probes = inject(StreamProbeService);
     private readonly probeCache = inject(VodSourceProbeCacheService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly parentalLock = inject(ParentalLockService);
 
     /**
      * At most this many availability checks in flight at once. Each check is
@@ -116,6 +118,7 @@ export class VodMultiSourceHostService {
     /** Bumped by every switch: a slower one must not overwrite a newer. */
     private switchToken = 0;
     private lastMovieKey: string | null = null;
+    private lastLockVersion: number | null = null;
     private movieIdentity: string | null = null;
     /** The row standing for the playlist the route is on. */
     private routeSourceId: string | null = null;
@@ -170,6 +173,24 @@ export class VodMultiSourceHostService {
 
         effect(() => {
             const movie = bindings.movie();
+            // A lock change starts a fresh session: alternatives discovered
+            // under the previous lock state may sit in a now-locked
+            // category, and a discovery or switch still in flight must not
+            // publish or play them. Rediscovery reads through the worker's
+            // new lock state.
+            const lockVersion = this.parentalLock.version();
+            if (
+                this.lastLockVersion !== null &&
+                this.lastLockVersion !== lockVersion
+            ) {
+                this.discoveryToken++;
+                this.sessionToken++;
+                this.movieIdentity = null;
+                this.lastMovieKey = null;
+                this.controller = new VodMultiSourceController();
+                this._sources.set([]);
+            }
+            this.lastLockVersion = lockVersion;
             if (!movie) {
                 // Navigating away empties the identity before the next movie's
                 // `load()` runs, so bumping here — not only there — closes the

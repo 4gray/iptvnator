@@ -8,15 +8,31 @@ import { computed, signal } from '@angular/core';
  */
 export class ParentalLockStaleIndex {
     private readonly playlists = new Set<string>();
+    /**
+     * Listed while a queued write is stamping them: stale (not `readable`)
+     * but not retryable — a reconcile running beside the write would
+     * re-stamp from a store the write has not committed yet.
+     */
+    private readonly inFlight = new Set<string>();
     private readonly count = signal(0);
 
     readonly isEmpty = computed(() => this.count() === 0);
 
+    /** The retryable entries: not the ones a write is still stamping. */
     ids(): string[] {
-        return [...this.playlists];
+        return [...this.playlists].filter((id) => !this.inFlight.has(id));
     }
 
+    /** Stale and retryable (a failed stamp or rollback). */
     mark(playlistId: string): void {
+        this.inFlight.delete(playlistId);
+        this.playlists.add(playlistId);
+        this.count.set(this.playlists.size);
+    }
+
+    /** Stale while the write in progress stamps it. */
+    markInFlight(playlistId: string): void {
+        this.inFlight.add(playlistId);
         this.playlists.add(playlistId);
         this.count.set(this.playlists.size);
     }
@@ -24,6 +40,7 @@ export class ParentalLockStaleIndex {
     unmark(...playlistIds: string[]): void {
         for (const playlistId of playlistIds) {
             this.playlists.delete(playlistId);
+            this.inFlight.delete(playlistId);
         }
         this.count.set(this.playlists.size);
     }

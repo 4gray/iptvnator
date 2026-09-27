@@ -498,6 +498,28 @@ describe('ParentalLockLockStore', () => {
         expect(storage.writeLocks).toHaveBeenCalledTimes(1);
         expect(store.readable()).toBe(true);
     });
+    it('does not re-stamp an in-flight write from the uncommitted store', async () => {
+        await store.load();
+        await store.ensureReadable();
+        setCategoryLocks.mockClear();
+        let finishWrite: (ok: boolean) => void = () => undefined;
+        storage.writeLocks.mockImplementationOnce(
+            () => new Promise<boolean>((resolve) => (finishWrite = resolve))
+        );
+
+        const clearing = store.setXtreamLocks('pl-1', 'live', []);
+        await waitFor(() => storage.writeLocks.mock.calls.length > 0);
+        // A PIN prompt or backup reaches ensureReadable() beside the write.
+        await expect(store.ensureReadable()).resolves.toBe(false);
+        finishWrite(true);
+        await expect(clearing).resolves.toBe(true);
+
+        // Only the write's own clear: memory still held [7] while it was in
+        // flight, and a reconcile stamping that would have re-locked rows
+        // the store no longer lists.
+        expect(setCategoryLocks.mock.calls).toEqual([['pl-1', 'live', []]]);
+        expect(store.readable()).toBe(true);
+    });
 });
 
 async function waitFor(condition: () => boolean): Promise<void> {
