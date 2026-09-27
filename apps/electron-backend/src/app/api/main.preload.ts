@@ -122,11 +122,6 @@ const xtreamPreloadPerformanceCapture = shouldCaptureXtreamPerformance
       )
     : null;
 
-/** Same spelling as the connectivity-guard kill switch: `1` or `true`. */
-function isEnvFlagSet(value: string | undefined): boolean {
-    return value === '1' || value === 'true';
-}
-
 function emitRendererTrace(payload: {
     method: string;
     phase: 'start' | 'success' | 'error';
@@ -417,9 +412,6 @@ const electronApi: ElectronBridgeApi = {
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
-    startupDeferralDisabled: isEnvFlagSet(
-        process.env['IPTVNATOR_DISABLE_STARTUP_DEFERRAL']
-    ),
     getAppUpdateStatus: () => ipcRenderer.invoke(APP_UPDATE_GET_STATUS),
     checkForAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_CHECK),
     downloadAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_DOWNLOAD),

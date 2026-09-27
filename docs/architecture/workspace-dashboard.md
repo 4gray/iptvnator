@@ -282,11 +282,7 @@ hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
        `updateDate` / `importDate` for sources that have never been used.
 3. `DashboardDataService` is passive on construction. The dashboard feature
    owns the initial reloads for recent items, favorites, and Xtream recently
-   added rows on page entry. Recent items and favorites reload through
-   `reloadForPageEntry()`, which on launch waits for `StartupDeferralService`
-   (the first rendered screen, journey J1); their rails keep their scoped
-   skeletons meanwhile, and the Xtream recently-added and TMDB rails follow
-   `globalFavoritesLoaded()` as before. Later page entries find the gate open.
+   added rows on page entry.
 4. No dashboard-local `Layout` state, no localStorage keys, no migrations.
    Per-rail visibility is the one persisted preference, and it lives in the
    global settings store (`Settings.dashboardRails`), not in a

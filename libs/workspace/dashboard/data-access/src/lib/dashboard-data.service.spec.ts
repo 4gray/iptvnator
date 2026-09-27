@@ -7,11 +7,7 @@ import {
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
 import { of, Subject } from 'rxjs';
-import {
-    DatabaseService,
-    PlaylistsService,
-    StartupDeferralService,
-} from '@iptvnator/services';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     Playlist,
@@ -272,30 +268,6 @@ describe('DashboardDataService', () => {
         expect(service.globalFavoritesLoaded()).toBe(false);
         expect(service.globalFavoritesLoading()).toBe(true);
         expect(service.dashboardReady()).toBe(false);
-    });
-
-    it('holds the page-entry reload until the first screen rendered', async () => {
-        let openGate!: () => void;
-        jest.spyOn(
-            TestBed.inject(StartupDeferralService),
-            'whenFirstContentRendered'
-        ).mockReturnValue(new Promise<void>((resolve) => (openGate = resolve)));
-        const recent = jest
-            .spyOn(service, 'reloadGlobalRecentItems')
-            .mockResolvedValue(undefined);
-        const favorites = jest
-            .spyOn(service, 'reloadGlobalFavorites')
-            .mockResolvedValue(undefined);
-
-        const reload = service.reloadForPageEntry();
-        await Promise.resolve();
-        expect(recent).not.toHaveBeenCalled();
-        expect(favorites).not.toHaveBeenCalled();
-
-        openGate();
-        await reload;
-        expect(recent).toHaveBeenCalledTimes(1);
-        expect(favorites).toHaveBeenCalledTimes(1);
     });
 
     it('keeps dashboardReady false until xtream recently added finishes its first load', async () => {

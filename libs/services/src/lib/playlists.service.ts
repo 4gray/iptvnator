@@ -45,7 +45,6 @@ import {
     runWithPlaylistAuthorityReset,
 } from './playlist-cross-context-lock';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
-import { SharedInFlightRead } from './shared-in-flight-read';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
@@ -120,10 +119,11 @@ export class PlaylistsService {
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
     private electronMigrationPromise: Promise<void> | null = null;
     // Startup reads the inventory twice at once (the playlist effect and the
-    // XMLTV source reconciliation); both share one worker round trip.
-    private readonly sqliteInventoryRead = new SharedInFlightRead<Playlist[]>();
+    // XMLTV source reconciliation); both share one worker round trip. Only a
+    // pending read is shared, and every SQLite write detaches it.
+    private pendingMetas: Promise<Playlist[]> | null = null;
     // The IndexedDB → SQLite receipt is written once and never cleared.
-    private sqliteMigrationConfirmed = false;
+    private migrated = false;
     private indexedDbMigrationPromise: Promise<void> | null = null;
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
 
@@ -204,7 +204,7 @@ export class PlaylistsService {
             (await electron.dbGetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG)) ===
             '1'
         ) {
-            this.sqliteMigrationConfirmed = true;
+            this.migrated = true;
             return;
         }
         const playlists = await firstValueFrom(
@@ -214,10 +214,10 @@ export class PlaylistsService {
             // The worker commits rows and the receipt atomically. Keep the
             // original IndexedDB as a recovery source, even after success.
             const result = await electron.dbMigrateAppPlaylists(playlists);
-            this.sqliteMigrationConfirmed = result?.success === true;
+            this.migrated = result?.success === true;
         } else {
             await electron.dbSetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG, '1');
-            this.sqliteMigrationConfirmed = true;
+            this.migrated = true;
         }
     }
 
@@ -409,7 +409,7 @@ export class PlaylistsService {
                 return playlist;
             }
 
-            this.sqliteInventoryRead.detach();
+            this.pendingMetas = null;
             if (operationId === undefined) {
                 await electron.dbUpsertAppPlaylist(playlist);
             } else {
@@ -427,7 +427,7 @@ export class PlaylistsService {
                 return playlists;
             }
 
-            this.sqliteInventoryRead.detach();
+            this.pendingMetas = null;
             await electron.dbUpsertAppPlaylists(playlists);
             playlists.forEach((playlist) => this.healthEvidence?.connections.next({ id: playlist._id, playlist }));
             return playlists;
@@ -506,22 +506,28 @@ export class PlaylistsService {
 
     getAllPlaylists() {
         if (this.isElectronStorageAvailable) {
-            return from(
-                this.sqliteInventoryRead.run(() =>
-                    firstValueFrom(
-                        this.runOnSqlite(async () => {
-                            const electron = this.electronApi;
-                            const playlists = electron
-                                ? await (electron.dbGetAppPlaylistMetas?.() ??
-                                      electron.dbGetAppPlaylists())
-                                : [];
-                            return (playlists as Playlist[]).map((playlist) =>
-                                this.toPlaylistMeta(playlist)
-                            );
-                        })
-                    )
-                )
+            const pending = this.pendingMetas;
+            // A joining caller gets its own copy of the shared result.
+            if (pending) return from(pending.then((p) => structuredClone(p)));
+            const read = firstValueFrom(
+                this.runOnSqlite(async () => {
+                    const electron = this.electronApi;
+                    const playlists = electron
+                        ? await (electron.dbGetAppPlaylistMetas?.() ??
+                              electron.dbGetAppPlaylists())
+                        : [];
+                    return (playlists as Playlist[]).map((playlist) =>
+                        this.toPlaylistMeta(playlist)
+                    );
+                })
             );
+            this.pendingMetas = read;
+            const settle = () => {
+                if (this.pendingMetas === read)
+                    this.pendingMetas = null;
+            };
+            read.then(settle, settle);
+            return from(read);
         }
 
         return this.runOnIndexedDb(() =>
@@ -575,7 +581,7 @@ export class PlaylistsService {
                         await this.ensureElectronPlaylistMigrations();
                         const electron = this.electronApi;
                         if (electron) {
-                            this.sqliteInventoryRead.detach();
+                            this.pendingMetas = null;
                             if (options) {
                                 const deleted =
                                     await this.databaseService.deletePlaylist(
@@ -1093,14 +1099,14 @@ export class PlaylistsService {
 
         return from(
             (async () => {
-                if (!this.sqliteMigrationConfirmed) {
+                if (!this.migrated) {
                     const alreadyMigrated = await electron.dbGetAppState(
                         SQLITE_PLAYLIST_MIGRATION_FLAG
                     );
                     if (alreadyMigrated !== '1') {
                         return null;
                     }
-                    this.sqliteMigrationConfirmed = true;
+                    this.migrated = true;
                 }
 
                 return getFavoriteChannels(playlistId);
@@ -1350,7 +1356,7 @@ export class PlaylistsService {
                     await this.ensureElectronPlaylistMigrations();
                     const electron = this.electronApi;
                     if (electron) {
-                        this.sqliteInventoryRead.detach();
+                        this.pendingMetas = null;
                         await electron.dbDeleteAllPlaylists();
                         this.healthEvidence?.connections.next({});
                     }

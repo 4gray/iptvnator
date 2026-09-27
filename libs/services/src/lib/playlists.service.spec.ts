@@ -1,7 +1,6 @@
 import { EMPTY, firstValueFrom, from, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
-import { SharedInFlightRead } from './shared-in-flight-read';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
@@ -61,8 +60,8 @@ describe('PlaylistsService', () => {
             },
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
-            sqliteInventoryRead: new SharedInFlightRead(),
-            sqliteMigrationConfirmed: false,
+            pendingMetas: null,
+            migrated: false,
             playlistWriteQueues: new Map(),
             playlistDeleteCleanups: [],
         });

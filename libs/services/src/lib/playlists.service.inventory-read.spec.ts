@@ -1,7 +1,6 @@
 import { firstValueFrom, of } from 'rxjs';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { PlaylistsService } from './playlists.service';
-import { SharedInFlightRead } from './shared-in-flight-read';
 
 // Performance journey J1: the playlist effect and the XMLTV source
 // reconciliation both read the inventory at startup. They must share one
@@ -44,8 +43,8 @@ describe('PlaylistsService inventory reads', () => {
             dbService: { getAll: jest.fn(() => of([])) },
             runtime: { supportsSqlite: true },
             electronMigrationPromise: null,
-            sqliteInventoryRead: new SharedInFlightRead(),
-            sqliteMigrationConfirmed: false,
+            pendingMetas: null,
+            migrated: false,
             playlistWriteQueues: new Map(),
         });
         const settle = async (index: number, playlists: Playlist[]) => {

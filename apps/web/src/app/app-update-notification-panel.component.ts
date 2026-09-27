@@ -15,7 +15,6 @@ import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
 } from '@iptvnator/shared/interfaces';
-import { StartupDeferralService } from '@iptvnator/services';
 import { AppUpdateInstallService } from './services/app-update-install.service';
 
 @Component({
@@ -181,7 +180,6 @@ import { AppUpdateInstallService } from './services/app-update-install.service';
 export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
     private readonly dialog = inject(MatDialog);
     private readonly installService = inject(AppUpdateInstallService);
-    private readonly startupDeferral = inject(StartupDeferralService);
     private unsubscribeStatus: (() => void) | null = null;
 
     readonly appUpdateStatuses = ELECTRON_BRIDGE_APP_UPDATE_STATUSES;
@@ -225,21 +223,14 @@ export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
             return;
         }
 
-        let pushed = false;
         this.unsubscribeStatus =
             window.electron.onAppUpdateStatusChange?.((status) => {
-                pushed = true;
                 this.status.set(status);
             }) ?? null;
 
-        // The card is never part of the first screen (journey J1). A status
-        // pushed while the read waited is newer than the read would be.
-        void this.startupDeferral
-            .whenFirstContentRendered()
-            .then(() => (pushed ? null : window.electron.getAppUpdateStatus()))
-            .then((status) => {
-                if (status && !pushed) this.status.set(status);
-            });
+        void window.electron.getAppUpdateStatus().then((status) => {
+            this.status.set(status);
+        });
     }
 
     ngOnDestroy(): void {

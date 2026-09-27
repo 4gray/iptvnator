@@ -304,7 +304,8 @@ export class WorkspaceDashboardRailsComponent {
         // Re-entering the dashboard should pick up any DB-backed recent/favorite
         // changes made while viewing details, including newly backfilled
         // backdrops that do not change recency ordering.
-        void this.data.reloadForPageEntry();
+        void this.data.reloadGlobalRecentItems();
+        void this.data.reloadGlobalFavorites();
 
         this.liveEpg.connect(this.enabledLiveCards);
 

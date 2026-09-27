@@ -36,7 +36,6 @@ import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import {
     provideParentalLockPlaylistCleanup,
     DataService,
-    STARTUP_WORK_DEFERRAL,
 } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../environments/environment';
@@ -112,9 +111,6 @@ export function DataFactory() {
 export const appConfig: ApplicationConfig = {
     providers: [
         provideZoneChangeDetection({ eventCoalescing: true }),
-        // Startup work the first screen does not need waits for its render
-        // (journey J1); AppStartupStatusComponent opens the gate.
-        { provide: STARTUP_WORK_DEFERRAL, useValue: true },
         provideRouter(routes, withComponentInputBinding()),
         provideAnimations(),
         // CDK overlays (menus, tooltips, dialogs) live in a container under

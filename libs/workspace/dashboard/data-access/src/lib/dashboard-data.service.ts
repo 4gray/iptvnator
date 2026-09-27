@@ -20,7 +20,6 @@ import {
     GlobalRecentlyAddedKind,
     PlaylistsService,
     RuntimeCapabilitiesService,
-    StartupDeferralService,
 } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
@@ -117,7 +116,6 @@ export class DashboardDataService {
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly startupDeferral = inject(StartupDeferralService);
     private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
@@ -500,19 +498,6 @@ export class DashboardDataService {
     );
 
     readonly quickRecent = computed(() => this.recentPlaylists().slice(0, 4));
-
-    /**
-     * Page-entry reload of recent items and favorites. On launch it waits for
-     * the first rendered screen (journey J1) and the rails keep their
-     * skeletons meanwhile; later entries find the gate already open.
-     */
-    async reloadForPageEntry(): Promise<void> {
-        await this.startupDeferral.whenFirstContentRendered();
-        await Promise.all([
-            this.reloadGlobalRecentItems(),
-            this.reloadGlobalFavorites(),
-        ]);
-    }
 
     async reloadGlobalRecentItems(): Promise<void> {
         if (!this.globalRecentLoaded()) {
