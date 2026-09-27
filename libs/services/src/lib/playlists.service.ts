@@ -79,7 +79,9 @@ type PlaylistStorageElectronApi = {
         playlist: Playlist,
         operationId?: string
     ) => Promise<unknown>;
-    dbMigrateAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
+    dbMigrateAppPlaylists: (
+        playlists: Playlist[]
+    ) => Promise<{ success: boolean; count: number }>;
     dbRecoverLegacyPlaylists?: () => Promise<void>;
     dbUpsertAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
 };
@@ -211,9 +213,11 @@ export class PlaylistsService {
         if (playlists.length) {
             // The worker commits rows and the receipt atomically. Keep the
             // original IndexedDB as a recovery source, even after success.
-            await electron.dbMigrateAppPlaylists(playlists);
+            const result = await electron.dbMigrateAppPlaylists(playlists);
+            this.sqliteMigrationConfirmed = result?.success === true;
         } else {
             await electron.dbSetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG, '1');
+            this.sqliteMigrationConfirmed = true;
         }
     }
 

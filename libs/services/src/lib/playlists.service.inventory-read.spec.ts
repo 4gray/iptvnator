@@ -22,7 +22,9 @@ describe('PlaylistsService inventory reads', () => {
     function setup() {
         const reads: ReturnType<typeof deferred<Playlist[]>>[] = [];
         const electron = {
-            dbGetAppState: jest.fn(async () => '1'),
+            dbGetAppState: jest.fn(
+                async (_key: string): Promise<string | null> => '1'
+            ),
             dbSetAppState: jest.fn(),
             dbRecoverLegacyPlaylists: jest.fn(async () => undefined),
             dbGetAppPlaylists: jest.fn(async () => []),
@@ -117,4 +119,34 @@ describe('PlaylistsService inventory reads', () => {
             electron.dbGetAppPlaylistFavoriteChannels
         ).toHaveBeenCalledTimes(2);
     });
+
+    it.each([
+        ['an empty legacy store', [], { success: true, count: 0 }, true],
+        ['a committed migration', [source('legacy')], { success: true, count: 1 }, true],
+        ['an uncommitted migration', [source('legacy')], { success: false, count: 0 }, false],
+    ])(
+        'trusts the receipt written by %s in this session',
+        async (_case, legacy, result, confirmed) => {
+            const { electron, service, settle } = setup();
+            electron.dbGetAppState.mockImplementation(async (key: string) =>
+                key === 'm3u-playlists-indexeddb-to-sqlite-v1' ? null : '1'
+            );
+            Object.assign(electron, {
+                dbMigrateAppPlaylists: jest.fn(async () => result),
+            });
+            Object.assign(service, {
+                dbService: { getAll: jest.fn(() => of(legacy)) },
+            });
+
+            const inventory = firstValueFrom(service.getAllPlaylists());
+            await settle(0, []);
+            await inventory;
+            const receiptReads = electron.dbGetAppState.mock.calls.length;
+            await firstValueFrom(service.getM3uFavoriteChannels('one'));
+
+            expect(electron.dbGetAppState).toHaveBeenCalledTimes(
+                receiptReads + (confirmed ? 0 : 1)
+            );
+        }
+    );
 });
