@@ -114,6 +114,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
             parentalLock: {
                 initialize: jest.fn().mockResolvedValue(undefined),
                 locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
                 // A failed cleanup left locks under the id the restore reuses.
                 locksFor: jest.fn(() => ({
                     xtream: [{ categoryType: 'live', xtreamId: 1 }],

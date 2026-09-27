@@ -41,8 +41,11 @@ export class ParentalLockEnforcementService {
             return;
         }
         this.started = true;
-        this.parentalLock.registerBusyProbe(() =>
-            this.keepAwake.hasPlayingVideo()
+        // Playback counts as activity: video through the keep-awake
+        // tracker, and audio (the radio player) read directly, since the
+        // keep-awake service deliberately ignores <audio>.
+        this.parentalLock.registerBusyProbe(
+            () => this.keepAwake.hasPlayingVideo() || hasPlayingAudio()
         );
         effect(() => {
             const version = this.parentalLock.version();
@@ -293,4 +296,10 @@ export class ParentalLockEnforcementService {
         );
         return match ? decodeURIComponent(match[1]) : null;
     }
+}
+
+function hasPlayingAudio(): boolean {
+    return Array.from(document.querySelectorAll('audio')).some(
+        (audio) => !audio.paused && !audio.ended
+    );
 }

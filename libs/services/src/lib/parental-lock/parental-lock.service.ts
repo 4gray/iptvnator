@@ -437,6 +437,12 @@ export class ParentalLockService {
         return this.locks.setM3uLocks(playlistId, groupTitles);
     }
 
+    /** Retries a failed lock-store read; false while it still fails. */
+    async ensureLocksReadable(): Promise<boolean> {
+        await this.initialize();
+        return this.locks.ensureReadable();
+    }
+
     /** Playlist deletion: its locks leave the store. */
     async removePlaylistLocks(playlistId: string): Promise<boolean> {
         await this.initialize();

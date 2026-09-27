@@ -123,6 +123,7 @@ export function createPlaylistBackupService(
         parentalLock: {
             initialize: jest.fn().mockResolvedValue(undefined),
             locksReadable: jest.fn(() => true),
+            ensureLocksReadable: jest.fn().mockResolvedValue(true),
             locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
             replacePlaylistLocks: jest.fn().mockResolvedValue(true),
         },

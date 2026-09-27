@@ -369,3 +369,45 @@ describe('ParentalLockEnforcementService apply serialization', () => {
         expect(xtreamStore.setSelectedCategory).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('ParentalLockEnforcementService busy probe', () => {
+    it('counts playing audio (the radio player) as activity', () => {
+        let probe: (() => boolean) | undefined;
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: ParentalLockService,
+                    useValue: {
+                        version: signal(0),
+                        registerBusyProbe: (fn: () => boolean) => (probe = fn),
+                    },
+                },
+                { provide: XtreamStore, useValue: {} },
+                { provide: StalkerStore, useValue: {} },
+                { provide: Router, useValue: { url: '/' } },
+                {
+                    provide: Store,
+                    useValue: { selectSignal: () => signal(null) },
+                },
+                {
+                    provide: PlaybackKeepAwakeService,
+                    useValue: { hasPlayingVideo: () => false },
+                },
+            ],
+        });
+        const service = TestBed.inject(ParentalLockEnforcementService);
+        TestBed.runInInjectionContext(() => service.start());
+        expect(probe?.()).toBe(false);
+
+        const audio = document.createElement('audio');
+        Object.defineProperty(audio, 'paused', { value: false });
+        Object.defineProperty(audio, 'ended', { value: false });
+        document.body.appendChild(audio);
+        try {
+            expect(probe?.()).toBe(true);
+        } finally {
+            audio.remove();
+        }
+    });
+});

@@ -1117,6 +1117,14 @@ export class PlaylistBackupService {
         entry: PlaylistBackupEntry,
         isMerge: boolean
     ): Promise<void> {
+        // The stale-id check below and the merge base both read the store; an
+        // empty fail-closed snapshot would let a reused id keep a deleted
+        // playlist's locks once a later read recovers them.
+        if (!(await this.parentalLock.ensureLocksReadable())) {
+            throw new PlaylistBackupError(
+                `Restoring the parental locks for "${playlistId}" failed: the lock store could not be read.`
+            );
+        }
         // A playlist created by this restore owns no locks yet: whatever the
         // store holds under a reused id belongs to a deleted playlist (a
         // cleanup that failed), and must not be inherited.

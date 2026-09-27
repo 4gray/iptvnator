@@ -26,7 +26,10 @@ follow in a second PR.
   (default 15; `0` = only on restart). The idle timer follows the UNLOCKED
   transition: armed the moment a session is unlocked — including the session
   that just enabled the feature — and disarmed on lock. Active playback of a built-in web
-  player counts as interaction, so a film never locks half way.
+  player counts as interaction, so a film never locks half way — video
+  through the keep-awake tracker, and audio (the radio player) read from
+  the playing `<audio>` elements, since the keep-awake service ignores
+  them.
 - This is a child lock, not a security boundary: the PIN hash and the lock
   store sit in user-readable app data. The UI says so. There is no PIN
   recovery; resetting the app data is the way out.
@@ -357,7 +360,9 @@ deletion has succeeded — the in-memory store empties at once, and a failed
 persisted clear is retried on the next store access and overwritten by the
 next write. A backup restore that CREATES a playlist (not a merge) starts
 that playlist from empty locks, so a reused id can never inherit entries a
-failed cleanup left behind.
+failed cleanup left behind; the restore retries a failed lock-store read
+first (`ensureLocksReadable`) and aborts while it still fails, so that check
+never runs against the empty fail-closed snapshot.
 
 ## Backup
 
