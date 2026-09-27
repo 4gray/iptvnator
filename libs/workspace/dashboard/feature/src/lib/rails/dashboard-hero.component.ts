@@ -128,7 +128,16 @@ export class DashboardHeroComponent {
     }
 
     togglePaused(): void {
-        this.userPaused.update((paused) => !paused);
+        if (!this.userPaused()) {
+            this.userPaused.set(true);
+            return;
+        }
+        // An explicit Play wins over the implicit pauses: the pointer and
+        // the focus are on this very button, so they would otherwise keep
+        // the rotation stopped. They re-arm on the next enter / focus move.
+        this.userPaused.set(false);
+        this.hovered.set(false);
+        this.focusWithin.set(false);
     }
 
     setHovered(hovered: boolean): void {

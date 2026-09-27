@@ -145,6 +145,27 @@ describe('DashboardHeroComponent', () => {
         expect(activeTitle()).toBe('Second');
     });
 
+    it('resumes on Play even while the button keeps the pointer and focus', () => {
+        render();
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        const pause = host().querySelector(
+            '[data-test-id=dashboard-hero-pause]'
+        ) as HTMLButtonElement;
+        section.dispatchEvent(new Event('mouseenter'));
+        section.dispatchEvent(new FocusEvent('focusin'));
+
+        pause.click();
+        fixture.detectChanges();
+        pause.click();
+        fixture.detectChanges();
+
+        expect(section.classList).not.toContain('hero--paused');
+        finishActiveDot();
+        expect(activeTitle()).toBe('Second');
+    });
+
     it('switches slides from the dots, with roving arrow keys', () => {
         render();
 

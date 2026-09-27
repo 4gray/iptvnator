@@ -108,7 +108,12 @@ once):
    recently watched channels) whose EPG answer has a title;
 3. one favourite movie/series and one Xtream recently-added title;
 4. remaining places round-robin over the next items of those lists;
-5. only when nothing qualifies, the newest history row of any kind.
+5. only when nothing qualifies, the newest history row of any kind (a
+   detail action: it can be a finished title).
+
+While live candidates exist but none has answered yet, one place stays
+reserved for the live slide, so its late arrival never evicts a slide the
+user may be viewing.
 
 The live candidates are derived and pinned by `DashboardLiveEpgPresenter`
 itself (XMLTV lookup and portal queue), independent of the live rails, so the
@@ -119,7 +124,8 @@ extras (backdrop, rating, genres, overview, year) come from
 `DashboardHeroTmdbService` per featured title and vanish when TMDB is off.
 
 Rotation is the active dot's CSS fill animation (8 s); its `animationend`
-advances. Hover, focus inside the hero and the pause button pause it; under
+advances. Hover, focus inside the hero and the pause button pause it; an
+explicit Play clears the hover/focus pause until they re-arm; under
 `prefers-reduced-motion` nothing auto-advances. The active slide is tracked
 by id, so a late live slide never moves the user off the current one. Test
 hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),

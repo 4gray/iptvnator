@@ -107,6 +107,7 @@ export class DashboardHeroSlidesPresenter {
                         )
                 ),
             live: this.liveSlide()?.candidate ?? null,
+            reserveLive: this.liveEpg.heroLiveCandidates().length > 0,
             favorites: this.data
                 .globalFavoriteItems()
                 .filter(

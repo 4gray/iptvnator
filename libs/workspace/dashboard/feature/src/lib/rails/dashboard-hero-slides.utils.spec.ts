@@ -48,6 +48,7 @@ const input = (
 ): DashboardHeroSourceInput => ({
     continueItems: [],
     live: null,
+    reserveLive: false,
     favorites: [],
     recentlyAdded: [],
     mostRecent: null,
@@ -135,6 +136,42 @@ describe('pickDashboardHeroSources', () => {
             'live:recent-60',
             'favorite:favorite-10',
         ]);
+    });
+
+    it('keeps a place for a pending live slide so its arrival evicts nothing', () => {
+        const lists = {
+            continueItems: [recent(1), recent(2)],
+            favorites: [favorite(10)],
+            recentlyAdded: [added(20)],
+        };
+        const pending = summary(
+            pickDashboardHeroSources(input({ ...lists, reserveLive: true }))
+        );
+        const arrived = summary(
+            pickDashboardHeroSources(
+                input({
+                    ...lists,
+                    reserveLive: true,
+                    live: { origin: 'favorite', item: favorite(50, 'live') },
+                })
+            )
+        );
+
+        expect(pending).toEqual([
+            'continue:recent-1',
+            'favorite:favorite-10',
+            'added:added-20',
+        ]);
+        // Every slide shown before the live answer is still there after it.
+        expect(arrived).toEqual([
+            'continue:recent-1',
+            'live:favorite-50',
+            'favorite:favorite-10',
+            'added:added-20',
+        ]);
+        expect(
+            summary(pickDashboardHeroSources(input({ ...lists })))
+        ).toHaveLength(HERO_SLIDE_LIMIT);
     });
 
     it('falls back to the newest history row only when nothing else qualifies', () => {

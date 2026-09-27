@@ -40,6 +40,12 @@ export interface DashboardHeroSourceInput {
     readonly continueItems: readonly PortalRecentItem[];
     /** The channel picked for the live slide, when one has a programme on air. */
     readonly live: DashboardHeroLiveCandidate | null;
+    /**
+     * Channels exist that could still fill the live slide (their EPG answer
+     * may be pending). Its place is then kept free, so the slide arriving
+     * late never pushes another one out from under the user.
+     */
+    readonly reserveLive: boolean;
     /** Favourite movies/series. */
     readonly favorites: readonly PortalFavoriteItem[];
     readonly recentlyAdded: readonly PortalAddedItem[];
@@ -89,15 +95,21 @@ export function selectDashboardHeroLiveCandidates(
  * then one favourite and one recent import; remaining places go to the next
  * unfinished title, favourite and import in turn. A title never appears
  * twice, and the order is stable so a slide arriving late (the live slide
- * waits for its EPG answer) slots in without reshuffling the rest.
+ * waits for its EPG answer) slots in without reshuffling the rest. While
+ * live candidates exist, one place stays reserved for the live slide, so
+ * its arrival never evicts a slide the user may be viewing.
  */
 export function pickDashboardHeroSources(
     input: DashboardHeroSourceInput
 ): DashboardHeroSource[] {
     const seen = new Set<string>();
     const sources: DashboardHeroSource[] = [];
+    const limit =
+        input.reserveLive && !input.live
+            ? HERO_SLIDE_LIMIT - 1
+            : HERO_SLIDE_LIMIT;
     const push = (source: DashboardHeroSource | null) => {
-        if (!source || sources.length >= HERO_SLIDE_LIMIT) {
+        if (!source || sources.length >= limit) {
             return;
         }
         const key = dashboardHeroItemKey(source.item);
@@ -125,7 +137,7 @@ export function pickDashboardHeroSources(
     push(favoriteAt(0));
     push(addedAt(0));
     // Ends once every list has run out; duplicates only skip a place.
-    for (let index = 1; sources.length < HERO_SLIDE_LIMIT; index++) {
+    for (let index = 1; sources.length < limit; index++) {
         const next = [continueAt(index), favoriteAt(index), addedAt(index)];
         if (next.every((source) => source === null)) {
             break;
