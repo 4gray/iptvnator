@@ -16,6 +16,10 @@ import {
     waitForSourceRowIdle,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
+import {
+    readVisibleSidebarCategories,
+    readVisibleSidebarCategoryNames,
+} from './sidebar-categories.e2e-support';
 import { applyTheme } from './theme-contrast';
 
 test.describe('Electron Xtream Category Management', () => {
@@ -591,31 +595,6 @@ async function expectVisibleSidebarCategoryNames(
     }
 }
 
-async function readVisibleSidebarCategoryNames(page: Page): Promise<string[]> {
-    const categories = page.locator(
-        'app-workspace-context-panel .category-item'
-    );
-    const actualNames: string[] = [];
-    const count = await categories.count();
-
-    for (let index = 0; index < count; index += 1) {
-        const category = categories.nth(index);
-        if (!(await category.isVisible())) {
-            continue;
-        }
-
-        const categoryName =
-            (await category.locator('.nav-item-label').textContent())?.trim() ??
-            '';
-
-        if (categoryName) {
-            actualNames.push(categoryName);
-        }
-    }
-
-    return actualNames;
-}
-
 function stringArraysEqual(left: string[], right: string[]): boolean {
     return (
         left.length === right.length &&
@@ -634,35 +613,12 @@ async function pickSidebarCategory(
 
     await expect
         .poll(async () => {
-            const categories = page.locator(
-                'app-workspace-context-panel .category-item:visible'
+            const candidates = (
+                await readVisibleSidebarCategories(page)
+            ).filter(
+                (candidate) =>
+                    candidate.id && candidate.name && candidate.itemCount > 0
             );
-            const count = await categories.count();
-            const candidates: Array<{
-                id: string;
-                itemCount: number;
-                name: string;
-            }> = [];
-
-            for (let index = 0; index < count; index += 1) {
-                const category = categories.nth(index);
-                const id =
-                    (await category.getAttribute('data-category-id'))?.trim() ??
-                    '';
-                const name =
-                    (
-                        await category.locator('.nav-item-label').textContent()
-                    )?.trim() ?? '';
-                const countText =
-                    (
-                        await category.locator('.item-count').textContent()
-                    )?.trim() ?? '';
-                const itemCount = Number.parseInt(countText, 10) || 0;
-
-                if (id && name && itemCount > 0) {
-                    candidates.push({ id, itemCount, name });
-                }
-            }
 
             if (candidates.length === 0) {
                 preferredCandidate = null;
