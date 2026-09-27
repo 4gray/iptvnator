@@ -122,8 +122,16 @@ export class WebPlayerViewComponent implements OnDestroy {
         optional: true,
     });
     private readonly recoverySession = new PlaybackRecoverySession();
+    private readonly historyGate = inject(PlaybackHistoryGate);
     private readonly externalRecovery = new ExternalPlaybackRecoveryCoordinator(
-        this.externalPlayback
+        this.externalPlayback,
+        // "Open in MPV/VLC" after an inline failure is still this session's
+        // view; the app-wide session confirmation carries only the URL.
+        (session) =>
+            this.historyGate.confirm({
+                sessionKey: this.playbackSessionKey(),
+                streamUrls: [session.streamUrl],
+            })
     );
     private readonly applicationHandoff =
         new WebPlayerApplicationHandoffCoordinator(
@@ -221,7 +229,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly playbackApplicationToken = this.applicationState.token;
     /** Commits deferred "recently viewed" writes once this stream plays. */
     private readonly historyConfirmation = new PlaybackHistoryConfirmation({
-        gate: inject(PlaybackHistoryGate),
+        gate: this.historyGate,
         target: () => ({
             sessionKey: this.playbackSessionKey(),
             streamUrls: [this.streamUrl(), this.playback()?.streamUrl],

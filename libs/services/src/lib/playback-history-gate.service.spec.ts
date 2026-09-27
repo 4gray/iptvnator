@@ -55,24 +55,35 @@ describe('PlaybackHistoryGate', () => {
         expect(playedInB).toHaveBeenCalledTimes(1);
     });
 
-    it('falls back to the stream URL when either side has no session key', () => {
-        const portalWrite = jest.fn();
-        const radioWrite = jest.fn();
-        gate.defer({ streamUrls: ['http://portal/tmp'] }, portalWrite);
+    it('does not let a URL-only confirmation commit a write deferred with a session key', () => {
+        // Playlist A's attempt failed; the same URL then opens in MPV/VLC,
+        // whose app-wide session confirmation carries no session key.
+        const failedInA = jest.fn();
         gate.defer(
-            { sessionKey: 'live:p1:radio', streamUrls: ['http://radio/1'] },
-            radioWrite
+            { sessionKey: 'live:a:c1', streamUrls: ['http://shared/1'] },
+            failedInA
         );
 
-        // A player with a session key; a player (MPV/VLC session) without.
+        gate.confirm({ streamUrls: ['http://shared/1'] });
+
+        expect(failedInA).not.toHaveBeenCalled();
+    });
+
+    it('matches writes without a session key by stream URL', () => {
+        const portalWrite = jest.fn();
+        const externalWrite = jest.fn();
+        gate.defer({ streamUrls: ['http://portal/tmp'] }, portalWrite);
+        gate.defer({ streamUrls: ['http://portal/vod'] }, externalWrite);
+
+        // An inline player (with its own key) and an MPV/VLC session.
         gate.confirm({
             sessionKey: 'live:portal:9',
             streamUrls: ['http://portal/tmp'],
         });
-        gate.confirm({ streamUrls: ['http://radio/1'] });
+        gate.confirm({ streamUrls: ['http://portal/vod'] });
 
         expect(portalWrite).toHaveBeenCalledTimes(1);
-        expect(radioWrite).toHaveBeenCalledTimes(1);
+        expect(externalWrite).toHaveBeenCalledTimes(1);
     });
 
     it('commits each confirmed write once', () => {

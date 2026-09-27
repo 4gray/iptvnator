@@ -1145,10 +1145,11 @@ reaches history.
   playlist when they defer, so navigating meanwhile cannot misfile it; an
   Xtream write confirmed after a playlist switch refreshes the store's recent
   list only if its playlist is still current.
-- Matching: when both the write and the confirmation carry a session key,
-  only the session key is compared — the same URL in two playlists must not
-  let playback in one record a failed attempt in the other. Stream URLs are
-  the fallback when either side has none.
+- Matching: a write deferred with a session key is confirmed only by that
+  same key — the same URL in two playlists must not let playback in one
+  (inline, or in MPV/VLC) record a failed attempt in the other. Writes
+  without one (portal resolvers, collection tabs) match any confirmation of
+  their stream URL.
 - `WebPlayerViewComponent` confirms its `playbackSessionKey`, `streamUrl`
   and `playback.streamUrl` once the owned engine's reported position has
   advanced by 2 seconds while playing (`PlaybackProgressConfirmation`).
@@ -1161,8 +1162,11 @@ reaches history.
   when given).
 - MPV/VLC cannot report whether a live stream plays, so the Electron
   `ExternalPlaybackService` confirms a session's `streamUrl` once it is
-  `opened` or `playing`; a launch that ends in `error` is not recorded. M3U
-  keeps recording on selection when MPV/VLC is the configured player.
+  `opened` or `playing`; a launch that ends in `error` is not recorded. That
+  confirmation carries no session key, so an "Open in MPV/VLC" recovery
+  launch is also confirmed by the `WebPlayerViewComponent` that requested
+  it, under its own session key, once the launch has opened. M3U keeps
+  recording on selection when MPV/VLC is the configured player.
 - A confirmation commits every write matching it, once. Unconfirmed writes
   are bounded (oldest dropped) and simply never commit. The global live tab
   moves a confirmed row to the top of an open Recently Viewed list even if

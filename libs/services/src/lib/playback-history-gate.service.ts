@@ -4,10 +4,10 @@ import { Injectable } from '@angular/core';
 export interface PlaybackHistoryTarget {
     /**
      * The playing host's `playbackSessionKey` (source and content scoped).
-     * When both sides carry one, it is the only thing that is compared.
+     * A write deferred with one is only confirmed by that same key.
      */
     readonly sessionKey?: string | null;
-    /** Stream URLs; the fallback when either side has no session key. */
+    /** Stream URLs; what a write without a session key is matched by. */
     readonly streamUrls?: readonly (string | null | undefined)[];
 }
 
@@ -39,9 +39,12 @@ const MAX_PENDING_HISTORY_WRITES = 20;
  * launched. A stream that fails before that point never reaches history or
  * the dashboard hero.
  *
- * A session key is the stronger correlation: the same stream URL can sit in
- * two playlists, and playing it in one must not record a failed attempt in
- * the other. Stream URLs only match when either side has no session key.
+ * A write deferred with a session key is only confirmed by the same key: the
+ * same stream URL can sit in two playlists, and playing it in one — inline
+ * or in MPV/VLC, whose app-wide confirmation knows only the URL — must not
+ * record a failed attempt in the other. Writers that cannot know the
+ * playing host's key (portal resolvers, collection tabs) defer by stream
+ * URL, which any confirmation of that URL matches.
  * Several writers may defer for the same playback; one confirmation commits
  * all of them. A write with nothing to match on cannot be confirmed and is
  * committed immediately, as before this gate existed.
@@ -81,7 +84,7 @@ function matchesTarget(
     write: NormalizedTarget,
     confirmed: NormalizedTarget
 ): boolean {
-    if (write.sessionKey && confirmed.sessionKey) {
+    if (write.sessionKey) {
         return write.sessionKey === confirmed.sessionKey;
     }
     return [...write.streamUrls].some((url) => confirmed.streamUrls.has(url));

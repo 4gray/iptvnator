@@ -215,7 +215,10 @@ describe('VideoPlayerComponent — recently viewed history', () => {
             name: 'Second TV',
         });
 
-        gate.confirm({ streamUrls: ['http://localhost/second.m3u8'] });
+        gate.confirm({
+            sessionKey: component.playbackSessionKey(),
+            streamUrls: ['http://localhost/second.m3u8'],
+        });
 
         expect(playlistsServiceMock.addM3uRecentlyViewed).toHaveBeenCalledTimes(
             1
@@ -226,7 +229,7 @@ describe('VideoPlayerComponent — recently viewed history', () => {
         );
     });
 
-    it('records a radio station once the audio player confirms its URL', () => {
+    it('records a radio station once the audio player confirms it', () => {
         const radio = { ...sampleChannel, radio: 'true' };
         select(radio);
 
@@ -234,7 +237,16 @@ describe('VideoPlayerComponent — recently viewed history', () => {
             playlistsServiceMock.addM3uRecentlyViewed
         ).not.toHaveBeenCalled();
 
+        // The same URL opened elsewhere (MPV/VLC, another playlist) does not.
         gate.confirm({ streamUrls: [radio.url] });
+        expect(
+            playlistsServiceMock.addM3uRecentlyViewed
+        ).not.toHaveBeenCalled();
+
+        gate.confirm({
+            sessionKey: component.playbackSessionKey(),
+            streamUrls: [radio.url],
+        });
 
         expect(playlistsServiceMock.addM3uRecentlyViewed).toHaveBeenCalledTimes(
             1
