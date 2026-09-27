@@ -26,7 +26,11 @@ import {
 } from '@iptvnator/ui/epg';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaybackHistoryGate,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgItem, EpgProgram, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     PORTAL_PLAYER,
@@ -157,6 +161,12 @@ describe('UnifiedLiveTabComponent', () => {
         window.electron = originalElectron;
     });
 
+    /** What the mounted player reports once the stream has really played. */
+    async function playStream(streamUrl: string): Promise<void> {
+        TestBed.inject(PlaybackHistoryGate).confirm([streamUrl]);
+        await fixture.whenStable();
+    }
+
     it('renders controlled M3U EPG and records recent history on selection', async () => {
         const item = buildLiveItem('m3u');
         streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
@@ -200,6 +210,8 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+        await playStream('https://example.com/m3u.m3u8');
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         expect(streamResolver.loadM3uProgramsForItem).toHaveBeenCalledWith(
             item,
@@ -658,6 +670,8 @@ describe('UnifiedLiveTabComponent', () => {
                 streamUrl: 'https://example.com/m3u.m3u8',
             })
         );
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+        await playStream('https://example.com/m3u.m3u8');
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         expect(streamResolver.loadM3uProgramsForItem).toHaveBeenCalled();
 
@@ -711,6 +725,8 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+        await playStream('https://example.com/radio.m3u8');
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
         expect(
@@ -781,6 +797,8 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+        await playStream('https://example.com/jazz.mp3');
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
         expect(
@@ -840,6 +858,8 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+        await playStream('https://example.com/xtream.m3u8');
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         const timeline = fixture.debugElement.query(
             By.directive(StubEpgTimelineComponent)
@@ -873,6 +893,8 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+        await playStream('https://example.com/stalker.m3u8');
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         const timeline = fixture.debugElement.query(
             By.directive(StubEpgTimelineComponent)
@@ -895,6 +917,10 @@ describe('UnifiedLiveTabComponent', () => {
         const autoOpenHandledSpy = jest.spyOn(
             component.autoOpenHandled,
             'emit'
+        );
+        // Like the collection page: a handled auto-open is cleared.
+        component.autoOpenHandled.subscribe(() =>
+            fixture.componentRef.setInput('autoOpenItem', null)
         );
 
         streamResolver.resolveLiveDetail.mockReturnValue(pendingDetail.promise);

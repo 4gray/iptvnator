@@ -22,7 +22,11 @@ import {
     type PlaybackRecommendationTarget,
 } from '@iptvnator/playback/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaybackHistoryGate,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     VideoPlayer,
     type Channel,
@@ -36,6 +40,7 @@ import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-
 import { FullscreenChannelPanelComponent } from '../fullscreen-channel-panel/fullscreen-channel-panel.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
+import { PlaybackHistoryConfirmation } from '../playback-history/playback-history-confirmation';
 import {
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -213,6 +218,16 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly resolvedIsLive = this.applicationState.isLive;
     readonly playbackSourceRevisionToken = this.applicationState.sourceRevision;
     readonly playbackApplicationToken = this.applicationState.token;
+    /** Commits deferred "recently viewed" writes once this stream plays. */
+    private readonly historyConfirmation = new PlaybackHistoryConfirmation({
+        gate: inject(PlaybackHistoryGate),
+        keys: () => [
+            this.playbackSessionKey(),
+            this.streamUrl(),
+            this.playback()?.streamUrl,
+        ],
+        sourceRevision: () => this.playbackSourceRevisionToken(),
+    });
     readonly playbackExternallyTransferable = computed(() =>
         isPlaybackExternallyTransferable(this.resolvedPlayback())
     );
@@ -377,6 +392,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         }
 
         this.recoverySession.recordTimeUpdate(event, ownership.isLive);
+        this.historyConfirmation.record(event.currentTime);
         this.timeUpdate.emit(event);
     }
 

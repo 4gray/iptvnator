@@ -38,6 +38,7 @@ import {
     createExternalLaunchOwner,
     startRouteOwnedPlayback,
 } from './vod-details-external-launch-owner';
+import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { settleOwnedExternalLaunch } from './vod-details-external-launch';
 import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
 import { isResumablePosition } from './vod-primary-action-position';
@@ -68,6 +69,7 @@ export class VodDetailsPlaybackService {
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly recordRecentItem = injectXtreamRecentHistory();
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
     );
@@ -377,15 +379,6 @@ export class VodDetailsPlaybackService {
         this.positionLoaded.set(true);
     }
 
-    private addToRecentlyViewed(): void {
-        this.xtreamStore.addRecentItem({
-            xtreamId: this.bindings()?.vodId() ?? NaN,
-            contentType: 'movie',
-            playlist: this.xtreamStore.currentPlaylist,
-            backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
-        });
-    }
-
     /**
      * The single inline-vs-external fork. Public so multi-source can switch
      * the playing source through exactly the same path a normal Play takes —
@@ -469,7 +462,11 @@ export class VodDetailsPlaybackService {
             }
 
             // Same movie, different source: still a view.
-            this.addToRecentlyViewed();
+            this.recordRecentItem(playback.streamUrl, {
+                xtreamId: this.bindings()?.vodId() ?? NaN,
+                contentType: 'movie',
+                backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
+            });
             return await this.applyPlayback(playback, isCurrent);
         } finally {
             this.pendingStart.settle(startId);

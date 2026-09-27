@@ -6,7 +6,10 @@ import {
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    PlaybackHistoryGate,
+    PlaybackPositionRuntimeBridgeService,
+} from '@iptvnator/services';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -145,6 +148,34 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             activeSource,
             supersedePendingSwitch,
         });
+    });
+
+    it('records the movie as recently viewed only once its stream played', async () => {
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/broken.mkv',
+            title: 'Broken source',
+        });
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Working source',
+        });
+        currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+
+        expect(addRecentItem).not.toHaveBeenCalled();
+
+        TestBed.inject(PlaybackHistoryGate).confirm([
+            'https://example.com/route.mkv',
+        ]);
+
+        expect(addRecentItem).toHaveBeenCalledTimes(1);
+        const [recentItem] = addRecentItem.mock.calls[0];
+        expect(recentItem).toEqual(
+            expect.objectContaining({
+                xtreamId: ROUTE_VOD_ID,
+                contentType: 'movie',
+            })
+        );
+        expect(recentItem.playlist()).toEqual({ id: ROUTE_PLAYLIST });
     });
 
     it('owns a session launched for the route’s own stream', () => {
@@ -341,6 +372,9 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 contentType: 'vod',
             },
         });
+        TestBed.inject(PlaybackHistoryGate).confirm([
+            'https://example.com/alt.mkv',
+        ]);
 
         expect(addRecentItem).toHaveBeenCalled();
     });

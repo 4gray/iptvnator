@@ -8,6 +8,7 @@ import {
     PORTAL_PLAYER,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
+import { PlaybackHistoryGate } from '@iptvnator/services';
 import { ElectronStreamHeadersService } from '@iptvnator/ui/playback';
 import { UnifiedLiveTimeshift } from './unified-live-catchup';
 import { UnifiedLiveSelectionGeneration } from './unified-live-selection-generation';
@@ -71,6 +72,7 @@ export function createUnifiedLiveSelection(options: {
     const recentData = inject(UnifiedRecentDataService);
     const streamHeaders = inject(ElectronStreamHeadersService);
     const portalPlayer = inject(PORTAL_PLAYER);
+    const historyGate = inject(PlaybackHistoryGate);
 
     /** Stream URL of the radio playback whose header override this configured. */
     let radioHeaderScopeUrl: string | null = null;
@@ -117,6 +119,20 @@ export function createUnifiedLiveSelection(options: {
 
             return { ...currentDetail, epgPrograms };
         });
+    };
+
+    const recordLivePlayback = async (
+        item: UnifiedCollectionItem,
+        generation: number
+    ): Promise<void> => {
+        try {
+            const updatedItem = await recentData.recordLivePlayback(item);
+            if (generation === options.generation.current()) {
+                options.onItemPlayed(updatedItem);
+            }
+        } catch {
+            // Keep playback/EPG visible even if history persistence fails.
+        }
     };
 
     const close = (): void => {
@@ -223,14 +239,12 @@ export function createUnifiedLiveSelection(options: {
                 void portalPlayer.openResolvedPlayback(detail.playback);
             }
 
-            try {
-                const updatedItem = await recentData.recordLivePlayback(item);
-                if (generation === options.generation.current()) {
-                    options.onItemPlayed(updatedItem);
-                }
-            } catch {
-                // Keep playback/EPG visible even if history persistence fails.
-            }
+            // Selecting a channel is not watching it: the row moves to the
+            // top of Recently Viewed once its stream has really played.
+            historyGate.defer(
+                [detail.playback.streamUrl],
+                () => void recordLivePlayback(item, generation)
+            );
 
             if (
                 generation === options.generation.current() &&

@@ -74,6 +74,9 @@ Render rules:
 2. `hasPlaylists() === false` → render `<app-empty-state [type]="'welcome-dashboard'">`
    full-bleed. All rails and the hero are skipped.
 3. `hero()` = `globalRecentItems()[0]`. If present, render the hero panel.
+   An item enters recent history only after its stream has really played
+   (see "Recently Viewed Confirmation" in `embedded-inline-playback.md`), so
+   a channel that failed at once never becomes the hero.
 4. Each rail is emitted via `@if (cards.length > 0)`. Empty rails are hidden
    — there is no "empty widget" placeholder.
 5. The continue-watching hero prefers a stored Xtream `backdrop_url`; when it

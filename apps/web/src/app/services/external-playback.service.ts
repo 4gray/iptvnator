@@ -1,4 +1,5 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
+import { PlaybackHistoryGate } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
     PlayerContentInfo,
@@ -8,6 +9,7 @@ import {
     providedIn: 'root',
 })
 export class ExternalPlaybackService {
+    private readonly historyGate = inject(PlaybackHistoryGate);
     readonly activeSession = signal<ExternalPlayerSession | null>(null);
     private readonly dismissedSessionId = signal<string | null>(null);
 
@@ -102,6 +104,12 @@ export class ExternalPlaybackService {
     }
 
     private handleSessionUpdate(session: ExternalPlayerSession): void {
+        // MPV/VLC cannot report whether a live stream really plays, so a
+        // successful launch is what commits the deferred history write.
+        if (session.status === 'opened' || session.status === 'playing') {
+            this.historyGate.confirm([session.streamUrl]);
+        }
+
         const current = this.activeSession();
         const restoresCurrentReplacement =
             current?.id === session.restoredFromSessionId;

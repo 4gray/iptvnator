@@ -25,7 +25,10 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    PlaybackHistoryGate,
+    PlaybackPositionRuntimeBridgeService,
+} from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
@@ -564,12 +567,20 @@ describe('SerialDetailsComponent', () => {
         expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
             expect.objectContaining({ id: '1001' })
         );
+        // The series is a recent view only once the episode has played.
+        expect(addRecentItem).not.toHaveBeenCalled();
+        TestBed.inject(PlaybackHistoryGate).confirm([
+            'http://xtream.example/series/1001.mp4',
+        ]);
         expect(addRecentItem).toHaveBeenCalledWith({
             xtreamId: '103',
             contentType: 'series',
-            playlist: currentPlaylist,
+            playlist: expect.any(Function),
             backdropUrl: undefined,
         });
+        expect(addRecentItem.mock.calls[0][0].playlist()).toEqual(
+            currentPlaylist()
+        );
         expect(openResolvedPlayback).toHaveBeenCalledWith(
             expect.objectContaining({
                 streamUrl: 'http://xtream.example/series/1001.mp4',
@@ -923,7 +934,10 @@ describe('SerialDetailsComponent', () => {
             SerialDetailsPlaybackService
         );
         const snackBar = TestBed.inject(MatSnackBar);
-        const seasonPosition = (contentXtreamId: number, episodeNumber: number) => ({
+        const seasonPosition = (
+            contentXtreamId: number,
+            episodeNumber: number
+        ) => ({
             playlistId: 'xtream-1',
             contentXtreamId,
             contentType: 'episode' as const,
@@ -958,9 +972,9 @@ describe('SerialDetailsComponent', () => {
             expect.objectContaining({ contentXtreamId: 1002 }),
         ]);
         expect(savePlaybackPosition).not.toHaveBeenCalled();
-        expect(
-            playbackService.episodePlaybackPositions().get(1001)
-        ).toEqual(expect.objectContaining({ positionSeconds: 1200 }));
+        expect(playbackService.episodePlaybackPositions().get(1001)).toEqual(
+            expect.objectContaining({ positionSeconds: 1200 })
+        );
         expect(
             playbackService.episodePlaybackPositions().get(1002)
         ).toBeDefined();
@@ -1065,9 +1079,7 @@ describe('SerialDetailsComponent', () => {
         const consoleError = jest
             .spyOn(console, 'error')
             .mockImplementation(() => undefined);
-        savePlaybackPositionsBatch.mockRejectedValue(
-            new Error('batch failed')
-        );
+        savePlaybackPositionsBatch.mockRejectedValue(new Error('batch failed'));
         fixture.detectChanges();
         await fixture.whenStable();
 

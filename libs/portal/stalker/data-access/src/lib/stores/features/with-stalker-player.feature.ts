@@ -4,7 +4,11 @@ import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYER, createLogger } from '@iptvnator/portal/shared/util';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaybackHistoryGate,
+    PlaylistsService,
+} from '@iptvnator/services';
 import {
     PlaylistMeta,
     ResolvedPortalPlayback,
@@ -60,7 +64,8 @@ export function withStalkerPlayer() {
                 portalRepair = inject(StalkerPortalRepairService),
                 snackBar = inject(MatSnackBar),
                 translate = inject(TranslateService),
-                ngrxStore = inject(Store)
+                ngrxStore = inject(Store),
+                historyGate = inject(PlaybackHistoryGate)
             ) => {
                 const storeState = store as typeof store &
                     StalkerPlayerFeatureStoreContract;
@@ -122,7 +127,15 @@ export function withStalkerPlayer() {
                         storeState.selectedContentType()
                     );
 
+                /**
+                 * Resolving a link is not watching it: the write waits until
+                 * the player (inline ≥2 s of progress, or a launched MPV/VLC)
+                 * confirms `streamUrl`. The item and its portal are captured
+                 * now, so switching portal or section meanwhile cannot
+                 * misfile it.
+                 */
                 const recordRecentlyViewed = (
+                    streamUrl: string,
                     item: StalkerPlayableItem | null | undefined,
                     cmd?: string,
                     cover?: string,
@@ -139,13 +152,12 @@ export function withStalkerPlayer() {
                         cover,
                         title
                     );
-
-                    if (typeof storeState.addToRecentlyViewed === 'function') {
-                        storeState.addToRecentlyViewed(recentItem);
-                        return;
-                    }
-
-                    persistRecentlyViewed(playlistId, recentItem);
+                    historyGate.defer([streamUrl], () =>
+                        persistRecentlyViewed(playlistId, {
+                            ...recentItem,
+                            added_at: Date.now(),
+                        })
+                    );
                 };
 
                 const resolveVodPlaybackInternal = async (
@@ -157,9 +169,7 @@ export function withStalkerPlayer() {
                     startTime?: number
                 ): Promise<ResolvedPortalPlayback> => {
                     const item = storeState.selectedItem() as
-                        | StalkerPlayableItem
-                        | null
-                        | undefined;
+                        StalkerPlayableItem | null | undefined;
                     let cmdToUse = cmd ?? item?.cmd;
 
                     if (!cmdToUse) {
@@ -195,7 +205,13 @@ export function withStalkerPlayer() {
                         }
                     );
 
-                    recordRecentlyViewed(item, cmd, thumbnail, title);
+                    recordRecentlyViewed(
+                        streamUrl,
+                        item,
+                        cmd,
+                        thumbnail,
+                        title
+                    );
 
                     const isEpisode =
                         episodeNum !== undefined || episodeId !== undefined;
@@ -285,6 +301,7 @@ export function withStalkerPlayer() {
                     const portalOrigin = getStalkerPortalOrigin(playlist);
 
                     recordRecentlyViewed(
+                        streamUrl,
                         item,
                         item.cmd,
                         item.logo ?? item.cover,
@@ -350,6 +367,7 @@ export function withStalkerPlayer() {
                     );
 
                     recordRecentlyViewed(
+                        streamUrl,
                         item,
                         item.cmd,
                         item.logo ?? item.cover,

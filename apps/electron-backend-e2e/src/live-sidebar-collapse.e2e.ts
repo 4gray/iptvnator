@@ -20,6 +20,10 @@ import {
     writeTemporaryM3uFile,
 } from './electron-test-fixtures';
 import { fetchXtreamLiveFixture } from './portal-mock-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
 
 /**
  * Issue #1458, second report: "all channels disappear after clearing the
@@ -136,6 +140,7 @@ test.describe('Live channel rail collapse (#1458)', () => {
             CHANNELS
         );
         const app: LaunchedElectronApp = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await importM3uPlaylistFromNativeDialog(app, filePath);
@@ -143,9 +148,12 @@ test.describe('Live channel rail collapse (#1458)', () => {
             const playlistId = playlistIdFromUrl(app.mainWindow);
             expect(await storedItemCount(app.mainWindow, playlistId)).toBe(3);
 
-            await channelItemByTitle(app.mainWindow, 'Channel Alpha')
-                .first()
-                .click();
+            // History records a channel only once it has really played.
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, 'Channel Alpha')
+                    .first()
+                    .click()
+            );
 
             await openPlaylistRecent(app.mainWindow);
             await expect(

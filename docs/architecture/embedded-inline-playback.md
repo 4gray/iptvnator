@@ -1129,6 +1129,39 @@ This keeps:
 - series and VOD-as-series support intact
 - external MPV/VLC launches unchanged
 
+## Recently Viewed Confirmation
+
+Selecting or resolving an item is not watching it. A channel, movie or series
+becomes a recently viewed item — and with it the dashboard hero — only once
+its stream has really played, so a stream that fails straight away never
+reaches history.
+
+- Writers do not persist on selection. They hand the write to
+  `PlaybackHistoryGate` (`@iptvnator/services`) with `defer(keys, commit)`,
+  keyed by what the playback will be known by: the stream URL and, for M3U,
+  the host's `playbackSessionKey`. The Stalker resolver defers by the
+  resolved (possibly temporary) link; the persisted row still stores the
+  portal `cmd`, never that link. Writers capture the item and its playlist
+  when they defer, so navigating meanwhile cannot misfile it.
+- `WebPlayerViewComponent` confirms its `playbackSessionKey`, `streamUrl`
+  and `playback.streamUrl` once the owned engine's reported position has
+  advanced by 2 seconds (`PlaybackProgressConfirmation`). Steps above
+  3 seconds (seeks, a resume jump, live-edge catch-up), stalls, pauses and
+  backwards jumps do not count; a report of a new stream never adds to the
+  progress of the previous one; an engine or format swap of the same stream
+  keeps its progress. The radio `AudioPlayerComponent` confirms its URL the
+  same way.
+- MPV/VLC cannot report whether a live stream plays, so the Electron
+  `ExternalPlaybackService` confirms a session's `streamUrl` once it is
+  `opened` or `playing`; a launch that ends in `error` is not recorded. M3U
+  keeps recording on selection when MPV/VLC is the configured player.
+- A confirmation commits every write deferred under any of its keys, once.
+  Unconfirmed writes are bounded (oldest dropped) and simply never commit.
+- A committed write updates the source while the item keeps playing. Hosts
+  must not hand the player a new but identical playback for it: the M3U
+  host's `embeddedPlayback` also reads the playlist meta, so it is compared
+  by value — a new object would remount the engine and restart the stream.
+
 ## Playback Position Saving
 
 The old dialog path saved playback positions from inside the removed Xtream
