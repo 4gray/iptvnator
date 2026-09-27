@@ -1,7 +1,7 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import * as schema from '@iptvnator/shared/database/schema';
 import { getIptvnatorDatabasePath } from '@iptvnator/shared/database/path-utils';
-import { workerData } from 'worker_threads';
+import { parentPort, workerData } from 'worker_threads';
 import type { AppDatabase } from '../database/database.types';
 import {
     getNativeModuleSearchPaths,
@@ -10,10 +10,15 @@ import {
     registerNativeModuleSearchPaths,
 } from './worker-runtime-paths';
 import {
+    isSqlStatementCountEnabled,
     isSqlTraceEnabled,
     trace,
     traceSqlStatement,
 } from '../services/debug-trace';
+import {
+    countSqlStatementExecutions,
+    createSqlStatementCountReporter,
+} from './database-worker-sql-statement-count';
 
 let drizzleFactory:
     | (typeof import('drizzle-orm/better-sqlite3'))['drizzle']
@@ -59,6 +64,22 @@ const Database = loadBetterSqlite3();
 let db: AppDatabase | null = null;
 let sqlite: BetterSqlite3.Database | null = null;
 
+// IPTVNATOR_PERF_CAPTURE=1 with IPTVNATOR_PERF_COUNT_SQL=1 only: the main
+// process keeps the running total.
+const sqlStatementCount = isSqlStatementCountEnabled()
+    ? createSqlStatementCountReporter((message) =>
+          parentPort?.postMessage(message)
+      )
+    : null;
+
+/**
+ * Posts the statements counted since the last flush. The worker calls this
+ * before every other message so a response never overtakes its statements.
+ */
+export function flushWorkerSqlStatementCount(): void {
+    sqlStatementCount?.flush();
+}
+
 export async function getWorkerDatabase(): Promise<AppDatabase> {
     if (db) {
         return db;
@@ -70,6 +91,9 @@ export async function getWorkerDatabase(): Promise<AppDatabase> {
             ? (sql: string) => traceSqlStatement('sql-worker', sql)
             : undefined,
     });
+    if (sqlStatementCount) {
+        countSqlStatementExecutions(sqlite, sqlStatementCount.record);
+    }
     sqlite.pragma('foreign_keys = ON');
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('busy_timeout = 5000');

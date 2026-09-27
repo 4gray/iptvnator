@@ -16,6 +16,7 @@ function gate(
         gatedEpochMs: 1_020,
         gatedMethod: 'loadFile',
         passThroughLoads: 0,
+        readyToShowHeldOnBlank: 1,
         releasedEpochMs: 1_150,
         timedOut: false,
         ...overrides,

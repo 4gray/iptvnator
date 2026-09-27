@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "التلفزة المباشرة المتشافة مؤخراً",
             "FAVORITE_MOVIES_AND_SERIES": "الأفلام والسلاسل المفضلة",
             "SOURCE_EXPIRES_IN_DAYS": "كتسالي ف {{days}} يوم",
-            "SOURCE_EXPIRED": "سالات"
+            "SOURCE_EXPIRED": "سالات",
+            "HERO_LABEL": "مختارين",
+            "HERO_FAVORITE_CHANNEL": "قناة مفضلة",
+            "HERO_FAVORITE": "مفضل",
+            "HERO_RECENTLY_ADDED": "تزاد جديد",
+            "HERO_CONTINUE": "كمّل",
+            "HERO_WATCH_LIVE": "تفرج مباشر",
+            "HERO_DETAILS": "التفاصيل",
+            "HERO_SLIDE_POSITION": "{{index}} من {{count}}",
+            "HERO_SHOW_SLIDE": "وري {{title}}",
+            "HERO_PAUSE": "وقف العرض",
+            "HERO_PLAY": "شغّل العرض"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

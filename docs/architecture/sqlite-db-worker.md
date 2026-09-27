@@ -444,6 +444,29 @@ first, this receipt remains distinct from the later authoritative
 exposing the pending request. Disabled profiling performs no receipt clock or
 transport work, and `DatabaseWorkerClient.cancel()` remains fire-and-return.
 
+With `IPTVNATOR_PERF_CAPTURE=1` and `IPTVNATOR_PERF_COUNT_SQL=1`, the worker
+connection also counts the SQL statements it executes and posts `performance-sql-statements` messages that
+carry only a positive count, never SQL text or bound values. Counts are
+coalesced per microtask and flushed before every other worker message, so a
+response never overtakes the statements that produced it.
+`DatabaseWorkerClient` adds them to the main-process `main.sqlStatements`
+counter and settles nothing. Statements are counted by wrapping the
+execution methods of better-sqlite3's `Statement` prototype and the
+connection's `exec`, not through the `verbose` callback: a callback makes
+better-sqlite3 expand every statement's SQL, which made bulk inserts two to
+four times slower. Counting still adds a JavaScript call per row of a bulk
+insert, so it needs `IPTVNATOR_PERF_COUNT_SQL` on top of the capture flag:
+only the launch journey sets it, and the import benchmarks that run with the
+capture flag measure unwrapped statements. A call that throws is not counted, which matches the SQL
+trace for statements that fail before execution. One `exec` call counts as
+one statement, so initialization passes one statement per call; the
+historical-upgrade test enforces it. The main process counts its
+own shared connection the same way (`services/main-sql-statement-count.ts`,
+through the shared library's connection observer). Without the flag both
+connections are opened unchanged. See
+`workers/database-worker-sql-statement-count.ts` and
+[performance journeys](performance-journeys.md).
+
 ## Renderer Contract
 
 The preload bridge keeps the existing database methods but adds scoped worker

@@ -1,10 +1,18 @@
 // Select persistence before eager imports (notably electron-conf) cache userData.
 import './app/services/electron-profile-bootstrap';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import App from './app/app';
 import PlaylistOpenEvents from './app/events/playlist-open.events';
 import SquirrelEvents from './app/events/squirrel.events';
-import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
+import {
+    isPerformanceCaptureEnabled,
+    isSqlStatementCountEnabled,
+    isStartupTraceEnabled,
+    performanceCounters,
+    traceStartupPhase,
+} from './app/services/debug-trace';
+import { registerPerformanceCountersHandler } from './app/services/performance-counters';
+import { countMainProcessSqlStatements } from './app/services/main-sql-statement-count';
 import { readCompileCacheOutcome } from './app/services/compile-cache';
 import { applyElectronNetworkDefaults } from './app/util/network-defaults';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
@@ -35,9 +43,12 @@ import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
 
-if (isStartupTraceEnabled()) {
-    trace('startup', 'compile-cache', readCompileCacheOutcome());
-}
+traceStartupPhase('compile-cache', () => readCompileCacheOutcome());
+// Before anything can open the shared database connection.
+countMainProcessSqlStatements(
+    performanceCounters,
+    isSqlStatementCountEnabled()
+);
 
 // Before the first portal, playlist or update request leaves this process.
 applyElectronNetworkDefaults((line) => {
@@ -92,9 +103,7 @@ export default class Main {
     }
 
     static bootstrapApp() {
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'bootstrap-app');
-        }
+        traceStartupPhase('bootstrap-app');
         App.main(app, BrowserWindow);
     }
 
@@ -106,9 +115,13 @@ export default class Main {
      * still guarantees the handlers exist before any renderer invoke).
      */
     static async bootstrapAppEvents() {
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'bootstrap-events:start');
-        }
+        traceStartupPhase('bootstrap-events:start');
+        // Only with IPTVNATOR_PERF_CAPTURE=1; the preload never exposes it.
+        registerPerformanceCountersHandler(
+            ipcMain,
+            performanceCounters,
+            isPerformanceCaptureEnabled()
+        );
 
         const windowCloseGuard = bootstrapWindowCloseGuard((listener) =>
             App.onMainWindowCreated(listener)
@@ -131,14 +144,14 @@ export default class Main {
                     windowCloseGuard,
                 }),
             onTrigger: (source) => {
-                if (isStartupTraceEnabled()) {
-                    trace('startup', 'deferred-events:start', { source });
-                }
+                traceStartupPhase('deferred-events:start', () => ({
+                    source,
+                }));
             },
             onDone: (durationMs) => {
-                if (isStartupTraceEnabled()) {
-                    trace('startup', 'deferred-events:done', { durationMs });
-                }
+                traceStartupPhase('deferred-events:done', () => ({
+                    durationMs,
+                }));
             },
             // The window is open by now; without this a missing chunk would
             // only show up as an unhandled rejection with no context.
@@ -147,9 +160,7 @@ export default class Main {
                     'Deferred main-process startup failed; portal, EPG, database and download handlers are unavailable:',
                     error
                 );
-                if (isStartupTraceEnabled()) {
-                    trace('startup', 'deferred-events:failed', error);
-                }
+                traceStartupPhase('deferred-events:failed', () => error);
             },
         });
         deferredEvents = deferred;
@@ -170,9 +181,7 @@ export default class Main {
 
         await module.finishStartupAfterFirstLoad();
 
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'bootstrap-events:done');
-        }
+        traceStartupPhase('bootstrap-events:done');
 
         // Hydrate process.env.PATH from the user's login shell now — after
         // the window has loaded and IPC handlers are live. Fire-and-forget
@@ -239,9 +248,7 @@ runEmbeddedMpvRuntimeDiagnosticOrContinue(process.argv, () => {
 
     // Bootstrap app events after Electron app is ready
     app.whenReady().then(async () => {
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'app.whenReady');
-        }
+        traceStartupPhase('app.whenReady');
         await Main.bootstrapAppEvents();
     });
 

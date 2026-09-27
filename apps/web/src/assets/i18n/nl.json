@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "Recent bekeken live-tv",
             "FAVORITE_MOVIES_AND_SERIES": "Favoriete films en reeksen",
             "SOURCE_EXPIRES_IN_DAYS": "Verloopt over {{days}} d",
-            "SOURCE_EXPIRED": "Verlopen"
+            "SOURCE_EXPIRED": "Verlopen",
+            "HERO_LABEL": "Uitgelicht",
+            "HERO_FAVORITE_CHANNEL": "Favoriete zender",
+            "HERO_FAVORITE": "Favoriet",
+            "HERO_RECENTLY_ADDED": "Recent toegevoegd",
+            "HERO_CONTINUE": "Verder kijken",
+            "HERO_WATCH_LIVE": "Live kijken",
+            "HERO_DETAILS": "Details",
+            "HERO_SLIDE_POSITION": "{{index}} van {{count}}",
+            "HERO_SHOW_SLIDE": "{{title}} tonen",
+            "HERO_PAUSE": "Diavoorstelling pauzeren",
+            "HERO_PLAY": "Diavoorstelling afspelen"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

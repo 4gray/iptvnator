@@ -1,15 +1,24 @@
 import type { JourneyRendererGateState } from '../journeys/journey-renderer-gate-client';
+import {
+    JOURNEY_MAIN_COUNTER,
+    type JourneyMainCountersState,
+} from './journey-main-counters';
 import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
 import type { JourneyRendererProbeState } from './journey-renderer-probe';
 import type { JourneyIterationRecord } from './journey-summary';
 
 /**
- * Maps one measured launch (renderer probe + main IPC capture) to the
- * journey summary's iteration record for J1 "Launch to usable".
+ * Maps one measured launch (renderer probe, main IPC capture and main-process
+ * counters) to the journey summary's iteration record for J1 "Launch to
+ * usable".
  */
 export const LAUNCH_JOURNEY_ID = 'launch';
 
 export const LAUNCH_JOURNEY_COUNTER = {
+    MODULES_REGISTERED_BEFORE_WINDOW:
+        JOURNEY_MAIN_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW,
+    SQL_STATEMENTS_BEFORE_READY_TO_SHOW:
+        JOURNEY_MAIN_COUNTER.SQL_STATEMENTS_BEFORE_READY_TO_SHOW,
     DOM_MUTATIONS: 'renderer.domMutationsToFirstCard',
     IPC_CALLS: 'renderer.ipcCallsToFirstCard',
     LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
@@ -28,8 +37,6 @@ export const LAUNCH_JOURNEY_WALL_CLOCK = {
 export const LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
     Record<string, string>
 > = Object.freeze({
-    'main.sqlStatementsBeforeReadyToShow':
-        'SQL statements are only visible as worker stdout trace lines, which are forwarded asynchronously; plan item A2 adds a countable channel.',
     'renderer.cdTicksToFirstCard':
         'The electron-performance build optimizes scripts (ngDevMode=false), so Angular does not publish window.ng and ɵsetProfiler is unavailable.',
 });
@@ -38,6 +45,7 @@ export interface LaunchJourneyMeasurement {
     readonly electronVersion: string;
     readonly gate: JourneyRendererGateState;
     readonly ipc: JourneyMainIpcCaptureState;
+    readonly mainCounters: JourneyMainCountersState;
     readonly pid: number;
     readonly renderer: JourneyRendererProbeState;
     readonly spawnEpochMs: number;
@@ -52,7 +60,7 @@ export function toLaunchIterationRecord(
     warmup: boolean,
     measurement: LaunchJourneyMeasurement
 ): JourneyIterationRecord {
-    const { ipc, renderer, spawnEpochMs } = measurement;
+    const { ipc, mainCounters, renderer, spawnEpochMs } = measurement;
     if (renderer.terminal === null || renderer.navigation === null) {
         throw new Error('launch-journey-record-incomplete-probe');
     }
@@ -75,6 +83,14 @@ export function toLaunchIterationRecord(
     }
     return Object.freeze({
         counters: Object.freeze({
+            [LAUNCH_JOURNEY_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW]:
+                mainCounters.counters[
+                    LAUNCH_JOURNEY_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW
+                ],
+            [LAUNCH_JOURNEY_COUNTER.SQL_STATEMENTS_BEFORE_READY_TO_SHOW]:
+                mainCounters.counters[
+                    LAUNCH_JOURNEY_COUNTER.SQL_STATEMENTS_BEFORE_READY_TO_SHOW
+                ],
             [LAUNCH_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [LAUNCH_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
@@ -90,6 +106,15 @@ export function toLaunchIterationRecord(
                 firstCardPaint: renderer.firstCardPaintEpochMs,
                 loadEventEnd: renderer.navigation.loadEventEndEpochMs,
                 mainIpcCaptureInstalled: ipc.installedEpochMs,
+                mainReadyToShow:
+                    mainCounters.frozenAtEpochMs[
+                        LAUNCH_JOURNEY_COUNTER
+                            .SQL_STATEMENTS_BEFORE_READY_TO_SHOW
+                    ],
+                mainWindowCreated:
+                    mainCounters.frozenAtEpochMs[
+                        LAUNCH_JOURNEY_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW
+                    ],
                 mainProcessStart: ipc.processStartEpochMs,
                 rendererGateBlankLoaded: measurement.gate.blankLoadedEpochMs,
                 rendererGateReleased: measurement.gate.releasedEpochMs,
@@ -102,6 +127,10 @@ export function toLaunchIterationRecord(
                 pathname: renderer.terminal.pathname,
             }),
             ipcCallsAfterFirstCard: ipc.callsAfterSentinel,
+            // Running totals when the counters were read, after the first card.
+            mainCountersAtRead: mainCounters.counters,
+            rendererGateReadyToShowHeldOnBlank:
+                measurement.gate.readyToShowHeldOnBlank,
             ipcCallsByMethod: ipc.callsByMethod,
             longTaskDurationsMs: renderer.longTaskDurationsMs.map(roundTenth),
             observedTarget: renderer.capabilities.observedTarget,

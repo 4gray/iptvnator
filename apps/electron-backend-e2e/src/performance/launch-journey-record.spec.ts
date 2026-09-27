@@ -67,10 +67,23 @@ function measurement(
             gatedEpochMs: 1_020,
             gatedMethod: 'loadFile',
             passThroughLoads: 0,
+            readyToShowHeldOnBlank: 1,
             releasedEpochMs: 1_150,
             timedOut: false,
         },
         ipc,
+        mainCounters: {
+            counters: {
+                'main.modulesRegisteredBeforeWindow': 2,
+                'main.sqlStatements': 61,
+                'main.sqlStatementsBeforeReadyToShow': 9,
+                'main.startupPhases': 9,
+            },
+            frozenAtEpochMs: {
+                'main.modulesRegisteredBeforeWindow': 1_010,
+                'main.sqlStatementsBeforeReadyToShow': 1_250,
+            },
+        },
         pid: 4242,
         renderer,
         spawnEpochMs: 1_000,
@@ -78,12 +91,14 @@ function measurement(
     };
 }
 
-test('maps the probe and IPC capture to exact counters and spawn-relative wall-clock', () => {
+test('maps the probe, IPC capture and main counters to exact counters and spawn-relative wall-clock', () => {
     const record = toLaunchIterationRecord(2, false, measurement());
     assert.equal(record.index, 2);
     assert.equal(record.warmup, false);
     assert.equal(record.pid, 4242);
     assert.deepEqual(record.counters, {
+        'main.modulesRegisteredBeforeWindow': 2,
+        'main.sqlStatementsBeforeReadyToShow': 9,
         'renderer.domMutationsToFirstCard': 480,
         'renderer.ipcCallsToFirstCard': 14,
         'renderer.layoutShiftScore': 0.123,
@@ -99,12 +114,21 @@ test('maps the probe and IPC capture to exact counters and spawn-relative wall-c
     });
     assert.deepEqual(record.evidence['longTaskDurationsMs'], [71.3, 120]);
     assert.equal(record.evidence['ipcCallsAfterFirstCard'], 3);
+    assert.deepEqual(record.evidence['mainCountersAtRead'], {
+        'main.modulesRegisteredBeforeWindow': 2,
+        'main.sqlStatements': 61,
+        'main.sqlStatementsBeforeReadyToShow': 9,
+        'main.startupPhases': 9,
+    });
+    assert.equal(record.evidence['rendererGateReadyToShowHeldOnBlank'], 1);
     assert.deepEqual(record.evidence['epochs'], {
         firstCard: 2_600.04,
         firstCardPaint: 2_650,
         loadEventEnd: 1_400.26,
         mainIpcCaptureInstalled: 1_100,
         mainProcessStart: 900,
+        mainReadyToShow: 1_250,
+        mainWindowCreated: 1_010,
         rendererGateBlankLoaded: 1_050,
         rendererGateReleased: 1_150,
         rendererProbeInstalled: 1_200,
@@ -144,8 +168,14 @@ test('rejects measurements whose clocks or probes are inconsistent', () => {
 });
 
 test('names the counters the harness cannot measure yet', () => {
-    assert.deepEqual(Object.keys(LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS).sort(), [
-        'main.sqlStatementsBeforeReadyToShow',
+    assert.deepEqual(Object.keys(LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS), [
         'renderer.cdTicksToFirstCard',
     ]);
+});
+
+test('never reports a measured counter as unavailable', () => {
+    const record = toLaunchIterationRecord(0, false, measurement());
+    for (const name of Object.keys(LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS)) {
+        assert.equal(name in record.counters, false, name);
+    }
 });

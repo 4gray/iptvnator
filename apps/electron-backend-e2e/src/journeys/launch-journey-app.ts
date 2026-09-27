@@ -25,6 +25,10 @@ import {
     readJourneyMainIpcCapture,
 } from '../performance/journey-main-ipc-capture';
 import {
+    assertJourneyMainCounters,
+    readJourneyMainCounters,
+} from '../performance/journey-main-counters';
+import {
     createLaunchJourneyProbeOptions,
     installJourneyRendererProbe,
     waitForJourneyRendererProbe,
@@ -124,9 +128,17 @@ export async function measureLaunchJourney(
     );
     try {
         await cp(templateDirectory, dataDirectory, { recursive: true });
+        // IPTVNATOR_PERF_CAPTURE turns on the main-process counters and
+        // their read handler, IPTVNATOR_PERF_COUNT_SQL the SQL statement
+        // count behind main.sqlStatementsBeforeReadyToShow; only this journey
+        // sets it. See journey-main-counters.ts.
         const env = buildElectronLaunchEnvironment(
             dataDirectory,
-            launchOptions({ IPTVNATOR_TRACE_IPC: '1' })
+            launchOptions({
+                IPTVNATOR_PERF_CAPTURE: '1',
+                IPTVNATOR_PERF_COUNT_SQL: '1',
+                IPTVNATOR_TRACE_IPC: '1',
+            })
         );
         const args = buildElectronLaunchArgs([
             '-r',
@@ -188,6 +200,14 @@ export async function measureLaunchJourney(
                 JOURNEY_MAIN_IPC_STATE_KEY,
                 10_000
             );
+            // Read after the probe finished, so both frozen counters exist.
+            const mainCounters = assertJourneyMainCounters(
+                await readJourneyMainCounters(
+                    electronApp,
+                    JOURNEY_RENDERER_GATE_KEY
+                ),
+                gate
+            );
             if (ipc.installedEpochMs > renderer.installed.epochMs) {
                 throw new Error('journey-main-ipc-capture-installed-late');
             }
@@ -198,6 +218,7 @@ export async function measureLaunchJourney(
                 electronVersion,
                 gate,
                 ipc,
+                mainCounters,
                 pid: electronApp.process().pid ?? -1,
                 renderer,
                 spawnEpochMs,

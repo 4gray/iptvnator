@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "Нядаўна прагледжанае жывое ТБ",
             "FAVORITE_MOVIES_AND_SERIES": "Любімыя фільмы і серыялы",
             "SOURCE_EXPIRES_IN_DAYS": "Скончыцца праз {{days}} дз.",
-            "SOURCE_EXPIRED": "Скончыўся"
+            "SOURCE_EXPIRED": "Скончыўся",
+            "HERO_LABEL": "Рэкамендаванае",
+            "HERO_FAVORITE_CHANNEL": "Абраны канал",
+            "HERO_FAVORITE": "Абранае",
+            "HERO_RECENTLY_ADDED": "Нядаўна дададзена",
+            "HERO_CONTINUE": "Працягнуць",
+            "HERO_WATCH_LIVE": "Глядзець эфір",
+            "HERO_DETAILS": "Падрабязней",
+            "HERO_SLIDE_POSITION": "{{index}} з {{count}}",
+            "HERO_SHOW_SLIDE": "Паказаць {{title}}",
+            "HERO_PAUSE": "Прыпыніць паказ",
+            "HERO_PLAY": "Аднавіць паказ"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

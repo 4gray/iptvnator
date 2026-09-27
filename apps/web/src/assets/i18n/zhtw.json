@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "最近觀看的直播電視",
             "FAVORITE_MOVIES_AND_SERIES": "收藏的電影和影集",
             "SOURCE_EXPIRES_IN_DAYS": "{{days}} 天後到期",
-            "SOURCE_EXPIRED": "已過期"
+            "SOURCE_EXPIRED": "已過期",
+            "HERO_LABEL": "精選",
+            "HERO_FAVORITE_CHANNEL": "收藏頻道",
+            "HERO_FAVORITE": "收藏",
+            "HERO_RECENTLY_ADDED": "最近新增",
+            "HERO_CONTINUE": "繼續觀看",
+            "HERO_WATCH_LIVE": "觀看直播",
+            "HERO_DETAILS": "詳細資訊",
+            "HERO_SLIDE_POSITION": "第 {{index}} 項，共 {{count}} 項",
+            "HERO_SHOW_SLIDE": "顯示 {{title}}",
+            "HERO_PAUSE": "暫停輪播",
+            "HERO_PLAY": "播放輪播"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

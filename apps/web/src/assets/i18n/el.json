@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "Ζωντανή TV που παρακολουθήθηκε πρόσφατα",
             "FAVORITE_MOVIES_AND_SERIES": "Αγαπημένες ταινίες και σειρές",
             "SOURCE_EXPIRES_IN_DAYS": "Λήγει σε {{days}} ημ.",
-            "SOURCE_EXPIRED": "Έληξε"
+            "SOURCE_EXPIRED": "Έληξε",
+            "HERO_LABEL": "Προτεινόμενα",
+            "HERO_FAVORITE_CHANNEL": "Αγαπημένο κανάλι",
+            "HERO_FAVORITE": "Αγαπημένο",
+            "HERO_RECENTLY_ADDED": "Προστέθηκε πρόσφατα",
+            "HERO_CONTINUE": "Συνέχεια",
+            "HERO_WATCH_LIVE": "Δείτε ζωντανά",
+            "HERO_DETAILS": "Λεπτομέρειες",
+            "HERO_SLIDE_POSITION": "{{index}} από {{count}}",
+            "HERO_SHOW_SLIDE": "Εμφάνιση {{title}}",
+            "HERO_PAUSE": "Παύση προβολής",
+            "HERO_PLAY": "Αναπαραγωγή προβολής"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

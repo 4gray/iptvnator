@@ -23,6 +23,7 @@ import {
 } from '@iptvnator/shared/logging';
 import * as schema from './schema';
 import { getIptvnatorDatabasePath } from './path-utils';
+import { notifyDatabaseConnectionOpened } from './connection-observer';
 
 export type DatabaseInstance = BetterSQLite3Database<typeof schema>;
 
@@ -1228,6 +1229,7 @@ export async function initDatabase(
                 ? (message?: unknown) => traceSqlStatement(message)
                 : undefined,
         });
+        notifyDatabaseConnectionOpened(sqlite);
 
         if (isSqlTraceEnabled()) {
             traceSql('sql-main', 'open', {

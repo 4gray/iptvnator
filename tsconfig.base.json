@@ -146,6 +146,9 @@
             "@iptvnator/shared/database/path-utils": [
                 "libs/shared/database/src/lib/path-utils.ts"
             ],
+            "@iptvnator/shared/database/connection-observer": [
+                "libs/shared/database/src/lib/connection-observer.ts"
+            ],
             "@iptvnator/workspace/dashboard/feature": [
                 "libs/workspace/dashboard/feature/src/index.ts"
             ],

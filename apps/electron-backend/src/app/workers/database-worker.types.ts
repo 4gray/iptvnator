@@ -1,4 +1,5 @@
 import type { WorkerPerformanceCaptureResult } from './worker-performance-capture';
+import type { DbWorkerSqlStatementsMessage } from './database-worker-sql-statement-count';
 
 export const DB_WORKER_OPERATIONS = [
     'DB_HAS_CATEGORIES',
@@ -177,4 +178,5 @@ export type DbWorkerMessage =
     | DbWorkerReadyMessage
     | DbWorkerEventMessage
     | DbWorkerPerformanceCancelReceivedMessage
+    | DbWorkerSqlStatementsMessage
     | DbWorkerResponseMessage;

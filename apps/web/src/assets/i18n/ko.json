@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "최근 시청한 라이브 TV",
             "FAVORITE_MOVIES_AND_SERIES": "즐겨찾기한 영화 및 시리즈",
             "SOURCE_EXPIRES_IN_DAYS": "{{days}}일 후 만료",
-            "SOURCE_EXPIRED": "만료됨"
+            "SOURCE_EXPIRED": "만료됨",
+            "HERO_LABEL": "추천",
+            "HERO_FAVORITE_CHANNEL": "즐겨찾는 채널",
+            "HERO_FAVORITE": "즐겨찾기",
+            "HERO_RECENTLY_ADDED": "최근 추가됨",
+            "HERO_CONTINUE": "이어 보기",
+            "HERO_WATCH_LIVE": "실시간 보기",
+            "HERO_DETAILS": "상세 정보",
+            "HERO_SLIDE_POSITION": "{{index}} / {{count}}",
+            "HERO_SHOW_SLIDE": "{{title}} 보기",
+            "HERO_PAUSE": "슬라이드쇼 일시정지",
+            "HERO_PLAY": "슬라이드쇼 재생"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

@@ -37,7 +37,7 @@ Core implementation:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Hero — Continue Watching (most recent item)                        │
+│  Hero — rotating cinematic banner (resume · live · discovery)       │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Continue Watching · See all →                                      │
 │  [poster][poster][poster][poster] →→                                │
@@ -73,15 +73,17 @@ Render rules:
    slow rail does not hide already available content.
 2. `hasPlaylists() === false` → render `<app-empty-state [type]="'welcome-dashboard'">`
    full-bleed. All rails and the hero are skipped.
-3. `hero()` = `globalRecentItems()[0]`. If present, render the hero panel.
-   An item enters recent history only after its stream has really played
-   (see "Recently Viewed Confirmation" in `embedded-inline-playback.md`), so
-   a channel that failed at once never becomes the hero.
+3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
+   see [Cinematic Hero](#cinematic-hero). It shows its own skeleton while
+   the first history load runs. An item enters recent history only after
+   its stream has really played (see "Recently Viewed Confirmation" in
+   `embedded-inline-playback.md`), so a channel that failed at once never
+   becomes a hero slide.
 4. Each rail is emitted via `@if (cards.length > 0)`. Empty rails are hidden
    — there is no "empty widget" placeholder.
-5. The continue-watching hero prefers a stored Xtream `backdrop_url`; when it
-   is missing the UI falls back to a blurred poster treatment instead of
-   showing a flat panel.
+5. Hero slides prefer a stored `backdrop_url`, then the TMDB backdrop; when
+   both are missing the poster becomes a blurred wash plus key art on the
+   right instead of a flat panel.
 6. Live favorites are promoted into their own live rail; movie/series
    favorites render in a separate `Favorite movies & series` rail
    (`favoriteMoviesAndSeriesCards`, `data-test-id="dashboard-favorite-vod-rail"`,
@@ -91,6 +93,47 @@ Render rules:
    favorites load has completed for both Xtream-backed and playlist-backed
    favorites. This avoids first-paint partial counts such as a single Stalker
    favorite appearing before M3U favorites finish resolving.
+
+## Cinematic Hero
+
+`DashboardHeroComponent` renders a full-bleed banner: it cancels the page's
+`--dashboard-gutter`/top padding and the centred `--dashboard-max-width`
+(the page host is the `dashboard` inline-size container), keeps
+`clamp(320px, 42vh, 520px)` so the first rail starts above the fold, and uses
+`--app-content-bg` as its scrim so it dissolves into the page in both themes.
+
+Slides (`pickDashboardHeroSources`, at most four, stable order, each title
+once):
+
+1. the newest unfinished movie/series (`isPortalPlaybackWatched` rows skip);
+2. a live channel with a programme on air — the first of
+   `selectDashboardHeroLiveCandidates` (up to three favourites, then two
+   recently watched channels) whose EPG answer has a title;
+3. one favourite movie/series and one Xtream recently-added title;
+4. remaining places round-robin over the next items of those lists;
+5. only when nothing qualifies, the newest history row of any kind (a
+   detail action: it can be a finished title).
+
+While live candidates exist but none has answered yet, one place stays
+reserved for the live slide, so its late arrival never evicts a slide the
+user may be viewing.
+
+The live candidates are derived and pinned by `DashboardLiveEpgPresenter`
+itself (XMLTV lookup and portal queue), independent of the live rails, so the
+slide works with those rails hidden. Actions: a resume slide keeps the resume
+handoff and adds a detail-only "Details" when a series episode can resume;
+discovery slides open the detail page; live slides open the channel. TMDB
+extras (backdrop, rating, genres, overview, year) come from
+`DashboardHeroTmdbService` per featured title and vanish when TMDB is off.
+
+Rotation is the active dot's CSS fill animation (8 s); its `animationend`
+advances. Hover, focus inside the hero and the pause button pause it; an
+explicit Play clears the hover/focus pause until they re-arm; under
+`prefers-reduced-motion` nothing auto-advances. The active slide is tracked
+by id, so a late live slide never moves the user off the current one. Test
+hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
+`dashboard-hero-dot`, `dashboard-hero-pause`,
+`dashboard-hero-primary-action`, `dashboard-hero-secondary-action`.
 
 ## Rail Contract
 
@@ -112,7 +155,8 @@ Render rules:
 
 1. `WorkspaceDashboardRailsComponent` injects `DashboardDataService`.
 2. It derives the dashboard surface via `computed()`:
-    1. `hero` — first item of `globalRecentItems()`.
+    1. The hero slides — built by `DashboardHeroSlidesPresenter`, see
+       [Cinematic Hero](#cinematic-hero).
     2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
        cover cards. Portal playback positions are bulk-loaded per playlist so
        hero and cards can show progress, remaining time, and series season/
@@ -164,12 +208,12 @@ Render rules:
           card counts as visible. Cards that leave the list are reported gone
           at once.
         - `DashboardPortalLiveEpgPresenter` (component-provided) unions the
-          visible keys of both rails with the pinned hero key and calls
+          visible keys of both rails with the pinned hero keys and calls
           `DashboardPortalLiveEpgService.sync()` with exactly those entries —
           on every change, on the 30 s tick, and on a display-offset change.
           It is reached through `DashboardLiveEpgPresenter`, which derives the
-          portal rows itself from the enabled rails and pins the hero, so the
-          page component only forwards what a rail can see. The queue lives in
+          portal rows itself from the enabled rails and pins the hero's live
+          candidates, so the page component only forwards what a rail can see. The queue lives in
           the root service, so leaving the dashboard hands the wanted set back
           (`sync([])` on destroy); otherwise the queue would keep asking for
           cards on a page that is gone.
