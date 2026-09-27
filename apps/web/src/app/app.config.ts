@@ -30,7 +30,7 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
-} from '@iptvnator/portal/shared/util';
+} from '@iptvnator/portal/shared/util/tokens';
 import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui/stalker-connection-editor';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import {

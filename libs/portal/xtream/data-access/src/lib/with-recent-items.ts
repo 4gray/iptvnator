@@ -15,7 +15,7 @@ import {
     Playlist,
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 
 export interface RecentlyViewedItem extends PortalRecentItem {

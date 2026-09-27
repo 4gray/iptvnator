@@ -16,7 +16,7 @@ import {
     measureRendererPerformancePhase,
     RENDERER_PERFORMANCE_PHASE,
 } from '@iptvnator/shared/logging';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     DataService,
     DatabaseService,

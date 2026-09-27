@@ -14,7 +14,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '../../data-sources/xtream-data-source.interface';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { XtreamSearchResultItem } from '../../xtream-state';
 
 /**
