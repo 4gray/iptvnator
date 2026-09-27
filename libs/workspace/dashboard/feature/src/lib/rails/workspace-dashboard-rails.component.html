@@ -238,7 +238,7 @@
                     liveEpg.setVisibleCards('favorites', $event)
                 "
             />
-        } @else if (showLiveFavoritesSkeleton()) {
+        } @else if (railSkeletonsVisible() && showLiveFavoritesSkeleton()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -290,7 +290,7 @@
             />
         }
 
-        @if (showRecentContentSkeleton()) {
+        @if (railSkeletonsVisible() && showRecentContentSkeleton()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -316,7 +316,11 @@
                 [testId]="'dashboard-recent-sources-rail'"
                 (actionSelected)="onSourceActionSelected($event)"
             />
-        } @else if (dashboardRails().recentSources && !data.playlistsLoaded()) {
+        } @else if (
+            railSkeletonsVisible() &&
+            dashboardRails().recentSources &&
+            !data.playlistsLoaded()
+        ) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -345,6 +349,7 @@
                 [testId]="'dashboard-xtream-recently-added-rail'"
             />
         } @else if (
+            railSkeletonsVisible() &&
             dashboardRails().xtreamRecentlyAdded &&
             xtreamPlaylistCount() > 0 &&
             data.xtreamRecentlyAddedLoading()
@@ -375,6 +380,7 @@
                 [testId]="'dashboard-tmdb-recommendations-rail'"
             />
         } @else if (
+            railSkeletonsVisible() &&
             dashboardRails().tmdbRecommendations &&
             recommendationsService.loading()
         ) {
@@ -401,7 +407,9 @@
                 [testId]="'dashboard-tmdb-trending-rail'"
             />
         } @else if (
-            dashboardRails().tmdbTrending && trendingService.loading()
+            railSkeletonsVisible() &&
+            dashboardRails().tmdbTrending &&
+            trendingService.loading()
         ) {
             <section
                 class="rails-page__skeleton-rail"

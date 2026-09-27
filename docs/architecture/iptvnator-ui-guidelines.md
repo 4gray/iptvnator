@@ -542,6 +542,20 @@ mirrors the row/card geometry it precedes (see Channel List Item and Cover
 Grids). The unified Favorites/Recent page gates this on `isLoading`, set only
 while its item list is empty.
 
+### Pages of independently loading blocks: delayed skeletons
+
+The dashboard renders each rail as soon as its own data arrives, and several
+rails resolve empty on a normal profile. A per-rail skeleton shown
+immediately therefore flashed for a few tens of milliseconds and collapsed,
+pulling every rail below it upwards (a layout shift of about 0.23 on each
+launch with sources). Rail skeletons wait out a short grace period
+(`DASHBOARD_RAIL_SKELETON_GRACE_MS`, 300 ms, in
+`libs/workspace/dashboard/feature/src/lib/rails/dashboard-skeleton-grace.ts`)
+and appear only for a rail that is still loading after it. The top block
+(the dashboard hero) keeps its immediate skeleton: it reserves the space
+above everything else, where a late insertion would push the whole page down.
+Use the same rule for any page that stacks independently loading blocks.
+
 ### Reload with content on screen: non-destructive indicator
 
 A reload of a list that is already rendered (the collection page's

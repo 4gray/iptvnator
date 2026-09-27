@@ -55,6 +55,7 @@ import {
     resolveSourceExpiryBadge,
     SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
+import { createRailSkeletonGrace } from './dashboard-skeleton-grace';
 import type { DashboardHeroTmdbExtras } from './dashboard-hero-tmdb.service';
 import { DashboardHeroTmdbService } from './dashboard-hero-tmdb.service';
 import { DashboardRailComponent } from './dashboard-rail.component';
@@ -141,6 +142,8 @@ export class WorkspaceDashboardRailsComponent {
     readonly isElectron = this.runtime.isElectron;
 
     readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
+    /** Rail skeletons wait out a short grace period; see the helper. */
+    readonly railSkeletonsVisible = createRailSkeletonGrace();
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
     readonly failedHeroImages = signal<Record<string, true>>({});
