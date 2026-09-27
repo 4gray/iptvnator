@@ -707,6 +707,43 @@ describe('withStalkerContent failure states', () => {
         expect(store.totalCount()).toBe(2);
     });
 
+    it('takes page-one rows of a newly locked genre off screen before the reload answers', async () => {
+        let hangReload = false;
+        dataService.sendIpcEvent.mockImplementation(() =>
+            hangReload
+                ? new Promise(() => undefined)
+                : Promise.resolve({
+                      js: {
+                          data: [
+                              { id: 'movie-1', name: 'One', category_id: '5' },
+                              { id: 'adult-1', name: 'A', category_id: '9' },
+                          ],
+                          total_items: 2,
+                      },
+                  })
+        );
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+
+        // Lock now while the replacement request hangs.
+        hangReload = true;
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        parentalLock.version.set(1);
+
+        // Page 1 blanks the grid synchronously before its request, so the
+        // locked row is gone even though the reload never answers.
+        await waitForCondition(() => store.getPaginatedContent().length === 0);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+    });
+
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
         let failPageTwo = true;
         dataService.sendIpcEvent.mockImplementation(
