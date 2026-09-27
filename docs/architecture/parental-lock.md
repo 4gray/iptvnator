@@ -420,6 +420,10 @@ by the index alone:
   durable commit points: right after the store write (a refusal writes the
   previous store back) and, for Xtream, after the index stamps (a refusal
   rolls back like a failed stamp), before the revision is published.
+  If writing the previous store back fails, the persisted copy may carry
+  the removal while memory does not: the store stays not `readable`
+  (fail-closed) and is rewritten from memory on the next store access, as
+  a failed "Remove all playlists" clear is.
   Adding locks is always allowed.
   Playlist deletion and "Remove all playlists" are not edits and are not
   gated.
@@ -445,8 +449,8 @@ the store through the `PLAYLIST_DELETE_CLEANUP` hook
 re-stamp, the category rows go with the playlist), and "Remove all
 playlists" empties it through `ParentalLockService.clearAllLocks` once the
 deletion has succeeded — the in-memory store empties at once, and a failed
-persisted clear is retried on the next store access and overwritten by the
-next write. A backup restore that CREATES a playlist (not a merge) starts
+persisted clear is retried on the next store access (the store is not
+`readable` until it lands). A backup restore that CREATES a playlist (not a merge) starts
 that playlist from empty locks, so a reused id can never inherit entries a
 failed cleanup left behind; the restore retries a failed lock-store read
 first (`ensureLocksReadable`) and aborts while it still fails, so that check

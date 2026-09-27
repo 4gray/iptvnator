@@ -31,4 +31,30 @@ export class ParentalLockStaleIndex {
     clear(): void {
         this.unmark(...this.playlists);
     }
+
+    /**
+     * Re-stamps every listed playlist through `stamp`; the ones that
+     * succeed leave the list. True when any did.
+     */
+    async reconcile(
+        stamp: (playlistId: string) => Promise<boolean>
+    ): Promise<boolean> {
+        const restamped: string[] = [];
+        for (const playlistId of this.ids()) {
+            try {
+                if (await stamp(playlistId)) {
+                    restamped.push(playlistId);
+                }
+            } catch (error) {
+                console.error(
+                    'Failed to reconcile the parental lock index.',
+                    error
+                );
+            }
+        }
+        if (restamped.length > 0) {
+            this.unmark(...restamped);
+        }
+        return restamped.length > 0;
+    }
 }

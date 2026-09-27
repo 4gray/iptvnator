@@ -75,8 +75,14 @@ export class ParentalLockLockStore {
      * same store and the later write would silently drop the earlier edit.
      */
     private writeQueue: Promise<unknown> = Promise.resolve();
-    /** "Remove all playlists" could not clear the persisted store yet. */
-    private pendingClearAll = false;
+    /**
+     * The persisted store differs from the in-memory one and must be
+     * rewritten from it: "Remove all playlists" could not clear it, or a
+     * refused edit could not be reverted. Retried on the next store access;
+     * the store is not `readable` meanwhile, since a restart would load the
+     * persisted copy.
+     */
+    private readonly pendingRewrite = signal(false);
     private readonly staleIndex = new ParentalLockStaleIndex();
 
     /** The persisted store could not be read; see `ensureReadable()`. */
@@ -93,6 +99,7 @@ export class ParentalLockLockStore {
         () =>
             this.loadedState() &&
             !this.unreadable() &&
+            !this.pendingRewrite() &&
             this.staleIndex.isEmpty()
     );
     /** Bumps whenever the lock set changes; consumers re-query. */
@@ -136,11 +143,8 @@ export class ParentalLockLockStore {
      */
     async ensureReadable(): Promise<boolean> {
         await this.load();
-        if (this.pendingClearAll) {
-            this.pendingClearAll = !(await this.storage.writeLocks({}));
-            if (this.pendingClearAll) {
-                return false;
-            }
+        if (this.pendingRewrite() && !(await this.rewritePersistedStore())) {
+            return false;
         }
         if (this.unreadable()) {
             const locks = await this.storage.readLocks();
@@ -167,21 +171,9 @@ export class ParentalLockLockStore {
             this.staleIndex.clear();
             return;
         }
-        const restamped: string[] = [];
-        for (const playlistId of this.staleIndex.ids()) {
-            try {
-                if (await this.stampXtreamLocks(playlistId)) {
-                    restamped.push(playlistId);
-                }
-            } catch (error) {
-                console.error(
-                    'Failed to reconcile the parental lock index.',
-                    error
-                );
-            }
-        }
-        if (restamped.length > 0) {
-            this.staleIndex.unmark(...restamped);
+        if (
+            await this.staleIndex.reconcile((id) => this.stampXtreamLocks(id))
+        ) {
             this.revisionState.update((value) => value + 1);
         }
     }
@@ -333,8 +325,7 @@ export class ParentalLockLockStore {
             this.unreadable.set(false);
             this.staleIndex.clear();
             this.revisionState.update((value) => value + 1);
-            this.pendingClearAll = !(await this.storage.writeLocks({}));
-            return !this.pendingClearAll;
+            return this.rewritePersistedStore();
         });
     }
 
@@ -349,6 +340,19 @@ export class ParentalLockLockStore {
             authorize() &&
             this.persistPlaylistLocks(playlistId, next, { authorize })
         );
+    }
+
+    /** Writes the in-memory store; a failure leaves `pendingRewrite` set. */
+    private async rewritePersistedStore(): Promise<boolean> {
+        const written = await this.storage.writeLocks(this.locks());
+        if (!written) {
+            console.error('The parental lock store could not be rewritten.');
+        }
+        if (written === this.pendingRewrite()) {
+            this.pendingRewrite.set(!written);
+            this.revisionState.update((value) => value + 1);
+        }
+        return written;
     }
 
     private enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -535,9 +539,7 @@ export class ParentalLockLockStore {
         if (options.authorize && !options.authorize()) {
             // Relocked while the write was in flight: the durable store goes
             // back to the in-memory one, which still holds the lock.
-            if (!(await this.storage.writeLocks(this.locks()))) {
-                console.error('Failed to revert a refused parental lock edit.');
-            }
+            await this.rewritePersistedStore();
             return false;
         }
         this.locks.set(next);

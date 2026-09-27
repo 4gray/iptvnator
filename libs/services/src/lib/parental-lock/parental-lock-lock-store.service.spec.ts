@@ -494,6 +494,36 @@ describe('ParentalLockLockStore', () => {
         });
     });
 
+    it('fails closed and retries when the revert of a refused removal cannot be written', async () => {
+        storage.readLocks.mockResolvedValue({
+            'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
+        });
+        await store.load();
+        await store.ensureReadable();
+        let unlocked = true;
+        store.setRemovalGate(() => unlocked);
+        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        storage.writeLocks
+            .mockImplementationOnce(async () => {
+                unlocked = false; // relock while the removal is written
+                return true;
+            })
+            .mockResolvedValueOnce(false) // the revert
+            .mockResolvedValueOnce(false); // the first retry
+
+        await expect(store.setM3uLocks('pl-1', [])).resolves.toBe(false);
+        // The persisted store may carry the removal: not readable.
+        expect(store.readable()).toBe(false);
+        expect(store.lockedGroupTitles('pl-1')).toEqual(['Adults']);
+        await expect(store.ensureReadable()).resolves.toBe(false);
+
+        await expect(store.ensureReadable()).resolves.toBe(true);
+        expect(storage.writeLocks).toHaveBeenLastCalledWith({
+            'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
+        });
+    });
+
     it('rolls back an Xtream removal when the app relocks during the index stamps', async () => {
         await store.load();
         await store.ensureReadable();
