@@ -36,7 +36,7 @@ import {
     createLogger,
     createPortalDebugRequestContext,
     logPortalDebugEvent,
-} from '@iptvnator/portal/shared/util';
+} from '@iptvnator/portal/shared/util/logger';
 
 interface PlayerLaunchPayload {
     readonly headers?: Record<string, string>;

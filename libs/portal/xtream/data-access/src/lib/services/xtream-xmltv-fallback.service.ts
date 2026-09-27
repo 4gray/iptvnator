@@ -4,7 +4,7 @@ import {
     EpgProgram,
     epgProviderClockMs,
 } from '@iptvnator/shared/interfaces';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import { EpgSourceSettingsService, SettingsStore } from '@iptvnator/services';
 
 type ElectronEpgBridge = {

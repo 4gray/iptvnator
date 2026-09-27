@@ -237,7 +237,10 @@ reason: the main `workspace-shell-util` barrel is imported eagerly, and the
 settings search index must stay in the lazy settings and shell chunks.
 `@iptvnator/workspace/shell/util/settings-context` keeps
 `SettingsContextService`, which only the lazy settings page and settings
-context panel use, out of that barrel for the same reason.
+context panel use, out of that barrel for the same reason, and
+`@iptvnator/services/playlist-backup` keeps `PlaylistBackupService` (about
+22 KB, used only by the lazy settings page) out of the `@iptvnator/services`
+barrel.
 
 The web app's root shell (`app.component.ts`, `app.config.ts` and the services
 they construct) is on the renderer's initial path, where a barrel costs its
@@ -260,7 +263,19 @@ PIN dialog and the Stalker step of the parental-lock enforcement, which runs
 only while a Stalker route is open). A local file,
 not the library alias, is the dynamic-import target because
 `@nx/enforce-module-boundaries` forbids static imports of a library the same
-project also loads dynamically. `renderer.initialBytes` in
+project also loads dynamically.
+
+A barrel the initial path imports also costs code it never runs itself:
+code splitting places a module in the chunk shared by every entry point
+that reaches it, so a helper that only lazy routes use, but that an eager
+file can reach through a barrel's re-export, lands in an initial chunk even
+though tree shaking would drop it from a single bundle. The eager Xtream
+data layer and root shell therefore import `@iptvnator/portal/shared/util/logger`
+and `@iptvnator/portal/shared/util/tokens` (the portal DI tokens), not the
+`@iptvnator/portal/shared/util` barrel, whose navigation, keyboard-shortcut
+and download helpers (about 45 KB) belong to the lazy portal routes. A
+type-only import of a barrel uses `import type`, so it can never keep the
+barrel reachable. `renderer.initialBytes` in
 [performance journeys](performance-journeys.md) guards the result; to see why a
 module is eager, build with `pnpm nx build web --stats-json` and follow the
 static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.

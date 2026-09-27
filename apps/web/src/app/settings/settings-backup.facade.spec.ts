@@ -5,7 +5,7 @@ import {
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaylistBackupService } from '@iptvnator/services';
+import { PlaylistBackupService } from '@iptvnator/services/playlist-backup';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockProvider } from 'ng-mocks';

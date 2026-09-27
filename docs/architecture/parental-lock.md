@@ -419,8 +419,10 @@ opens, so a relock there runs the step synchronously; if it is not loaded
 yet (still fetching, or it cannot load — a stale PWA page after a
 deployment) the step fails closed at once by navigating to
 `/workspace/sources`: leaving the Stalker route clears its selection and
-stops its playback, and the Xtream step still runs. The feature costs about 30 KB of
-`renderer.initialBytes`.
+stops its playback, and the Xtream step still runs. The feature costs about 35 KB of
+`renderer.initialBytes`; the baseline was not raised for it, the growth was
+offset by moving lazy-only barrel re-exports (backup/restore and the portal
+helpers) off the initial path.
 
 ## Lock store lifetime
 

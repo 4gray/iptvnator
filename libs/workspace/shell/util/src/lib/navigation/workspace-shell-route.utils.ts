@@ -1,4 +1,4 @@
-import {
+import type {
     PortalProvider,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';

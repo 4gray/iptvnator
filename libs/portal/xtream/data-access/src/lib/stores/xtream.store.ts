@@ -12,7 +12,7 @@ import { XTREAM_DATA_SOURCE } from '../data-sources/xtream-data-source.interface
 import { XtreamApiService } from '../services/xtream-api.service';
 
 import { TmdbEnrichmentService } from '@iptvnator/services';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     withContent,
     withEpg,
