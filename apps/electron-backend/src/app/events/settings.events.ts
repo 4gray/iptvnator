@@ -11,6 +11,7 @@ import {
     EMBEDDED_MPV_FRAME_COPY,
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
+    PARENTAL_LOCK_ENABLED,
     STARTUP_WINDOW_MODE,
     PORTAL_CONNECTIVITY_GUARD,
     store,
@@ -19,6 +20,7 @@ import {
 } from '../services/store.service';
 import { httpServer } from '../server/http-server';
 import { setHostConnectivityGuardEnabled } from '../util/host-connectivity-guard';
+import { applyParentalLockState } from './parental-lock.events';
 import { persistAppUpdateChannel } from '../services/app-update-channel';
 
 export default class SettingsEvents {
@@ -40,6 +42,22 @@ ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
         const enabled = arg.portalConnectivityGuard !== false;
         store.set(PORTAL_CONNECTIVITY_GUARD, enabled);
         setHostConnectivityGuardEnabled(enabled);
+    }
+
+    // Mirrored so the database worker and a reloaded renderer start locked
+    // whenever the feature is on. The LIVE enforcement state is the
+    // renderer's to announce through PARENTAL_LOCK_SET_STATE: every full
+    // settings save carries this flag unchanged, so applying it here would
+    // silently re-lock the worker under a renderer that still shows
+    // "unlocked". Only a switch-off releases the worker at once — nothing
+    // may stay withheld once the feature is gone.
+    if (arg.parentalLockEnabled !== undefined) {
+        const enabled = arg.parentalLockEnabled === true;
+        const wasEnabled = store.get(PARENTAL_LOCK_ENABLED, false) === true;
+        store.set(PARENTAL_LOCK_ENABLED, enabled);
+        if (wasEnabled && !enabled) {
+            void applyParentalLockState(false).catch(() => undefined);
+        }
     }
 
     if (arg.mpvPlayerArguments !== undefined) {

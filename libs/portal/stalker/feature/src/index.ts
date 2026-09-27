@@ -4,6 +4,7 @@ export * from './lib/stalker-collection-detail.component';
 export * from './lib/stalker-catalog-detail/stalker-catalog-detail.component';
 export * from './lib/stalker-favorites-button/stalker-favorites-button.component';
 export * from './lib/stalker-catalog-facade.service';
+export * from './lib/stalker-category-lock-dialog/stalker-category-lock-dialog.component';
 export * from './lib/stalker-feature.routes';
 export * from './lib/stalker-live-stream-layout/stalker-live-stream-layout.component';
 export * from './lib/stalker-search/stalker-search.component';

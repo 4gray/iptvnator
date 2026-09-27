@@ -23,6 +23,7 @@
                 [attr.aria-disabled]="!interactionEnabled()"
                 [disabled]="!interactionEnabled()"
                 (click)="onCategoryClick(item)"
+                (contextmenu)="onCategoryContextMenu(item, $event)"
             >
                 <span class="nav-item-label">
                     {{

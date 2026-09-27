@@ -1,8 +1,12 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import {
+    CatalogTitleMatchService,
     groupTitleMatchesByKey,
     pickTitleMatch,
 } from './catalog-title-match.service';
+import { ParentalLockService } from './parental-lock/parental-lock.service';
 
 describe('catalog title matching', () => {
     const match = (
@@ -187,4 +191,32 @@ describe('catalog title matching', () => {
             ).toBeNull();
         });
     });
+});
+
+describe('CatalogTitleMatchService parental lock', () => {
+    afterEach(() => {
+        delete (window as { electron?: unknown }).electron;
+    });
+
+    it.each([false, true])(
+        'asks the worker only while the lock does not withhold everything (%s)',
+        async (withholds) => {
+            const dbMatchTitles = jest.fn().mockResolvedValue([]);
+            (window as { electron?: unknown }).electron = { dbMatchTitles };
+            TestBed.configureTestingModule({
+                providers: [
+                    {
+                        provide: ParentalLockService,
+                        useValue: { withholdsEverything: signal(withholds) },
+                    },
+                ],
+            });
+
+            await TestBed.inject(CatalogTitleMatchService).matchTitles([
+                'Dune',
+            ]);
+
+            expect(dbMatchTitles).toHaveBeenCalledTimes(withholds ? 0 : 1);
+        }
+    );
 });

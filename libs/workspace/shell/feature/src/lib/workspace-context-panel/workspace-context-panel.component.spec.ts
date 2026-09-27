@@ -16,6 +16,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { ParentalLockService } from '@iptvnator/services';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
 
 const translations: Record<string, string> = {
@@ -95,6 +96,10 @@ describe('WorkspaceContextPanelComponent', () => {
         reloadCategories: jest.fn(),
     };
     const stalkerStore = {
+        getAllCategoriesForSelectedType: jest.fn(() => [
+            { category_id: '*', category_name: 'All' },
+            { category_id: '1', category_name: 'News' },
+        ]),
         getCategoryResource: signal<
             Array<{ category_id: string; category_name: string }>
         >([]),
@@ -528,9 +533,9 @@ describe('WorkspaceContextPanelComponent', () => {
             el.textContent?.includes('For adults')
         );
 
-        expect(documentary?.querySelector('.item-count')?.textContent).toContain(
-            '190'
-        );
+        expect(
+            documentary?.querySelector('.item-count')?.textContent
+        ).toContain('190');
         expect(adults?.querySelector('.item-count')).toBeNull();
     });
 
@@ -582,7 +587,9 @@ describe('WorkspaceContextPanelComponent', () => {
 
             button?.click();
 
-            expect(liveSidebarService.stateOf('portal')()).toBe('categories-hidden');
+            expect(liveSidebarService.stateOf('portal')()).toBe(
+                'categories-hidden'
+            );
         });
 
         it('offers it for Stalker itv and radio too', () => {
@@ -881,7 +888,9 @@ describe('WorkspaceContextPanelComponent', () => {
                 ) as never
             );
 
-            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
+            expect(
+                fixture.componentInstance.stalkerCategoryErrorDescription()
+            ).toBe(
                 'PORTALS.ERROR_VIEW.STALKER_DEVICE_CONFLICT device conflict - device_id mismatch — Your STB is damaged.'
             );
         });
@@ -891,9 +900,178 @@ describe('WorkspaceContextPanelComponent', () => {
                 new StalkerPortalError('blocked', 'Account disabled') as never
             );
 
-            expect(fixture.componentInstance.stalkerCategoryErrorDescription()).toBe(
-                'Account disabled'
+            expect(
+                fixture.componentInstance.stalkerCategoryErrorDescription()
+            ).toBe('Account disabled');
+        });
+    });
+
+    it('offers the unlock row in fail-closed mode, when no locked ids are known', () => {
+        const parentalLock = TestBed.inject(ParentalLockService);
+        Object.defineProperty(parentalLock, 'withholdsEverything', {
+            configurable: true,
+            value: signal(true),
+        });
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'itv');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.withheldCategoryCount()).toBe(0);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-locked-categories"]'
+            )
+        ).not.toBeNull();
+    });
+
+    it('opens no Xtream category dialog when the route changed while the PIN was asked', async () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'xtreams',
+            playlistId: 'xtream-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        Object.defineProperty(component, 'canManageXtreamCategories', {
+            configurable: true,
+            value: () => true,
+        });
+        const parentalLock = TestBed.inject(ParentalLockService);
+        jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+            async () => {
+                fixture.componentRef.setInput('context', {
+                    provider: 'xtreams',
+                    playlistId: 'xtream-2',
+                });
+                return true;
+            }
+        );
+        component.loadXtreamCategoryDialog = jest.fn(
+            async () => class DialogStub {}
+        );
+
+        await component.openManageCategories();
+
+        expect(component.loadXtreamCategoryDialog).not.toHaveBeenCalled();
+        expect(dialog.open).not.toHaveBeenCalled();
+    });
+
+    describe('Stalker lock dialog', () => {
+        function enableLock(): void {
+            const parentalLock = TestBed.inject(ParentalLockService);
+            Object.defineProperty(parentalLock, 'enabled', {
+                configurable: true,
+                value: signal(true),
+            });
+            jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
+            jest.spyOn(parentalLock, 'ensureLocksReadable').mockResolvedValue(
+                true
             );
+        }
+
+        it('opens with the categories snapshotted before the lazy import', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.objectContaining({
+                    data: {
+                        playlistId: 'stalker-1',
+                        contentType: 'itv',
+                        categories: [
+                            { category_id: '1', category_name: 'News' },
+                        ],
+                    },
+                })
+            );
+        });
+
+        it('opens nothing when the route changed while the PIN was asked', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const parentalLock = TestBed.inject(ParentalLockService);
+            jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+                async () => {
+                    fixture.componentRef.setInput('context', {
+                        provider: 'xtreams',
+                        playlistId: 'xtream-2',
+                    });
+                    return true;
+                }
+            );
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(component.loadStalkerLockDialog).not.toHaveBeenCalled();
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
+        it('opens nothing while the lock store cannot be read', async () => {
+            enableLock();
+            jest.spyOn(
+                TestBed.inject(ParentalLockService),
+                'ensureLocksReadable'
+            ).mockResolvedValue(false);
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
+        it('opens nothing when the route changed during the lazy import', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(async () => {
+                fixture.componentRef.setInput('context', {
+                    provider: 'stalker',
+                    playlistId: 'stalker-2',
+                });
+                return class DialogStub {};
+            });
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).not.toHaveBeenCalled();
         });
     });
 });

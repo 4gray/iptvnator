@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { SettingsStore } from '@iptvnator/services';
+import { ParentalLockService, SettingsStore } from '@iptvnator/services';
 
 describe('app routes', () => {
     let workspaceRoute: import('@angular/router').Route | undefined;
@@ -67,6 +67,52 @@ describe('app routes', () => {
         TestBed.resetTestingModule();
     });
 
+    it('waits for the parental lock state before activating workspace children', async () => {
+        let releaseLock!: () => void;
+        const lockPending = new Promise<void>((resolve) => {
+            releaseLock = resolve;
+        });
+        const initialize = jest.fn(() => lockPending);
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        loadSettings: jest.fn().mockResolvedValue(undefined),
+                    },
+                },
+                { provide: ParentalLockService, useValue: { initialize } },
+            ],
+        });
+        const settingsReadyResolver =
+            workspaceRoute?.resolve?.['settingsReady'];
+        if (typeof settingsReadyResolver !== 'function') {
+            throw new Error('resolver missing');
+        }
+        let resolved = false;
+        const resolution = TestBed.runInInjectionContext(() =>
+            Promise.resolve(
+                (
+                    settingsReadyResolver as import('@angular/router').ResolveFn<void>
+                )(
+                    {} as import('@angular/router').ActivatedRouteSnapshot,
+                    {} as import('@angular/router').RouterStateSnapshot
+                )
+            )
+        ).then(() => {
+            resolved = true;
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(initialize).toHaveBeenCalled();
+        expect(resolved).toBe(false);
+
+        releaseLock();
+        await resolution;
+        expect(resolved).toBe(true);
+    });
+
     it('waits for settings before activating workspace children', async () => {
         let releaseSettings!: () => void;
         const settingsPending = new Promise<void>((resolve) => {
@@ -78,6 +124,12 @@ describe('app routes', () => {
                 {
                     provide: SettingsStore,
                     useValue: { loadSettings },
+                },
+                {
+                    provide: ParentalLockService,
+                    useValue: {
+                        initialize: jest.fn().mockResolvedValue(undefined),
+                    },
                 },
             ],
         });
@@ -120,8 +172,7 @@ describe('app routes', () => {
             (route) => route.path === 'playlists/:id'
         );
         const loadChildren = playlistRoute?.loadChildren as
-            | (() => Promise<typeof workspaceChildren>)
-            | undefined;
+            (() => Promise<typeof workspaceChildren>) | undefined;
         const m3uRoutes = (await loadChildren?.()) ?? [];
         const defaultRoute = m3uRoutes.find((route) => route.path === '');
         const favoritesRoute = m3uRoutes.find(

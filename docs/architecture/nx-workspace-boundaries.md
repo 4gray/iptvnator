@@ -255,7 +255,9 @@ entries: `@iptvnator/ui/components/window-controls`,
 add `SafePipe`; the eager EPG progress panel uses it too), like the existing
 `@iptvnator/ui/epg/progress-panel`, and loads anything used only on demand
 through a local file it imports dynamically (the Stalker connection editor,
-the release-notes dialog, the external-player info dialog). A local file,
+the release-notes dialog, the external-player info dialog, the parental-lock
+PIN dialog and the Stalker step of the parental-lock enforcement, which runs
+only while a Stalker route is open). A local file,
 not the library alias, is the dynamic-import target because
 `@nx/enforce-module-boundaries` forbids static imports of a library the same
 project also loads dynamically. `renderer.initialBytes` in

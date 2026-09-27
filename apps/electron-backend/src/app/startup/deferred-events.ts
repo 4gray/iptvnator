@@ -35,6 +35,7 @@ import { shutdownMpvSession } from '../events/mpv-session.service';
 import PlayerEvents from '../events/player.events';
 import { shutdownVlcSession } from '../events/vlc-session.service';
 import PlaylistEvents from '../events/playlist.events';
+import ParentalLockEvents from '../events/parental-lock.events';
 import RemoteControlEvents from '../events/remote-control.events';
 import SettingsEvents from '../events/settings.events';
 import SharedEvents from '../events/shared.events';
@@ -85,6 +86,7 @@ export function bootstrapDeferredEvents(
     SharedEvents.bootstrapSharedEvents();
     PlayerEvents.bootstrapPlayerEvents();
     SettingsEvents.bootstrapSettingsEvents();
+    ParentalLockEvents.bootstrapParentalLockEvents();
     StalkerEvents.bootstrapStalkerEvents();
     XtreamEvents.bootstrapXtreamEvents();
     registerStreamProbeHandlers();

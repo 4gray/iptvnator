@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
+import { getParentalLockActive } from './parental-lock-state';
 import { Worker } from 'worker_threads';
 import type {
     DbOperationEvent,
@@ -83,6 +84,19 @@ export class DatabaseWorkerClient {
         });
     }
 
+    /**
+     * Flips the worker's parental lock filter. Awaits readiness so the
+     * message is never lost to a worker that has not started, and is posted
+     * on the request port so later reads observe it in order.
+     */
+    async setParentalLockState(active: boolean): Promise<void> {
+        await this.ensureWorker();
+        this.worker?.postMessage({
+            type: 'parental-lock',
+            active: active === true,
+        });
+    }
+
     async cancel(operationId: string): Promise<{ success: boolean }> {
         if (!operationId) {
             return { success: false };
@@ -157,6 +171,10 @@ export class DatabaseWorkerClient {
             this.worker = new Worker(workerURL, {
                 workerData: {
                     nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
+                    // Seeded here rather than requested afterwards, so a
+                    // restarted worker never answers a read unfiltered while
+                    // the lock state is still in flight.
+                    parentalLockActive: getParentalLockActive(),
                 },
             });
         } catch (error) {

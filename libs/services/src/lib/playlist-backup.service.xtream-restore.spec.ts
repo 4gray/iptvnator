@@ -41,8 +41,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
 
         const backup = await service.exportBackup();
 
-        const entry = backup.manifest
-            .playlists[0] as XtreamPlaylistBackupEntry;
+        const entry = backup.manifest.playlists[0] as XtreamPlaylistBackupEntry;
         const expectedHiddenCategories = [
             { categoryType: 'live', xtreamId: 101 },
             { categoryType: 'movies', xtreamId: 201 },
@@ -92,9 +91,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
             'xtream-1',
             expect.objectContaining({
                 state: expect.objectContaining({
-                    hiddenCategories: [
-                        { categoryType: 'live', xtreamId: 101 },
-                    ],
+                    hiddenCategories: [{ categoryType: 'live', xtreamId: 101 }],
                 }),
             }),
             expect.any(Function)
@@ -107,11 +104,151 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         );
     });
 
+    it('keeps the previous locks when the Xtream part of a merge fails', async () => {
+        const collaborators = createRestoreCollaborators();
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock: jest.fn().mockResolvedValue(true),
+                locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
+                replacePlaylistLocks,
+            },
+        });
+        collaborators.databaseService.updateCategoryVisibility.mockRejectedValue(
+            new Error('SQLITE_BUSY')
+        );
 
+        const summary = await service.importBackup(
+            JSON.stringify(createXtreamManifest([]))
+        );
 
+        expect(summary.failed).toBe(1);
+        expect(replacePlaylistLocks).not.toHaveBeenCalled();
+    });
 
+    it('never lets a newly created playlist inherit stale locks under a reused id', async () => {
+        const collaborators = createRestoreCollaborators();
+        // Empty library: the restore CREATES the playlist (no merge match).
+        collaborators.playlistsService.getAllData.mockReturnValue(of([]));
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock: jest.fn().mockResolvedValue(true),
+                // A failed cleanup left locks under the id the restore reuses.
+                locksFor: jest.fn(() => ({
+                    xtream: [{ categoryType: 'live', xtreamId: 1 }],
+                    stalker: [],
+                    m3u: [],
+                })),
+                replacePlaylistLocks,
+            },
+        });
+        const manifest = createXtreamManifest([]);
+        delete (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories;
 
+        await service.importBackup(JSON.stringify(manifest));
 
+        expect(replacePlaylistLocks).toHaveBeenCalledWith(expect.any(String), {
+            xtream: [],
+            stalker: [],
+            m3u: [],
+        });
+    });
+
+    it('asks for the PIN before restoring lock lists and aborts when it is refused', async () => {
+        const collaborators = createRestoreCollaborators();
+        const requestUnlock = jest.fn().mockResolvedValue(false);
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock,
+                locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
+                replacePlaylistLocks,
+            },
+        });
+        const manifest = createXtreamManifest([]);
+        (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories = [];
+
+        await expect(
+            service.importBackup(JSON.stringify(manifest))
+        ).rejects.toThrow(/parental PIN/);
+        expect(requestUnlock).toHaveBeenCalled();
+        expect(replacePlaylistLocks).not.toHaveBeenCalled();
+        expect(
+            collaborators.playlistsService.addPlaylist
+        ).not.toHaveBeenCalled();
+    });
+
+    it('asks again before a merge replaces locks once the app relocked mid-import', async () => {
+        const collaborators = createRestoreCollaborators();
+        // Accepted at the start, refused after an idle relock or "Lock now"
+        // landed while the import was running.
+        const requestUnlock = jest
+            .fn()
+            .mockResolvedValueOnce(true)
+            .mockResolvedValue(false);
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock,
+                locksFor: jest.fn(() => ({
+                    xtream: [{ categoryType: 'live', xtreamId: 1 }],
+                    stalker: [],
+                    m3u: [],
+                })),
+                replacePlaylistLocks,
+            },
+        });
+        const manifest = createXtreamManifest([]);
+        (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories = [];
+
+        const summary = await service.importBackup(JSON.stringify(manifest));
+
+        expect(requestUnlock).toHaveBeenCalledTimes(2);
+        expect(replacePlaylistLocks).not.toHaveBeenCalled();
+        expect(summary).toEqual(
+            expect.objectContaining({ merged: 0, failed: 1 })
+        );
+        expect(summary.errors[0]).toMatch(/locked again/);
+    });
+
+    it('rejects a damaged parental lock list instead of erasing the persisted locks', async () => {
+        const collaborators = createRestoreCollaborators();
+        const service = createPlaylistBackupService(collaborators);
+        const manifest = createXtreamManifest([]);
+        (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories = [{}];
+
+        await expect(
+            service.importBackup(JSON.stringify(manifest))
+        ).rejects.toThrow(/invalid parental locks/);
+        expect(
+            collaborators.databaseService.updateCategoryVisibility
+        ).not.toHaveBeenCalled();
+    });
 
     it('rejects entries with missing user-state collections instead of wiping user data', async () => {
         const collaborators = createRestoreCollaborators();
@@ -121,9 +258,8 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         // treated as an authoritative "empty" state: the merge path would
         // unhide every category and delete favorites/recent/positions.
         const manifest = createXtreamManifest([]);
-        delete (
-            manifest.playlists[0] as unknown as { userState?: unknown }
-        ).userState;
+        delete (manifest.playlists[0] as unknown as { userState?: unknown })
+            .userState;
 
         await expect(
             service.importBackup(JSON.stringify(manifest))

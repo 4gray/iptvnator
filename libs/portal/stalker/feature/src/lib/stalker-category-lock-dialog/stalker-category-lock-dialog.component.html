@@ -1,0 +1,105 @@
+<h2 mat-dialog-title>{{ 'PARENTAL_LOCK.MANAGE_LOCKS' | translate }}</h2>
+
+<mat-dialog-content>
+    <p class="lock-dialog__description">
+        {{ 'PARENTAL_LOCK.MANAGE_LOCKS_DESCRIPTION' | translate }}
+    </p>
+
+    <div class="header-actions">
+        <div class="selection-info">
+            {{ 'PARENTAL_LOCK.LOCKED_COUNT' | translate }}:
+            <strong>{{ lockedCount() }}</strong> / {{ categories().length }}
+        </div>
+        <div class="bulk-actions">
+            @if (censoredCount() > 0) {
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-test-id="stalker-lock-censored"
+                    [disabled]="isSaving()"
+                    (click)="lockCensored()"
+                >
+                    {{ 'PARENTAL_LOCK.LOCK_CENSORED' | translate }}
+                </button>
+            }
+            <button
+                mat-stroked-button
+                type="button"
+                [disabled]="isSaving() || lockedCount() === 0"
+                (click)="unlockAll()"
+            >
+                {{ 'PARENTAL_LOCK.UNLOCK_ALL' | translate }}
+            </button>
+        </div>
+    </div>
+
+    <label class="search-inline">
+        <mat-icon class="search-inline__icon">search</mat-icon>
+        <input
+            type="search"
+            spellcheck="false"
+            [value]="searchTerm()"
+            (input)="searchTerm.set($any($event.target).value)"
+            [placeholder]="'XTREAM.CATEGORY_MANAGEMENT.SEARCH_PLACEHOLDER' | translate"
+        />
+        @if (searchTerm()) {
+            <button
+                type="button"
+                mat-icon-button
+                class="search-inline__clear"
+                (click)="clearSearch()"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        }
+    </label>
+
+    <div class="categories-list">
+        @for (category of filteredCategories(); track category.id) {
+            <button
+                type="button"
+                class="category-item"
+                [class.category-item--locked]="category.locked"
+                [attr.aria-pressed]="category.locked"
+                [attr.data-test-id]="'stalker-category-lock-' + category.id"
+                (click)="toggle(category)"
+            >
+                <mat-icon class="category-item__icon">{{
+                    category.locked ? 'lock' : 'lock_open'
+                }}</mat-icon>
+                <span class="category-name">{{ category.name }}</span>
+                @if (category.censored) {
+                    <span
+                        class="censored-chip"
+                        [matTooltip]="'PARENTAL_LOCK.CENSORED_HINT' | translate"
+                        >18+</span
+                    >
+                }
+            </button>
+        } @empty {
+            <div class="empty-message">
+                {{ 'XTREAM.CATEGORY_MANAGEMENT.NO_RESULTS' | translate }}
+            </div>
+        }
+    </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="cancel()" [disabled]="isSaving()">
+        {{ 'CLOSE' | translate }}
+    </button>
+    <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        data-test-id="stalker-category-lock-save"
+        (click)="save()"
+        [disabled]="isSaving()"
+    >
+        @if (isSaving()) {
+            <mat-spinner diameter="20" />
+        } @else {
+            {{ 'XTREAM.CATEGORY_MANAGEMENT.SAVE' | translate }}
+        }
+    </button>
+</mat-dialog-actions>

@@ -10,6 +10,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     DownloadsService,
+    ParentalLockService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -40,6 +41,7 @@ export class WorkspaceShellFacade {
     );
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly downloadsService = inject(DownloadsService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
     private readonly search = inject(WorkspaceShellSearchService);
     private readonly header = inject(WorkspaceShellHeaderService);
@@ -118,6 +120,12 @@ export class WorkspaceShellFacade {
     readonly searchScopeLabel = this.search.searchScopeLabel;
     readonly searchStatusLabel = this.search.searchStatusLabel;
     readonly railProviderClass = this.routeState.railProviderClass;
+    readonly parentalLockState = computed<'off' | 'locked' | 'unlocked'>(() => {
+        if (!this.parentalLock.enabled()) {
+            return 'off';
+        }
+        return this.parentalLock.unlocked() ? 'unlocked' : 'locked';
+    });
     readonly primaryContextLinks = this.routeState.primaryContextLinks;
     readonly secondaryContextLinks = this.routeState.secondaryContextLinks;
     readonly isDownloadsView = this.routeState.isDownloadsView;
@@ -246,6 +254,14 @@ export class WorkspaceShellFacade {
         this.header.refreshCurrentPlaylist();
     }
 
+    toggleParentalLock(): void {
+        if (this.parentalLock.unlocked()) {
+            this.parentalLock.lock();
+            return;
+        }
+        void this.parentalLock.requestUnlock();
+    }
+
     private makeCommandBuilderContext(): CommandBuilderContext {
         return {
             route: this.currentRoute(),
@@ -258,6 +274,7 @@ export class WorkspaceShellFacade {
             canRefreshPlaylist: this.canRefreshPlaylist(),
             supportsDownloads: this.supportsDownloads,
             showDashboard: this.showDashboard(),
+            parentalLockState: this.parentalLockState(),
             translate: (key, params) => this.translateText(key, params),
             router: this.router,
             actions: this.commandBuilderActions,
@@ -276,6 +293,10 @@ export class WorkspaceShellFacade {
         openDownloadsShortcut: () => this.openDownloadsShortcut(),
         openAddPlaylistDialog: (kind) =>
             this.header.openAddPlaylistDialog(kind),
+        lockParentalLock: () => this.parentalLock.lock(),
+        unlockParentalLock: () => {
+            void this.parentalLock.requestUnlock();
+        },
     };
 
     private translateText(

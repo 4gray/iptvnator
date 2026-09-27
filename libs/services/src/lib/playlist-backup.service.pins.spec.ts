@@ -69,8 +69,7 @@ describe('PlaylistBackupService Xtream source pins', () => {
 
         const backup = await service.exportBackup();
 
-        const entry = backup.manifest
-            .playlists[0] as XtreamPlaylistBackupEntry;
+        const entry = backup.manifest.playlists[0] as XtreamPlaylistBackupEntry;
         // Without this every "main source" choice vanishes on restore, with
         // nothing in the archive to say it was ever made.
         expect(entry.userState.sourcePins).toEqual([
@@ -161,7 +160,8 @@ describe('PlaylistBackupService Xtream source pins', () => {
         await Promise.all([firstImport, secondImport]);
         expect(
             replacePins.mock.calls.map(
-                ([, pins]) => (pins as Array<{ contentId: number }>)[0].contentId
+                ([, pins]) =>
+                    (pins as Array<{ contentId: number }>)[0].contentId
             )
         ).toEqual([501, 502]);
     });

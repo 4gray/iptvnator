@@ -9,6 +9,7 @@ export * from './lib/playback-position-runtime-bridge.service';
 export * from './lib/playback-position.service';
 export * from './lib/playlist-delete-cleanup.token';
 export * from './lib/playlist-delete-action.service';
+export * from './lib/parental-lock';
 export * from './lib/playlist-backup.service';
 export * from './lib/playlist-cross-context-lock';
 export * from './lib/playlist-refresh.service';
