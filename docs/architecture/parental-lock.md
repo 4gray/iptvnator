@@ -19,7 +19,9 @@ follow in a second PR.
 - The unit of locking is the category. Nothing is blurred or greyed: a
   withheld category and its rows are absent. The only trace is one
   "N locked · Enter PIN to show" row at the bottom of a portal's category
-  rail, which opens the PIN prompt.
+  rail, which opens the PIN prompt. In fail-closed mode (lock store
+  unreadable) the row shows without a count, since which categories are
+  locked is unknown while every one of them is withheld.
 - The unlock lives in memory only. The app locks again on every restart, on
   "Lock now" (header button, command palette, settings), and after
   `Settings.parentalLockRelockMinutes` minutes without user interaction

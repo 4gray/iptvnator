@@ -214,7 +214,7 @@
         }
     }
 
-    @if (withheldCategoryCount() > 0) {
+    @if (withheldCategoryCount() > 0 || withholdsAllCategories()) {
         <button
             type="button"
             class="context-locked-row"
@@ -225,8 +225,10 @@
             <mat-icon>lock</mat-icon>
             <span class="context-locked-row__label">
                 {{
-                    'PARENTAL_LOCK.LOCKED_CATEGORIES_ROW'
-                        | translate: { count: withheldCategoryCount() }
+                    withholdsAllCategories()
+                        ? ('PARENTAL_LOCK.LOCKED_COUNT' | translate)
+                        : ('PARENTAL_LOCK.LOCKED_CATEGORIES_ROW'
+                          | translate: { count: withheldCategoryCount() })
                 }}
             </span>
             <span class="context-locked-row__hint">

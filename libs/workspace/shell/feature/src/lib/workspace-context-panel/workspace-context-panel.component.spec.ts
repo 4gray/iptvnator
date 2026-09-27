@@ -906,6 +906,27 @@ describe('WorkspaceContextPanelComponent', () => {
         });
     });
 
+    it('offers the unlock row in fail-closed mode, when no locked ids are known', () => {
+        const parentalLock = TestBed.inject(ParentalLockService);
+        Object.defineProperty(parentalLock, 'withholdsEverything', {
+            configurable: true,
+            value: signal(true),
+        });
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'itv');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.withheldCategoryCount()).toBe(0);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-locked-categories"]'
+            )
+        ).not.toBeNull();
+    });
+
     describe('Stalker lock dialog', () => {
         function enableLock(): void {
             const parentalLock = TestBed.inject(ParentalLockService);

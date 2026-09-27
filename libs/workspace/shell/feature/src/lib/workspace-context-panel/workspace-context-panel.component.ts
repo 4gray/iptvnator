@@ -233,6 +233,16 @@ export class WorkspaceContextPanelComponent {
         }
         return 0;
     });
+    /**
+     * Fail-closed mode (the lock store could not be read): every category
+     * is withheld, but which ones are locked is unknown, so the count above
+     * is zero. The rail still offers the unlock row, without a count.
+     */
+    readonly withholdsAllCategories = computed(
+        () =>
+            (this.isXtreamCategories() || this.isStalkerCategories()) &&
+            this.parentalLock.withholdsEverything()
+    );
     readonly xtreamStatusText = computed(() => {
         if (
             !this.isXtreamCategories() ||
