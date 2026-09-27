@@ -259,6 +259,15 @@ export function withContent() {
                 Promise<void>
             >();
 
+            // A reload publishes only while its playlist is still the open
+            // one: the store is shared, and rows read for playlist A must
+            // not land in it after the user switched to playlist B.
+            const publishWhileCurrent =
+                (playlistId: string, shouldPublish: () => boolean) =>
+                (): boolean =>
+                    getPortalStore().playlistId?.() === playlistId &&
+                    shouldPublish();
+
             const getCachedHydrationKey = (
                 playlistId: string,
                 scope?: XtreamCachedContentScope | null
@@ -1547,10 +1556,14 @@ export function withContent() {
                  * moved on while it was in flight).
                  */
                 async reloadCategories(
-                    shouldPublish: () => boolean = () => true
+                    shouldPublishArg: () => boolean = () => true
                 ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
+                    const shouldPublish = publishWhileCurrent(
+                        ctx.playlistId,
+                        shouldPublishArg
+                    );
 
                     try {
                         const [live, vod, series] = await Promise.all([
@@ -1601,7 +1614,7 @@ export function withContent() {
                  * so the in-memory catalog must be rebuilt from them.
                  */
                 async reloadCachedContent(
-                    shouldPublish: () => boolean = () => true
+                    shouldPublishArg: () => boolean = () => true
                 ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) {
@@ -1612,9 +1625,13 @@ export function withContent() {
                         // read under the previous lock state: withhold those
                         // and reload once it has settled.
                         reloadAfterInitialization = true;
-                        deferredPublishGuard = shouldPublish;
+                        deferredPublishGuard = shouldPublishArg;
                         return;
                     }
+                    const shouldPublish = publishWhileCurrent(
+                        ctx.playlistId,
+                        shouldPublishArg
+                    );
                     const loadStates = store.contentLoadStateByType();
                     // Each type on its own: one failing read must neither
                     // skip the remaining types nor keep its own rows, which
@@ -1673,7 +1690,7 @@ export function withContent() {
                             failed.push('series');
                         }
                     }
-                    if (failed.length > 0) {
+                    if (failed.length > 0 && shouldPublish()) {
                         const next = { ...store.contentLoadStateByType() };
                         for (const type of failed) {
                             next[type] = 'idle';

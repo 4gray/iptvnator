@@ -132,8 +132,12 @@ export class ParentalLockEnforcementService {
         if (!playlistId) {
             return;
         }
+        // A playlist switch retires the apply as a newer lock version
+        // does: the store now holds another portal, whose own load reads
+        // under the current lock state.
         const shouldPublish = (): boolean =>
-            this.parentalLock.version() === version;
+            this.parentalLock.version() === version &&
+            this.xtreamStore.playlistId?.() === playlistId;
         await this.xtreamStore.reloadCategories(shouldPublish);
         await this.xtreamStore.reloadCachedContent(shouldPublish);
         if (!shouldPublish()) {

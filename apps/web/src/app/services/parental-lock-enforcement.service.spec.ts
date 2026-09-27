@@ -313,6 +313,34 @@ describe('ParentalLockEnforcementService', () => {
             expect(guard?.()).toBe(false);
         });
 
+        it('abandons the reloads and checks once the Xtream playlist is switched', async () => {
+            router.url = '/workspace/xtreams/xtream-1/vod/7';
+            parentalLock.active.set(true);
+            xtreamStore.selectedCategoryId.set(7);
+            parentalLock.isXtreamCategoryLocked.mockReturnValue(true);
+            let guard: () => boolean = () => true;
+            (xtreamStore.reloadCategories as jest.Mock).mockImplementationOnce(
+                async (shouldPublish: () => boolean) => {
+                    guard = shouldPublish;
+                    xtreamStore.playlistId.set('xtream-2');
+                    router.url = '/workspace/xtreams/xtream-2/vod';
+                }
+            );
+
+            try {
+                await service.applyXtream(parentalLock.version());
+                expect(guard()).toBe(false);
+                expect(xtreamStore.refreshSearchResults).not.toHaveBeenCalled();
+                expect(
+                    xtreamDataSource.getAllCategories
+                ).not.toHaveBeenCalled();
+                expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
+                expect(router.navigate).not.toHaveBeenCalled();
+            } finally {
+                xtreamStore.playlistId.set('xtream-1');
+            }
+        });
+
         it('re-runs the stored in-portal search after the reload', async () => {
             router.url = '/workspace/xtreams/xtream-1/search';
 

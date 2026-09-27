@@ -243,4 +243,35 @@ describe('withContent parental-lock reloads', () => {
             series: 'ready',
         });
     });
+
+    it('drops reloads whose playlist was switched away while they read', async () => {
+        dataSource.getCategories.mockResolvedValue([{ category_id: 'a' }]);
+        dataSource.getContent.mockResolvedValue([{ xtream_id: 1 }]);
+        await store.initializeContent();
+
+        const categories = createDeferred<unknown[]>();
+        const content = createDeferred<unknown[]>();
+        dataSource.getCategories.mockReturnValue(categories.promise);
+        dataSource.getContent.mockImplementation(
+            (_playlistId: string, _credentials: unknown, type: ContentType) =>
+                type === 'live'
+                    ? content.promise
+                    : Promise.reject(new Error('db'))
+        );
+        const reloadingCategories = store.reloadCategories();
+        const reloadingContent = store.reloadCachedContent();
+        store.switchPlaylist('playlist-b');
+        categories.resolve([{ category_id: 'stale' }]);
+        content.resolve([{ xtream_id: 99 }]);
+        await reloadingCategories;
+        await reloadingContent;
+
+        expect(store.liveCategories()).toEqual([{ category_id: 'a' }]);
+        expect(store.liveStreams()).toEqual([{ xtream_id: 1 }]);
+        expect(store.contentLoadStateByType()).toEqual({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+    });
 });

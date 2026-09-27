@@ -189,7 +189,11 @@ on either side.
   (retiring a search still in flight, which was issued under the previous
   lock state) before the filtered reads refill them; both reloads take a publish guard
   answered before every state patch, so a read issued under an older lock
-  version is dropped instead of published. The post-reload checks of the
+  version is dropped instead of published. The guard also turns false once
+  another Xtream playlist is open (the store is a singleton), and the store
+  itself refuses to publish a reload into a playlist it was not read for;
+  the post-reload search refresh and selection checks are skipped then
+  too. The post-reload checks of the
   selected category and item decide by the LOCK STORE through the
   unfiltered category rows (`IXtreamDataSource.getAllCategories`), not by
   absence from the reloaded list, which also omits categories the user
