@@ -43,6 +43,9 @@
             "@iptvnator/playlist/shared/util": [
                 "libs/playlist/shared/util/src/index.ts"
             ],
+            "@iptvnator/playlist/shared/util/playlist-file-import": [
+                "libs/playlist/shared/util/src/lib/playlist-file-import.service.ts"
+            ],
             "@iptvnator/ui/epg": ["libs/ui/epg/src/index.ts"],
             "@iptvnator/ui/epg/date": ["libs/ui/epg/src/lib/epg-date.ts"],
             "@iptvnator/ui/epg/progress-panel": [
@@ -79,10 +82,16 @@
             "@iptvnator/workspace/shell/util": [
                 "libs/workspace/shell/util/src/index.ts"
             ],
+            "@iptvnator/workspace/shell/util/settings-context": [
+                "libs/workspace/shell/util/src/lib/settings-context.service.ts"
+            ],
             "@iptvnator/workspace/shell/util/settings-search": [
                 "libs/workspace/shell/util/src/lib/settings-search/index.ts"
             ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
+            "@iptvnator/pipes/date-format": [
+                "libs/ui/pipes/src/lib/date-format.util.ts"
+            ],
             "@iptvnator/ui/components": ["libs/ui/components/src/index.ts"],
             "@iptvnator/ui/components/confirm-dialog": [
                 "libs/ui/components/src/lib/confirm-dialog/dialog.service.ts"

@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { Router } from '@angular/router';
-import { SettingsContextService } from '@iptvnator/workspace/shell/util';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import {
     SETTINGS_SEARCH_ENTRIES,
     SettingsSearchEntry,

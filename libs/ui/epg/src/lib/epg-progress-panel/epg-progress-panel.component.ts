@@ -20,7 +20,7 @@ import {
     EpgProgressService,
 } from '@iptvnator/epg/data-access';
 import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
-import { normalizeDateLocale } from '@iptvnator/pipes';
+import { normalizeDateLocale } from '@iptvnator/pipes/date-format';
 import { formatEpgImportDisplayUrl } from './epg-import-display-url';
 
 interface EpgTrustConfirmDialogData {
