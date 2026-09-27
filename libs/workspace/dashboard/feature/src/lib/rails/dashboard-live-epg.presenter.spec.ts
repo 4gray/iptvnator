@@ -230,13 +230,13 @@ describe('DashboardLiveEpgPresenter', () => {
             )
         );
         const channel = {
-            id: 'm-1',
+            id: 'ard-hd',
             title: 'Das Erste HD',
             type: 'live',
             source: 'm3u',
             playlist_id: 'a',
             category_id: '',
-            xtream_id: 'm-1',
+            xtream_id: 'ard-hd',
             epg_lookup_key: 'ard.de',
         } as PortalActivityItem;
         favoriteLiveItems.set([channel]);
