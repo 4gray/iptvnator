@@ -4,7 +4,15 @@ import {
     runInInjectionContext,
 } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import {
+    ActivatedRoute,
+    ActivatedRouteSnapshot,
+    convertToParamMap,
+} from '@angular/router';
+
+type WritableSnapshot = {
+    -readonly [K in keyof ActivatedRouteSnapshot]: ActivatedRouteSnapshot[K];
+};
 import { BehaviorSubject } from 'rxjs';
 import {
     extractPortalPlaylistId,
@@ -36,7 +44,7 @@ describe('portal-route.utils', () => {
                     layout: 'workspace',
                 },
             },
-        } as ActivatedRoute;
+        } as unknown as ActivatedRoute;
         const childRoute = {
             snapshot: {
                 data: {},
@@ -257,10 +265,11 @@ describe('portal-route.utils', () => {
 
         expect(playlistId()).toBe('playlist-1');
 
-        route.snapshot.paramMap = convertToParamMap({
+        const snapshot = route.snapshot as WritableSnapshot;
+        snapshot.paramMap = convertToParamMap({
             id: 'playlist-2',
         });
-        route.snapshot.params = {
+        snapshot.params = {
             id: 'playlist-2',
         };
         paramMap$.next(
@@ -296,7 +305,7 @@ describe('portal-route.utils', () => {
                 },
             },
             paramMap: parentParamMap$.asObservable(),
-        } as ActivatedRoute;
+        } as unknown as ActivatedRoute;
         const route = {
             snapshot: {
                 data: {},
@@ -316,10 +325,11 @@ describe('portal-route.utils', () => {
 
         expect(playlistId()).toBe('playlist-1');
 
-        (parentRoute.snapshot as ActivatedRoute['snapshot']).paramMap =
-            convertToParamMap({
+        (parentRoute.snapshot as WritableSnapshot).paramMap = convertToParamMap(
+            {
                 id: 'playlist-2',
-            });
+            }
+        );
         (parentRoute.snapshot as ActivatedRoute['snapshot']).params = {
             id: 'playlist-2',
         };

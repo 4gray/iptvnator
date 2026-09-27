@@ -4,10 +4,10 @@ import { By } from '@angular/platform-browser';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
+import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     PORTAL_PLAYER,
-    ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import {
     ACTIVE_EPG_FALLBACK_SIZE,
@@ -16,7 +16,10 @@ import {
 import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ChannelListItemComponent } from '@iptvnator/ui/components';
+import {
+    ChannelListItemComponent,
+    ResizableDirective,
+} from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
 import {
@@ -26,6 +29,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
+    ElectronBridgeApi,
     EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
@@ -42,6 +46,11 @@ import {
     StubResizableDirective,
     StubWebPlayerViewComponent,
 } from './stalker-live-stream-layout.spec-stubs';
+
+/** Installs an intentionally partial Electron bridge double. */
+function installElectronBridge(bridge: Partial<ElectronBridgeApi>): void {
+    window.electron = bridge as ElectronBridgeApi;
+}
 
 describe('StalkerLiveStreamLayoutComponent', () => {
     let fixture: ComponentFixture<StalkerLiveStreamLayoutComponent>;
@@ -159,7 +168,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         fetchChannelEpg: jest.fn(),
         ensureBulkItvEpg: jest.fn(),
         applyMappedItvEpg: jest.fn().mockResolvedValue(undefined),
-        hasItvEpgMappingOverride: jest.fn(() => false),
+        hasItvEpgMappingOverride: jest.fn((_id: string | number) => false),
         clearBulkItvEpgCache: jest.fn(() => {
             bulkItvEpgByChannel.set({});
             bulkItvEpgLoaded.set(false);
@@ -191,13 +200,13 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         // 'list' into siblings.
         settingsStore.resolvedEpgViewMode.set('timeline');
         playlist.set({ _id: 'playlist-1', title: 'Demo Stalker' });
-        window.electron = {
+        installElectronBridge({
             platform: 'darwin',
             setUserAgent: jest.fn().mockResolvedValue(true),
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(() => jest.fn()),
             onRemoteControlCommand: jest.fn(() => jest.fn()),
-        } as typeof window.electron;
+        });
 
         fetchChannelEpg = stalkerStore.fetchChannelEpg;
         ensureBulkItvEpg = stalkerStore.ensureBulkItvEpg;
@@ -444,11 +453,6 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             title: 'Alpha TV',
             isLive: true,
             headers: { Authorization: 'Bearer token' },
-            contentInfo: {
-                playlistId: 'playlist-1',
-                contentXtreamId: 10001,
-                contentType: 'live',
-            },
         };
         const request: PlaybackFallbackRequest = {
             player: 'vlc',
@@ -458,6 +462,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                 code: 'network-error',
                 player: 'html5',
                 source: 'hls',
+                sourceUrl: playback.streamUrl,
                 container: '',
                 mimeType: '',
                 videoCodecs: [],
@@ -609,9 +614,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     it('does not publish remote-control status when the bridge is incomplete', () => {
         fixture.destroy();
         const updateRemoteControlStatus = jest.fn();
-        window.electron = {
+        installElectronBridge({
             updateRemoteControlStatus,
-        } as typeof window.electron;
+        });
 
         fixture = TestBed.createComponent(StalkerLiveStreamLayoutComponent);
         component = fixture.componentInstance;

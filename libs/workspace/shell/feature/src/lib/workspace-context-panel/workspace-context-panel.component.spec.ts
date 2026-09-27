@@ -57,7 +57,9 @@ function getCategoryLabels(
     fixture: ComponentFixture<WorkspaceContextPanelComponent>
 ): string[] {
     return Array.from(
-        fixture.nativeElement.querySelectorAll('.category-item .nav-item-label')
+        (fixture.nativeElement as HTMLElement).querySelectorAll(
+            '.category-item .nav-item-label'
+        )
     ).map((element: Element) => element.textContent?.trim() ?? '');
 }
 
@@ -266,7 +268,9 @@ describe('WorkspaceContextPanelComponent', () => {
         fixture.detectChanges();
 
         const countTexts = Array.from(
-            fixture.nativeElement.querySelectorAll('.item-count')
+            (fixture.nativeElement as HTMLElement).querySelectorAll(
+                '.item-count'
+            )
         ).map((element: Element) => element.textContent?.trim());
         const categoryButtons = Array.from(
             fixture.nativeElement.querySelectorAll('.category-item')

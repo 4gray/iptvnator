@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { ParentalLockService, SettingsStore } from '@iptvnator/services';
 
+type AppRoutesModule = typeof import('./app.routes');
+
 describe('app routes', () => {
     let workspaceRoute: import('@angular/router').Route | undefined;
     let workspaceChildren: Array<{
@@ -11,14 +13,8 @@ describe('app routes', () => {
         path?: string;
         redirectTo?: unknown;
     }> = [];
-    let resolveElectronOnlyGlobalSearchRoute: (
-        runtime: { isElectron: boolean },
-        router: { parseUrl: (url: string) => unknown }
-    ) => unknown;
-    let resolveRecordingsCapabilityRoute: (
-        runtime: { supportsRecordings: boolean },
-        router: { parseUrl: (url: string) => unknown }
-    ) => unknown;
+    let resolveElectronOnlyGlobalSearchRoute: AppRoutesModule['resolveElectronOnlyGlobalSearchRoute'];
+    let resolveRecordingsCapabilityRoute: AppRoutesModule['resolveRecordingsCapabilityRoute'];
 
     beforeAll(async () => {
         jest.unstable_mockModule(

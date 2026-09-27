@@ -126,7 +126,7 @@ describe('UnifiedFavoritesDataService', () => {
             dbRemoveRecentItemsBatch: jest.fn(),
         };
         Object.defineProperty(window, 'electron', {
-            value: electronApi as Window['electron'],
+            value: electronApi as unknown as Window['electron'],
             configurable: true,
         });
 
@@ -177,11 +177,17 @@ describe('UnifiedFavoritesDataService', () => {
                     {
                         _id: 'm3u-1',
                         title: 'M3U List',
+                        count: 0,
+                        importDate: '2026-01-01T00:00:00.000Z',
+                        autoRefresh: false,
                         favorites: ['https://example.com/2.m3u8', 'channel-1'],
                     },
                     {
                         _id: 'stalker-1',
                         title: 'Stalker List',
+                        count: 0,
+                        importDate: '2026-01-01T00:00:00.000Z',
+                        autoRefresh: false,
                         macAddress: '00:11:22:33:44:55',
                         favorites: stalkerFavorites,
                     },

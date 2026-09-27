@@ -23,7 +23,7 @@ import {
     PORTAL_SHELL_ACTIONS,
     PortalCollectionContextService,
 } from '@iptvnator/portal/shared/util';
-import type { Playlist } from '@iptvnator/shared/interfaces';
+import type { Playlist, XtreamCategory } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
 import { BehaviorSubject, type Observable, Subject } from 'rxjs';
 import { DownloadLibraryNavigationService } from './download-library-navigation.service';
@@ -47,6 +47,8 @@ interface ConfirmConfig {
 }
 
 interface ExpectedDownloadsComponent {
+    readonly activeCount: () => number;
+    readonly categories: () => readonly XtreamCategory[];
     readonly model: () => {
         readonly active: readonly { readonly item: DownloadItem }[];
         readonly activeCount: number;
@@ -780,7 +782,9 @@ describe('DownloadsComponent', () => {
         downloads.set([item]);
         fixture.detectChanges();
 
-        const attention = fixture.nativeElement.querySelector<HTMLElement>(
+        const attention = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector<HTMLElement>(
             '[data-test-id="downloads-attention-section"]'
         );
         const recover = attention?.querySelector<HTMLButtonElement>(

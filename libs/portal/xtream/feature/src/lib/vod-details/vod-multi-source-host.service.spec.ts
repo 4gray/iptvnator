@@ -437,7 +437,10 @@ describe('VodMultiSourceHostService', () => {
         const alts = [2, 3, 4, 5, 6].map(alternative);
         await loadMovie(alts);
 
-        const gates = new Map<string, ReturnType<typeof createDeferred>>();
+        const gates = new Map<
+            string,
+            ReturnType<typeof createDeferred<null>>
+        >();
         resolver.resolve.mockImplementation((candidate) => {
             const gate = createDeferred<null>();
             gates.set((candidate as VodSourceCandidate).id, gate);
@@ -468,7 +471,10 @@ describe('VodMultiSourceHostService', () => {
         const alts = [2, 3, 4, 5, 6, 7].map(alternative);
         await loadMovie(alts);
 
-        const gates = new Map<string, ReturnType<typeof createDeferred>>();
+        const gates = new Map<
+            string,
+            ReturnType<typeof createDeferred<null>>
+        >();
         resolver.resolve.mockImplementation((candidate) => {
             const gate = createDeferred<null>();
             gates.set((candidate as VodSourceCandidate).id, gate);

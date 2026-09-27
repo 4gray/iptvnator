@@ -208,7 +208,7 @@ describe('UnifiedCollectionPageComponent', () => {
                 params: {},
             },
             paramMap: workspaceParamMap$.asObservable(),
-        } as ActivatedRoute;
+        } as unknown as ActivatedRoute;
 
         route = {
             snapshot: {
@@ -222,7 +222,7 @@ describe('UnifiedCollectionPageComponent', () => {
             paramMap: routeParamMap$.asObservable(),
             queryParamMap: routeQueryParamMap$.asObservable(),
             pathFromRoot: [],
-        } as ActivatedRoute & {
+        } as unknown as ActivatedRoute & {
             snapshot: {
                 paramMap: ReturnType<typeof convertToParamMap>;
                 queryParamMap: ReturnType<typeof convertToParamMap>;

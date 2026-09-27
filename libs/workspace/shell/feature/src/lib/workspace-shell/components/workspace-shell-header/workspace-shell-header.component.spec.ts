@@ -253,7 +253,9 @@ describe('WorkspaceShellHeaderComponent', () => {
         fixture.detectChanges();
 
         const chips = Array.from(
-            fixture.nativeElement.querySelectorAll('.search-chip')
+            (fixture.nativeElement as HTMLElement).querySelectorAll(
+                '.search-chip'
+            )
         ).map((element: Element) => element.textContent?.trim());
 
         expect(chips).toEqual(['Movies / All Items', 'Loaded channels only']);

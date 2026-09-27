@@ -41,7 +41,7 @@ const XTREAM_PLAYLIST_WITH_NULL_OPTIONALS = {
     origin: null,
     referrer: null,
     userAgent: null,
-} as XtreamPlaylistData;
+} as unknown as XtreamPlaylistData;
 type CachedScope = 'live' | 'vod' | 'series' | 'search' | 'recently-added';
 
 async function flushEffects(): Promise<void> {
@@ -51,9 +51,7 @@ async function flushEffects(): Promise<void> {
 }
 
 function getXtreamSectionFromUrl(url: string): string | null {
-    const match = url.match(
-        /^\/workspace\/xtreams\/[^/]+\/([^/?]+)(?:[/?]|$)/
-    );
+    const match = url.match(/^\/workspace\/xtreams\/[^/]+\/([^/?]+)(?:[/?]|$)/);
 
     return match?.[1] ?? null;
 }
@@ -81,14 +79,18 @@ describe('XtreamWorkspaceRouteSession', () => {
     const selectedCategoryId = signal<number | null>(null);
     const isContentInitialized = signal(false);
     const contentLoadStateByType = signal<
-        Record<'live' | 'vod' | 'series', 'idle' | 'loading' | 'ready' | 'error'>
+        Record<
+            'live' | 'vod' | 'series',
+            'idle' | 'loading' | 'ready' | 'error'
+        >
     >({
         live: 'idle',
         vod: 'idle',
         series: 'idle',
     });
-    const contentInitBlockReason =
-        signal<XtreamContentInitBlockReason | null>(null);
+    const contentInitBlockReason = signal<XtreamContentInitBlockReason | null>(
+        null
+    );
     let hasUsableOfflineCache = false;
 
     const playlistContext = {
@@ -147,8 +149,9 @@ describe('XtreamWorkspaceRouteSession', () => {
                 series: 'ready',
             });
         }),
-        hydrateCachedContent: jest.fn().mockImplementation(
-            async (scope?: CachedScope | null) => {
+        hydrateCachedContent: jest
+            .fn()
+            .mockImplementation(async (scope?: CachedScope | null) => {
                 isContentInitialized.set(true);
                 contentInitBlockReason.set(null);
                 if (scope === 'live' || scope === 'vod' || scope === 'series') {
@@ -163,30 +166,25 @@ describe('XtreamWorkspaceRouteSession', () => {
                         series: 'ready',
                     });
                 }
+            }),
+        prepareContentLoading: jest.fn((scope?: CachedScope | null) => {
+            isContentInitialized.set(false);
+            if (scope === 'live' || scope === 'vod' || scope === 'series') {
+                contentLoadStateByType.update((state) => ({
+                    ...state,
+                    [scope]: 'loading',
+                }));
+            } else {
+                contentLoadStateByType.set({
+                    live: 'loading',
+                    vod: 'loading',
+                    series: 'loading',
+                });
             }
-        ),
-        prepareContentLoading: jest.fn(
-            (scope?: CachedScope | null) => {
-                isContentInitialized.set(false);
-                if (scope === 'live' || scope === 'vod' || scope === 'series') {
-                    contentLoadStateByType.update((state) => ({
-                        ...state,
-                        [scope]: 'loading',
-                    }));
-                } else {
-                    contentLoadStateByType.set({
-                        live: 'loading',
-                        vod: 'loading',
-                        series: 'loading',
-                    });
-                }
-            }
-        ),
-        setSelectedContentType: jest.fn(
-            (type: 'live' | 'vod' | 'series') => {
-                selectedContentType.set(type);
-            }
-        ),
+        }),
+        setSelectedContentType: jest.fn((type: 'live' | 'vod' | 'series') => {
+            selectedContentType.set(type);
+        }),
         setSelectedCategory: jest.fn((categoryId: number | null) => {
             selectedCategoryId.set(categoryId);
         }),
@@ -278,7 +276,9 @@ describe('XtreamWorkspaceRouteSession', () => {
         await flushEffects();
 
         expect(xtreamStore.checkPortalStatus).toHaveBeenCalled();
-        expect(xtreamStore.setContentInitBlockReason).toHaveBeenCalledWith(null);
+        expect(xtreamStore.setContentInitBlockReason).toHaveBeenCalledWith(
+            null
+        );
         expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('vod');
         expect(xtreamStore.prepareContentLoading).toHaveBeenCalledWith('vod');
         expect(xtreamStore.initializeContent).toHaveBeenCalled();
@@ -450,9 +450,7 @@ describe('XtreamWorkspaceRouteSession', () => {
         xtreamStore.setSelectedCategory.mockClear();
 
         router.url = `/workspace/xtreams/${PLAYLIST_ID}/vod/202`;
-        routerEvents.next(
-            new NavigationEnd(1, router.url, router.url)
-        );
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
         await flushEffects();
 
         expect(xtreamStore.setSelectedContentType).toHaveBeenCalledWith('vod');
@@ -531,9 +529,7 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.hasUsableOfflineCache).toHaveBeenCalledWith(
             'series'
         );
-        expect(xtreamStore.hydrateCachedContent).toHaveBeenCalledWith(
-            'series'
-        );
+        expect(xtreamStore.hydrateCachedContent).toHaveBeenCalledWith('series');
         expect(contentLoadStateByType().series).toBe('ready');
 
         xtreamStore.hasUsableOfflineCache.mockClear();
@@ -635,9 +631,7 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.setContentInitBlockReason).toHaveBeenCalledWith(
             null
         );
-        expect(xtreamStore.hydrateCachedContent).toHaveBeenCalledWith(
-            'search'
-        );
+        expect(xtreamStore.hydrateCachedContent).toHaveBeenCalledWith('search');
         expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
     });
 

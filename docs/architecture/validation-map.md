@@ -27,11 +27,35 @@ using its result as evidence. Docker validation can use
 | ---------------------------------- | ----------------------------------- |
 | Angular renderer entry points      | `pnpm run typecheck:web`            |
 | Electron main process entry points | `pnpm run typecheck:backend`        |
+| Jest spec programs                 | `pnpm run typecheck:spec`           |
 | Full unit suite (all projects)     | `pnpm run test:unit:ci`             |
 | EPG data access                    | `pnpm nx test epg-data-access`      |
 | Workspace shell utilities          | `pnpm nx test workspace-shell-util` |
 | Shared SQLite schema/connection    | `pnpm nx test database`             |
 | Packaging metadata                 | `pnpm nx test packaging`            |
+
+`typecheck:spec` (`tools/typecheck/spec-typecheck.mjs`) runs `tsc --noEmit`
+over every `tsconfig.spec.json` under `apps/`, `libs/` and `tools/`, a few
+programs at a time (`--concurrency=N` or `SPEC_TYPECHECK_CONCURRENCY`; a
+positional argument filters by path), and fails on any diagnostic. ts-jest
+transpiles with `isolatedModules`, so this is the only check that catches a
+spec whose types drifted from the code it exercises. CI runs it in the
+`unit-and-typecheck` job after `typecheck:ci`. Conventions the gate relies on:
+
+- Spec tsconfigs use `module: preserve` with `moduleResolution: bundler`, the
+  same as the library's own `tsconfig.json`; ts-jest forces CommonJS emit
+  outside ESM mode, so the setting only affects type-checking, and `node10`
+  resolution cannot see Angular's `exports`-only secondary entry points.
+- Each spec program lists `global.d.ts` in `files` so `window.electron` and the
+  other ambient declarations resolve.
+- Libraries tested through `tools/testing/run-web-esm-lib-tests.mjs` are
+  type-checked by `apps/web/tsconfig.spec.json`, the config
+  `jest.web-esm.workspace.ts` hands to ts-jest; add a new ESM-tested library's
+  spec globs there. `apps/web/src/jest-esm.d.ts` types `jest.unstable_mockModule`.
+- Type test doubles instead of casting to `any`: `jest.Mocked<T>`,
+  `InstanceType<typeof SomeStore>` for signal stores, and
+  `Object.defineProperty` or a writable mapped type for read-only capability
+  flags.
 
 ## Lint
 
@@ -78,10 +102,10 @@ count per project (defaults: `min(3, cores - 1)` in flight and
 project's output is printed as one block when it finishes, and the run ends
 with the wall-clock total and the longest projects. Spec `tsconfig`s set
 `isolatedModules: true`, so ts-jest transpiles files one at a time instead of
-type-checking each through a language service; spec type errors therefore do
-not fail Jest (the web configs already ran with `diagnostics: false`), while
-`isolatedModules`-incompatible syntax such as a type re-export without
-`export type` still fails at load time.
+type-checking each through a language service (the web configs already ran
+with `diagnostics: false`); `isolatedModules`-incompatible syntax such as a
+type re-export without `export type` still fails at load time, and spec type
+errors are caught by `typecheck:spec` (see Unit And Type Checks).
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:

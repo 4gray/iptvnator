@@ -2,9 +2,12 @@ import { TestBed } from '@angular/core/testing';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 
+/** Spec-only double: capability flags are read-only getters on the real class. */
+type WritablePartial<T> = { -readonly [K in keyof T]?: T[K] };
+
 describe('EpgRuntimeBridgeService', () => {
     let service: EpgRuntimeBridgeService;
-    let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
+    let runtimeCapabilities: WritablePartial<RuntimeCapabilitiesService>;
     const originalElectron = window.electron;
 
     beforeEach(() => {

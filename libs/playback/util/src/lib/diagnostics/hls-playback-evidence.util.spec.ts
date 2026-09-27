@@ -158,7 +158,7 @@ describe('HLS playback evidence', () => {
                 networkDetails: {
                     responseURL: `https://provider.example/xhr?token=${secret}`,
                     responseText: secret,
-                },
+                } satisfies Partial<XMLHttpRequest> as XMLHttpRequest,
             })
         );
         const serialized = JSON.stringify(evidence);

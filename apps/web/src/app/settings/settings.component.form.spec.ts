@@ -106,7 +106,7 @@ describe('SettingsComponent form', () => {
 
     it('hides the portal pause setting when the desktop bridge is unavailable', () => {
         fixture.destroy();
-        window.electron = undefined;
+        (window as { electron?: typeof window.electron }).electron = undefined;
         fixture = TestBed.createComponent(SettingsComponent);
         fixture.detectChanges();
         expect(
@@ -467,7 +467,8 @@ describe('SettingsComponent form', () => {
 
         it('preserves saved EPG settings when saving from the web settings form', async () => {
             fixture.destroy();
-            window.electron = undefined as unknown as typeof window.electron;
+            (window as { electron?: typeof window.electron }).electron =
+                undefined;
 
             settingsStore._setSettings({
                 epgUrl: ['https://example.com/guide.xml'],

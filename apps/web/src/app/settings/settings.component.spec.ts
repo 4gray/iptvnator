@@ -7,6 +7,7 @@ import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
     EmbeddedMpvSupport,
     PlaylistMeta,
+    Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { MockStore } from '@ngrx/store/testing';
@@ -29,12 +30,17 @@ import {
  * `settings.component.form.spec.ts`, and the per-section behaviour in the
  * matching `*.facade.spec.ts` files.
  */
+/** Writable double for the bridge's read-only capability getters. */
+type EpgBridgeStub = {
+    -readonly [K in keyof EpgRuntimeBridgeService]?: EpgRuntimeBridgeService[K];
+};
+
 describe('SettingsComponent', () => {
     let component: SettingsComponent;
     let fixture: ComponentFixture<SettingsComponent>;
     let router: Router;
     let mockStore: MockStore;
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: EpgBridgeStub;
     const originalElectron = window.electron;
 
     beforeEach(waitForAsync(() => {
@@ -192,7 +198,7 @@ describe('SettingsComponent', () => {
         });
 
         it('discard-and-leave reverts the staged edits', async () => {
-            component.settingsForm.get('theme')?.setValue('DARK_THEME');
+            component.settingsForm.get('theme')?.setValue(Theme.DarkTheme);
             component.settingsForm.markAsDirty();
             answerDialogWith('discard');
 

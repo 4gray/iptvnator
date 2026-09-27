@@ -210,8 +210,7 @@ describe('EmbeddedMpvCommandRunner', () => {
 
     it('ignores a command reply after the active session is replaced', async () => {
         let resolveCommand:
-            | ((value: EmbeddedMpvSession | null) => void)
-            | null = null;
+            ((value: EmbeddedMpvSession | null) => void) | undefined;
         electron.seekEmbeddedMpv.mockImplementationOnce(
             () =>
                 new Promise<EmbeddedMpvSession | null>((resolve) => {
@@ -239,8 +238,7 @@ describe('EmbeddedMpvCommandRunner', () => {
         'keeps a newer same-session snapshot when a %s command reply settles',
         async (_, replyUpdatedAt) => {
             let resolveCommand:
-                | ((value: EmbeddedMpvSession | null) => void)
-                | null = null;
+                ((value: EmbeddedMpvSession | null) => void) | undefined;
             electron.startEmbeddedMpvRecording.mockImplementationOnce(
                 () =>
                     new Promise<EmbeddedMpvSession | null>((resolve) => {
@@ -302,7 +300,7 @@ describe('EmbeddedMpvCommandRunner', () => {
     });
 
     it('does not start recording after the session changes during folder lookup', async () => {
-        let resolveFolder: ((folder: string) => void) | null = null;
+        let resolveFolder: ((folder: string) => void) | undefined;
         electron.getEmbeddedMpvDefaultRecordingFolder.mockImplementationOnce(
             () =>
                 new Promise<string>((resolve) => {

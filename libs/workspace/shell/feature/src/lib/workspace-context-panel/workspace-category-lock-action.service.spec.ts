@@ -12,8 +12,16 @@ describe('WorkspaceCategoryLockActionService', () => {
         requestUnlock: jest.fn(async () => true),
         lockedXtreamIds: jest.fn(() => [7]),
         lockedStalkerIds: jest.fn(() => ['9']),
-        setXtreamLocks: jest.fn(async () => true),
-        setStalkerLocks: jest.fn(async () => true),
+        setXtreamLocks: jest.fn(
+            async (
+                ..._args: Parameters<ParentalLockService['setXtreamLocks']>
+            ) => true
+        ),
+        setStalkerLocks: jest.fn(
+            async (
+                ..._args: Parameters<ParentalLockService['setStalkerLocks']>
+            ) => true
+        ),
     };
     let service: WorkspaceCategoryLockActionService;
 

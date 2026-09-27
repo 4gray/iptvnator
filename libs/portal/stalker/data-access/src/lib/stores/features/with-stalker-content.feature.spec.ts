@@ -34,6 +34,7 @@ const PLAYLIST = {
 } as PlaylistMeta;
 
 const TestContentStore = signalStore(
+    { protectedState: false },
     withState({
         currentPlaylist: undefined as PlaylistMeta | undefined,
         selectedContentType: 'vod' as 'vod' | 'series' | 'itv' | 'radio',
@@ -57,6 +58,11 @@ const TestContentStore = signalStore(
     })),
     withStalkerContent()
 );
+
+/** Request payload the content feature sends through `sendIpcEvent`. */
+interface StalkerIpcRequest {
+    params?: { action?: string; p?: number; search?: string };
+}
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -136,7 +142,10 @@ function createItvCacheMock(
 describe('withStalkerContent failure states', () => {
     let store: InstanceType<typeof TestContentStore>;
     let dataService: {
-        sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
+        sendIpcEvent: jest.Mock<
+            Promise<unknown>,
+            [event: string, request: StalkerIpcRequest]
+        >;
     };
     let parentalLock: {
         active: jest.Mock<boolean, []>;
@@ -151,7 +160,9 @@ describe('withStalkerContent failure states', () => {
         parentalLock = {
             active: jest.fn(() => false),
             version: signal(0),
-            lockedStalkerIds: jest.fn(() => []),
+            lockedStalkerIds: jest.fn(
+                (_playlistId: string, _type: string): string[] => []
+            ),
         };
 
         TestBed.configureTestingModule({
@@ -187,11 +198,10 @@ describe('withStalkerContent failure states', () => {
     it('keeps ITV pages unfiltered while independent local searches change', async () => {
         const pending =
             createDeferred<ReturnType<typeof createContentResponse>>();
-        dataService.sendIpcEvent.mockImplementation(
-            (_event, request: { params: { action: string } }) =>
-                request.params.action === 'get_genres'
-                    ? Promise.resolve({ js: [] })
-                    : pending.promise
+        dataService.sendIpcEvent.mockImplementation((_event, request) =>
+            request.params?.action === 'get_genres'
+                ? Promise.resolve({ js: [] })
+                : pending.promise
         );
         store.setSelectedContentType('itv');
         store.setCategories('itv', [
@@ -203,15 +213,10 @@ describe('withStalkerContent failure states', () => {
         await flushResources();
         const orderedCalls = () =>
             dataService.sendIpcEvent.mock.calls.filter(
-                (call) =>
-                    (call[1] as { params: { action: string } }).params
-                        .action === 'get_ordered_list'
+                (call) => call[1].params?.action === 'get_ordered_list'
             );
         await waitForCondition(() => orderedCalls().length > 0);
-        expect(
-            (orderedCalls()[0][1] as { params: { search?: string } }).params
-                .search
-        ).toBeUndefined();
+        expect(orderedCalls()[0][1].params?.search).toBeUndefined();
         patchState(store, { searchPhrase: 'changed' });
         await flushResources();
         pending.resolve(createContentResponse('Panel match'));
@@ -964,7 +969,10 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     let store: InstanceType<typeof TestContentStore>;
     let dataService: {
-        sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
+        sendIpcEvent: jest.Mock<
+            Promise<unknown>,
+            [event: string, request: StalkerIpcRequest]
+        >;
     };
     let itvCache: ReturnType<typeof createItvCacheMock>;
 
@@ -1195,19 +1203,18 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     it('keeps censored pagination after a delayed cache replays the current page', async () => {
         setup(null);
-        dataService.sendIpcEvent.mockImplementation(
-            (_event, payload: { params: { p: number } }) =>
-                Promise.resolve({
-                    js: {
-                        data: [
-                            {
-                                id: String(payload.params.p),
-                                name: `Hidden ${payload.params.p}`,
-                            },
-                        ],
-                        total_items: 3,
-                    },
-                })
+        dataService.sendIpcEvent.mockImplementation((_event, payload) =>
+            Promise.resolve({
+                js: {
+                    data: [
+                        {
+                            id: String(payload.params?.p),
+                            name: `Hidden ${payload.params?.p}`,
+                        },
+                    ],
+                    total_items: 3,
+                },
+            })
         );
         enterItvCategory('1099');
         await waitForCondition(() => store.itvChannels().length === 1);

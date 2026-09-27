@@ -109,7 +109,7 @@ export const DEFAULT_SETTINGS = {
     vlcReuseInstance: false,
     remoteControl: false,
     remoteControlPort: 8765,
-    epgUrl: [],
+    epgUrl: [] as string[],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
     embeddedMpvExtraOptions: '',

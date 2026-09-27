@@ -85,9 +85,9 @@ describe('SettingsPlaylistResetFacade', () => {
         snackBar = TestBed.inject(MatSnackBar) as unknown as MatSnackBarStub;
         translate = TestBed.inject(TranslateService);
         jest.spyOn(translate, 'instant').mockImplementation(
-            (key: string, params?: Record<string, number>) =>
+            (key: string | string[], params?: Record<string, number>) =>
                 key === 'SETTINGS.REMOVE_ALL_PROGRESS'
-                    ? `${params?.current}/${params?.total}`
+                    ? `${params?.['current']}/${params?.['total']}`
                     : key
         );
     });

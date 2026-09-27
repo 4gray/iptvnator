@@ -233,7 +233,7 @@ function createHarness() {
     const harness = {
         tracks,
         currentVideo: document.createElement('video'),
-        ready: () => undefined,
+        ready: (): void => undefined,
         emit(event: string) {
             for (const listener of listeners.get(event) ?? []) {
                 listener();

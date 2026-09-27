@@ -8,7 +8,6 @@ import { Subject, of } from 'rxjs';
 import {
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
-    ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import {
     FavoritesService,
@@ -37,7 +36,6 @@ import {
     StubEpgTimelineComponent,
     StubGridListComponent,
     StubPortalChannelsListComponent,
-    StubResizableDirective,
     StubWebPlayerViewComponent,
 } from './live-stream-layout-stubs.spec-data';
 
@@ -53,7 +51,9 @@ describe('LiveStreamLayoutComponent parental lock', () => {
     const parentalLock = {
         version: signal(0),
         active: signal(false),
-        isXtreamCategoryLocked: jest.fn(() => false),
+        isXtreamCategoryLocked: jest.fn(
+            (_playlistId: string, _type: string, _xtreamId: number) => false
+        ),
     };
     const databaseService = {
         getAllXtreamCategories: jest.fn(async () => [] as unknown[]),
@@ -164,7 +164,6 @@ describe('LiveStreamLayoutComponent parental lock', () => {
                         EpgTimelineComponent,
                         GridListComponent,
                         PortalChannelsListComponent,
-                        ResizableDirective,
                         TranslatePipe,
                         WebPlayerViewComponent,
                     ],
@@ -174,7 +173,6 @@ describe('LiveStreamLayoutComponent parental lock', () => {
                         StubEpgTimelineComponent,
                         StubGridListComponent,
                         StubPortalChannelsListComponent,
-                        StubResizableDirective,
                         MockPipe(
                             TranslatePipe,
                             (value: string | null | undefined) => value ?? ''

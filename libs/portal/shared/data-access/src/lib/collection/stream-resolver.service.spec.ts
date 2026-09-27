@@ -33,7 +33,11 @@ describe('StreamResolverService', () => {
         ensureToken: jest.Mock;
         makeAuthenticatedRequest: jest.Mock;
     };
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: {
+        -readonly [
+            K in keyof EpgRuntimeBridgeService
+        ]?: EpgRuntimeBridgeService[K];
+    };
 
     beforeEach(() => {
         playlistsService = {

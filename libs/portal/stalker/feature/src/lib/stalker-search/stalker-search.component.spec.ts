@@ -348,7 +348,9 @@ describe('StalkerSearchComponent result paging', () => {
         parentalLock = {
             active: jest.fn(() => false),
             version: signal(0),
-            lockedStalkerIds: jest.fn(() => []),
+            lockedStalkerIds: jest.fn(
+                (_playlistId: string, _type: string): string[] => []
+            ),
         };
         stalkerStoreMock = {
             selectedItem: signal(null),

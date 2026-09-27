@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
+import type { XtreamContentItem } from './xtream-data-source.interface';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -41,7 +42,9 @@ describe('PwaXtreamDataSource', () => {
         };
         parentalLock = {
             active: jest.fn(() => false),
-            lockedXtreamIds: jest.fn(() => []),
+            lockedXtreamIds: jest.fn(
+                (_playlistId: string, _type: string): number[] => []
+            ),
             withholdsEverything: jest.fn(() => false),
         };
 
@@ -363,17 +366,17 @@ describe('PwaXtreamDataSource', () => {
             'playlist-1',
             credentials,
             'live'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
         const vod = (await dataSource.getContent(
             'playlist-1',
             credentials,
             'movie'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
         const series = (await dataSource.getContent(
             'playlist-1',
             credentials,
             'series'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
 
         expect(live[0]).toEqual(
             expect.objectContaining({
@@ -481,7 +484,7 @@ describe('PwaXtreamDataSource', () => {
             'playlist-1',
             credentials,
             'movie'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
 
         expect(content).toEqual([
             expect.objectContaining({
@@ -606,7 +609,7 @@ describe('PwaXtreamDataSource', () => {
             'playlist-1',
             credentials,
             'movie'
-        )) as Array<Record<string, unknown>>;
+        )) as XtreamContentItem[];
 
         expect(content[0]).toEqual(
             expect.objectContaining({

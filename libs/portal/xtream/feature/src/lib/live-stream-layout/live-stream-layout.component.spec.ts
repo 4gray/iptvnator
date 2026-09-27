@@ -16,7 +16,6 @@ import {
     liveSidebarStateStorageKey,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
-    ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import {
     FavoritesService,
@@ -50,7 +49,6 @@ import {
     StubEpgTimelineComponent,
     StubGridListComponent,
     StubPortalChannelsListComponent,
-    StubResizableDirective,
     StubWebPlayerViewComponent,
 } from './live-stream-layout-stubs.spec-data';
 
@@ -94,7 +92,9 @@ describe('LiveStreamLayoutComponent', () => {
         currentPlaylist,
         liveStreams,
         isContentInitialized,
-        selectItemsFromSelectedCategory: jest.fn(() => [sampleChannel]),
+        selectItemsFromSelectedCategory: jest.fn<unknown[], []>(() => [
+            sampleChannel,
+        ]),
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),
         setSelectedItem: jest.fn(),
@@ -141,7 +141,7 @@ describe('LiveStreamLayoutComponent', () => {
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(() => jest.fn()),
             onRemoteControlCommand: jest.fn(() => jest.fn()),
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
 
         routerEvents = new Subject();
         router = { events: routerEvents, navigate: jest.fn() };
@@ -253,7 +253,6 @@ describe('LiveStreamLayoutComponent', () => {
                         EpgTimelineComponent,
                         GridListComponent,
                         PortalChannelsListComponent,
-                        ResizableDirective,
                         TranslatePipe,
                         WebPlayerViewComponent,
                     ],
@@ -263,7 +262,6 @@ describe('LiveStreamLayoutComponent', () => {
                         StubEpgTimelineComponent,
                         StubGridListComponent,
                         StubPortalChannelsListComponent,
-                        StubResizableDirective,
                         MockPipe(
                             TranslatePipe,
                             (value: string | null | undefined) => value ?? ''
@@ -571,17 +569,14 @@ describe('LiveStreamLayoutComponent', () => {
             title: 'Channel 101',
             isLive: true,
             headers: { Authorization: 'Bearer token' },
-            contentInfo: {
-                playlistId: 'playlist-1',
-                contentXtreamId: 101,
-                contentType: 'live',
-            },
         };
+        // Partial double: the diagnostic that triggered the fallback is not
+        // needed to verify that the playback and player are forwarded as-is.
         component.handleExternalFallbackRequest({
             player: 'mpv',
             playback,
             trackLaunch: jest.fn(),
-        } as PlaybackFallbackRequest);
+        } as unknown as PlaybackFallbackRequest);
 
         const [forwardedPlayback, forwardedPlayer] =
             portalPlayer.openExternalPlayback.mock.calls[0];
@@ -718,7 +713,7 @@ describe('LiveStreamLayoutComponent', () => {
         const updateRemoteControlStatus = jest.fn();
         window.electron = {
             updateRemoteControlStatus,
-        } as typeof window.electron;
+        } as unknown as typeof window.electron;
 
         fixture = TestBed.createComponent(LiveStreamLayoutComponent);
         component = fixture.componentInstance;

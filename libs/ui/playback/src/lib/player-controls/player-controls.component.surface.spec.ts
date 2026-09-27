@@ -278,9 +278,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
                 fullscreenElement = target;
                 document.dispatchEvent(new Event('fullscreenchange'));
             });
-            (target as HTMLElement & { requestFullscreen: jest.Mock })[
-                'requestFullscreen'
-            ] = requestTargetFullscreen;
+            target.requestFullscreen = requestTargetFullscreen;
             fixture.componentRef.setInput('fullscreenTarget', target);
             fixture.detectChanges();
 

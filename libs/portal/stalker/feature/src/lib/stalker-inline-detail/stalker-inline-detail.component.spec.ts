@@ -51,7 +51,21 @@ class StubStalkerSeriesViewComponent {
 }
 
 const VOD_ITEM = createStalkerVodItem(
-    { id: '42', cmd: '/media/42', info: { name: 'Movie' } },
+    {
+        id: '42',
+        cmd: '/media/42',
+        info: {
+            name: 'Movie',
+            movie_image: '',
+            description: '',
+            actors: '',
+            director: '',
+            releasedate: '',
+            genre: '',
+            rating_imdb: '',
+            rating_kinopoisk: '',
+        },
+    },
     'stalker-1'
 );
 
