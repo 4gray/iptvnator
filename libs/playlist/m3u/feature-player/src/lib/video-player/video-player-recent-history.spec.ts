@@ -59,7 +59,7 @@ describe('VideoPlayerComponent — recently viewed history', () => {
     let component: VideoPlayerComponentInstance;
     let gate: PlaybackHistoryGate;
     const activePlaylist = signal<Partial<PlaylistMeta> | null>(null);
-    const harnessSelectSignal = storeMock.selectSignal.getMockImplementation();
+    const harnessSelectSignal = storeMock.selectSignal.getMockImplementation()!;
 
     beforeAll(async () => {
         ({ VideoPlayerComponent } = await import('./video-player.component'));
@@ -74,11 +74,11 @@ describe('VideoPlayerComponent — recently viewed history', () => {
         externalSession.set(null);
         storeMock.dispatch.mockClear();
         activePlaylist.set({ _id: 'playlist-1', recentlyViewed: [] });
-        storeMock.selectSignal.mockImplementation((selector: unknown) =>
+        // The harness has no playlist meta; the history write updates it.
+        storeMock.selectSignal.mockImplementation(((selector: unknown) =>
             selector === selectActivePlaylist
                 ? activePlaylist
-                : harnessSelectSignal?.(selector)
-        );
+                : harnessSelectSignal(selector)) as typeof harnessSelectSignal);
         playlistsServiceMock.addM3uRecentlyViewed.mockClear();
 
         await TestBed.configureTestingModule({
