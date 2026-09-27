@@ -393,6 +393,51 @@ describe('UnifiedFavoritesDataService', () => {
         expect(items[1].m3uChannel).toBe(m3uChannels[0]);
     });
 
+    it('carries M3U artwork to the field each collection tab reads', async () => {
+        // The live tab renders `logo`, the movie and series tabs render
+        // `posterUrl`. An M3U row has one artwork field, so a favourited
+        // film showed the missing-artwork placeholder once these rows
+        // stopped being labelled live.
+        const movie: Channel = {
+            ...m3uChannels[0],
+            id: 'channel-3',
+            name: 'Some Film',
+            url: 'https://example.com/movie/u/p/3.mkv',
+            radio: 'false',
+            tvg: { ...m3uChannels[0].tvg, logo: 'film.png' },
+        };
+        // The favorite ids live on the playlist META, the channels behind
+        // them on the playlist itself.
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'm3u-1',
+                    title: 'M3U List',
+                    favorites: [movie.url, 'channel-1'],
+                },
+            ] satisfies PlaylistMeta[])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                favorites: [movie.url, 'channel-1'],
+                playlist: { items: [...m3uChannels, movie] },
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getFavorites('playlist', 'm3u-1', 'm3u');
+
+        expect(items[0].contentType).toBe('movie');
+        expect(items[0].posterUrl).toBe('film.png');
+        expect(items[0].logo).toBe('film.png');
+
+        // A live row keeps today's shape: artwork in `logo`, nothing in
+        // the poster field the live tab never reads.
+        expect(items[1].contentType).toBe('live');
+        expect(items[1].logo).toBe('one.png');
+        expect(items[1].posterUrl).toBeNull();
+    });
+
     it('keeps Stalker radio favorites in the live collection with radio metadata', async () => {
         const radioFavorite = {
             id: '40001',

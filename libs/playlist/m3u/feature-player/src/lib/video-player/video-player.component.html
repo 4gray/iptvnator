@@ -34,7 +34,7 @@
     }
     @defer {
         <app-sidebar
-            [channels]="(channels$ | async)!"
+            [channels]="sidebarChannels()"
             [channelsLoading]="channelsLoading()"
             [showPlaylistHeader]="!isWorkspaceLayout"
             [activeView]="activeView()"
@@ -106,7 +106,9 @@
                         <app-audio-player
                             [url]="activeChannel.url"
                             [icon]="
-                                $safeNavigationMigration(activeChannel?.tvg?.logo)!
+                                $safeNavigationMigration(
+                                    activeChannel?.tvg?.logo
+                                )!
                             "
                             [channelName]="displayChannelName()"
                             [volume]="volume()"
@@ -276,6 +278,7 @@
 >
     <app-m3u-fullscreen-channel-list
         [channels]="fullscreenPanelChannels()"
+        [liveChannels]="fullscreenPanelLiveChannels()"
         [channelsLoading]="channelsLoading()"
         [initialView]="activeView()"
         [recentItems]="activePlaylistRecentItems()"

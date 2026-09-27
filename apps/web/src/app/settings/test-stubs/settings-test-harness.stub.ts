@@ -90,6 +90,7 @@ export const DEFAULT_SETTINGS = {
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
+    m3uCatalogTabs: true,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,

@@ -90,6 +90,15 @@ export class CategoryViewComponent {
         // content.category_id references categories.id (internal DB id)
         // For DB format categories, use id; for API format, use category_id
         const itemId = Number(item.id ?? item.category_id);
-        return this.itemCounts().get(itemId) ?? 0;
+        const mapped = this.itemCounts().get(itemId);
+        if (mapped !== undefined) {
+            return mapped;
+        }
+
+        // Categories whose id is not numeric — M3U group titles are the
+        // string the provider wrote — cannot be found in that map at all,
+        // so they carry their own count. The map still wins where it has an
+        // entry, leaving every existing caller unchanged.
+        return item.count ?? 0;
     }
 }

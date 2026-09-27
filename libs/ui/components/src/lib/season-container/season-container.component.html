@@ -255,8 +255,15 @@
                             <div class="episode-card__info">
                                 <div class="episode-card__title-row">
                                     <h4 class="episode-card__title">
-                                        {{ episode.episode_num }}.
-                                        {{ episode.title }}
+                                        @if (episode.title) {
+                                            {{ episode.episode_num }}.
+                                            {{ episode.title }}
+                                        } @else {
+                                            <!-- No provider title: the
+                                            number alone, rather than a
+                                            dangling separator. -->
+                                            {{ episode.episode_num }}
+                                        }
                                     </h4>
                                     @if (episodeInfo?.plot) {
                                         <button

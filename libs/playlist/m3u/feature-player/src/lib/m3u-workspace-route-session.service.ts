@@ -17,7 +17,7 @@ import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
 
-type M3uLoadedSection = 'all' | 'groups';
+type M3uLoadedSection = 'all' | 'groups' | 'vod' | 'series';
 
 @Injectable()
 export class M3uWorkspaceRouteSession {
@@ -146,7 +146,12 @@ export class M3uWorkspaceRouteSession {
     private isLoadedSection(
         section: string | null
     ): section is M3uLoadedSection {
-        return section === 'all' || section === 'groups';
+        return (
+            section === 'all' ||
+            section === 'groups' ||
+            section === 'vod' ||
+            section === 'series'
+        );
     }
 
     private isCurrentLoadRequest(

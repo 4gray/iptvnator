@@ -33,6 +33,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
+import { m3uCollectionContentType } from '@iptvnator/shared/m3u-utils';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 
@@ -489,14 +490,23 @@ export class UnifiedFavoritesDataService {
                     return null;
                 }
 
+                const contentType = m3uCollectionContentType(channel);
+                const artwork = channel.tvg?.logo ?? null;
+
                 return {
                     uid: buildCollectionUid('m3u', meta._id, sourceItemId),
                     name: channel.name,
-                    contentType: 'live' as const,
+                    contentType,
                     sourceType: 'm3u' as const,
                     playlistId: meta._id,
                     playlistName: meta.title || meta.filename || 'M3U',
-                    logo: channel.tvg?.logo ?? null,
+                    logo: artwork,
+                    // The live tab reads `logo`, the movie and series tabs
+                    // read `posterUrl`. An M3U row has one artwork field,
+                    // so now that these rows can be typed as films or
+                    // episodes it has to reach both — otherwise a
+                    // favourited film renders as missing artwork.
+                    posterUrl: contentType === 'live' ? null : artwork,
                     streamUrl: channel.url,
                     channelId: channel.id,
                     radio: channel.radio,
@@ -849,8 +859,7 @@ export class UnifiedFavoritesDataService {
 
     private getStalkerFavoriteId(
         favorite:
-            | Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'>
-            | StalkerPortalItem
+            Pick<UnifiedCollectionItem, 'stalkerId' | 'uid'> | StalkerPortalItem
     ): string {
         if ('uid' in favorite) {
             return String(
