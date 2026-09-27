@@ -146,8 +146,9 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
-CI runs the Electron suite as three Playwright shards per OS
-(`--shard=<n>/3`, split by spec file because the suite is sequential). Each
+CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
+by spec file because the suite is sequential): three shards on Ubuntu and
+Windows, two on macOS, whose runners are the scarcest and queued longest. Each
 shard uploads `playwright-report-electron-<os>-<n>`; the follow-up
 `Electron E2E summary` job downloads the shards of each OS into their own
 directory and runs the summary per OS with `--input=<directory>` and
