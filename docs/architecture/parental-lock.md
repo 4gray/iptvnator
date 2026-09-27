@@ -353,7 +353,11 @@ the store through the `PLAYLIST_DELETE_CLEANUP` hook
 `PlaylistsService.deletePlaylist` for every single-playlist deletion; no
 re-stamp, the category rows go with the playlist), and "Remove all
 playlists" empties it through `ParentalLockService.clearAllLocks` once the
-deletion has succeeded.
+deletion has succeeded — the in-memory store empties at once, and a failed
+persisted clear is retried on the next store access and overwritten by the
+next write. A backup restore that CREATES a playlist (not a merge) starts
+that playlist from empty locks, so a reused id can never inherit entries a
+failed cleanup left behind.
 
 ## Backup
 

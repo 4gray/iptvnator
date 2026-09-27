@@ -8,6 +8,7 @@ import { PlaybackPositionService } from './playback-position.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { ParentalLockService } from './parental-lock/parental-lock.service';
 import {
+    isParentalLockPlaylistLocksEmpty,
     isM3uRecentlyViewedItem,
     normalizeXtreamPendingRestoreState,
     M3uPlaylistBackupEntry,
@@ -183,7 +184,7 @@ export class PlaylistBackupService {
                     this.playlistsService.addPlaylist(nextPlaylist)
                 );
 
-                await this.restoreParentalLocks(targetId, entry);
+                await this.restoreParentalLocks(targetId, entry, isMerge);
 
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
@@ -1113,10 +1114,23 @@ export class PlaylistBackupService {
      */
     private async restoreParentalLocks(
         playlistId: string,
-        entry: PlaylistBackupEntry
+        entry: PlaylistBackupEntry,
+        isMerge: boolean
     ): Promise<void> {
-        const current = this.parentalLock.locksFor(playlistId);
-        let next: ParentalLockPlaylistLocks | null = null;
+        // A playlist created by this restore owns no locks yet: whatever the
+        // store holds under a reused id belongs to a deleted playlist (a
+        // cleanup that failed), and must not be inherited.
+        const current = isMerge
+            ? this.parentalLock.locksFor(playlistId)
+            : { xtream: [], stalker: [], m3u: [] };
+        const staleOnNewId =
+            !isMerge &&
+            !isParentalLockPlaylistLocksEmpty(
+                this.parentalLock.locksFor(playlistId)
+            );
+        let next: ParentalLockPlaylistLocks | null = staleOnNewId
+            ? current
+            : null;
 
         if (entry.portalType === 'm3u') {
             const titles = entry.userState.lockedGroupTitles;

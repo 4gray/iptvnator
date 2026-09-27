@@ -256,6 +256,19 @@ describe('ParentalLockLockStore', () => {
         expect(storage.writeLocks).toHaveBeenLastCalledWith({});
     });
 
+    it('empties the store now and retries a failed persisted clear', async () => {
+        await store.load();
+        await store.ensureReadable();
+        storage.writeLocks.mockResolvedValueOnce(false);
+
+        await expect(store.clearAll()).resolves.toBe(false);
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([]);
+
+        storage.writeLocks.mockClear();
+        await expect(store.ensureReadable()).resolves.toBe(true);
+        expect(storage.writeLocks).toHaveBeenCalledWith({});
+    });
+
     it('rolls the store back when the index re-stamp fails', async () => {
         await store.load();
         setCategoryLocks.mockResolvedValue(false);

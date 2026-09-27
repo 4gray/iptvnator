@@ -104,6 +104,39 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         );
     });
 
+    it('never lets a newly created playlist inherit stale locks under a reused id', async () => {
+        const collaborators = createRestoreCollaborators();
+        // Empty library: the restore CREATES the playlist (no merge match).
+        collaborators.playlistsService.getAllData.mockReturnValue(of([]));
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                // A failed cleanup left locks under the id the restore reuses.
+                locksFor: jest.fn(() => ({
+                    xtream: [{ categoryType: 'live', xtreamId: 1 }],
+                    stalker: [],
+                    m3u: [],
+                })),
+                replacePlaylistLocks,
+            },
+        });
+        const manifest = createXtreamManifest([]);
+        delete (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories;
+
+        await service.importBackup(JSON.stringify(manifest));
+
+        expect(replacePlaylistLocks).toHaveBeenCalledWith(expect.any(String), {
+            xtream: [],
+            stalker: [],
+            m3u: [],
+        });
+    });
+
     it('rejects a damaged parental lock list instead of erasing the persisted locks', async () => {
         const collaborators = createRestoreCollaborators();
         const service = createPlaylistBackupService(collaborators);

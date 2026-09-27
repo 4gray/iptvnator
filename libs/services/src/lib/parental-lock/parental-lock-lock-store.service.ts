@@ -64,6 +64,8 @@ export class ParentalLockLockStore {
      * same store and the later write would silently drop the earlier edit.
      */
     private writeQueue: Promise<unknown> = Promise.resolve();
+    /** "Remove all playlists" could not clear the persisted store yet. */
+    private pendingClearAll = false;
     /**
      * Playlists whose SQLite index could not be brought in line with the
      * store (a failed re-stamp whose rollback failed too); re-stamped on
@@ -129,6 +131,12 @@ export class ParentalLockLockStore {
      */
     async ensureReadable(): Promise<boolean> {
         await this.load();
+        if (this.pendingClearAll) {
+            this.pendingClearAll = !(await this.storage.writeLocks({}));
+            if (this.pendingClearAll) {
+                return false;
+            }
+        }
         if (this.unreadable()) {
             const locks = await this.storage.readLocks();
             if (locks === null) {
@@ -315,15 +323,17 @@ export class ParentalLockLockStore {
     clearAll(): Promise<boolean> {
         return this.enqueue(async () => {
             await this.load();
-            if (!(await this.storage.writeLocks({}))) {
-                return false;
-            }
+            // The playlists are gone either way: the in-memory store empties
+            // now, and a failed persisted clear is retried on the next
+            // store access (`ensureReadable`) and by the next write, which
+            // rewrites the whole store from this empty copy.
             this.locks.set({});
             this.unreadable.set(false);
             this.staleIndexPlaylists.clear();
             this.staleIndexCount.set(0);
             this.revisionState.update((value) => value + 1);
-            return true;
+            this.pendingClearAll = !(await this.storage.writeLocks({}));
+            return !this.pendingClearAll;
         });
     }
 
