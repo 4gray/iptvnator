@@ -1,4 +1,5 @@
 import {
+    Type,
     Component,
     computed,
     DestroyRef,
@@ -526,24 +527,36 @@ export class WorkspaceContextPanelComponent {
             return;
         }
         const context = this.context();
-        const contentType = toParentalLockStalkerCategoryType(this.section());
+        const section = this.section();
+        const contentType = toParentalLockStalkerCategoryType(section);
         if (!contentType) {
             return;
         }
-        const { StalkerCategoryLockDialogComponent } =
-            await import('@iptvnator/portal/stalker/feature');
-        this.dialog.open(StalkerCategoryLockDialogComponent, {
-            data: {
-                playlistId: context.playlistId,
-                contentType,
-                categories: this.stalkerStore
-                    .getAllCategoriesForSelectedType()
-                    .filter((category) => String(category.category_id) !== '*'),
-            },
+        // Snapshot before the lazy import: the store follows the CURRENT
+        // route, so reading it afterwards could hand another portal's
+        // categories to a dialog that saves them under this playlist.
+        const categories = this.stalkerStore
+            .getAllCategoriesForSelectedType()
+            .filter((category) => String(category.category_id) !== '*');
+        const dialogComponent = await this.loadStalkerLockDialog();
+        if (
+            this.context().playlistId !== context.playlistId ||
+            this.section() !== section
+        ) {
+            return;
+        }
+        this.dialog.open(dialogComponent, {
+            data: { playlistId: context.playlistId, contentType, categories },
             width: '500px',
             maxHeight: '90vh',
         });
     }
+
+    /** The dynamic import; a field so specs can substitute it. */
+    loadStalkerLockDialog = (): Promise<Type<unknown>> =>
+        import('@iptvnator/portal/stalker/feature').then(
+            (module) => module.StalkerCategoryLockDialogComponent
+        );
 
     async openManageCategories(): Promise<void> {
         if (!this.canManageXtreamCategories()) {

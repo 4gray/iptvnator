@@ -16,6 +16,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { LiveLayoutSidebarStateService } from '@iptvnator/portal/shared/util';
+import { ParentalLockService } from '@iptvnator/services';
 import { WorkspaceContextPanelComponent } from './workspace-context-panel.component';
 
 const translations: Record<string, string> = {
@@ -95,6 +96,10 @@ describe('WorkspaceContextPanelComponent', () => {
         reloadCategories: jest.fn(),
     };
     const stalkerStore = {
+        getAllCategoriesForSelectedType: jest.fn(() => [
+            { category_id: '*', category_name: 'All' },
+            { category_id: '1', category_name: 'News' },
+        ]),
         getCategoryResource: signal<
             Array<{ category_id: string; category_name: string }>
         >([]),
@@ -898,6 +903,68 @@ describe('WorkspaceContextPanelComponent', () => {
             expect(
                 fixture.componentInstance.stalkerCategoryErrorDescription()
             ).toBe('Account disabled');
+        });
+    });
+
+    describe('Stalker lock dialog', () => {
+        function enableLock(): void {
+            const parentalLock = TestBed.inject(ParentalLockService);
+            Object.defineProperty(parentalLock, 'enabled', {
+                configurable: true,
+                value: signal(true),
+            });
+            jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
+        }
+
+        it('opens with the categories snapshotted before the lazy import', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).toHaveBeenCalledWith(
+                expect.any(Function),
+                expect.objectContaining({
+                    data: {
+                        playlistId: 'stalker-1',
+                        contentType: 'itv',
+                        categories: [
+                            { category_id: '1', category_name: 'News' },
+                        ],
+                    },
+                })
+            );
+        });
+
+        it('opens nothing when the route changed during the lazy import', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(async () => {
+                fixture.componentRef.setInput('context', {
+                    provider: 'stalker',
+                    playlistId: 'stalker-2',
+                });
+                return class DialogStub {};
+            });
+
+            await component.openManageStalkerCategories();
+
+            expect(dialog.open).not.toHaveBeenCalled();
         });
     });
 });

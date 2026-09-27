@@ -417,7 +417,9 @@ never runs against the empty fail-closed snapshot.
 
 ## Backup
 
-M3U group titles travel verbatim (`normalizeParentalLockGroupTitles`, exact
+Locks are restored LAST for each entry, after the Xtream data restore, so a
+failed merge leaves the playlist's previous locks in place. M3U group titles
+travel verbatim (`normalizeParentalLockGroupTitles`, exact
 dedup): locks match `channel.group.title` exactly, so the trimming
 `uniqueStrings` used for favorites would weaken a lock on a title with
 surrounding whitespace. A backup's lock lists are validated entry by entry

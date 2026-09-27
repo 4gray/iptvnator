@@ -184,11 +184,14 @@ export class PlaylistBackupService {
                     this.playlistsService.addPlaylist(nextPlaylist)
                 );
 
-                await this.restoreParentalLocks(targetId, entry, isMerge);
-
                 if (entry.portalType === 'xtream') {
                     await this.restoreXtreamEntry(targetId, entry);
                 }
+
+                // Last: a failed Xtream restore above must leave the
+                // playlist's previous locks in place rather than commit the
+                // backup's (possibly smaller) lock set for a failed merge.
+                await this.restoreParentalLocks(targetId, entry, isMerge);
 
                 if (isMerge) {
                     summary.merged += 1;

@@ -104,6 +104,31 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
         );
     });
 
+    it('keeps the previous locks when the Xtream part of a merge fails', async () => {
+        const collaborators = createRestoreCollaborators();
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
+                replacePlaylistLocks,
+            },
+        });
+        collaborators.databaseService.updateCategoryVisibility.mockRejectedValue(
+            new Error('SQLITE_BUSY')
+        );
+
+        const summary = await service.importBackup(
+            JSON.stringify(createXtreamManifest([]))
+        );
+
+        expect(summary.failed).toBe(1);
+        expect(replacePlaylistLocks).not.toHaveBeenCalled();
+    });
+
     it('never lets a newly created playlist inherit stale locks under a reused id', async () => {
         const collaborators = createRestoreCollaborators();
         // Empty library: the restore CREATES the playlist (no merge match).
