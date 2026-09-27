@@ -391,7 +391,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return withheld.size === 0
             ? categories
             : categories.filter(
-                  (category) => !withheld.has(String(category.category_id))
+                  (category) =>
+                      !withheld.has(canonicalCategoryId(category.category_id))
               );
     }
 
@@ -404,7 +405,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         return withheld.size === 0
             ? items
             : items.filter(
-                  (item) => !withheld.has(String(item.category_id ?? ''))
+                  (item) => !withheld.has(canonicalCategoryId(item.category_id))
               );
     }
 
@@ -1584,4 +1585,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         this.categoryCache.clear();
         this.contentCache.clear();
     }
+}
+
+/**
+ * The lock store keys provider category ids as numbers (the lock editor
+ * converts with `Number`), so a noncanonical provider id such as `"001"`
+ * must be compared as `"1"`. Non-numeric and empty ids stay as they are.
+ */
+function canonicalCategoryId(id: string | number | null | undefined): string {
+    const raw = String(id ?? '').trim();
+    const numeric = Number(raw);
+    return raw !== '' && Number.isFinite(numeric) ? String(numeric) : raw;
 }

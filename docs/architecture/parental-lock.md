@@ -276,7 +276,9 @@ so a cancelled or refused PIN leaves it showing the real state.
   (`showChannelViews`) and the groups view keeps its rail instead of the
   generic empty state.
 - **Xtream (PWA):** `PwaXtreamDataSource` drops withheld categories,
-  streams and search hits at read time; the same reloads apply.
+  streams and search hits at read time; the same reloads apply. Provider
+  category ids are compared in canonical numeric form (`"009"` matches the
+  stored lock `9`), as the lock editor stores them with `Number`.
 - **Warm-cache detection (Electron):** the filtered category/content reads
   can be empty while the offline cache is complete (every category locked),
   so `ElectronXtreamDataSource` confirms an empty read with the unfiltered

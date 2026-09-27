@@ -98,6 +98,25 @@ describe('PwaXtreamDataSource', () => {
         expect(unlocked).toHaveLength(2);
     });
 
+    it('matches a noncanonical provider category id against its numeric lock', async () => {
+        apiService.getStreams.mockResolvedValue([
+            { stream_id: 1, name: 'Family film', category_id: '5' },
+            { stream_id: 2, name: 'Family after dark', category_id: '009' },
+        ]);
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedXtreamIds.mockImplementation((_id, type) =>
+            type === 'movies' ? [9] : []
+        );
+
+        const content = await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        );
+
+        expect(content.map((item) => item.name)).toEqual(['Family film']);
+    });
+
     it('withholds everything while the lock store cannot be read', async () => {
         apiService.getStreams.mockResolvedValue([
             { stream_id: 1, name: 'Family film', category_id: '5' },
