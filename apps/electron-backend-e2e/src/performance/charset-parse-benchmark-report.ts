@@ -65,6 +65,16 @@ export interface CharsetComparison {
     readonly variants: readonly CharsetVariantSummary[];
 }
 
+/**
+ * Variant order for one benchmark round. The starting variant rotates every
+ * round so no input always runs first or last after a garbage collection.
+ */
+export function variantOrderForRound(round: number): CharsetBenchmarkVariant[] {
+    const variants = [...CHARSET_BENCHMARK_VARIANTS];
+    const offset = round % variants.length;
+    return [...variants.slice(offset), ...variants.slice(0, offset)];
+}
+
 export function medianOf(values: readonly number[]): number {
     if (values.length === 0) {
         throw new Error('Cannot take the median of an empty sample');

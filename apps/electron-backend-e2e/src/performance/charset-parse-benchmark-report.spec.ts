@@ -9,6 +9,7 @@ import {
     formatCharsetReport,
     medianOf,
     summarizeSelfSamples,
+    variantOrderForRound,
 } from './charset-parse-benchmark-report';
 
 function measurement(
@@ -31,6 +32,31 @@ function measurement(
 }
 
 describe('charset parse benchmark report', () => {
+    it('rotates the starting variant every round', () => {
+        assert.deepEqual(variantOrderForRound(0), [
+            'latin1',
+            'latin1-bom',
+            'cyrillic',
+        ]);
+        assert.deepEqual(variantOrderForRound(1), [
+            'latin1-bom',
+            'cyrillic',
+            'latin1',
+        ]);
+        assert.deepEqual(variantOrderForRound(2), [
+            'cyrillic',
+            'latin1',
+            'latin1-bom',
+        ]);
+        assert.deepEqual(variantOrderForRound(3), variantOrderForRound(0));
+        for (let round = 0; round < 6; round += 1) {
+            assert.deepEqual(
+                [...variantOrderForRound(round)].sort(),
+                [...CHARSET_BENCHMARK_VARIANTS].sort()
+            );
+        }
+    });
+
     it('takes the median of odd and even samples without mutating them', () => {
         const values = [5, 1, 3];
 

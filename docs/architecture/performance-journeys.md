@@ -343,18 +343,25 @@ pnpm nx run electron-backend-e2e:benchmark-charset-parse --iterations=5
 
 It parses 50,000 M3U channels (`iptv-playlist-parser`, then
 `createPlaylistObject`, the main-process `PARSE_M3U` and `NORMALIZE` phases)
-and 50,000 XMLTV programmes (`StreamingEpgParser` fed 64 KiB chunks, as in the
-EPG worker). Each workload runs on three inputs: `latin1` and `cyrillic`
-from the synthetic generators (`charset` option of `synthetic-m3u.ts` and
+and 50,000 XMLTV programmes (`StreamingEpgParser`, the EPG worker's parser).
+Each workload runs on three inputs: `latin1` and `cyrillic` from the
+synthetic generators (`charset` option of `synthetic-m3u.ts` and
 `synthetic-xmltv.ts`, identical layout apart from titles), and `latin1-bom`,
 the latin1 bytes behind a UTF-8 byte-order mark. The BOM forces two-byte
 storage without changing content, which separates the encoding cost from
-the effect that non-ASCII titles have on ASCII-only regexes. The report gives
-P50 wall-clock and CPU time after one warm-up, plus CPU-profile sample counts
-and top self frames from a separate profiled pass. Prefer CPU time and
-samples on a busy machine.
+the effect that non-ASCII titles have on ASCII-only regexes. The XMLTV
+parser receives 64 Ki-character slices of one decoded string rather than
+per-chunk decoded buffers: slices keep the input's representation (a
+per-chunk decode would make the BOM control one-byte after its first
+chunk), and no multi-byte character is split. Before timing, an untimed
+pass checks that the parsed titles match the fixture.
 
-The 2026-09-26 measurement (plan item D1) found every workload under the 1.5x
+The report gives P50 wall-clock and CPU time after one warm-up, plus
+CPU-profile sample counts and top self frames from a separate profiled pass.
+Inputs alternate within each round and the starting input rotates between
+rounds. Prefer CPU time and samples on a busy machine.
+
+The 2026-09-27 measurement (plan item D1) found every workload under the 1.5x
 threshold on Node 22 and inside Electron 43, so D2 regex prefilters were not
 applied. Rerun the benchmark after changing either parser or when a user
 reports slow imports of non-Latin playlists.
