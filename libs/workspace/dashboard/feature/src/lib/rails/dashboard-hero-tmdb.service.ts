@@ -54,10 +54,13 @@ export class DashboardHeroTmdbService {
 
     /**
      * Identity of the lookup for an item — the memo key, and the staleness
-     * guard callers compare against while a request is in flight.
+     * guard callers compare against while a request is in flight. The TMDB
+     * language is part of it: the overview and genre names are localized,
+     * so a language change must load them again. Reactive when read inside
+     * a computed or effect (settings signal underneath).
      */
     keyFor(item: DashboardHeroTmdbItem): string {
-        return dashboardTmdbLookupKey(item);
+        return `${this.enrichment.language()}//${dashboardTmdbLookupKey(item)}`;
     }
 
     getExtras(

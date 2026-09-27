@@ -43,7 +43,14 @@
     );
 
     position: relative;
-    height: clamp(320px, 42vh, 520px);
+    // A floor, not a fixed height: the slide sits in normal flow at the
+    // bottom, so an unusually full slide (two-line title, programme,
+    // synopsis, wrapped pills) grows the banner instead of losing its top.
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    min-height: clamp(320px, 42vh, 520px);
     // Flush with the content area's top and sides; the rails page's own
     // top padding and gutters are cancelled. The negative bottom margin
     // tucks the first rail into the fade (the gradient does the spacing).
@@ -189,10 +196,12 @@
 
 // ── Slide content ──────────────────────────────────────────────────────────
 .hero__content {
-    position: absolute;
-    left: var(--hero-inset);
-    bottom: 34px;
+    position: relative;
     z-index: 1;
+    box-sizing: border-box;
+    // Top padding keeps clear of the title bar edge when the slide grows.
+    margin-left: var(--hero-inset);
+    padding: 72px 0 34px;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -621,8 +630,9 @@
 // ── Narrow content area ────────────────────────────────────────────────────
 @container dashboard (max-width: 720px) {
     .hero__content {
-        right: var(--hero-inset);
-        bottom: 28px;
+        margin-right: var(--hero-inset);
+        // Clears the rotation controls, which move to the top here.
+        padding: 64px 0 28px;
         max-width: none;
     }
 

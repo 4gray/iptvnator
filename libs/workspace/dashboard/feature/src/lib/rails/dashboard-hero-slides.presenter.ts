@@ -130,10 +130,17 @@ export class DashboardHeroSlidesPresenter {
             if (!this.heroTmdb.isEnabled()) {
                 return;
             }
-            const items = this.sources()
+            // Keys read here, tracked: they carry the TMDB language, so a
+            // language change loads the localized overview and genres.
+            const requests = this.sources()
                 .map((source) => source.item)
-                .filter((item) => item.type !== 'live');
-            untracked(() => items.forEach((item) => this.loadTmdbExtras(item)));
+                .filter((item) => item.type !== 'live')
+                .map((item) => ({ item, key: this.heroTmdb.keyFor(item) }));
+            untracked(() =>
+                requests.forEach(({ item, key }) =>
+                    this.loadTmdbExtras(item, key)
+                )
+            );
         });
     }
 
@@ -143,8 +150,7 @@ export class DashboardHeroSlidesPresenter {
         );
     }
 
-    private loadTmdbExtras(item: PortalActivityItem): void {
-        const key = this.heroTmdb.keyFor(item);
+    private loadTmdbExtras(item: PortalActivityItem, key: string): void {
         if (this.requestedTmdbKeys.has(key)) {
             return;
         }
@@ -247,7 +253,7 @@ export class DashboardHeroSlidesPresenter {
     /**
      * Resume slides keep the hero's resume handoff (a saved series episode
      * auto-plays) and offer "Details" as the detail-only way in; discovery
-     * slides open the detail page; live slides open the channel.
+     * and fallback slides open the detail page; live slides open the channel.
      */
     private actionsFor(
         source: DashboardHeroSource,
@@ -296,6 +302,17 @@ export class DashboardHeroSlidesPresenter {
                 if (item.type === 'live') {
                     return {
                         primaryAction: watchLiveAction(link, state),
+                        secondaryAction: null,
+                    };
+                }
+                // The fallback row can be a finished title (the resume
+                // candidates skip those): nothing to continue, open details.
+                if (source.kind === 'recent') {
+                    return {
+                        primaryAction: detailsAction(
+                            link,
+                            this.data.getRecentItemDetailNavigationState(item)
+                        ),
                         secondaryAction: null,
                     };
                 }

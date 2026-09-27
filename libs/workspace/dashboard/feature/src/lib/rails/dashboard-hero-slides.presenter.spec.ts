@@ -90,6 +90,7 @@ describe('DashboardHeroSlidesPresenter', () => {
     let candidates: ReturnType<typeof signal<DashboardHeroLiveCandidate[]>>;
     let liveDetails: jest.Mock;
     let tmdbEnabled: ReturnType<typeof signal<boolean>>;
+    let tmdbLanguage: ReturnType<typeof signal<string>>;
     let getExtras: jest.Mock;
     const positions = new Map<string | number, PlaybackPositionData>([
         [
@@ -167,7 +168,8 @@ describe('DashboardHeroSlidesPresenter', () => {
                     provide: DashboardHeroTmdbService,
                     useValue: {
                         isEnabled: () => tmdbEnabled(),
-                        keyFor: (item: PortalActivityItem) => item.title,
+                        keyFor: (item: PortalActivityItem) =>
+                            `${tmdbLanguage()}//${item.title}`,
                         getExtras,
                     },
                 },
@@ -191,6 +193,7 @@ describe('DashboardHeroSlidesPresenter', () => {
         candidates = signal([{ origin: 'favorite', item: channel }]);
         liveDetails = jest.fn(() => onAir);
         tmdbEnabled = signal(false);
+        tmdbLanguage = signal('en-US');
         getExtras = jest.fn().mockResolvedValue(null);
     });
 
@@ -315,6 +318,56 @@ describe('DashboardHeroSlidesPresenter', () => {
             backdropSource: 'poster',
             rating: null,
             description: null,
+        });
+    });
+
+    it('loads the extras again when the TMDB language changes', async () => {
+        tmdbEnabled.set(true);
+        getExtras.mockImplementation((item: PortalActivityItem) =>
+            Promise.resolve(
+                item.title === 'Big Pharma'
+                    ? {
+                          backdropUrl: null,
+                          rating: '7.5',
+                          genres: [
+                              tmdbLanguage() === 'en-US' ? 'Drama' : 'Драма',
+                          ],
+                          overview: `plot in ${tmdbLanguage()}`,
+                          year: 2024,
+                      }
+                    : null
+            )
+        );
+        const presenter = create();
+        TestBed.tick();
+        await Promise.resolve();
+        expect(presenter.slides()[0].description).toBe('plot in en-US');
+
+        tmdbLanguage.set('ru-RU');
+        TestBed.tick();
+        await Promise.resolve();
+
+        expect(getExtras).toHaveBeenCalledTimes(6);
+        expect(presenter.slides()[0]).toMatchObject({
+            description: 'plot in ru-RU',
+            genres: ['Драма'],
+        });
+    });
+
+    it('opens a finished fallback title on its details, never "Continue"', () => {
+        recentItems.set([watchedMovie]);
+        favorites.set([]);
+        addedItems.set([]);
+        candidates.set([]);
+        const [fallback] = create().slides();
+
+        expect(fallback).toMatchObject({
+            kind: 'recent',
+            primaryAction: {
+                labelKey: 'WORKSPACE.DASHBOARD.HERO_DETAILS',
+                state: { resume: false },
+            },
+            secondaryAction: null,
         });
     });
 

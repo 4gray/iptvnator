@@ -179,6 +179,32 @@ describe('DashboardHeroComponent', () => {
         expect(dots()).toHaveLength(4);
     });
 
+    it('keeps the first slide when a slide arrives ahead of it untouched', () => {
+        slides.set([slide('fav', 'Favourite'), slide('added', 'Import')]);
+        render();
+        expect(activeTitle()).toBe('Favourite');
+
+        slides.set([
+            slide('live', 'Live channel'),
+            slide('fav', 'Favourite'),
+            slide('added', 'Import'),
+        ]);
+        fixture.detectChanges();
+
+        expect(activeTitle()).toBe('Favourite');
+    });
+
+    it('shows the slide now at the same position when the active one goes', () => {
+        render();
+        dots()[1].click();
+        fixture.detectChanges();
+
+        slides.set([slide('a', 'First'), slide('c', 'Third')]);
+        fixture.detectChanges();
+
+        expect(activeTitle()).toBe('Third');
+    });
+
     it('never auto-rotates under reduced motion, but the dots still work', () => {
         reducedMotion = true;
         render();

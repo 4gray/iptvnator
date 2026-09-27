@@ -56,6 +56,7 @@ describe('DashboardHeroTmdbService', () => {
     } as unknown as DashboardHeroTmdbItem;
 
     let isEnabled: jest.Mock;
+    let language: jest.Mock;
     let enrichMovie: jest.Mock;
     let enrichTv: jest.Mock;
 
@@ -64,7 +65,7 @@ describe('DashboardHeroTmdbService', () => {
             providers: [
                 {
                     provide: TmdbEnrichmentService,
-                    useValue: { isEnabled, enrichMovie, enrichTv },
+                    useValue: { isEnabled, language, enrichMovie, enrichTv },
                 },
             ],
         });
@@ -73,6 +74,7 @@ describe('DashboardHeroTmdbService', () => {
 
     beforeEach(() => {
         isEnabled = jest.fn().mockReturnValue(true);
+        language = jest.fn().mockReturnValue('en-US');
         enrichMovie = jest.fn().mockResolvedValue(null);
         enrichTv = jest.fn().mockResolvedValue(tvDetails);
     });
@@ -113,6 +115,21 @@ describe('DashboardHeroTmdbService', () => {
             overview: 'A pharmacist enters big business.',
             year: 2024,
         });
+    });
+
+    it('loads the extras again for another TMDB language', async () => {
+        const service = createService();
+        const item: DashboardHeroTmdbItem = { title: 'Serial', type: 'series' };
+
+        await service.getExtras(item);
+        const englishKey = service.keyFor(item);
+        await service.getExtras(item);
+        expect(enrichTv).toHaveBeenCalledTimes(1);
+
+        language.mockReturnValue('ru-RU');
+        expect(service.keyFor(item)).not.toBe(englishKey);
+        await service.getExtras(item);
+        expect(enrichTv).toHaveBeenCalledTimes(2);
     });
 
     it('reports a missing overview and year as null', async () => {

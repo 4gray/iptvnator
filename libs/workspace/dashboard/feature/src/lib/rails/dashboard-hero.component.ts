@@ -4,6 +4,7 @@ import {
     computed,
     DestroyRef,
     inject,
+    linkedSignal,
     signal,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
@@ -11,6 +12,7 @@ import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DashboardHeroSlidesPresenter } from './dashboard-hero-slides.presenter';
 import { HERO_ROTATION_MS } from './dashboard-hero-slides.utils';
+import type { DashboardHeroSlide } from './dashboard-hero.utils';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -44,7 +46,32 @@ export class DashboardHeroComponent {
     readonly slides = this.presenter.slides;
     readonly rotationMs = HERO_ROTATION_MS;
 
-    private readonly activeId = signal<string | null>(null);
+    /**
+     * The slide on screen, by id. Pinned to the first slide as soon as one
+     * exists, so a late slide inserted ahead of it cannot take its place;
+     * if the active slide itself disappears, the one now at its position
+     * takes over.
+     */
+    private readonly activeId = linkedSignal<
+        DashboardHeroSlide[],
+        string | null
+    >({
+        source: this.slides,
+        computation: (slides, previous) => {
+            const currentId = previous?.value ?? null;
+            if (currentId && slides.some((slide) => slide.id === currentId)) {
+                return currentId;
+            }
+            const previousIndex =
+                previous?.source.findIndex((slide) => slide.id === currentId) ??
+                -1;
+            const index = Math.min(
+                Math.max(previousIndex, 0),
+                slides.length - 1
+            );
+            return slides[index]?.id ?? null;
+        },
+    });
     private readonly hovered = signal(false);
     private readonly focusWithin = signal(false);
     readonly userPaused = signal(false);
