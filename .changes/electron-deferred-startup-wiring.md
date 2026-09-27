@@ -1,6 +1,7 @@
 ---
 type: perf
 area: electron
+highlight: Faster startup
 ---
 
 The desktop app now opens its window before it prepares the portal, program

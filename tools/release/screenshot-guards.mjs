@@ -70,6 +70,7 @@ export const KNOWN_ACTIONS = [
     'open-m3u-channel-menu',
     'open-epg-mapping-dialog',
     'open-settings-tmdb',
+    'open-settings-search',
 ];
 
 /**

@@ -1,6 +1,7 @@
 ---
 type: feature
 area: settings
+screenshot: settings-search
 highlight: Search your settings
 ---
 
