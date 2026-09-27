@@ -126,7 +126,11 @@ export function getMainWindowWebPreferences(): Electron.BrowserWindowConstructor
         nodeIntegration: false,
         sandbox: !frameCopyExperiment,
         webSecurity: true,
-        backgroundThrottling: false,
+        // Chromium's default. A hidden or minimized window must report
+        // `document.hidden` so idle timers can pause and the playback
+        // keep-awake gate can release the display; Chromium itself keeps
+        // audible media and picture-in-picture running at full rate.
+        backgroundThrottling: true,
         preload: join(__dirname, 'main.preload.js'),
     };
 }

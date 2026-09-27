@@ -13,6 +13,10 @@ explicit hardened `webPreferences` object:
   frame-copy experiment is the one path that disables the renderer sandbox
   (`contextIsolation`/`nodeIntegration` stay hardened regardless)
 - `webSecurity: true`
+- `backgroundThrottling: true` — Chromium's default, kept explicit: a hidden
+  or minimized window must report `document.hidden` so idle timers pause and
+  the playback keep-awake gate works (see the player controls contract).
+  Audible media and picture-in-picture keep running at full rate regardless.
 - `preload: apps/electron-backend/src/app/api/main.preload.ts`
 
 Renderer code must use the preload bridge exposed as `window.electron`.

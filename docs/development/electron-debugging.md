@@ -89,6 +89,15 @@ Electron can exit before cleanup begins; Playwright disposes its dispatcher,
 so calling `electronApp.process()` at that point can throw even after a clean
 exit. The retained handle still provides the actual exit code and signal.
 
+Playwright sends `Emulation.setFocusEmulationEnabled` to every page it attaches
+to, and Chromium implements focus emulation by raising the page's capturer
+count. A window launched through `launchElectronApp` therefore always reports
+`document.visibilityState === 'visible'` and is never background-throttled,
+even when hidden or minimized. Tests of hidden-window behavior launch through
+`apps/electron-backend-e2e/src/electron-unautomated-launch.ts`, which spawns
+the app without Playwright and evaluates over raw CDP sockets
+(`window-visibility.e2e.ts` is the example).
+
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before
 classifying a zero rendered-frame signal as an infrastructure flake. A zero
