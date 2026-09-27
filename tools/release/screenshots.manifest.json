@@ -203,6 +203,54 @@
             "setup": [
                 "open-settings-tmdb"
             ]
+        },
+        {
+            "slug": "guide-update-channel",
+            "group": "feature-guides",
+            "description": "update channel",
+            "setup": [
+                "open-update-channel"
+            ]
+        },
+        {
+            "slug": "guide-backup",
+            "group": "feature-guides",
+            "description": "backup",
+            "setup": [
+                "open-backup"
+            ]
+        },
+        {
+            "slug": "guide-library-watched",
+            "group": "feature-guides",
+            "description": "library watched state",
+            "setup": [
+                "open-library-watched"
+            ]
+        },
+        {
+            "slug": "guide-player-subtitles",
+            "group": "feature-guides",
+            "description": "player subtitles",
+            "setup": [
+                "open-player-subtitles"
+            ]
+        },
+        {
+            "slug": "guide-stream-info",
+            "group": "feature-guides",
+            "description": "stream info",
+            "setup": [
+                "open-stream-info"
+            ]
+        },
+        {
+            "slug": "guide-fullscreen-channels",
+            "group": "feature-guides",
+            "description": "fullscreen channels",
+            "setup": [
+                "open-fullscreen-channels"
+            ]
         }
     ]
 }

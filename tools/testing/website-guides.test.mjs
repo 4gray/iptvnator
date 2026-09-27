@@ -17,7 +17,7 @@ const SITE = 'https://4gray.github.io/iptvnator';
 const GUIDES = [
   {
     slug: 'm3u-programme-guide',
-    screenshots: [],
+    screenshots: ['blog/feature-guides/multi-epg-v0-24.jpg'],
   },
   {
     slug: 'xtream-codes-setup-guide',
@@ -79,6 +79,31 @@ const GUIDES = [
 ];
 
 const readDist = (relativePath) => readFile(new URL(relativePath, distRoot), 'utf8');
+
+const FEATURE_GUIDE_SHOTS = {
+  'stable-nightly-updates-guide': 'guide-update-channel',
+  'playlist-backup-restore-guide': 'guide-backup',
+  'library-organization-guide': 'guide-library-watched',
+  'player-controls-guide': 'guide-player-subtitles',
+  'stream-info-diagnostics-guide': 'guide-stream-info',
+  'fullscreen-channel-episode-guide': 'guide-fullscreen-channels',
+};
+
+if (process.env.PUBLIC_INCLUDE_DRAFTS === 'true') {
+  for (const [slug, shot] of Object.entries(FEATURE_GUIDE_SHOTS)) {
+    GUIDES.push({ slug, screenshots: [`blog/feature-guides/screenshots/${shot}-dark.png`] });
+  }
+}
+
+test('feature guide drafts reference screenshots that ship with the site', async () => {
+  for (const [slug, shot] of Object.entries(FEATURE_GUIDE_SHOTS)) {
+    const source = await readFile(new URL(`../../apps/website/src/content/blog/${slug}.mdx`, import.meta.url), 'utf8');
+    const screenshot = `blog/feature-guides/screenshots/${shot}-dark.png`;
+    assert.ok(source.includes(`](/iptvnator/${screenshot})`), `${slug}: inline screenshot`);
+    assert.ok(source.includes(`heroImage: /iptvnator/${screenshot}`), `${slug}: card image`);
+    await access(new URL(screenshot, distRoot));
+  }
+});
 
 const HUB_GROUPS = ['getting-started', 'live-tv-epg', 'playback', 'library', 'updates'];
 const DRAFT_GUIDES = [

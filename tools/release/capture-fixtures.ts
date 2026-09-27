@@ -89,10 +89,12 @@ export function writeM3uFixture(dataDir: string): string {
         ['Culture', 'Atlas Culture', 'atlas-culture'],
         ['Culture', 'Night Music', 'night-music'],
     ];
-    const stream = `${XTREAM_MOCK_ORIGIN}/live/marketing/marketing/52000.m3u8`;
     const lines = ['#EXTM3U'];
 
     channels.forEach(([group, title, slug], index) => {
+        // Distinct URLs keep the player from highlighting every demo channel
+        // as the current one when a fullscreen list is captured.
+        const stream = `${XTREAM_MOCK_ORIGIN}/live/marketing/marketing/${52000 + index}.m3u8`;
         lines.push(
             `#EXTINF:-1 tvg-id="demo-${index + 1}" tvg-name="${title}" tvg-logo="${XTREAM_MOCK_ORIGIN}/assets/marketing/logo/${slug}.svg?size=256x256" group-title="${group}",${title}`,
             stream
