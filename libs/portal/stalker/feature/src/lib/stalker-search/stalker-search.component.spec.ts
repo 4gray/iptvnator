@@ -29,7 +29,10 @@ import {
     ParentalLockService,
     PlaylistsService,
 } from '@iptvnator/services';
-import { CONNECTIVITY_GUARD_RESET } from '@iptvnator/shared/interfaces';
+import {
+    ALL_CATEGORIES_WITHHELD,
+    CONNECTIVITY_GUARD_RESET,
+} from '@iptvnator/shared/interfaces';
 import type { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { StalkerSearchComponent } from './stalker-search.component';
 
@@ -490,6 +493,17 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.itemDetails()).toBeNull();
         expect(component.vodDetailsItem()).toBeNull();
         expect(stalkerStoreMock.setSelectedItem).toHaveBeenLastCalledWith(null);
+    });
+
+    it('closes a genre-less detail on relock only in fail-closed mode', () => {
+        component.selectItem({ id: 'no-genre', name: 'N' });
+        expect(component.itemDetails()).not.toBeNull();
+
+        component.closeWithheldDetail(new Set(['9']));
+        expect(component.itemDetails()).not.toBeNull();
+
+        component.closeWithheldDetail(ALL_CATEGORIES_WITHHELD);
+        expect(component.itemDetails()).toBeNull();
     });
 
     it('keeps paging past a page whose rows were all withheld by the parental lock', () => {

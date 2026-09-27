@@ -757,13 +757,18 @@ export class StalkerSearchComponent {
 
     closeWithheldDetail(withheldCategoryIds: ReadonlySet<string>): void {
         const details = this.itemDetails();
-        const categoryId = details?.category_id;
-        if (
-            !details ||
-            categoryId === undefined ||
-            categoryId === null ||
-            !withheldCategoryIds.has(String(categoryId))
-        ) {
+        if (!details) {
+            return;
+        }
+        // A detail without a genre is withheld only in fail-closed mode
+        // (`ALL_CATEGORIES_WITHHELD`): "unknown genre" is not "no locked
+        // genre" while the locks themselves are unknown.
+        const categoryId = details.category_id;
+        const withheld =
+            categoryId === undefined || categoryId === null || categoryId === ''
+                ? withheldCategoryIds === ALL_CATEGORIES_WITHHELD
+                : withheldCategoryIds.has(String(categoryId));
+        if (!withheld) {
             return;
         }
         const cleared = clearStalkerDetailViewState();

@@ -465,7 +465,10 @@ describe('ParentalLockLockStore', () => {
         await expect(store.setM3uLocks('pl-1', [])).resolves.toBe(true);
         expect(store.lockedGroupTitles('pl-1')).toEqual([]);
     });
-    it('rolls back a removal when the app relocks while its store write is in flight', async () => {
+    it('completes a removal whose write was issued before the app relocked', async () => {
+        // The parent authorized the removal; a relock that lands once its
+        // write is issued is ordered after it (no post-write rollback, which
+        // could itself fail and leave the persisted store diverged).
         storage.readLocks.mockResolvedValue({
             'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
         });
@@ -473,79 +476,15 @@ describe('ParentalLockLockStore', () => {
         await store.ensureReadable();
         let unlocked = true;
         store.setRemovalGate(() => unlocked);
-        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-        let finishWrite: (ok: boolean) => void = () => undefined;
-        storage.writeLocks.mockImplementationOnce(
-            () => new Promise<boolean>((resolve) => (finishWrite = resolve))
-        );
-        const revision = store.revision();
-
-        const removing = store.setM3uLocks('pl-1', []);
-        await waitFor(() => storage.writeLocks.mock.calls.length > 0);
-        unlocked = false;
-        finishWrite(true);
-
-        await expect(removing).resolves.toBe(false);
-        expect(store.lockedGroupTitles('pl-1')).toEqual(['Adults']);
-        expect(store.revision()).toBe(revision);
-        // The durable store is put back.
-        expect(storage.writeLocks).toHaveBeenLastCalledWith({
-            'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
-        });
-    });
-
-    it('fails closed and retries when the revert of a refused removal cannot be written', async () => {
-        storage.readLocks.mockResolvedValue({
-            'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
-        });
-        await store.load();
-        await store.ensureReadable();
-        let unlocked = true;
-        store.setRemovalGate(() => unlocked);
-        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-        jest.spyOn(console, 'error').mockImplementation(() => undefined);
-        storage.writeLocks
-            .mockImplementationOnce(async () => {
-                unlocked = false; // relock while the removal is written
-                return true;
-            })
-            .mockResolvedValueOnce(false) // the revert
-            .mockResolvedValueOnce(false); // the first retry
-
-        await expect(store.setM3uLocks('pl-1', [])).resolves.toBe(false);
-        // The persisted store may carry the removal: not readable.
-        expect(store.readable()).toBe(false);
-        expect(store.lockedGroupTitles('pl-1')).toEqual(['Adults']);
-        await expect(store.ensureReadable()).resolves.toBe(false);
-
-        await expect(store.ensureReadable()).resolves.toBe(true);
-        expect(storage.writeLocks).toHaveBeenLastCalledWith({
-            'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
-        });
-    });
-
-    it('rolls back an Xtream removal when the app relocks during the index stamps', async () => {
-        await store.load();
-        await store.ensureReadable();
-        let unlocked = true;
-        store.setRemovalGate(() => unlocked);
-        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-        await store.setXtreamLocks('pl-1', 'live', [7, 9]);
-        setCategoryLocks.mockImplementationOnce(async () => {
+        storage.writeLocks.mockImplementationOnce(async () => {
             unlocked = false;
             return true;
         });
 
-        await expect(store.setXtreamLocks('pl-1', 'live', [7])).resolves.toBe(
-            false
-        );
+        await expect(store.setM3uLocks('pl-1', [])).resolves.toBe(true);
 
-        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7, 9]);
-        expect(setCategoryLocks).toHaveBeenLastCalledWith(
-            'pl-1',
-            'live',
-            [7, 9]
-        );
+        expect(store.lockedGroupTitles('pl-1')).toEqual([]);
+        expect(storage.writeLocks).toHaveBeenCalledTimes(1);
         expect(store.readable()).toBe(true);
     });
 });

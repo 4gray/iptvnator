@@ -283,8 +283,9 @@ on either side.
   locked rows is not mistaken for a stalled portal.
 - **Stalker search relock:** a lock change drops the withheld rows already
   on screen at once (`applyRelockToResults`, page 1 included) and closes an
-  open detail of a now-withheld genre, before the replacement page is
-  awaited — otherwise they stay clickable while that request is pending.
+  open detail of a now-withheld genre (in fail-closed mode also one
+  without a genre), before the replacement page is awaited — otherwise
+  they stay clickable while that request is pending.
 - **Stalker search staleness:** portal requests are not aborted, so a
   search page issued before a relock can finish after it, filtered with the
   pre-relock withheld set; `isStalkerSearchRequestCurrent` keys the
@@ -416,15 +417,13 @@ by the index alone:
   unlocked, checked inside the write queue at commit time
   (`ParentalLockLockStore.setRemovalGate`, set by `ParentalLockService`).
   An editor opened while unlocked may still be saving, or queued behind
-  another write, when the app relocks. The answer is asked again at the
-  durable commit points: right after the store write (a refusal writes the
-  previous store back) and, for Xtream, after the index stamps (a refusal
-  rolls back like a failed stamp), before the revision is published.
-  If writing the previous store back fails, the persisted copy may carry
-  the removal while memory does not: the store stays not `readable`
-  (fail-closed) and is rewritten from memory on the next store access, as
-  a failed "Remove all playlists" clear is.
-  Adding locks is always allowed.
+  another write, when the app relocks. The gate is asked right before the
+  edit's first write is issued; a relock that lands after that is ordered
+  after the write, which completes: the parent authorized that removal,
+  and a post-write rollback could itself fail and leave the persisted
+  store diverged from memory across a restart. (During the Xtream stamps
+  the playlist is stale anyway, so the relock reloads fail-closed until
+  they land.) Adding locks is always allowed.
   Playlist deletion and "Remove all playlists" are not edits and are not
   gated.
 - Every launch re-derives the index from the store for each playlist that

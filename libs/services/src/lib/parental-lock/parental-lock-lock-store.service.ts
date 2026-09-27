@@ -65,8 +65,10 @@ export class ParentalLockLockStore {
     /**
      * Whether an edit may REMOVE a lock right now; set by
      * `ParentalLockService` to "the session is not locked". Asked inside
-     * the write queue, at commit time: an editor opened while unlocked may
-     * still be saving (or queued) when the app relocks.
+     * the write queue right before the edit's first write: an editor opened
+     * while unlocked may still be saving (or queued) when the app relocks.
+     * A relock that lands once the write is issued is ordered after it: the
+     * parent authorized that removal, so it completes.
      */
     private mayRemoveLocks: () => boolean = () => true;
     /**
@@ -77,8 +79,8 @@ export class ParentalLockLockStore {
     private writeQueue: Promise<unknown> = Promise.resolve();
     /**
      * The persisted store differs from the in-memory one and must be
-     * rewritten from it: "Remove all playlists" could not clear it, or a
-     * refused edit could not be reverted. Retried on the next store access;
+     * rewritten from it: "Remove all playlists" could not clear it. Retried
+     * on the next store access;
      * the store is not `readable` meanwhile, since a restart would load the
      * persisted copy.
      */
@@ -335,10 +337,9 @@ export class ParentalLockLockStore {
         previous: ParentalLockPlaylistLocks,
         next: ParentalLockPlaylistLocks
     ): Promise<boolean> {
-        const authorize = lockRemovalGate(previous, next, this.mayRemoveLocks);
         return (
-            authorize() &&
-            this.persistPlaylistLocks(playlistId, next, { authorize })
+            lockRemovalGate(previous, next, this.mayRemoveLocks)() &&
+            this.persistPlaylistLocks(playlistId, next)
         );
     }
 
@@ -377,13 +378,10 @@ export class ParentalLockLockStore {
         next: ParentalLockPlaylistLocks,
         categoryTypes: readonly ParentalLockXtreamCategoryType[]
     ): Promise<boolean> {
-        const authorize = lockRemovalGate(previous, next, this.mayRemoveLocks);
-        if (!authorize()) {
-            return false;
-        }
+        const authorized = lockRemovalGate(previous, next, this.mayRemoveLocks);
         const normalizedNext = normalizeParentalLockPlaylistLocks(next);
         if (isParentalLockPlaylistLocksEmpty(normalizedNext)) {
-            if (!(await this.ensureReadable())) {
+            if (!(await this.ensureReadable()) || !authorized()) {
                 return false;
             }
             // Stale until the STORE write has landed too: while it is
@@ -399,7 +397,6 @@ export class ParentalLockLockStore {
                 )) &&
                 (await this.persistPlaylistLocks(playlistId, normalizedNext, {
                     publish: false,
-                    authorize,
                 }))
             ) {
                 this.staleIndex.unmark(playlistId);
@@ -418,20 +415,15 @@ export class ParentalLockLockStore {
         // running would read a later type through its old stamps, and a
         // successful stamp emits nothing afterwards to reload it.
         if (
+            !authorized() ||
             !(await this.persistPlaylistLocks(playlistId, next, {
                 publish: false,
-                authorize,
             }))
         ) {
             return false;
         }
         this.markStaleWhileStamping(playlistId);
-        // Asked again once the stamps landed: a relock during them must not
-        // see the removal published.
-        if (
-            (await this.stampXtreamLocks(playlistId, categoryTypes)) &&
-            authorize()
-        ) {
+        if (await this.stampXtreamLocks(playlistId, categoryTypes)) {
             this.staleIndex.unmark(playlistId);
             this.revisionState.update((value) => value + 1);
             return true;
@@ -523,7 +515,7 @@ export class ParentalLockLockStore {
     private async persistPlaylistLocks(
         playlistId: string,
         locks: ParentalLockPlaylistLocks,
-        options: { publish?: boolean; authorize?: () => boolean } = {}
+        options: { publish?: boolean } = {}
     ): Promise<boolean> {
         // Every public mutation runs `ensureReadable()` before it builds its
         // edit. Here only the STORE must be known: the index of the
@@ -534,12 +526,6 @@ export class ParentalLockLockStore {
         }
         const next = withPlaylistLocksInStore(this.locks(), playlistId, locks);
         if (!(await this.storage.writeLocks(next))) {
-            return false;
-        }
-        if (options.authorize && !options.authorize()) {
-            // Relocked while the write was in flight: the durable store goes
-            // back to the in-memory one, which still holds the lock.
-            await this.rewritePersistedStore();
             return false;
         }
         this.locks.set(next);

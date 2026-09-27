@@ -83,11 +83,10 @@ export function removesParentalLocks(
 }
 
 /**
- * Whether an edit from `previous` to `next` may commit, asked each time the
- * returned function is called: adding locks always may, removing one only
- * while `mayRemove()` says so (logged when refused). Asked before a write
- * and again at its durable commit points, since a relock can land while
- * the write is in flight.
+ * Whether an edit from `previous` to `next` may be issued: adding locks
+ * always may, removing one only while `mayRemove()` says so (logged when
+ * refused). Returned as a function so the answer is taken at the moment
+ * the edit's first write is issued.
  */
 export function lockRemovalGate(
     previous: ParentalLockPlaylistLocks,
