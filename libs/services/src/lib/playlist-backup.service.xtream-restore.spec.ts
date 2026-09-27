@@ -113,6 +113,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
                 initialize: jest.fn().mockResolvedValue(undefined),
                 locksReadable: jest.fn(() => true),
                 ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock: jest.fn().mockResolvedValue(true),
                 locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
                 replacePlaylistLocks,
             },
@@ -140,6 +141,7 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
                 initialize: jest.fn().mockResolvedValue(undefined),
                 locksReadable: jest.fn(() => true),
                 ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock: jest.fn().mockResolvedValue(true),
                 // A failed cleanup left locks under the id the restore reuses.
                 locksFor: jest.fn(() => ({
                     xtream: [{ categoryType: 'live', xtreamId: 1 }],
@@ -161,6 +163,36 @@ describe('PlaylistBackupService Xtream hidden categories (issue #1017)', () => {
             stalker: [],
             m3u: [],
         });
+    });
+
+    it('asks for the PIN before restoring lock lists and aborts when it is refused', async () => {
+        const collaborators = createRestoreCollaborators();
+        const requestUnlock = jest.fn().mockResolvedValue(false);
+        const replacePlaylistLocks = jest.fn().mockResolvedValue(true);
+        const service = createPlaylistBackupService({
+            ...collaborators,
+            parentalLock: {
+                initialize: jest.fn().mockResolvedValue(undefined),
+                locksReadable: jest.fn(() => true),
+                ensureLocksReadable: jest.fn().mockResolvedValue(true),
+                requestUnlock,
+                locksFor: jest.fn(() => ({ xtream: [], stalker: [], m3u: [] })),
+                replacePlaylistLocks,
+            },
+        });
+        const manifest = createXtreamManifest([]);
+        (
+            manifest.playlists[0].userState as { lockedCategories?: unknown }
+        ).lockedCategories = [];
+
+        await expect(
+            service.importBackup(JSON.stringify(manifest))
+        ).rejects.toThrow(/parental PIN/);
+        expect(requestUnlock).toHaveBeenCalled();
+        expect(replacePlaylistLocks).not.toHaveBeenCalled();
+        expect(
+            collaborators.playlistsService.addPlaylist
+        ).not.toHaveBeenCalled();
     });
 
     it('rejects a damaged parental lock list instead of erasing the persisted locks', async () => {

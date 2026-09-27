@@ -382,7 +382,10 @@ by the index alone:
   reload on is published only once every touched type is stamped — also
   after a rollback — so a reload cannot read a later type through its old
   stamps. If the rollback write or its re-stamp fails too, the playlist is
-  marked stale and re-stamped on the next store access.
+  marked stale and re-stamped on the next store access. For the whole
+  re-stamp window — store changed, stamps not yet landed — the playlist
+  counts as stale, so `readable` is false and a relock inside the window
+  reloads fail-closed instead of through the old stamps.
 - A write that removes a playlist's LAST lock clears the index first and
   drops the key afterwards: the launch-time reconcile finds playlists only
   through their key, so an interruption must leave store-with-lock and
@@ -422,7 +425,10 @@ never runs against the empty fail-closed snapshot.
 
 ## Backup
 
-Locks are restored LAST for each entry, after the Xtream data restore, so a
+A backup carrying lock lists replaces the matching playlists' locks,
+possibly with an emptier set, so the import asks for the PIN first (after
+the file was chosen) and aborts when it is refused. Locks are restored LAST
+for each entry, after the Xtream data restore, so a
 failed merge leaves the playlist's previous locks in place. M3U group titles
 travel verbatim (`normalizeParentalLockGroupTitles`, exact
 dedup): locks match `channel.group.title` exactly, so the trimming

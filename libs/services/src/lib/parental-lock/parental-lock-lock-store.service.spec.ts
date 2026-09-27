@@ -315,6 +315,27 @@ describe('ParentalLockLockStore', () => {
         expect(storage.writeLocks).toHaveBeenCalledWith({});
     });
 
+    it('is not readable while a write is re-stamping the index', async () => {
+        await store.load();
+        await store.ensureReadable();
+        const readableAtStamp: boolean[] = [];
+        setCategoryLocks.mockImplementation(async () => {
+            readableAtStamp.push(store.readable());
+            return true;
+        });
+
+        await expect(
+            store.setXtreamLocks('pl-1', 'live', [7, 9])
+        ).resolves.toBe(true);
+        await expect(store.setXtreamLocks('pl-1', 'live', [])).resolves.toBe(
+            true
+        );
+
+        expect(readableAtStamp.length).toBeGreaterThan(0);
+        expect(readableAtStamp.every((readable) => !readable)).toBe(true);
+        expect(store.readable()).toBe(true);
+    });
+
     it('rolls the store back when the index re-stamp fails', async () => {
         await store.load();
         setCategoryLocks.mockResolvedValue(false);

@@ -131,6 +131,24 @@ export class PlaylistBackupService {
         json: string
     ): Promise<PlaylistBackupImportSummary> {
         const manifest = this.parseManifest(json);
+        // A backup carrying lock lists REPLACES the matching playlists'
+        // locks, possibly with an emptier set: that is a lock edit, and lock
+        // edits sit behind the PIN. Asked here, after the file was chosen.
+        const carriesLocks = manifest.playlists.some((entry) => {
+            const state = entry.userState as {
+                lockedCategories?: unknown;
+                lockedGroupTitles?: unknown;
+            };
+            return (
+                state?.lockedCategories !== undefined ||
+                state?.lockedGroupTitles !== undefined
+            );
+        });
+        if (carriesLocks && !(await this.parentalLock.requestUnlock())) {
+            throw new PlaylistBackupError(
+                'Enter the parental PIN to restore a backup that carries parental locks.'
+            );
+        }
         const existingPlaylists = await firstValueFrom(
             this.playlistsService.getAllData()
         );

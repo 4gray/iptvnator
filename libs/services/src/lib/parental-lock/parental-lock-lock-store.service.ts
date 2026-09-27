@@ -161,6 +161,11 @@ export class ParentalLockLockStore {
         this.staleIndexCount.set(this.staleIndexPlaylists.size);
     }
 
+    private unmarkIndexStale(playlistId: string): void {
+        this.staleIndexPlaylists.delete(playlistId);
+        this.staleIndexCount.set(this.staleIndexPlaylists.size);
+    }
+
     /** Re-stamps every playlist whose index may lag behind the store. */
     private async reconcileXtreamIndex(): Promise<void> {
         if (!this.runtime.supportsXtreamSqliteDataSource) {
@@ -364,13 +369,15 @@ export class ParentalLockLockStore {
             if (!(await this.ensureReadable())) {
                 return false;
             }
+            this.markStaleWhileStamping(playlistId);
             if (
                 (await this.stampXtreamLocks(
                     playlistId,
                     categoryTypes,
                     normalizedNext
                 )) &&
-                (await this.persistPlaylistLocks(playlistId, normalizedNext))
+                (this.unmarkIndexStale(playlistId),
+                await this.persistPlaylistLocks(playlistId, normalizedNext))
             ) {
                 return true;
             }
@@ -392,7 +399,9 @@ export class ParentalLockLockStore {
         ) {
             return false;
         }
+        this.markStaleWhileStamping(playlistId);
         if (await this.stampXtreamLocks(playlistId, categoryTypes)) {
+            this.unmarkIndexStale(playlistId);
             this.revisionState.update((value) => value + 1);
             return true;
         }
@@ -426,8 +435,22 @@ export class ParentalLockLockStore {
         if (!restored || !restamped) {
             console.error('Failed to roll back the parental lock index.');
             this.markIndexStale(playlistId);
+        } else {
+            this.unmarkIndexStale(playlistId);
         }
         this.revisionState.update((value) => value + 1);
+    }
+
+    /**
+     * From the store change until every stamp has landed the SQLite index
+     * does not agree with the store: `readable` must be false for that whole
+     * window, or a relock inside it would reload through the old stamps.
+     * Only Electron has the index.
+     */
+    private markStaleWhileStamping(playlistId: string): void {
+        if (this.runtime.supportsXtreamSqliteDataSource) {
+            this.markIndexStale(playlistId);
+        }
     }
 
     /** Re-stamps the index from `locks`; marks it stale when that fails. */
@@ -439,8 +462,10 @@ export class ParentalLockLockStore {
         if (!(await this.stampXtreamLocks(playlistId, categoryTypes, locks))) {
             console.error('Failed to restore the parental lock index.');
             this.markIndexStale(playlistId);
-            this.revisionState.update((value) => value + 1);
+        } else {
+            this.unmarkIndexStale(playlistId);
         }
+        this.revisionState.update((value) => value + 1);
     }
 
     /**
@@ -472,7 +497,11 @@ export class ParentalLockLockStore {
         locks: ParentalLockPlaylistLocks,
         options: { publish?: boolean } = {}
     ): Promise<boolean> {
-        if (!(await this.ensureReadable())) {
+        // Every public mutation runs `ensureReadable()` before it builds its
+        // edit. Here only the STORE must be known: the index of the
+        // playlist being written is deliberately stale while it is
+        // re-stamped, and a rollback must still be able to write.
+        if (this.unreadable()) {
             return false;
         }
         const normalized = normalizeParentalLockPlaylistLocks(locks);
