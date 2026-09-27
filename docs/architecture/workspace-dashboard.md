@@ -143,6 +143,10 @@ hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
    optional `aspectRatio` (default `'2 / 3'`), optional `testId`.
 2. Behavior: horizontal flex track with `scroll-snap-type: x mandatory`.
 3. Chevron buttons fade in on hover (desktop only via `@media (hover: none)`).
+   Edge fades follow the chevrons' visibility. The track bleeds
+   `--rail-bleed` past the viewport on every side so card focus rings and
+   hover lift are not clipped; the fades are offset by the same variable so
+   they reach the track's clipping edge and no card strip shows beyond them.
 4. Cards are keyboard-focusable router links; `scroll-snap-align: start`
    means arrow-key nav lands on card boundaries.
 5. Image handling: `loading="lazy"`, `decoding="async"`, fallback icon tile
