@@ -731,15 +731,11 @@
         height: 100%;
         background: var(--app-live-color, #ff8f8f);
         border-radius: 2px;
-        // A full-width fill slid into view, not an animated width: the
-        // transform transition runs on the compositor, so each live-EPG tick
-        // no longer re-lays out the whole page for every transition frame.
+        // A full-width fill slid into place, neither a width nor animated: a
+        // live-EPG tick moves it by under one percent, so an animation was
+        // invisible yet cost a layout pass (width) or a burst of compositor
+        // frames (transform transition) on every tick.
         transform: translateX(calc(var(--live-progress, 0) * 1% - 100%));
-        transition: transform 0.4s ease;
-
-        @media (prefers-reduced-motion: reduce) {
-            transition: none;
-        }
     }
 
     &--idle i {
