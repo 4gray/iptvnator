@@ -89,6 +89,13 @@ The three worst offenders, in order:
   instruments. The instrumented pass had browser-process CPU of about 2.5 s
   per window and 550 wakeups/s, almost all of it the sampling profiler.
 
+Playwright pins every page it attaches to as visible: `Emulation.setFocusEmulationEnabled`
+raises the page's capturer count. The minimized windows above were measured
+through Playwright. That is faithful for this build, because
+`backgroundThrottling: false` keeps the page visible anyway. Measuring a build
+where the window can become hidden needs a launch without Playwright over raw
+CDP. The follow-up PRs do that.
+
 Harness artifacts that were excluded:
 
 - The E2E fixture's own 60 Hz rAF frame counter (`startRendererFrameCapture`),
