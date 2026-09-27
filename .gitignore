@@ -1,102 +1,10 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files. 
 
 #compiled output 
-/dist 
-/build 
-/tmp 
-/out-tsc 
-/app-builds 
-/release 
-/e2e/tracing
-/e2e/screenshots 
-/test-results 
-api.js 
-epg-worker.js 
-main.js 
-menu.js 
-src/**/*.js
-!src/karma.conf.js 
-*.js.map 
-data.db 
-preload.js 
-shared/*.js 
-playwright-report 
-.nx
-server.js 
-.github/skills
-.github/prompts
-.agents/skills
-
-# dependencies 
-node_modules
-package-lock.json
-
-# IDEs and editors 
-/.idea 
-.project
-.classpath 
-.c9/ 
-*.launch 
-.settings/ 
-*.sublime-workspace 
-
-# IDE - VSCode 
-.vscode/*
-.vscode/settings.json 
-!.vscode/tasks.json 
-!.vscode/launch.json
-!.vscode/extensions.json 
-
-# misc 
-/.sass-cache 
-/connect.lock 
-/coverage
-/libpeerconnection.log 
-npm-debug.log 
-testem.log 
-/typings 
-.angular/* 
-
-# e2e
-/e2e/*.js 
-!/e2e/protractor.conf.js 
-/e2e/*.map 
-/e2e/db 
-
-# System Files 
+.gradle
+build/
+.idea
+*.iml
+local.properties
 .DS_Store
-Thumbs.db
-.angular
-.astro
-
-.gemini
-.cursor
-.agent
-# Agent config stays local, except the skills the repo owns. Claude Code only
-# discovers skills under .claude/skills/, so the release skills are committed
-# there as well as under .codex/skills/. Personal skills in .claude/skills/
-# remain ignored — each shared skill is opted in by name.
-.claude/*
-!.claude/skills/
-.claude/skills/*
-!.claude/skills/release-notes/
-!.claude/skills/release-notes/**
-!.claude/skills/release-cut/
-!.claude/skills/release-cut/**
-.codex/*
-!.codex/skills/
-!.codex/skills/**
-.plans
-
-# Native Electron addons
-apps/electron-backend/native/build/
-apps/electron-backend/src/app/options/electron-builder.metadata.generated.json
-vendor/embedded-mpv/*/bin/
-vendor/embedded-mpv/*/include/
-vendor/embedded-mpv/*/lib/
-vendor/embedded-mpv/*/notices/
-vendor/embedded-mpv/*/runtime-manifest.json
-
-# MemPalace per-project files (issue #185)
-mempalace.yaml
-entities.json
+.analytics
