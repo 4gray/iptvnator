@@ -90,6 +90,15 @@ export class CrossPortalSimilarService {
         return items;
     }
 
+    /**
+     * `items` without the ones whose match the parental lock withholds now.
+     * Reactive (see `CatalogTitleMatchService.isWithheld`): filter inside
+     * a `computed` so cached rails follow relock and unlock.
+     */
+    visible<T extends CrossPortalSimilarItem>(items: readonly T[]): T[] {
+        return items.filter((item) => !this.titleMatch.isWithheld(item.match));
+    }
+
     /** Route array for one match: the item's detail view in its portal */
     buildLink(item: CrossPortalSimilarItem): string[] {
         return [

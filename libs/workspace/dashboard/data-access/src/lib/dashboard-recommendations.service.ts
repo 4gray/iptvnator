@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { computed, Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
@@ -61,9 +61,26 @@ export class DashboardRecommendationsService {
     private readonly titleMatch = inject(CatalogTitleMatchService);
     private readonly data = inject(DashboardDataService);
 
-    readonly items = signal<DashboardRecommendationItem[]>([]);
+    private readonly matchedItems = signal<DashboardRecommendationItem[]>([]);
+    private readonly matchedSeedTitles = signal<readonly string[]>([]);
+    /**
+     * The matched cards the parental lock does not withhold, filtered on
+     * read so a relock hides cards matched while unlocked. Under the match
+     * threshold the rail hides, as it does on load.
+     */
+    readonly items = computed(() => {
+        const visible = this.matchedItems().filter(
+            (item) => !this.titleMatch.isWithheld(item.match)
+        );
+        return visible.length < MIN_RECOMMENDATION_MATCHES ? [] : visible;
+    });
     /** Seeds that contributed at least one visible card, most recent first */
-    readonly seedTitles = signal<readonly string[]>([]);
+    readonly seedTitles = computed(() => {
+        const contributed = new Set(this.items().map((item) => item.seedTitle));
+        return this.matchedSeedTitles().filter((title) =>
+            contributed.has(title)
+        );
+    });
     readonly loading = signal(false);
 
     private loadedKey: string | null = null;
@@ -87,8 +104,8 @@ export class DashboardRecommendationsService {
         if (seeds.length === 0) {
             // The service outlives the dashboard (root-provided), so a
             // cleared watch history must clear the rail too.
-            this.items.set([]);
-            this.seedTitles.set([]);
+            this.matchedItems.set([]);
+            this.matchedSeedTitles.set([]);
             this.loadedKey = null;
             return;
         }
@@ -130,8 +147,8 @@ export class DashboardRecommendationsService {
                     const contributed = new Set(
                         matched.map((item) => item.seedTitle)
                     );
-                    this.items.set(matched);
-                    this.seedTitles.set(
+                    this.matchedItems.set(matched);
+                    this.matchedSeedTitles.set(
                         perSeed
                             .map((seed) => seed.seedTitle)
                             .filter((title) => contributed.has(title))
@@ -158,8 +175,8 @@ export class DashboardRecommendationsService {
                     // rail that was just cleared, and returning to those
                     // exact inputs (say, un-favoriting again) would
                     // otherwise hit the equality guard and stay empty.
-                    this.items.set([]);
-                    this.seedTitles.set([]);
+                    this.matchedItems.set([]);
+                    this.matchedSeedTitles.set([]);
                     this.loadedKey = null;
                 }
             }
@@ -183,7 +200,7 @@ export class DashboardRecommendationsService {
      * under the match threshold hides the rail, as everywhere else.
      */
     private dropExcludedCards(excluded: ExclusionIndex): void {
-        const current = this.items();
+        const current = this.matchedItems();
         // A card whose playlist is gone would navigate to a dead route,
         // and the failed refresh is no excuse for keeping it — this is
         // the only path that can reach a deleted playlist without the
@@ -207,15 +224,15 @@ export class DashboardRecommendationsService {
         this.loadedKey = null;
 
         if (kept.length < MIN_RECOMMENDATION_MATCHES) {
-            this.items.set([]);
-            this.seedTitles.set([]);
+            this.matchedItems.set([]);
+            this.matchedSeedTitles.set([]);
             return;
         }
 
         const contributed = new Set(kept.map((item) => item.seedTitle));
-        this.items.set(kept);
-        this.seedTitles.set(
-            this.seedTitles().filter((title) => contributed.has(title))
+        this.matchedItems.set(kept);
+        this.matchedSeedTitles.set(
+            this.matchedSeedTitles().filter((title) => contributed.has(title))
         );
     }
 

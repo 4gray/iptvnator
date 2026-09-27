@@ -79,8 +79,11 @@ export class StalkerDiscoverRouteComponent {
     private readonly globalMatches = signal<CatalogTitleMatch[] | null>(null);
     private readonly matchRequest = createLatestRequestGuard();
     private readonly discoverRequest = createLatestRequestGuard();
+    // Filtered on read: a relock hides matches cached while unlocked.
     private readonly globalIndex = computed(() =>
-        groupTitleMatchesByKey(this.globalMatches() ?? [])
+        groupTitleMatchesByKey(
+            this.titleMatch.visibleMatches(this.globalMatches() ?? [])
+        )
     );
 
     readonly items = computed<DiscoverItem[]>(() => {

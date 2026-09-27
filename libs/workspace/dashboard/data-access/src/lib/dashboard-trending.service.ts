@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { computed, Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
@@ -26,7 +26,19 @@ export class DashboardTrendingService {
     private readonly enrichment = inject(TmdbEnrichmentService);
     private readonly titleMatch = inject(CatalogTitleMatchService);
 
-    readonly items = signal<DashboardTrendingItem[]>([]);
+    private readonly matchedItems = signal<DashboardTrendingItem[]>([]);
+    /**
+     * Trending entries with their library match, dropped (the entry stays,
+     * unavailable) while the parental lock withholds its category. Filtered
+     * on read, so a relock hides matches found while unlocked.
+     */
+    readonly items = computed(() =>
+        this.matchedItems().map((item) =>
+            item.match && this.titleMatch.isWithheld(item.match)
+                ? { ...item, match: null }
+                : item
+        )
+    );
     readonly loading = signal(false);
 
     private loadedOnce = false;
@@ -57,7 +69,7 @@ export class DashboardTrendingService {
             );
             const grouped = groupTitleMatchesByKey(matches);
 
-            this.items.set(
+            this.matchedItems.set(
                 entries.map((entry) => ({
                     ...entry,
                     match: this.matchFor(entry, grouped),

@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
     CatalogTitleMatchService,
@@ -15,6 +16,12 @@ interface ActivityStub {
 }
 
 describe('DashboardRecommendationsService', () => {
+    // The parental lock's view of each match's category, as a signal so a
+    // relock re-runs the services' computed filters.
+    const withheldCategories = signal(new Set<number>());
+    const isWithheld = (match: CatalogTitleMatch) =>
+        withheldCategories().has(match.categoryId);
+
     const rec = (id: number, title: string, year = 2010) => ({
         id,
         title,
@@ -86,7 +93,9 @@ describe('DashboardRecommendationsService', () => {
         enrichTv.mockResolvedValue({
             recommendations: {
                 results: [
-                    ...recTitles.slice(0, 5).map((title, i) => rec(100 + i, title)),
+                    ...recTitles
+                        .slice(0, 5)
+                        .map((title, i) => rec(100 + i, title)),
                     ...extraTitles.map((title, i) => rec(200 + i, title)),
                 ],
             },
@@ -117,6 +126,7 @@ describe('DashboardRecommendationsService', () => {
                     useValue: {
                         isAvailable: options.matchingAvailable ?? true,
                         matchTitles,
+                        isWithheld,
                     },
                 },
                 {
@@ -134,6 +144,7 @@ describe('DashboardRecommendationsService', () => {
     }
 
     beforeEach(() => {
+        withheldCategories.set(new Set());
         isEnabled = jest.fn().mockReturnValue(true);
         enrichMovie = jest.fn().mockResolvedValue({
             recommendations: {
@@ -166,6 +177,22 @@ describe('DashboardRecommendationsService', () => {
         await service.load();
 
         expect(enrichTv).not.toHaveBeenCalled();
+    });
+
+    it('hides cards whose category the lock withholds, on read', async () => {
+        const service = createService();
+        await service.load();
+        expect(service.items()).toHaveLength(recTitles.length);
+
+        // Lock now: every card sits in the locked category, so the rail
+        // (and its "Because you watched" seed) disappears.
+        withheldCategories.set(new Set([7]));
+        expect(service.items()).toEqual([]);
+        expect(service.seedTitles()).toEqual([]);
+
+        withheldCategories.set(new Set());
+        expect(service.items()).toHaveLength(recTitles.length);
+        expect(service.seedTitles()).toEqual(['The Matrix']);
     });
 
     it('does nothing when TMDB is disabled', async () => {
@@ -372,9 +399,7 @@ describe('DashboardRecommendationsService', () => {
 
         await service.load();
 
-        const hunt = service
-            .items()
-            .find((item) => item.title === 'The Hunt');
+        const hunt = service.items().find((item) => item.title === 'The Hunt');
         expect(hunt?.match.xtreamId).toBe(2012);
     });
 
@@ -644,9 +669,7 @@ describe('DashboardRecommendationsService', () => {
 
         await service.load();
 
-        const hunt = service
-            .items()
-            .find((item) => item.title === 'The Hunt');
+        const hunt = service.items().find((item) => item.title === 'The Hunt');
         expect(hunt).toBeDefined();
         expect(hunt?.match.queryTitle).toBe('Jagten');
     });
@@ -835,9 +858,7 @@ describe('DashboardRecommendationsService', () => {
 
         await service.load();
 
-        expect(service.items().map((item) => item.title)).toContain(
-            'Godzilla'
-        );
+        expect(service.items().map((item) => item.title)).toContain('Godzilla');
     });
 
     it('excludes a watched title whose name ends in a year', async () => {

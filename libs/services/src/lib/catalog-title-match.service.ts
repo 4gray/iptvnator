@@ -128,4 +128,24 @@ export class CatalogTitleMatchService {
             return [];
         }
     }
+
+    /**
+     * Whether the parental lock withholds this match's category now. It
+     * reads the lock state, so a `computed` that filters with it re-runs on
+     * every relock and unlock: matches cached while unlocked (or returned
+     * by a lookup issued before a relock) must not keep advertising a
+     * locked title or its playlist name.
+     */
+    isWithheld(match: CatalogTitleMatch): boolean {
+        return this.parentalLock.isXtreamCategoryLocked(
+            match.playlistId,
+            match.type === 'movie' ? 'movies' : 'series',
+            match.categoryId
+        );
+    }
+
+    /** `matches` without the ones the lock withholds; reactive, see above. */
+    visibleMatches(matches: readonly CatalogTitleMatch[]): CatalogTitleMatch[] {
+        return matches.filter((match) => !this.isWithheld(match));
+    }
 }

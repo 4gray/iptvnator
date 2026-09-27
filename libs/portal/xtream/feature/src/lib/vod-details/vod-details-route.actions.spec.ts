@@ -312,6 +312,7 @@ describe('VodDetailsRouteComponent fallback actions', () => {
                         isAvailable: false,
                         buildLink: jest.fn(),
                         matchRecommendations: jest.fn(),
+                        visible: <T>(items: T[]) => items,
                     },
                 },
                 {

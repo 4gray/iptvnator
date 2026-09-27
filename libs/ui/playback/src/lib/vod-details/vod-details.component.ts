@@ -188,13 +188,19 @@ export class VodDetailsComponent {
      * match, Electron only). Loaded async — the section appears when
      * resolved; staleness-guarded against item changes in flight.
      */
-    readonly similarInPortals = signal<CrossPortalSimilarItem[]>([]);
+    private readonly similarInPortalsMatched = signal<CrossPortalSimilarItem[]>(
+        []
+    );
+    /** Filtered on read: a relock hides matches cached while unlocked. */
+    readonly similarInPortals = computed(() =>
+        this.crossPortalSimilar.visible(this.similarInPortalsMatched())
+    );
 
     private readonly loadSimilarInPortals = effect(() => {
         const meta = this.normalizedMeta();
         const recommendations = meta.tmdbRecommendations;
         untracked(() => {
-            this.similarInPortals.set([]);
+            this.similarInPortalsMatched.set([]);
             if (
                 !recommendations?.length ||
                 !this.crossPortalSimilar.isAvailable
@@ -208,7 +214,7 @@ export class VodDetailsComponent {
                         this.normalizedMeta().tmdbRecommendations ===
                         recommendations
                     ) {
-                        this.similarInPortals.set(items);
+                        this.similarInPortalsMatched.set(items);
                     }
                 });
         });
