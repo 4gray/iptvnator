@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "Недавно просмотренное Live TV",
             "FAVORITE_MOVIES_AND_SERIES": "Избранные фильмы и сериалы",
             "SOURCE_EXPIRES_IN_DAYS": "Истекает через {{days}} дн.",
-            "SOURCE_EXPIRED": "Истёк"
+            "SOURCE_EXPIRED": "Истёк",
+            "HERO_LABEL": "Рекомендуемое",
+            "HERO_FAVORITE_CHANNEL": "Избранный канал",
+            "HERO_FAVORITE": "Избранное",
+            "HERO_RECENTLY_ADDED": "Недавно добавлено",
+            "HERO_CONTINUE": "Продолжить",
+            "HERO_WATCH_LIVE": "Смотреть эфир",
+            "HERO_DETAILS": "Подробнее",
+            "HERO_SLIDE_POSITION": "{{index}} из {{count}}",
+            "HERO_SHOW_SLIDE": "Показать {{title}}",
+            "HERO_PAUSE": "Приостановить показ",
+            "HERO_PLAY": "Возобновить показ"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

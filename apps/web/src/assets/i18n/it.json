@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "TV in diretta guardata di recente",
             "FAVORITE_MOVIES_AND_SERIES": "Film e serie preferiti",
             "SOURCE_EXPIRES_IN_DAYS": "Scade tra {{days}} g",
-            "SOURCE_EXPIRED": "Scaduto"
+            "SOURCE_EXPIRED": "Scaduto",
+            "HERO_LABEL": "In evidenza",
+            "HERO_FAVORITE_CHANNEL": "Canale preferito",
+            "HERO_FAVORITE": "Preferito",
+            "HERO_RECENTLY_ADDED": "Aggiunto di recente",
+            "HERO_CONTINUE": "Riprendi",
+            "HERO_WATCH_LIVE": "Guarda in diretta",
+            "HERO_DETAILS": "Dettagli",
+            "HERO_SLIDE_POSITION": "{{index}} di {{count}}",
+            "HERO_SHOW_SLIDE": "Mostra {{title}}",
+            "HERO_PAUSE": "Metti in pausa la presentazione",
+            "HERO_PLAY": "Avvia la presentazione"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

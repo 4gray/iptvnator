@@ -44,6 +44,10 @@ import {
     type DashboardLiveEpgLookupGroup,
 } from './dashboard-live-epg.utils';
 import { RAIL_ITEM_LIMIT } from './dashboard-rail.utils';
+import {
+    selectDashboardHeroLiveCandidates,
+    type DashboardHeroLiveCandidate,
+} from './dashboard-hero-slides.utils';
 
 type ScopeAnswer = {
     readonly scopeKey: string;
@@ -105,9 +109,34 @@ export class DashboardLiveEpgPresenter {
         return byPlaylistId;
     });
 
+    private readonly rails = computed(() =>
+        normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
+    );
+
+    /**
+     * Channels that may fill the hero's live slide. Looked up and pinned
+     * here, independent of the rails, so the slide works with the live rails
+     * hidden and never waits for a rail to scroll a card into view.
+     */
+    readonly heroLiveCandidates = computed<DashboardHeroLiveCandidate[]>(() =>
+        this.rails().hero
+            ? selectDashboardHeroLiveCandidates(
+                  this.data.globalFavoriteLiveItems(),
+                  this.data.globalRecentLiveItems()
+              )
+            : []
+    );
+
+    private readonly heroLiveCards = computed(() =>
+        this.heroLiveCandidates().map(({ item }) =>
+            buildDashboardLiveEpgCard(item)
+        )
+    );
+
     private readonly lookupGroups = computed(() =>
-        buildLiveEpgLookupGroups(this.cards()?.() ?? [], (card) =>
-            this.sourceUrlsForCard(card)
+        buildLiveEpgLookupGroups(
+            [...this.heroLiveCards(), ...(this.cards()?.() ?? [])],
+            (card) => this.sourceUrlsForCard(card)
         )
     );
 
@@ -131,25 +160,14 @@ export class DashboardLiveEpgPresenter {
         { initialValue: new Map<string, EpgProgram | null>() }
     );
 
-    private readonly rails = computed(() =>
-        normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
-    );
-
-    /** The live row behind the hero panel, when that rail shows one. */
-    private readonly heroLiveItem = computed<PortalActivityItem | null>(() => {
-        const hero = this.data.globalRecentItems()[0] ?? null;
-        return this.rails().hero && hero?.type === 'live' ? hero : null;
-    });
-
     // The Xtream/Stalker live rows behind the hero and the two live rails.
     // Their programmes come from the portal, asked for lazily per visible
     // card; M3U rows stay on the XMLTV batch above.
     private readonly portalItems = computed<readonly PortalActivityItem[]>(
         () => {
             const rails = this.rails();
-            const hero = this.heroLiveItem();
             return [
-                ...(hero ? [hero] : []),
+                ...this.heroLiveCandidates().map(({ item }) => item),
                 ...(rails.liveFavorites
                     ? this.data
                           .globalFavoriteLiveItems()
@@ -167,18 +185,17 @@ export class DashboardLiveEpgPresenter {
     constructor() {
         this.portal.connect(this.portalItems);
         // The hero sits at the top of the page and is never scrolled into
-        // view, so its key is wanted regardless of what the rails report.
-        // Only the hero: the first entry of `portalItems` is a favourite
-        // when that rail is hidden, and pinning it would keep asking for a
-        // card nobody can see.
+        // view, so its candidates are wanted regardless of what the rails
+        // report. Only those: a rail card nobody can see stays unpinned.
         effect(() => {
-            const hero = this.heroLiveItem();
-            const heroKey = hero ? buildDashboardPortalLiveEpgKey(hero) : null;
-            untracked(() => this.portal.setPinnedKeys([heroKey]));
+            const keys = this.heroLiveCandidates().map(({ item }) =>
+                buildDashboardPortalLiveEpgKey(item)
+            );
+            untracked(() => this.portal.setPinnedKeys(keys));
         });
     }
 
-    /** The live cards whose rails are enabled, hero included. */
+    /** The live cards whose rails are enabled (hero candidates are added here). */
     connect(cards: Signal<readonly DashboardRailCard[]>): void {
         this.cards.set(cards);
     }
@@ -204,6 +221,11 @@ export class DashboardLiveEpgPresenter {
                 nowPlayingState: pending ? 'pending' : null,
             };
         });
+    }
+
+    /** Current programme of a hero live candidate, or `null`. */
+    heroDetailsFor(item: PortalActivityItem): DashboardLiveEpgDetails | null {
+        return this.detailsFor(buildDashboardLiveEpgCard(item));
     }
 
     /** `null` when nothing is known about the card's current programme. */
@@ -284,4 +306,20 @@ function mergeAnswers(
         }
     }
     return merged;
+}
+
+/** The fields the EPG lookups read, for a live row that has no rail card. */
+function buildDashboardLiveEpgCard(
+    item: PortalActivityItem
+): DashboardRailCard {
+    return {
+        id: `hero-live-${item.playlist_id}-${item.xtream_id ?? item.id}`,
+        title: item.title,
+        icon: 'live_tv',
+        contentType: 'live',
+        link: [],
+        epgLookupKey: item.epg_lookup_key,
+        epgPlaylistId: item.playlist_id,
+        liveEpgSourceKey: buildDashboardPortalLiveEpgKey(item),
+    };
 }
