@@ -416,7 +416,11 @@ by the index alone:
   unlocked, checked inside the write queue at commit time
   (`ParentalLockLockStore.setRemovalGate`, set by `ParentalLockService`).
   An editor opened while unlocked may still be saving, or queued behind
-  another write, when the app relocks. Adding locks is always allowed.
+  another write, when the app relocks. The answer is asked again at the
+  durable commit points: right after the store write (a refusal writes the
+  previous store back) and, for Xtream, after the index stamps (a refusal
+  rolls back like a failed stamp), before the revision is published.
+  Adding locks is always allowed.
   Playlist deletion and "Remove all playlists" are not edits and are not
   gated.
 - Every launch re-derives the index from the store for each playlist that

@@ -465,6 +465,59 @@ describe('ParentalLockLockStore', () => {
         await expect(store.setM3uLocks('pl-1', [])).resolves.toBe(true);
         expect(store.lockedGroupTitles('pl-1')).toEqual([]);
     });
+    it('rolls back a removal when the app relocks while its store write is in flight', async () => {
+        storage.readLocks.mockResolvedValue({
+            'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
+        });
+        await store.load();
+        await store.ensureReadable();
+        let unlocked = true;
+        store.setRemovalGate(() => unlocked);
+        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        let finishWrite: (ok: boolean) => void = () => undefined;
+        storage.writeLocks.mockImplementationOnce(
+            () => new Promise<boolean>((resolve) => (finishWrite = resolve))
+        );
+        const revision = store.revision();
+
+        const removing = store.setM3uLocks('pl-1', []);
+        await waitFor(() => storage.writeLocks.mock.calls.length > 0);
+        unlocked = false;
+        finishWrite(true);
+
+        await expect(removing).resolves.toBe(false);
+        expect(store.lockedGroupTitles('pl-1')).toEqual(['Adults']);
+        expect(store.revision()).toBe(revision);
+        // The durable store is put back.
+        expect(storage.writeLocks).toHaveBeenLastCalledWith({
+            'pl-1': { xtream: [], stalker: [], m3u: ['Adults'] },
+        });
+    });
+
+    it('rolls back an Xtream removal when the app relocks during the index stamps', async () => {
+        await store.load();
+        await store.ensureReadable();
+        let unlocked = true;
+        store.setRemovalGate(() => unlocked);
+        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        await store.setXtreamLocks('pl-1', 'live', [7, 9]);
+        setCategoryLocks.mockImplementationOnce(async () => {
+            unlocked = false;
+            return true;
+        });
+
+        await expect(store.setXtreamLocks('pl-1', 'live', [7])).resolves.toBe(
+            false
+        );
+
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7, 9]);
+        expect(setCategoryLocks).toHaveBeenLastCalledWith(
+            'pl-1',
+            'live',
+            [7, 9]
+        );
+        expect(store.readable()).toBe(true);
+    });
 });
 
 async function waitFor(condition: () => boolean): Promise<void> {

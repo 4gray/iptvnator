@@ -1,6 +1,10 @@
 import {
+    isParentalLockPlaylistLocksEmpty,
+    lockedXtreamCategoryIds,
+    normalizeParentalLockPlaylistLocks,
     ParentalLockPlaylistLocks,
     ParentalLockStalkerCategoryType,
+    ParentalLockStore,
     ParentalLockXtreamCategoryType,
 } from '@iptvnator/shared/interfaces';
 
@@ -79,17 +83,65 @@ export function removesParentalLocks(
 }
 
 /**
- * Whether an edit from `previous` to `next` may commit: adding locks always
- * may, removing one only while `mayRemove()` says so (logged when refused).
+ * Whether an edit from `previous` to `next` may commit, asked each time the
+ * returned function is called: adding locks always may, removing one only
+ * while `mayRemove()` says so (logged when refused). Asked before a write
+ * and again at its durable commit points, since a relock can land while
+ * the write is in flight.
  */
-export function isLockRemovalAllowed(
+export function lockRemovalGate(
     previous: ParentalLockPlaylistLocks,
     next: ParentalLockPlaylistLocks,
     mayRemove: () => boolean
-): boolean {
-    if (!removesParentalLocks(previous, next) || mayRemove()) {
-        return true;
+): () => boolean {
+    const removes = removesParentalLocks(previous, next);
+    return () => {
+        if (!removes || mayRemove()) {
+            return true;
+        }
+        console.warn('A parental lock edit was refused: the app is locked.');
+        return false;
+    };
+}
+
+/** `store` with one playlist's locks replaced; an empty set drops its key. */
+export function withPlaylistLocksInStore(
+    store: ParentalLockStore,
+    playlistId: string,
+    locks: ParentalLockPlaylistLocks
+): ParentalLockStore {
+    const normalized = normalizeParentalLockPlaylistLocks(locks);
+    const next: ParentalLockStore = { ...store };
+    if (isParentalLockPlaylistLocksEmpty(normalized)) {
+        delete next[playlistId];
+    } else {
+        next[playlistId] = normalized;
     }
-    console.warn('A parental lock edit was refused: the app is locked.');
-    return false;
+    return next;
+}
+
+/**
+ * Stamps the SQLite `categories.locked` index of one playlist from `locks`,
+ * type by type. Every type is attempted; false when any of them failed.
+ */
+export async function stampXtreamIndex(
+    setCategoryLocks: (
+        playlistId: string,
+        categoryType: ParentalLockXtreamCategoryType,
+        lockedXtreamIds: number[]
+    ) => Promise<boolean>,
+    playlistId: string,
+    categoryTypes: readonly ParentalLockXtreamCategoryType[],
+    locks: ParentalLockPlaylistLocks
+): Promise<boolean> {
+    let success = true;
+    for (const categoryType of categoryTypes) {
+        success =
+            (await setCategoryLocks(
+                playlistId,
+                categoryType,
+                lockedXtreamCategoryIds(locks, categoryType)
+            )) && success;
+    }
+    return success;
 }
