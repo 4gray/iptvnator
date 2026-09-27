@@ -727,10 +727,19 @@
 
     i {
         display: block;
+        width: 100%;
         height: 100%;
         background: var(--app-live-color, #ff8f8f);
         border-radius: 2px;
-        transition: width 0.4s ease;
+        // A full-width fill slid into view, not an animated width: the
+        // transform transition runs on the compositor, so each live-EPG tick
+        // no longer re-lays out the whole page for every transition frame.
+        transform: translateX(calc(var(--live-progress, 0) * 1% - 100%));
+        transition: transform 0.4s ease;
+
+        @media (prefers-reduced-motion: reduce) {
+            transition: none;
+        }
     }
 
     &--idle i {

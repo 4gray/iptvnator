@@ -335,6 +335,26 @@ describe('DashboardRailComponent', () => {
             expect(visible.at(-1)).toEqual(['a', 'b']);
         });
 
+        it('positions the live progress fill through a custom property, never its width', async () => {
+            // Animating width re-lays out the page for every frame of the
+            // transition on each EPG tick; the stylesheet slides the fill with
+            // a compositor transform driven by this property instead.
+            installObservers(false);
+            const { fixture } = await render([
+                card({ id: 'known', contentType: 'live', nowPlayingProgress: 37.5 }),
+                card({ id: 'unknown', contentType: 'live' }),
+            ]);
+            const fills = Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
+                    '.rail__channel-progress i'
+                )
+            );
+            expect(fills).toHaveLength(2);
+            expect(fills[0].style.getPropertyValue('--live-progress')).toBe('37.5');
+            expect(fills[1].style.getPropertyValue('--live-progress')).toBe('0');
+            expect(fills.map((fill) => fill.style.width)).toEqual(['', '']);
+        });
+
         it('shows the placeholder only while a live card is pending its first answer', async () => {
             installObservers(false);
             const { fixture } = await render([
