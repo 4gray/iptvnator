@@ -169,8 +169,9 @@ harness, which is what the ratchet needs. The main process start
 
 `journeys.<id>.counters.<name>` and `journeys.<id>.wallClock.<name>` are plain
 numbers so `tools/performance/check-journey-ratchet.mjs` can compare them with
-`tools/performance/journey-baselines.json`. A J1 baseline is added once the
-numbers are stable on the CI runner; until then the summary is evidence only.
+`tools/performance/journey-baselines.json`. A J1 runtime baseline is added
+once its counter is deterministic on the CI runner; the launch counters are
+not yet (see [Ratchet](#ratchet)), so the summary is evidence only.
 
 ## `renderer.initialBytes`
 
@@ -297,6 +298,35 @@ Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
 into the PR. Never raise a value to make a PR pass: if growth is a deliberate
 trade-off, say so in the PR and let the maintainer decide.
+
+The runtime counters come from the `Performance journeys` job of the same
+workflow, on `ubuntu-latest` only. It runs `pnpm run perf:journeys` under
+`xvfb-run` (the Nx target builds `electron-backend:build-performance`, the
+Playwright config starts the Xtream mock), writes the measurements to the job
+summary and uploads `dist/performance/journeys/` as the `performance-journeys`
+artifact. The `Performance journeys scope` job skips it for pull requests
+whose changed files, ignoring Markdown and `apps/website/**`, touch none of
+`apps/**`, `libs/**`, `tools/performance/**`, `package.json`,
+`pnpm-lock.yaml` or `ci.yml`; pushes to `master` and manual dispatches always
+run it. The job is warn-only (`continue-on-error: true`) for its first two
+weeks (plan item B3): a regression marks the job failed without failing the
+workflow. Making it required is a maintainer decision.
+
+No J1 runtime counter is enforced yet. Three dispatched runs on 2026-09-27
+(CI runs 36271875209, 36271879955 and 36271884616) reported the same summary
+values, `renderer.ipcCallsToFirstCard` 16 and
+`renderer.domMutationsToFirstCard` 939, but the third run marked both
+`stable: false`: its warm-up and one measured iteration reached the first
+card in about 750 ms with 13 bridge calls and 576 mutations, the others in
+about 1,400 ms with 16 and 939. The three extra calls
+(`downloadsGetDefaultFolder` and two `dbGetGlobalRecentlyAdded`) land before
+or after the first card depending on that race, so neither counter is
+promoted until the race is understood and the counters are deterministic.
+`renderer.layoutShiftScore` (0) and `renderer.longTasks` (2) were identical
+in all eighteen runner iterations; the `spawnToFirstCardMs` P50 ranged from
+1,401 to 1,674 ms. All four stay evidence for now. Runner counters also
+differ from a Mac (12 and 571 there, the fast path without the Linux-only
+`getWindowState` call), so take J1 baseline values from the runner only.
 
 ## Adding a counter
 
