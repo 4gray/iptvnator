@@ -5,7 +5,7 @@ import {
     Injectable,
     untracked,
 } from '@angular/core';
-import { Router } from '@angular/router';
+import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { ChannelActions, selectActive } from '@iptvnator/m3u-state';
 import {
@@ -41,6 +41,8 @@ export class ParentalLockEnforcementService {
     private started = false;
     private lastVersion = -1;
     private applyChain: Promise<void> = Promise.resolve();
+    private stalkerModule: StalkerEnforcementModule | null = null;
+    private stalkerModuleLoad: Promise<StalkerEnforcementModule> | null = null;
 
     start(): void {
         if (this.started) {
@@ -53,6 +55,16 @@ export class ParentalLockEnforcementService {
         this.parentalLock.registerBusyProbe(
             () => this.keepAwake.hasPlayingVideo() || hasPlayingAudio()
         );
+        // The Stalker step is loaded as soon as a Stalker route opens, so a
+        // relock there can run it synchronously instead of awaiting a chunk.
+        this.router.events?.subscribe((event) => {
+            if (
+                event instanceof NavigationEnd &&
+                STALKER_ROUTE.test(event.urlAfterRedirects)
+            ) {
+                void this.loadStalker().catch(() => undefined);
+            }
+        });
         effect(() => {
             const version = this.parentalLock.version();
             untracked(() => {
@@ -103,7 +115,7 @@ export class ParentalLockEnforcementService {
      */
     private failClosedNow(): void {
         this.applyM3u();
-        void this.applyStalker();
+        this.failClosedStalkerNow();
         const playlistId = this.xtreamStore.playlistId?.();
         if (!playlistId) {
             return;
@@ -273,8 +285,41 @@ export class ParentalLockEnforcementService {
     }
 
     /** The dynamic import; a field so specs can substitute it. */
-    loadStalkerEnforcement = () =>
+    loadStalkerEnforcement = (): Promise<StalkerEnforcementModule> =>
         import('./parental-lock-stalker-enforcement');
+
+    /** Loads the Stalker step once; a failed load may be retried. */
+    private loadStalker(): Promise<StalkerEnforcementModule> {
+        this.stalkerModuleLoad ??= this.loadStalkerEnforcement().then(
+            (module) => (this.stalkerModule = module),
+            (error: unknown) => {
+                this.stalkerModuleLoad = null;
+                throw error;
+            }
+        );
+        return this.stalkerModuleLoad;
+    }
+
+    /**
+     * The relock's Stalker step, synchronously: run it when the chunk is
+     * there, otherwise leave the Stalker route at once (its route session
+     * clears the selection and the live layout stops playback) rather than
+     * wait for a chunk that may be slow or never arrive.
+     */
+    private failClosedStalkerNow(): void {
+        if (!STALKER_ROUTE.test(this.router.url)) {
+            return;
+        }
+        if (!this.stalkerModule) {
+            void this.router.navigate(['/workspace', 'sources']);
+            return;
+        }
+        this.stalkerModule.applyParentalLockToStalker(
+            this.injector,
+            this.parentalLock,
+            this.router
+        );
+    }
 
     /**
      * The Stalker data layer stays off the initial path: the step is loaded
@@ -286,9 +331,9 @@ export class ParentalLockEnforcementService {
         if (!STALKER_ROUTE.test(this.router.url)) {
             return;
         }
-        let module: Awaited<ReturnType<typeof this.loadStalkerEnforcement>>;
+        let module: StalkerEnforcementModule;
         try {
-            module = await this.loadStalkerEnforcement();
+            module = await this.loadStalker();
         } catch (error) {
             // Fail closed (e.g. a stale PWA page whose chunk is gone): leave
             // the Stalker route. Its route session clears the selection and
@@ -327,6 +372,9 @@ export class ParentalLockEnforcementService {
         return match ? decodeURIComponent(match[1]) : null;
     }
 }
+
+type StalkerEnforcementModule =
+    typeof import('./parental-lock-stalker-enforcement');
 
 function hasPlayingAudio(): boolean {
     return Array.from(document.querySelectorAll('audio')).some(

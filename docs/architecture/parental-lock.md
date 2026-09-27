@@ -142,7 +142,9 @@ through the SQLite worker (`supportsXtreamSqliteDataSource`) but the bridge
 lacks the worker filter (`supportsParentalLockSqliteFilter`:
 `setParentalLockState` and `dbSetCategoryLocks`, e.g. a partial or older
 preload): the worker would never learn the lock state, so it cannot
-withhold locked rows itself. The direct worker consumers
+withhold locked rows itself. The same holds while locked after the
+lock-state sync itself was rejected (`ParentalLockWorkerSync`), until a
+later sync succeeds. The direct worker consumers
 (`CatalogTitleMatchService`, `VodSourceDiscoveryService`) ask the worker
 nothing while `withholdsEverything` is true, in either case. The VOD
 multi-source host keys its discovery session to the lock version: a lock
@@ -389,8 +391,10 @@ on them). Everything else stays lazy: the PIN dialog loads through
 reads as a cancelled prompt), and the enforcement's Stalker step loads
 through `parental-lock-stalker-enforcement.ts` only while a Stalker route is
 open — a static import of the Stalker store would put the whole Stalker
-data layer back into `main.js`. If that chunk cannot load (a stale PWA page
-after a deployment) the step fails closed by navigating to
+data layer back into `main.js`. The chunk is preloaded when a Stalker route
+opens, so a relock there runs the step synchronously; if it is not loaded
+yet (still fetching, or it cannot load — a stale PWA page after a
+deployment) the step fails closed at once by navigating to
 `/workspace/sources`: leaving the Stalker route clears its selection and
 stops its playback, and the Xtream step still runs. The feature costs about 30 KB of
 `renderer.initialBytes`.

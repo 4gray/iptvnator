@@ -26,7 +26,10 @@ import {
     PARENTAL_LOCK_PROMPT,
     ParentalLockPromptRequest,
 } from './parental-lock-prompt.token';
-import { syncParentalLockStateToMainProcess } from './parental-lock-bridge';
+import {
+    isParentalLockWorkerFilterMissing,
+    ParentalLockWorkerSync,
+} from './parental-lock-bridge';
 import {
     ensureParentalLockSettingsReadable,
     persistParentalLockEnabled,
@@ -60,18 +63,9 @@ export class ParentalLockService {
      * the lock-state or index IPC (a partial or older preload): the worker
      * cannot withhold locked rows, so the locked session withholds all.
      */
-    private readonly workerFilterMissing = (() => {
-        const runtime = inject(RuntimeCapabilitiesService);
-        const missing =
-            runtime.supportsXtreamSqliteDataSource &&
-            !runtime.supportsParentalLockSqliteFilter;
-        if (missing) {
-            console.error(
-                'The parental lock bridge is incomplete; locked sessions withhold every category.'
-            );
-        }
-        return missing;
-    })();
+    private readonly workerFilterMissing = isParentalLockWorkerFilterMissing(
+        inject(RuntimeCapabilitiesService)
+    );
 
     private readonly unlockedState = signal(false);
     /** Shared by every unlock prompt: a reopened dialog keeps the cooldown. */
@@ -80,6 +74,7 @@ export class ParentalLockService {
     /** The PIN hash could not be read; retried before PIN-protected steps. */
     private readonly pinUnreadable = signal(false);
     private readonly versionState = signal(0);
+    private readonly workerSync = new ParentalLockWorkerSync();
     // The main process starts LOCKED whenever the feature is on (mirrored
     // setting). Reporting our state before settings have loaded would send a
     // spurious "unlocked" and open a window of unfiltered reads.
@@ -129,11 +124,16 @@ export class ParentalLockService {
     readonly withholdsEverything = computed(
         () =>
             this.active() &&
-            (this.workerFilterMissing || !this.locks.readable())
+            (this.workerFilterMissing ||
+                this.workerSync.failed() ||
+                !this.locks.readable())
     );
     /** Bumps whenever `active` or the lock store changes; consumers re-query. */
     readonly version = computed(
-        () => this.versionState() + this.locks.revision()
+        () =>
+            this.versionState() +
+            this.locks.revision() +
+            this.workerSync.changes()
     );
     readonly relockMinutes = computed(() =>
         normalizeParentalLockRelockMinutes(
@@ -156,7 +156,7 @@ export class ParentalLockService {
                 // process keeps its mirrored (locked) default rather than
                 // being told "unlocked" on the strength of default settings.
                 if (!this.switchUnknown() || this.hasPin()) {
-                    syncParentalLockStateToMainProcess(active);
+                    void this.workerSync.sync(active, () => this.active());
                 }
             });
         });

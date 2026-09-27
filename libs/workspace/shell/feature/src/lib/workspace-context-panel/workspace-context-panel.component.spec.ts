@@ -927,6 +927,38 @@ describe('WorkspaceContextPanelComponent', () => {
         ).not.toBeNull();
     });
 
+    it('opens no Xtream category dialog when the route changed while the PIN was asked', async () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'xtreams',
+            playlistId: 'xtream-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        Object.defineProperty(component, 'canManageXtreamCategories', {
+            configurable: true,
+            value: () => true,
+        });
+        const parentalLock = TestBed.inject(ParentalLockService);
+        jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+            async () => {
+                fixture.componentRef.setInput('context', {
+                    provider: 'xtreams',
+                    playlistId: 'xtream-2',
+                });
+                return true;
+            }
+        );
+        component.loadXtreamCategoryDialog = jest.fn(
+            async () => class DialogStub {}
+        );
+
+        await component.openManageCategories();
+
+        expect(component.loadXtreamCategoryDialog).not.toHaveBeenCalled();
+        expect(dialog.open).not.toHaveBeenCalled();
+    });
+
     describe('Stalker lock dialog', () => {
         function enableLock(): void {
             const parentalLock = TestBed.inject(ParentalLockService);

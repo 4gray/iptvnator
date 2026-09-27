@@ -572,51 +572,59 @@ export class WorkspaceContextPanelComponent {
             (module) => module.StalkerCategoryLockDialogComponent
         );
 
+    /** The dynamic import; a field so specs can substitute it. */
+    loadXtreamCategoryDialog = (): Promise<Type<unknown>> =>
+        import('@iptvnator/portal/xtream/feature').then(
+            (module) => module.CategoryManagementDialogComponent
+        );
+
     async openManageCategories(): Promise<void> {
         if (!this.canManageXtreamCategories()) {
             return;
         }
-        // Hidden AND locked categories are listed there by name, so the
-        // dialog itself sits behind the PIN while the lock is on.
-        if (!(await this.parentalLock.requestUnlock())) {
-            return;
-        }
-
+        // Captured before any await (the PIN prompt and the dialog load
+        // lazily) and re-checked after each: the dialog saves visibility and
+        // locks for the playlist it was opened for, which must still be the
+        // one on screen.
         const context = this.context();
         const section = this.section();
+        const unchanged = (): boolean =>
+            this.context().playlistId === context.playlistId &&
+            this.context().provider === context.provider &&
+            this.section() === section &&
+            this.canManageXtreamCategories();
         const contentType =
             section === 'series'
                 ? 'series'
                 : section === 'live'
                   ? 'live'
                   : 'vod';
-
-        void import('@iptvnator/portal/xtream/feature').then(
-            ({ CategoryManagementDialogComponent }) => {
-                const dialogRef = this.dialog.open(
-                    CategoryManagementDialogComponent,
-                    {
-                        data: {
-                            playlistId: context.playlistId,
-                            contentType,
-                            itemCounts:
-                                this.xtreamStore.getCategoryItemCounts(),
-                        },
-                        width: '500px',
-                        maxHeight: '90vh',
-                    }
-                );
-
-                dialogRef
-                    .afterClosed()
-                    .pipe(takeUntilDestroyed(this.destroyRef))
-                    .subscribe((result) => {
-                        if (result) {
-                            this.xtreamStore.reloadCategories();
-                        }
-                    });
-            }
-        );
+        // Hidden AND locked categories are listed there by name, so the
+        // dialog itself sits behind the PIN while the lock is on.
+        if (!(await this.parentalLock.requestUnlock()) || !unchanged()) {
+            return;
+        }
+        const dialogComponent = await this.loadXtreamCategoryDialog();
+        if (!unchanged()) {
+            return;
+        }
+        const dialogRef = this.dialog.open(dialogComponent, {
+            data: {
+                playlistId: context.playlistId,
+                contentType,
+                itemCounts: this.xtreamStore.getCategoryItemCounts(),
+            },
+            width: '500px',
+            maxHeight: '90vh',
+        });
+        dialogRef
+            .afterClosed()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((result) => {
+                if (result) {
+                    this.xtreamStore.reloadCategories();
+                }
+            });
     }
 
     hideCategories(): void {

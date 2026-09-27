@@ -212,6 +212,35 @@ describe('ParentalLockService', () => {
         expect(service.withholdsEverything()).toBe(false);
     });
 
+    it('withholds everything while locked when the worker lock-state sync rejects', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        setParentalLockState.mockRejectedValue(new Error('no handler'));
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+
+        const service = await createService();
+        const version = service.version();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(service.active()).toBe(true);
+        expect(service.withholdsEverything()).toBe(true);
+        expect(service.version()).toBeGreaterThan(version);
+
+        // The sync of the next transition succeeds: normal filtering again.
+        setParentalLockState.mockResolvedValue(undefined);
+        prompt.requestPin.mockResolvedValue('1234');
+        await service.requestUnlock();
+        TestBed.flushEffects();
+        await Promise.resolve();
+        await Promise.resolve();
+        service.lock();
+        TestBed.flushEffects();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(service.withholdsEverything()).toBe(false);
+    });
+
     it('withholds everything while the initial lock store read is in flight', async () => {
         storage.pinHash = await hashParentalLockPin('1234');
         parentalLockEnabled.set(true);

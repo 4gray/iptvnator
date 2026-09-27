@@ -151,6 +151,34 @@ describe('ParentalLockEnforcementService', () => {
             ]);
         });
 
+        it('leaves the Stalker route synchronously on relock while the step is not loaded', () => {
+            router.url = '/workspace/stalker/stalker-1/itv';
+            (
+                service as unknown as {
+                    loadStalkerEnforcement: () => Promise<unknown>;
+                }
+            ).loadStalkerEnforcement = () => new Promise(() => undefined);
+
+            service.failClosedNow();
+
+            expect(router.navigate).toHaveBeenCalledWith([
+                '/workspace',
+                'sources',
+            ]);
+        });
+
+        it('runs a preloaded Stalker step synchronously on relock', async () => {
+            router.url = '/workspace/stalker/stalker-1/vod/42';
+            await service.applyStalker(); // loads the step
+            lockedStalkerIds.add('9');
+            stalkerStore.selectedItem.set({ category_id: '9' });
+            stalkerStore.clearSelectedItem.mockClear();
+
+            service.failClosedNow();
+
+            expect(stalkerStore.clearSelectedItem).toHaveBeenCalled();
+        });
+
         it('does not load the Stalker step outside a Stalker route', async () => {
             router.url = '/workspace/xtreams/xtream-1/live';
             const load = jest.spyOn(
