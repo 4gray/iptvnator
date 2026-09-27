@@ -87,8 +87,30 @@ jobs:
               if: matrix.shard == 1
               run: pnpm exec tsx --test apps/electron-backend-e2e/src/performance/electron-process-lifecycle.spec.ts apps/electron-backend-e2e/src/performance/electron-process-termination.spec.ts
 
-            - name: Install Playwright Browsers
-              run: pnpm exec playwright install --with-deps
+            # The suite drives Electron through Playwright's _electron API and
+            # never launches a Playwright browser (or records video, which
+            # would need Playwright's ffmpeg), so no `playwright install`.
+            # The Ubuntu runner image already ships Electron's shared
+            # libraries and xvfb; fail fast with a clear message if an image
+            # update ever drops one. Electron 42+ downloads its binary on the
+            # first `require('electron')` (previously inside
+            # `_electron.launch()`), so resolve it the same way first.
+            - name: Check Electron runtime dependencies
+              if: runner.os == 'Linux'
+              run: |
+                  command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
+                  node -e "require('electron')" || { echo "::error::Electron binary download failed"; exit 1; }
+                  electron_bin="$(node -p "require('electron')")"
+                  [ -x "$electron_bin" ] || { echo "::error::Electron binary not found at $electron_bin"; exit 1; }
+                  ldd_status=0
+                  libs="$(ldd "$electron_bin")" || ldd_status=$?
+                  missing="$(grep 'not found' <<< "$libs" || true)"
+                  if [ -n "$missing" ]; then
+                      echo "::error::Electron is missing shared libraries:"
+                      echo "$missing"
+                      exit 1
+                  fi
+                  [ "$ldd_status" -eq 0 ] || { echo "::error::ldd failed on $electron_bin (exit $ldd_status)"; exit 1; }
 
             - name: Run Electron E2E Tests (Linux)
               if: runner.os == 'Linux'
