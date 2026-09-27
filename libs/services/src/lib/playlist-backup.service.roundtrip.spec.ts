@@ -229,9 +229,11 @@ describe('PlaylistBackupService export → import round-trip', () => {
             }),
         ]);
         expect(state.epgUrls).toEqual(['https://epg.example.com/guide.xml']);
-        expect(
-            state.playlists.map((playlist) => playlist._id)
-        ).toEqual(['m3u-1', 'xtream-1', 'stalker-1']);
+        expect(state.playlists.map((playlist) => playlist._id)).toEqual([
+            'm3u-1',
+            'xtream-1',
+            'stalker-1',
+        ]);
 
         // Exporting the restored state must reproduce the original
         // manifest byte for byte (modulo the export timestamp): any field

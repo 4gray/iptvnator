@@ -1,4 +1,4 @@
-import {
+import type {
     PortalProvider,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
@@ -182,6 +182,7 @@ function resolveRouteSearchMode(
 
     if (
         kind === 'sources' ||
+        kind === 'settings' ||
         kind === 'downloads' ||
         kind === 'global-favorites' ||
         kind === 'global-recent'

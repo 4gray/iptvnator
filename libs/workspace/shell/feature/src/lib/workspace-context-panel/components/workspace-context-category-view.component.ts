@@ -12,7 +12,7 @@ import { MatListModule } from '@angular/material/list';
 import { TranslatePipe } from '@ngx-translate/core';
 import { WorkspaceContextErrorViewComponent } from './workspace-context-error-view.component';
 
-interface WorkspaceCategoryViewItem {
+export interface WorkspaceCategoryViewItem {
     readonly category_id?: string | number;
     readonly category_name?: string;
     readonly count?: number;
@@ -28,7 +28,6 @@ interface WorkspaceCategoryViewItem {
     styleUrl: './workspace-context-category-view.component.scss',
 })
 export class WorkspaceContextCategoryViewComponent {
-
     readonly items = input<ReadonlyArray<WorkspaceCategoryViewItem>>([]);
     readonly selectedCategoryId = input<string | number | null | undefined>();
     readonly itemCounts = input<Map<number, number>>(new Map());
@@ -61,9 +60,14 @@ export class WorkspaceContextCategoryViewComponent {
         }
     }
 
-    private readonly hostEl = inject(ElementRef<HTMLElement>);
+    private readonly hostEl = inject<ElementRef<HTMLElement>>(ElementRef);
 
     readonly categoryClicked = output<WorkspaceCategoryViewItem>();
+    /** Right-click on a row; the host decides whether a menu applies. */
+    readonly categoryContextMenuRequested = output<{
+        item: WorkspaceCategoryViewItem;
+        event: MouseEvent;
+    }>();
 
     constructor() {
         effect(() => {
@@ -74,12 +78,11 @@ export class WorkspaceContextCategoryViewComponent {
 
             queueMicrotask(() => {
                 const container = this.hostEl.nativeElement;
-                const candidates = Array.from(
-                    container.querySelectorAll('[data-category-id]')
-                ) as HTMLElement[];
-                const selected = candidates.find(
-                    (el) =>
-                        el.dataset['categoryId'] === String(selectedCategory)
+                // Follow the rendered selection: Electron selects by SQLite
+                // ID, while data-category-id can contain a provider ID that
+                // coincides with a different row's SQLite ID.
+                const selected = container.querySelector<HTMLElement>(
+                    '.category-item[aria-current="true"]'
                 );
                 if (!selected) {
                     return;
@@ -126,6 +129,13 @@ export class WorkspaceContextCategoryViewComponent {
 
         // NaN (from the "*" all-category id) is a valid Map key here.
         return this.itemCounts().has(Number(item.id ?? item.category_id));
+    }
+
+    onCategoryContextMenu(
+        item: WorkspaceCategoryViewItem,
+        event: MouseEvent
+    ): void {
+        this.categoryContextMenuRequested.emit({ item, event });
     }
 
     onCategoryClick(item: WorkspaceCategoryViewItem): void {

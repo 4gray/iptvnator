@@ -180,6 +180,19 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    /**
+     * The worker-side parental lock filter: the lock state reaches the
+     * SQLite worker and the `categories.locked` index can be stamped. When
+     * the Xtream SQLite data source is used without it, the worker cannot
+     * withhold locked rows and the lock service fails closed instead.
+     */
+    get supportsParentalLockSqliteFilter(): boolean {
+        return (
+            this.hasElectronMethod('setParentalLockState') &&
+            this.hasElectronMethod('dbSetCategoryLocks')
+        );
+    }
+
     get supportsXtreamSqliteDataSource(): boolean {
         return [
             'dbGetPlaylist',

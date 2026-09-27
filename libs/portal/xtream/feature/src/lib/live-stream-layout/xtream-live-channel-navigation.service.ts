@@ -79,7 +79,7 @@ export class XtreamLiveChannelNavigationService {
             this.store
                 .getCategoriesBySelectedType()
                 .filter(
-                    (category) => !('hidden' in category && category.hidden)
+                    (category) => !('hidden' in category && category['hidden'])
                 )
                 .map((category) => Number(category.category_id ?? category.id))
         );

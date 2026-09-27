@@ -173,7 +173,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly playbackSessionKey = computed(() =>
         createSerialPlaybackSessionKey(
             this.xtreamStore.currentPlaylist()?.id,
-            this.routeParams().serialId,
+            this.routeParams()['serialId'],
             this.playback.inlinePlaybackSessionEpisodeState()
         )
     );
@@ -389,7 +389,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         }
 
         this.xtreamStore.toggleFavorite(
-            this.route.snapshot.params.serialId,
+            this.route.snapshot.params['serialId'],
             playlist.id,
             'series',
             this.selectedItem()?.info?.backdrop_path?.[0]

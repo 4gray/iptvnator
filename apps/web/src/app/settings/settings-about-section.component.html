@@ -9,7 +9,7 @@
         </div>
     </header>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="version">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.VERSION' | translate }}</h4>
             <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
@@ -31,7 +31,10 @@
     </div>
 
     @if (isDesktop() && appUpdateStatus(); as updateStatus) {
-        <div class="setting-item setting-item--full-control app-update-panel">
+        <div
+            class="setting-item setting-item--full-control app-update-panel"
+            data-setting-id="app-update"
+        >
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.APP_UPDATE_TITLE' | translate }}</h4>
                 <p>{{ 'SETTINGS.APP_UPDATE_DESCRIPTION' | translate }}</p>
@@ -263,7 +266,10 @@
         </div>
     }
 
-    <div class="setting-item setting-item--full-control">
+    <div
+        class="setting-item setting-item--full-control"
+        data-setting-id="tmdb-credits"
+    >
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.TMDB_CREDITS' | translate }}</h4>
             <p>{{ 'SETTINGS.TMDB_ATTRIBUTION' | translate }}</p>
@@ -281,7 +287,10 @@
         </div>
     </div>
 
-    <div class="setting-item setting-item--full-control">
+    <div
+        class="setting-item setting-item--full-control"
+        data-setting-id="community"
+    >
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.COMMUNITY' | translate }}</h4>
             <p>{{ 'SETTINGS.COMMUNITY_DESCRIPTION' | translate }}</p>
@@ -364,7 +373,10 @@
         </div>
     </div>
 
-    <div class="setting-item setting-item--full-control">
+    <div
+        class="setting-item setting-item--full-control"
+        data-setting-id="support"
+    >
         <div class="support-card" data-test-id="support-card">
             <div class="support-card__intro">
                 <div class="support-card__emblem">

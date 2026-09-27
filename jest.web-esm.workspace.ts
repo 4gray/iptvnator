@@ -11,6 +11,10 @@ const coverageReporters = ['json', 'json-summary', 'lcovonly', 'text-summary'];
 export default {
     ...nxPreset,
     ...angularEsmPreset,
+    // See jest.preset.js: CI persists the transform cache from this directory.
+    ...(process.env.JEST_CACHE_DIRECTORY
+        ? { cacheDirectory: process.env.JEST_CACHE_DIRECTORY }
+        : {}),
     rootDir: '.',
     roots: ['<rootDir>/apps/web', '<rootDir>/libs'],
     // Jest's 5s default is thin for Angular component specs: TestBed compiles

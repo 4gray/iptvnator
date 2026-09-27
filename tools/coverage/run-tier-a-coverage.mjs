@@ -2,6 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -9,6 +10,16 @@ import {
     createCoverageOutputScanner,
     validateProjectCoverage,
 } from './coverage-integrity.mjs';
+import {
+    countSpecFiles,
+    formatDuration,
+    integerEnv,
+    integerFlag,
+    orderLongestFirst,
+    resolveConcurrency,
+    resolveWorkersPerProject,
+    runWithConcurrency,
+} from './coverage-run-pool.mjs';
 
 const workspaceRoot = process.cwd();
 const policyPath = path.join(workspaceRoot, 'tools/coverage/coverage-policy.json');
@@ -28,6 +39,24 @@ const requestedProjects = new Set(
 const tierAProjects = policy.unitCoverage.tierA.filter(
     (project) => requestedProjects.size === 0 || requestedProjects.has(project.name)
 );
+
+// Projects run a few at a time (see coverage-run-pool.mjs). Override with
+// --concurrency=N / --max-workers=N or TIER_A_CONCURRENCY / TIER_A_MAX_WORKERS
+// when a machine has more or less room than the defaults assume.
+const cpuCount = os.availableParallelism?.() ?? os.cpus().length;
+const concurrency = resolveConcurrency({
+    requested:
+        integerFlag(process.argv.slice(2), 'concurrency') ??
+        integerEnv(process.env, 'TIER_A_CONCURRENCY'),
+    cpuCount,
+});
+const workersPerProject = resolveWorkersPerProject({
+    requested:
+        integerFlag(process.argv.slice(2), 'max-workers') ??
+        integerEnv(process.env, 'TIER_A_MAX_WORKERS'),
+    concurrency,
+    cpuCount,
+});
 
 if (tierAProjects.length === 0) {
     console.error('No Tier A coverage projects matched the requested filters.');
@@ -103,6 +132,7 @@ function buildNxArgs(project) {
             '--configuration=ci',
             '--codeCoverage',
             `--coverageDirectory=${coverageDirFor(project, 'workspace')}`,
+            `--maxWorkers=${workersPerProject}`,
             '--output-style=static',
         ];
     }
@@ -116,6 +146,7 @@ function buildNxArgs(project) {
             `${project.name}:test`,
             '--output-style=static',
             '--',
+            `--maxWorkers=${workersPerProject}`,
             ...collectCoverageArgs(project, jestRootMode),
         ];
     }
@@ -125,7 +156,12 @@ function buildNxArgs(project) {
     );
 }
 
-function spawnCoverage(args, scanner) {
+/**
+ * Output is buffered per project and written in one piece when the project
+ * finishes: with several Jest processes in flight, interleaved lines would be
+ * unreadable and the coverage-failure scanner would see other projects' text.
+ */
+function spawnCoverage(args, scanner, output) {
     return new Promise((resolve, reject) => {
         const child = spawn('pnpm', args, {
             cwd: workspaceRoot,
@@ -134,16 +170,16 @@ function spawnCoverage(args, scanner) {
                 CI: process.env.CI ?? 'true',
                 NX_TASKS_RUNNER_DYNAMIC_OUTPUT: 'false',
             },
-            stdio: ['inherit', 'pipe', 'pipe'],
+            stdio: ['ignore', 'pipe', 'pipe'],
         });
 
         child.stdout.on('data', (chunk) => {
             scanner.push(chunk);
-            process.stdout.write(chunk);
+            output.push(chunk);
         });
         child.stderr.on('data', (chunk) => {
             scanner.push(chunk);
-            process.stderr.write(chunk);
+            output.push(chunk);
         });
         child.once('error', reject);
         child.once('close', (code, signal) => {
@@ -152,35 +188,48 @@ function spawnCoverage(args, scanner) {
     });
 }
 
-async function collectProjectCoverage(project) {
+async function collectProjectCoverage(project, specCount) {
     const args = buildNxArgs(project);
-    console.log(`\n==> Collecting coverage for ${project.name}`);
-    console.log(`pnpm ${args.join(' ')}`);
+    const output = [];
+    // The start line goes out immediately so a stalled project is visible in
+    // the log before the job times out; its full output follows on completion.
+    console.log(
+        `==> Started ${project.name} (${specCount} spec files): pnpm ${args.join(' ')}`
+    );
+    const lines = [`\n==> Coverage for ${project.name}`, `pnpm ${args.join(' ')}`];
 
     const scanner = createCoverageOutputScanner();
-    const result = await spawnCoverage(args, scanner);
+    const result = await spawnCoverage(args, scanner, output);
     let failed = result.code !== 0 || result.signal !== null;
 
+    const flush = () => {
+        process.stdout.write(`${lines.join('\n')}\n`);
+        for (const chunk of output) process.stdout.write(chunk);
+        const last = output.at(-1);
+        if (last && !last.toString().endsWith('\n')) process.stdout.write('\n');
+    };
+
     if (scanner.collectionFailed) {
-        console.error(
-            `Coverage collection failed while testing ${project.name}.`
-        );
-        failed = true;
+        flush();
+        console.error(`Coverage collection failed while testing ${project.name}.`);
+        return { status: 1 };
     }
 
     if (failed) {
-        return result.code && result.code !== 0 ? result.code : 1;
+        flush();
+        return { status: result.code && result.code !== 0 ? result.code : 1 };
     }
 
     const validation = validateProjectCoverage({
         project,
         workspaceRoot,
     });
+    flush();
     for (const error of validation.errors) {
         console.error(`Error: ${error}`);
     }
 
-    return validation.errors.length === 0 ? 0 : 1;
+    return { status: validation.errors.length === 0 ? 0 : 1 };
 }
 
 for (const project of tierAProjects) {
@@ -198,9 +247,48 @@ if (requestedProjects.size === 0) {
     }
 }
 
-for (const project of tierAProjects) {
-    const status = await collectProjectCoverage(project);
-    if (status !== 0) {
-        process.exit(status);
+const specCounts = new Map(
+    tierAProjects.map((project) => [
+        project.name,
+        countSpecFiles(path.join(workspaceRoot, project.sourceRoot)),
+    ])
+);
+const ordered = orderLongestFirst(tierAProjects, (project) =>
+    specCounts.get(project.name)
+);
+console.log(
+    `Tier A coverage: ${ordered.length} projects, ${concurrency} in flight, ${workersPerProject} Jest workers each (${cpuCount} cores).`
+);
+const startedAt = Date.now();
+const outcome = await runWithConcurrency(
+    ordered.map((project) => ({
+        name: project.name,
+        run: () =>
+            collectProjectCoverage(project, specCounts.get(project.name)),
+    })),
+    {
+        concurrency,
+        onSettled: (settled) => {
+            console.log(
+                `<== ${settled.name} ${settled.status === 0 ? 'ok' : `failed (${settled.status})`} in ${formatDuration(settled.durationMs)}`
+            );
+            if (settled.error) console.error(settled.error);
+        },
     }
+);
+
+const longest = [...outcome.results].sort((a, b) => b.durationMs - a.durationMs);
+console.log(`\nTier A coverage finished in ${formatDuration(Date.now() - startedAt)} wall-clock; longest projects:`);
+for (const entry of longest.slice(0, 8)) {
+    console.log(`  ${formatDuration(entry.durationMs).padStart(7)}  ${entry.name}`);
+}
+if (outcome.skipped.length > 0) {
+    console.error(`Not started after the first failure: ${outcome.skipped.join(', ')}`);
+}
+if (outcome.failed) {
+    const first = outcome.results.find((entry) => entry.status !== 0);
+    // Set the exit code instead of calling process.exit(): the failing
+    // project's buffered output may still be queued on a stdout pipe, and an
+    // immediate exit would truncate exactly the log that explains the failure.
+    process.exitCode = first?.status && first.status !== 0 ? first.status : 1;
 }

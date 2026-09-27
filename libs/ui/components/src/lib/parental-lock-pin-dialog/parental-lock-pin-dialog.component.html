@@ -1,0 +1,92 @@
+<h2 mat-dialog-title class="pin-dialog__title">
+    <mat-icon aria-hidden="true">{{ isSetMode() ? 'lock_reset' : 'lock' }}</mat-icon>
+    <span>{{ titleKey() | translate }}</span>
+</h2>
+
+<form (ngSubmit)="submit()" novalidate>
+    <mat-dialog-content class="pin-dialog__content">
+        <p class="pin-dialog__description">{{ descriptionKey() | translate }}</p>
+
+        <mat-form-field
+            appearance="outline"
+            subscriptSizing="dynamic"
+            class="pin-dialog__field"
+            [class.pin-dialog__field--shake]="shake()"
+        >
+            <mat-label>{{ 'PARENTAL_LOCK.PIN_DIALOG.PIN_LABEL' | translate }}</mat-label>
+            <input
+                #pinInput
+                matInput
+                type="password"
+                inputmode="numeric"
+                autocomplete="off"
+                data-test-id="parental-lock-pin"
+                [attr.maxlength]="maxLength"
+                [disabled]="busy() || inCooldown()"
+                [ngModel]="pin()"
+                (ngModelChange)="onPinInput($event)"
+                name="pin"
+            />
+            <mat-hint>
+                {{
+                    'PARENTAL_LOCK.PIN_DIALOG.PIN_HINT'
+                        | translate: { min: minLength, max: maxLength }
+                }}
+            </mat-hint>
+        </mat-form-field>
+
+        @if (isSetMode()) {
+            <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="pin-dialog__field"
+            >
+                <mat-label>{{ 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_LABEL' | translate }}</mat-label>
+                <input
+                    matInput
+                    type="password"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    data-test-id="parental-lock-pin-confirm"
+                    [attr.maxlength]="maxLength"
+                    [disabled]="busy()"
+                    [ngModel]="confirmation()"
+                    (ngModelChange)="onConfirmationInput($event)"
+                    name="confirmation"
+                />
+            </mat-form-field>
+        }
+
+        @if (error(); as errorKey) {
+            <p class="pin-dialog__error" role="alert" data-test-id="parental-lock-pin-error">
+                {{ errorKey | translate }}
+            </p>
+        }
+
+        @if (isSetMode()) {
+            <p class="pin-dialog__note">
+                {{ 'PARENTAL_LOCK.PIN_DIALOG.NO_RECOVERY' | translate }}
+            </p>
+        }
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end">
+        <button mat-button type="button" (click)="cancel()" [disabled]="busy()">
+            {{ 'CLOSE' | translate }}
+        </button>
+        <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            data-test-id="parental-lock-pin-submit"
+            [disabled]="!canSubmit()"
+        >
+            {{
+                (isSetMode()
+                    ? 'PARENTAL_LOCK.PIN_DIALOG.SAVE'
+                    : 'PARENTAL_LOCK.PIN_DIALOG.UNLOCK'
+                ) | translate
+            }}
+        </button>
+    </mat-dialog-actions>
+</form>

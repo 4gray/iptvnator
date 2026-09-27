@@ -381,10 +381,10 @@ describe('DownloadLibraryNavigationService', () => {
         );
     });
 
-    it.each([
+    it.each<readonly [string, Partial<StalkerPortalItem>]>([
         ['is_series flag', { is_series: '1' }],
         ['embedded episode list', { series: [1, 2] }],
-    ] as const)(
+    ])(
         'opens a recovered Stalker episode with an %s through the VOD-series detail route',
         async (_label, vodSeriesMetadata) => {
             playlists.getPlaylistById.mockReturnValue(of(STALKER_PLAYLIST));

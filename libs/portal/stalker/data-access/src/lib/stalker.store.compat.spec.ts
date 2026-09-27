@@ -8,8 +8,10 @@ import { DataService, PlaylistsService } from '@iptvnator/services';
 import { StalkerSessionService } from './stalker-session.service';
 import { StalkerStore } from './stalker.store';
 
+type StalkerStoreMember = keyof InstanceType<typeof StalkerStore>;
+
 describe('StalkerStore API compatibility smoke', () => {
-    let store: StalkerStore;
+    let store: InstanceType<typeof StalkerStore>;
 
     beforeEach(() => {
         TestBed.configureTestingModule({
@@ -25,7 +27,6 @@ describe('StalkerStore API compatibility smoke', () => {
                 {
                     provide: StalkerSessionService,
                     useValue: {
-                        ensureToken: jest.fn(),
                         makeAuthenticatedRequest: jest.fn(),
                         ensureToken: jest.fn().mockResolvedValue({
                             token: null,
@@ -75,7 +76,7 @@ describe('StalkerStore API compatibility smoke', () => {
     });
 
     it('exposes compatibility state signals', () => {
-        const expectedSignals = [
+        const expectedSignals: StalkerStoreMember[] = [
             'selectedContentType',
             'selectedCategoryId',
             'selectedVodId',
@@ -102,7 +103,7 @@ describe('StalkerStore API compatibility smoke', () => {
     });
 
     it('exposes compatibility computed selectors', () => {
-        const expectedComputed = [
+        const expectedComputed: StalkerStoreMember[] = [
             // getTotalPages was removed with catalog pagination — the grid
             // appends portal pages and pages have no UI representation left.
             'hasMoreContent',
@@ -126,7 +127,7 @@ describe('StalkerStore API compatibility smoke', () => {
     });
 
     it('exposes compatibility methods and internal resources', () => {
-        const expectedMethods = [
+        const expectedMethods: StalkerStoreMember[] = [
             'setSelectedContentType',
             'setSelectedCategory',
             'setSelectedSerialId',

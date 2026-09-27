@@ -60,7 +60,8 @@ The application is a cross-platform, open-source project built with Electron and
 
 - Per-playlist and global favorites, aggregated across all playlists ⭐
 - Recently viewed / watch history
-- Command palette (`Ctrl/Cmd+K`)
+- Command palette (`Ctrl/Cmd+K`) that also finds and opens individual settings
+- Settings search from the header search box on the Settings page
 
 **Platform**
 
@@ -76,9 +77,9 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Area              | Shortcut                    | Action                                                     |
 | ----------------- | --------------------------- | ---------------------------------------------------------- |
 | Global            | `Ctrl/Cmd+K`                | Open command palette                                       |
-| Global            | `Ctrl/Cmd+F`                | Open global search in the desktop app                      |
+| Global            | `Ctrl/Cmd+F`                | Open global search (desktop); on Settings, search settings |
 | Global            | `Ctrl/Cmd+R`                | Open recently viewed in the desktop app                    |
-| Global            | `Enter` in workspace search | Submit the current search                                  |
+| Global            | `Enter` in workspace search | Submit the search; on Settings, open the best match        |
 | Global            | `F11`                       | Toggle app window fullscreen in the desktop app            |
 | Navigation        | `Ctrl/Cmd+B`                | Toggle the live sidebar                                    |
 | Navigation        | `0-9`                       | Select an M3U channel by number                            |

@@ -109,6 +109,7 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
             vodId: routeVodId,
             vodInfo: signal(null),
             activeSource,
+            supersedePendingSwitch: jest.fn(),
         });
     });
 

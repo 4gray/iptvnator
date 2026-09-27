@@ -62,6 +62,16 @@ export const BUILD_IDENTITY: XtreamBenchmarkBuildIdentity = {
                 'database-worker-source-map'
             ),
         },
+        deferredEvents: {
+            javascript: buildFile(
+                'dist/apps/electron-backend/deferred-events.js',
+                'deferred-events-javascript'
+            ),
+            sourceMap: buildFile(
+                'dist/apps/electron-backend/deferred-events.js.map',
+                'deferred-events-source-map'
+            ),
+        },
         launcher: {
             javascript: buildFile(
                 'dist/apps/electron-backend/main.js',

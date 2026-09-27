@@ -169,8 +169,9 @@ harness, which is what the ratchet needs. The main process start
 
 `journeys.<id>.counters.<name>` and `journeys.<id>.wallClock.<name>` are plain
 numbers so `tools/performance/check-journey-ratchet.mjs` can compare them with
-`tools/performance/journey-baselines.json`. A J1 baseline is added once the
-numbers are stable on the CI runner; until then the summary is evidence only.
+`tools/performance/journey-baselines.json`. A J1 runtime baseline is added
+once its counter is deterministic on the CI runner; the launch counters are
+not yet (see [Ratchet](#ratchet)), so the summary is evidence only.
 
 ## `renderer.initialBytes`
 
@@ -273,6 +274,17 @@ the first measurements was otherwise `package.json` text embedded in
 `main.js`, which moved with every script edit; #1692 fixed that by importing
 only the version.)
 
+Two effects make the exact counter move for reasons outside a PR's own diff.
+A baseline lowered on a branch that predates a concurrent `master` merge can
+sit below what the merged code measures: #1712 lowered it on a branch without
+#1714, so `master` measured 108 bytes over and every later PR failed the job
+until a follow-up moved lazy-only modules out of `main.js`. Re-run the job on
+an up-to-date branch before merging a baseline change. And the bundler's
+chunk-level identifier renaming shifts when a module enters or leaves
+`main.js`: moving one service out once renamed an imported identifier at 162
+call sites, eating about 320 of the bytes saved. Judge a small change by the
+`--stats-json` input sizes, not only by the counter.
+
 The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
 `journey-baselines.json` with the revision the change is measured against
@@ -286,6 +298,36 @@ Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
 into the PR. Never raise a value to make a PR pass: if growth is a deliberate
 trade-off, say so in the PR and let the maintainer decide.
+
+The runtime counters come from the `Performance journeys` job of the same
+workflow, on `ubuntu-latest` only. It runs `pnpm run perf:journeys` under
+`xvfb-run` (the Nx target builds `electron-backend:build-performance`, the
+Playwright config starts the Xtream mock), writes the measurements to the job
+summary and uploads `dist/performance/journeys/` as the `performance-journeys`
+artifact. The `Performance journeys scope` job skips it only for pull
+requests that change nothing but Markdown, `docs/**`, `.plans/**`,
+`.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**` (the E2E
+workflow's ignore list plus release notes); any other file, including root
+build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`, runs it.
+Pushes to `master` and manual dispatches always run it. The job is warn-only (`continue-on-error: true`) for its first two
+weeks (plan item B3): a regression marks the job failed without failing the
+workflow. Making it required is a maintainer decision.
+
+No J1 runtime counter is enforced yet. Three dispatched runs on 2026-09-27
+(CI runs 36271875209, 36271879955 and 36271884616) reported the same summary
+values, `renderer.ipcCallsToFirstCard` 16 and
+`renderer.domMutationsToFirstCard` 939, but the third run marked both
+`stable: false`: its warm-up and one measured iteration reached the first
+card in about 750 ms with 13 bridge calls and 576 mutations, the others in
+about 1,400 ms with 16 and 939. The three extra calls
+(`downloadsGetDefaultFolder` and two `dbGetGlobalRecentlyAdded`) land before
+or after the first card depending on that race, so neither counter is
+promoted until the race is understood and the counters are deterministic.
+`renderer.layoutShiftScore` (0) and `renderer.longTasks` (2) were identical
+in all eighteen runner iterations; the `spawnToFirstCardMs` P50 ranged from
+1,401 to 1,674 ms. All four stay evidence for now. Runner counters also
+differ from a Mac (12 and 571 there, the fast path without the Linux-only
+`getWindowState` call), so take J1 baseline values from the runner only.
 
 ## Adding a counter
 

@@ -1,4 +1,4 @@
 export {
-    EnrichedUnifiedFavorite,
+    type EnrichedUnifiedFavorite,
     GlobalFavoritesListComponent,
 } from '@iptvnator/portal/shared/ui';

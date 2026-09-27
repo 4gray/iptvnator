@@ -451,7 +451,11 @@ describe('PlaylistRefreshActionService', () => {
         const originalSetItem = Storage.prototype.setItem;
         const setItemSpy = jest
             .spyOn(Storage.prototype, 'setItem')
-            .mockImplementation(function (key: string, value: string) {
+            .mockImplementation(function (
+                this: Storage,
+                key: string,
+                value: string
+            ) {
                 executionOrder.push('setItem');
                 return originalSetItem.call(this, key, value);
             });

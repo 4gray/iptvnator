@@ -1,12 +1,14 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
+        "emitDecoratorMetadata": false,
         "outDir": "../../dist/out-tsc",
         "module": "ESNext",
         "target": "ESNext",
         "esModuleInterop": true,
         "types": ["jest", "node"],
-        "moduleResolution": "bundler"
+        "moduleResolution": "bundler",
+        "lib": ["es2022", "dom"]
     },
     "files": ["src/test-setup.ts", "../../global.d.ts"],
     "include": [
@@ -22,6 +24,18 @@
         "../../libs/ui/components/src/**/*.d.ts",
         "../../libs/ui/pipes/src/**/*.test.ts",
         "../../libs/ui/pipes/src/**/*.spec.ts",
-        "../../libs/ui/pipes/src/**/*.d.ts"
+        "../../libs/ui/pipes/src/**/*.d.ts",
+        "../../libs/ui/epg/src/**/*.test.ts",
+        "../../libs/ui/epg/src/**/*.spec.ts",
+        "../../libs/ui/epg/src/**/*.d.ts",
+        "../../libs/ui/playback/src/**/*.test.ts",
+        "../../libs/ui/playback/src/**/*.spec.ts",
+        "../../libs/ui/playback/src/**/*.d.ts",
+        "../../libs/playback/util/src/**/*.test.ts",
+        "../../libs/playback/util/src/**/*.spec.ts",
+        "../../libs/playback/util/src/**/*.d.ts",
+        "../../libs/playlist/m3u/feature-player/src/**/*.test.ts",
+        "../../libs/playlist/m3u/feature-player/src/**/*.spec.ts",
+        "../../libs/playlist/m3u/feature-player/src/**/*.d.ts"
     ]
 }

@@ -13,6 +13,8 @@ export interface ScenarioConfig {
     expiryDate: string;
     /** Optional deterministic EPG fixture profile for scenario-specific tests. */
     epgFixture?: 'timezone-focus';
+    /** Large, deliberately reordered categories for sidebar scroll coverage. */
+    categoryFixture?: 'scroll';
     /**
      * Optional `server_info` clock override. `timezone` is reported
      * verbatim (real panels sometimes send spellings such as `UTC+3` that
@@ -54,6 +56,18 @@ export interface ScenarioConfig {
  * Unknown credential pairs use a hash of "username:password" as seed.
  */
 export const SCENARIOS: Record<string, ScenarioConfig> = {
+    'category-scroll:category-scroll': {
+        name: 'category-scroll',
+        description: '800 live categories, including 200 marked Visible',
+        seed: 800,
+        categoryCount: { live: 800, vod: 0, series: 0 },
+        itemsPerCategory: 1,
+        seasonsPerSeries: 1,
+        episodesPerSeason: 1,
+        accountStatus: 'Active',
+        expiryDate: '2099-12-31',
+        categoryFixture: 'scroll',
+    },
     'live-fallback:live-fallback': {
         name: 'live-format-fallback',
         description: 'Local HLS failures and playable TS',

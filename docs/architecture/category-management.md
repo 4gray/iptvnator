@@ -87,6 +87,11 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 - **No content deletion**: Hiding a category only affects sidebar visibility; the category and its content remain in the database
 - **Display order**: The sidebar defaults to server order. Users can switch the
   category panel to `A-Z` or `Z-A` from the sort menu next to category search.
+- **Selection scrolling**: The panel centers the rendered selected row after
+  selection changes. Electron selects by local SQLite category ID; the row's
+  `data-category-id` can contain its provider ID. Those IDs are not
+  interchangeable when locating the scroll target, including after filtering
+  hidden categories or sorting.
 - **All-hidden recovery**: Once the selected Xtream type is loaded, the manage
   categories button remains available even if every visible category has been
   hidden. The sidebar category list is filtered, but the dialog reads all
@@ -143,6 +148,18 @@ or validating a fix in a live Electron app:
 Otherwise the app may still be using an older
 `dist/apps/electron-backend/workers/database.worker.js` bundle even though the
 TypeScript source has already been updated.
+
+### Parental Lock Toggles
+
+While the parental lock is enabled (`Settings → Parental lock`), the same
+dialog renders a lock toggle per row and the whole dialog opens only after the
+PIN. Locks are a separate concept from `hidden`: they live in the renderer's
+lock store keyed by provider category id and are mirrored into
+`categories.locked` through `DB_SET_CATEGORY_LOCKS`, so a refresh keeps them
+the same way it keeps `hidden`. The dialog is the one entry point on every
+portal type (Stalker's "Manage categories" button opens its lock-only
+dialog); a right-click on a category row offers a single-row Lock/Unlock
+through the same lock store. Contract: [parental lock](parental-lock.md).
 
 ## Files Changed
 

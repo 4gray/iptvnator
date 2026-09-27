@@ -402,9 +402,14 @@ describe('PlayerControlsComponent settings panel', () => {
             ) as HTMLButtonElement;
             document.body.appendChild(fixture.nativeElement);
             tune.focus();
+            // jsdom has no keyboard modality: report the focused tune button
+            // as :focus-visible, as a keyboard focus would be.
             const matches = tune.matches.bind(tune);
-            tune.matches = (selector: string) =>
-                selector === ':focus-visible' || matches(selector);
+            Object.defineProperty(tune, 'matches', {
+                configurable: true,
+                value: (selector: string) =>
+                    selector === ':focus-visible' || matches(selector),
+            });
 
             tune.click();
             fixture.detectChanges();

@@ -30,20 +30,24 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
-} from '@iptvnator/portal/shared/util';
-import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui';
+} from '@iptvnator/portal/shared/util/tokens';
+import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui/stalker-connection-editor';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
-import { DataService } from '@iptvnator/services';
+import {
+    provideParentalLockPlaylistCleanup,
+    DataService,
+} from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';
 import { ExternalPlaybackService } from './services/external-playback.service';
 import { PlayerService } from './services/player.service';
+import { provideParentalLockPrompt } from './services/parental-lock-prompt.service';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
-import { AppStalkerPlaylistConnectionEditorService } from './services/stalker-playlist-connection-editor.service';
+import { LazyStalkerPlaylistConnectionEditor } from './services/lazy-stalker-playlist-connection-editor';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
 
 // AoT requires an exported function for factories
@@ -157,9 +161,11 @@ export const appConfig: ApplicationConfig = {
         ...providePortalPlaybackPositions(),
         {
             provide: STALKER_PLAYLIST_CONNECTION_EDITOR,
-            useExisting: AppStalkerPlaylistConnectionEditorService,
+            useExisting: LazyStalkerPlaylistConnectionEditor,
         },
         ...provideWorkspaceShellActions(),
+        ...provideParentalLockPrompt(),
+        provideParentalLockPlaylistCleanup(),
         ...provideXtreamDataSource(),
         {
             provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,

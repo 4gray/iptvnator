@@ -53,6 +53,8 @@ describe('SettingsAboutSectionComponent app updates', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
             supportedSelfUpdate: true,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
 
         getButton(fixture, 'app-update-download')?.click();
@@ -76,6 +78,8 @@ describe('SettingsAboutSectionComponent app updates', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded,
             supportedSelfUpdate: true,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
 
         getButton(fixture, 'app-update-install')?.click();
@@ -96,6 +100,8 @@ describe('SettingsAboutSectionComponent app updates', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
             supportedSelfUpdate: true,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
 
         getButton(fixture, 'app-update-release-notes')?.click();
@@ -114,6 +120,8 @@ describe('SettingsAboutSectionComponent app updates', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
 
         getButton(fixture, 'app-update-open-release')?.click();
@@ -129,6 +137,8 @@ describe('SettingsAboutSectionComponent app updates', () => {
                 'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
+            channel: 'stable',
+            installedChannel: 'stable',
         });
 
         expect(fixture.componentInstance.appUpdateStatusLabelKey()).toBe(

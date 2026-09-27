@@ -229,6 +229,21 @@ describe('WorkspaceShellHeaderComponent', () => {
         ).toBeNull();
     });
 
+    it('hides search without playlists except on the settings route', () => {
+        const searchInput = () =>
+            fixture.nativeElement.querySelector('input[type="search"]');
+
+        fixture.componentRef.setInput('hasNoPlaylists', true);
+        fixture.detectChanges();
+        expect(searchInput()).toBeNull();
+
+        // Settings search needs no playlist: a fresh user can still search.
+        fixture.componentRef.setInput('isSettingsRoute', true);
+        fixture.detectChanges();
+        expect(searchInput()).not.toBeNull();
+        expect(searchInput().disabled).toBe(false);
+    });
+
     it('renders scope and status chips when search metadata is provided', () => {
         fixture.componentRef.setInput('searchScopeLabel', 'Movies / All Items');
         fixture.componentRef.setInput(
@@ -238,7 +253,9 @@ describe('WorkspaceShellHeaderComponent', () => {
         fixture.detectChanges();
 
         const chips = Array.from(
-            fixture.nativeElement.querySelectorAll('.search-chip')
+            (fixture.nativeElement as HTMLElement).querySelectorAll(
+                '.search-chip'
+            )
         ).map((element: Element) => element.textContent?.trim());
 
         expect(chips).toEqual(['Movies / All Items', 'Loaded channels only']);

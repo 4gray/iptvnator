@@ -1,0 +1,62 @@
+<section
+    class="settings-group settings-search-results"
+    data-test-id="settings-search-results"
+    aria-labelledby="settings-search-results-title"
+>
+    <header class="settings-group__header">
+        <div class="settings-group__header-text">
+            <h3 id="settings-search-results-title">
+                {{ 'SETTINGS.SEARCH_RESULTS_TITLE' | translate }}
+            </h3>
+            <p aria-live="polite" data-test-id="settings-search-summary">
+                {{
+                    'SETTINGS.SEARCH_RESULTS_COUNT'
+                        | translate: { count: results().length, query: query() }
+                }}
+            </p>
+        </div>
+    </header>
+
+    @if (results().length > 0) {
+        <ul class="settings-search-results__list">
+            @for (result of results(); track result.entry.id) {
+                <li>
+                    <button
+                        type="button"
+                        class="settings-search-result"
+                        [attr.data-test-id]="
+                            'settings-search-result-' + result.entry.id
+                        "
+                        (click)="selected.emit(result.entry)"
+                    >
+                        <mat-icon class="settings-search-result__icon">{{
+                            result.section.icon
+                        }}</mat-icon>
+                        <span class="settings-search-result__text">
+                            <span class="settings-search-result__label">{{
+                                result.label
+                            }}</span>
+                            @if (result.description) {
+                                <span
+                                    class="settings-search-result__description"
+                                    >{{ result.description }}</span
+                                >
+                            }
+                        </span>
+                        <span class="settings-search-result__section">{{
+                            result.sectionLabel
+                        }}</span>
+                        <mat-icon class="settings-search-result__chevron"
+                            >chevron_right</mat-icon
+                        >
+                    </button>
+                </li>
+            }
+        </ul>
+    } @else {
+        <div class="settings-search-empty" data-test-id="settings-search-empty">
+            <mat-icon>search_off</mat-icon>
+            <p>{{ 'SETTINGS.SEARCH_EMPTY_HINT' | translate }}</p>
+        </div>
+    }
+</section>

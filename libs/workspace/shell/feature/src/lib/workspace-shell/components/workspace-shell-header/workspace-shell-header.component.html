@@ -42,7 +42,9 @@
         />
     }
 
-    @if (!hasNoPlaylists()) {
+    <!-- Settings search works without any playlist, so a fresh user can
+         find settings before importing a first source. -->
+    @if (!hasNoPlaylists() || isSettingsRoute()) {
         <label class="search-field">
             <mat-icon>search</mat-icon>
             @if (searchScopeLabel()) {
@@ -114,6 +116,33 @@
         >
             <mat-icon>add</mat-icon>
         </button>
+        @if (parentalLockState() !== 'off') {
+            <button
+                type="button"
+                class="header-shortcut header-parental-lock"
+                mat-icon-button
+                data-test-id="header-parental-lock"
+                [class.is-active]="parentalLockState() === 'locked'"
+                (click)="parentalLockToggleRequested.emit()"
+                [matTooltip]="
+                    (parentalLockState() === 'locked'
+                        ? 'PARENTAL_LOCK.HEADER_UNLOCK'
+                        : 'PARENTAL_LOCK.HEADER_LOCK'
+                    ) | translate
+                "
+                [attr.aria-label]="
+                    (parentalLockState() === 'locked'
+                        ? 'PARENTAL_LOCK.HEADER_UNLOCK'
+                        : 'PARENTAL_LOCK.HEADER_LOCK'
+                    ) | translate
+                "
+                [attr.aria-pressed]="parentalLockState() === 'locked'"
+            >
+                <mat-icon>{{
+                    parentalLockState() === 'locked' ? 'lock' : 'lock_open'
+                }}</mat-icon>
+            </button>
+        }
         @if (!isSettingsRoute()) {
             @if (headerSidebarToggle(); as sidebarToggle) {
                 <button

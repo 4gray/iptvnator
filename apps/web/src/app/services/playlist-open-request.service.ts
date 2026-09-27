@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util';
+import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util/playlist-file-import';
 import type { ElectronBridgePlaylistOpenRequest } from '@iptvnator/shared/interfaces';
 
 type PlaylistOpenRequestBridge = {

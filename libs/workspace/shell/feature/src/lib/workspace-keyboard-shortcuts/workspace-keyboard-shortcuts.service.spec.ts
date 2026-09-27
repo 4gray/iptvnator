@@ -1,15 +1,29 @@
 import { TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
-import { Subject } from 'rxjs';
+import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
+import { Observable, Subject } from 'rxjs';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { WorkspaceKeyboardShortcutsDialogData } from './workspace-keyboard-shortcuts-dialog.component';
 import { WorkspaceKeyboardShortcutsService } from './workspace-keyboard-shortcuts.service';
 import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
 
 describe('WorkspaceKeyboardShortcutsService', () => {
     let afterClosed$: Subject<void>;
-    let dialog: { open: jest.Mock };
+    let dialog: {
+        open: jest.Mock<
+            { afterClosed: () => Observable<void> },
+            [unknown, MatDialogConfig<WorkspaceKeyboardShortcutsDialogData>]
+        >;
+    };
     let runtime: { isElectron: boolean };
     let service: WorkspaceKeyboardShortcutsService;
+
+    function openedDialogData(): WorkspaceKeyboardShortcutsDialogData {
+        const data = dialog.open.mock.calls[0][1].data;
+        if (!data) {
+            throw new Error('Expected the shortcuts dialog to receive data');
+        }
+        return data;
+    }
 
     beforeEach(() => {
         afterClosed$ = new Subject<void>();
@@ -309,7 +323,7 @@ describe('WorkspaceKeyboardShortcutsService', () => {
 
         service.openShortcutsDialog();
 
-        const dialogData = dialog.open.mock.calls[0][1].data;
+        const dialogData = openedDialogData();
         const commandPaletteShortcut = dialogData.groups
             .flatMap((group) => group.items)
             .find((item) => item.id === 'open-command-palette');
@@ -323,7 +337,7 @@ describe('WorkspaceKeyboardShortcutsService', () => {
     it('includes Electron-only shortcuts when runtime supports Electron', () => {
         service.openShortcutsDialog();
 
-        const dialogData = dialog.open.mock.calls[0][1].data;
+        const dialogData = openedDialogData();
         const itemIds = dialogData.groups.flatMap((group) =>
             group.items.map((item) => item.id)
         );
@@ -336,7 +350,7 @@ describe('WorkspaceKeyboardShortcutsService', () => {
 
         service.openShortcutsDialog();
 
-        const dialogData = dialog.open.mock.calls[0][1].data;
+        const dialogData = openedDialogData();
         const itemIds = dialogData.groups.flatMap((group) =>
             group.items.map((item) => item.id)
         );

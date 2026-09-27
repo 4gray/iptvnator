@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import {
     WorkspaceCommandContribution,
     WorkspaceViewCommandService,
@@ -58,7 +58,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
               >;
           }
         | undefined;
-    let translate: { instant: jest.Mock; onLangChange: ReturnType<typeof of> };
+    let translate: { instant: jest.Mock; onLangChange: Observable<null> };
 
     function bootstrap(options: {
         supportsManagedExternalPlayers: boolean;

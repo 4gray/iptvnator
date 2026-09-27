@@ -74,6 +74,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly contextDrawerTooltipKey = input('');
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<unknown>(null);
+    readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
@@ -84,6 +85,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
+    readonly parentalLockToggleRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
     readonly contextDrawerToggleRequested = output<void>();
@@ -179,6 +181,8 @@ class MockWorkspaceShellFacade {
     readonly headerBulkAction = signal<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = signal(null);
     toggleLiveSidebar = jest.fn();
+    readonly parentalLockState = signal<'off' | 'locked' | 'unlocked'>('off');
+    toggleParentalLock = jest.fn();
     readonly showContextPanel = signal(true);
     readonly hasContextPanelContent = signal(true);
     readonly contextDrawerLabelKeys = signal({
@@ -545,6 +549,25 @@ describe('WorkspaceShellComponent', () => {
 
         expect(event.defaultPrevented).toBe(true);
         expect(facade.openGlobalSearch).toHaveBeenCalledWith('');
+        expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
+
+        // On settings the header search is the settings search, so find
+        // focuses it in place instead of leaving for global search.
+        facade.openGlobalSearch.mockClear();
+        header.focusSearchInput.mockClear();
+        facade.isSettingsRoute.set(true);
+        const settingsEvent = new KeyboardEvent('keydown', {
+            key: 'f',
+            metaKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        document.dispatchEvent(settingsEvent);
+        jest.runOnlyPendingTimers();
+
+        expect(settingsEvent.defaultPrevented).toBe(true);
+        expect(facade.openGlobalSearch).not.toHaveBeenCalled();
         expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
         jest.useRealTimers();
     });

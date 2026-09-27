@@ -34,7 +34,7 @@ import {
     logPortalDebugEvent,
     logPortalDebugRequest,
     createLogger,
-} from '@iptvnator/portal/shared/util';
+} from '@iptvnator/portal/shared/util/logger';
 import { getRuntimeBackendUrl } from './runtime-config';
 
 /**

@@ -12,7 +12,10 @@ import {
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
 import type { WorkspaceNavigationTarget } from '@iptvnator/portal/shared/util';
 import { BehaviorSubject } from 'rxjs';
-import type { DownloadActionResult } from '../download-actions';
+import type {
+    DownloadActionResult,
+    DownloadItemAction,
+} from '../download-actions';
 import { DownloadLibraryNavigationService } from '../download-library-navigation.service';
 import { DownloadManagerActionsService } from '../download-manager-actions.service';
 import { DownloadOfflineDetailComponent } from './download-offline-detail.component';
@@ -67,7 +70,10 @@ interface DownloadsFake {
 
 interface ActionsFake {
     readonly pendingIds: ReturnType<typeof signal<ReadonlySet<number>>>;
-    readonly run: jest.Mock<Promise<DownloadActionResult>, [unknown]>;
+    readonly run: jest.Mock<
+        Promise<DownloadActionResult>,
+        [DownloadItemAction]
+    >;
     readonly showActionError: jest.Mock<void, []>;
 }
 

@@ -14,7 +14,7 @@ import {
     XtreamCredentials,
 } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     resolveXtreamPortalStatus,
     resolveXtreamServerTimezone,

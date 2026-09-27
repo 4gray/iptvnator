@@ -6,6 +6,7 @@ import {
     inject,
     OnDestroy,
     OnInit,
+    signal,
     ViewEncapsulation,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -15,7 +16,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
-import { SettingsContextService } from '@iptvnator/workspace/shell/util';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,
@@ -45,10 +46,14 @@ import {
     SETTINGS_UPDATE_CHANNEL_OPTIONS,
     SETTINGS_THEME_OPTIONS,
 } from './settings-options';
+import { SettingsParentalLockFacade } from './settings-parental-lock.facade';
+import { SettingsParentalLockSectionComponent } from './settings-parental-section.component';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
 import { SettingsResetSectionComponent } from './settings-reset-section.component';
+import { SettingsSearchFacade } from './settings-search.facade';
+import { SettingsSearchResultsComponent } from './settings-search-results.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
 import {
     SettingsUnsavedChangesChoice,
@@ -90,9 +95,11 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsDashboardSectionComponent,
         SettingsEpgSectionComponent,
         SettingsGeneralSectionComponent,
+        SettingsParentalLockSectionComponent,
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsResetSectionComponent,
+        SettingsSearchResultsComponent,
         SettingsTmdbSectionComponent,
     ],
     // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
@@ -103,8 +110,10 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsEmbeddedMpvFacade,
         SettingsEpgFacade,
         SettingsFormFacade,
+        SettingsParentalLockFacade,
         SettingsPlaylistResetFacade,
         SettingsRemoteControlFacade,
+        SettingsSearchFacade,
         SettingsSnackbarService,
         SettingsUnloadGuardService,
     ],
@@ -117,8 +126,10 @@ export class SettingsComponent
     readonly embeddedMpv = inject(SettingsEmbeddedMpvFacade);
     readonly epg = inject(SettingsEpgFacade);
     readonly form = inject(SettingsFormFacade);
+    readonly parentalLock = inject(SettingsParentalLockFacade);
     readonly playlistReset = inject(SettingsPlaylistResetFacade);
     readonly remoteControl = inject(SettingsRemoteControlFacade);
+    readonly search = inject(SettingsSearchFacade);
 
     private readonly settingsCtx = inject(SettingsContextService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
@@ -154,6 +165,9 @@ export class SettingsComponent
 
     /** Settings form object */
     readonly settingsForm = this.form.form;
+
+    /** Set once the form is hydrated, so form-dependent rows can render. */
+    private readonly formReady = signal(false);
 
     /** Player options */
     readonly players = computed(() =>
@@ -219,9 +233,15 @@ export class SettingsComponent
         // on purpose — this is navigation, not an animated transition.
         effect(() => {
             this.activeSection();
+            this.search.isSearching();
             this.hostElement.nativeElement
                 .closest('main.workspace-content')
                 ?.scrollTo({ top: 0 });
+        });
+
+        this.search.bindReveal({
+            activeSection: this.activeSection,
+            ready: this.formReady.asReadonly(),
         });
     }
 
@@ -241,6 +261,7 @@ export class SettingsComponent
         await this.form.loadSettings();
         this.form.hydrateFromStore();
         this.form.bindDashboardControlsEnabledState();
+        this.formReady.set(true);
         void this.embeddedMpv.load();
         this.appUpdate.checkAppVersion();
         this.appUpdate.init();

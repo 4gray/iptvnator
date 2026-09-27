@@ -13,6 +13,7 @@ import {
     TemplateRef,
     computed,
     effect,
+    untracked,
     forwardRef,
     inject,
     OnDestroy,
@@ -94,6 +95,8 @@ import {
 } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import {
+    DatabaseService,
+    ParentalLockService,
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -167,6 +170,8 @@ export class LiveStreamLayoutComponent
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly parentalLock = inject(ParentalLockService);
+    private readonly databaseService = inject(DatabaseService);
     private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
@@ -416,6 +421,14 @@ export class LiveStreamLayoutComponent
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
     private readonly activeLiveItemId = signal<number | null>(null);
+    /**
+     * Provider category id of the playing channel, for the parental lock.
+     * `null`: nothing playing (or no category); `'unknown'`: Electron has
+     * not resolved it yet (or cannot) — a relock then stops the channel.
+     */
+    private activeLiveProviderCategoryId: number | null | 'unknown' = null;
+    /** Bumped per resolution so a slow hidden-category lookup cannot land on a later playback. */
+    private liveCategoryLookupGeneration = 0;
     readonly playbackSessionKey = computed(() => {
         const sourceId = this.xtreamStore.currentPlaylist()?.id;
         const contentId = this.activeLiveItemId();
@@ -438,6 +451,39 @@ export class LiveStreamLayoutComponent
                 this.activeLiveItemId.set(null);
                 this.activeCatchupProgram.set(null);
             }
+        });
+        // A relock (idle timer, Lock now) must stop a channel playing from a
+        // now-withheld category: the player is gated on `activePlayback`,
+        // not on the store selection the enforcement service clears — and
+        // that selection is also dropped by an ordinary category switch,
+        // which must keep the channel playing.
+        effect(() => {
+            this.parentalLock.version();
+            untracked(() => {
+                const categoryId = this.activeLiveProviderCategoryId;
+                const playlistId = this.xtreamStore.currentPlaylist()?.id;
+                if (categoryId === null || !playlistId) {
+                    return;
+                }
+                // Unresolved category: fail closed while the lock is active
+                // rather than keep a possibly locked stream running.
+                const withheld =
+                    categoryId === 'unknown'
+                        ? this.parentalLock.active()
+                        : this.parentalLock.isXtreamCategoryLocked(
+                              playlistId,
+                              'live',
+                              categoryId
+                          );
+                if (!withheld) {
+                    return;
+                }
+                this.playbackRequestId += 1;
+                this.activePlayback.set(null);
+                this.activeLiveItemId.set(null);
+                this.activeCatchupProgram.set(null);
+                this.activeLiveProviderCategoryId = null;
+            });
         });
         effect((onCleanup) => {
             const intervalId = window.setInterval(() => {
@@ -621,6 +667,8 @@ export class LiveStreamLayoutComponent
         // store no-op.
         if (!remote) this.selectLiveItemCategory(item);
         this.activeLiveItemId.set(item.xtream_id);
+        this.activeLiveProviderCategoryId =
+            this.resolveLiveProviderCategoryId(item);
         const playlist = this.xtreamStore.currentPlaylist();
         this.activePlaylistId = playlist?.id ?? null;
         this.activePlayback.set({
@@ -807,6 +855,62 @@ export class LiveStreamLayoutComponent
         return [...this.channelNavigation.remoteChannels()];
     }
 
+    /**
+     * The provider category id the parental lock is keyed by. Electron rows
+     * carry the SQLite category row id in `category_id` and the provider id
+     * on the category row (`xtream_id`); the PWA carries the provider id on
+     * both. A row whose category is not in the list resolves to null rather
+     * than to a guess that could collide with a locked provider id.
+     */
+    private resolveLiveProviderCategoryId(
+        item: XtreamLiveChannelItem
+    ): number | null | 'unknown' {
+        // Every resolution retires the lookups before it, including one for
+        // a same-id channel of another playlist that resolved synchronously.
+        const generation = ++this.liveCategoryLookupGeneration;
+        const categoryId = Number(item.category_id);
+        if (!Number.isFinite(categoryId)) {
+            return null;
+        }
+        if (!this.runtime.supportsXtreamSqliteDataSource) {
+            return categoryId;
+        }
+        const category = (this.xtreamStore.liveCategories?.() ?? []).find(
+            (candidate) =>
+                Number((candidate as { id?: number }).id) === categoryId
+        ) as { xtream_id?: number } | undefined;
+        const providerId = Number(category?.xtream_id);
+        if (Number.isFinite(providerId)) {
+            return providerId;
+        }
+        // Not in the visible list — a hidden category (search can play its
+        // channels). Resolve through the unfiltered rows; until that lands
+        // the id is unknown and a relock stops the channel.
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (playlistId) {
+            void this.databaseService
+                .getAllXtreamCategories(playlistId, 'live')
+                .then((rows) => {
+                    if (
+                        generation !== this.liveCategoryLookupGeneration ||
+                        this.xtreamStore.currentPlaylist()?.id !== playlistId ||
+                        this.activeLiveItemId() !== item.xtream_id
+                    ) {
+                        return;
+                    }
+                    const row = rows.find(
+                        (candidate) => Number(candidate.id) === categoryId
+                    );
+                    const resolved = Number(row?.xtream_id);
+                    if (Number.isFinite(resolved)) {
+                        this.activeLiveProviderCategoryId = resolved;
+                    }
+                })
+                .catch(() => undefined);
+        }
+        return 'unknown';
+    }
+
     private selectLiveItemCategory(item: XtreamLiveChannelItem): void {
         const categoryId = Number(item.category_id);
         if (Number.isFinite(categoryId) && categoryId > 0) {
@@ -838,6 +942,8 @@ export class LiveStreamLayoutComponent
 
         const requestId = ++this.playbackRequestId;
         this.activeLiveItemId.set(item.xtream_id);
+        this.activeLiveProviderCategoryId =
+            this.resolveLiveProviderCategoryId(item);
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {

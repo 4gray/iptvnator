@@ -1,8 +1,4 @@
-<section
-    class="settings-group"
-    id="remote-control"
-    [formGroup]="form()"
->
+<section class="settings-group" id="remote-control" [formGroup]="form()">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>settings_remote</mat-icon>
@@ -13,7 +9,7 @@
         </div>
     </header>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="remote-control">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.REMOTE_CONTROL' | translate }}</h4>
             <p>{{ 'SETTINGS.REMOTE_CONTROL_DESCRIPTION' | translate }}</p>
@@ -27,7 +23,7 @@
     </div>
 
     @if (form().value.remoteControl === true) {
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="remote-control-port">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.REMOTE_CONTROL_PORT' | translate }}</h4>
                 <p>
@@ -76,7 +72,7 @@
         </div>
 
         @if (localIpAddresses().length > 0) {
-            <div class="setting-item">
+            <div class="setting-item" data-setting-id="remote-control-url">
                 <div class="setting-item__meta">
                     <h4>{{ 'SETTINGS.REMOTE_CONTROL_URL' | translate }}</h4>
                     <p>

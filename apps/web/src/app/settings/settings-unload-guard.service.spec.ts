@@ -25,6 +25,7 @@ describe('SettingsUnloadGuardService', () => {
         setWindowCloseGuard: jest.Mock;
         confirmWindowClose: jest.Mock;
         cancelWindowClose: jest.Mock;
+        installAppUpdate: jest.Mock;
         onWindowCloseRequested: jest.Mock;
     };
 
@@ -75,7 +76,7 @@ describe('SettingsUnloadGuardService', () => {
     }
 
     function activateInPwa(): void {
-        window.electron = undefined;
+        (window as { electron?: typeof window.electron }).electron = undefined;
         service.activate(host);
     }
 
@@ -126,9 +127,7 @@ describe('SettingsUnloadGuardService', () => {
             // the IPC is asynchronous. A pristine close auto-confirms.
             activateInElectron();
 
-            expect(electronStub.setWindowCloseGuard).toHaveBeenCalledWith(
-                true
-            );
+            expect(electronStub.setWindowCloseGuard).toHaveBeenCalledWith(true);
         });
 
         it('disarms the guard on destroy and unsubscribes the push', () => {
@@ -235,7 +234,7 @@ describe('SettingsUnloadGuardService', () => {
         });
 
         it('escalates an open reload confirmation into the requested close', async () => {
-            let resolveConfirm: ((value: boolean) => void) | null = null;
+            let resolveConfirm: ((value: boolean) => void) | undefined;
             host.confirmClose.mockImplementation(
                 () =>
                     new Promise<boolean>((resolve) => {
@@ -263,7 +262,7 @@ describe('SettingsUnloadGuardService', () => {
         });
 
         it('cancels the escalated close when the user stays', async () => {
-            let resolveConfirm: ((value: boolean) => void) | null = null;
+            let resolveConfirm: ((value: boolean) => void) | undefined;
             host.confirmClose.mockImplementation(
                 () =>
                     new Promise<boolean>((resolve) => {
@@ -289,7 +288,7 @@ describe('SettingsUnloadGuardService', () => {
             // that acknowledgment is in flight must be re-asked afterwards
             // — never answered against the stale intent the cancel clears,
             // and never silently swallowed.
-            let resolveCancel: (() => void) | null = null;
+            let resolveCancel: (() => void) | undefined;
             electronStub.cancelWindowClose.mockImplementation(
                 () =>
                     new Promise<void>((resolve) => {
@@ -322,7 +321,7 @@ describe('SettingsUnloadGuardService', () => {
         });
 
         it('ignores repeated close requests while a dialog is open', async () => {
-            let resolveConfirm: ((value: boolean) => void) | null = null;
+            let resolveConfirm: ((value: boolean) => void) | undefined;
             host.confirmClose.mockImplementation(
                 () =>
                     new Promise<boolean>((resolve) => {

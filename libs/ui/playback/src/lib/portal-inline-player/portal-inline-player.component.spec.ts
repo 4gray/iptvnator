@@ -146,11 +146,6 @@ describe('PortalInlinePlayerComponent', () => {
             title: 'Header-bearing live stream',
             isLive: true,
             headers: { Authorization: 'Bearer token' },
-            contentInfo: {
-                playlistId: 'playlist-1',
-                contentXtreamId: 42,
-                contentType: 'live',
-            },
         };
         const request: PlaybackFallbackRequest = {
             player: 'mpv',
@@ -159,11 +154,13 @@ describe('PortalInlinePlayerComponent', () => {
                 code: 'network-error',
                 player: 'videojs',
                 source: 'hls',
+                sourceUrl: playback.streamUrl,
                 container: '',
                 mimeType: '',
                 videoCodecs: [],
                 audioCodecs: [],
             },
+            trackLaunch: jest.fn(),
         };
         let forwarded: PlaybackFallbackRequest | undefined;
         component.externalFallbackRequested.subscribe(

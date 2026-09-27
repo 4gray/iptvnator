@@ -11,7 +11,7 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { ElectronBridgeApi, EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
@@ -22,6 +22,11 @@ import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.c
  * which sits at the max-lines test budget; the template is overridden to
  * empty because these behaviors live entirely in constructor effects.
  */
+/** Installs an intentionally partial Electron bridge double. */
+function installElectronBridge(bridge: Partial<ElectronBridgeApi>): void {
+    window.electron = bridge as ElectronBridgeApi;
+}
+
 describe('StalkerLiveStreamLayoutComponent remote status', () => {
     let fixture: ComponentFixture<StalkerLiveStreamLayoutComponent>;
     const originalElectron = window.electron;
@@ -147,13 +152,13 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
         itvChannels.set(originalItvChannels);
         stalkerStore.selectedCategoryId.set('1001');
         stalkerStore.setSelectedItem.mockReset();
-        window.electron = {
+        installElectronBridge({
             platform: 'darwin',
             setUserAgent: jest.fn().mockResolvedValue(true),
             updateRemoteControlStatus,
             onChannelChange: jest.fn(() => jest.fn()),
             onRemoteControlCommand: jest.fn(() => jest.fn()),
-        } as typeof window.electron;
+        });
 
         selectedContentType.set('itv');
         selectedItem.set(itvChannels()[0]);
@@ -179,13 +184,16 @@ describe('StalkerLiveStreamLayoutComponent remote status', () => {
                         // Mirrors the real capability check: every
                         // remote-control bridge method must be present.
                         get supportsRemoteControl() {
-                            const bridge = window.electron as
-                                Record<string, unknown> | undefined;
-                            return [
-                                'updateRemoteControlStatus',
-                                'onChannelChange',
-                                'onRemoteControlCommand',
-                            ].every(
+                            const bridge:
+                                Partial<ElectronBridgeApi> | undefined =
+                                window.electron;
+                            return (
+                                [
+                                    'updateRemoteControlStatus',
+                                    'onChannelChange',
+                                    'onRemoteControlCommand',
+                                ] as const
+                            ).every(
                                 (method) =>
                                     typeof bridge?.[method] === 'function'
                             );

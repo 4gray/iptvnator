@@ -73,6 +73,7 @@ describe('PlaylistInfoComponent', () => {
         autoRefresh: false,
         url: 'https://example.com/playlist.m3u',
     } as Playlist & { id: string };
+    const metaBase = { count: 1, importDate: '2026-04-01', autoRefresh: false };
 
     beforeEach(async () => {
         playlistsService = {
@@ -213,6 +214,7 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
 
         const updatedPlaylist = {
+            ...metaBase,
             _id: 'playlist-1',
             title: 'Updated Xtream',
             serverUrl: 'http://new.example:8080',
@@ -251,6 +253,7 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
 
         await component.saveChanges({
+            ...metaBase,
             _id: 'playlist-1',
             title: 'Updated Xtream',
             serverUrl:
@@ -262,6 +265,7 @@ describe('PlaylistInfoComponent', () => {
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
                 playlist: {
+                    ...metaBase,
                     _id: 'playlist-1',
                     title: 'Updated Xtream',
                     serverUrl: 'http://new.example:8080/live',
@@ -289,6 +293,7 @@ describe('PlaylistInfoComponent', () => {
         createComponent();
 
         await component.saveChanges({
+            ...metaBase,
             _id: 'playlist-1',
             title: 'Updated Xtream',
             serverUrl:
@@ -314,7 +319,7 @@ describe('PlaylistInfoComponent', () => {
         window.electron = {
             saveFileDialog: jest.fn().mockResolvedValue('/tmp/export.m3u8'),
             writeFile: jest.fn().mockResolvedValue({ success: true }),
-        } as typeof window.electron;
+        } as Partial<typeof window.electron> as typeof window.electron;
         createComponent();
 
         await component.exportPlaylist();

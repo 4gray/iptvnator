@@ -6,6 +6,10 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
+    meetsSettingsRequirements,
+    SETTINGS_SECTION_DEFINITIONS,
+} from '@iptvnator/workspace/shell/util/settings-search';
+import {
     CoverSizeOption,
     EpgViewModeOption,
     SettingsPlayerOption,
@@ -164,65 +168,14 @@ export function buildSettingsSectionNavItems({
     supportsEpg,
     supportsRemoteControl,
 }: SettingsSectionVisibility): SettingsSection[] {
-    return [
-        {
-            id: 'general',
-            label: 'SETTINGS.NAV_GENERAL',
-            icon: 'tune',
-            visible: true,
-        },
-        {
-            id: 'playback',
-            label: 'SETTINGS.NAV_PLAYBACK',
-            icon: 'play_circle',
-            visible: true,
-        },
-        {
-            id: 'epg',
-            label: 'SETTINGS.NAV_EPG',
-            icon: 'calendar_month',
-            visible: supportsEpg,
-        },
-        {
-            id: 'dashboard',
-            label: 'SETTINGS.NAV_DASHBOARD',
-            icon: 'dashboard',
-            visible: true,
-        },
-        {
-            // Must match the section's HTML id (`remote-control`) so the
-            // settings-section-scroll directive can resolve the anchor.
-            // Was previously '@iptvnator/ui/remote-control' (the NX lib
-            // name), which meant clicking the nav item silently no-op'd
-            // because document.getElementById of that string returned null.
-            id: 'remote-control',
-            label: 'SETTINGS.NAV_REMOTE',
-            icon: 'smartphone',
-            visible: supportsRemoteControl,
-        },
-        {
-            id: 'tmdb',
-            label: 'SETTINGS.NAV_TMDB',
-            icon: 'movie',
-            visible: true,
-        },
-        {
-            id: 'backup',
-            label: 'SETTINGS.NAV_BACKUP',
-            icon: 'backup',
-            visible: true,
-        },
-        {
-            id: 'reset',
-            label: 'SETTINGS.NAV_RESET',
-            icon: 'delete_sweep',
-            visible: true,
-        },
-        {
-            id: 'about',
-            label: 'SETTINGS.NAV_ABOUT',
-            icon: 'info',
-            visible: true,
-        },
-    ];
+    const capabilities = {
+        epg: supportsEpg,
+        'remote-control': supportsRemoteControl,
+    };
+    return SETTINGS_SECTION_DEFINITIONS.map((section) => ({
+        id: section.id,
+        label: section.navLabelKey,
+        icon: section.icon,
+        visible: meetsSettingsRequirements(section.requires, capabilities),
+    }));
 }

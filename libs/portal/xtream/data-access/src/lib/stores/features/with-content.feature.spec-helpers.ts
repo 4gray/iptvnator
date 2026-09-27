@@ -114,6 +114,10 @@ export function createContentTestStore(
                 patchState(store, { portalStatus: status });
                 return status;
             },
+            /** Simulates the user opening another playlist. */
+            switchPlaylist(playlistId: string): void {
+                patchState(store, { playlistId });
+            },
         })),
         withContent()
     );
