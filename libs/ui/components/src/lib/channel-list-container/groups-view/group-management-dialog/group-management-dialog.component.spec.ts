@@ -55,13 +55,21 @@ describe('GroupManagementDialogComponent', () => {
         expect(dialogRef.close).toHaveBeenCalledWith(undefined);
     });
 
-    it('keeps the plain hide/show editor open when the lock feature is off', async () => {
+    it('keeps the plain hide/show editor open while nothing relocks', async () => {
+        const fixture = await create({ groups, hiddenGroupTitles: ['News'] });
+        fixture.detectChanges();
+
+        expect(dialogRef.close).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.showLocks).toBe(false);
+    });
+
+    it('closes the editor without lock toggles too on a relock: it lists every group', async () => {
+        // Opened without toggles because the lock store was unreadable.
         const fixture = await create({ groups, hiddenGroupTitles: ['News'] });
 
         parentalLock.active.set(true);
         fixture.detectChanges();
 
-        expect(dialogRef.close).not.toHaveBeenCalled();
-        expect(fixture.componentInstance.showLocks).toBe(false);
+        expect(dialogRef.close).toHaveBeenCalledWith(undefined);
     });
 });

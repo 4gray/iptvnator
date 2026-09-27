@@ -386,7 +386,9 @@ so a cancelled or refused PIN leaves it showing the real state.
   read (`ensureLocksReadable`): a draft taken from the empty fail-closed
   snapshot would erase the real locks on Save if storage recovered in
   between. The M3U and Xtream dialogs then open without lock toggles; the
-  Stalker dialog does not open. Bulk actions stay in the dialog, and while the session is locked
+  Stalker dialog does not open. Every one of them closes on a relock, the
+  M3U one also when it opened without toggles, since it still lists every
+  group name. Bulk actions stay in the dialog, and while the session is locked
   a locked category is not in the rail, so unlocking always goes through
   the "N locked · Enter PIN to show" row or the dialog. The M3U dialog
   hands its lock list back to `ChannelListContainerComponent`, which

@@ -105,9 +105,10 @@ export class GroupManagementDialogComponent {
 
     constructor() {
         // A relock while the editor is open: the locked group names it
-        // lists and the lock list it can rewrite are behind the PIN.
+        // lists (with or without lock toggles — every group is listed) and
+        // the lock list it can rewrite are behind the PIN.
         effect(() => {
-            if (this.showLocks && this.parentalLock.active()) {
+            if (this.parentalLock.active()) {
                 this.dialogRef.close(undefined);
             }
         });

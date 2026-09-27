@@ -567,6 +567,11 @@ export class GroupsViewComponent {
             this.playlistId() === playlistId
                 ? this.parentalLock.lockedGroupTitles(playlistId)
                 : null;
+        // Relocked while the store was being read: the dialog lists every
+        // group, locked ones included.
+        if (this.parentalLock.active() || this.playlistId() !== playlistId) {
+            return;
+        }
         const dialogRef = this.dialog.open(GroupManagementDialogComponent, {
             data: {
                 groups,
