@@ -65,6 +65,17 @@ export class ParentalLockEnforcementService {
                 void this.loadStalker().catch(() => undefined);
             }
         });
+        // Any path that makes a channel active (numeric zapping, next /
+        // previous, remote commands, a stale list) is checked here: a
+        // channel of a locked group is reset as soon as it becomes active.
+        effect(() => {
+            this.activeChannel();
+            untracked(() => {
+                if (this.parentalLock.active()) {
+                    this.applyM3u();
+                }
+            });
+        });
         effect(() => {
             const version = this.parentalLock.version();
             untracked(() => {

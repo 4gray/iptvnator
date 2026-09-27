@@ -191,7 +191,11 @@ on either side.
   surfaces (the M3U active channel, the Stalker selection) are stepped off
   BEFORE the Xtream reloads are awaited, so a playing M3U channel never
   waits behind a slow portal read — the Xtream store stays populated after
-  leaving that portal, so its reload runs on every apply. Applies run one
+  leaving that portal, so its reload runs on every apply. The M3U check
+  also runs whenever the active channel changes while locked: numeric
+  zapping, next/previous and remote commands select from the full channel
+  list without any lock change following, so a channel of a locked group
+  is reset as soon as it becomes active (numeric zapping also skips it). Applies run one
   at a time and each is
   abandoned once a newer `version` exists (the queued apply reads the latest
   state): `ElectronXtreamDataSource` shares in-flight category/content

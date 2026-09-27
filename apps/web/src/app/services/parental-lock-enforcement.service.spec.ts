@@ -132,6 +132,31 @@ describe('ParentalLockEnforcementService', () => {
         });
     });
 
+    it('resets a channel of a locked group as soon as it becomes active while locked', () => {
+        // Numeric zapping, next/previous or a remote command can select a
+        // channel without any lock-version change following it.
+        router.url = '/workspace/playlists/m3u-1';
+        parentalLock.active.set(true);
+        parentalLock.isM3uGroupLocked.mockImplementation(
+            (_playlistId: string, group: string) => group === 'Adult'
+        );
+        TestBed.runInInjectionContext(() =>
+            (service as unknown as { start(): void }).start()
+        );
+        TestBed.flushEffects();
+        dispatch.mockClear();
+
+        activeChannel.set({ group: { title: 'News' } });
+        TestBed.flushEffects();
+        expect(dispatch).not.toHaveBeenCalled();
+
+        activeChannel.set({ group: { title: 'Adult' } });
+        TestBed.flushEffects();
+        expect(dispatch).toHaveBeenCalledTimes(1);
+        parentalLock.isM3uGroupLocked.mockReset();
+        parentalLock.isM3uGroupLocked.mockReturnValue(false);
+    });
+
     describe('Stalker', () => {
         it('leaves the Stalker route when the Stalker step cannot load', async () => {
             router.url = '/workspace/stalker/stalker-1/itv';
