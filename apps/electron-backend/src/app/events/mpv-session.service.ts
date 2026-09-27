@@ -49,6 +49,9 @@ export interface OpenExternalPlayerRequest {
 
 const reusableMpvProcess = new MpvReusableProcess();
 let positionPollingInterval: NodeJS.Timeout | null = null;
+// The first poll waits for MPV to open its IPC socket. The handle is kept so
+// a player that exits during that wait does not start an orphaned interval.
+let positionPollingDelay: NodeJS.Timeout | null = null;
 
 function getMpvPath(options: PlayerPathOptions = {}): string {
     return (
@@ -120,6 +123,10 @@ async function getMpvProperty(
 }
 
 function stopPositionPolling(): void {
+    if (positionPollingDelay) {
+        clearTimeout(positionPollingDelay);
+        positionPollingDelay = null;
+    }
     if (positionPollingInterval) {
         clearInterval(positionPollingInterval);
         positionPollingInterval = null;
@@ -137,7 +144,8 @@ function startPositionPolling(
 ): void {
     stopPositionPolling();
 
-    setTimeout(() => {
+    positionPollingDelay = setTimeout(() => {
+        positionPollingDelay = null;
         positionPollingInterval = setInterval(async () => {
             try {
                 const position = await getMpvProperty(socketPath, 'time-pos');
