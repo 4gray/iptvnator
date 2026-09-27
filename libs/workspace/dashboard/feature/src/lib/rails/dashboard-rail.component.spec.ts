@@ -341,17 +341,25 @@ describe('DashboardRailComponent', () => {
             // a compositor transform driven by this property instead.
             installObservers(false);
             const { fixture } = await render([
-                card({ id: 'known', contentType: 'live', nowPlayingProgress: 37.5 }),
+                card({
+                    id: 'known',
+                    contentType: 'live',
+                    nowPlayingProgress: 37.5,
+                }),
                 card({ id: 'unknown', contentType: 'live' }),
             ]);
             const fills = Array.from(
-                (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>(
-                    '.rail__channel-progress i'
-                )
+                (
+                    fixture.nativeElement as HTMLElement
+                ).querySelectorAll<HTMLElement>('.rail__channel-progress i')
             );
             expect(fills).toHaveLength(2);
-            expect(fills[0].style.getPropertyValue('--live-progress')).toBe('37.5');
-            expect(fills[1].style.getPropertyValue('--live-progress')).toBe('0');
+            expect(fills[0].style.getPropertyValue('--live-progress')).toBe(
+                '37.5'
+            );
+            expect(fills[1].style.getPropertyValue('--live-progress')).toBe(
+                '0'
+            );
             expect(fills.map((fill) => fill.style.width)).toEqual(['', '']);
         });
 
