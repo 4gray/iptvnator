@@ -1,10 +1,4 @@
-import {
-    DestroyRef,
-    effect,
-    inject,
-    signal,
-    type Signal,
-} from '@angular/core';
+import { DestroyRef, effect, inject, signal, type Signal } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import {
     nextSourceExpiryChangeMs,

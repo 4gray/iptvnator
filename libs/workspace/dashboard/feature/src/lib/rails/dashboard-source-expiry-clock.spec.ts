@@ -10,7 +10,9 @@ const DAY_MS = 86_400_000;
 
 describe('createSourceExpiryClock', () => {
     const nowMs = Date.UTC(2026, 7, 1, 12, 0, 0);
-    let facts: ReturnType<typeof signal<ReadonlyMap<string, SourceExpiryFacts>>>;
+    let facts: ReturnType<
+        typeof signal<ReadonlyMap<string, SourceExpiryFacts>>
+    >;
     let clock: Signal<number>;
 
     const expiringIn = (ms: number): SourceExpiryFacts => ({

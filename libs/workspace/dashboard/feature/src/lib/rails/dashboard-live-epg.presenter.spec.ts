@@ -348,7 +348,11 @@ describe('DashboardLiveEpgPresenter', () => {
     });
 
     it('asks a guide again only once a programme on air has ended', () => {
-        const fromA = card({ id: 'a', epgLookupKey: 'ard.de', epgPlaylistId: 'a' });
+        const fromA = card({
+            id: 'a',
+            epgLookupKey: 'ard.de',
+            epgPlaylistId: 'a',
+        });
         getCurrentProgramsForChannels.mockImplementation(() =>
             of(new Map([['ard.de', program('Tagesschau')]]))
         );
@@ -370,7 +374,11 @@ describe('DashboardLiveEpgPresenter', () => {
     });
 
     it('moves progress on every clock tick while the programme is unchanged', () => {
-        const fromA = card({ id: 'a', epgLookupKey: 'ard.de', epgPlaylistId: 'a' });
+        const fromA = card({
+            id: 'a',
+            epgLookupKey: 'ard.de',
+            epgPlaylistId: 'a',
+        });
         getCurrentProgramsForChannels.mockImplementation(() =>
             of(new Map([['ard.de', program('Tagesschau')]]))
         );

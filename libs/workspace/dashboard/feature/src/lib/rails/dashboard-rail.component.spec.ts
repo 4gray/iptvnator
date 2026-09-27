@@ -360,7 +360,9 @@ describe('DashboardRailComponent', () => {
                 card({ id: 'b', contentType: 'live', nowPlayingProgress: 21 }),
             ]);
             expect(reset).not.toHaveBeenCalled();
-            expect(observers[0].observed).toHaveLength(observedAfterFirstRender);
+            expect(observers[0].observed).toHaveLength(
+                observedAfterFirstRender
+            );
 
             // A newly watched channel moves to the front.
             await rerender([

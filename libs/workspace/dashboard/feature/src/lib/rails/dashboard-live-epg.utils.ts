@@ -292,7 +292,8 @@ export function sameLiveEpgAnswers(
             !program ||
             !other ||
             program.title !== other.title ||
-            epgTimestampMs(program, 'start') !== epgTimestampMs(other, 'start') ||
+            epgTimestampMs(program, 'start') !==
+                epgTimestampMs(other, 'start') ||
             epgTimestampMs(program, 'stop') !== epgTimestampMs(other, 'stop')
         ) {
             return false;
