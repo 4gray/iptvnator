@@ -3,7 +3,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import {
+    MatSlideToggleChange,
+    MatSlideToggleModule,
+} from '@angular/material/slide-toggle';
 import { TranslateModule } from '@ngx-translate/core';
 import { ParentalLockRelockMinutes } from '@iptvnator/shared/interfaces';
 
@@ -35,6 +38,18 @@ export class SettingsParentalLockSectionComponent {
     readonly relockMinutesChanged = output<ParentalLockRelockMinutes>();
     readonly lockNow = output<void>();
     readonly unlock = output<void>();
+
+    /**
+     * The switch only REQUESTS the change: enabling and disabling both go
+     * through the PIN, which may be cancelled. It is put back to the saved
+     * state at once and follows `enabled()` when the action succeeds;
+     * otherwise the slide toggle would keep showing the state it flipped to
+     * (`[checked]` is not re-applied while the bound value is unchanged).
+     */
+    onToggleEnabled(event: MatSlideToggleChange): void {
+        event.source.checked = this.enabled();
+        this.toggleEnabled.emit(event.checked);
+    }
 
     relockLabelKey(minutes: ParentalLockRelockMinutes): string {
         return minutes === 0

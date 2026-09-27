@@ -173,7 +173,11 @@ settings switch BEFORE the PIN is stored, since `enabled` follows `hasPin`
 while the switch is unknown); the Electron mirror write is awaited
 next, and a mirror that cannot be written undoes the settings write the
 same way — the toggle never shows a state the next launch will not have,
-on either side.
+on either side. The undo restores the value read AFTER the settings retry
+(not the hard-coded inverse, which a recovered read may already hold). The
+Settings switch itself only requests the change: it snaps back to the
+saved state at once and follows `enabled()` when the PIN action succeeds,
+so a cancelled or refused PIN leaves it showing the real state.
 
 ### In-memory catalogs
 

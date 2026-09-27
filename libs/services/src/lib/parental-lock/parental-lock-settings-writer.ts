@@ -5,7 +5,10 @@ import { mirrorParentalLockEnabledSetting } from './parental-lock-bridge';
 type SettingsWriter = Pick<
     InstanceType<typeof SettingsStore>,
     'updateSettings' | 'loadSettings'
-> & { storageFailure?: () => 'load' | 'save' | null };
+> & {
+    storageFailure?: () => 'load' | 'save' | null;
+    parentalLockEnabled?: () => boolean | undefined;
+};
 
 /**
  * `updateSettings` writes the WHOLE settings object. After a failed startup
@@ -39,9 +42,14 @@ export async function persistParentalLockEnabled(
     if (!(await ensureParentalLockSettingsReadable(settings))) {
         return false;
     }
+    // Read AFTER the retry, as for the relock timeout: a recovered read may
+    // already hold `enabled` (e.g. disable() entered while the unknown
+    // switch followed the stored PIN), and undoing to the inverse would
+    // then write the opposite of what was persisted.
+    const previous = settings.parentalLockEnabled?.() ?? !enabled;
     const undo = () =>
         settings
-            .updateSettings({ parentalLockEnabled: !enabled })
+            .updateSettings({ parentalLockEnabled: previous })
             .catch(() => undefined);
     try {
         await settings.updateSettings({ parentalLockEnabled: enabled });

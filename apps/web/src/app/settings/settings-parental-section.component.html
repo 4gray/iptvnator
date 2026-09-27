@@ -19,7 +19,7 @@
                 data-test-id="parental-lock-enabled"
                 [checked]="enabled()"
                 [disabled]="busy()"
-                (change)="toggleEnabled.emit($event.checked)"
+                (change)="onToggleEnabled($event)"
                 [attr.aria-label]="'SETTINGS.PARENTAL_LOCK.ENABLE' | translate"
             ></mat-slide-toggle>
         </div>
