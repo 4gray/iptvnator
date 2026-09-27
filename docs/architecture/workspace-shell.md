@@ -169,7 +169,8 @@ restarting playback; remote commands retain captured playback order. See the
 
 Search is shell-owned and route-aware:
 
-1. Disabled on settings routes.
+1. On settings routes, searches the settings themselves (see
+   [Settings search](#settings-search)).
 2. Enabled on sources routes.
 3. Enabled for `/workspace/search`, which is the Electron-only routed
    global-search view. `Ctrl/Cmd+F` in Electron opens this route and
@@ -214,8 +215,10 @@ Rail navigation is also shell-owned:
 
 Command palette behavior is shell-owned but view-extensible:
 
-1. The shell resolves commands into three groups in fixed order: current view,
-   this playlist, then global.
+1. The shell resolves commands into groups in fixed order: current view,
+   this playlist, global, then settings. The settings group appears only for a
+   non-empty query and holds at most six settings matches (see
+   [Settings search](#settings-search)).
 2. Shell-owned commands are derived from route context and current playlist
    state; empty groups are omitted instead of rendering disabled placeholders.
 3. Workspace features contribute current-view commands through
@@ -244,6 +247,51 @@ Command palette behavior is shell-owned but view-extensible:
    capabilities. The entry matching the current `SettingsStore.player()` value
    is disabled. The new player setting applies to the next playback session; an
    existing stream is not re-mounted.
+
+### Settings search
+
+Settings rows are searchable from the header search on `/workspace/settings`
+and from the command palette. Both use the same index and ranking.
+
+1. The index is `SETTINGS_SEARCH_ENTRIES` in
+   `libs/workspace/shell/util/src/lib/settings-search/`, published through the
+   `@iptvnator/workspace/shell/util/settings-search` sub-entrypoint. Eager
+   code imports the main shell util barrel, so the index stays out of it and
+   ships only in lazy chunks (the initial-bytes ratchet enforces this).
+2. Each entry names its section, title and description translation keys,
+   untranslated synonyms (`keywords`), runtime `requires`, and an optional
+   `fallbackId`. Section definitions (`SETTINGS_SECTION_DEFINITIONS`) are the
+   single source for the settings navigation too.
+3. Every titled `.setting-item` in the section templates carries
+   `data-setting-id`. `settings-search-registry.spec.ts` fails when a row, id,
+   title key or description key drifts from the index, so a new settings row
+   must be added to the index in the same change.
+4. `SettingsSearchService.search()` matches the translated title and
+   description of the current language plus the keywords; every query token
+   must match (AND), and a label prefix outranks a word start, which outranks
+   an inner match. Rows whose `requires` the runtime lacks are never returned.
+   Embedded MPV rows depend on a lazy support probe
+   (`ensureEmbeddedMpvSupportLoaded()`), run when the settings page or the
+   command palette opens, never from shell bootstrap; frame copy also needs
+   `frameCopyAvailable`, matching the settings page gate.
+5. Settings routes use `local-filter` search mode, so the term lives in `q`.
+   While `q` is set, the settings page shows ranked results in place of the
+   section page and the settings context panel shows per-section match
+   counts, muting sections without matches. The search box is shown on
+   settings even when no playlist exists.
+6. Choosing a result, pressing `Enter` in the header search (best match), or
+   picking a settings command in the palette calls `reveal()`: it navigates
+   to the section page without `q` (which clears the box) and the page
+   scrolls to, focuses, and briefly highlights the row once the form is
+   hydrated. A row hidden by the current form state falls back to its
+   `fallbackId`, the control that makes it appear. A reveal must win over the
+   typed term: `WorkspaceShellSearchSyncService` drops a keystroke still
+   waiting for its debounce through `onReveal()`, and Enter does not apply
+   the term first, because either `q` sync navigation would supersede the
+   reveal navigation. Keyboard users keep a `:focus-visible` ring on the row
+   after the highlight fades.
+7. `Ctrl/Cmd+F` on settings focuses the header search instead of opening
+   global search.
 
 Keyboard shortcut help is shell-owned:
 

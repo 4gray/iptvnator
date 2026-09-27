@@ -468,6 +468,8 @@ export function getCommandGroupOrder(
             return 0;
         case 'playlist':
             return 1;
+        case 'settings':
+            return 3;
         default:
             return 2;
     }

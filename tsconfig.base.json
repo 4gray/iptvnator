@@ -76,6 +76,9 @@
             "@iptvnator/workspace/shell/util": [
                 "libs/workspace/shell/util/src/index.ts"
             ],
+            "@iptvnator/workspace/shell/util/settings-search": [
+                "libs/workspace/shell/util/src/lib/settings-search/index.ts"
+            ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
             "@iptvnator/ui/components": ["libs/ui/components/src/index.ts"],
             "@iptvnator/m3u-state": ["libs/m3u-state/src/index.ts"],

@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "连接连续失败后，暂停新的 Xtream 和 Stalker 请求 30 秒。如果门户间歇性不可用，请尝试关闭此选项。保存后生效，无需重启。",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "每个请求将独立执行。服务器不可用时，可能需要更长时间才能显示错误。",
         "TITLE": "设置",
+        "SEARCH_RESULTS_TITLE": "搜索结果",
+        "SEARCH_RESULTS_COUNT": "与“{{query}}”匹配的设置：{{count}}",
+        "SEARCH_EMPTY_HINT": "没有匹配的设置。试试其他词，例如“播放器”“主题”或“EPG”。",
         "GENERAL": "通用",
         "GENERAL_SUBTITLE": "更改应用程序的配置",
         "PLAYBACK": "播放",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "上下文操作",
             "SEARCH_LABEL": "搜索",
             "SEARCH_SOURCES_PLACEHOLDER": "搜索源（所有播放列表）…",
+            "SEARCH_SETTINGS_PLACEHOLDER": "搜索设置…",
             "SEARCH_GLOBAL_PLACEHOLDER": "搜索所有播放列表…",
             "SEARCH_PLAYLIST_PLACEHOLDER": "在此播放列表中搜索…",
             "SEARCH_SECTION_PLACEHOLDER": "在此区域中搜索…",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "命令面板",
             "SUBTITLE": "全局和上下文操作",
-            "SEARCH_PLACEHOLDER": "输入以筛选命令",
+            "SEARCH_PLACEHOLDER": "搜索命令和设置",
             "SEARCH_LABEL": "筛选命令",
             "EMPTY": "未找到命令",
             "GROUP_GLOBAL": "全局操作",
             "GROUP_PLAYLIST": "本播放列表",
             "GROUP_VIEW": "当前视图",
             "GROUP_SECTION": "当前区域",
-            "GROUP_RECENT": "最近使用"
+            "GROUP_RECENT": "最近使用",
+            "GROUP_SETTINGS": "设置"
         },
         "SHORTCUTS": {
             "TITLE": "键盘快捷键",

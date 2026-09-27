@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "連線連續失敗後，暫停新的 Xtream 和 Stalker 請求 30 秒。如果入口網站間歇性無法使用，請嘗試關閉此選項。儲存後生效，無需重新啟動。",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "每個請求將獨立執行。伺服器無法使用時，可能需要更長時間才能顯示錯誤。",
         "TITLE": "設定",
+        "SEARCH_RESULTS_TITLE": "搜尋結果",
+        "SEARCH_RESULTS_COUNT": "符合「{{query}}」的設定：{{count}}",
+        "SEARCH_EMPTY_HINT": "沒有符合的設定。試試其他詞，例如「播放器」「主題」或「EPG」。",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "更改應用程式的配置",
         "PLAYBACK": "播放",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "區段操作",
             "SEARCH_LABEL": "搜尋",
             "SEARCH_SOURCES_PLACEHOLDER": "搜尋來源（所有播放清單）...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "搜尋設定...",
             "SEARCH_GLOBAL_PLACEHOLDER": "搜尋所有播放清單…",
             "SEARCH_PLAYLIST_PLACEHOLDER": "在此播放清單中搜尋...",
             "SEARCH_SECTION_PLACEHOLDER": "在此區段中搜尋...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "命令選擇區",
             "SUBTITLE": "全域與情境化操作",
-            "SEARCH_PLACEHOLDER": "輸入以篩選命令",
+            "SEARCH_PLACEHOLDER": "搜尋命令和設定",
             "SEARCH_LABEL": "篩選命令",
             "EMPTY": "找不到命令",
             "GROUP_GLOBAL": "全域操作",
             "GROUP_PLAYLIST": "此播放清單",
             "GROUP_VIEW": "目前畫面",
             "GROUP_SECTION": "此區段",
-            "GROUP_RECENT": "最近使用"
+            "GROUP_RECENT": "最近使用",
+            "GROUP_SETTINGS": "設定"
         },
         "SHORTCUTS": {
             "TITLE": "鍵盤快捷鍵",

@@ -381,3 +381,149 @@ describe('WorkspaceCommandPaletteComponent - recent section', () => {
         ).toBe(false);
     });
 });
+
+describe('WorkspaceCommandPaletteComponent - settings group', () => {
+    function settingsCommand(
+        id: string,
+        label: string
+    ): WorkspaceResolvedCommandItem {
+        return {
+            id: `settings:${id}`,
+            label,
+            description: 'Playback',
+            group: 'settings',
+            icon: 'play_circle',
+            keywords: [],
+            priority: 100,
+            visible: true,
+            enabled: true,
+            run: () => undefined,
+        };
+    }
+
+    const commands: WorkspaceResolvedCommandItem[] = [
+        {
+            id: 'open-settings',
+            label: 'Open settings',
+            description: '',
+            group: 'global',
+            icon: 'settings',
+            keywords: ['settings'],
+            priority: 50,
+            visible: true,
+            enabled: true,
+            run: () => undefined,
+        },
+        settingsCommand('video-player', 'Video player'),
+        settingsCommand('theme', 'Theme'),
+    ];
+
+    function setup(options: {
+        query: string;
+        recentIds?: readonly string[];
+        searchSettings?: jest.Mock;
+    }) {
+        const searchSettings =
+            options.searchSettings ??
+            jest.fn((query: string) =>
+                query.includes('player') ? ['settings:video-player'] : []
+            );
+
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            imports: [WorkspaceCommandPaletteComponent],
+            providers: [
+                { provide: MatDialogRef, useValue: { close: jest.fn() } },
+                {
+                    provide: MAT_DIALOG_DATA,
+                    useValue: {
+                        query: options.query,
+                        commands,
+                        recentIds: options.recentIds ?? [],
+                        searchSettings,
+                    },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: of(null),
+                        onTranslationChange: of(null),
+                        onDefaultLangChange: of(null),
+                        currentLang: 'en',
+                        defaultLang: 'en',
+                    },
+                },
+            ],
+        });
+
+        const fixture = TestBed.createComponent(
+            WorkspaceCommandPaletteComponent
+        );
+        fixture.detectChanges();
+        return {
+            component: fixture.componentInstance,
+            fixture,
+            searchSettings,
+        };
+    }
+
+    it('keeps settings out of the list while the query is empty', () => {
+        const { component, searchSettings } = setup({ query: '' });
+
+        expect(component.flatCommands().map((command) => command.id)).toEqual([
+            'open-settings',
+        ]);
+        expect(searchSettings).not.toHaveBeenCalled();
+    });
+
+    it('lists settings matches after the command groups, in search order', () => {
+        const searchSettings = jest.fn(() => [
+            'settings:theme',
+            'settings:video-player',
+        ]);
+        const { component, fixture } = setup({
+            query: 'settings',
+            searchSettings,
+        });
+
+        const groups = component.commandGroups();
+        expect(groups.map((group) => group.group)).toEqual([
+            'global',
+            'settings',
+        ]);
+        expect(groups[1].items.map((item) => item.id)).toEqual([
+            'settings:theme',
+            'settings:video-player',
+        ]);
+        expect(searchSettings).toHaveBeenLastCalledWith('settings');
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.COMMAND_PALETTE.GROUP_SETTINGS'
+        );
+    });
+
+    it('ranks settings only through the search callback, never by substring', () => {
+        const { component } = setup({ query: 'theme' });
+
+        // "Theme" contains the query, but the search callback decides.
+        expect(component.flatCommands()).toEqual([]);
+
+        component.query.set('player');
+        expect(component.flatCommands().map((command) => command.id)).toEqual([
+            'settings:video-player',
+        ]);
+    });
+
+    it('shows a recently opened setting in the recent section', () => {
+        const { component } = setup({
+            query: '',
+            recentIds: ['settings:theme'],
+        });
+
+        const [recent] = component.commandGroups();
+        expect(recent.group).toBe('recent');
+        expect(recent.items.map((item) => item.id)).toEqual(['settings:theme']);
+    });
+});

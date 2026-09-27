@@ -163,7 +163,11 @@ export class WorkspaceShellComponent {
         }
 
         event.preventDefault();
-        this.facade.openGlobalSearch(this.facade.searchQuery());
+        // On settings the header search already searches the settings, so
+        // find stays on the page instead of leaving for global search.
+        if (!this.facade.isSettingsRoute()) {
+            this.facade.openGlobalSearch(this.facade.searchQuery());
+        }
         setTimeout(() => header?.focusSearchInput({ select: true }));
     }
 }

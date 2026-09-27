@@ -546,6 +546,25 @@ describe('WorkspaceShellComponent', () => {
         expect(event.defaultPrevented).toBe(true);
         expect(facade.openGlobalSearch).toHaveBeenCalledWith('');
         expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
+
+        // On settings the header search is the settings search, so find
+        // focuses it in place instead of leaving for global search.
+        facade.openGlobalSearch.mockClear();
+        header.focusSearchInput.mockClear();
+        facade.isSettingsRoute.set(true);
+        const settingsEvent = new KeyboardEvent('keydown', {
+            key: 'f',
+            metaKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        document.dispatchEvent(settingsEvent);
+        jest.runOnlyPendingTimers();
+
+        expect(settingsEvent.defaultPrevented).toBe(true);
+        expect(facade.openGlobalSearch).not.toHaveBeenCalled();
+        expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
         jest.useRealTimers();
     });
 

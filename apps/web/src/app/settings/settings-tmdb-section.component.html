@@ -10,7 +10,7 @@
     </header>
 
     <div formGroupName="tmdb">
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="tmdb-enable">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.TMDB_ENABLE' | translate }}</h4>
                 <p>{{ 'SETTINGS.TMDB_ENABLE_DESCRIPTION' | translate }}</p>
@@ -24,7 +24,7 @@
         </div>
 
         @if (form().value.tmdb?.enabled === true) {
-            <div class="setting-item">
+            <div class="setting-item" data-setting-id="tmdb-api-key">
                 <div class="setting-item__meta">
                     <h4>{{ 'SETTINGS.TMDB_API_KEY' | translate }}</h4>
                     <p>{{ 'SETTINGS.TMDB_API_KEY_DESCRIPTION' | translate }}</p>
@@ -96,7 +96,10 @@
 
         @if (form().value.tmdb?.enabled === true) {
             @if (m3uVodDetailsControl; as m3uVodDetails) {
-                <div class="setting-item">
+                <div
+                    class="setting-item"
+                    data-setting-id="tmdb-m3u-vod-details"
+                >
                     <div class="setting-item__meta">
                         <h4>
                             {{ 'SETTINGS.TMDB_M3U_VOD_DETAILS' | translate }}
@@ -118,7 +121,7 @@
             }
         }
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="tmdb-cache">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.TMDB_CACHE' | translate }}</h4>
                 <p>
