@@ -349,6 +349,33 @@ describe('ParentalLockEnforcementService', () => {
             expect(xtreamStore.refreshSearchResults).toHaveBeenCalled();
         });
 
+        it('clears on relock, synchronously, a detail whose category is not in the visible list', () => {
+            // Opened through search from a manually hidden category: the
+            // on-screen list cannot place it, and the unfiltered lookup is
+            // an awaited read that may hang.
+            router.url = '/workspace/xtreams/xtream-1/vod/55/900';
+            xtreamStore.selectedItem.set({ category_id: 55 });
+
+            service.failClosedNow();
+
+            expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
+            expect(router.navigate).toHaveBeenCalledWith([
+                '/workspace',
+                'xtreams',
+                'xtream-1',
+                'vod',
+            ]);
+        });
+
+        it('keeps a detail on relock whose visible category is not locked', () => {
+            router.url = '/workspace/xtreams/xtream-1/vod/7/900';
+            xtreamStore.selectedItem.set({ category_id: 7 });
+
+            service.failClosedNow();
+
+            expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
+        });
+
         it('fails closed synchronously on relock: detail, catalog and search', () => {
             router.url = '/workspace/xtreams/xtream-1/vod/42';
             lockProvider(70);

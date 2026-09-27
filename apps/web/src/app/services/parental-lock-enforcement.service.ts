@@ -223,8 +223,10 @@ export class ParentalLockEnforcementService {
      * Clears a selected Xtream item whose category the lock store already
      * says is locked. Electron rows carry the SQLite category row id; the
      * category list still on screen maps it to the provider id the store is
-     * keyed by, the PWA carries the provider id directly. An item that
-     * cannot be placed is left to the post-reload check.
+     * keyed by, the PWA carries the provider id directly. An item whose
+     * category is not in that list (a manually hidden category, opened
+     * through search) cannot be judged without an awaited read that may
+     * hang, so it is cleared too: fail closed.
      */
     private stepOffLockedXtreamSelection(
         playlistId: string,
@@ -249,7 +251,8 @@ export class ParentalLockEnforcementService {
             ) as { xtream_id?: number; category_id?: string } | undefined;
         const providerId = Number(category?.xtream_id ?? category?.category_id);
         if (
-            !Number.isFinite(providerId) ||
+            category &&
+            Number.isFinite(providerId) &&
             !this.parentalLock.isXtreamCategoryLocked(
                 playlistId,
                 categoryType,

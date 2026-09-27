@@ -188,7 +188,9 @@ on either side.
   database answers — ahead of the serialized apply queue, so an earlier
   apply still waiting on a slow or hung read cannot delay it: the selected detail is stepped off synchronously when
   the lock store already names its category (the pre-reload category list
-  maps Electron's row id to the provider id), then `withholdCatalog()`
+  maps Electron's row id to the provider id) or when that list cannot place
+  it at all (a manually hidden category opened through search), then
+  `withholdCatalog()`
   empties every catalog list and `clearSearchResults()` the stored search
   (retiring a search still in flight, which was issued under the previous
   lock state) before the filtered reads refill them; both reloads take a publish guard
