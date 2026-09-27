@@ -425,7 +425,11 @@ by the index alone:
   marked stale and re-stamped on the next store access. A failed rollback
   WRITE still puts memory back to the previous locks and leaves a pending
   rewrite: the next store access persists them before it re-stamps, so the
-  failed edit cannot take effect through that re-stamp. For the whole
+  failed edit cannot take effect through that re-stamp. The pending rewrite
+  lives in memory: if the app exits before it lands, the next launch loads
+  the persisted copy, i.e. the edit the parent submitted with the PIN. That
+  is accepted — it is not a bypass, and a durable rollback journal would
+  hit the same storage failure. For the whole
   re-stamp window — store changed, stamps not yet landed — the playlist
   counts as stale, so `readable` is false and a relock inside the window
   reloads fail-closed instead of through the old stamps. Such in-flight
