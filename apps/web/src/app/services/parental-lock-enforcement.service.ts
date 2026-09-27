@@ -237,9 +237,22 @@ export class ParentalLockEnforcementService {
         if (!STALKER_ROUTE.test(this.router.url)) {
             return;
         }
-        const { applyParentalLockToStalker } =
-            await this.loadStalkerEnforcement();
-        applyParentalLockToStalker(
+        let module: Awaited<ReturnType<typeof this.loadStalkerEnforcement>>;
+        try {
+            module = await this.loadStalkerEnforcement();
+        } catch (error) {
+            // Fail closed (e.g. a stale PWA page whose chunk is gone): leave
+            // the Stalker route. Its route session clears the selection and
+            // the live layout stops playback on the way out, so no locked
+            // channel keeps playing; the Xtream step still runs afterwards.
+            console.error(
+                'The parental lock Stalker step could not be loaded.',
+                error
+            );
+            void this.router.navigate(['/workspace', 'sources']);
+            return;
+        }
+        module.applyParentalLockToStalker(
             this.injector,
             this.parentalLock,
             this.router

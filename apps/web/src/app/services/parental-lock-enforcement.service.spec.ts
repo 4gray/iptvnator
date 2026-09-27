@@ -120,6 +120,24 @@ describe('ParentalLockEnforcementService', () => {
     });
 
     describe('Stalker', () => {
+        it('leaves the Stalker route when the Stalker step cannot load', async () => {
+            router.url = '/workspace/stalker/stalker-1/itv';
+            jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            (
+                service as unknown as {
+                    loadStalkerEnforcement: () => Promise<unknown>;
+                }
+            ).loadStalkerEnforcement = () =>
+                Promise.reject(new Error('ChunkLoadError'));
+
+            await expect(service.applyStalker()).resolves.toBeUndefined();
+
+            expect(router.navigate).toHaveBeenCalledWith([
+                '/workspace',
+                'sources',
+            ]);
+        });
+
         it('does not load the Stalker step outside a Stalker route', async () => {
             router.url = '/workspace/xtreams/xtream-1/live';
             const load = jest.spyOn(

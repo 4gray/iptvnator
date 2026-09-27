@@ -356,7 +356,10 @@ on them). Everything else stays lazy: the PIN dialog loads through
 reads as a cancelled prompt), and the enforcement's Stalker step loads
 through `parental-lock-stalker-enforcement.ts` only while a Stalker route is
 open — a static import of the Stalker store would put the whole Stalker
-data layer back into `main.js`. The feature costs about 30 KB of
+data layer back into `main.js`. If that chunk cannot load (a stale PWA page
+after a deployment) the step fails closed by navigating to
+`/workspace/sources`: leaving the Stalker route clears its selection and
+stops its playback, and the Xtream step still runs. The feature costs about 30 KB of
 `renderer.initialBytes`.
 
 ## Lock store lifetime
