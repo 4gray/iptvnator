@@ -1,8 +1,4 @@
-<section
-    class="settings-group"
-    id="dashboard"
-    [formGroup]="form()"
->
+<section class="settings-group" id="dashboard" [formGroup]="form()">
     <header class="settings-group__header">
         <div class="settings-group__header-icon">
             <mat-icon>dashboard</mat-icon>
@@ -13,7 +9,7 @@
         </div>
     </header>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="show-dashboard">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.SHOW_DASHBOARD' | translate }}</h4>
             <p>
@@ -29,7 +25,7 @@
     </div>
 
     <div formGroupName="dashboardRails">
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="dashboard-hero">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.DASHBOARD_HERO' | translate }}</h4>
                 <p>
@@ -44,7 +40,10 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div
+            class="setting-item"
+            data-setting-id="dashboard-rail-continue-watching"
+        >
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.DASHBOARD_RAIL_CONTINUE' | translate }}</h4>
                 <p>
@@ -62,11 +61,14 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div
+            class="setting-item"
+            data-setting-id="dashboard-rail-live-favorites"
+        >
             <div class="setting-item__meta">
-                <h4>{{
-                    'SETTINGS.DASHBOARD_RAIL_LIVE_FAVORITES' | translate
-                }}</h4>
+                <h4>
+                    {{ 'SETTINGS.DASHBOARD_RAIL_LIVE_FAVORITES' | translate }}
+                </h4>
                 <p>
                     {{
                         'SETTINGS.DASHBOARD_RAIL_LIVE_FAVORITES_DESCRIPTION'
@@ -82,11 +84,9 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="dashboard-rail-recent-live">
             <div class="setting-item__meta">
-                <h4>{{
-                    'SETTINGS.DASHBOARD_RAIL_RECENT_LIVE' | translate
-                }}</h4>
+                <h4>{{ 'SETTINGS.DASHBOARD_RAIL_RECENT_LIVE' | translate }}</h4>
                 <p>
                     {{
                         'SETTINGS.DASHBOARD_RAIL_RECENT_LIVE_DESCRIPTION'
@@ -102,11 +102,11 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="dashboard-rail-favorite-vod">
             <div class="setting-item__meta">
-                <h4>{{
-                    'SETTINGS.DASHBOARD_RAIL_FAVORITE_VOD' | translate
-                }}</h4>
+                <h4>
+                    {{ 'SETTINGS.DASHBOARD_RAIL_FAVORITE_VOD' | translate }}
+                </h4>
                 <p>
                     {{
                         'SETTINGS.DASHBOARD_RAIL_FAVORITE_VOD_DESCRIPTION'
@@ -122,7 +122,7 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="dashboard-rail-sources">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.DASHBOARD_RAIL_SOURCES' | translate }}</h4>
                 <p>
@@ -140,11 +140,11 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="dashboard-rail-xtream-added">
             <div class="setting-item__meta">
-                <h4>{{
-                    'SETTINGS.DASHBOARD_RAIL_XTREAM_ADDED' | translate
-                }}</h4>
+                <h4>
+                    {{ 'SETTINGS.DASHBOARD_RAIL_XTREAM_ADDED' | translate }}
+                </h4>
                 <p>
                     {{
                         'SETTINGS.DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION'
@@ -160,9 +160,14 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div
+            class="setting-item"
+            data-setting-id="dashboard-rail-tmdb-trending"
+        >
             <div class="setting-item__meta">
-                <h4>{{ 'SETTINGS.DASHBOARD_RAIL_TMDB_TRENDING' | translate }}</h4>
+                <h4>
+                    {{ 'SETTINGS.DASHBOARD_RAIL_TMDB_TRENDING' | translate }}
+                </h4>
                 <p>
                     {{
                         'SETTINGS.DASHBOARD_RAIL_TMDB_TRENDING_DESCRIPTION'
@@ -178,7 +183,10 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div
+            class="setting-item"
+            data-setting-id="dashboard-rail-tmdb-recommendations"
+        >
             <div class="setting-item__meta">
                 <h4>
                     {{

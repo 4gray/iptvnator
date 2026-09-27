@@ -6,6 +6,7 @@ import {
     inject,
     OnDestroy,
     OnInit,
+    signal,
     ViewEncapsulation,
     ChangeDetectionStrategy,
 } from '@angular/core';
@@ -49,6 +50,8 @@ import { SettingsPlaybackSectionComponent } from './settings-playback-section.co
 import { SettingsRemoteControlFacade } from './settings-remote-control.facade';
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
 import { SettingsResetSectionComponent } from './settings-reset-section.component';
+import { SettingsSearchFacade } from './settings-search.facade';
+import { SettingsSearchResultsComponent } from './settings-search-results.component';
 import { SettingsTmdbSectionComponent } from './settings-tmdb-section.component';
 import {
     SettingsUnsavedChangesChoice,
@@ -93,6 +96,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsPlaybackSectionComponent,
         SettingsRemoteControlSectionComponent,
         SettingsResetSectionComponent,
+        SettingsSearchResultsComponent,
         SettingsTmdbSectionComponent,
     ],
     // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
@@ -105,6 +109,7 @@ export const SETTINGS_DEFAULT_SECTION = 'general';
         SettingsFormFacade,
         SettingsPlaylistResetFacade,
         SettingsRemoteControlFacade,
+        SettingsSearchFacade,
         SettingsSnackbarService,
         SettingsUnloadGuardService,
     ],
@@ -119,6 +124,7 @@ export class SettingsComponent
     readonly form = inject(SettingsFormFacade);
     readonly playlistReset = inject(SettingsPlaylistResetFacade);
     readonly remoteControl = inject(SettingsRemoteControlFacade);
+    readonly search = inject(SettingsSearchFacade);
 
     private readonly settingsCtx = inject(SettingsContextService);
     private readonly settingsSnackbar = inject(SettingsSnackbarService);
@@ -154,6 +160,9 @@ export class SettingsComponent
 
     /** Settings form object */
     readonly settingsForm = this.form.form;
+
+    /** Set once the form is hydrated, so form-dependent rows can render. */
+    private readonly formReady = signal(false);
 
     /** Player options */
     readonly players = computed(() =>
@@ -219,9 +228,15 @@ export class SettingsComponent
         // on purpose — this is navigation, not an animated transition.
         effect(() => {
             this.activeSection();
+            this.search.isSearching();
             this.hostElement.nativeElement
                 .closest('main.workspace-content')
                 ?.scrollTo({ top: 0 });
+        });
+
+        this.search.bindReveal({
+            activeSection: this.activeSection,
+            ready: this.formReady.asReadonly(),
         });
     }
 
@@ -241,6 +256,7 @@ export class SettingsComponent
         await this.form.loadSettings();
         this.form.hydrateFromStore();
         this.form.bindDashboardControlsEnabledState();
+        this.formReady.set(true);
         void this.embeddedMpv.load();
         this.appUpdate.checkAppVersion();
         this.appUpdate.init();

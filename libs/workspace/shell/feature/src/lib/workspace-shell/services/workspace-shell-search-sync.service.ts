@@ -5,6 +5,7 @@ import { filter } from 'rxjs';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { parseWorkspaceShellRoute } from '@iptvnator/workspace/shell/util';
+import { SettingsSearchService } from '@iptvnator/workspace/shell/util/settings-search';
 import { SEARCH_INPUT_DEBOUNCE_MS } from './helpers/workspace-shell-constants';
 import {
     getRoutePath,
@@ -30,6 +31,13 @@ export class WorkspaceShellSearchSyncService {
 
     constructor() {
         this.destroyRef.onDestroy(() => this.cancelPendingSearchApply());
+        // Opening a settings search result navigates away from the typed
+        // term; a keystroke still debouncing must not apply afterwards.
+        this.destroyRef.onDestroy(
+            inject(SettingsSearchService).onReveal(() =>
+                this.cancelPendingSearchApply()
+            )
+        );
 
         this.router.events
             .pipe(

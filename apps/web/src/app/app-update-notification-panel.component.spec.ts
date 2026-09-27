@@ -73,7 +73,7 @@ describe('AppUpdateNotificationPanelComponent', () => {
         ).not.toBeNull();
     });
 
-    it('opens release notes without dismissing the notification', () => {
+    it('opens release notes without dismissing the notification', async () => {
         statusHandler?.(availableStatus);
         fixture.detectChanges();
 
@@ -82,6 +82,9 @@ describe('AppUpdateNotificationPanelComponent', () => {
                 '[data-test-id="app-update-notification-release-notes"]'
             ) as HTMLButtonElement
         ).click();
+        // The dialog component is imported on demand (it pulls in `marked`).
+        await fixture.whenStable();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(TestBed.inject(MatDialog).open).toHaveBeenCalledWith(
             AppUpdateReleaseNotesDialogComponent,
@@ -94,6 +97,29 @@ describe('AppUpdateNotificationPanelComponent', () => {
                 '[data-test-id="app-update-notification"]'
             )
         ).not.toBeNull();
+    });
+
+    it('falls back to the releases page when the release notes dialog fails to load', async () => {
+        const open = jest.spyOn(window, 'open').mockReturnValue(null);
+        const error = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        fixture.componentInstance.loadReleaseNotesDialog = () =>
+            Promise.reject(new Error('chunk failed'));
+        statusHandler?.(availableStatus);
+        fixture.detectChanges();
+
+        await fixture.componentInstance.openReleaseNotes();
+
+        expect(TestBed.inject(MatDialog).open).not.toHaveBeenCalled();
+        expect(open).toHaveBeenCalledWith(
+            availableStatus.manualDownloadUrl,
+            '_blank',
+            'noreferrer'
+        );
+        expect(error).toHaveBeenCalledTimes(1);
+        open.mockRestore();
+        error.mockRestore();
     });
 
     it('starts downloading the update from the notification action', async () => {

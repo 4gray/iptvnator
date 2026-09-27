@@ -82,6 +82,28 @@ type-checking each through a language service; spec type errors therefore do
 not fail Jest (the web configs already ran with `diagnostics: false`), while
 `isolatedModules`-incompatible syntax such as a type re-export without
 `export type` still fails at load time.
+
+In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
+when every changed file is outside Tier A test inputs:
+`tools/coverage/unit-coverage-scope.mjs` holds the allowlist (Markdown, `docs/`,
+notes and plans, agent guidance, workflows other than `ci.yml` and
+`build-and-make.yaml`, the website, E2E and mock-server apps,
+release/packaging/skills/performance tooling, and a `package.json` edit
+confined to non-`coverage:*` scripts). Anything else, including files no Nx
+project owns such as `jest.preset.js` or `tsconfig.base.json`, and every
+`{workspaceRoot}` input a Tier A test target declares, runs the full suite;
+master pushes always run it. `nx affected` is deliberately not used for this
+decision because a change to an unowned file affects no project. A node test
+parses every Tier A source for string literals that point at repository files
+outside the owning project (`tier-a-external-references.mjs`) and fails if the
+allowlist would skip any of them, so a new cross-project read cannot be
+silently exempted.
+Jest's transform cache is kept in `JEST_CACHE_DIRECTORY` and persisted with
+`actions/cache`: pull requests restore it, while only master pushes (starting
+from an empty cache, so it holds exactly the current tree) and maintainer
+dispatches save it. A shared Nx task cache is not used: Nx indexes its local
+cache in a machine-specific database, so a restored cache folder is never hit,
+and sharing it safely needs Nx Cloud or another supported remote cache.
 `coverage:merge` requires every configured Tier A report before replacing the
 merged output. Strict health validation also requires the merged Istanbul map
 itself to contain usable instrumentation for every runtime-owning Tier A file,
@@ -146,8 +168,9 @@ After an E2E run, generate the semantic summary with:
 pnpm run coverage:e2e:summary
 ```
 
-CI runs the Electron suite as three Playwright shards per OS
-(`--shard=<n>/3`, split by spec file because the suite is sequential). Each
+CI runs the Electron suite as Playwright shards (`--shard=<n>/<total>`, split
+by spec file because the suite is sequential): three shards on Ubuntu and
+Windows, two on macOS, whose runners are the scarcest and queued longest. Each
 shard uploads `playwright-report-electron-<os>-<n>`; the follow-up
 `Electron E2E summary` job downloads the shards of each OS into their own
 directory and runs the summary per OS with `--input=<directory>` and

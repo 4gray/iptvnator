@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Pauzeer nieuwe Xtream- en Stalker-verzoeken 30 seconden na herhaalde verbindingsfouten. Probeer dit uit te schakelen als een portal af en toe onbereikbaar is. Geldt na opslaan, zonder herstart.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Elk verzoek wordt onafhankelijk uitgevoerd. Bij onbereikbare servers kan een foutmelding langer duren.",
         "TITLE": "Instellingen",
+        "SEARCH_RESULTS_TITLE": "Zoekresultaten",
+        "SEARCH_RESULTS_COUNT": "Instellingen voor “{{query}}”: {{count}}",
+        "SEARCH_EMPTY_HINT": "Geen instellingen gevonden. Probeer een ander woord, zoals speler, thema of EPG.",
         "GENERAL": "Algemeen",
         "GENERAL_SUBTITLE": "Wijzig de configuratie van de applicatie",
         "PLAYBACK": "Afspelen",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "Sectieacties",
             "SEARCH_LABEL": "Zoeken",
             "SEARCH_SOURCES_PLACEHOLDER": "Zoek bronnen (alle afspeellijsten)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Zoek in instellingen...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Alle afspeellijsten doorzoeken...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Zoek in deze afspeellijst...",
             "SEARCH_SECTION_PLACEHOLDER": "Zoeken in deze sectie...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Opdrachtenpalet",
             "SUBTITLE": "Algemene en contextuele acties",
-            "SEARCH_PLACEHOLDER": "Typ om opdrachten te filteren",
+            "SEARCH_PLACEHOLDER": "Zoek opdrachten en instellingen",
             "SEARCH_LABEL": "Filter opdrachten",
             "EMPTY": "Geen opdrachten gevonden",
             "GROUP_GLOBAL": "Algemene acties",
             "GROUP_PLAYLIST": "Deze afspeellijst",
             "GROUP_VIEW": "Huidige weergave",
             "GROUP_SECTION": "Deze sectie",
-            "GROUP_RECENT": "Recent gebruikt"
+            "GROUP_RECENT": "Recent gebruikt",
+            "GROUP_SETTINGS": "Instellingen"
         },
         "SHORTCUTS": {
             "TITLE": "Sneltoetsen",

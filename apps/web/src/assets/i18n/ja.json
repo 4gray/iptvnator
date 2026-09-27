@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "接続エラーが繰り返された場合、新しい Xtream と Stalker のリクエストを30秒間停止します。ポータルが断続的に利用できなくなる場合は、無効にしてみてください。保存後、再起動せずに適用されます。",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "各リクエストは個別に実行されます。サーバーが利用できない場合、エラーの表示に時間がかかることがあります。",
         "TITLE": "設定",
+        "SEARCH_RESULTS_TITLE": "検索結果",
+        "SEARCH_RESULTS_COUNT": "「{{query}}」に一致する設定: {{count}}",
+        "SEARCH_EMPTY_HINT": "一致する設定がありません。「プレーヤー」「テーマ」「EPG」など別の言葉を試してください。",
         "GENERAL": "一般",
         "GENERAL_SUBTITLE": "アプリケーションの設定を変更",
         "PLAYBACK": "再生",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "コンテキスト操作",
             "SEARCH_LABEL": "検索",
             "SEARCH_SOURCES_PLACEHOLDER": "ソースを検索（すべてのプレイリスト）...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "設定を検索...",
             "SEARCH_GLOBAL_PLACEHOLDER": "すべてのプレイリストを検索...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "このプレイリスト内を検索...",
             "SEARCH_SECTION_PLACEHOLDER": "このセクション内を検索...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "コマンドパレット",
             "SUBTITLE": "グローバルおよびコンテキストアクション",
-            "SEARCH_PLACEHOLDER": "コマンドを絞り込むには入力",
+            "SEARCH_PLACEHOLDER": "コマンドと設定を検索",
             "SEARCH_LABEL": "コマンドを絞り込む",
             "EMPTY": "コマンドが見つかりません",
             "GROUP_GLOBAL": "グローバルアクション",
             "GROUP_PLAYLIST": "このプレイリスト",
             "GROUP_VIEW": "現在のビュー",
             "GROUP_SECTION": "現在のセクション",
-            "GROUP_RECENT": "最近使用"
+            "GROUP_RECENT": "最近使用",
+            "GROUP_SETTINGS": "設定"
         },
         "SHORTCUTS": {
             "TITLE": "キーボードショートカット",

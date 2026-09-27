@@ -42,17 +42,26 @@ jobs:
         # The sequential Electron suite is split into Playwright shards (one
         # runner each, split by spec file). Measured on 2026-09-26, a third of
         # the suite is 6-12 minutes of test time on top of 3-7 minutes of
-        # setup, so 30 minutes leaves room for retries on every OS.
-        timeout-minutes: 30
+        # setup. macOS uses two shards because its runners are the scarcest:
+        # three macOS shards per run queued for 45-57 minutes on master. Half
+        # of the suite is about 15 minutes of test time on macOS, so it gets
+        # a longer timeout to leave room for retries.
+        timeout-minutes: ${{ matrix.os == 'macos-latest' && 40 || 30 }}
         env:
             IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS: '1'
             NX_SKIP_NX_CACHE: true
         strategy:
             fail-fast: false
             matrix:
-                os: [ubuntu-latest, macos-latest, windows-latest]
-                shard: [1, 2, 3]
-                shard-total: [3]
+                include:
+                    - { os: ubuntu-latest, shard: 1, shard-total: 3 }
+                    - { os: ubuntu-latest, shard: 2, shard-total: 3 }
+                    - { os: ubuntu-latest, shard: 3, shard-total: 3 }
+                    - { os: macos-latest, shard: 1, shard-total: 2 }
+                    - { os: macos-latest, shard: 2, shard-total: 2 }
+                    - { os: windows-latest, shard: 1, shard-total: 3 }
+                    - { os: windows-latest, shard: 2, shard-total: 3 }
+                    - { os: windows-latest, shard: 3, shard-total: 3 }
 
         steps:
             - uses: actions/checkout@v7
@@ -78,8 +87,30 @@ jobs:
               if: matrix.shard == 1
               run: pnpm exec tsx --test apps/electron-backend-e2e/src/performance/electron-process-lifecycle.spec.ts apps/electron-backend-e2e/src/performance/electron-process-termination.spec.ts
 
-            - name: Install Playwright Browsers
-              run: pnpm exec playwright install --with-deps
+            # The suite drives Electron through Playwright's _electron API and
+            # never launches a Playwright browser (or records video, which
+            # would need Playwright's ffmpeg), so no `playwright install`.
+            # The Ubuntu runner image already ships Electron's shared
+            # libraries and xvfb; fail fast with a clear message if an image
+            # update ever drops one. Electron 42+ downloads its binary on the
+            # first `require('electron')` (previously inside
+            # `_electron.launch()`), so resolve it the same way first.
+            - name: Check Electron runtime dependencies
+              if: runner.os == 'Linux'
+              run: |
+                  command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
+                  node -e "require('electron')" || { echo "::error::Electron binary download failed"; exit 1; }
+                  electron_bin="$(node -p "require('electron')")"
+                  [ -x "$electron_bin" ] || { echo "::error::Electron binary not found at $electron_bin"; exit 1; }
+                  ldd_status=0
+                  libs="$(ldd "$electron_bin")" || ldd_status=$?
+                  missing="$(grep 'not found' <<< "$libs" || true)"
+                  if [ -n "$missing" ]; then
+                      echo "::error::Electron is missing shared libraries:"
+                      echo "$missing"
+                      exit 1
+                  fi
+                  [ "$ldd_status" -eq 0 ] || { echo "::error::ldd failed on $electron_bin (exit $ldd_status)"; exit 1; }
 
             - name: Run Electron E2E Tests (Linux)
               if: runner.os == 'Linux'

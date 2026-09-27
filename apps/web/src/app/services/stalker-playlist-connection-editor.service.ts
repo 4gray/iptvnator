@@ -15,7 +15,7 @@ import {
     type StalkerPlaylistConnectionEditor,
     type StalkerPlaylistConnectionResult,
     type StalkerResolvedConnectionApplyOptions,
-} from '@iptvnator/playlist/shared/ui';
+} from '@iptvnator/playlist/shared/ui/stalker-connection-editor';
 import {
     normalizeStalkerPortalIdentity,
     type Playlist,

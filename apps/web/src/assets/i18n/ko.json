@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "연결 오류가 반복되면 새 Xtream 및 Stalker 요청을 30초 동안 중지합니다. 포털을 간헐적으로 사용할 수 없다면 이 옵션을 꺼 보세요. 저장 후 재시작 없이 적용됩니다.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "각 요청이 독립적으로 실행됩니다. 서버를 사용할 수 없으면 오류가 표시되기까지 더 오래 걸릴 수 있습니다.",
         "TITLE": "설정",
+        "SEARCH_RESULTS_TITLE": "검색 결과",
+        "SEARCH_RESULTS_COUNT": "“{{query}}”와 일치하는 설정: {{count}}",
+        "SEARCH_EMPTY_HINT": "일치하는 설정이 없습니다. 플레이어, 테마, EPG 같은 다른 단어로 검색해 보세요.",
         "GENERAL": "일반",
         "GENERAL_SUBTITLE": "애플리케이션 구성을 변경합니다",
         "PLAYBACK": "재생",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "컨텍스트 작업",
             "SEARCH_LABEL": "검색",
             "SEARCH_SOURCES_PLACEHOLDER": "소스 검색 (모든 재생목록)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "설정 검색...",
             "SEARCH_GLOBAL_PLACEHOLDER": "모든 플레이리스트 검색...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "이 재생목록에서 검색...",
             "SEARCH_SECTION_PLACEHOLDER": "이 섹션에서 검색...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "명령어 팔레트",
             "SUBTITLE": "전역 및 상황별 작업",
-            "SEARCH_PLACEHOLDER": "명령어를 필터링하려면 입력하세요",
+            "SEARCH_PLACEHOLDER": "명령어와 설정 검색",
             "SEARCH_LABEL": "명령어 필터",
             "EMPTY": "명령어를 찾을 수 없습니다",
             "GROUP_GLOBAL": "전역 작업",
             "GROUP_PLAYLIST": "이 재생목록",
             "GROUP_VIEW": "현재 화면",
             "GROUP_SECTION": "현재 섹션",
-            "GROUP_RECENT": "최근 사용"
+            "GROUP_RECENT": "최근 사용",
+            "GROUP_SETTINGS": "설정"
         },
         "SHORTCUTS": {
             "TITLE": "키보드 단축키",

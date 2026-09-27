@@ -108,6 +108,16 @@ skip shows up in your output.
 
 ## Guides
 
+`/guides/` is the task-based entry point: Getting started, Live TV & EPG,
+Player & playback, Your library and Updates. `src/lib/guides.ts` owns the
+reading order; titles and descriptions come from the existing blog collection,
+and article URLs stay at `/blog/<slug>/`. Add an article's slug to the matching
+group when it should appear here. Missing slugs fail the build. Drafts follow
+the blog's visibility rule (development mode or `PUBLIC_INCLUDE_DRAFTS=true`),
+and preview entries carry a draft label. Updates also links to the latest
+published release post. The hub emits CollectionPage and BreadcrumbList data
+and is linked from the site header, footer and blog index.
+
 Evergreen how-to posts live in the blog collection next to release notes
 (`xtream-codes-setup-guide.mdx`, `stalker-portal-setup-guide.mdx`,
 `m3u-playlist-epg-setup-guide.mdx`, `offline-downloads-guide.mdx`,
@@ -156,7 +166,10 @@ Evergreen how-to posts live in the blog collection next to release notes
 
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence
-of every referenced screenshot in the build output.
+of every referenced screenshot in the build output. It also checks the task hub's
+grouping, draft visibility, article links, structured data and navigation at
+phone, tablet and desktop widths. Run the hub checks against a build made with
+`PUBLIC_INCLUDE_DRAFTS=true` using the same environment flag to verify previews.
 
 ## Blog Tags
 

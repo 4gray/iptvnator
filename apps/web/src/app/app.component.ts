@@ -21,7 +21,9 @@ import {
     WORKSPACE_SHELL_ACTIONS,
 } from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
-import { WindowControlsComponent } from '@iptvnator/ui/components';
+// File-level entry: the @iptvnator/ui/components barrel would put the whole
+// library (channel lists, EPG, forms, date-fns) on the initial path.
+import { WindowControlsComponent } from '@iptvnator/ui/components/window-controls';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
 import {

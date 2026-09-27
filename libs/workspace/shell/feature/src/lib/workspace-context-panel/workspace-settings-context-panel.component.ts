@@ -28,10 +28,27 @@ import {
                         [routerLink]="['/workspace/settings', section.id]"
                         [replaceUrl]="true"
                         [attr.data-test-id]="'settings-section-' + section.id"
+                        [class.has-no-matches]="
+                            ctx.matchCounts() !== null &&
+                            !ctx.matchCounts()?.[section.id]
+                        "
                         (click)="onSectionClicked()"
                     >
                         <mat-icon>{{ section.icon }}</mat-icon>
-                        <span>{{ section.label | translate }}</span>
+                        <span class="nav-item-label">{{
+                            section.label | translate
+                        }}</span>
+                        <!-- While a settings search is active, each section
+                             shows how many of its settings match. -->
+                        @if (ctx.matchCounts(); as counts) {
+                            <span
+                                class="nav-item-meta"
+                                [attr.data-test-id]="
+                                    'settings-section-matches-' + section.id
+                                "
+                                >{{ counts[section.id] ?? 0 }}</span
+                            >
+                        }
                     </a>
                 }
             </div>

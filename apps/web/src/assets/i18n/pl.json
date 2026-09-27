@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Po powtarzających się błędach połączenia wstrzymuj nowe żądania Xtream i Stalker na 30 sekund. Spróbuj wyłączyć, jeśli portal bywa niedostępny. Zmiana działa po zapisaniu, bez ponownego uruchomienia.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Każde żądanie będzie wykonywane niezależnie. Niedostępne serwery mogą zgłaszać błąd z większym opóźnieniem.",
         "TITLE": "Ustawienia",
+        "SEARCH_RESULTS_TITLE": "Wyniki wyszukiwania",
+        "SEARCH_RESULTS_COUNT": "Ustawienia pasujące do „{{query}}”: {{count}}",
+        "SEARCH_EMPTY_HINT": "Brak pasujących ustawień. Spróbuj innego słowa, np. odtwarzacz, motyw lub EPG.",
         "GENERAL": "Ogólne",
         "GENERAL_SUBTITLE": "Zmień konfigurację aplikacji",
         "PLAYBACK": "Odtwarzanie",
@@ -1569,6 +1572,7 @@
             "RAIL_CONTEXT_ACTIONS": "Akcje sekcji",
             "SEARCH_LABEL": "Szukaj",
             "SEARCH_SOURCES_PLACEHOLDER": "Szukaj źródeł (wszystkie listy odtwarzania)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Szukaj w ustawieniach...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Przeszukaj wszystkie listy odtwarzania...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Szukaj na tej liście odtwarzania...",
             "SEARCH_SECTION_PLACEHOLDER": "Szukaj w tej sekcji...",
@@ -1722,14 +1726,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Paleta poleceń",
             "SUBTITLE": "Akcje globalne i kontekstowe",
-            "SEARCH_PLACEHOLDER": "Wpisz, aby filtrować polecenia",
+            "SEARCH_PLACEHOLDER": "Szukaj poleceń i ustawień",
             "SEARCH_LABEL": "Filtruj polecenia",
             "EMPTY": "Nie znaleziono poleceń",
             "GROUP_GLOBAL": "Akcje globalne",
             "GROUP_PLAYLIST": "Ta lista odtwarzania",
             "GROUP_VIEW": "Bieżący widok",
             "GROUP_SECTION": "Ta sekcja",
-            "GROUP_RECENT": "Ostatnio używane"
+            "GROUP_RECENT": "Ostatnio używane",
+            "GROUP_SETTINGS": "Ustawienia"
         },
         "SHORTCUTS": {
             "TITLE": "Skróty klawiaturowe",

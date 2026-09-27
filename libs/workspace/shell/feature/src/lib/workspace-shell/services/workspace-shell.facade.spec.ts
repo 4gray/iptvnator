@@ -1152,7 +1152,7 @@ describe('WorkspaceShellFacade', () => {
         expect(dialog.open).not.toHaveBeenCalled();
 
         resolveSupport();
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(dialog.open).toHaveBeenCalledTimes(1);
     });
