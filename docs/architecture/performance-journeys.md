@@ -304,11 +304,12 @@ workflow, on `ubuntu-latest` only. It runs `pnpm run perf:journeys` under
 `xvfb-run` (the Nx target builds `electron-backend:build-performance`, the
 Playwright config starts the Xtream mock), writes the measurements to the job
 summary and uploads `dist/performance/journeys/` as the `performance-journeys`
-artifact. The `Performance journeys scope` job skips it for pull requests
-whose changed files, ignoring Markdown and `apps/website/**`, touch none of
-`apps/**`, `libs/**`, `tools/performance/**`, `package.json`,
-`pnpm-lock.yaml` or `ci.yml`; pushes to `master` and manual dispatches always
-run it. The job is warn-only (`continue-on-error: true`) for its first two
+artifact. The `Performance journeys scope` job skips it only for pull
+requests that change nothing but Markdown, `docs/**`, `.plans/**`,
+`.codex/**`, `.claude/**`, `.changes/**` or `apps/website/**` (the E2E
+workflow's ignore list plus release notes); any other file, including root
+build inputs such as `.nvmrc`, `nx.json` or `tsconfig.base.json`, runs it.
+Pushes to `master` and manual dispatches always run it. The job is warn-only (`continue-on-error: true`) for its first two
 weeks (plan item B3): a regression marks the job failed without failing the
 workflow. Making it required is a maintainer decision.
 

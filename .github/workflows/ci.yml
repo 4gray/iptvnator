@@ -224,9 +224,10 @@ jobs:
               with:
                   fetch-depth: 2
 
-            # Application code, the journey harness (apps/electron-backend-e2e),
-            # the ratchet scripts and dependency or workflow changes can all
-            # move a journey; Markdown and the website cannot.
+            # Anything can move a journey (application code, the harness, root
+            # build inputs such as .nvmrc, nx.json or tsconfig.base.json), so
+            # the filter lists what cannot: the same paths the E2E workflow
+            # ignores, plus release notes.
             - name: Detect journey-relevant changes
               id: scope
               env:
@@ -238,8 +239,7 @@ jobs:
                       exit 0
                   fi
                   relevant="$(git diff --name-only HEAD^1 HEAD |
-                      grep -vE '\.md$|^apps/website/' |
-                      grep -E '^(apps|libs)/|^tools/performance/|^package\.json$|^pnpm-lock\.yaml$|^\.github/workflows/ci\.yml$' || true)"
+                      grep -vE '\.md$|^docs/|^\.plans/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
                   if [ -n "$relevant" ]; then
                       echo "Journey-relevant changes:"
                       echo "$relevant"
