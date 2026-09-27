@@ -2,7 +2,9 @@ import { NgTemplateOutlet } from '@angular/common';
 import {
     Component,
     TemplateRef,
+    computed,
     input,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
@@ -13,7 +15,7 @@ import { TranslateModule } from '@ngx-translate/core';
  * stays reachable while the player occupies the hero position.
  *
  * Degradation rule: anything missing simply is not rendered — no "N/A"
- * placeholders. Chips and credits are stamped from the host-provided
+ * placeholders. A poster URL that fails to load counts as missing. Chips and credits are stamped from the host-provided
  * *appDetailTags / *appDetailMeta templates, so the host's own @if guards apply.
  */
 @Component({
@@ -24,12 +26,13 @@ import { TranslateModule } from '@ngx-translate/core';
         <section class="about">
             <h3 class="about__heading">{{ 'PORTALS.ABOUT' | translate }}</h3>
             <div class="about__body">
-                @if (posterUrl()) {
+                @if (visiblePosterUrl(); as poster) {
                     <img
                         class="about__poster"
-                        [src]="posterUrl()"
+                        [src]="poster"
                         [alt]="title() ?? ''"
                         loading="lazy"
+                        (error)="failedPosterUrl.set(poster)"
                     />
                 }
                 <div class="about__info">
@@ -63,4 +66,11 @@ export class ContentAboutComponent {
     readonly description = input<string>();
     readonly tagsTemplate = input<TemplateRef<unknown> | null>(null);
     readonly metaTemplate = input<TemplateRef<unknown> | null>(null);
+
+    // Keyed by URL so a different poster gets its own load attempt.
+    protected readonly failedPosterUrl = signal<string | undefined>(undefined);
+    protected readonly visiblePosterUrl = computed(() => {
+        const url = this.posterUrl();
+        return url && url !== this.failedPosterUrl() ? url : undefined;
+    });
 }
