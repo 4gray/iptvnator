@@ -375,7 +375,12 @@ on either side.
   playlists can share a group name). The M3U management dialog is bound
   the same way: `GroupsViewComponent` captures its `playlistId` input
   before the PIN and drops the dialog's result once another playlist is
-  open. Bulk actions stay in the dialog, and while the session is locked
+  open. Every bulk lock editor (Xtream and M3U management dialogs, the
+  Stalker lock dialog) builds its draft only from a lock store that was
+  read (`ensureLocksReadable`): a draft taken from the empty fail-closed
+  snapshot would erase the real locks on Save if storage recovered in
+  between. The M3U and Xtream dialogs then open without lock toggles; the
+  Stalker dialog does not open. Bulk actions stay in the dialog, and while the session is locked
   a locked category is not in the rail, so unlocking always goes through
   the "N locked · Enter PIN to show" row or the dialog. The M3U dialog
   hands its lock list back to `ChannelListContainerComponent`, which

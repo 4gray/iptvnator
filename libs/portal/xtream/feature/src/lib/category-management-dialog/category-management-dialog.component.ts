@@ -74,7 +74,12 @@ export class CategoryManagementDialogComponent implements OnInit {
     private readonly logger = createLogger('CategoryManagementDialog');
 
     /** Lock toggles exist only while the parental lock feature is on. */
-    readonly showLocks = this.parentalLock.enabled;
+    /**
+     * Lock toggles, only once the lock store has been read: a draft built
+     * from the empty fail-closed snapshot would, if storage recovered by
+     * Save, replace the real locks with nothing.
+     */
+    readonly showLocks = signal(false);
     readonly lockedCount = computed(
         () => this.categories().filter((c) => c.lockedDraft).length
     );
@@ -126,6 +131,10 @@ export class CategoryManagementDialogComponent implements OnInit {
     private async loadCategories(): Promise<void> {
         try {
             const type = this.getDbType();
+            this.showLocks.set(
+                this.parentalLock.enabled() &&
+                    (await this.parentalLock.ensureLocksReadable())
+            );
             const allCategories = await this.waitForCategories(type);
             // The renderer's lock store is authoritative; the row's `locked`
             // column is only its SQLite mirror.

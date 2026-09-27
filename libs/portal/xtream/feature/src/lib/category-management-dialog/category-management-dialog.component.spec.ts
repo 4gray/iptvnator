@@ -42,6 +42,7 @@ describe('CategoryManagementDialogComponent', () => {
         active: signal(false),
         lockedXtreamIds: jest.fn(() => [] as number[]),
         setXtreamLocks: jest.fn(),
+        ensureLocksReadable: jest.fn(async () => true),
     };
     const data: CategoryManagementDialogData = {
         playlistId: 'mock-playlist',
@@ -210,6 +211,7 @@ describe('CategoryManagementDialogComponent', () => {
 
     it('drops the lock draft when the session relocks during a pending save', async () => {
         parentalLock.enabled.set(true);
+        component.showLocks.set(true);
         fixture.detectChanges();
         let finishVisibility: () => void = () => undefined;
         db.updateCategoryVisibility.mockImplementationOnce(
@@ -223,6 +225,18 @@ describe('CategoryManagementDialogComponent', () => {
         await saving;
 
         expect(parentalLock.setXtreamLocks).not.toHaveBeenCalled();
+    });
+
+    it('offers no lock toggles, and saves no locks, while the lock store is unreadable', async () => {
+        parentalLock.enabled.set(true);
+        parentalLock.ensureLocksReadable.mockResolvedValueOnce(false);
+        await component.ngOnInit();
+        expect(component.showLocks()).toBe(false);
+
+        await component.save();
+
+        expect(parentalLock.setXtreamLocks).not.toHaveBeenCalled();
+        expect(dialogRef.close).toHaveBeenCalledWith(true);
     });
 
     it('discards pending bulk changes on cancel', () => {

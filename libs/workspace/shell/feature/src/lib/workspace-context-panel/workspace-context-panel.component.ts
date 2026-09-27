@@ -548,6 +548,11 @@ export class WorkspaceContextPanelComponent {
         if (!contentType || !(await this.parentalLock.requestUnlock())) {
             return;
         }
+        // The dialog's draft is the lock store's list: built from the empty
+        // fail-closed snapshot it would erase the real locks on Save.
+        if (!unchanged() || !(await this.parentalLock.ensureLocksReadable())) {
+            return;
+        }
         if (!unchanged()) {
             return;
         }

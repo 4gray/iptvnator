@@ -47,7 +47,11 @@ describe('GroupsViewComponent', () => {
     let fixture: ComponentFixture<GroupsViewComponent>;
     let component: GroupsViewComponent;
     let dialog: { open: jest.Mock };
-    let parentalLock: { requestUnlock: jest.Mock };
+    let parentalLock: {
+        requestUnlock: jest.Mock;
+        ensureLocksReadable: jest.Mock;
+        lockedGroupTitles: jest.Mock;
+    };
 
     const sportsCenter = createChannel(
         'sports-1',
@@ -104,7 +108,11 @@ describe('GroupsViewComponent', () => {
     beforeEach(async () => {
         localStorage.removeItem(GROUP_CHANNEL_SORT_STORAGE_KEY);
 
-        parentalLock = { requestUnlock: jest.fn().mockResolvedValue(true) };
+        parentalLock = {
+            requestUnlock: jest.fn().mockResolvedValue(true),
+            ensureLocksReadable: jest.fn().mockResolvedValue(true),
+            lockedGroupTitles: jest.fn(() => ['News']),
+        };
 
         dialog = {
             open: jest.fn(),
@@ -535,6 +543,19 @@ describe('GroupsViewComponent', () => {
             'News',
             'Sports',
         ]);
+    });
+
+    it('opens the manage-groups dialog without lock toggles while the lock store is unreadable', async () => {
+        fixture.componentRef.setInput('playlistId', 'playlist-a');
+        fixture.componentRef.setInput('lockedGroupTitles', []);
+        fixture.detectChanges();
+        parentalLock.ensureLocksReadable.mockResolvedValue(false);
+        dialog.open.mockReturnValue({ afterClosed: () => of(undefined) });
+
+        await component.openGroupManagement();
+
+        const data = dialog.open.mock.calls[0][1].data;
+        expect(data.lockedGroupTitles).toBeUndefined();
     });
 
     it('drops the manage-groups result once another playlist is open', async () => {

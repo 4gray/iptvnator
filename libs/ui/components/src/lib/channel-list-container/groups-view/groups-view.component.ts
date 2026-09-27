@@ -556,7 +556,17 @@ export class GroupsViewComponent {
                     count,
                 })
             );
-        const lockedGroupTitles = this.lockedGroupTitles();
+        // Lock toggles only from a lock store that was read: a draft built
+        // from the empty fail-closed snapshot would, if storage recovered by
+        // Save, replace the real locks with nothing. Hidden groups stay
+        // editable either way.
+        const lockedGroupTitles =
+            this.lockedGroupTitles() !== null &&
+            playlistId &&
+            (await this.parentalLock.ensureLocksReadable()) &&
+            this.playlistId() === playlistId
+                ? this.parentalLock.lockedGroupTitles(playlistId)
+                : null;
         const dialogRef = this.dialog.open(GroupManagementDialogComponent, {
             data: {
                 groups,

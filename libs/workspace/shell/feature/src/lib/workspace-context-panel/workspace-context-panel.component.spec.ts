@@ -967,6 +967,9 @@ describe('WorkspaceContextPanelComponent', () => {
                 value: signal(true),
             });
             jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
+            jest.spyOn(parentalLock, 'ensureLocksReadable').mockResolvedValue(
+                true
+            );
         }
 
         it('opens with the categories snapshotted before the lazy import', async () => {
@@ -1024,6 +1027,28 @@ describe('WorkspaceContextPanelComponent', () => {
             await component.openManageStalkerCategories();
 
             expect(component.loadStalkerLockDialog).not.toHaveBeenCalled();
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
+        it('opens nothing while the lock store cannot be read', async () => {
+            enableLock();
+            jest.spyOn(
+                TestBed.inject(ParentalLockService),
+                'ensureLocksReadable'
+            ).mockResolvedValue(false);
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
             expect(dialog.open).not.toHaveBeenCalled();
         });
 
