@@ -4,7 +4,6 @@ import {
     computed,
     effect,
     inject,
-    signal,
     untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -13,15 +12,11 @@ import {
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
-    type PlaybackPositionData,
     playlistDisplayLabel,
-    resolvePortalActivityWatchKind,
 } from '@iptvnator/shared/interfaces';
-import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
-import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -55,21 +50,19 @@ import {
     resolveSourceExpiryBadge,
     SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
-import { createRailSkeletonGates } from './dashboard-skeleton-grace';
-import type { DashboardHeroTmdbExtras } from './dashboard-hero-tmdb.service';
-import { DashboardHeroTmdbService } from './dashboard-hero-tmdb.service';
+import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
 import { DashboardRailComponent } from './dashboard-rail.component';
 import type {
     DashboardRailCard,
     DashboardRailActionSelection,
 } from './dashboard-rail.component';
 import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import type { DashboardHeroModel } from './dashboard-hero.utils';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
-import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
+import { DashboardHeroComponent } from './dashboard-hero.component';
 import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
 import {
+    buildDashboardEpisodeBadge,
     buildPlaybackPositionReloadKey,
     formatRemainingLabel,
     isContinueWatchingRecentItem,
@@ -95,11 +88,9 @@ import type {
 @Component({
     selector: 'lib-workspace-dashboard-rails',
     imports: [
+        DashboardHeroComponent,
         DashboardRailComponent,
         EmptyStateComponent,
-        MatButtonModule,
-        MatIcon,
-        RouterLink,
         TranslatePipe,
     ],
     templateUrl: './workspace-dashboard-rails.component.html',
@@ -131,7 +122,6 @@ export class WorkspaceDashboardRailsComponent {
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly heroTmdb = inject(DashboardHeroTmdbService);
     private readonly sourceExpiry = inject(DashboardSourceExpiryService);
     readonly trendingService = inject(DashboardTrendingService);
     readonly recommendationsService = inject(DashboardRecommendationsService);
@@ -144,76 +134,9 @@ export class WorkspaceDashboardRailsComponent {
     readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
-    readonly failedHeroImages = signal<Record<string, true>>({});
     readonly dashboardRails = computed(() =>
         normalizeDashboardRailsSettings(this.settingsStore.dashboardRails?.())
     );
-
-    private readonly heroRecentItem = computed(
-        () => this.data.globalRecentItems()[0] ?? null
-    );
-
-    /** TMDB extras for the current hero item, patched in after first paint */
-    private readonly heroTmdbExtras = signal<{
-        key: string;
-        extras: DashboardHeroTmdbExtras | null;
-    } | null>(null);
-
-    private readonly heroLiveCard = computed<DashboardRailCard | null>(() => {
-        const item = this.heroRecentItem();
-        return item?.type === 'live' ? this.toRecentCard(item) : null;
-    });
-
-    readonly hero = computed<DashboardHeroModel | null>(() => {
-        const item = this.heroRecentItem();
-        if (!item) {
-            return null;
-        }
-
-        // Single reactive read, gated on the TMDB opt-in so cached
-        // extras vanish immediately when the user opts out mid-session
-        const extrasState = this.heroTmdbExtras();
-        const extras =
-            this.heroTmdb.isEnabled() &&
-            extrasState?.key === this.heroTmdbKey(item)
-                ? extrasState.extras
-                : null;
-        const artwork = resolveDashboardHeroArtwork(
-            {
-                backdropUrl: item.backdrop_url || (extras?.backdropUrl ?? null),
-                posterUrl: item.poster_url,
-                title: item.title,
-            },
-            this.failedHeroImages()
-        );
-
-        const position = this.data.getPlaybackPositionForItem(item);
-        const liveEpgDetails =
-            item.type === 'live'
-                ? this.liveEpg.detailsFor(this.heroLiveCard())
-                : null;
-        const episodeBadge = this.buildEpisodeBadge(item, position);
-
-        return {
-            ...artwork,
-            contentType: item.type,
-            icon: this.typeIcon(item.type),
-            link: this.data.getRecentItemLink(item),
-            state: this.data.getRecentItemNavigationState(item),
-            subtitle: this.buildHeroSubtitle(item),
-            title: item.title,
-            rating: extras?.rating ?? null,
-            genres: extras?.genres ?? [],
-            episodeBadge,
-            watchProgress:
-                item.type === 'live' ? null : playbackProgressPercent(position),
-            remainingLabel:
-                item.type === 'live' ? null : formatRemainingLabel(position),
-            nowPlayingTitle: liveEpgDetails?.nowPlayingTitle ?? null,
-            nowPlayingTimeRange: liveEpgDetails?.nowPlayingTimeRange ?? null,
-            nowPlayingProgress: liveEpgDetails?.nowPlayingProgress ?? null,
-        };
-    });
 
     readonly continueWatchingBaseCards = computed<DashboardRailCard[]>(() => {
         this.languageTick();
@@ -256,12 +179,11 @@ export class WorkspaceDashboardRailsComponent {
         })
     );
 
-    // The live cards whose rails are enabled; the presenter looks their
-    // programmes up per XMLTV source scope.
+    // The live cards whose rails are enabled; the presenter adds the hero's
+    // live candidates and looks the programmes up per XMLTV source scope.
     private readonly enabledLiveCards = computed(() =>
         buildLiveEpgCardsForEnabledRails(
             this.dashboardRails(),
-            this.heroLiveCard(),
             this.liveFavoriteCards(),
             this.recentLiveCards()
         )
@@ -375,102 +297,8 @@ export class WorkspaceDashboardRailsComponent {
         }));
     });
 
-    /**
-     * Skeleton visibility per rail, in template order: a skeleton waits out a
-     * grace period from its own rail's loading start and never appears above
-     * a rail that already shows cards (see createRailSkeletonGates).
-     */
-    readonly railSkeletons = createRailSkeletonGates([
-        [
-            'continueWatching',
-            {
-                loading: () => false,
-                rendered: () =>
-                    this.dashboardRails().continueWatching &&
-                    this.continueWatchingCards().length > 0,
-            },
-        ],
-        [
-            'liveFavorites',
-            {
-                loading: () => this.showLiveFavoritesSkeleton(),
-                rendered: () =>
-                    this.dashboardRails().liveFavorites &&
-                    !this.showLiveFavoritesSkeleton() &&
-                    this.liveFavoriteCards().length > 0,
-            },
-        ],
-        [
-            'recentLive',
-            {
-                loading: () => false,
-                rendered: () =>
-                    this.dashboardRails().recentlyWatchedLive &&
-                    this.recentLiveCards().length > 0,
-            },
-        ],
-        [
-            'favoriteVod',
-            {
-                loading: () => false,
-                rendered: () =>
-                    this.dashboardRails().favoriteMoviesAndSeries &&
-                    this.favoriteMoviesAndSeriesCards().length > 0,
-            },
-        ],
-        [
-            'recentContent',
-            {
-                loading: () => this.showRecentContentSkeleton(),
-                rendered: () => false,
-            },
-        ],
-        [
-            'sources',
-            {
-                loading: () =>
-                    this.dashboardRails().recentSources &&
-                    !this.data.playlistsLoaded(),
-                rendered: () =>
-                    this.dashboardRails().recentSources &&
-                    this.sourceCards().length > 0,
-            },
-        ],
-        [
-            'xtreamRecentlyAdded',
-            {
-                loading: () =>
-                    this.dashboardRails().xtreamRecentlyAdded &&
-                    this.xtreamPlaylistCount() > 0 &&
-                    this.data.xtreamRecentlyAddedLoading(),
-                rendered: () =>
-                    this.dashboardRails().xtreamRecentlyAdded &&
-                    this.xtreamRecentlyAddedCards().length > 0,
-            },
-        ],
-        [
-            'tmdbRecommendations',
-            {
-                loading: () =>
-                    this.dashboardRails().tmdbRecommendations &&
-                    this.recommendationsService.loading(),
-                rendered: () =>
-                    this.dashboardRails().tmdbRecommendations &&
-                    this.recommendationCards().length > 0,
-            },
-        ],
-        [
-            'tmdbTrending',
-            {
-                loading: () =>
-                    this.dashboardRails().tmdbTrending &&
-                    this.trendingService.loading(),
-                rendered: () =>
-                    this.dashboardRails().tmdbTrending &&
-                    this.trendingCards().length > 0,
-            },
-        ],
-    ] as const);
+    /** Per-rail skeleton gates; see createDashboardRailSkeletons. */
+    readonly railSkeletons = createDashboardRailSkeletons(this);
 
     constructor() {
         // Re-entering the dashboard should pick up any DB-backed recent/favorite
@@ -501,27 +329,6 @@ export class WorkspaceDashboardRailsComponent {
         effect(() => {
             this.playbackPositionReloadKey();
             untracked(() => void this.data.reloadPlaybackPositions());
-        });
-
-        // TMDB extras for the hero (backdrop/rating/genres) — async after
-        // first paint, staleness-guarded against hero changes in flight.
-        effect(() => {
-            const item = this.heroRecentItem();
-            if (!item || (item.type !== 'movie' && item.type !== 'series')) {
-                return;
-            }
-            const key = this.heroTmdbKey(item);
-            untracked(() => {
-                if (this.heroTmdbExtras()?.key === key) {
-                    return;
-                }
-                void this.heroTmdb.getExtras(item).then((extras) => {
-                    const current = untracked(() => this.heroRecentItem());
-                    if (current && this.heroTmdbKey(current) === key) {
-                        this.heroTmdbExtras.set({ key, extras });
-                    }
-                });
-            });
         });
 
         // Subscription-expiry badges for the source cards. Xtream rides the
@@ -574,12 +381,6 @@ export class WorkspaceDashboardRailsComponent {
 
     onAddPlaylist(type?: WorkspacePlaylistType): void {
         this.shellActions.openAddPlaylistDialog(type);
-    }
-
-    markHeroImageFailed(url: string): void {
-        this.failedHeroImages.update((state) =>
-            state[url] ? state : { ...state, [url]: true }
-        );
     }
 
     onSourceActionSelected(selection: DashboardRailActionSelection): void {
@@ -674,46 +475,14 @@ export class WorkspaceDashboardRailsComponent {
         );
     }
 
-    /**
-     * Only the source name under the hero title. Provider kind (Xtream /
-     * Stalker / M3U) and content kind (movie / series) are the app's own
-     * taxonomy, not a property of the title, and the badges row already
-     * says "S1·E5"; a stored playlist name can be a pasted URL with
-     * credentials or a MAC, so it goes through `playlistDisplayLabel`.
-     */
-    private buildHeroSubtitle(item: GlobalRecentItem): string {
-        return playlistDisplayLabel(
-            item.playlist_name,
-            this.data.getRecentItemProviderLabel(item)
-        );
-    }
-
-    /**
-     * "S1·E5" for an item whose progress is tracked per episode. Keyed on
-     * the WATCH kind: a Stalker embedded-VOD / lazy `is_series` show routes
-     * as a movie but still names the episode it is on.
-     */
-    private buildEpisodeBadge(
-        item: GlobalRecentItem,
-        position: PlaybackPositionData | null
-    ): string | null {
-        return resolvePortalActivityWatchKind(item) === 'series' &&
-            position?.seasonNumber != null &&
-            position?.episodeNumber != null
-            ? this.translate.instant(
-                  'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
-                  {
-                      season: position.seasonNumber,
-                      episode: position.episodeNumber,
-                  }
-              )
-            : null;
-    }
-
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
         const position = this.data.getPlaybackPositionForItem(item);
         const watchProgress = playbackProgressPercent(position);
-        const episodeBadge = this.buildEpisodeBadge(item, position);
+        const episodeBadge = buildDashboardEpisodeBadge(
+            item,
+            position,
+            (key, params) => this.translate.instant(key, params)
+        );
         return {
             id: this.recentCardId(item),
             title: item.title,
@@ -782,10 +551,6 @@ export class WorkspaceDashboardRailsComponent {
             link: this.data.getRecentlyAddedLink(item),
             state: this.data.getRecentlyAddedNavigationState(item),
         };
-    }
-
-    private heroTmdbKey(item: GlobalRecentItem): string {
-        return this.heroTmdb.keyFor(item);
     }
 
     private toTrendingCard(item: DashboardTrendingItem): DashboardRailCard {

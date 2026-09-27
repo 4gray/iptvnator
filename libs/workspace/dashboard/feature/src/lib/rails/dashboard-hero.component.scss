@@ -1,0 +1,670 @@
+// Cinematic dashboard hero. Bleeds to the edges of the workspace content
+// area (the page's `--dashboard-gutter` padding and the centred max-width
+// are both cancelled out), keeps a height ceiling so the first rail still
+// starts above the fold, and dissolves into the page background instead of
+// sitting in a raised card.
+//
+// The scrim is the page background itself (`--app-content-bg`), so the
+// light theme gets a light scrim with dark text and the dark theme the
+// reverse, with the same geometry.
+
+// The host renders nothing when there is no slide and no skeleton; with
+// `display: contents` it then adds no flex gap to the rails page either.
+:host {
+    display: contents;
+}
+
+.hero {
+    // Offset of the rails' content edge from the content-area edge: the page
+    // gutter plus whatever the centred max-width leaves on either side.
+    // `100cqw` is the rails page host (the `dashboard` size container).
+    --hero-inset: calc(
+        var(--dashboard-gutter, 28px) +
+            max(0px, (100cqw - var(--dashboard-max-width, 1440px)) / 2)
+    );
+    --hero-scrim: var(--app-content-bg, #161a22);
+    --hero-heading: var(--app-heading-color, #d8dce8);
+    --hero-body: color-mix(
+        in srgb,
+        var(--app-heading-color, #d8dce8) 72%,
+        var(--hero-scrim)
+    );
+    --hero-pill-bg: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 12%,
+        transparent
+    );
+    // Gold in the dark theme, a deeper amber on the light one: mixed with
+    // the theme's heading colour rather than detected per theme.
+    --hero-rating: color-mix(
+        in srgb,
+        #f5b400 60%,
+        var(--app-heading-color, #d8dce8)
+    );
+
+    position: relative;
+    // A floor, not a fixed height: the slide sits in normal flow at the
+    // bottom, so an unusually full slide (two-line title, programme,
+    // synopsis, wrapped pills) grows the banner instead of losing its top.
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-sizing: border-box;
+    min-height: clamp(320px, 42vh, 520px);
+    // Flush with the content area's top and sides; the rails page's own
+    // top padding and gutters are cancelled. The negative bottom margin
+    // tucks the first rail into the fade (the gradient does the spacing).
+    margin: calc(-1 * var(--dashboard-top-gutter, 24px))
+        calc(-1 * var(--hero-inset)) -12px;
+    overflow: hidden;
+    isolation: isolate;
+    color: var(--hero-heading);
+}
+
+// ── Backdrops ──────────────────────────────────────────────────────────────
+.hero__stage {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.hero__backdrop {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 700ms ease;
+
+    &--active {
+        opacity: 1;
+    }
+}
+
+.hero__backdrop-fallback,
+.hero__backdrop-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.hero__backdrop-image {
+    display: block;
+    object-fit: cover;
+    object-position: center 22%;
+    transform: scale(1.04);
+    transition: transform 8s ease-out;
+
+    .hero__backdrop--active & {
+        transform: scale(1);
+    }
+}
+
+// No 16:9 backdrop (Xtream/Stalker often lack one): the poster, blurred and
+// scaled, washes its colours across the whole stage…
+.hero__backdrop--poster .hero__backdrop-image {
+    filter: blur(48px) saturate(1.4);
+    transform: scale(1.35);
+    opacity: 0.8;
+}
+
+.hero__backdrop--poster.hero__backdrop--active .hero__backdrop-image {
+    transform: scale(1.3);
+}
+
+// …and the sharp poster fills the right-hand side as key art, faded into
+// that wash, so the slide still shows the actual title artwork.
+.hero__backdrop-keyart {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: min(46%, 640px);
+    object-fit: cover;
+    object-position: center 18%;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+    mask-image: linear-gradient(90deg, transparent 0%, #000 45%);
+}
+
+// Live channels: a logo is not a backdrop. The stage is a title-tinted
+// glow with a hint of the live accent; the logo, when there is one, sits
+// on the right as the slide's artwork over a soft wash of its own colours.
+.hero__backdrop--live {
+    .hero__backdrop-fallback {
+        background:
+            radial-gradient(
+                55% 120% at 78% 30%,
+                hsl(var(--hero-hue, 220) 60% 45% / 0.45),
+                transparent 70%
+            ),
+            radial-gradient(
+                40% 90% at 100% 100%,
+                color-mix(
+                    in srgb,
+                    var(--app-live-color, #ff8f8f) 28%,
+                    transparent
+                ),
+                transparent 70%
+            ),
+            var(--hero-scrim);
+    }
+
+    &.hero__backdrop--active .hero__backdrop-image,
+    .hero__backdrop-image {
+        inset: 10% 6% 10% auto;
+        width: 40%;
+        height: 80%;
+        object-fit: contain;
+        filter: blur(56px) saturate(1.6);
+        opacity: 0.5;
+        transform: none;
+    }
+
+    .hero__backdrop-keyart {
+        top: 50%;
+        right: calc(var(--hero-inset) + 8%);
+        width: min(22%, 240px);
+        height: 50%;
+        object-fit: contain;
+        object-position: center;
+        transform: translateY(-50%);
+        filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.45));
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+}
+
+.hero__scrim {
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(
+            90deg,
+            color-mix(in srgb, var(--hero-scrim) 96%, transparent) 0%,
+            color-mix(in srgb, var(--hero-scrim) 85%, transparent) 30%,
+            color-mix(in srgb, var(--hero-scrim) 35%, transparent) 60%,
+            transparent 100%
+        ),
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--hero-scrim) 30%, transparent) 0%,
+            transparent 22%,
+            transparent 55%,
+            var(--hero-scrim) 100%
+        );
+}
+
+// ── Slide content ──────────────────────────────────────────────────────────
+.hero__content {
+    position: relative;
+    z-index: 1;
+    box-sizing: border-box;
+    // Top padding keeps clear of the title bar edge when the slide grows.
+    margin-left: var(--hero-inset);
+    padding: 72px 0 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    max-width: min(560px, 55%);
+    animation: hero-content-in 420ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes hero-content-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.hero__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: var(--hero-body);
+}
+
+.hero__type--live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--app-live-color, #ff8f8f);
+
+    &::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        box-shadow: 0 0 8px currentColor;
+    }
+}
+
+.hero__eyebrow-sep {
+    opacity: 0.6;
+}
+
+.hero__title {
+    margin: 0;
+    font-size: clamp(28px, 3.4vw, 44px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.5px;
+    color: var(--hero-heading);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow-wrap: anywhere;
+}
+
+.hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.hero__pill {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--hero-pill-bg);
+    color: var(--hero-heading);
+    white-space: nowrap;
+
+    &--rating {
+        color: var(--hero-rating);
+        font-weight: 600;
+    }
+
+    &--time {
+        font-variant-numeric: tabular-nums;
+    }
+
+    &--source {
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--hero-body);
+    }
+}
+
+.hero__programme {
+    margin: 0;
+    max-width: 100%;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--hero-heading);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hero__description {
+    margin: 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--hero-body);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.hero__progress {
+    display: block;
+    width: 220px;
+    max-width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    overflow: hidden;
+    background: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 18%,
+        transparent
+    );
+
+    i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--app-selection-color, #78adff);
+        transition: width 0.4s ease;
+    }
+
+    &--live i {
+        background: var(--app-live-color, #ff8f8f);
+    }
+}
+
+.hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.hero__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 18px 0 14px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+        background-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease;
+
+    mat-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+        line-height: 20px;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 2px;
+    }
+
+    &:active {
+        transform: translateY(1px);
+    }
+
+    &--primary {
+        background: var(--app-selection-color, #78adff);
+        color: var(--app-selection-on-color, #071225);
+        box-shadow: 0 6px 18px -8px
+            var(--app-selection-glow, rgba(120, 173, 255, 0.6));
+
+        &:hover {
+            background: color-mix(
+                in srgb,
+                var(--app-selection-color, #78adff) 88%,
+                #fff
+            );
+        }
+    }
+
+    &--secondary {
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 12%,
+            transparent
+        );
+        color: var(--hero-heading);
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface, #e6e1e5) 14%, transparent);
+        -webkit-backdrop-filter: blur(8px);
+        backdrop-filter: blur(8px);
+
+        &:hover {
+            background: color-mix(
+                in srgb,
+                var(--app-on-surface, #e6e1e5) 20%,
+                transparent
+            );
+        }
+    }
+}
+
+.hero__button-detail {
+    font-weight: 500;
+    opacity: 0.8;
+}
+
+// ── Rotation controls ──────────────────────────────────────────────────────
+.hero__controls {
+    position: absolute;
+    right: var(--hero-inset);
+    bottom: 34px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 4px;
+    border-radius: 999px;
+    // Keeps the dots legible over bright key art in both themes.
+    background: color-mix(in srgb, var(--hero-scrim) 55%, transparent);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.hero__pause {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--hero-body);
+    cursor: pointer;
+    transition:
+        color 0.15s ease,
+        background-color 0.15s ease;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        line-height: 18px;
+    }
+
+    &:hover {
+        background: var(--hero-pill-bg);
+        color: var(--hero-heading);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 1px;
+    }
+}
+
+.hero__dots {
+    display: flex;
+    align-items: center;
+}
+
+// 6px dots inside a 20px hit area; the active one stretches into a pill
+// whose fill runs for one rotation interval.
+.hero__dot {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &::before {
+        content: '';
+        grid-area: 1 / 1;
+        width: 6px;
+        height: 6px;
+        border-radius: 3px;
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 32%,
+            transparent
+        );
+        transition:
+            width 0.25s ease,
+            background-color 0.15s ease;
+    }
+
+    &:hover::before {
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 55%,
+            transparent
+        );
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: -2px;
+        border-radius: 6px;
+    }
+
+    &--active {
+        width: 30px;
+
+        &::before {
+            width: 18px;
+        }
+    }
+}
+
+.hero__dot-fill {
+    grid-area: 1 / 1;
+    justify-self: start;
+    // Aligns with the 18px pill centred in the 30px button.
+    margin-left: 6px;
+    width: 0;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--hero-heading);
+    pointer-events: none;
+
+    .hero__dot--active & {
+        width: 18px;
+    }
+
+    .hero--rotating .hero__dot--active & {
+        animation: hero-dot-fill var(--hero-rotation-ms, 8000ms) linear both;
+    }
+
+    .hero--paused .hero__dot--active & {
+        animation-play-state: paused;
+    }
+}
+
+@keyframes hero-dot-fill {
+    from {
+        width: 0;
+    }
+    to {
+        width: 18px;
+    }
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────────────
+.hero--skeleton {
+    background: linear-gradient(
+        180deg,
+        var(--app-widget-bg, #1e2330) 0%,
+        var(--hero-scrim) 100%
+    );
+}
+
+.hero__skeleton {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 0%,
+        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 16%, transparent) 50%,
+        color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent) 100%
+    );
+    background-size: 200% 100%;
+    animation: hero-skeleton-shimmer 1.6s linear infinite;
+
+    &--eyebrow {
+        width: 180px;
+        height: 11px;
+    }
+
+    &--title {
+        width: 380px;
+        max-width: 100%;
+        height: 40px;
+    }
+
+    &--meta {
+        width: 260px;
+        height: 20px;
+        border-radius: 999px;
+    }
+
+    &--button {
+        width: 190px;
+        height: 38px;
+        border-radius: 10px;
+        margin-top: 4px;
+    }
+}
+
+@keyframes hero-skeleton-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+
+// ── Narrow content area ────────────────────────────────────────────────────
+@container dashboard (max-width: 720px) {
+    .hero__content {
+        margin-right: var(--hero-inset);
+        // Clears the rotation controls, which move to the top here.
+        padding: 64px 0 28px;
+        max-width: none;
+    }
+
+    .hero__controls {
+        top: 16px;
+        bottom: auto;
+    }
+
+    .hero__scrim {
+        background:
+            linear-gradient(
+                90deg,
+                color-mix(in srgb, var(--hero-scrim) 80%, transparent) 0%,
+                color-mix(in srgb, var(--hero-scrim) 40%, transparent) 100%
+            ),
+            linear-gradient(180deg, transparent 30%, var(--hero-scrim) 100%);
+    }
+
+    .hero__backdrop-keyart {
+        width: 70%;
+        opacity: 0.6;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero__backdrop,
+    .hero__backdrop-image {
+        transition: none;
+    }
+
+    .hero__content,
+    .hero__skeleton {
+        animation: none;
+    }
+}

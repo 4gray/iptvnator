@@ -40,6 +40,12 @@ export const HOST_RESOLVER_RULES =
 
 /** Setup actions the driver implements. Manifest steps must match. */
 export const KNOWN_ACTIONS = [
+    'open-update-channel',
+    'open-backup',
+    'open-library-watched',
+    'open-fullscreen-channels',
+    'open-player-subtitles',
+    'open-stream-info',
     'open-dashboard',
     'open-settings',
     'open-xtream-vod',

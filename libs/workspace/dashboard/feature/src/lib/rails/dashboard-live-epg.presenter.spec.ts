@@ -43,6 +43,8 @@ describe('DashboardLiveEpgPresenter', () => {
     let getCurrentProgramsForChannels: jest.Mock;
     let playlists: ReturnType<typeof signal<PlaylistMeta[]>>;
     let recentItems: ReturnType<typeof signal<PortalActivityItem[]>>;
+    let favoriteLiveItems: ReturnType<typeof signal<PortalActivityItem[]>>;
+    let recentLiveItems: ReturnType<typeof signal<PortalActivityItem[]>>;
     let dashboardRails: ReturnType<
         typeof signal<typeof DEFAULT_DASHBOARD_RAILS_SETTINGS>
     >;
@@ -74,6 +76,8 @@ describe('DashboardLiveEpgPresenter', () => {
         ]);
 
         recentItems = signal<PortalActivityItem[]>([]);
+        favoriteLiveItems = signal<PortalActivityItem[]>([]);
+        recentLiveItems = signal<PortalActivityItem[]>([]);
         dashboardRails = signal({ ...DEFAULT_DASHBOARD_RAILS_SETTINGS });
         portal = {
             connect: jest.fn(),
@@ -96,8 +100,8 @@ describe('DashboardLiveEpgPresenter', () => {
                         playlists,
                         // The presenter also derives the portal source list.
                         globalRecentItems: recentItems,
-                        globalFavoriteLiveItems: signal([]),
-                        globalRecentLiveItems: signal([]),
+                        globalFavoriteLiveItems: favoriteLiveItems,
+                        globalRecentLiveItems: recentLiveItems,
                     },
                 },
                 {
@@ -177,30 +181,75 @@ describe('DashboardLiveEpgPresenter', () => {
         );
     });
 
-    it('pins the hero row only while the hero rail shows one', () => {
-        const heroLive = {
-            id: 'x-7',
-            title: 'Hero channel',
-            type: 'live',
-            source: 'xtream',
-            playlist_id: 'p',
-            category_id: '1',
-            xtream_id: 7,
-        } as PortalActivityItem;
-        recentItems.set([heroLive]);
+    it('pins the hero live candidates only while the hero is enabled', () => {
+        const live = (id: number, title: string) =>
+            ({
+                id: `x-${id}`,
+                title,
+                type: 'live',
+                source: 'xtream',
+                playlist_id: 'p',
+                category_id: '1',
+                xtream_id: id,
+            }) as PortalActivityItem;
+        favoriteLiveItems.set([live(7, 'Favourite channel')]);
+        recentLiveItems.set([live(8, 'Recent channel'), live(7, 'Dup')]);
         TestBed.tick();
 
-        expect(portal.setPinnedKeys).toHaveBeenLastCalledWith(['xtream::p::7']);
+        // Favourites first, then recent channels, each channel once.
+        expect(
+            presenter
+                .heroLiveCandidates()
+                .map(({ origin, item }) => [origin, item.title])
+        ).toEqual([
+            ['favorite', 'Favourite channel'],
+            ['recent', 'Recent channel'],
+        ]);
+        expect(portal.setPinnedKeys).toHaveBeenLastCalledWith([
+            'xtream::p::7',
+            'xtream::p::8',
+        ]);
 
-        // With the rail hidden nothing is pinned: the first portal row is
-        // then a favourite, and pinning it would keep asking for a card
-        // nobody can see.
+        // With the hero hidden nothing is pinned: a rail card nobody can
+        // see must not keep the portal queue busy.
         dashboardRails.set({
             ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
             hero: false,
         });
         TestBed.tick();
-        expect(portal.setPinnedKeys).toHaveBeenLastCalledWith([null]);
+        expect(presenter.heroLiveCandidates()).toEqual([]);
+        expect(portal.setPinnedKeys).toHaveBeenLastCalledWith([]);
+    });
+
+    it('looks up hero candidates even when no live rail is connected', () => {
+        getCurrentProgramsForChannels.mockImplementation(() =>
+            of(
+                new Map<string, EpgProgram | null>([
+                    ['ard.de', program('Tagesschau')],
+                ])
+            )
+        );
+        const channel = {
+            id: 'ard-hd',
+            title: 'Das Erste HD',
+            type: 'live',
+            source: 'm3u',
+            playlist_id: 'a',
+            category_id: '',
+            xtream_id: 'ard-hd',
+            epg_lookup_key: 'ard.de',
+        } as PortalActivityItem;
+        favoriteLiveItems.set([channel]);
+
+        setup([]);
+
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledWith(
+            ['ard.de'],
+            expect.objectContaining({ sourceUrls: [guideA] })
+        );
+        expect(presenter.heroDetailsFor(channel)?.nowPlayingTitle).toBe(
+            'Tagesschau'
+        );
     });
 
     it('prefers the portal answer and forwards what the portal presenter owns', () => {

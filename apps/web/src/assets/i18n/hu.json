@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "Legutóbb nézett élő TV",
             "FAVORITE_MOVIES_AND_SERIES": "Kedvenc filmek és sorozatok",
             "SOURCE_EXPIRES_IN_DAYS": "{{days}} nap múlva lejár",
-            "SOURCE_EXPIRED": "Lejárt"
+            "SOURCE_EXPIRED": "Lejárt",
+            "HERO_LABEL": "Kiemelt",
+            "HERO_FAVORITE_CHANNEL": "Kedvenc csatorna",
+            "HERO_FAVORITE": "Kedvenc",
+            "HERO_RECENTLY_ADDED": "Nemrég hozzáadva",
+            "HERO_CONTINUE": "Folytatás",
+            "HERO_WATCH_LIVE": "Élő adás nézése",
+            "HERO_DETAILS": "Részletek",
+            "HERO_SLIDE_POSITION": "{{index}} / {{count}}",
+            "HERO_SHOW_SLIDE": "{{title}} megjelenítése",
+            "HERO_PAUSE": "Diavetítés szüneteltetése",
+            "HERO_PLAY": "Diavetítés lejátszása"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

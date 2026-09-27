@@ -25,6 +25,7 @@ import { DOWNLOAD_ACTIONS } from './capture-navigation-download-actions';
 import { EPG_ACTIONS } from './capture-navigation-epg-actions';
 import { PORTAL_ACTIONS } from './capture-navigation-portal-actions';
 import { SETUP_ACTIONS } from './capture-navigation-setup-actions';
+import { FEATURE_ACTIONS } from './capture-navigation-feature-actions';
 
 export {
     clickDialogOption,
@@ -41,6 +42,7 @@ const ACTIONS: Readonly<Record<string, CaptureAction>> = {
     ...PORTAL_ACTIONS,
     ...DOWNLOAD_ACTIONS,
     ...EPG_ACTIONS,
+    ...FEATURE_ACTIONS,
 };
 
 /* ------------------------------------------------------------------ */
@@ -93,6 +95,12 @@ export async function runAction(
     // dialog open or a dirty settings form. Clear whatever the previous step
     // left behind before this one starts navigating: a dialog backdrop
     // swallows every click, and unsaved settings raise a leave prompt.
+    await page.evaluate(async () => {
+        if (document.fullscreenElement) await document.exitFullscreen();
+    });
+    if (await page.locator('.cdk-overlay-backdrop-showing').count()) {
+        await page.keyboard.press('Escape');
+    }
     await dismissDialogs(page);
     await discardUnsavedSettings(page);
     await run(page, param);

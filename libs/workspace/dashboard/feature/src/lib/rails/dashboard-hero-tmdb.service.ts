@@ -1,5 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { TmdbEnrichmentService, tmdbBackdropUrl } from '@iptvnator/services';
+import {
+    TmdbEnrichmentService,
+    extractYear,
+    tmdbBackdropUrl,
+} from '@iptvnator/services';
 import {
     DashboardTmdbAttempt,
     DashboardTmdbLookupItem,
@@ -12,6 +16,10 @@ export interface DashboardHeroTmdbExtras {
     readonly backdropUrl: string | null;
     readonly rating: string | null;
     readonly genres: readonly string[];
+    /** TMDB plot, in the enrichment language; null when TMDB has none */
+    readonly overview: string | null;
+    /** Release (movie) or first-air (series) year */
+    readonly year: number | null;
 }
 
 /** Everything the hero lookup reads off an activity row */
@@ -20,7 +28,8 @@ export type DashboardHeroTmdbItem = DashboardTmdbLookupItem;
 const MAX_HERO_GENRES = 2;
 
 /**
- * Best-effort TMDB extras for the hero card (backdrop, rating, genres).
+ * Best-effort TMDB extras for the hero slides (backdrop, rating, genres,
+ * overview, year).
  * Goes through the enrichment facade, so items already opened in a detail
  * view resolve from the SQLite cache without network. Results are memoized
  * per lookup identity for the session — dashboard revisits skip the IPC
@@ -45,10 +54,13 @@ export class DashboardHeroTmdbService {
 
     /**
      * Identity of the lookup for an item — the memo key, and the staleness
-     * guard callers compare against while a request is in flight.
+     * guard callers compare against while a request is in flight. The TMDB
+     * language is part of it: the overview and genre names are localized,
+     * so a language change must load them again. Reactive when read inside
+     * a computed or effect (settings signal underneath).
      */
     keyFor(item: DashboardHeroTmdbItem): string {
-        return dashboardTmdbLookupKey(item);
+        return `${this.enrichment.language()}//${dashboardTmdbLookupKey(item)}`;
     }
 
     getExtras(
@@ -103,6 +115,9 @@ function toHeroExtras(details: {
     vote_average?: number;
     vote_count?: number;
     genres?: { name?: string }[];
+    overview?: string;
+    release_date?: string;
+    first_air_date?: string;
 }): DashboardHeroTmdbExtras {
     const rating =
         (details.vote_count ?? 0) > 0 && details.vote_average
@@ -116,5 +131,7 @@ function toHeroExtras(details: {
             .map((genre) => genre.name)
             .filter((name): name is string => Boolean(name))
             .slice(0, MAX_HERO_GENRES),
+        overview: details.overview?.trim() || null,
+        year: extractYear(details.release_date ?? details.first_air_date),
     };
 }

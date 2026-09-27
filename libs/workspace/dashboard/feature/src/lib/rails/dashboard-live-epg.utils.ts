@@ -74,6 +74,10 @@ export interface DashboardLiveEpgDetails {
     readonly nowPlayingTitle: string | null;
     readonly nowPlayingTimeRange: string | null;
     readonly nowPlayingProgress: number | null;
+    /** Programme synopsis; set only when the guide has one (hero slide). */
+    readonly nowPlayingDescription?: string;
+    /** Guide category ("Sport"); set only when the guide has one. */
+    readonly nowPlayingCategory?: string;
 }
 
 /**
@@ -90,6 +94,8 @@ export function buildDashboardLiveEpgDetails(
         return null;
     }
 
+    const description = program.desc?.trim();
+    const category = program.category?.trim();
     const details: DashboardLiveEpgDetails = {
         nowPlayingTitle: program.title?.trim() || null,
         nowPlayingTimeRange: formatEpgTimeRange(program, offsetMinutes),
@@ -97,6 +103,8 @@ export function buildDashboardLiveEpgDetails(
             program,
             epgProviderClockMs(nowMs, offsetMinutes)
         ),
+        ...(description ? { nowPlayingDescription: description } : {}),
+        ...(category ? { nowPlayingCategory: category } : {}),
     };
 
     return details.nowPlayingTitle ||
@@ -204,17 +212,19 @@ export function buildLiveEpgLookupGroups(
 
 type DashboardLiveEpgRailSettings = Pick<
     DashboardRailsSettings,
-    'hero' | 'liveFavorites' | 'recentlyWatchedLive'
+    'liveFavorites' | 'recentlyWatchedLive'
 >;
 
+/**
+ * The rails' live cards whose rails are enabled. Hero candidates are not
+ * passed here: `DashboardLiveEpgPresenter` derives and pins them itself.
+ */
 export function buildLiveEpgCardsForEnabledRails(
     rails: DashboardLiveEpgRailSettings,
-    heroLiveCard: DashboardRailCard | null,
     liveFavoriteCards: readonly DashboardRailCard[],
     recentLiveCards: readonly DashboardRailCard[]
 ): DashboardRailCard[] {
     return [
-        ...(rails.hero && heroLiveCard ? [heroLiveCard] : []),
         ...(rails.liveFavorites ? liveFavoriteCards : []),
         ...(rails.recentlyWatchedLive ? recentLiveCards : []),
     ];
