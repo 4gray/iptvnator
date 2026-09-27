@@ -45,16 +45,29 @@ test('counts requests per route in a stable order', () => {
     );
 });
 
-async function startUpstream(): Promise<{ origin: string; server: Server }> {
+interface Upstream {
+    readonly origin: string;
+    /** What the upstream received; kept server-side, never echoed back. */
+    readonly received: { host: string; method: string; url: string }[];
+    readonly server: Server;
+}
+
+async function startUpstream(): Promise<Upstream> {
+    const received: Upstream['received'] = [];
     const server = createServer((request, response) => {
-        response.setHeader('x-upstream-host', request.headers.host ?? '');
-        response.end(`upstream:${request.method}:${request.url}`);
+        received.push({
+            host: request.headers.host ?? '',
+            method: request.method ?? '',
+            url: request.url ?? '',
+        });
+        response.setHeader('content-type', 'text/plain');
+        response.end('upstream');
     });
     await new Promise<void>((resolve) =>
         server.listen(0, '127.0.0.1', () => resolve())
     );
     const { port } = server.address() as AddressInfo;
-    return { origin: `http://127.0.0.1:${port}`, server };
+    return { origin: `http://127.0.0.1:${port}`, received, server };
 }
 
 test('forwards every request to the mock and records it from a mark', async () => {
@@ -63,19 +76,23 @@ test('forwards every request to the mock and records it from a mark', async () =
     try {
         assert.notEqual(ledger.origin, upstream.origin);
         const first = await fetch(`${ledger.origin}/playlist.m3u`);
-        assert.equal(await first.text(), 'upstream:GET:/playlist.m3u');
-        assert.equal(
-            first.headers.get('x-upstream-host'),
-            new URL(upstream.origin).host
-        );
+        assert.equal(await first.text(), 'upstream');
+        assert.deepEqual(upstream.received, [
+            {
+                host: new URL(upstream.origin).host,
+                method: 'GET',
+                url: '/playlist.m3u',
+            },
+        ]);
         const mark = ledger.mark();
         assert.equal(mark, 1);
         const second = await fetch(
             `${ledger.origin}/player_api.php?username=u&password=p&action=get_account_info`
         );
+        assert.equal(await second.text(), 'upstream');
         assert.equal(
-            await second.text(),
-            'upstream:GET:/player_api.php?username=u&password=p&action=get_account_info'
+            upstream.received[1]?.url,
+            '/player_api.php?username=u&password=p&action=get_account_info'
         );
         const since = ledger.since(mark);
         assert.equal(since.length, 1);
