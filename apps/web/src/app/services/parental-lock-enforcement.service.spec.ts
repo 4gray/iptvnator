@@ -120,6 +120,19 @@ describe('ParentalLockEnforcementService', () => {
     });
 
     describe('Stalker', () => {
+        it('does not load the Stalker step outside a Stalker route', async () => {
+            router.url = '/workspace/xtreams/xtream-1/live';
+            const load = jest.spyOn(
+                service as unknown as { loadStalkerEnforcement: () => unknown },
+                'loadStalkerEnforcement'
+            );
+
+            await service.applyStalker();
+
+            expect(load).not.toHaveBeenCalled();
+            expect(stalkerStore.clearSelectedItem).not.toHaveBeenCalled();
+        });
+
         it('clears a detail opened from All whose own genre is withheld', async () => {
             router.url = '/workspace/stalker/stalker-1/vod/42';
             lockedStalkerIds.add('9');

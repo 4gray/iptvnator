@@ -344,6 +344,18 @@ on either side.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 
+## Startup footprint
+
+The lock service, lock store and enforcement are on the renderer's initial
+path by necessity (the workspace resolver and the catalog data sources gate
+on them). Everything else stays lazy: the PIN dialog loads through
+`parental-lock-pin-dialog.lazy.ts` on the first prompt (a failed chunk load
+reads as a cancelled prompt), and the enforcement's Stalker step loads
+through `parental-lock-stalker-enforcement.ts` only while a Stalker route is
+open — a static import of the Stalker store would put the whole Stalker
+data layer back into `main.js`. The feature costs about 30 KB of
+`renderer.initialBytes`.
+
 ## Lock store lifetime
 
 Every lock-store mutation runs through one write queue in

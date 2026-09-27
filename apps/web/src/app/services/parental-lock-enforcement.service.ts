@@ -1,19 +1,21 @@
-import { effect, inject, Injectable, untracked } from '@angular/core';
+import {
+    effect,
+    EnvironmentInjector,
+    inject,
+    Injectable,
+    untracked,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { ChannelActions, selectActive } from '@iptvnator/m3u-state';
-import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
-import {
-    toParentalLockStalkerCategoryType,
-    toParentalLockXtreamCategoryType,
-} from '@iptvnator/shared/interfaces';
+import { toParentalLockXtreamCategoryType } from '@iptvnator/shared/interfaces';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 const XTREAM_ROUTE =
     /^\/workspace\/xtreams\/([^/?#]+)\/(live|vod|series)(?:\/(\d+))?/;
-const STALKER_ROUTE =
+export const STALKER_ROUTE =
     /^\/workspace\/stalker\/([^/?#]+)\/(itv|vod|series|radio)(?:\/([^/?#]+))?/;
 
 /**
@@ -27,7 +29,7 @@ const STALKER_ROUTE =
 export class ParentalLockEnforcementService {
     private readonly parentalLock = inject(ParentalLockService);
     private readonly xtreamStore = inject(XtreamStore);
-    private readonly stalkerStore = inject(StalkerStore);
+    private readonly injector = inject(EnvironmentInjector);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
     private readonly keepAwake = inject(PlaybackKeepAwakeService);
@@ -221,61 +223,27 @@ export class ParentalLockEnforcementService {
         }
     }
 
+    /** The dynamic import; a field so specs can substitute it. */
+    loadStalkerEnforcement = () =>
+        import('./parental-lock-stalker-enforcement');
+
+    /**
+     * The Stalker data layer stays off the initial path: the step is loaded
+     * only while a Stalker route is open. Outside one there is nothing to
+     * step off — the Stalker route session clears the selection (and the
+     * live layout its playback) when the route is left.
+     */
     private async applyStalker(): Promise<void> {
-        const playlist = this.stalkerStore.currentPlaylist();
-        const playlistId = playlist?._id;
-        if (!playlistId) {
+        if (!STALKER_ROUTE.test(this.router.url)) {
             return;
         }
-        const contentType = toParentalLockStalkerCategoryType(
-            this.stalkerStore.selectedContentType()
+        const { applyParentalLockToStalker } =
+            await this.loadStalkerEnforcement();
+        applyParentalLockToStalker(
+            this.injector,
+            this.parentalLock,
+            this.router
         );
-        if (!contentType) {
-            return;
-        }
-        const selectedCategoryId = this.stalkerStore.selectedCategoryId();
-        const categoryWithheld =
-            !!selectedCategoryId &&
-            this.parentalLock.isStalkerCategoryLocked(
-                playlistId,
-                contentType,
-                selectedCategoryId
-            );
-        // An item opened from "All" (`*`) or search has its own genre to be
-        // judged by; the list dropping its row is not enough. Live and radio
-        // rows carry that genre in `tv_genre_id`, VOD and series rows in
-        // `category_id` (the store's withheld filter applies the same rule).
-        const selectedItem = this.stalkerStore.selectedItem?.() as {
-            category_id?: string | number;
-            tv_genre_id?: string | number;
-        } | null;
-        const itemCategoryId =
-            contentType === 'itv' || contentType === 'radio'
-                ? selectedItem?.tv_genre_id
-                : selectedItem?.category_id;
-        const itemWithheld =
-            !!selectedItem &&
-            this.parentalLock.isStalkerCategoryLocked(
-                playlistId,
-                contentType,
-                itemCategoryId
-            );
-        if (!categoryWithheld && !itemWithheld) {
-            return;
-        }
-        this.stalkerStore.clearSelectedItem();
-        if (categoryWithheld) {
-            this.stalkerStore.setSelectedCategory(null);
-        }
-        const match = STALKER_ROUTE.exec(this.router.url);
-        if (match && match[1] === playlistId) {
-            void this.router.navigate([
-                '/workspace',
-                'stalker',
-                match[1],
-                match[2],
-            ]);
-        }
     }
 
     private applyM3u(): void {
