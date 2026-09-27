@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { SettingsContextService } from '@iptvnator/workspace/shell/util';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { WorkspaceSettingsContextPanelComponent } from './workspace-settings-context-panel.component';
 
 describe('WorkspaceSettingsContextPanelComponent', () => {

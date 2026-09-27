@@ -16,7 +16,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { ActivatedRoute, Router } from '@angular/router';
-import { SettingsContextService } from '@iptvnator/workspace/shell/util';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EpgSourceReconciliationError,

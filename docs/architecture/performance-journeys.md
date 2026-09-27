@@ -273,6 +273,17 @@ the first measurements was otherwise `package.json` text embedded in
 `main.js`, which moved with every script edit; #1692 fixed that by importing
 only the version.)
 
+Two effects make the exact counter move for reasons outside a PR's own diff.
+A baseline lowered on a branch that predates a concurrent `master` merge can
+sit below what the merged code measures: #1712 lowered it on a branch without
+#1714, so `master` measured 108 bytes over and every later PR failed the job
+until a follow-up moved lazy-only modules out of `main.js`. Re-run the job on
+an up-to-date branch before merging a baseline change. And the bundler's
+chunk-level identifier renaming shifts when a module enters or leaves
+`main.js`: moving one service out once renamed an imported identifier at 162
+call sites, eating about 320 of the bytes saved. Judge a small change by the
+`--stats-json` input sizes, not only by the counter.
+
 The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
 `journey-baselines.json` with the revision the change is measured against

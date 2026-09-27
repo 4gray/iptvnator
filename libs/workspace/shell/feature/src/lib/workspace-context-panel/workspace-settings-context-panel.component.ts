@@ -3,10 +3,8 @@ import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
-import {
-    WorkspaceShellContextDrawerService,
-    SettingsContextService,
-} from '@iptvnator/workspace/shell/util';
+import { WorkspaceShellContextDrawerService } from '@iptvnator/workspace/shell/util';
+import { SettingsContextService } from '@iptvnator/workspace/shell/util/settings-context';
 
 @Component({
     selector: 'app-workspace-settings-context-panel',
