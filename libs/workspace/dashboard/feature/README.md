@@ -10,10 +10,10 @@ contracts on its own.
 The dashboard renders a surface only when the matching setting is enabled. Data
 rails also require the underlying data slice to have at least one item.
 
-- `hero` shows the large top banner for the most recent global item. When that
-  item is a live TV channel, the hero looks up the current XMLTV programme and
-  displays the programme title, time range, and EPG progress bar when data is
-  available.
+- `hero` shows the full-width cinematic banner that rotates between the
+  newest unfinished title, a favourite (or recent) channel with a programme on
+  air, and favourite / recently added titles. Contract:
+  `docs/architecture/workspace-dashboard.md#cinematic-hero`.
 - `continueWatching` shows recent movies and series from
   `DashboardDataService.globalRecentVodItems()` using cover cards with playback
   progress when a saved resume position is available.

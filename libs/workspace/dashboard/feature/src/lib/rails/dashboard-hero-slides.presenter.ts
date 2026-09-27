@@ -1,0 +1,354 @@
+import {
+    computed,
+    effect,
+    inject,
+    Injectable,
+    signal,
+    untracked,
+} from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslateService } from '@ngx-translate/core';
+import { startWith } from 'rxjs';
+import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import {
+    playlistDisplayLabel,
+    resolvePortalActivityWatchKind,
+    type PlaybackPositionData,
+    type PortalActivityItem,
+} from '@iptvnator/shared/interfaces';
+import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
+import {
+    DashboardHeroTmdbService,
+    type DashboardHeroTmdbExtras,
+} from './dashboard-hero-tmdb.service';
+import {
+    dashboardHeroHue,
+    resolveDashboardHeroArtwork,
+    type DashboardHeroAction,
+    type DashboardHeroSlide,
+} from './dashboard-hero.utils';
+import {
+    dashboardHeroItemKey,
+    pickDashboardHeroSources,
+    type DashboardHeroSource,
+} from './dashboard-hero-slides.utils';
+import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
+import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
+import {
+    buildDashboardEpisodeBadge,
+    formatRemainingLabel,
+    playbackProgressPercent,
+} from './dashboard-playback.utils';
+
+const TYPE_LABEL_KEYS = {
+    live: 'WORKSPACE.DASHBOARD.TYPE_LIVE',
+    movie: 'WORKSPACE.DASHBOARD.TYPE_MOVIE',
+    series: 'WORKSPACE.DASHBOARD.TYPE_SERIES',
+} as const;
+
+const PROVIDER_LABEL_KEYS = {
+    xtream: 'WORKSPACE.DASHBOARD.XTREAM',
+    stalker: 'WORKSPACE.DASHBOARD.STALKER',
+    m3u: 'WORKSPACE.DASHBOARD.M3U',
+} as const;
+
+/**
+ * Builds the cinematic hero's rotation slides from the dashboard data:
+ * which titles are featured (`pickDashboardHeroSources`), their artwork,
+ * TMDB extras, playback progress, live programme and actions.
+ *
+ * Component-provided next to the hero; the live programme answers come from
+ * the page's `DashboardLiveEpgPresenter`, which already pins the hero's live
+ * candidates. TMDB extras are fetched per featured title after first paint,
+ * memoized by `DashboardHeroTmdbService`, and vanish immediately when the
+ * user opts out of TMDB mid-session.
+ */
+@Injectable()
+export class DashboardHeroSlidesPresenter {
+    private readonly data = inject(DashboardDataService);
+    private readonly liveEpg = inject(DashboardLiveEpgPresenter);
+    private readonly heroTmdb = inject(DashboardHeroTmdbService);
+    private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
+
+    private readonly failedImages = signal<Record<string, true>>({});
+    private readonly tmdbExtras = signal<
+        ReadonlyMap<string, DashboardHeroTmdbExtras | null>
+    >(new Map());
+    private readonly requestedTmdbKeys = new Set<string>();
+
+    /** First history load still running and nothing to feature yet. */
+    readonly loading = computed(
+        () => this.data.globalRecentLoading() && this.slides().length === 0
+    );
+
+    /** The first candidate channel with a programme on air right now. */
+    private readonly liveSlide = computed(() => {
+        for (const candidate of this.liveEpg.heroLiveCandidates()) {
+            const details = this.liveEpg.heroDetailsFor(candidate.item);
+            if (details?.nowPlayingTitle) {
+                return { candidate, details };
+            }
+        }
+        return null;
+    });
+
+    private readonly sources = computed(() =>
+        pickDashboardHeroSources({
+            continueItems: this.data
+                .globalRecentVodItems()
+                .filter(
+                    (item) =>
+                        !isPortalPlaybackWatched(
+                            this.data.getPlaybackPositionForItem(item)
+                        )
+                ),
+            live: this.liveSlide()?.candidate ?? null,
+            favorites: this.data
+                .globalFavoriteItems()
+                .filter(
+                    (item) => item.type === 'movie' || item.type === 'series'
+                ),
+            recentlyAdded: this.data.xtreamRecentlyAddedItems(),
+            mostRecent: this.data.globalRecentItems()[0] ?? null,
+        })
+    );
+
+    readonly slides = computed<DashboardHeroSlide[]>(() => {
+        this.languageTick();
+        const liveDetails = this.liveSlide()?.details ?? null;
+        return this.sources().map((source) =>
+            this.toSlide(source, liveDetails)
+        );
+    });
+
+    constructor() {
+        effect(() => {
+            if (!this.heroTmdb.isEnabled()) {
+                return;
+            }
+            const items = this.sources()
+                .map((source) => source.item)
+                .filter((item) => item.type !== 'live');
+            untracked(() => items.forEach((item) => this.loadTmdbExtras(item)));
+        });
+    }
+
+    markImageFailed(url: string): void {
+        this.failedImages.update((state) =>
+            state[url] ? state : { ...state, [url]: true }
+        );
+    }
+
+    private loadTmdbExtras(item: PortalActivityItem): void {
+        const key = this.heroTmdb.keyFor(item);
+        if (this.requestedTmdbKeys.has(key)) {
+            return;
+        }
+        this.requestedTmdbKeys.add(key);
+        void this.heroTmdb.getExtras(item).then((extras) => {
+            this.tmdbExtras.update((state) => new Map(state).set(key, extras));
+        });
+    }
+
+    private toSlide(
+        source: DashboardHeroSource,
+        liveDetails: DashboardLiveEpgDetails | null
+    ): DashboardHeroSlide {
+        const item = source.item;
+        const isLive = item.type === 'live';
+        // Single reactive read, gated on the TMDB opt-in
+        const extras =
+            !isLive && this.heroTmdb.isEnabled()
+                ? (this.tmdbExtras().get(this.heroTmdb.keyFor(item)) ?? null)
+                : null;
+        const details =
+            source.kind === 'live'
+                ? liveDetails
+                : isLive
+                  ? this.liveEpg.heroDetailsFor(item)
+                  : null;
+        const position = isLive
+            ? null
+            : this.data.getPlaybackPositionForItem(item);
+        const artwork = resolveDashboardHeroArtwork(
+            {
+                backdropUrl: item.backdrop_url || extras?.backdropUrl || null,
+                posterUrl: item.poster_url,
+                title: item.title,
+            },
+            this.failedImages()
+        );
+
+        return {
+            ...artwork,
+            id: `${source.kind}:${dashboardHeroItemKey(item)}`,
+            kind: source.kind,
+            contentType: item.type,
+            title: item.title,
+            // Watch kind: a Stalker embedded-VOD show routes as a movie
+            typeLabelKey:
+                TYPE_LABEL_KEYS[
+                    isLive
+                        ? 'live'
+                        : (resolvePortalActivityWatchKind(item) ?? item.type)
+                ],
+            reasonLabelKey: this.reasonLabelKey(source),
+            episodeBadge: buildDashboardEpisodeBadge(
+                item,
+                position,
+                (key, params) => this.translate.instant(key, params)
+            ),
+            rating: extras?.rating ?? null,
+            genres: extras?.genres ?? [],
+            year: extras?.year ?? item.release_year ?? null,
+            source: playlistDisplayLabel(
+                item.playlist_name,
+                this.translate.instant(
+                    item.source
+                        ? PROVIDER_LABEL_KEYS[item.source]
+                        : 'WORKSPACE.DASHBOARD.PROVIDER'
+                )
+            ),
+            programmeTitle: details?.nowPlayingTitle ?? null,
+            category: details?.nowPlayingCategory ?? null,
+            timeRange: details?.nowPlayingTimeRange ?? null,
+            description: isLive
+                ? (details?.nowPlayingDescription ?? null)
+                : (extras?.overview ?? null),
+            progress: isLive
+                ? (details?.nowPlayingProgress ?? null)
+                : playbackProgressPercent(position),
+            accentHue: dashboardHeroHue(item.title),
+            ...this.actionsFor(source, position),
+        };
+    }
+
+    private reasonLabelKey(source: DashboardHeroSource): string {
+        switch (source.kind) {
+            case 'continue':
+                return 'WORKSPACE.DASHBOARD.CONTINUE_WATCHING';
+            case 'live':
+                return source.origin === 'favorite'
+                    ? 'WORKSPACE.DASHBOARD.HERO_FAVORITE_CHANNEL'
+                    : 'WORKSPACE.DASHBOARD.RECENTLY_WATCHED';
+            case 'favorite':
+                return 'WORKSPACE.DASHBOARD.HERO_FAVORITE';
+            case 'added':
+                return 'WORKSPACE.DASHBOARD.HERO_RECENTLY_ADDED';
+            case 'recent':
+                return 'WORKSPACE.DASHBOARD.RECENTLY_WATCHED';
+        }
+    }
+
+    /**
+     * Resume slides keep the hero's resume handoff (a saved series episode
+     * auto-plays) and offer "Details" as the detail-only way in; discovery
+     * slides open the detail page; live slides open the channel.
+     */
+    private actionsFor(
+        source: DashboardHeroSource,
+        position: PlaybackPositionData | null
+    ): Pick<DashboardHeroSlide, 'primaryAction' | 'secondaryAction'> {
+        switch (source.kind) {
+            case 'live':
+                return {
+                    primaryAction:
+                        source.origin === 'favorite'
+                            ? watchLiveAction(
+                                  this.data.getGlobalFavoriteLink(source.item),
+                                  this.data.getGlobalFavoriteNavigationState(
+                                      source.item
+                                  )
+                              )
+                            : watchLiveAction(
+                                  this.data.getRecentItemLink(source.item),
+                                  this.data.getRecentItemNavigationState(
+                                      source.item
+                                  )
+                              ),
+                    secondaryAction: null,
+                };
+            case 'favorite':
+                return {
+                    primaryAction: detailsAction(
+                        this.data.getGlobalFavoriteLink(source.item),
+                        this.data.getGlobalFavoriteNavigationState(source.item)
+                    ),
+                    secondaryAction: null,
+                };
+            case 'added':
+                return {
+                    primaryAction: detailsAction(
+                        this.data.getRecentlyAddedLink(source.item),
+                        this.data.getRecentlyAddedNavigationState(source.item)
+                    ),
+                    secondaryAction: null,
+                };
+            case 'continue':
+            case 'recent': {
+                const item = source.item;
+                const link = this.data.getRecentItemLink(item);
+                const state = this.data.getRecentItemNavigationState(item);
+                if (item.type === 'live') {
+                    return {
+                        primaryAction: watchLiveAction(link, state),
+                        secondaryAction: null,
+                    };
+                }
+                const canResume =
+                    this.data.getRecentItemResumeNavigation(item) !== null;
+                return {
+                    primaryAction: {
+                        labelKey: 'WORKSPACE.DASHBOARD.HERO_CONTINUE',
+                        icon: 'play_arrow',
+                        link,
+                        state,
+                        remainingLabel: formatRemainingLabel(position),
+                        testId: 'dashboard-hero-primary-action',
+                    },
+                    secondaryAction: canResume
+                        ? {
+                              ...detailsAction(
+                                  link,
+                                  this.data.getRecentItemDetailNavigationState(
+                                      item
+                                  )
+                              ),
+                              testId: 'dashboard-hero-secondary-action',
+                          }
+                        : null,
+                };
+            }
+        }
+    }
+}
+
+function watchLiveAction(
+    link: string[],
+    state: Record<string, unknown> | undefined
+): DashboardHeroAction {
+    return {
+        labelKey: 'WORKSPACE.DASHBOARD.HERO_WATCH_LIVE',
+        icon: 'play_arrow',
+        link,
+        state,
+        testId: 'dashboard-hero-primary-action',
+    };
+}
+
+function detailsAction(
+    link: string[],
+    state: Record<string, unknown> | undefined
+): DashboardHeroAction {
+    return {
+        labelKey: 'WORKSPACE.DASHBOARD.HERO_DETAILS',
+        icon: 'info',
+        link,
+        state,
+        testId: 'dashboard-hero-primary-action',
+    };
+}

@@ -1,3 +1,8 @@
+import {
+    resolvePortalActivityWatchKind,
+    type PlaybackPositionData,
+    type PortalActivityItem,
+} from '@iptvnator/shared/interfaces';
 import type { GlobalRecentItem } from '@iptvnator/workspace/dashboard/data-access';
 
 export interface DashboardRemainingLabel {
@@ -82,4 +87,24 @@ export function formatRemainingLabel(
         key: 'WORKSPACE.DASHBOARD.REMAINING_HOURS_MINUTES',
         params: { hours, minutes },
     };
+}
+
+/**
+ * "S1·E5" for an item whose progress is tracked per episode. Keyed on the
+ * WATCH kind: a Stalker embedded-VOD / lazy `is_series` show routes as a
+ * movie but still names the episode it is on.
+ */
+export function buildDashboardEpisodeBadge(
+    item: Pick<PortalActivityItem, 'type' | 'watch_kind'>,
+    position: PlaybackPositionData | null,
+    translate: (key: string, params: Record<string, number>) => string
+): string | null {
+    return resolvePortalActivityWatchKind(item) === 'series' &&
+        position?.seasonNumber != null &&
+        position?.episodeNumber != null
+        ? translate('WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE', {
+              season: position.seasonNumber,
+              episode: position.episodeNumber,
+          })
+        : null;
 }

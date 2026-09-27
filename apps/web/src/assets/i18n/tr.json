@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "Son izlenen canlı TV",
             "FAVORITE_MOVIES_AND_SERIES": "Favori filmler ve diziler",
             "SOURCE_EXPIRES_IN_DAYS": "{{days}} gün içinde sona erer",
-            "SOURCE_EXPIRED": "Süresi doldu"
+            "SOURCE_EXPIRED": "Süresi doldu",
+            "HERO_LABEL": "Öne çıkanlar",
+            "HERO_FAVORITE_CHANNEL": "Favori kanal",
+            "HERO_FAVORITE": "Favori",
+            "HERO_RECENTLY_ADDED": "Yeni eklendi",
+            "HERO_CONTINUE": "Devam et",
+            "HERO_WATCH_LIVE": "Canlı izle",
+            "HERO_DETAILS": "Ayrıntılar",
+            "HERO_SLIDE_POSITION": "{{index}} / {{count}}",
+            "HERO_SHOW_SLIDE": "{{title}} göster",
+            "HERO_PAUSE": "Slayt gösterisini duraklat",
+            "HERO_PLAY": "Slayt gösterisini oynat"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

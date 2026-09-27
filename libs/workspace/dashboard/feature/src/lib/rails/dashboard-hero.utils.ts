@@ -1,31 +1,49 @@
 import type { CollectionContentType } from '@iptvnator/portal/shared/util';
 import type { DashboardRemainingLabel } from './dashboard-playback.utils';
+import type { DashboardHeroSlideKind } from './dashboard-hero-slides.utils';
 
-export interface DashboardHeroModel {
-    readonly backdropUrl?: string;
-    readonly backdropSource: DashboardHeroBackdropSource;
-    readonly contentType?: CollectionContentType;
-    readonly fallbackBackdropBackground: string;
-    readonly fallbackPosterBackground: string;
-    readonly hasBackdrop: boolean;
+/** A hero call to action: a router link, never an in-place side effect. */
+export interface DashboardHeroAction {
+    readonly labelKey: string;
     readonly icon: string;
     readonly link: string[];
-    readonly posterUrl?: string;
     readonly state?: Record<string, unknown>;
-    readonly subtitle: string;
-    readonly title: string;
-    /** TMDB vote average ("8.1"), patched in async when available */
-    readonly rating?: string | null;
-    /** Up to two TMDB genre names, patched in async when available */
-    readonly genres?: readonly string[];
-    /** "S2·E5" for series with a tracked episode position */
-    readonly episodeBadge?: string | null;
-    /** 0-100 watched, when a resume position is known. */
-    readonly watchProgress?: number | null;
+    /** Appended as "· 22m left" on a resume action. */
     readonly remainingLabel?: DashboardRemainingLabel | null;
-    readonly nowPlayingTitle?: string | null;
-    readonly nowPlayingTimeRange?: string | null;
-    readonly nowPlayingProgress?: number | null;
+    readonly testId: string;
+}
+
+/** One rotation slide of the cinematic dashboard hero. */
+export interface DashboardHeroSlide extends DashboardHeroArtwork {
+    /** Stable across data refreshes: the active slide is tracked by it. */
+    readonly id: string;
+    readonly kind: DashboardHeroSlideKind;
+    readonly contentType: CollectionContentType;
+    readonly title: string;
+    /** "Movie" / "Series" / "Live" */
+    readonly typeLabelKey: string;
+    /** Why the slide is here: "Continue watching", "Favourite channel"… */
+    readonly reasonLabelKey: string;
+    readonly episodeBadge: string | null;
+    /** TMDB vote average ("8.1"), patched in async when available */
+    readonly rating: string | null;
+    /** Up to two TMDB genre names, patched in async when available */
+    readonly genres: readonly string[];
+    readonly year: number | null;
+    /** Source name (playlist label), never a raw URL or credentials */
+    readonly source: string;
+    /** Live: programme on air now, its guide category and "HH:mm – HH:mm" */
+    readonly programmeTitle: string | null;
+    readonly category: string | null;
+    readonly timeRange: string | null;
+    /** TMDB overview for titles, guide synopsis for live programmes */
+    readonly description: string | null;
+    /** 0-100: watched share, or elapsed share of the live programme */
+    readonly progress: number | null;
+    /** Title-derived hue for the live slide's glow (0-359) */
+    readonly accentHue: number;
+    readonly primaryAction: DashboardHeroAction;
+    readonly secondaryAction: DashboardHeroAction | null;
 }
 
 export type DashboardHeroBackdropSource = 'backdrop' | 'poster' | 'fallback';
@@ -99,6 +117,11 @@ function buildFallbackBackground(
     const hue = calculateHue(title || 'placeholder');
     const h2 = (hue + hueOffset) % 360;
     return `linear-gradient(135deg, hsl(${hue}, ${saturationA}%, ${lightnessA}%) 0%, hsl(${h2}, ${saturationB}%, ${lightnessB}%) 100%)`;
+}
+
+/** Stable hue for a title, shared by every generated fallback surface. */
+export function dashboardHeroHue(text: string): number {
+    return calculateHue(text || 'placeholder');
 }
 
 function calculateHue(text: string): number {

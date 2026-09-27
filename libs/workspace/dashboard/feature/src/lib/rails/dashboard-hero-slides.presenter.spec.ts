@@ -1,0 +1,330 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { TranslateService } from '@ngx-translate/core';
+import { Subject } from 'rxjs';
+import type {
+    PlaybackPositionData,
+    PortalActivityItem,
+    PortalAddedItem,
+    PortalFavoriteItem,
+    PortalRecentItem,
+} from '@iptvnator/shared/interfaces';
+import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
+import {
+    DashboardHeroTmdbService,
+    type DashboardHeroTmdbExtras,
+} from './dashboard-hero-tmdb.service';
+import { DashboardHeroSlidesPresenter } from './dashboard-hero-slides.presenter';
+import type { DashboardHeroLiveCandidate } from './dashboard-hero-slides.utils';
+import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
+import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
+
+const series: PortalRecentItem = {
+    id: 1,
+    title: 'Big Pharma',
+    type: 'movie',
+    watch_kind: 'series',
+    source: 'stalker',
+    playlist_id: 'p1',
+    playlist_name: 'rucolor',
+    category_id: '1',
+    xtream_id: 11,
+    poster_url: 'https://img/pharma-poster.jpg',
+    viewed_at: '2026-09-02',
+};
+const watchedMovie: PortalRecentItem = {
+    ...series,
+    id: 2,
+    title: 'Finished Film',
+    watch_kind: 'movie',
+    xtream_id: 12,
+    viewed_at: '2026-09-01',
+};
+const channel: PortalFavoriteItem = {
+    id: 3,
+    title: 'Match TV',
+    type: 'live',
+    source: 'xtream',
+    playlist_id: 'p2',
+    category_id: '5',
+    xtream_id: 33,
+    poster_url: 'https://img/match-logo.png',
+    added_at: '2026-08-01',
+};
+const favoriteFilm: PortalFavoriteItem = {
+    id: 4,
+    title: 'Burnley',
+    type: 'series',
+    source: 'xtream',
+    playlist_id: 'p2',
+    playlist_name: 'http://user:secret@4kgood.org:8080',
+    category_id: '9',
+    xtream_id: 44,
+    release_year: 2023,
+    added_at: '2026-08-02',
+};
+const import1: PortalAddedItem = {
+    id: 5,
+    title: 'Parallel Stories',
+    type: 'movie',
+    source: 'xtream',
+    playlist_id: 'p3',
+    category_id: '2',
+    xtream_id: 55,
+    backdrop_url: 'https://img/parallel-wide.jpg',
+    added_at: '2026-09-03',
+};
+
+const onAir: DashboardLiveEpgDetails = {
+    nowPlayingTitle: 'Football: farewell match',
+    nowPlayingTimeRange: '18:50 – 20:55',
+    nowPlayingProgress: 35,
+    nowPlayingDescription: 'Live from Moscow.',
+    nowPlayingCategory: 'Sport',
+};
+
+describe('DashboardHeroSlidesPresenter', () => {
+    let recentItems: ReturnType<typeof signal<PortalRecentItem[]>>;
+    let favorites: ReturnType<typeof signal<PortalFavoriteItem[]>>;
+    let addedItems: ReturnType<typeof signal<PortalAddedItem[]>>;
+    let candidates: ReturnType<typeof signal<DashboardHeroLiveCandidate[]>>;
+    let liveDetails: jest.Mock;
+    let tmdbEnabled: ReturnType<typeof signal<boolean>>;
+    let getExtras: jest.Mock;
+    const positions = new Map<string | number, PlaybackPositionData>([
+        [
+            1,
+            {
+                contentXtreamId: 111,
+                contentType: 'episode',
+                seriesXtreamId: 11,
+                seasonNumber: 1,
+                episodeNumber: 3,
+                positionSeconds: 600,
+                durationSeconds: 1800,
+            },
+        ],
+        [
+            2,
+            {
+                contentXtreamId: 12,
+                contentType: 'vod',
+                positionSeconds: 5900,
+                durationSeconds: 6000,
+            },
+        ],
+    ]);
+
+    function create(): DashboardHeroSlidesPresenter {
+        TestBed.configureTestingModule({
+            providers: [
+                DashboardHeroSlidesPresenter,
+                {
+                    provide: DashboardDataService,
+                    useValue: {
+                        globalRecentLoading: signal(false),
+                        globalRecentItems: recentItems,
+                        globalRecentVodItems: () =>
+                            recentItems().filter((i) => i.type !== 'live'),
+                        globalFavoriteItems: favorites,
+                        xtreamRecentlyAddedItems: addedItems,
+                        getPlaybackPositionForItem: (
+                            item: PortalActivityItem
+                        ) => positions.get(item.id) ?? null,
+                        getRecentItemLink: (item: PortalActivityItem) => [
+                            '/recent',
+                            String(item.id),
+                        ],
+                        getRecentItemNavigationState: () => ({ resume: true }),
+                        getRecentItemDetailNavigationState: () => ({
+                            resume: false,
+                        }),
+                        getRecentItemResumeNavigation: (
+                            item: PortalActivityItem
+                        ) => (item.id === 1 ? { link: [], state: {} } : null),
+                        getGlobalFavoriteLink: (item: PortalActivityItem) => [
+                            '/favorite',
+                            String(item.id),
+                        ],
+                        getGlobalFavoriteNavigationState: () => ({ fav: true }),
+                        getRecentlyAddedLink: (item: PortalActivityItem) => [
+                            '/added',
+                            String(item.id),
+                        ],
+                        getRecentlyAddedNavigationState: () => ({
+                            added: true,
+                        }),
+                    },
+                },
+                {
+                    provide: DashboardLiveEpgPresenter,
+                    useValue: {
+                        heroLiveCandidates: candidates,
+                        heroDetailsFor: liveDetails,
+                    },
+                },
+                {
+                    provide: DashboardHeroTmdbService,
+                    useValue: {
+                        isEnabled: () => tmdbEnabled(),
+                        keyFor: (item: PortalActivityItem) => item.title,
+                        getExtras,
+                    },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        onLangChange: new Subject(),
+                        instant: (key: string, params?: object) =>
+                            params ? `${key} ${JSON.stringify(params)}` : key,
+                    },
+                },
+            ],
+        });
+        return TestBed.inject(DashboardHeroSlidesPresenter);
+    }
+
+    beforeEach(() => {
+        recentItems = signal([series, watchedMovie]);
+        favorites = signal([channel, favoriteFilm]);
+        addedItems = signal([import1]);
+        candidates = signal([{ origin: 'favorite', item: channel }]);
+        liveDetails = jest.fn(() => onAir);
+        tmdbEnabled = signal(false);
+        getExtras = jest.fn().mockResolvedValue(null);
+    });
+
+    it('builds the rotation from resume, live, favourite and import slides', () => {
+        const slides = create().slides();
+
+        expect(slides.map((slide) => [slide.kind, slide.title])).toEqual([
+            ['continue', 'Big Pharma'],
+            ['live', 'Match TV'],
+            ['favorite', 'Burnley'],
+            ['added', 'Parallel Stories'],
+        ]);
+        // A (nearly) finished film is not something to continue.
+        expect(slides.some((slide) => slide.title === 'Finished Film')).toBe(
+            false
+        );
+    });
+
+    it('resumes an unfinished series and offers a detail-only way in', () => {
+        const [resume] = create().slides();
+
+        expect(resume).toMatchObject({
+            typeLabelKey: 'WORKSPACE.DASHBOARD.TYPE_SERIES',
+            reasonLabelKey: 'WORKSPACE.DASHBOARD.CONTINUE_WATCHING',
+            episodeBadge:
+                'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE {"season":1,"episode":3}',
+            source: 'rucolor',
+            progress: 33,
+            // No 16:9 backdrop: the poster becomes the blurred stage.
+            backdropSource: 'poster',
+            primaryAction: {
+                labelKey: 'WORKSPACE.DASHBOARD.HERO_CONTINUE',
+                link: ['/recent', '1'],
+                state: { resume: true },
+                remainingLabel: {
+                    key: 'WORKSPACE.DASHBOARD.REMAINING_MINUTES',
+                    params: { minutes: 20 },
+                },
+            },
+            secondaryAction: {
+                labelKey: 'WORKSPACE.DASHBOARD.HERO_DETAILS',
+                state: { resume: false },
+            },
+        });
+    });
+
+    it('shows a favourite channel with its programme on air now', () => {
+        const live = create().slides()[1];
+
+        expect(live).toMatchObject({
+            typeLabelKey: 'WORKSPACE.DASHBOARD.TYPE_LIVE',
+            reasonLabelKey: 'WORKSPACE.DASHBOARD.HERO_FAVORITE_CHANNEL',
+            programmeTitle: 'Football: farewell match',
+            description: 'Live from Moscow.',
+            category: 'Sport',
+            timeRange: '18:50 – 20:55',
+            progress: 35,
+            primaryAction: {
+                labelKey: 'WORKSPACE.DASHBOARD.HERO_WATCH_LIVE',
+                link: ['/favorite', '3'],
+            },
+            secondaryAction: null,
+        });
+    });
+
+    it('leaves the live slide out until a candidate has a programme on air', () => {
+        liveDetails.mockReturnValue(null);
+        const presenter = create();
+
+        expect(presenter.slides().map((slide) => slide.kind)).not.toContain(
+            'live'
+        );
+    });
+
+    it('opens discovery slides on their detail page, with a safe source label', () => {
+        const slides = create().slides();
+
+        // The stored name is a URL with credentials: only its host shows.
+        expect(slides[2].source).toBe('4kgood.org:8080');
+        expect(slides[2]).toMatchObject({
+            year: 2023,
+            primaryAction: {
+                labelKey: 'WORKSPACE.DASHBOARD.HERO_DETAILS',
+                link: ['/favorite', '4'],
+            },
+            secondaryAction: null,
+        });
+        expect(slides[3]).toMatchObject({
+            backdropSource: 'backdrop',
+            primaryAction: { link: ['/added', '5'], state: { added: true } },
+        });
+    });
+
+    it('patches TMDB extras in, and drops them when TMDB is switched off', async () => {
+        tmdbEnabled.set(true);
+        const extras: DashboardHeroTmdbExtras = {
+            backdropUrl: 'https://tmdb/pharma-wide.jpg',
+            rating: '7.5',
+            genres: ['Drama'],
+            overview: 'A pharmacist enters big business.',
+            year: 2024,
+        };
+        getExtras.mockImplementation((item: PortalActivityItem) =>
+            Promise.resolve(item.title === 'Big Pharma' ? extras : null)
+        );
+        const presenter = create();
+        TestBed.tick();
+        await Promise.resolve();
+
+        expect(getExtras).toHaveBeenCalledTimes(3);
+        expect(presenter.slides()[0]).toMatchObject({
+            backdropUrl: 'https://tmdb/pharma-wide.jpg',
+            backdropSource: 'backdrop',
+            rating: '7.5',
+            genres: ['Drama'],
+            description: 'A pharmacist enters big business.',
+            year: 2024,
+        });
+
+        tmdbEnabled.set(false);
+        expect(presenter.slides()[0]).toMatchObject({
+            backdropSource: 'poster',
+            rating: null,
+            description: null,
+        });
+    });
+
+    it('falls back to the generated stage when an image fails to load', () => {
+        const presenter = create();
+        presenter.markImageFailed('https://img/pharma-poster.jpg');
+
+        expect(presenter.slides()[0]).toMatchObject({
+            backdropUrl: undefined,
+            backdropSource: 'fallback',
+        });
+    });
+});

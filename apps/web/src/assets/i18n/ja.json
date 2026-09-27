@@ -1563,7 +1563,18 @@
             "RECENTLY_WATCHED_LIVE_TV": "最近視聴したライブ TV",
             "FAVORITE_MOVIES_AND_SERIES": "お気に入りの映画とシリーズ",
             "SOURCE_EXPIRES_IN_DAYS": "あと{{days}}日で期限切れ",
-            "SOURCE_EXPIRED": "期限切れ"
+            "SOURCE_EXPIRED": "期限切れ",
+            "HERO_LABEL": "おすすめ",
+            "HERO_FAVORITE_CHANNEL": "お気に入りチャンネル",
+            "HERO_FAVORITE": "お気に入り",
+            "HERO_RECENTLY_ADDED": "最近追加",
+            "HERO_CONTINUE": "続きを再生",
+            "HERO_WATCH_LIVE": "ライブで見る",
+            "HERO_DETAILS": "詳細",
+            "HERO_SLIDE_POSITION": "{{index}} / {{count}}",
+            "HERO_SHOW_SLIDE": "{{title}} を表示",
+            "HERO_PAUSE": "スライドショーを一時停止",
+            "HERO_PLAY": "スライドショーを再生"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
