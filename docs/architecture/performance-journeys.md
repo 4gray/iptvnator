@@ -184,20 +184,20 @@ harness, which is what the ratchet needs. The main process start
 `renderer.ipcCallsToFirstCard` counts what the renderer asks of the main
 process before the first card.
 
-- `PlaylistsService.getAllPlaylists()` shares one in-flight SQLite read
-  between concurrent callers (`SharedInFlightRead`): at startup the playlist
-  effect and the XMLTV source reconciliation both read the inventory, and the
-  second caller joins the first read and receives a copy. A settled read is
-  never reused, and every SQLite write detaches the pending read, so a caller
-  that follows a write reads again. This took the counter from 12 to 7 in
-  the #1716 profile... see the validation note below.
+- `PlaylistsService.getAllPlaylists()` shares one pending SQLite read between
+  concurrent callers: at startup the playlist effect and the XMLTV source
+  reconciliation both read the inventory, and the second caller joins the
+  first read and receives a `structuredClone` of its result. A settled read
+  is never reused, and every SQLite write detaches the pending read, so a
+  caller that follows a write reads again. `dbGetAppPlaylistMetas` before the
+  first card: 2 → 1.
 - `reconcileEpgSources` stays before the first card on purpose: its
   completion bumps `EpgSourceSettingsService.revision()`, the fence that
   keeps XMLTV lookups from returning data of a removed source.
 
 Validation (#1716, Principle 3): deferring the download list, update status
-and dashboard recent/favorites reads until after the first render lowered
-the counter by four more, but moved neither `spawnToFirstCardMs` nor
+and dashboard recent/favorites reads until after the first render took the
+counter from 12 to 7 on a Mac, but moved neither `spawnToFirstCardMs` nor
 load→card beyond run-to-run drift on a quiet machine, and it grew
 `renderer.initialBytes`, so it was dropped. Those calls were never on the
 path the first card waits for. That path is a serial chain of round trips
