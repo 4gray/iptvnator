@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Ismételt kapcsolódási hibák után az új Xtream- és Stalker-kérések szüneteltetése 30 másodpercre. Ha egy portál időnként elérhetetlenné válik, próbálja kikapcsolni. Mentés után, újraindítás nélkül érvényesül.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Minden kérés önállóan fut. Elérhetetlen szervereknél a hiba megjelenése tovább tarthat.",
         "TITLE": "Beállítások",
+        "SEARCH_RESULTS_TITLE": "Keresési találatok",
+        "SEARCH_RESULTS_COUNT": "„{{query}}” kifejezésre illeszkedő beállítások: {{count}}",
+        "SEARCH_EMPTY_HINT": "Nincs illeszkedő beállítás. Próbáljon másik szót, például lejátszó, téma vagy EPG.",
         "GENERAL": "Általános",
         "GENERAL_SUBTITLE": "Az alkalmazás beállításainak módosítása",
         "PLAYBACK": "Lejátszás",
@@ -1594,6 +1597,7 @@
             "RAIL_CONTEXT_ACTIONS": "Szakaszműveletek",
             "SEARCH_LABEL": "Keresés",
             "SEARCH_SOURCES_PLACEHOLDER": "Keresés a források között (összes lejátszási lista)…",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Keresés a beállításokban…",
             "SEARCH_GLOBAL_PLACEHOLDER": "Keresés az összes lejátszási listában…",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Keresés ebben a lejátszási listában…",
             "SEARCH_SECTION_PLACEHOLDER": "Keresés ebben a szakaszban…",
@@ -1751,14 +1755,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Parancspaletta",
             "SUBTITLE": "Globális és környezetfüggő műveletek",
-            "SEARCH_PLACEHOLDER": "A parancsok szűréséhez kezdjen gépelni",
+            "SEARCH_PLACEHOLDER": "Parancsok és beállítások keresése",
             "SEARCH_LABEL": "Parancsok szűrése",
             "EMPTY": "Nincs találat a parancsok között",
             "GROUP_GLOBAL": "Globális műveletek",
             "GROUP_PLAYLIST": "Ez a lejátszási lista",
             "GROUP_VIEW": "Aktuális nézet",
             "GROUP_SECTION": "Aktuális szakasz",
-            "GROUP_RECENT": "Legutóbb használt"
+            "GROUP_RECENT": "Legutóbb használt",
+            "GROUP_SETTINGS": "Beállítások"
         },
         "SHORTCUTS": {
             "TITLE": "Billentyűparancsok",

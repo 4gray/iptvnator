@@ -45,6 +45,11 @@
     border-top: 1px solid var(--app-separator);
 }
 
+// Sections without settings-search matches stay reachable but recede.
+.settings-section-item.has-no-matches:not(.active) {
+    opacity: 0.55;
+}
+
 .settings-section-item:hover:not(.active):not(.selected),
 .settings-back-button:hover:not(.active):not(.selected) {
     background: var(--app-selection-surface);

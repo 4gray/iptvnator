@@ -9,7 +9,7 @@
         </div>
     </header>
 
-    <div class="setting-item">
+    <div class="setting-item" data-setting-id="parental-lock-enable">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.PARENTAL_LOCK.ENABLE' | translate }}</h4>
             <p>{{ 'SETTINGS.PARENTAL_LOCK.ENABLE_DESCRIPTION' | translate }}</p>
@@ -26,7 +26,7 @@
     </div>
 
     @if (enabled()) {
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="parental-lock-status">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.PARENTAL_LOCK.STATUS' | translate }}</h4>
                 <p>
@@ -65,7 +65,7 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="parental-lock-relock">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.PARENTAL_LOCK.RELOCK' | translate }}</h4>
                 <p>
@@ -100,7 +100,7 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="parental-lock-change-pin">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.PARENTAL_LOCK.CHANGE_PIN' | translate }}</h4>
                 <p>
@@ -124,7 +124,7 @@
             </div>
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item" data-setting-id="parental-lock-how-to">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.PARENTAL_LOCK.HOW_TO_LOCK' | translate }}</h4>
                 <p>

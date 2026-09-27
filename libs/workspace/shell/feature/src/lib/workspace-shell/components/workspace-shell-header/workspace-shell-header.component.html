@@ -42,7 +42,9 @@
         />
     }
 
-    @if (!hasNoPlaylists()) {
+    <!-- Settings search works without any playlist, so a fresh user can
+         find settings before importing a first source. -->
+    @if (!hasNoPlaylists() || isSettingsRoute()) {
         <label class="search-field">
             <mat-icon>search</mat-icon>
             @if (searchScopeLabel()) {

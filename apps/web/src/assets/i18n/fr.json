@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Après plusieurs échecs de connexion, suspendre les nouvelles requêtes Xtream et Stalker pendant 30 secondes. Essayez de désactiver cette option si un portail devient indisponible par intermittence. Prend effet après enregistrement, sans redémarrage.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Chaque requête sera exécutée indépendamment. Les serveurs indisponibles peuvent mettre plus de temps à signaler une erreur.",
         "TITLE": "Paramètres",
+        "SEARCH_RESULTS_TITLE": "Résultats de la recherche",
+        "SEARCH_RESULTS_COUNT": "Paramètres correspondant à « {{query}} » : {{count}}",
+        "SEARCH_EMPTY_HINT": "Aucun paramètre ne correspond. Essayez un autre mot, par exemple lecteur, thème ou EPG.",
         "GENERAL": "Général",
         "GENERAL_SUBTITLE": "Modifier la configuration de l'application",
         "PLAYBACK": "Lecture",
@@ -1594,6 +1597,7 @@
             "RAIL_CONTEXT_ACTIONS": "Actions de la section",
             "SEARCH_LABEL": "Rechercher",
             "SEARCH_SOURCES_PLACEHOLDER": "Rechercher des sources (toutes les listes)…",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Rechercher dans les paramètres…",
             "SEARCH_GLOBAL_PLACEHOLDER": "Rechercher dans toutes les playlists...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Rechercher dans cette liste de lecture…",
             "SEARCH_SECTION_PLACEHOLDER": "Rechercher dans cette section...",
@@ -1751,14 +1755,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Palette de commandes",
             "SUBTITLE": "Actions globales et contextuelles",
-            "SEARCH_PLACEHOLDER": "Saisir pour filtrer les commandes",
+            "SEARCH_PLACEHOLDER": "Rechercher des commandes et des paramètres",
             "SEARCH_LABEL": "Filtrer les commandes",
             "EMPTY": "Aucune commande trouvée",
             "GROUP_GLOBAL": "Actions globales",
             "GROUP_PLAYLIST": "Cette liste de lecture",
             "GROUP_VIEW": "Vue actuelle",
             "GROUP_SECTION": "Cette section",
-            "GROUP_RECENT": "Récemment utilisées"
+            "GROUP_RECENT": "Récemment utilisées",
+            "GROUP_SETTINGS": "Paramètres"
         },
         "SHORTCUTS": {
             "TITLE": "Raccourcis clavier",

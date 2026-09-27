@@ -232,6 +232,9 @@ sub-entrypoints are `@iptvnator/shared/interfaces/ipc-commands` and
 `@iptvnator/shared/interfaces` barrel pulls in `ngx-indexed-db`, which the
 preload bundle must not carry, so the preload only type-imports the barrel
 and value-imports those two dependency-free modules directly.
+`@iptvnator/workspace/shell/util/settings-search` exists for the opposite
+reason: the main `workspace-shell-util` barrel is imported eagerly, and the
+settings search index must stay in the lazy settings and shell chunks.
 
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency

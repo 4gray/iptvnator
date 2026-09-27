@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Nach wiederholten Verbindungsfehlern neue Xtream- und Stalker-Anfragen 30 Sekunden pausieren. Bei zeitweise nicht erreichbaren Portalen versuchsweise deaktivieren. Gilt nach dem Speichern ohne Neustart.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Jede Anfrage wird unabhängig ausgeführt. Bei nicht erreichbaren Servern kann die Fehlermeldung länger dauern.",
         "TITLE": "Einstellungen",
+        "SEARCH_RESULTS_TITLE": "Suchergebnisse",
+        "SEARCH_RESULTS_COUNT": "Einstellungen zu „{{query}}“: {{count}}",
+        "SEARCH_EMPTY_HINT": "Keine passenden Einstellungen. Ein anderes Wort versuchen, etwa Player, Design oder EPG.",
         "GENERAL": "Allgemein",
         "GENERAL_SUBTITLE": "Allgemeine App-Einstellungen ändern",
         "PLAYBACK": "Wiedergabe",
@@ -1594,6 +1597,7 @@
             "RAIL_CONTEXT_ACTIONS": "Abschnittsaktionen",
             "SEARCH_LABEL": "Suche",
             "SEARCH_SOURCES_PLACEHOLDER": "Quellen durchsuchen (alle Playlists)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Einstellungen durchsuchen...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Alle Wiedergabelisten durchsuchen...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "In dieser Playlist suchen...",
             "SEARCH_SECTION_PLACEHOLDER": "In diesem Abschnitt suchen...",
@@ -1751,14 +1755,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Befehlspalette",
             "SUBTITLE": "Globale und kontextbezogene Aktionen",
-            "SEARCH_PLACEHOLDER": "Zum Filtern der Befehle tippen",
+            "SEARCH_PLACEHOLDER": "Befehle und Einstellungen durchsuchen",
             "SEARCH_LABEL": "Befehle filtern",
             "EMPTY": "Keine Befehle gefunden",
             "GROUP_GLOBAL": "Globale Aktionen",
             "GROUP_PLAYLIST": "Diese Playlist",
             "GROUP_VIEW": "Aktuelle Ansicht",
             "GROUP_SECTION": "Dieser Abschnitt",
-            "GROUP_RECENT": "Kürzlich verwendet"
+            "GROUP_RECENT": "Kürzlich verwendet",
+            "GROUP_SETTINGS": "Einstellungen"
         },
         "SHORTCUTS": {
             "TITLE": "Tastenkürzel",

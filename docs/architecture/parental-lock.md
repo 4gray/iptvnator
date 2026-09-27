@@ -403,7 +403,7 @@ predicate is `ParentalLockService.is*Locked`.
   persisted lock set, its unreadable state and the SQLite re-stamp),
   `apps/web/src/app/services/parental-lock-prompt.service.ts`,
   `parental-lock-enforcement.service.ts`,
-  `apps/web/src/app/settings/settings-parental-lock*`,
+  `apps/web/src/app/settings/settings-parental-section.component.*` and `settings-parental-lock.facade.ts` (rows anchored and indexed for settings search),
   `libs/ui/components/src/lib/parental-lock-pin-dialog/`,
   `libs/portal/stalker/feature/src/lib/stalker-category-lock-dialog/`.
 - Electron: `apps/electron-backend/src/app/database/parental-lock-state.ts`,

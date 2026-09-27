@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "بعد تكرار فشل الاتصال، تُوقف طلبات Xtream وStalker الجديدة لمدة 30 ثانية. جرّب تعطيل هذا الخيار إذا كانت البوابة تصبح غير متاحة بشكل متقطع. يُطبّق بعد الحفظ دون إعادة التشغيل.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "سيُنفّذ كل طلب بشكل مستقل. قد يستغرق ظهور الخطأ وقتًا أطول عند عدم توفر الخادم.",
         "TITLE": "الإعدادات",
+        "SEARCH_RESULTS_TITLE": "نتائج البحث",
+        "SEARCH_RESULTS_COUNT": "الإعدادات المطابقة لـ «{{query}}»: {{count}}",
+        "SEARCH_EMPTY_HINT": "لا توجد إعدادات مطابقة. جرّب كلمة أخرى، مثل المشغل أو السمة أو EPG.",
         "GENERAL": "عام",
         "GENERAL_SUBTITLE": "تغيير تكوين التطبيق",
         "PLAYBACK": "التشغيل",
@@ -1594,6 +1597,7 @@
             "RAIL_CONTEXT_ACTIONS": "إجراءات السياق",
             "SEARCH_LABEL": "بحث",
             "SEARCH_SOURCES_PLACEHOLDER": "البحث في المصادر (جميع قوائم التشغيل)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "البحث في الإعدادات...",
             "SEARCH_GLOBAL_PLACEHOLDER": "البحث في كل قوائم التشغيل...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "البحث في قائمة التشغيل هذه...",
             "SEARCH_SECTION_PLACEHOLDER": "البحث في هذا القسم...",
@@ -1751,14 +1755,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "لوحة الأوامر",
             "SUBTITLE": "إجراءات عامة وسياقية",
-            "SEARCH_PLACEHOLDER": "اكتب لتصفية الأوامر",
+            "SEARCH_PLACEHOLDER": "البحث في الأوامر والإعدادات",
             "SEARCH_LABEL": "تصفية الأوامر",
             "EMPTY": "لم يتم العثور على أوامر",
             "GROUP_GLOBAL": "الإجراءات العامة",
             "GROUP_PLAYLIST": "قائمة التشغيل هذه",
             "GROUP_VIEW": "العرض الحالي",
             "GROUP_SECTION": "هذا القسم",
-            "GROUP_RECENT": "المستخدمة مؤخرًا"
+            "GROUP_RECENT": "المستخدمة مؤخرًا",
+            "GROUP_SETTINGS": "الإعدادات"
         },
         "SHORTCUTS": {
             "TITLE": "اختصارات لوحة المفاتيح",

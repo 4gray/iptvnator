@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "من بعد ما يفشل الاتصال عدة مرات، كيوقف طلبات Xtream وStalker الجديدة لمدة 30 ثانية. جرّب تطفي هاد الخيار إلا كانت البوابة كتقطع مرة مرة. كيتطبق من بعد الحفظ بلا إعادة التشغيل.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "كل طلب غادي يتنفذ بوحدو. إلا كان السيرفر ما متاحش، رسالة الخطأ تقدر تتأخر.",
         "TITLE": "الإعدادات",
+        "SEARCH_RESULTS_TITLE": "نتائج البحث",
+        "SEARCH_RESULTS_COUNT": "الإعدادات اللي كتطابق «{{query}}»: {{count}}",
+        "SEARCH_EMPTY_HINT": "ما كاين حتى إعداد مطابق. جرب كلمة أخرى، بحال المشغل ولا المظهر ولا EPG.",
         "GENERAL": "عام",
         "GENERAL_SUBTITLE": "بدل تكوين التطبيق",
         "PLAYBACK": "التشغيل",
@@ -1594,6 +1597,7 @@
             "RAIL_CONTEXT_ACTIONS": "إجراءات القسم",
             "SEARCH_LABEL": "بحث",
             "SEARCH_SOURCES_PLACEHOLDER": "قلب على مصادر (جميع قوائم التشغيل)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "قلب فالإعدادات...",
             "SEARCH_GLOBAL_PLACEHOLDER": "قلب فكل لوائح التشغيل...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "قلب في هاد قائمة التشغيل...",
             "SEARCH_SECTION_PLACEHOLDER": "قلب فهاد القسم...",
@@ -1751,14 +1755,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "لوحة الأوامر",
             "SUBTITLE": "إجراءات عامة وسياقية",
-            "SEARCH_PLACEHOLDER": "كتب باش تفلتر الأوامر",
+            "SEARCH_PLACEHOLDER": "قلب على الأوامر والإعدادات",
             "SEARCH_LABEL": "فلتر الأوامر",
             "EMPTY": "ما تلقاتش حتى أمر",
             "GROUP_GLOBAL": "إجراءات عامة",
             "GROUP_PLAYLIST": "هاد قائمة التشغيل",
             "GROUP_VIEW": "العرض الحالي",
             "GROUP_SECTION": "هاد القسم",
-            "GROUP_RECENT": "مستعملة مؤخراً"
+            "GROUP_RECENT": "مستعملة مؤخراً",
+            "GROUP_SETTINGS": "الإعدادات"
         },
         "SHORTCUTS": {
             "TITLE": "اختصارات الكلافيي",

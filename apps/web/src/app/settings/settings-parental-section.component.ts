@@ -17,7 +17,7 @@ import { ParentalLockRelockMinutes } from '@iptvnator/shared/interfaces';
         MatSlideToggleModule,
         TranslateModule,
     ],
-    templateUrl: './settings-parental-lock-section.component.html',
+    templateUrl: './settings-parental-section.component.html',
     encapsulation: ViewEncapsulation.None,
     styles: [':host { display: contents; }'],
 })

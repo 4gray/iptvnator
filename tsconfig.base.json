@@ -8,6 +8,7 @@
         "esModuleInterop": true,
         "emitDecoratorMetadata": true,
         "experimentalDecorators": true,
+        "isolatedModules": true,
         "importHelpers": true,
         "target": "es2015",
         "module": "esnext",
@@ -74,6 +75,9 @@
             ],
             "@iptvnator/workspace/shell/util": [
                 "libs/workspace/shell/util/src/index.ts"
+            ],
+            "@iptvnator/workspace/shell/util/settings-search": [
+                "libs/workspace/shell/util/src/lib/settings-search/index.ts"
             ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
             "@iptvnator/ui/components": ["libs/ui/components/src/index.ts"],

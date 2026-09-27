@@ -264,6 +264,9 @@
         "PORTAL_CONNECTIVITY_GUARD_DESCRIPTION": "Dopo ripetuti errori di connessione, sospendi le nuove richieste Xtream e Stalker per 30 secondi. Prova a disattivare se un portale diventa intermittentemente non disponibile. Si applica al salvataggio, senza riavvio.",
         "PORTAL_CONNECTIVITY_GUARD_DISABLED": "Ogni richiesta verrà eseguita indipendentemente. I server non disponibili potrebbero impiegare più tempo a segnalare un errore.",
         "TITLE": "Impostazioni IPTVnator",
+        "SEARCH_RESULTS_TITLE": "Risultati della ricerca",
+        "SEARCH_RESULTS_COUNT": "Impostazioni corrispondenti a “{{query}}”: {{count}}",
+        "SEARCH_EMPTY_HINT": "Nessuna impostazione corrisponde. Prova un'altra parola, ad esempio riproduttore, tema o EPG.",
         "GENERAL": "Generale",
         "GENERAL_SUBTITLE": "Modifica le impostazioni generali dell'applicazione",
         "PLAYBACK": "Riproduzione",
@@ -1594,6 +1597,7 @@
             "RAIL_CONTEXT_ACTIONS": "Azioni sezione",
             "SEARCH_LABEL": "Cerca",
             "SEARCH_SOURCES_PLACEHOLDER": "Cerca sorgenti (tutte le playlist)...",
+            "SEARCH_SETTINGS_PLACEHOLDER": "Cerca nelle impostazioni...",
             "SEARCH_GLOBAL_PLACEHOLDER": "Cerca in tutte le playlist...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Cerca in questa playlist...",
             "SEARCH_SECTION_PLACEHOLDER": "Cerca in questa sezione...",
@@ -1751,14 +1755,15 @@
         "COMMAND_PALETTE": {
             "TITLE": "Tavolozza comandi",
             "SUBTITLE": "Azioni globali e contestuali",
-            "SEARCH_PLACEHOLDER": "Digita per filtrare i comandi",
+            "SEARCH_PLACEHOLDER": "Cerca comandi e impostazioni",
             "SEARCH_LABEL": "Filtra comandi",
             "EMPTY": "Nessun comando trovato",
             "GROUP_GLOBAL": "Azioni globali",
             "GROUP_PLAYLIST": "Questa playlist",
             "GROUP_VIEW": "Vista corrente",
             "GROUP_SECTION": "Questa sezione",
-            "GROUP_RECENT": "Usati di recente"
+            "GROUP_RECENT": "Usati di recente",
+            "GROUP_SETTINGS": "Impostazioni"
         },
         "SHORTCUTS": {
             "TITLE": "Scorciatoie da tastiera",
