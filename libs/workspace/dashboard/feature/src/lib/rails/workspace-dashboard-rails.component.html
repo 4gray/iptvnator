@@ -238,7 +238,7 @@
                     liveEpg.setVisibleCards('favorites', $event)
                 "
             />
-        } @else if (railSkeletonsVisible() && showLiveFavoritesSkeleton()) {
+        } @else if (railSkeletons.liveFavorites()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -290,7 +290,7 @@
             />
         }
 
-        @if (railSkeletonsVisible() && showRecentContentSkeleton()) {
+        @if (railSkeletons.recentContent()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -316,11 +316,7 @@
                 [testId]="'dashboard-recent-sources-rail'"
                 (actionSelected)="onSourceActionSelected($event)"
             />
-        } @else if (
-            railSkeletonsVisible() &&
-            dashboardRails().recentSources &&
-            !data.playlistsLoaded()
-        ) {
+        } @else if (railSkeletons.sources()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -348,12 +344,7 @@
                 [totalCount]="data.xtreamRecentlyAddedItems().length"
                 [testId]="'dashboard-xtream-recently-added-rail'"
             />
-        } @else if (
-            railSkeletonsVisible() &&
-            dashboardRails().xtreamRecentlyAdded &&
-            xtreamPlaylistCount() > 0 &&
-            data.xtreamRecentlyAddedLoading()
-        ) {
+        } @else if (railSkeletons.xtreamRecentlyAdded()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -379,11 +370,7 @@
                 [totalCount]="recommendationCards().length"
                 [testId]="'dashboard-tmdb-recommendations-rail'"
             />
-        } @else if (
-            railSkeletonsVisible() &&
-            dashboardRails().tmdbRecommendations &&
-            recommendationsService.loading()
-        ) {
+        } @else if (railSkeletons.tmdbRecommendations()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -406,11 +393,7 @@
                 [totalCount]="trendingCards().length"
                 [testId]="'dashboard-tmdb-trending-rail'"
             />
-        } @else if (
-            railSkeletonsVisible() &&
-            dashboardRails().tmdbTrending &&
-            trendingService.loading()
-        ) {
+        } @else if (railSkeletons.tmdbTrending()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"

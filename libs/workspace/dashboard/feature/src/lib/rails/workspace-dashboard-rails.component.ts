@@ -55,7 +55,7 @@ import {
     resolveSourceExpiryBadge,
     SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
-import { createRailSkeletonGrace } from './dashboard-skeleton-grace';
+import { createRailSkeletonGates } from './dashboard-skeleton-grace';
 import type { DashboardHeroTmdbExtras } from './dashboard-hero-tmdb.service';
 import { DashboardHeroTmdbService } from './dashboard-hero-tmdb.service';
 import { DashboardRailComponent } from './dashboard-rail.component';
@@ -142,8 +142,6 @@ export class WorkspaceDashboardRailsComponent {
     readonly isElectron = this.runtime.isElectron;
 
     readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
-    /** Rail skeletons wait out a short grace period; see the helper. */
-    readonly railSkeletonsVisible = createRailSkeletonGrace();
     readonly skeletonRails = SKELETON_RAILS;
     readonly liveRailTitleKeyForSource = liveRailTitleKeyForSource;
     readonly failedHeroImages = signal<Record<string, true>>({});
@@ -376,6 +374,103 @@ export class WorkspaceDashboardRailsComponent {
             expiryBadge: this.buildSourceExpiryBadge(playlist._id),
         }));
     });
+
+    /**
+     * Skeleton visibility per rail, in template order: a skeleton waits out a
+     * grace period from its own rail's loading start and never appears above
+     * a rail that already shows cards (see createRailSkeletonGates).
+     */
+    readonly railSkeletons = createRailSkeletonGates([
+        [
+            'continueWatching',
+            {
+                loading: () => false,
+                rendered: () =>
+                    this.dashboardRails().continueWatching &&
+                    this.continueWatchingCards().length > 0,
+            },
+        ],
+        [
+            'liveFavorites',
+            {
+                loading: () => this.showLiveFavoritesSkeleton(),
+                rendered: () =>
+                    this.dashboardRails().liveFavorites &&
+                    !this.showLiveFavoritesSkeleton() &&
+                    this.liveFavoriteCards().length > 0,
+            },
+        ],
+        [
+            'recentLive',
+            {
+                loading: () => false,
+                rendered: () =>
+                    this.dashboardRails().recentlyWatchedLive &&
+                    this.recentLiveCards().length > 0,
+            },
+        ],
+        [
+            'favoriteVod',
+            {
+                loading: () => false,
+                rendered: () =>
+                    this.dashboardRails().favoriteMoviesAndSeries &&
+                    this.favoriteMoviesAndSeriesCards().length > 0,
+            },
+        ],
+        [
+            'recentContent',
+            {
+                loading: () => this.showRecentContentSkeleton(),
+                rendered: () => false,
+            },
+        ],
+        [
+            'sources',
+            {
+                loading: () =>
+                    this.dashboardRails().recentSources &&
+                    !this.data.playlistsLoaded(),
+                rendered: () =>
+                    this.dashboardRails().recentSources &&
+                    this.sourceCards().length > 0,
+            },
+        ],
+        [
+            'xtreamRecentlyAdded',
+            {
+                loading: () =>
+                    this.dashboardRails().xtreamRecentlyAdded &&
+                    this.xtreamPlaylistCount() > 0 &&
+                    this.data.xtreamRecentlyAddedLoading(),
+                rendered: () =>
+                    this.dashboardRails().xtreamRecentlyAdded &&
+                    this.xtreamRecentlyAddedCards().length > 0,
+            },
+        ],
+        [
+            'tmdbRecommendations',
+            {
+                loading: () =>
+                    this.dashboardRails().tmdbRecommendations &&
+                    this.recommendationsService.loading(),
+                rendered: () =>
+                    this.dashboardRails().tmdbRecommendations &&
+                    this.recommendationCards().length > 0,
+            },
+        ],
+        [
+            'tmdbTrending',
+            {
+                loading: () =>
+                    this.dashboardRails().tmdbTrending &&
+                    this.trendingService.loading(),
+                rendered: () =>
+                    this.dashboardRails().tmdbTrending &&
+                    this.trendingCards().length > 0,
+            },
+        ],
+    ] as const);
 
     constructor() {
         // Re-entering the dashboard should pick up any DB-backed recent/favorite
