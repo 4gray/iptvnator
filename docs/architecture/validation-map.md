@@ -107,6 +107,18 @@ with `diagnostics: false`); `isolatedModules`-incompatible syntax such as a
 type re-export without `export type` still fails at load time, and spec type
 errors are caught by `typecheck:spec` (see Unit And Type Checks).
 
+Some `electron-backend` and `database` specs run SQLite code in the Electron
+binary under `ELECTRON_RUN_AS_NODE`, resolving it with `require('electron')`.
+pnpm does not run Electron's postinstall (`electron` is deliberately absent from
+`onlyBuiltDependencies`, see [workspace shell](workspace-shell.md)), so the
+first `require` downloads and extracts the binary. With projects and Jest
+workers in parallel, one process can exec it while another is still extracting
+it (`spawnSync … ETXTBSY` on Linux). `coverage:unit:ci` and a CI step right
+after `pnpm install` therefore run `tools/testing/ensure-electron-binary.mjs`
+first, which downloads the binary once and fails unless it runs and reports
+the pinned version. In a fresh worktree, run it before starting several of
+these specs at once by other means.
+
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:
 `tools/coverage/unit-coverage-scope.mjs` holds the allowlist (Markdown, `docs/`,

@@ -285,9 +285,12 @@ jobs:
             # and never launch a Playwright browser, so no `playwright
             # install`. The runner image ships Electron's shared libraries and
             # xvfb; fail fast with a clear message if an image update drops one.
+            # pnpm skips Electron's postinstall, so download the binary first;
+            # otherwise ldd sees no file and the check passes vacuously.
             - name: Check Electron runtime dependencies
               run: |
                   command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
+                  node tools/testing/ensure-electron-binary.mjs || { echo "::error::Electron binary download failed"; exit 1; }
                   missing="$(ldd node_modules/electron/dist/electron | grep 'not found' || true)"
                   if [ -n "$missing" ]; then
                       echo "::error::Electron is missing shared libraries:"
@@ -367,6 +370,15 @@ jobs:
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
+
+            # pnpm skips Electron's postinstall (it is not in
+            # onlyBuiltDependencies), so the binary is fetched on the first
+            # require('electron'). Specs that run SQLite under
+            # ELECTRON_RUN_AS_NODE resolve it that way while Tier A projects
+            # run concurrently, and one exec'ing it mid-extraction fails with
+            # ETXTBSY. Download and verify it once, before any test starts.
+            - name: Download Electron binary
+              run: node tools/testing/ensure-electron-binary.mjs
 
             - name: Validate agent guidance
               run: pnpm run agents:validate
