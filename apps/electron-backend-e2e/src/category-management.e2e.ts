@@ -591,22 +591,29 @@ async function expectVisibleSidebarCategoryNames(
     }
 }
 
-// One DOM snapshot: reading items one by one raced list updates, and
-// `textContent()` on a removed item auto-waited through the whole poll.
 async function readVisibleSidebarCategoryNames(page: Page): Promise<string[]> {
-    return page
-        .locator('app-workspace-context-panel .category-item')
-        .filter({ visible: true })
-        .evaluateAll((categories) =>
-            categories
-                .map(
-                    (category) =>
-                        category
-                            .querySelector('.nav-item-label')
-                            ?.textContent?.trim() ?? ''
-                )
-                .filter((name) => name.length > 0)
-        );
+    const categories = page.locator(
+        'app-workspace-context-panel .category-item'
+    );
+    const actualNames: string[] = [];
+    const count = await categories.count();
+
+    for (let index = 0; index < count; index += 1) {
+        const category = categories.nth(index);
+        if (!(await category.isVisible())) {
+            continue;
+        }
+
+        const categoryName =
+            (await category.locator('.nav-item-label').textContent())?.trim() ??
+            '';
+
+        if (categoryName) {
+            actualNames.push(categoryName);
+        }
+    }
+
+    return actualNames;
 }
 
 function stringArraysEqual(left: string[], right: string[]): boolean {
