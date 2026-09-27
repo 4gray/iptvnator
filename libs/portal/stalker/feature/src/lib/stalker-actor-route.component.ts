@@ -61,7 +61,7 @@ export class StalkerActorRouteComponent {
         initialValue: this.route.snapshot.params,
     });
     private readonly personId = computed(() =>
-        Number(this.routeParams().personId)
+        Number(this.routeParams()['personId'])
     );
 
     readonly profile = signal<ActorProfile | null>(null);

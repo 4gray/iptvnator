@@ -27,14 +27,18 @@ describe('ParentalLockEnforcementService', () => {
         version: signal(0),
         active: signal(false),
         registerBusyProbe: jest.fn(),
-        isXtreamCategoryLocked: jest.fn(() => false),
+        isXtreamCategoryLocked: jest.fn(
+            (_playlistId: string, _type: string, _xtreamId: number) => false
+        ),
         isStalkerCategoryLocked: jest.fn(
             (_playlistId: string, _type: string, id: unknown) =>
                 id !== null &&
                 id !== undefined &&
                 lockedStalkerIds.has(String(id))
         ),
-        isM3uGroupLocked: jest.fn(() => false),
+        isM3uGroupLocked: jest.fn(
+            (_playlistId: string, _groupTitle: string) => false
+        ),
     };
     const stalkerStore = {
         currentPlaylist: signal<{ _id: string } | null>({ _id: 'stalker-1' }),
@@ -51,7 +55,9 @@ describe('ParentalLockEnforcementService', () => {
         playlistId: signal<string | null>('xtream-1'),
         selectedCategoryId: signal<number | null>(null),
         selectedItem: signal<{ category_id?: number } | null>(null),
-        reloadCategories: jest.fn(async () => undefined),
+        reloadCategories: jest.fn(
+            async (_shouldPublish?: () => boolean): Promise<void> => undefined
+        ),
         reloadCachedContent: jest.fn(async () => undefined),
         refreshSearchResults: jest.fn(async () => undefined),
         withholdCatalog: jest.fn(),

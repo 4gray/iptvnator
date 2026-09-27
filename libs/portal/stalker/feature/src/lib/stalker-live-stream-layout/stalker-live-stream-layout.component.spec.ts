@@ -168,9 +168,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         fetchChannelEpg: jest.fn(),
         ensureBulkItvEpg: jest.fn(),
         applyMappedItvEpg: jest.fn().mockResolvedValue(undefined),
-        hasItvEpgMappingOverride: jest.fn<boolean, [id: string | number]>(
-            () => false
-        ),
+        hasItvEpgMappingOverride: jest.fn((_id: string | number) => false),
         clearBulkItvEpgCache: jest.fn(() => {
             bulkItvEpgByChannel.set({});
             bulkItvEpgLoaded.set(false);

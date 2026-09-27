@@ -160,7 +160,9 @@ describe('withStalkerContent failure states', () => {
         parentalLock = {
             active: jest.fn(() => false),
             version: signal(0),
-            lockedStalkerIds: jest.fn(() => []),
+            lockedStalkerIds: jest.fn(
+                (_playlistId: string, _type: string): string[] => []
+            ),
         };
 
         TestBed.configureTestingModule({

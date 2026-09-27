@@ -42,7 +42,9 @@ describe('PwaXtreamDataSource', () => {
         };
         parentalLock = {
             active: jest.fn(() => false),
-            lockedXtreamIds: jest.fn(() => []),
+            lockedXtreamIds: jest.fn(
+                (_playlistId: string, _type: string): number[] => []
+            ),
             withholdsEverything: jest.fn(() => false),
         };
 
