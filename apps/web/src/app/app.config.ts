@@ -31,7 +31,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui';
+import { STALKER_PLAYLIST_CONNECTION_EDITOR } from '@iptvnator/playlist/shared/ui/stalker-connection-editor';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
 import {
     provideParentalLockPlaylistCleanup,
@@ -47,7 +47,7 @@ import { provideParentalLockPrompt } from './services/parental-lock-prompt.servi
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
 import { shouldEnableServiceWorker } from './services/runtime-config';
-import { AppStalkerPlaylistConnectionEditorService } from './services/stalker-playlist-connection-editor.service';
+import { LazyStalkerPlaylistConnectionEditor } from './services/lazy-stalker-playlist-connection-editor';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
 
 // AoT requires an exported function for factories
@@ -161,7 +161,7 @@ export const appConfig: ApplicationConfig = {
         ...providePortalPlaybackPositions(),
         {
             provide: STALKER_PLAYLIST_CONNECTION_EDITOR,
-            useExisting: AppStalkerPlaylistConnectionEditorService,
+            useExisting: LazyStalkerPlaylistConnectionEditor,
         },
         ...provideWorkspaceShellActions(),
         ...provideParentalLockPrompt(),

@@ -3,7 +3,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { DialogService } from '@iptvnator/ui/components';
+import { DialogService } from '@iptvnator/ui/components/confirm-dialog';
 import {
     DataService,
     SettingsStore,

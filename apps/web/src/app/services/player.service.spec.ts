@@ -1,7 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { DataService } from '@iptvnator/services';
-import { ExternalPlayerSession, VideoPlayer } from '@iptvnator/shared/interfaces';
+import {
+    ExternalPlayerSession,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from './settings-store.service';
 import { PlayerService } from './player.service';
 
@@ -90,6 +93,57 @@ describe('PlayerService', () => {
             })
         );
         expect(result).toEqual(session);
+    });
+
+    it('opens the external-player info dialog once its chunk has loaded', async () => {
+        settingsStore.player.mockReturnValue(VideoPlayer.MPV);
+        dataService.sendIpcEvent.mockResolvedValue(undefined);
+
+        await service.openResolvedPlayback(
+            { streamUrl: 'https://example.com/video.mp4', title: 'Example' },
+            false
+        );
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(dialog.open).toHaveBeenCalledTimes(1);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            'OPEN_MPV_PLAYER',
+            expect.anything()
+        );
+    });
+
+    it('still starts playback and logs when the info dialog fails to load', async () => {
+        const error = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        const unhandled = jest.fn();
+        process.on('unhandledRejection', unhandled);
+        try {
+            settingsStore.player.mockReturnValue(VideoPlayer.VLC);
+            dataService.sendIpcEvent.mockResolvedValue(undefined);
+            service.loadExternalPlayerInfoDialog = () =>
+                Promise.reject(new Error('chunk failed'));
+
+            await service.openResolvedPlayback(
+                {
+                    streamUrl: 'https://example.com/video.mp4',
+                    title: 'Example',
+                },
+                false
+            );
+            await new Promise((resolve) => setTimeout(resolve));
+
+            expect(dialog.open).not.toHaveBeenCalled();
+            expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+                'OPEN_VLC_PLAYER',
+                expect.anything()
+            );
+            expect(error).toHaveBeenCalledTimes(1);
+            expect(unhandled).not.toHaveBeenCalled();
+        } finally {
+            process.off('unhandledRejection', unhandled);
+            error.mockRestore();
+        }
     });
 
     it('forces external playback without changing the selected embedded player', async () => {

@@ -236,6 +236,26 @@ and value-imports those two dependency-free modules directly.
 reason: the main `workspace-shell-util` barrel is imported eagerly, and the
 settings search index must stay in the lazy settings and shell chunks.
 
+The web app's root shell (`app.component.ts`, `app.config.ts` and the services
+they construct) is on the renderer's initial path, where a barrel costs its
+whole library: esbuild keeps every Angular component module a barrel
+re-exports, because their static definitions count as side effects. Importing
+`WindowControlsComponent` and `DialogService` from `@iptvnator/ui/components`
+once put the channel lists, EPG views, `@angular/forms`, `date-fns` and the
+Stalker data layer into `main.js`. The root shell therefore uses file-level
+entries: `@iptvnator/ui/components/window-controls`,
+`@iptvnator/ui/components/confirm-dialog` and
+`@iptvnator/playlist/shared/ui/stalker-connection-editor` (like the existing
+`@iptvnator/ui/epg/progress-panel`), and loads anything used only on demand
+through a local file it imports dynamically (the Stalker connection editor,
+the release-notes dialog, the external-player info dialog). A local file,
+not the library alias, is the dynamic-import target because
+`@nx/enforce-module-boundaries` forbids static imports of a library the same
+project also loads dynamically. `renderer.initialBytes` in
+[performance journeys](performance-journeys.md) guards the result; to see why a
+module is eager, build with `pnpm nx build web --stats-json` and follow the
+static imports in `dist/apps/web/stats.json` from `apps/web/src/main.ts`.
+
 For a buildable library that has a local `package.json`, its `name` must match
 the scoped alias. Nx uses that package name when rewriting buildable dependency
 paths to `dist/` during `@nx/js:tsc` builds.
