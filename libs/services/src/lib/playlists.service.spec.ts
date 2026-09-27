@@ -61,7 +61,6 @@ describe('PlaylistsService', () => {
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
             pendingMetas: null,
-            migrated: false,
             playlistWriteQueues: new Map(),
             playlistDeleteCleanups: [],
         });

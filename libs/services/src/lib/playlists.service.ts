@@ -78,9 +78,7 @@ type PlaylistStorageElectronApi = {
         playlist: Playlist,
         operationId?: string
     ) => Promise<unknown>;
-    dbMigrateAppPlaylists: (
-        playlists: Playlist[]
-    ) => Promise<{ success: boolean; count: number }>;
+    dbMigrateAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
     dbRecoverLegacyPlaylists?: () => Promise<void>;
     dbUpsertAppPlaylists: (playlists: Playlist[]) => Promise<unknown>;
 };
@@ -122,8 +120,6 @@ export class PlaylistsService {
     // XMLTV source reconciliation); both share one worker round trip. Only a
     // pending read is shared, and every SQLite write detaches it.
     private pendingMetas: Promise<Playlist[]> | null = null;
-    // The IndexedDB → SQLite receipt is written once and never cleared.
-    private migrated = false;
     private indexedDbMigrationPromise: Promise<void> | null = null;
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
 
@@ -203,21 +199,17 @@ export class PlaylistsService {
         if (
             (await electron.dbGetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG)) ===
             '1'
-        ) {
-            this.migrated = true;
+        )
             return;
-        }
         const playlists = await firstValueFrom(
             this.dbService.getAll<Playlist>(DbStores.Playlists)
         );
         if (playlists.length) {
             // The worker commits rows and the receipt atomically. Keep the
             // original IndexedDB as a recovery source, even after success.
-            const result = await electron.dbMigrateAppPlaylists(playlists);
-            this.migrated = result?.success === true;
+            await electron.dbMigrateAppPlaylists(playlists);
         } else {
             await electron.dbSetAppState(SQLITE_PLAYLIST_MIGRATION_FLAG, '1');
-            this.migrated = true;
         }
     }
 
@@ -1099,14 +1091,11 @@ export class PlaylistsService {
 
         return from(
             (async () => {
-                if (!this.migrated) {
-                    const alreadyMigrated = await electron.dbGetAppState(
-                        SQLITE_PLAYLIST_MIGRATION_FLAG
-                    );
-                    if (alreadyMigrated !== '1') {
-                        return null;
-                    }
-                    this.migrated = true;
+                const alreadyMigrated = await electron.dbGetAppState(
+                    SQLITE_PLAYLIST_MIGRATION_FLAG
+                );
+                if (alreadyMigrated !== '1') {
+                    return null;
                 }
 
                 return getFavoriteChannels(playlistId);
