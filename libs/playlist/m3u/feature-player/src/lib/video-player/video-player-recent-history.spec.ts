@@ -177,7 +177,7 @@ describe('VideoPlayerComponent — recently viewed history', () => {
             playlistsServiceMock.addM3uRecentlyViewed
         ).not.toHaveBeenCalled();
 
-        gate.confirm([component.playbackSessionKey()]);
+        gate.confirm({ sessionKey: component.playbackSessionKey() });
 
         expect(playlistsServiceMock.addM3uRecentlyViewed).toHaveBeenCalledWith(
             'playlist-1',
@@ -215,7 +215,7 @@ describe('VideoPlayerComponent — recently viewed history', () => {
             name: 'Second TV',
         });
 
-        gate.confirm(['http://localhost/second.m3u8']);
+        gate.confirm({ streamUrls: ['http://localhost/second.m3u8'] });
 
         expect(playlistsServiceMock.addM3uRecentlyViewed).toHaveBeenCalledTimes(
             1
@@ -234,7 +234,7 @@ describe('VideoPlayerComponent — recently viewed history', () => {
             playlistsServiceMock.addM3uRecentlyViewed
         ).not.toHaveBeenCalled();
 
-        gate.confirm([radio.url]);
+        gate.confirm({ streamUrls: [radio.url] });
 
         expect(playlistsServiceMock.addM3uRecentlyViewed).toHaveBeenCalledTimes(
             1

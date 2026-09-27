@@ -1,10 +1,23 @@
 import { Injectable } from '@angular/core';
 
-/** Keys a history write can be confirmed by: stream URLs or session keys. */
-export type PlaybackHistoryKeys = readonly (string | null | undefined)[];
+/** What a playback is known by, for correlating a write with its playback. */
+export interface PlaybackHistoryTarget {
+    /**
+     * The playing host's `playbackSessionKey` (source and content scoped).
+     * When both sides carry one, it is the only thing that is compared.
+     */
+    readonly sessionKey?: string | null;
+    /** Stream URLs; the fallback when either side has no session key. */
+    readonly streamUrls?: readonly (string | null | undefined)[];
+}
+
+interface NormalizedTarget {
+    readonly sessionKey: string | null;
+    readonly streamUrls: ReadonlySet<string>;
+}
 
 interface PendingHistoryWrite {
-    readonly keys: ReadonlySet<string>;
+    readonly target: NormalizedTarget;
     readonly commit: () => void;
 }
 
@@ -20,56 +33,74 @@ const MAX_PENDING_HISTORY_WRITES = 20;
  * The code that resolves a channel or movie is not the code that plays it:
  * a Stalker link is resolved in the store, played by whichever view mounts
  * the player, or handed to MPV/VLC. Writers therefore `defer` the write under
- * the keys the playback will be known by (its stream URL, or a playback
- * session key), and whoever observes the playback `confirm`s those keys:
- * the inline players once the stream has advanced for a couple of seconds,
- * and the external-player session as soon as MPV/VLC is launched. A stream
- * that fails before that point never reaches history or the dashboard hero.
+ * what the playback will be known by, and whoever observes the playback
+ * `confirm`s it: the inline players once the stream has advanced for a
+ * couple of seconds, and the external-player session as soon as MPV/VLC is
+ * launched. A stream that fails before that point never reaches history or
+ * the dashboard hero.
  *
- * Several writers may defer under the same key; one confirmation commits
- * all of them. A write whose keys are all empty cannot be confirmed and is
+ * A session key is the stronger correlation: the same stream URL can sit in
+ * two playlists, and playing it in one must not record a failed attempt in
+ * the other. Stream URLs only match when either side has no session key.
+ * Several writers may defer for the same playback; one confirmation commits
+ * all of them. A write with nothing to match on cannot be confirmed and is
  * committed immediately, as before this gate existed.
  */
 @Injectable({ providedIn: 'root' })
 export class PlaybackHistoryGate {
     private pending: PendingHistoryWrite[] = [];
 
-    defer(keys: PlaybackHistoryKeys, commit: () => void): void {
-        const normalized = normalizeKeys(keys);
-        if (normalized.size === 0) {
+    defer(target: PlaybackHistoryTarget, commit: () => void): void {
+        const normalized = normalizeTarget(target);
+        if (!normalized.sessionKey && normalized.streamUrls.size === 0) {
             runCommit(commit);
             return;
         }
 
-        this.pending.push({ keys: normalized, commit });
+        this.pending.push({ target: normalized, commit });
         if (this.pending.length > MAX_PENDING_HISTORY_WRITES) {
             this.pending.shift();
         }
     }
 
-    confirm(keys: PlaybackHistoryKeys): void {
-        const normalized = normalizeKeys(keys);
-        if (normalized.size === 0 || this.pending.length === 0) {
-            return;
-        }
-
+    confirm(target: PlaybackHistoryTarget): void {
+        const confirmed = normalizeTarget(target);
         const matched: PendingHistoryWrite[] = [];
         const remaining: PendingHistoryWrite[] = [];
         for (const write of this.pending) {
-            const matches = [...write.keys].some((key) => normalized.has(key));
-            (matches ? matched : remaining).push(write);
+            (matchesTarget(write.target, confirmed) ? matched : remaining).push(
+                write
+            );
         }
         this.pending = remaining;
         matched.forEach((write) => runCommit(write.commit));
     }
 }
 
-function normalizeKeys(keys: PlaybackHistoryKeys): ReadonlySet<string> {
-    return new Set(
-        keys
-            .map((key) => key?.trim() ?? '')
-            .filter((key): key is string => key.length > 0)
-    );
+function matchesTarget(
+    write: NormalizedTarget,
+    confirmed: NormalizedTarget
+): boolean {
+    if (write.sessionKey && confirmed.sessionKey) {
+        return write.sessionKey === confirmed.sessionKey;
+    }
+    return [...write.streamUrls].some((url) => confirmed.streamUrls.has(url));
+}
+
+function normalizeTarget(target: PlaybackHistoryTarget): NormalizedTarget {
+    return {
+        sessionKey: normalizeKey(target.sessionKey),
+        streamUrls: new Set(
+            (target.streamUrls ?? [])
+                .map(normalizeKey)
+                .filter((url): url is string => url !== null)
+        ),
+    };
+}
+
+function normalizeKey(key: string | null | undefined): string | null {
+    const trimmed = key?.trim() ?? '';
+    return trimmed.length > 0 ? trimmed : null;
 }
 
 function runCommit(commit: () => void): void {

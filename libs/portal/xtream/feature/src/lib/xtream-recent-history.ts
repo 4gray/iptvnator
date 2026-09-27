@@ -26,7 +26,7 @@ export function injectXtreamRecentHistory(): (
 
     return (streamUrl, request) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
-        gate.defer([streamUrl], () =>
+        gate.defer({ streamUrls: [streamUrl] }, () =>
             store.addRecentItem({ ...request, playlist })
         );
     };

@@ -181,9 +181,13 @@ describe('AudioPlayerComponent', () => {
         const audio = createComponent('https://example.com/station.mp3');
         const commit = jest.fn();
         TestBed.inject(PlaybackHistoryGate).defer(
-            ['https://example.com/station.mp3'],
+            { streamUrls: ['https://example.com/station.mp3'] },
             commit
         );
+        Object.defineProperty(audio, 'paused', {
+            configurable: true,
+            value: false,
+        });
         const playTo = (position: number) => {
             Object.defineProperty(audio, 'currentTime', {
                 configurable: true,
@@ -204,7 +208,7 @@ describe('AudioPlayerComponent', () => {
         const audio = createComponent('https://example.com/dead.mp3');
         const commit = jest.fn();
         TestBed.inject(PlaybackHistoryGate).defer(
-            ['https://example.com/dead.mp3'],
+            { streamUrls: ['https://example.com/dead.mp3'] },
             commit
         );
 

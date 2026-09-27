@@ -19,7 +19,9 @@ import { withStalkerPlayer } from './with-stalker-player.feature';
 
 /** What the player does once the resolved stream has really played. */
 function confirmPlayback(playback: { streamUrl: string }): void {
-    TestBed.inject(PlaybackHistoryGate).confirm([playback.streamUrl]);
+    TestBed.inject(PlaybackHistoryGate).confirm({
+        streamUrls: [playback.streamUrl],
+    });
 }
 
 jest.mock('@iptvnator/portal/shared/util', () => ({

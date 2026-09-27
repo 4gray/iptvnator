@@ -183,6 +183,8 @@ export class AudioPlayerComponent {
     readonly channelName = input<string>('');
     readonly externalVolume = input<number | null>(null, { alias: 'volume' });
     readonly dispatchAdjacentChannelAction = input(true);
+    /** The host's playback session key, for the history confirmation. */
+    readonly playbackSessionKey = input<string | null>(null);
     readonly channelSwitchRequested = output<'next' | 'previous'>();
     readonly volumeChange = output<number>();
 
@@ -208,7 +210,10 @@ export class AudioPlayerComponent {
     /** Commits the deferred "recently viewed" write once the station plays. */
     private readonly historyConfirmation = new PlaybackHistoryConfirmation({
         gate: inject(PlaybackHistoryGate),
-        keys: () => [this.url()],
+        target: () => ({
+            sessionKey: this.playbackSessionKey(),
+            streamUrls: [this.url()],
+        }),
     });
 
     constructor() {
@@ -282,7 +287,12 @@ export class AudioPlayerComponent {
 
     onTimeUpdate(): void {
         const audio = this.audioRef()?.nativeElement;
-        if (audio) this.historyConfirmation.record(audio.currentTime);
+        if (audio) {
+            this.historyConfirmation.record(
+                audio.currentTime,
+                !audio.paused && !audio.seeking
+            );
+        }
     }
 
     play() {

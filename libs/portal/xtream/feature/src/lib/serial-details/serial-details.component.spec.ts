@@ -569,9 +569,9 @@ describe('SerialDetailsComponent', () => {
         );
         // The series is a recent view only once the episode has played.
         expect(addRecentItem).not.toHaveBeenCalled();
-        TestBed.inject(PlaybackHistoryGate).confirm([
-            'http://xtream.example/series/1001.mp4',
-        ]);
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['http://xtream.example/series/1001.mp4'],
+        });
         expect(addRecentItem).toHaveBeenCalledWith({
             xtreamId: '103',
             contentType: 'series',

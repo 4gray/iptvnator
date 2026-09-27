@@ -121,13 +121,20 @@ export function createUnifiedLiveSelection(options: {
         });
     };
 
+    /** Set by `dispose`: the host is gone and must not be notified. */
+    let disposed = false;
+
+    /**
+     * Runs once the row has really played. That is seconds after selection,
+     * so the user may have moved on — the write still happened, and an open
+     * Recently Viewed list must still move the row to the top.
+     */
     const recordLivePlayback = async (
-        item: UnifiedCollectionItem,
-        generation: number
+        item: UnifiedCollectionItem
     ): Promise<void> => {
         try {
             const updatedItem = await recentData.recordLivePlayback(item);
-            if (generation === options.generation.current()) {
+            if (!disposed) {
                 options.onItemPlayed(updatedItem);
             }
         } catch {
@@ -242,8 +249,8 @@ export function createUnifiedLiveSelection(options: {
             // Selecting a channel is not watching it: the row moves to the
             // top of Recently Viewed once its stream has really played.
             historyGate.defer(
-                [detail.playback.streamUrl],
-                () => void recordLivePlayback(item, generation)
+                { streamUrls: [detail.playback.streamUrl] },
+                () => void recordLivePlayback(item)
             );
 
             if (
@@ -278,6 +285,7 @@ export function createUnifiedLiveSelection(options: {
         activate,
         close,
         dispose(): void {
+            disposed = true;
             // Invalidate a playback continuation still awaiting its header
             // IPC and drop any radio credentials owned by this tab.
             options.generation.next();

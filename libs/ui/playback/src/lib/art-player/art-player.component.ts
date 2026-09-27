@@ -34,6 +34,7 @@ import {
 } from './art-player-setup';
 import { ArtPlayerSourceSession } from './art-player-source-session';
 import { ArtPlayerVideoSession } from './art-player-video-session';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugArtPlayer = createDevLogger('ArtPlayer');
 
@@ -62,10 +63,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackEnded = output<void>();
     readonly playbackStarted = output<void>();

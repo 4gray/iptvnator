@@ -118,7 +118,7 @@ describe('WebPlayerViewComponent playback history', () => {
 
     it('records a channel once its stream has played for two seconds', () => {
         const commit = jest.fn();
-        gate.defer(['live:p1:a'], commit);
+        gate.defer({ sessionKey: 'live:p1:a' }, commit);
 
         playTo(0, 1);
         expect(commit).not.toHaveBeenCalled();
@@ -129,7 +129,7 @@ describe('WebPlayerViewComponent playback history', () => {
 
     it('confirms by stream URL for writers that only know the link', () => {
         const commit = jest.fn();
-        gate.defer(['https://example.com/a'], commit);
+        gate.defer({ streamUrls: ['https://example.com/a'] }, commit);
 
         playTo(0, 1, 2);
 
@@ -138,7 +138,7 @@ describe('WebPlayerViewComponent playback history', () => {
 
     it('does not record a channel whose stream fails before playing', () => {
         const commit = jest.fn();
-        gate.defer(['live:p1:a'], commit);
+        gate.defer({ sessionKey: 'live:p1:a' }, commit);
 
         playTo(0);
         vjs().playbackIssue.emit({
@@ -156,13 +156,24 @@ describe('WebPlayerViewComponent playback history', () => {
         expect(commit).not.toHaveBeenCalled();
     });
 
+    it('does not count seeks of paused media as watched time', () => {
+        const commit = jest.fn();
+        gate.defer({ sessionKey: 'live:p1:a' }, commit);
+
+        [0, 1, 2, 3].forEach((currentTime) =>
+            vjs().timeUpdate.emit({ currentTime, duration: 0, playing: false })
+        );
+
+        expect(commit).not.toHaveBeenCalled();
+    });
+
     it('does not credit the next channel with the previous one', async () => {
         const next = jest.fn();
         playTo(0, 1.5);
 
         fixture.componentRef.setInput('streamUrl', 'https://example.com/b');
         fixture.componentRef.setInput('playbackSessionKey', 'live:p1:b');
-        gate.defer(['live:p1:b'], next);
+        gate.defer({ sessionKey: 'live:p1:b' }, next);
         await render();
         playTo(0, 0.5);
 

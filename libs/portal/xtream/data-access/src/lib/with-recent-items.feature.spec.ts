@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { signalStore } from '@ngrx/signals';
+import { signalStore, withState } from '@ngrx/signals';
 import { of } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
@@ -16,6 +16,11 @@ jest.mock('@iptvnator/portal/shared/util', () => ({
 }));
 
 const TestRecentItemsStore = signalStore(withRecentItems());
+/** Like `XtreamStore`: `withPortal` (current playlist) precedes the feature. */
+const TestCurrentPlaylistStore = signalStore(
+    withState({ currentPlaylist: { id: 'playlist-2' } }),
+    withRecentItems()
+);
 
 describe('withRecentItems', () => {
     const originalElectron = window.electron;
@@ -95,6 +100,7 @@ describe('withRecentItems', () => {
         TestBed.configureTestingModule({
             providers: [
                 TestRecentItemsStore,
+                TestCurrentPlaylistStore,
                 {
                     provide: DatabaseService,
                     useValue: databaseService,
@@ -155,6 +161,32 @@ describe('withRecentItems', () => {
                 backdrop_url: 'https://example.com/krypton-backdrop.png',
             }),
         ]);
+    });
+
+    it('saves a late write to its playlist without replacing the current playlist list', async () => {
+        // Playback confirmed after the user moved on to playlist-2.
+        const currentStore = TestBed.inject(TestCurrentPlaylistStore);
+        dataSource.getContentByXtreamId.mockResolvedValue({
+            id: 3941697,
+            title: 'Krypton',
+            type: 'series',
+            xtream_id: 290,
+        });
+
+        currentStore.addRecentItem({
+            xtreamId: 290,
+            contentType: 'series',
+            playlist: signal({ id: 'playlist-1' }),
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
+            3941697,
+            'playlist-1',
+            undefined
+        );
+        expect(dataSource.getRecentItems).not.toHaveBeenCalled();
+        expect(currentStore.recentItems()).toEqual([]);
     });
 
     it('uses the Xtream ID as the PWA recent key when cached content is cold', async () => {

@@ -53,6 +53,7 @@ import {
     subtitleTrackLabel,
     volumeIcon,
 } from './embedded-mpv-format.utils';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 
@@ -85,10 +86,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the root. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackEnded = output<void>();
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
@@ -563,6 +561,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 this.timeUpdate.emit({
                     currentTime: session.positionSeconds,
                     duration: session.durationSeconds ?? 0,
+                    playing: session.status === 'playing',
                 });
                 this.legacyInteractions.scheduleControlsHide();
             });

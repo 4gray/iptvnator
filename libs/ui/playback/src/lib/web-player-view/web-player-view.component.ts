@@ -41,6 +41,7 @@ import { FullscreenChannelPanelComponent } from '../fullscreen-channel-panel/ful
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import { PlaybackHistoryConfirmation } from '../playback-history/playback-history-confirmation';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     type PlayerMediaTitle,
     WEB_PLAYER_SHARED_CONTROLS,
@@ -221,11 +222,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     /** Commits deferred "recently viewed" writes once this stream plays. */
     private readonly historyConfirmation = new PlaybackHistoryConfirmation({
         gate: inject(PlaybackHistoryGate),
-        keys: () => [
-            this.playbackSessionKey(),
-            this.streamUrl(),
-            this.playback()?.streamUrl,
-        ],
+        target: () => ({
+            sessionKey: this.playbackSessionKey(),
+            streamUrls: [this.streamUrl(), this.playback()?.streamUrl],
+        }),
         sourceRevision: () => this.playbackSourceRevisionToken(),
     });
     readonly playbackExternallyTransferable = computed(() =>
@@ -370,7 +370,7 @@ export class WebPlayerViewComponent implements OnDestroy {
     }
 
     handleTimeUpdate(
-        event: { currentTime: number; duration: number },
+        event: PlayerTimeUpdate,
         ownership: PlaybackApplicationOwnership
     ): void {
         if (
@@ -392,7 +392,7 @@ export class WebPlayerViewComponent implements OnDestroy {
         }
 
         this.recoverySession.recordTimeUpdate(event, ownership.isLive);
-        this.historyConfirmation.record(event.currentTime);
+        this.historyConfirmation.record(event.currentTime, event.playing);
         this.timeUpdate.emit(event);
     }
 

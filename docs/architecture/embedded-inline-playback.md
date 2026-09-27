@@ -1137,26 +1137,36 @@ its stream has really played, so a stream that fails straight away never
 reaches history.
 
 - Writers do not persist on selection. They hand the write to
-  `PlaybackHistoryGate` (`@iptvnator/services`) with `defer(keys, commit)`,
-  keyed by what the playback will be known by: the stream URL and, for M3U,
-  the host's `playbackSessionKey`. The Stalker resolver defers by the
-  resolved (possibly temporary) link; the persisted row still stores the
-  portal `cmd`, never that link. Writers capture the item and its playlist
-  when they defer, so navigating meanwhile cannot misfile it.
+  `PlaybackHistoryGate` (`@iptvnator/services`) with `defer(target, commit)`,
+  where the target is what the playback will be known by: the host's
+  `playbackSessionKey` (M3U) and/or stream URLs. The Stalker resolver defers
+  by the resolved (possibly temporary) link; the persisted row still stores
+  the portal `cmd`, never that link. Writers capture the item and its
+  playlist when they defer, so navigating meanwhile cannot misfile it; an
+  Xtream write confirmed after a playlist switch refreshes the store's recent
+  list only if its playlist is still current.
+- Matching: when both the write and the confirmation carry a session key,
+  only the session key is compared — the same URL in two playlists must not
+  let playback in one record a failed attempt in the other. Stream URLs are
+  the fallback when either side has none.
 - `WebPlayerViewComponent` confirms its `playbackSessionKey`, `streamUrl`
   and `playback.streamUrl` once the owned engine's reported position has
-  advanced by 2 seconds (`PlaybackProgressConfirmation`). Steps above
-  3 seconds (seeks, a resume jump, live-edge catch-up), stalls, pauses and
-  backwards jumps do not count; a report of a new stream never adds to the
-  progress of the previous one; an engine or format swap of the same stream
-  keeps its progress. The radio `AudioPlayerComponent` confirms its URL the
-  same way.
+  advanced by 2 seconds while playing (`PlaybackProgressConfirmation`).
+  Engines report `playing` (not paused, not seeking) with each time update,
+  so seeks of paused media do not count; neither do steps above 3 seconds
+  (seeks, a resume jump, live-edge catch-up), stalls or backwards jumps. A
+  report of a new stream never adds to the progress of the previous one; an
+  engine or format swap of the same stream keeps its progress. The radio
+  `AudioPlayerComponent` confirms the same way (with the host's session key
+  when given).
 - MPV/VLC cannot report whether a live stream plays, so the Electron
   `ExternalPlaybackService` confirms a session's `streamUrl` once it is
   `opened` or `playing`; a launch that ends in `error` is not recorded. M3U
   keeps recording on selection when MPV/VLC is the configured player.
-- A confirmation commits every write deferred under any of its keys, once.
-  Unconfirmed writes are bounded (oldest dropped) and simply never commit.
+- A confirmation commits every write matching it, once. Unconfirmed writes
+  are bounded (oldest dropped) and simply never commit. The global live tab
+  moves a confirmed row to the top of an open Recently Viewed list even if
+  another row was selected meanwhile.
 - A committed write updates the source while the item keeps playing. Hosts
   must not hand the player a new but identical playback for it: the M3U
   host's `embeddedPlayback` also reads the playlist meta, so it is compared

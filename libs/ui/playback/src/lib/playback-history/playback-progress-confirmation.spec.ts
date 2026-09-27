@@ -45,6 +45,28 @@ describe('PlaybackProgressConfirmation', () => {
         expect(onConfirmed).not.toHaveBeenCalled();
     });
 
+    it('does not count short seeks of paused media', () => {
+        confirmation.record(0, false);
+        confirmation.record(1, false);
+        confirmation.record(2, false);
+        confirmation.record(2.5, false);
+
+        expect(onConfirmed).not.toHaveBeenCalled();
+    });
+
+    it('counts only the steps reported while playing', () => {
+        confirmation.record(0, true);
+        confirmation.record(1.5, true);
+        // Paused, then seeked a second ahead: not watched.
+        confirmation.record(2.5, false);
+        confirmation.record(2.9, true);
+
+        expect(onConfirmed).not.toHaveBeenCalled();
+
+        confirmation.record(3.5, true);
+        expect(onConfirmed).toHaveBeenCalledTimes(1);
+    });
+
     it('does not count backwards jumps', () => {
         play(5, 4, 3, 2, 1);
 

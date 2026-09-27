@@ -12,7 +12,8 @@ const MAX_PLAYBACK_STEP_SECONDS = 3;
  * Turns an engine's position reports into a single "this stream plays"
  * signal. `playing` alone is not enough: a broken stream can fire it and
  * stall or error a moment later, so only position that really advanced
- * counts. Pauses, stalls, seeks and backwards jumps add nothing.
+ * counts. Pauses, stalls, seeks and backwards jumps add nothing — including
+ * short seeks of paused media, which engines report as `playing: false`.
  */
 export class PlaybackProgressConfirmation {
     private lastPosition: number | null = null;
@@ -36,14 +37,18 @@ export class PlaybackProgressConfirmation {
         this.lastPosition = null;
     }
 
-    record(position: number): void {
+    /**
+     * @param playing whether the media was actually playing (not paused, not
+     *   seeking) at this report; engines that cannot tell leave it undefined.
+     */
+    record(position: number, playing?: boolean): void {
         if (this.confirmed || !Number.isFinite(position)) {
             return;
         }
 
         const previous = this.lastPosition;
         this.lastPosition = position;
-        if (previous === null) {
+        if (previous === null || playing === false) {
             return;
         }
 

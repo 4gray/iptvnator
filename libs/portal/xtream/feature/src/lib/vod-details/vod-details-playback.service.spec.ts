@@ -163,9 +163,9 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
 
         expect(addRecentItem).not.toHaveBeenCalled();
 
-        TestBed.inject(PlaybackHistoryGate).confirm([
-            'https://example.com/route.mkv',
-        ]);
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
 
         expect(addRecentItem).toHaveBeenCalledTimes(1);
         const [recentItem] = addRecentItem.mock.calls[0];
@@ -372,9 +372,9 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 contentType: 'vod',
             },
         });
-        TestBed.inject(PlaybackHistoryGate).confirm([
-            'https://example.com/alt.mkv',
-        ]);
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/alt.mkv'],
+        });
 
         expect(addRecentItem).toHaveBeenCalled();
     });

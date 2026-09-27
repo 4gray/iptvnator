@@ -1,13 +1,13 @@
 import type {
     PlaybackHistoryGate,
-    PlaybackHistoryKeys,
+    PlaybackHistoryTarget,
 } from '@iptvnator/services';
 import { PlaybackProgressConfirmation } from './playback-progress-confirmation';
 
 export interface PlaybackHistoryConfirmationOptions {
     readonly gate: Pick<PlaybackHistoryGate, 'confirm'>;
-    /** Keys of what is playing now: session key and/or stream URLs. */
-    readonly keys: () => PlaybackHistoryKeys;
+    /** What is playing now: its session key and/or stream URLs. */
+    readonly target: () => PlaybackHistoryTarget;
     /**
      * Engine/source generation within the same keys (engine switch, live
      * format fallback, reload). A change restarts the position clock but
@@ -26,13 +26,14 @@ export class PlaybackHistoryConfirmation {
     private identity: string | null = null;
     private sourceRevision: unknown = null;
     private readonly progress = new PlaybackProgressConfirmation(() =>
-        this.options.gate.confirm(this.options.keys())
+        this.options.gate.confirm(this.options.target())
     );
 
     constructor(private readonly options: PlaybackHistoryConfirmationOptions) {}
 
-    record(position: number): void {
-        const identity = JSON.stringify(this.options.keys());
+    /** @param playing see {@link PlaybackProgressConfirmation.record}. */
+    record(position: number, playing?: boolean): void {
+        const identity = JSON.stringify(this.options.target());
         const sourceRevision = this.options.sourceRevision?.() ?? null;
         if (identity !== this.identity) {
             this.identity = identity;
@@ -43,6 +44,6 @@ export class PlaybackHistoryConfirmation {
             this.progress.rebase();
         }
 
-        this.progress.record(position);
+        this.progress.record(position, playing);
     }
 }

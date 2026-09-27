@@ -53,6 +53,7 @@ import {
     HtmlVideoPlayerControlsBridge,
     type HtmlVideoControlsSource,
 } from './html-video-player-controls.bridge';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
@@ -83,10 +84,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
-    @Output() timeUpdate = new EventEmitter<{
-        currentTime: number;
-        duration: number;
-    }>();
+    @Output() timeUpdate = new EventEmitter<PlayerTimeUpdate>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
     @Output() playbackEnded = new EventEmitter<void>();
     @Output() playbackStarted = new EventEmitter<void>();

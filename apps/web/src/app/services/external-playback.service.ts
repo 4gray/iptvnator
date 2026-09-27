@@ -107,7 +107,7 @@ export class ExternalPlaybackService {
         // MPV/VLC cannot report whether a live stream really plays, so a
         // successful launch is what commits the deferred history write.
         if (session.status === 'opened' || session.status === 'playing') {
-            this.historyGate.confirm([session.streamUrl]);
+            this.historyGate.confirm({ streamUrls: [session.streamUrl] });
         }
 
         const current = this.activeSession();

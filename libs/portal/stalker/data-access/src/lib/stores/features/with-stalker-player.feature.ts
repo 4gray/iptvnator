@@ -152,7 +152,7 @@ export function withStalkerPlayer() {
                         cover,
                         title
                     );
-                    historyGate.defer([streamUrl], () =>
+                    historyGate.defer({ streamUrls: [streamUrl] }, () =>
                         persistRecentlyViewed(playlistId, {
                             ...recentItem,
                             added_at: Date.now(),

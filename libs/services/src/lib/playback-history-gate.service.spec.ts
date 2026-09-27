@@ -7,13 +7,16 @@ describe('PlaybackHistoryGate', () => {
         gate = new PlaybackHistoryGate();
     });
 
-    it('holds a write until one of its keys is confirmed', () => {
+    it('holds a write until its playback is confirmed', () => {
         const commit = jest.fn();
-        gate.defer(['http://stream/1', 'live:p1:c1'], commit);
+        gate.defer(
+            { sessionKey: 'live:p1:c1', streamUrls: ['http://stream/1'] },
+            commit
+        );
 
         expect(commit).not.toHaveBeenCalled();
 
-        gate.confirm(['live:p1:c1']);
+        gate.confirm({ sessionKey: 'live:p1:c1' });
 
         expect(commit).toHaveBeenCalledTimes(1);
     });
@@ -21,62 +24,104 @@ describe('PlaybackHistoryGate', () => {
     it('never commits a write whose stream is not confirmed', () => {
         const failed = jest.fn();
         const played = jest.fn();
-        gate.defer(['http://stream/failed'], failed);
-        gate.defer(['http://stream/played'], played);
+        gate.defer({ streamUrls: ['http://stream/failed'] }, failed);
+        gate.defer({ streamUrls: ['http://stream/played'] }, played);
 
-        gate.confirm(['http://stream/played']);
+        gate.confirm({ streamUrls: ['http://stream/played'] });
 
         expect(failed).not.toHaveBeenCalled();
         expect(played).toHaveBeenCalledTimes(1);
     });
 
+    it('does not let the same URL played in another playlist confirm a write', () => {
+        // Playlist A's attempt failed; the same stream then plays in B.
+        const failedInA = jest.fn();
+        const playedInB = jest.fn();
+        gate.defer(
+            { sessionKey: 'live:a:c1', streamUrls: ['http://shared/1'] },
+            failedInA
+        );
+        gate.defer(
+            { sessionKey: 'live:b:c9', streamUrls: ['http://shared/1'] },
+            playedInB
+        );
+
+        gate.confirm({
+            sessionKey: 'live:b:c9',
+            streamUrls: ['http://shared/1'],
+        });
+
+        expect(failedInA).not.toHaveBeenCalled();
+        expect(playedInB).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to the stream URL when either side has no session key', () => {
+        const portalWrite = jest.fn();
+        const radioWrite = jest.fn();
+        gate.defer({ streamUrls: ['http://portal/tmp'] }, portalWrite);
+        gate.defer(
+            { sessionKey: 'live:p1:radio', streamUrls: ['http://radio/1'] },
+            radioWrite
+        );
+
+        // A player with a session key; a player (MPV/VLC session) without.
+        gate.confirm({
+            sessionKey: 'live:portal:9',
+            streamUrls: ['http://portal/tmp'],
+        });
+        gate.confirm({ streamUrls: ['http://radio/1'] });
+
+        expect(portalWrite).toHaveBeenCalledTimes(1);
+        expect(radioWrite).toHaveBeenCalledTimes(1);
+    });
+
     it('commits each confirmed write once', () => {
         const commit = jest.fn();
-        gate.defer(['http://stream/1'], commit);
+        gate.defer({ streamUrls: ['http://stream/1'] }, commit);
 
-        gate.confirm(['http://stream/1']);
-        gate.confirm(['http://stream/1']);
+        gate.confirm({ streamUrls: ['http://stream/1'] });
+        gate.confirm({ streamUrls: ['http://stream/1'] });
 
         expect(commit).toHaveBeenCalledTimes(1);
     });
 
-    it('commits every writer deferred under the same key', () => {
+    it('commits every writer deferred for the same playback', () => {
         const first = jest.fn();
         const second = jest.fn();
-        gate.defer(['http://stream/1'], first);
-        gate.defer(['http://stream/1'], second);
+        gate.defer({ streamUrls: ['http://stream/1'] }, first);
+        gate.defer({ streamUrls: ['http://stream/1'] }, second);
 
-        gate.confirm(['http://stream/1']);
+        gate.confirm({ streamUrls: ['http://stream/1'] });
 
         expect(first).toHaveBeenCalledTimes(1);
         expect(second).toHaveBeenCalledTimes(1);
     });
 
-    it('commits immediately when a write has no usable key', () => {
+    it('commits immediately when a write has nothing to match on', () => {
         const commit = jest.fn();
 
-        gate.defer([undefined, null, '  '], commit);
+        gate.defer({ sessionKey: ' ', streamUrls: [undefined, null] }, commit);
 
         expect(commit).toHaveBeenCalledTimes(1);
     });
 
-    it('ignores confirmations without usable keys', () => {
+    it('ignores confirmations with nothing to match on', () => {
         const commit = jest.fn();
-        gate.defer(['http://stream/1'], commit);
+        gate.defer({ streamUrls: ['http://stream/1'] }, commit);
 
-        gate.confirm([undefined, '']);
+        gate.confirm({ streamUrls: [undefined, ''] });
 
         expect(commit).not.toHaveBeenCalled();
     });
 
     it('drops the oldest unconfirmed writes beyond its bound', () => {
         const oldest = jest.fn();
-        gate.defer(['http://stream/oldest'], oldest);
+        gate.defer({ streamUrls: ['http://stream/oldest'] }, oldest);
         for (let index = 0; index < 20; index += 1) {
-            gate.defer([`http://stream/${index}`], jest.fn());
+            gate.defer({ streamUrls: [`http://stream/${index}`] }, jest.fn());
         }
 
-        gate.confirm(['http://stream/oldest']);
+        gate.confirm({ streamUrls: ['http://stream/oldest'] });
 
         expect(oldest).not.toHaveBeenCalled();
     });
@@ -89,10 +134,10 @@ describe('PlaybackHistoryGate', () => {
             throw new Error('db down');
         });
         const healthy = jest.fn();
-        gate.defer(['http://stream/1'], failing);
-        gate.defer(['http://stream/1'], healthy);
+        gate.defer({ streamUrls: ['http://stream/1'] }, failing);
+        gate.defer({ streamUrls: ['http://stream/1'] }, healthy);
 
-        gate.confirm(['http://stream/1']);
+        gate.confirm({ streamUrls: ['http://stream/1'] });
 
         expect(healthy).toHaveBeenCalledTimes(1);
         consoleError.mockRestore();

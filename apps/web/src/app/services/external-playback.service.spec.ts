@@ -50,7 +50,7 @@ describe('ExternalPlaybackService', () => {
     it('commits deferred history once the external player has opened', () => {
         const commit = jest.fn();
         TestBed.inject(PlaybackHistoryGate).defer(
-            ['https://example.com/video.m3u8'],
+            { streamUrls: ['https://example.com/video.m3u8'] },
             commit
         );
 
@@ -64,7 +64,7 @@ describe('ExternalPlaybackService', () => {
     it('does not commit history for a launch that failed', () => {
         const commit = jest.fn();
         TestBed.inject(PlaybackHistoryGate).defer(
-            ['https://example.com/video.m3u8'],
+            { streamUrls: ['https://example.com/video.m3u8'] },
             commit
         );
 

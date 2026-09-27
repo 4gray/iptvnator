@@ -9,7 +9,11 @@ import {
 } from '@iptvnator/ui/playback';
 import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaybackHistoryGate,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgProgram, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     PORTAL_PLAYER,
@@ -172,6 +176,49 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
             expect(player()).toBe(configuredPlayer);
         }
     );
+
+    it('moves a row that played to the top of Recently Viewed after another row was selected', async () => {
+        const first = buildM3uLiveItem();
+        const second: UnifiedCollectionItem = {
+            ...first,
+            uid: 'm3u::pl-1::m3u-channel-2',
+            name: 'M3U Live 2',
+            channelId: 'm3u-channel-2',
+            tvgId: 'm3u-channel-2',
+            streamUrl: 'https://example.com/m3u-2.m3u8',
+        };
+        streamResolver.resolveM3uPlaybackDetail.mockImplementation(
+            async (item: UnifiedCollectionItem) => ({
+                epgMode: 'm3u',
+                playback: { streamUrl: item.streamUrl, title: item.name },
+                epgPrograms: [],
+            })
+        );
+        recentData.recordLivePlayback.mockImplementation(
+            async (item: UnifiedCollectionItem) => item
+        );
+        const played = jest.fn();
+        component.itemPlayed.subscribe(played);
+        fixture.componentRef.setInput('items', [first, second]);
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const row = (name: string) =>
+            component
+                .channelsForList()
+                .find((channel) => channel.name === name)!;
+
+        await component.onChannelSelected(row('M3U Live'));
+        await component.onChannelSelected(row('M3U Live 2'));
+        // The first row's playback is confirmed only now, after the switch.
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: [first.streamUrl],
+        });
+        await fixture.whenStable();
+
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(first);
+        expect(played).toHaveBeenCalledWith(first);
+    });
 
     it('keeps the current detail (and its fullscreen player) mounted while the next selection resolves', async () => {
         const first = buildM3uLiveItem();
