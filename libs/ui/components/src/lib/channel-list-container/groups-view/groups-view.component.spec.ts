@@ -4,7 +4,7 @@ import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { ParentalLockService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
@@ -535,6 +535,25 @@ describe('GroupsViewComponent', () => {
             'News',
             'Sports',
         ]);
+    });
+
+    it('drops the manage-groups result once another playlist is open', async () => {
+        const hiddenGroupTitlesChanged = jest.fn();
+        const lockedGroupTitlesChanged = jest.fn();
+        component.hiddenGroupTitlesChanged.subscribe(hiddenGroupTitlesChanged);
+        component.lockedGroupTitlesChanged.subscribe(lockedGroupTitlesChanged);
+        fixture.componentRef.setInput('playlistId', 'playlist-a');
+        fixture.componentRef.setInput('lockedGroupTitles', ['News']);
+        fixture.detectChanges();
+        const closed = new Subject<unknown>();
+        dialog.open.mockReturnValue({ afterClosed: () => closed });
+
+        await component.openGroupManagement();
+        fixture.componentRef.setInput('playlistId', 'playlist-b');
+        closed.next({ hiddenGroupTitles: [], lockedGroupTitles: [] });
+
+        expect(hiddenGroupTitlesChanged).not.toHaveBeenCalled();
+        expect(lockedGroupTitlesChanged).not.toHaveBeenCalled();
     });
 
     it('emits a single-group toggle from the right-click menu (the host asks for the PIN)', () => {

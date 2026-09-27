@@ -133,7 +133,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     /** Route-aware playlist ID for recent-item mutations */
     private readonly resolvedPlaylistId =
         this.playlistContext.resolvedPlaylistId;
-    private readonly activePlaylist = this.playlistContext.activePlaylist;
+    protected readonly activePlaylist = this.playlistContext.activePlaylist;
 
     /** Map of channel ID to current EPG program */
     readonly channelEpgMap = signal(new Map<string, EpgProgram | null>());

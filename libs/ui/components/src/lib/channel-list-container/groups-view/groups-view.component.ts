@@ -153,6 +153,12 @@ export class GroupsViewComponent {
      * of the playlist, locked ones included, because `groupedChannels`
      * arrives with the withheld groups already removed.
      */
+    /**
+     * The playlist the groups belong to. The management dialog's result is
+     * applied only while it is still the open one: the host saves hidden
+     * and locked groups under the CURRENT playlist.
+     */
+    readonly playlistId = input<string | null>(null);
     readonly lockedGroupTitles = input<string[] | null>(null);
     readonly managementGroups = input<GroupManagementDialogGroup[] | null>(
         null
@@ -535,7 +541,11 @@ export class GroupsViewComponent {
         // The dialog lists every group by name, locked ones included, and can
         // rewrite the locks — so it sits behind the PIN like the portal
         // dialogs do.
-        if (!(await this.parentalLock.requestUnlock())) {
+        const playlistId = this.playlistId();
+        if (
+            !(await this.parentalLock.requestUnlock()) ||
+            this.playlistId() !== playlistId
+        ) {
             return;
         }
         const groups =
@@ -558,7 +568,7 @@ export class GroupsViewComponent {
         });
 
         dialogRef.afterClosed().subscribe((result) => {
-            if (result === undefined) {
+            if (result === undefined || this.playlistId() !== playlistId) {
                 return;
             }
 

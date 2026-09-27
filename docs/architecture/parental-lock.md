@@ -372,7 +372,10 @@ on either side.
   lock store, failure snackbar); the M3U rail emits the toggled group to
   `ChannelListContainerComponent`, which captures the playlist, asks for
   the PIN, and persists the edit only if that playlist is still open (two
-  playlists can share a group name). Bulk actions stay in the dialog, and while the session is locked
+  playlists can share a group name). The M3U management dialog is bound
+  the same way: `GroupsViewComponent` captures its `playlistId` input
+  before the PIN and drops the dialog's result once another playlist is
+  open. Bulk actions stay in the dialog, and while the session is locked
   a locked category is not in the rail, so unlocking always goes through
   the "N locked · Enter PIN to show" row or the dialog. The M3U dialog
   hands its lock list back to `ChannelListContainerComponent`, which
