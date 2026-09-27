@@ -181,14 +181,19 @@ on either side.
   `searchContent` call as issued) — `searchResults` is a separate array the
   search page renders directly and would otherwise keep locked titles until
   the query changes. A RELOCK fails closed at once rather than after the
-  database answers: the selected detail is stepped off synchronously when
+  database answers — ahead of the serialized apply queue, so an earlier
+  apply still waiting on a slow or hung read cannot delay it: the selected detail is stepped off synchronously when
   the lock store already names its category (the pre-reload category list
   maps Electron's row id to the provider id), then `withholdCatalog()`
   empties every catalog list and `clearSearchResults()` the stored search
   (retiring a search still in flight, which was issued under the previous
   lock state) before the filtered reads refill them; both reloads take a publish guard
   answered before every state patch, so a read issued under an older lock
-  version is dropped instead of published. A lock change that overtakes
+  version is dropped instead of published. The post-reload checks of the
+  selected category and item decide by the LOCK STORE through the
+  unfiltered category rows (`IXtreamDataSource.getAllCategories`), not by
+  absence from the reloaded list, which also omits categories the user
+  merely hid; rows that cannot be read fail closed. A lock change that overtakes
   the INITIAL hydration (the content is not initialized yet, so the reload
   has nothing to re-read) sets a deferred-reload flag instead — already
   when `withholdCatalog()` empties the lists, before the category reload is

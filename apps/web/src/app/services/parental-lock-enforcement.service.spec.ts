@@ -3,13 +3,17 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import { ParentalLockEnforcementService } from './parental-lock-enforcement.service';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
 interface Applier {
     apply(): Promise<void>;
+    failClosedNow(): void;
     applyXtream(version: number): Promise<void>;
     applyStalker(): Promise<void>;
 }
@@ -59,6 +63,14 @@ describe('ParentalLockEnforcementService', () => {
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
     };
+    const xtreamDataSource = {
+        getAllCategories: jest.fn(async () => [
+            { id: 7, xtream_id: 70 },
+            { id: 8, xtream_id: 80 },
+            { id: 55, xtream_id: 550 },
+            { id: 99, xtream_id: 990 },
+        ]),
+    };
     let service: Applier;
 
     beforeEach(() => {
@@ -75,6 +87,7 @@ describe('ParentalLockEnforcementService', () => {
             providers: [
                 { provide: ParentalLockService, useValue: parentalLock },
                 { provide: XtreamStore, useValue: xtreamStore },
+                { provide: XTREAM_DATA_SOURCE, useValue: xtreamDataSource },
                 { provide: StalkerStore, useValue: stalkerStore },
                 { provide: Router, useValue: router },
                 {
@@ -214,13 +227,25 @@ describe('ParentalLockEnforcementService', () => {
     });
 
     describe('Xtream', () => {
-        it('clears a selected item whose category is no longer readable', async () => {
+        function lockProvider(providerId: number): void {
+            parentalLock.active.set(true);
+            parentalLock.isXtreamCategoryLocked.mockImplementation(
+                (_p: string, _t: string, id: number) => id === providerId
+            );
+        }
+
+        it('clears a selected item whose category the lock store withholds', async () => {
             router.url = '/workspace/xtreams/xtream-1/vod/42';
+            lockProvider(990);
             xtreamStore.selectedItem.set({ category_id: 99 });
 
             await service.applyXtream(parentalLock.version());
 
             expect(xtreamStore.reloadCategories).toHaveBeenCalled();
+            expect(xtreamDataSource.getAllCategories).toHaveBeenCalledWith(
+                'xtream-1',
+                'movies'
+            );
             expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
             expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalled();
             expect(router.navigate).toHaveBeenCalledWith([
@@ -231,52 +256,56 @@ describe('ParentalLockEnforcementService', () => {
             ]);
         });
 
-        it('withholds the catalog and a locked detail before the reload on relock', async () => {
+        it('keeps a detail from a category that is merely hidden, not locked', async () => {
             router.url = '/workspace/xtreams/xtream-1/vod/42';
-            parentalLock.active.set(true);
-            parentalLock.isXtreamCategoryLocked.mockImplementation(
-                (_p: string, _t: string, providerId: number) =>
-                    providerId === 70
-            );
-            xtreamStore.selectedItem.set({ category_id: 7 });
-            const order: string[] = [];
-            xtreamStore.withholdCatalog.mockImplementation(() =>
-                order.push('withhold')
-            );
-            xtreamStore.setSelectedItem.mockImplementation(() =>
-                order.push('step-off')
-            );
-            xtreamStore.reloadCategories.mockImplementation(async () => {
-                order.push('reload');
-            });
+            lockProvider(990);
+            // Row 55 is absent from the (hidden-filtered) visible list but
+            // exists unlocked in the unfiltered rows.
+            xtreamStore.selectedItem.set({ category_id: 55 });
 
             await service.applyXtream(parentalLock.version());
 
-            expect(order.slice(0, 3)).toEqual([
-                'step-off',
-                'withhold',
-                'reload',
-            ]);
-            expect(xtreamStore.clearSearchResults).toHaveBeenCalled();
-            expect(parentalLock.isXtreamCategoryLocked).toHaveBeenCalledWith(
-                'xtream-1',
-                'movies',
-                70
-            );
+            expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
+            expect(router.navigate).not.toHaveBeenCalled();
+        });
+
+        it('steps off a selected locked category', async () => {
+            router.url = '/workspace/xtreams/xtream-1/live';
+            lockProvider(990);
+            xtreamStore.selectedCategoryId.set(99);
+
+            await service.applyXtream(parentalLock.version());
+
+            expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
+            expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(null);
             expect(router.navigate).toHaveBeenCalledWith([
                 '/workspace',
                 'xtreams',
                 'xtream-1',
-                'vod',
+                'live',
             ]);
         });
 
-        it('does not withhold on unlock, and hands the reloads a publish guard', async () => {
+        it('fails closed when the category rows cannot be read', async () => {
+            router.url = '/workspace/xtreams/xtream-1/vod/42';
+            parentalLock.active.set(true);
+            xtreamDataSource.getAllCategories.mockRejectedValueOnce(
+                new Error('db')
+            );
+            xtreamStore.selectedItem.set({ category_id: 7 });
+
+            await service.applyXtream(parentalLock.version());
+
+            expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
+        });
+
+        it('skips the post-reload checks while unlocked and hands the reloads a publish guard', async () => {
             router.url = '/workspace/xtreams/xtream-1/vod';
 
             await service.applyXtream(parentalLock.version());
 
             expect(xtreamStore.withholdCatalog).not.toHaveBeenCalled();
+            expect(xtreamDataSource.getAllCategories).not.toHaveBeenCalled();
             const guard = xtreamStore.reloadCategories.mock.calls[0][0] as
                 (() => boolean) | undefined;
             expect(guard?.()).toBe(true);
@@ -292,31 +321,17 @@ describe('ParentalLockEnforcementService', () => {
             expect(xtreamStore.refreshSearchResults).toHaveBeenCalled();
         });
 
-        it('keeps a selected item whose category survived the lock', async () => {
+        it('fails closed synchronously on relock: detail, catalog and search', () => {
             router.url = '/workspace/xtreams/xtream-1/vod/42';
-            xtreamStore.selectedCategoryId.set(7);
+            lockProvider(70);
             xtreamStore.selectedItem.set({ category_id: 7 });
 
-            await service.applyXtream(parentalLock.version());
-
-            expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
-            expect(router.navigate).not.toHaveBeenCalled();
-        });
-
-        it('steps off a selected category that vanished', async () => {
-            router.url = '/workspace/xtreams/xtream-1/live';
-            xtreamStore.selectedCategoryId.set(99);
-
-            await service.applyXtream(parentalLock.version());
+            service.failClosedNow();
 
             expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(null);
-            expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(null);
-            expect(router.navigate).toHaveBeenCalledWith([
-                '/workspace',
-                'xtreams',
-                'xtream-1',
-                'live',
-            ]);
+            expect(xtreamStore.withholdCatalog).toHaveBeenCalled();
+            expect(xtreamStore.clearSearchResults).toHaveBeenCalled();
+            expect(xtreamStore.reloadCategories).not.toHaveBeenCalled();
         });
     });
 });
@@ -334,6 +349,8 @@ describe('ParentalLockEnforcementService apply serialization', () => {
             ),
             reloadCachedContent: jest.fn(async () => undefined),
             refreshSearchResults: jest.fn(async () => undefined),
+            withholdCatalog: jest.fn(),
+            clearSearchResults: jest.fn(),
             getCategoriesBySelectedType: jest.fn(() => [] as unknown[]),
             setSelectedItem: jest.fn(),
             setSelectedCategory: jest.fn(),
@@ -353,12 +370,21 @@ describe('ParentalLockEnforcementService apply serialization', () => {
                 },
                 { provide: XtreamStore, useValue: xtreamStore },
                 {
+                    // No rows: the selected category cannot be placed and
+                    // fails closed once an apply gets to judge it.
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: { getAllCategories: jest.fn(async () => []) },
+                },
+                {
                     provide: StalkerStore,
                     useValue: { currentPlaylist: signal(null) },
                 },
                 {
                     provide: Router,
-                    useValue: { url: '/', navigate: jest.fn() },
+                    useValue: {
+                        url: '/workspace/xtreams/xtream-1/live',
+                        navigate: jest.fn(),
+                    },
                 },
                 {
                     provide: Store,
@@ -383,9 +409,13 @@ describe('ParentalLockEnforcementService apply serialization', () => {
         await Promise.resolve();
         expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
 
-        // ...and "Lock now" arrives meanwhile: no second reload starts yet.
+        // ...and "Lock now" arrives meanwhile: no second reload starts yet,
+        // but the catalog is withheld at once rather than behind the hung
+        // read.
+        xtreamStore.withholdCatalog.mockClear();
         version.set(2);
         TestBed.flushEffects();
+        expect(xtreamStore.withholdCatalog).toHaveBeenCalledTimes(1);
         await Promise.resolve();
         expect(xtreamStore.reloadCategories).toHaveBeenCalledTimes(1);
 
@@ -415,6 +445,7 @@ describe('ParentalLockEnforcementService busy probe', () => {
                     },
                 },
                 { provide: XtreamStore, useValue: {} },
+                { provide: XTREAM_DATA_SOURCE, useValue: {} },
                 { provide: StalkerStore, useValue: {} },
                 { provide: Router, useValue: { url: '/' } },
                 {

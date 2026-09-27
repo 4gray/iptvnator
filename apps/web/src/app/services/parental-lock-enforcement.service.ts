@@ -8,7 +8,10 @@ import {
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { ChannelActions, selectActive } from '@iptvnator/m3u-state';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import { ParentalLockService } from '@iptvnator/services';
 import { toParentalLockXtreamCategoryType } from '@iptvnator/shared/interfaces';
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
@@ -29,6 +32,7 @@ export const STALKER_ROUTE =
 export class ParentalLockEnforcementService {
     private readonly parentalLock = inject(ParentalLockService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly injector = inject(EnvironmentInjector);
     private readonly router = inject(Router);
     private readonly store = inject(Store);
@@ -57,9 +61,17 @@ export class ParentalLockEnforcementService {
                 }
                 const first = this.lastVersion === -1;
                 this.lastVersion = version;
-                if (!first) {
-                    this.scheduleApply();
+                if (first) {
+                    return;
                 }
+                // Fail closed NOW, ahead of the serialized queue: an earlier
+                // apply may still be waiting on a slow (or hung) read, and
+                // the catalog, details and playback read while unlocked must
+                // not stay usable until it settles.
+                if (this.parentalLock.active()) {
+                    this.failClosedNow();
+                }
+                this.scheduleApply();
             });
         });
     }
@@ -82,6 +94,28 @@ export class ParentalLockEnforcementService {
             });
     }
 
+    /**
+     * The synchronous half of a relock: M3U channel, Stalker selection (its
+     * step is lazy, so it runs as soon as the chunk is there), the Xtream
+     * detail the lock store already places in a locked category, the
+     * catalog lists and the stored search. The queued apply then reloads
+     * the filtered rows and repeats the checks against them.
+     */
+    private failClosedNow(): void {
+        this.applyM3u();
+        void this.applyStalker();
+        const playlistId = this.xtreamStore.playlistId?.();
+        if (!playlistId) {
+            return;
+        }
+        this.stepOffLockedXtreamSelection(
+            playlistId,
+            XTREAM_ROUTE.exec(this.router.url)
+        );
+        this.xtreamStore.withholdCatalog?.();
+        this.xtreamStore.clearSearchResults?.();
+    }
+
     private async apply(): Promise<void> {
         const version = this.parentalLock.version();
         // The synchronous surfaces first: an M3U channel or a Stalker
@@ -100,17 +134,6 @@ export class ParentalLockEnforcementService {
         }
         const shouldPublish = (): boolean =>
             this.parentalLock.version() === version;
-        const match = XTREAM_ROUTE.exec(this.router.url);
-        if (this.parentalLock.active()) {
-            // Relock: fail closed NOW, not after the database answers. The
-            // selected detail is judged against the lock store while the
-            // pre-reload category list can still map its category; the
-            // catalog lists and stored search results are emptied and
-            // refilled by the filtered reads below.
-            this.stepOffLockedXtreamSelection(playlistId, match);
-            this.xtreamStore.withholdCatalog?.();
-            this.xtreamStore.clearSearchResults?.();
-        }
         await this.xtreamStore.reloadCategories(shouldPublish);
         await this.xtreamStore.reloadCachedContent(shouldPublish);
         if (!shouldPublish()) {
@@ -119,51 +142,70 @@ export class ParentalLockEnforcementService {
         // Stored in-portal search results are a separate array the search
         // page renders directly; re-run the search so it reads filtered.
         await this.xtreamStore.refreshSearchResults?.();
+        if (!shouldPublish() || !this.parentalLock.active()) {
+            return;
+        }
+        await this.stepOffWithheldXtreamSelection(playlistId, shouldPublish);
+    }
+
+    /**
+     * Post-reload check of the selected Xtream category and item, judged by
+     * the LOCK STORE through the unfiltered category rows (hidden and locked
+     * ones included): the reloaded list also omits categories the user
+     * merely hid, which are not parental-locked. The item is judged on its
+     * own category — opened from "All", recently added or search it has no
+     * selected category to vanish with. Rows that cannot be read fail
+     * closed.
+     */
+    private async stepOffWithheldXtreamSelection(
+        playlistId: string,
+        shouldPublish: () => boolean
+    ): Promise<void> {
+        const match = XTREAM_ROUTE.exec(this.router.url);
+        const categoryType = toParentalLockXtreamCategoryType(match?.[2]);
+        if (!categoryType) {
+            return;
+        }
+        const rows = await this.xtreamDataSource
+            .getAllCategories(playlistId, categoryType)
+            .catch(() => null);
         if (!shouldPublish()) {
             return;
         }
-
-        const categoryType = toParentalLockXtreamCategoryType(match?.[2]);
-        const categories = this.xtreamStore.getCategoriesBySelectedType();
-        const isVisibleCategory = (categoryId: unknown): boolean =>
-            categories.some(
-                (category) =>
-                    Number(
-                        (category as { id?: number | string }).id ??
-                            (category as { category_id?: string }).category_id
-                    ) === Number(categoryId)
+        const isWithheld = (categoryId: unknown): boolean => {
+            const id = Number(categoryId);
+            if (
+                categoryId === null ||
+                categoryId === undefined ||
+                !Number.isFinite(id)
+            ) {
+                return false;
+            }
+            const row = rows?.find((candidate) => candidate.id === id);
+            return (
+                !row ||
+                this.parentalLock.isXtreamCategoryLocked(
+                    playlistId,
+                    categoryType,
+                    row.xtream_id
+                )
             );
-        const selectedCategoryId = this.xtreamStore.selectedCategoryId();
-        // The selected ITEM is judged on its own category: opened from
-        // "All", recently added or search it has no selected category to
-        // vanish with, yet its detail must not outlive the lock.
+        };
         const selectedItem = this.xtreamStore.selectedItem?.() as {
             category_id?: string | number;
         } | null;
-        const itemWithheld =
-            selectedItem?.category_id !== undefined &&
-            selectedItem?.category_id !== null &&
-            !isVisibleCategory(selectedItem.category_id);
-        if (itemWithheld) {
-            this.xtreamStore.setSelectedItem(null);
-        }
-        if (
-            selectedCategoryId === null ||
-            isVisibleCategory(selectedCategoryId)
-        ) {
-            if (itemWithheld && match && match[1] === playlistId) {
-                void this.router.navigate([
-                    '/workspace',
-                    'xtreams',
-                    match[1],
-                    match[2],
-                ]);
-            }
+        const itemWithheld = isWithheld(selectedItem?.category_id);
+        const categoryWithheld = isWithheld(
+            this.xtreamStore.selectedCategoryId()
+        );
+        if (!itemWithheld && !categoryWithheld) {
             return;
         }
         this.xtreamStore.setSelectedItem(null);
-        this.xtreamStore.setSelectedCategory(null);
-        if (match && match[1] === playlistId && categoryType) {
+        if (categoryWithheld) {
+            this.xtreamStore.setSelectedCategory(null);
+        }
+        if (match && match[1] === playlistId) {
             void this.router.navigate([
                 '/workspace',
                 'xtreams',
