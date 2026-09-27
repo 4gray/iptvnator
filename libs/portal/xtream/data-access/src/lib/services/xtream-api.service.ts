@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { DataService } from '@iptvnator/services';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     EpgItem,
     XtreamCategory,

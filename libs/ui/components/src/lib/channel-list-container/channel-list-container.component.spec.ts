@@ -6,6 +6,8 @@ import {
     NavigationEnd,
     Router,
 } from '@angular/router';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, firstValueFrom, of, Subject } from 'rxjs';
@@ -13,6 +15,7 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -126,6 +129,11 @@ describe('ChannelListContainerComponent', () => {
         await TestBed.configureTestingModule({
             imports: [ChannelListContainerComponent],
             providers: [
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                {
+                    provide: TranslateService,
+                    useValue: { instant: (key: string) => key },
+                },
                 {
                     provide: EpgService,
                     useValue: epgService,
@@ -192,6 +200,69 @@ describe('ChannelListContainerComponent', () => {
             .compileComponents();
 
         fixture = TestBed.createComponent(ChannelListContainerComponent);
+    });
+
+    it('keeps the groups view (and its unlock row) when every group is withheld', () => {
+        const withheld = signal(0);
+        Object.defineProperty(fixture.componentInstance, 'withheldGroupCount', {
+            value: withheld,
+        });
+        fixture.componentRef.setInput('activeView', 'groups');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+
+        // No channels and nothing withheld: the generic empty state.
+        expect(component.showChannelViews()).toBe(false);
+
+        withheld.set(3);
+        expect(component.showChannelViews()).toBe(true);
+
+        // Other views have no unlock row to show.
+        fixture.componentRef.setInput('activeView', 'all');
+        expect(component.showChannelViews()).toBe(false);
+    });
+
+    it('drops a group lock toggle whose playlist changed while the PIN was asked', async () => {
+        const parentalLock = TestBed.inject(ParentalLockService);
+        const setM3uLocks = jest
+            .spyOn(parentalLock, 'setM3uLocks')
+            .mockResolvedValue(true);
+        jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+            async () => {
+                activePlaylistSignal.set({
+                    _id: 'playlist-2',
+                    title: 'Playlist Two',
+                    count: 0,
+                    importDate: '2026-04-11T00:00:00.000Z',
+                } as PlaylistMeta);
+                return true;
+            }
+        );
+
+        await fixture.componentInstance.onGroupLockToggled({
+            groupKey: 'News',
+            locked: false,
+        });
+
+        expect(setM3uLocks).not.toHaveBeenCalled();
+    });
+
+    it('saves a group lock toggle under the playlist it was requested for', async () => {
+        const parentalLock = TestBed.inject(ParentalLockService);
+        const setM3uLocks = jest
+            .spyOn(parentalLock, 'setM3uLocks')
+            .mockResolvedValue(true);
+        jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
+
+        await fixture.componentInstance.onGroupLockToggled({
+            groupKey: 'News',
+            locked: true,
+        });
+
+        expect(setM3uLocks).toHaveBeenCalledWith(
+            'playlist-1',
+            expect.any(Function)
+        );
     });
 
     it('does not clear the shared channel list on destroy', () => {
@@ -297,7 +368,9 @@ describe('ChannelListContainerComponent', () => {
         });
         epgService.getCurrentProgramsForChannels
             .mockReturnValueOnce(first.asObservable())
-            .mockReturnValueOnce(of(new Map([['guide-news', program('Fresh')]])));
+            .mockReturnValueOnce(
+                of(new Map([['guide-news', program('Fresh')]]))
+            );
 
         fixture.detectChanges();
         const channels = [

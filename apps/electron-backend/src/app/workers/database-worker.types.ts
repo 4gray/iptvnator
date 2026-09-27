@@ -6,6 +6,7 @@ export const DB_WORKER_OPERATIONS = [
     'DB_SAVE_CATEGORIES',
     'DB_GET_ALL_CATEGORIES',
     'DB_UPDATE_CATEGORY_VISIBILITY',
+    'DB_SET_CATEGORY_LOCKS',
     'DB_HAS_CONTENT',
     'DB_GET_CONTENT',
     'DB_GET_GLOBAL_RECENTLY_ADDED',
@@ -131,6 +132,16 @@ export interface DbWorkerCancelMessage {
     operationId: string;
 }
 
+/**
+ * Main-process control message, not a renderer request: flips the worker's
+ * parental lock filter. Ordered with the requests on the same port, so a
+ * read posted after it observes the new state.
+ */
+export interface DbWorkerParentalLockMessage {
+    type: 'parental-lock';
+    active: boolean;
+}
+
 export interface DbWorkerReadyMessage {
     type: 'ready';
 }
@@ -158,7 +169,9 @@ export interface DbWorkerResponseMessage<TResult = unknown> {
 }
 
 export type DbWorkerIncomingMessage =
-    DbWorkerRequestMessage | DbWorkerCancelMessage;
+    | DbWorkerRequestMessage
+    | DbWorkerCancelMessage
+    | DbWorkerParentalLockMessage;
 
 export type DbWorkerMessage =
     | DbWorkerReadyMessage

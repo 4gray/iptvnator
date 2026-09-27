@@ -6,7 +6,11 @@ import {
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    ParentalLockService,
+    DatabaseService,
+    PlaylistsService,
+} from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { Store } from '@ngrx/store';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
@@ -58,6 +62,9 @@ describe('SettingsPlaylistResetFacade', () => {
                 }),
                 MockProvider(PlaylistsService, {
                     removeAll: jest.fn().mockReturnValue(of(undefined)),
+                }),
+                MockProvider(ParentalLockService, {
+                    clearAllLocks: jest.fn().mockResolvedValue(true),
                 }),
                 provideMockStore({
                     selectors: [
@@ -218,6 +225,9 @@ describe('SettingsPlaylistResetFacade', () => {
 
         expect(playlistsService.removeAll).toHaveBeenCalled();
         expect(databaseService.deleteAllPlaylists).not.toHaveBeenCalled();
+        expect(
+            TestBed.inject(ParentalLockService).clearAllLocks
+        ).toHaveBeenCalled();
         expect(dispatchSpy).toHaveBeenCalledWith(
             PlaylistActions.removeAllPlaylists()
         );
@@ -235,6 +245,10 @@ describe('SettingsPlaylistResetFacade', () => {
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
         expect(facade.isRemovingAllPlaylists()).toBe(false);
+        // Nothing was deleted, so the locks stay.
+        expect(
+            TestBed.inject(ParentalLockService).clearAllLocks
+        ).not.toHaveBeenCalled();
         expect(snackBar.open).toHaveBeenCalledWith(
             'SETTINGS.PLAYLISTS_REMOVE_FAILED',
             undefined,

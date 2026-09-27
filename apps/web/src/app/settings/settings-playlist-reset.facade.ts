@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom, take } from 'rxjs';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import {
+    ParentalLockService,
     DatabaseService,
     DbOperationEvent,
     PlaylistsService,
@@ -24,6 +25,7 @@ import { SettingsSnackbarService } from './settings-snackbar.service';
 @Injectable()
 export class SettingsPlaylistResetFacade {
     private readonly databaseService = inject(DatabaseService);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly matDialog = inject(MatDialog);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -106,6 +108,12 @@ export class SettingsPlaylistResetFacade {
 
             if (!deleted) {
                 throw new Error('Delete all playlists returned success=false');
+            }
+            // The playlists are gone; their locks must not linger in the
+            // lock store (the deletion itself already succeeded, so a failed
+            // clear is only logged).
+            if (!(await this.parentalLock.clearAllLocks())) {
+                console.warn('Clearing the parental locks failed.');
             }
 
             this.store.dispatch(PlaylistActions.removeAllPlaylists());

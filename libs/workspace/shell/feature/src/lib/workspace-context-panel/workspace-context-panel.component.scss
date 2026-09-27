@@ -263,3 +263,48 @@ app-workspace-context-category-view {
         transform: translateX(120%);
     }
 }
+
+.context-locked-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 4px;
+    padding: 8px 12px;
+    border: 1px dashed var(--mat-sys-outline-variant);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
+    font: inherit;
+    font-size: 0.8125rem;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+        background: var(--mat-sys-surface-container);
+        color: var(--mat-sys-on-surface);
+        outline: none;
+    }
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+
+    &__label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__hint {
+        font-size: 0.6875rem;
+        opacity: 0.8;
+        white-space: nowrap;
+    }
+}

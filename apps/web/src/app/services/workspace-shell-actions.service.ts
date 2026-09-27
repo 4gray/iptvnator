@@ -1,7 +1,7 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { Router } from '@angular/router';
-import { PORTAL_SHELL_ACTIONS } from '@iptvnator/portal/shared/util';
+import { PORTAL_SHELL_ACTIONS } from '@iptvnator/portal/shared/util/tokens';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspaceAccountInfoData,

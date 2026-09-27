@@ -16,7 +16,7 @@ import {
     measureRendererPerformancePhase,
     RENDERER_PERFORMANCE_PHASE,
 } from '@iptvnator/shared/logging';
-import { createLogger } from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util/logger';
 import {
     DataService,
     DatabaseService,
@@ -219,6 +219,28 @@ export function withContent() {
 
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
+            /**
+             * A filtered reload was requested (parental lock changed) while
+             * the initial hydration was still publishing rows it read under
+             * the previous lock state: those publications are withheld and
+             * the reload runs once the hydration has settled.
+             */
+            let reloadAfterInitialization = false;
+            /** The publish guard of the LATEST deferred request (see below). */
+            let deferredPublishGuard: () => boolean = () => true;
+            const runDeferredReload = async (): Promise<void> => {
+                if (!reloadAfterInitialization) {
+                    return;
+                }
+                reloadAfterInitialization = false;
+                // The requester's guard travels with the deferred reload: a
+                // relock during these reads supersedes them exactly as it
+                // would an ordinary reload.
+                const shouldPublish = deferredPublishGuard;
+                deferredPublishGuard = () => true;
+                await methods.reloadCategories(shouldPublish);
+                await methods.reloadCachedContent(shouldPublish);
+            };
             const dataService = inject(DataService);
             const databaseService = inject(DatabaseService);
             const pendingRestoreService = inject(XtreamPendingRestoreService);
@@ -236,6 +258,15 @@ export function withContent() {
                 string,
                 Promise<void>
             >();
+
+            // A reload publishes only while its playlist is still the open
+            // one: the store is shared, and rows read for playlist A must
+            // not land in it after the user switched to playlist B.
+            const publishWhileCurrent =
+                (playlistId: string, shouldPublish: () => boolean) =>
+                (): boolean =>
+                    getPortalStore().playlistId?.() === playlistId &&
+                    shouldPublish();
 
             const getCachedHydrationKey = (
                 playlistId: string,
@@ -630,8 +661,25 @@ export function withContent() {
                     }
 
                     updates.contentLoadStateByType = nextLoadStates;
+                    if (reloadAfterInitialization) {
+                        // Read before the lock changed; the deferred reload
+                        // below publishes the filtered rows instead.
+                        for (const key of [
+                            'liveCategories',
+                            'vodCategories',
+                            'serialCategories',
+                            'liveStreams',
+                            'vodStreams',
+                            'serialStreams',
+                        ] as const) {
+                            if (key in updates) {
+                                updates[key] = [];
+                            }
+                        }
+                    }
                     return updates;
                 });
+                await runDeferredReload();
             };
 
             const hydrateCachedContentForScope = async (
@@ -652,6 +700,7 @@ export function withContent() {
                         isPendingRestoreBlocked: false,
                         contentInitBlockReason: null,
                     });
+                    await runDeferredReload();
                     return;
                 }
 
@@ -999,6 +1048,9 @@ export function withContent() {
                         isContentInitialized: true,
                         contentInitBlockReason: null,
                     });
+                    // A lock change during the hydration withheld the rows
+                    // it published; read them again under the current lock.
+                    await runDeferredReload();
                 } catch (error) {
                     if (store.isImporting()) {
                         await finalizePendingImportTypes(
@@ -1136,10 +1188,16 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_CATEGORIES,
                             () =>
                                 patchState(store, {
-                                    liveCategories: live,
-                                    vodCategories: vod,
+                                    liveCategories: reloadAfterInitialization
+                                        ? []
+                                        : live,
+                                    vodCategories: reloadAfterInitialization
+                                        ? []
+                                        : vod,
                                     vodCategoriesPlaylistId: ctx.playlistId,
-                                    serialCategories: series,
+                                    serialCategories: reloadAfterInitialization
+                                        ? []
+                                        : series,
                                     isLoadingCategories: false,
                                 }),
                             () => ({
@@ -1222,7 +1280,9 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_LIVE,
                             () =>
                                 patchState(store, {
-                                    liveStreams: live,
+                                    liveStreams: reloadAfterInitialization
+                                        ? []
+                                        : live,
                                 }),
                             () => ({ items: live.length })
                         );
@@ -1259,7 +1319,9 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_VOD,
                             () =>
                                 patchState(store, {
-                                    vodStreams: vod,
+                                    vodStreams: reloadAfterInitialization
+                                        ? []
+                                        : vod,
                                     vodStreamsPlaylistId: ctx.playlistId,
                                 }),
                             () => ({ items: vod.length })
@@ -1298,7 +1360,9 @@ export function withContent() {
                             RENDERER_PERFORMANCE_PHASE.XTREAM_PUBLISH_SERIES,
                             () =>
                                 patchState(store, {
-                                    serialStreams: series,
+                                    serialStreams: reloadAfterInitialization
+                                        ? []
+                                        : series,
                                     isLoadingContent: false,
                                 }),
                             () => ({ items: series.length })
@@ -1461,9 +1525,45 @@ export function withContent() {
                 /**
                  * Reload categories from database (after visibility changes)
                  */
-                async reloadCategories(): Promise<void> {
+                /**
+                 * Empties every catalog list at once — the parental lock
+                 * relocking must not leave rows read while unlocked on
+                 * screen for the duration of the filtered reload. Load
+                 * states and import bookkeeping are untouched; the reload
+                 * refills the lists.
+                 */
+                withholdCatalog(): void {
+                    // Before any reload is awaited: an initial hydration
+                    // still in flight read its rows under the previous lock
+                    // state, and must not publish them while the category
+                    // reload runs. The deferred reload refills afterwards.
+                    if (!store.isContentInitialized()) {
+                        reloadAfterInitialization = true;
+                    }
+                    patchState(store, {
+                        liveCategories: [],
+                        vodCategories: [],
+                        serialCategories: [],
+                        liveStreams: [],
+                        vodStreams: [],
+                        serialStreams: [],
+                    });
+                },
+
+                /**
+                 * @param shouldPublish answered right before each state
+                 * patch; false drops the read (the caller's lock version
+                 * moved on while it was in flight).
+                 */
+                async reloadCategories(
+                    shouldPublishArg: () => boolean = () => true
+                ): Promise<void> {
                     const ctx = getCredentialsFromStore();
                     if (!ctx) return;
+                    const shouldPublish = publishWhileCurrent(
+                        ctx.playlistId,
+                        shouldPublishArg
+                    );
 
                     try {
                         const [live, vod, series] = await Promise.all([
@@ -1484,6 +1584,7 @@ export function withContent() {
                             ),
                         ]);
 
+                        if (!shouldPublish()) return;
                         patchState(store, {
                             liveCategories: live,
                             vodCategories: vod,
@@ -1491,7 +1592,110 @@ export function withContent() {
                             serialCategories: series,
                         });
                     } catch (error) {
+                        // Fail closed: the lists on screen were read under
+                        // the previous lock state, so keeping them would
+                        // keep locked category names visible. They are
+                        // rebuilt by the next category load.
                         logger.error('Error reloading categories', error);
+                        if (!shouldPublish()) return;
+                        patchState(store, {
+                            liveCategories: [],
+                            vodCategories: [],
+                            serialCategories: [],
+                        });
+                    }
+                },
+
+                /**
+                 * Re-reads the already imported streams from the data source
+                 * cache without touching the import bookkeeping. Used when
+                 * the parental lock flips: the SQLite worker (Electron) and
+                 * the PWA data source filter locked categories at read time,
+                 * so the in-memory catalog must be rebuilt from them.
+                 */
+                async reloadCachedContent(
+                    shouldPublishArg: () => boolean = () => true
+                ): Promise<void> {
+                    const ctx = getCredentialsFromStore();
+                    if (!ctx) {
+                        return;
+                    }
+                    if (!store.isContentInitialized()) {
+                        // The initial hydration is still publishing rows it
+                        // read under the previous lock state: withhold those
+                        // and reload once it has settled.
+                        reloadAfterInitialization = true;
+                        deferredPublishGuard = shouldPublishArg;
+                        return;
+                    }
+                    const shouldPublish = publishWhileCurrent(
+                        ctx.playlistId,
+                        shouldPublishArg
+                    );
+                    const loadStates = store.contentLoadStateByType();
+                    // Each type on its own: one failing read must neither
+                    // skip the remaining types nor keep its own rows, which
+                    // were read under the previous lock state. A failed type
+                    // is emptied and set back to `idle`, so the next visit
+                    // loads it again (filtered) instead of showing a gap.
+                    const failed: ContentType[] = [];
+                    if (loadStates.live === 'ready') {
+                        try {
+                            const live = (await dataSource.getContent(
+                                ctx.playlistId,
+                                ctx.credentials,
+                                'live'
+                            )) as XtreamLiveStream[];
+                            if (!shouldPublish()) return;
+                            patchState(store, { liveStreams: live });
+                        } catch (error) {
+                            logger.error('Error reloading live streams', error);
+                            if (!shouldPublish()) return;
+                            patchState(store, { liveStreams: [] });
+                            failed.push('live');
+                        }
+                    }
+                    if (loadStates.vod === 'ready') {
+                        try {
+                            const vod = (await dataSource.getContent(
+                                ctx.playlistId,
+                                ctx.credentials,
+                                'movie'
+                            )) as XtreamVodStream[];
+                            if (!shouldPublish()) return;
+                            patchState(store, {
+                                vodStreams: vod,
+                                vodStreamsPlaylistId: ctx.playlistId,
+                            });
+                        } catch (error) {
+                            logger.error('Error reloading VOD streams', error);
+                            if (!shouldPublish()) return;
+                            patchState(store, { vodStreams: [] });
+                            failed.push('vod');
+                        }
+                    }
+                    if (loadStates.series === 'ready') {
+                        try {
+                            const series = (await dataSource.getContent(
+                                ctx.playlistId,
+                                ctx.credentials,
+                                'series'
+                            )) as XtreamSerieItem[];
+                            if (!shouldPublish()) return;
+                            patchState(store, { serialStreams: series });
+                        } catch (error) {
+                            logger.error('Error reloading series', error);
+                            if (!shouldPublish()) return;
+                            patchState(store, { serialStreams: [] });
+                            failed.push('series');
+                        }
+                    }
+                    if (failed.length > 0 && shouldPublish()) {
+                        const next = { ...store.contentLoadStateByType() };
+                        for (const type of failed) {
+                            next[type] = 'idle';
+                        }
+                        patchState(store, { contentLoadStateByType: next });
                     }
                 },
 

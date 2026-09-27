@@ -79,6 +79,11 @@ export class WorkspaceShellHeaderComponent {
      */
     readonly isSettingsRoute = input(false);
     /**
+     * Parental lock indicator: `off` hides the button, `locked` offers the
+     * PIN prompt, `unlocked` offers "Lock now".
+     */
+    readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
+    /**
      * Phone-width (≤640px) drawer toggle for the context panel. The button
      * itself is hidden by CSS above the phone breakpoint, so these inputs
      * only matter on small viewports: `showContextDrawerToggle` reflects
@@ -108,6 +113,7 @@ export class WorkspaceShellHeaderComponent {
     readonly headerShortcutRequested = output<void>();
     readonly headerBulkActionRequested = output<void>();
     readonly headerSidebarToggleRequested = output<void>();
+    readonly parentalLockToggleRequested = output<void>();
     readonly refreshPlaylistRequested = output<void>();
     readonly downloadsRequested = output<void>();
     readonly playlistInfoRequested = output<void>();

@@ -114,6 +114,7 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
 import {
     DataService,
+    ParentalLockService,
     PlaylistsService,
     RecordingsService,
     RuntimeCapabilitiesService,
@@ -241,6 +242,7 @@ export class VideoPlayerComponent
     private readonly router = inject(Router);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly parentalLock = inject(ParentalLockService);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
@@ -1437,8 +1439,19 @@ export class VideoPlayerComponent
                 )
             )
             .subscribe((channel) => {
+                // The number indexes the full list; a channel of a locked
+                // group is not zapped to (the enforcement service would
+                // reset it anyway, after playback had started).
+                const playlistId = this.activePlaylistMeta()?._id;
                 if (
                     channel &&
+                    !(
+                        playlistId &&
+                        this.parentalLock.isM3uGroupLocked(
+                            playlistId,
+                            channel.group?.title ?? ''
+                        )
+                    ) &&
                     (!this.isLivePlayerFullscreen() ||
                         this.keepsInlinePlayer(channel))
                 ) {
