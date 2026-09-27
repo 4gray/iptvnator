@@ -141,6 +141,52 @@ describe('ParentalLockLockStore', () => {
         expect(storage.writeLocks).toHaveBeenLastCalledWith({});
     });
 
+    it('restores the cleared index when saving the emptied store fails', async () => {
+        await store.load();
+        await store.ensureReadable();
+        setCategoryLocks.mockClear();
+        storage.writeLocks.mockResolvedValueOnce(false);
+
+        await expect(store.setXtreamLocks('pl-1', 'live', [])).resolves.toBe(
+            false
+        );
+
+        // Cleared first, then put back from the previous locks.
+        expect(setCategoryLocks.mock.calls).toEqual([
+            ['pl-1', 'live', []],
+            ['pl-1', 'live', [7]],
+        ]);
+        expect(store.readable()).toBe(true);
+    });
+
+    it('publishes a rollback only after every type is re-stamped', async () => {
+        await store.load();
+        await store.ensureReadable();
+        const before = store.revision();
+        setCategoryLocks.mockClear();
+        const revisionsAtStamp: number[] = [];
+        let call = 0;
+        setCategoryLocks.mockImplementation(async () => {
+            revisionsAtStamp.push(store.revision());
+            call += 1;
+            // live ok, movies fails, then the rollback re-stamps succeed
+            return call !== 2;
+        });
+
+        await expect(
+            store.replacePlaylistLocks('pl-1', {
+                xtream: [{ categoryType: 'movies', xtreamId: 3 }],
+                stalker: [],
+                m3u: [],
+            })
+        ).resolves.toBe(false);
+
+        expect(revisionsAtStamp.every((revision) => revision === before)).toBe(
+            true
+        );
+        expect(store.revision()).toBe(before + 1);
+    });
+
     it('does not drop the key when clearing the index fails', async () => {
         await store.load();
         await store.ensureReadable();

@@ -358,6 +358,33 @@ data layer back into `main.js`. The feature costs about 30 KB of
 
 ## Lock store lifetime
 
+On Electron the SQLite `categories.locked` index is derived from the lock
+store and must never lag behind it, because the worker filters every read
+by the index alone:
+
+- The store commits BEFORE the re-stamp, so a failed re-stamp rolls the
+  store back to the previous locks AND re-stamps every touched type from
+  them (a backup restore stamps three types, and the ones before the
+  failing type already carry the new locks). The store revision consumers
+  reload on is published only once every touched type is stamped — also
+  after a rollback — so a reload cannot read a later type through its old
+  stamps. If the rollback write or its re-stamp fails too, the playlist is
+  marked stale and re-stamped on the next store access.
+- A write that removes a playlist's LAST lock clears the index first and
+  drops the key afterwards: the launch-time reconcile finds playlists only
+  through their key, so an interruption must leave store-with-lock and
+  index-without, which the next reconcile repairs toward locked. If the
+  clear or the store write fails, the index is re-stamped from the previous
+  locks at once — title matching and multi-source discovery query the
+  worker directly and trust the index, so a stale flag alone would not
+  protect them.
+- Every launch re-derives the index from the store for each playlist that
+  has locks, and a store recovered by a later successful read marks its
+  playlists stale the same way. The reconcile is awaited inside the store's
+  `load()`, so `readable` (and with it every catalog read the renderer
+  gates) stays false until the index agrees with the store; a re-stamp that
+  keeps failing keeps the session fail-closed.
+
 Every lock-store mutation runs through one write queue in
 `ParentalLockLockStore`: each rewrites the whole persisted store from the
 in-memory copy, so overlapping edits (two right-click toggles, a dialog

@@ -365,19 +365,20 @@ export class ParentalLockLockStore {
                 return false;
             }
             if (
-                !(await this.stampXtreamLocks(
+                (await this.stampXtreamLocks(
                     playlistId,
                     categoryTypes,
                     normalizedNext
-                ))
+                )) &&
+                (await this.persistPlaylistLocks(playlistId, normalizedNext))
             ) {
-                return false;
-            }
-            if (await this.persistPlaylistLocks(playlistId, normalizedNext)) {
                 return true;
             }
-            this.markIndexStale(playlistId);
-            this.revisionState.update((value) => value + 1);
+            // The clear (partly) reached the index but the store still holds
+            // the locks: put the index back at once — consumers that query
+            // the worker directly (title matching, multi-source discovery)
+            // trust `locked` and are not gated by the renderer's stale flag.
+            await this.restoreIndex(playlistId, previous, categoryTypes);
             return false;
         }
         // The revision is published only once every type is stamped: a
@@ -414,12 +415,29 @@ export class ParentalLockLockStore {
         previous: ParentalLockPlaylistLocks,
         categoryTypes: readonly ParentalLockXtreamCategoryType[]
     ): Promise<void> {
-        const restored = await this.persistPlaylistLocks(playlistId, previous);
+        // Published once, after the re-stamp: a reload on an earlier
+        // revision would read a later type through the attempted stamps.
+        const restored = await this.persistPlaylistLocks(playlistId, previous, {
+            publish: false,
+        });
         const restamped =
             restored &&
             (await this.stampXtreamLocks(playlistId, categoryTypes));
         if (!restored || !restamped) {
             console.error('Failed to roll back the parental lock index.');
+            this.markIndexStale(playlistId);
+        }
+        this.revisionState.update((value) => value + 1);
+    }
+
+    /** Re-stamps the index from `locks`; marks it stale when that fails. */
+    private async restoreIndex(
+        playlistId: string,
+        locks: ParentalLockPlaylistLocks,
+        categoryTypes: readonly ParentalLockXtreamCategoryType[]
+    ): Promise<void> {
+        if (!(await this.stampXtreamLocks(playlistId, categoryTypes, locks))) {
+            console.error('Failed to restore the parental lock index.');
             this.markIndexStale(playlistId);
             this.revisionState.update((value) => value + 1);
         }
