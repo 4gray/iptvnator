@@ -575,7 +575,6 @@ describe('SerialDetailsComponent', () => {
             contentType: 'series',
             playlist: expect.any(Function),
             backdropUrl: undefined,
-            skipListRefresh: false,
         });
         expect(addRecentItem.mock.calls[0][0].playlist()).toEqual(
             currentPlaylist()

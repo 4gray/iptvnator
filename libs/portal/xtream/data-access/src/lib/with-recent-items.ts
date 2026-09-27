@@ -85,8 +85,6 @@ export const withRecentItems = function () {
                     contentType: 'live' | 'movie' | 'series';
                     playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
-                    /** Save only: `playlist` is no longer the one in state. */
-                    skipListRefresh?: boolean;
                 }>(
                     pipe(
                         switchMap(
@@ -95,7 +93,6 @@ export const withRecentItems = function () {
                                 contentType,
                                 playlist,
                                 backdropUrl,
-                                skipListRefresh,
                             }) => {
                                 const playlistId = playlist()?.id;
                                 const normalizedXtreamId = Number(xtreamId);
@@ -125,9 +122,6 @@ export const withRecentItems = function () {
                                         playlistId,
                                         backdropUrl
                                     );
-                                    if (skipListRefresh) {
-                                        return;
-                                    }
 
                                     // Reload after add/update so re-watched items
                                     // immediately move to the top in recently-viewed.

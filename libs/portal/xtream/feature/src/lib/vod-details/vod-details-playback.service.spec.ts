@@ -157,8 +157,6 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             streamUrl: 'https://example.com/route.mkv',
             title: 'Working source',
         });
-        currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
-
         expect(addRecentItem).not.toHaveBeenCalled();
 
         TestBed.inject(PlaybackHistoryGate).confirm({
@@ -171,11 +169,25 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             expect.objectContaining({
                 xtreamId: ROUTE_VOD_ID,
                 contentType: 'movie',
-                // Saved to its own playlist; the store's list is now another's.
-                skipListRefresh: true,
             })
         );
         expect(recentItem.playlist()).toEqual({ id: ROUTE_PLAYLIST });
+    });
+
+    it('drops a confirmation that arrives after a switch to another playlist', async () => {
+        // Only a slow MPV/VLC launch can confirm after the page is gone; the
+        // store's recent list belongs to the other playlist by then.
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Slow external launch',
+        });
+        currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
+
+        expect(addRecentItem).not.toHaveBeenCalled();
     });
 
     it('owns a session launched for the route’s own stream', () => {

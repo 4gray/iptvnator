@@ -157,31 +157,6 @@ describe('withRecentItems', () => {
         ]);
     });
 
-    it('saves without replacing the list when the playlist is no longer current', async () => {
-        dataSource.getContentByXtreamId.mockResolvedValue({
-            id: 3941697,
-            title: 'Krypton',
-            type: 'series',
-            xtream_id: 290,
-        });
-
-        store.addRecentItem({
-            xtreamId: 290,
-            contentType: 'series',
-            playlist: signal({ id: 'playlist-1' }),
-            skipListRefresh: true,
-        });
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        expect(dataSource.addRecentItem).toHaveBeenCalledWith(
-            3941697,
-            'playlist-1',
-            undefined
-        );
-        expect(dataSource.getRecentItems).not.toHaveBeenCalled();
-        expect(store.recentItems()).toEqual([]);
-    });
-
     it('uses the Xtream ID as the PWA recent key when cached content is cold', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,

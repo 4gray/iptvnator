@@ -1143,8 +1143,9 @@ reaches history.
   by the resolved (possibly temporary) link; the persisted row still stores
   the portal `cmd`, never that link. Writers capture the item and its
   playlist when they defer, so navigating meanwhile cannot misfile it; an
-  Xtream write confirmed after a playlist switch refreshes the store's recent
-  list only if its playlist is still current.
+  Xtream write confirmed after a switch to another playlist (only a slow
+  MPV/VLC launch can) is dropped rather than replacing that playlist's
+  recent list.
 - Matching: a write deferred with a session key is confirmed only by that
   same key — the same URL in two playlists must not let playback in one
   (inline, or in MPV/VLC) record a failed attempt in the other. Writes
