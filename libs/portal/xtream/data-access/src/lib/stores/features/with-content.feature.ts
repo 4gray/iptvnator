@@ -1524,6 +1524,13 @@ export function withContent() {
                  * refills the lists.
                  */
                 withholdCatalog(): void {
+                    // Before any reload is awaited: an initial hydration
+                    // still in flight read its rows under the previous lock
+                    // state, and must not publish them while the category
+                    // reload runs. The deferred reload refills afterwards.
+                    if (!store.isContentInitialized()) {
+                        reloadAfterInitialization = true;
+                    }
                     patchState(store, {
                         liveCategories: [],
                         vodCategories: [],

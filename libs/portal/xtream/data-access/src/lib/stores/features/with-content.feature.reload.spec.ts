@@ -173,6 +173,37 @@ describe('withContent parental-lock reloads', () => {
         expect(store.serialStreams()).toEqual([]);
     });
 
+    it('suppresses a hydration publication as soon as the catalog is withheld', async () => {
+        const live = createDeferred<unknown[]>();
+        let calls = 0;
+        let liveAfterHydrationPublish: unknown;
+        dataSource.getContent.mockImplementation(() => {
+            calls += 1;
+            if (calls === 1) {
+                return live.promise;
+            }
+            if (calls === 2) {
+                // The hydration published its live rows just before this
+                // (vod) read: capture what it left on screen.
+                liveAfterHydrationPublish = store.liveStreams();
+            }
+            return Promise.resolve([{ xtream_id: calls }]);
+        });
+        const initialization = store.initializeContent();
+        await waitForCondition(() => calls === 1);
+
+        // Relock: the catalog is withheld BEFORE any reload has run, then
+        // the hydration's pending (unlocked) live read resolves.
+        store.withholdCatalog();
+        live.resolve([{ xtream_id: 1 }]);
+        await initialization;
+
+        expect(liveAfterHydrationPublish).toEqual([]);
+        // The deferred reload refilled the list with fresh rows.
+        expect(store.liveStreams()).not.toEqual([{ xtream_id: 1 }]);
+        expect(store.liveStreams()).not.toEqual([]);
+    });
+
     it('empties the category lists when their reload fails', async () => {
         dataSource.getCategories.mockResolvedValue([{ category_id: 'x' }]);
         await store.reloadCategories();

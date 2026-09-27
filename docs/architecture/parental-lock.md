@@ -190,7 +190,9 @@ on either side.
   answered before every state patch, so a read issued under an older lock
   version is dropped instead of published. A lock change that overtakes
   the INITIAL hydration (the content is not initialized yet, so the reload
-  has nothing to re-read) sets a deferred-reload flag instead: the
+  has nothing to re-read) sets a deferred-reload flag instead — already
+  when `withholdCatalog()` empties the lists, before the category reload is
+  awaited: the
   hydration then publishes empty lists in place of the rows it read under
   the previous lock state (categories included), and the filtered reload
   of categories and content runs as soon as the hydration settles, on
