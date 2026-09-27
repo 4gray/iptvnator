@@ -157,6 +157,13 @@ and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
 
+Inside `expect.poll`, read a changing list in one DOM snapshot
+(`allTextContents()` or `evaluateAll()`, as in
+`apps/electron-backend-e2e/src/sidebar-categories.e2e-support.ts`), not by
+looping over `count()` with per-row `nth(index)` reads. Those reads auto-wait,
+so a row removed mid-loop hangs the predicate until the poll times out instead
+of letting it retry.
+
 Playwright coverage is measured semantically by tags and critical journeys, not
 by a source-line percentage. E2E reports should use tags such as `@critical`,
 `@electron`, `@web`, `@xtream`, `@stalker`, `@m3u`, `@search`, `@epg`,
