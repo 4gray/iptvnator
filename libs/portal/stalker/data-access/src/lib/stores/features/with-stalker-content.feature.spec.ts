@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
-import { DataService } from '@iptvnator/services';
+import { DataService, ParentalLockService } from '@iptvnator/services';
 import {
     CONNECTIVITY_GUARD_RESET,
     PlaylistMeta,
@@ -34,6 +34,7 @@ const PLAYLIST = {
 } as PlaylistMeta;
 
 const TestContentStore = signalStore(
+    { protectedState: false },
     withState({
         currentPlaylist: undefined as PlaylistMeta | undefined,
         selectedContentType: 'vod' as 'vod' | 'series' | 'itv' | 'radio',
@@ -57,6 +58,11 @@ const TestContentStore = signalStore(
     })),
     withStalkerContent()
 );
+
+/** Request payload the content feature sends through `sendIpcEvent`. */
+interface StalkerIpcRequest {
+    params?: { action?: string; p?: number; search?: string };
+}
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -136,18 +142,34 @@ function createItvCacheMock(
 describe('withStalkerContent failure states', () => {
     let store: InstanceType<typeof TestContentStore>;
     let dataService: {
-        sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
+        sendIpcEvent: jest.Mock<
+            Promise<unknown>,
+            [event: string, request: StalkerIpcRequest]
+        >;
+    };
+    let parentalLock: {
+        active: jest.Mock<boolean, []>;
+        version: ReturnType<typeof signal<number>>;
+        lockedStalkerIds: jest.Mock<string[], [string, string]>;
     };
 
     beforeEach(() => {
         dataService = {
             sendIpcEvent: jest.fn(),
         };
+        parentalLock = {
+            active: jest.fn(() => false),
+            version: signal(0),
+            lockedStalkerIds: jest.fn(
+                (_playlistId: string, _type: string): string[] => []
+            ),
+        };
 
         TestBed.configureTestingModule({
             providers: [
                 TestContentStore,
                 { provide: DataService, useValue: dataService },
+                { provide: ParentalLockService, useValue: parentalLock },
                 {
                     provide: StalkerItvCacheService,
                     useValue: createItvCacheMock(),
@@ -176,11 +198,10 @@ describe('withStalkerContent failure states', () => {
     it('keeps ITV pages unfiltered while independent local searches change', async () => {
         const pending =
             createDeferred<ReturnType<typeof createContentResponse>>();
-        dataService.sendIpcEvent.mockImplementation(
-            (_event, request: { params: { action: string } }) =>
-                request.params.action === 'get_genres'
-                    ? Promise.resolve({ js: [] })
-                    : pending.promise
+        dataService.sendIpcEvent.mockImplementation((_event, request) =>
+            request.params?.action === 'get_genres'
+                ? Promise.resolve({ js: [] })
+                : pending.promise
         );
         store.setSelectedContentType('itv');
         store.setCategories('itv', [
@@ -192,15 +213,10 @@ describe('withStalkerContent failure states', () => {
         await flushResources();
         const orderedCalls = () =>
             dataService.sendIpcEvent.mock.calls.filter(
-                (call) =>
-                    (call[1] as { params: { action: string } }).params
-                        .action === 'get_ordered_list'
+                (call) => call[1].params?.action === 'get_ordered_list'
             );
         await waitForCondition(() => orderedCalls().length > 0);
-        expect(
-            (orderedCalls()[0][1] as { params: { search?: string } }).params
-                .search
-        ).toBeUndefined();
+        expect(orderedCalls()[0][1].params?.search).toBeUndefined();
         patchState(store, { searchPhrase: 'changed' });
         await flushResources();
         pending.resolve(createContentResponse('Panel match'));
@@ -590,6 +606,149 @@ describe('withStalkerContent failure states', () => {
         expect(store.totalCount()).toBe(2);
     });
 
+    it('pages past a VOD page made only of parental-locked rows', async () => {
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+                // Page 1: one visible film. Page 2: locked rows only. Page 3:
+                // the visible film paging must still reach.
+                const data =
+                    page === 1
+                        ? [{ id: 'movie-1', name: 'One', category_id: '5' }]
+                        : page === 2
+                          ? [
+                                { id: 'adult-1', name: 'A', category_id: '9' },
+                                { id: 'adult-2', name: 'B', category_id: '9' },
+                            ]
+                          : [
+                                {
+                                    id: 'movie-3',
+                                    name: 'Three',
+                                    category_id: '5',
+                                },
+                            ];
+                return Promise.resolve({ js: { data, total_items: 4 } });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 1);
+        expect(store.hasMoreContent()).toBe(true);
+
+        // The append lands on the fully withheld page; the loader must ask
+        // for the next one by itself instead of ending the list.
+        store.setPage(1);
+        await waitForCondition(
+            () => store.getPaginatedContent().length === 2,
+            60
+        );
+
+        expect(store.getPaginatedContent().map((item) => item.id)).toEqual([
+            'movie-1',
+            'movie-3',
+        ]);
+        // Both withheld ids are subtracted from the portal's total.
+        expect(store.totalCount()).toBe(2);
+        expect(store.hasMoreContent()).toBe(false);
+    });
+
+    it('drops accumulated rows of a newly locked genre and restarts from page 1', async () => {
+        dataService.sendIpcEvent.mockImplementation(
+            (_event: unknown, payload: { params?: { p?: number } }) => {
+                const page = Number(payload.params?.p ?? 1);
+                const data =
+                    page === 1
+                        ? [
+                              { id: 'movie-1', name: 'One', category_id: '5' },
+                              { id: 'adult-1', name: 'A', category_id: '9' },
+                          ]
+                        : [{ id: 'movie-2', name: 'Two', category_id: '5' }];
+                return Promise.resolve({ js: { data, total_items: 3 } });
+            }
+        );
+
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+        store.setPage(1);
+        await waitForCondition(() => store.getPaginatedContent().length === 3);
+
+        // Lock now: the genre-9 row loaded on page 1 must leave the screen
+        // and the list must be rebuilt from page 1 under the new lock state.
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        parentalLock.version.set(1);
+
+        await waitForCondition(
+            () =>
+                store.page() === 0 &&
+                !store.isPaginatedContentLoading() &&
+                store
+                    .getPaginatedContent()
+                    .every((item) => item.category_id !== '9'),
+            60
+        );
+
+        expect(store.getPaginatedContent().map((item) => item.id)).toEqual([
+            'movie-1',
+        ]);
+        expect(store.totalCount()).toBe(2);
+    });
+
+    it('takes page-one rows of a newly locked genre off screen before the reload answers', async () => {
+        let hangReload = false;
+        dataService.sendIpcEvent.mockImplementation(() =>
+            hangReload
+                ? new Promise(() => undefined)
+                : Promise.resolve({
+                      js: {
+                          data: [
+                              { id: 'movie-1', name: 'One', category_id: '5' },
+                              { id: 'adult-1', name: 'A', category_id: '9' },
+                          ],
+                          total_items: 2,
+                      },
+                  })
+        );
+        store.setSelectedContentType('vod');
+        store.setCategories('vod', [
+            { category_id: '5', category_name: 'Action' },
+            { category_id: '9', category_name: 'Adult' },
+        ]);
+        store.setSelectedCategory('*');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isPaginatedContentLoading();
+        await waitForCondition(() => store.getPaginatedContent().length === 2);
+
+        // Lock now while the replacement request hangs.
+        hangReload = true;
+        parentalLock.active.mockReturnValue(true);
+        parentalLock.lockedStalkerIds.mockReturnValue(['9']);
+        parentalLock.version.set(1);
+
+        // Page 1 blanks the grid synchronously before its request, so the
+        // locked row is gone even though the reload never answers.
+        await waitForCondition(() => store.getPaginatedContent().length === 0);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(2);
+    });
+
     it('keeps accumulated pages when an append fails and retries the same page', async () => {
         let failPageTwo = true;
         dataService.sendIpcEvent.mockImplementation(
@@ -810,7 +969,10 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     let store: InstanceType<typeof TestContentStore>;
     let dataService: {
-        sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
+        sendIpcEvent: jest.Mock<
+            Promise<unknown>,
+            [event: string, request: StalkerIpcRequest]
+        >;
     };
     let itvCache: ReturnType<typeof createItvCacheMock>;
 
@@ -1041,19 +1203,18 @@ describe('withStalkerContent full ITV channel list cache', () => {
 
     it('keeps censored pagination after a delayed cache replays the current page', async () => {
         setup(null);
-        dataService.sendIpcEvent.mockImplementation(
-            (_event, payload: { params: { p: number } }) =>
-                Promise.resolve({
-                    js: {
-                        data: [
-                            {
-                                id: String(payload.params.p),
-                                name: `Hidden ${payload.params.p}`,
-                            },
-                        ],
-                        total_items: 3,
-                    },
-                })
+        dataService.sendIpcEvent.mockImplementation((_event, payload) =>
+            Promise.resolve({
+                js: {
+                    data: [
+                        {
+                            id: String(payload.params?.p),
+                            name: `Hidden ${payload.params?.p}`,
+                        },
+                    ],
+                    total_items: 3,
+                },
+            })
         );
         enterItvCategory('1099');
         await waitForCondition(() => store.itvChannels().length === 1);

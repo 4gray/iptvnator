@@ -88,6 +88,8 @@ export interface XtreamCategoryFromDb {
     type: 'movies' | 'live' | 'series';
     xtream_id: number;
     hidden: boolean;
+    /** Parental lock index; see ParentalLockService. */
+    locked: boolean;
 }
 
 /**

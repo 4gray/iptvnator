@@ -52,7 +52,10 @@ Current workspace routes:
 8. `/workspace/search`
 9. `/workspace/downloads`
 10. `/workspace/settings/:section` (`/workspace/settings` redirects to
-    `general`; the settings context panel links each section page)
+    `general`; the settings context panel links each section page; sections:
+    `general`, `playback`, `epg`, `dashboard`, `remote-control`, `tmdb`,
+    `parental` — see [parental lock](parental-lock.md) — `backup`, `reset`,
+    `about`)
 11. `/workspace/xtreams/:id/...`
 12. `/workspace/stalker/:id/...`
 

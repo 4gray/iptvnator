@@ -16,6 +16,10 @@ const SITE = 'https://4gray.github.io/iptvnator';
 
 const GUIDES = [
   {
+    slug: 'm3u-programme-guide',
+    screenshots: [],
+  },
+  {
     slug: 'xtream-codes-setup-guide',
     screenshots: [
       'blog/guides/screenshots/guide-xtream-add-playlist-dark.png',

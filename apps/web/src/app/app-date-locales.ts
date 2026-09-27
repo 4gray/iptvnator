@@ -2,7 +2,7 @@ import { registerLocaleData } from '@angular/common';
 import localeEn from '@angular/common/locales/en';
 import { inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { normalizeDateLocale } from '@iptvnator/pipes';
+import { normalizeDateLocale } from '@iptvnator/pipes/date-format';
 import { createDevLogger } from '@iptvnator/shared/interfaces';
 
 type LocaleDataModule = { default: unknown };

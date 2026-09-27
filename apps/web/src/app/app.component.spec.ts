@@ -17,9 +17,11 @@ import { EMPTY, of } from 'rxjs';
 import {
     DataService,
     EpgSourceSettingsService,
+    ParentalLockService,
     SettingsStore,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import { ParentalLockEnforcementService } from './services/parental-lock-enforcement.service';
 import {
     Language,
     Settings,
@@ -34,6 +36,11 @@ import { AppComponent } from './app.component';
 import { AppDateLocaleService } from './app-date-locales';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';
+
+/** Writable double for the bridge's read-only capability getters. */
+type EpgBridgeStub = {
+    -readonly [K in keyof EpgRuntimeBridgeService]?: EpgRuntimeBridgeService[K];
+};
 
 jest.spyOn(global.console, 'error').mockImplementation(() => {
     // suppress console.error output during tests
@@ -77,7 +84,7 @@ describe('AppComponent', () => {
     let store: MockStore;
     let translateService: TranslateService;
     let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: EpgBridgeStub;
 
     beforeEach(waitForAsync(() => {
         runtimeCapabilities = {
@@ -97,6 +104,14 @@ describe('AppComponent', () => {
             imports: [AppComponent],
             providers: [
                 provideMockStore(),
+                // The parental lock boots from AppComponent; its collaborators
+                // (Xtream/Stalker stores, SQLite bridge) are out of scope here.
+                MockProvider(ParentalLockService, {
+                    initialize: jest.fn().mockResolvedValue(undefined),
+                }),
+                MockProvider(ParentalLockEnforcementService, {
+                    start: jest.fn(),
+                }),
                 {
                     provide: Actions,
                     useValue: new Actions(EMPTY),

@@ -32,6 +32,12 @@
             "@iptvnator/portal/shared/util": [
                 "libs/portal/shared/util/src/index.ts"
             ],
+            "@iptvnator/portal/shared/util/logger": [
+                "libs/portal/shared/util/src/lib/logger.ts"
+            ],
+            "@iptvnator/portal/shared/util/tokens": [
+                "libs/portal/shared/util/src/tokens.ts"
+            ],
             "@iptvnator/epg/data-access": ["libs/epg/data-access/src/index.ts"],
             "@iptvnator/playback/data-access": [
                 "libs/playback/data-access/src/index.ts"
@@ -45,6 +51,9 @@
             ],
             "@iptvnator/playlist/shared/util": [
                 "libs/playlist/shared/util/src/index.ts"
+            ],
+            "@iptvnator/playlist/shared/util/playlist-file-import": [
+                "libs/playlist/shared/util/src/lib/playlist-file-import.service.ts"
             ],
             "@iptvnator/ui/epg": ["libs/ui/epg/src/index.ts"],
             "@iptvnator/ui/epg/date": ["libs/ui/epg/src/lib/epg-date.ts"],
@@ -82,13 +91,22 @@
             "@iptvnator/workspace/shell/util": [
                 "libs/workspace/shell/util/src/index.ts"
             ],
+            "@iptvnator/workspace/shell/util/settings-context": [
+                "libs/workspace/shell/util/src/lib/settings-context.service.ts"
+            ],
             "@iptvnator/workspace/shell/util/settings-search": [
                 "libs/workspace/shell/util/src/lib/settings-search/index.ts"
             ],
             "@iptvnator/pipes": ["libs/ui/pipes/src/index.ts"],
+            "@iptvnator/pipes/date-format": [
+                "libs/ui/pipes/src/lib/date-format.util.ts"
+            ],
             "@iptvnator/ui/components": ["libs/ui/components/src/index.ts"],
             "@iptvnator/ui/components/confirm-dialog": [
                 "libs/ui/components/src/lib/confirm-dialog/dialog.service.ts"
+            ],
+            "@iptvnator/ui/components/parental-lock-pin-dialog": [
+                "libs/ui/components/src/lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component.ts"
             ],
             "@iptvnator/ui/components/window-controls": [
                 "libs/ui/components/src/lib/window-controls/window-controls.component.ts"
@@ -103,6 +121,9 @@
                 "libs/shared/host-health/src/index.ts"
             ],
             "@iptvnator/services": ["libs/services/src/index.ts"],
+            "@iptvnator/services/playlist-backup": [
+                "libs/services/src/lib/playlist-backup.service.ts"
+            ],
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
             ],

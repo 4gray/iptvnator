@@ -34,9 +34,9 @@ import {
 import {
     DatabaseService,
     DataService,
-    PlaylistBackupService,
     PlaylistsService,
 } from '@iptvnator/services';
+import { PlaylistBackupService } from '@iptvnator/services/playlist-backup';
 import {
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
@@ -109,7 +109,7 @@ export const DEFAULT_SETTINGS = {
     vlcReuseInstance: false,
     remoteControl: false,
     remoteControlPort: 8765,
-    epgUrl: [],
+    epgUrl: [] as string[],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
     embeddedMpvExtraOptions: '',

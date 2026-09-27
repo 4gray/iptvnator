@@ -91,6 +91,9 @@ export const XTREAM_PRELOAD_TARGET_CASES: TargetCase[] = [
             categoryItems,
             'live',
             [91],
+            // Parental-lock ids: the preload forwards the optional fifth
+            // argument as-is, so an omitted one travels as undefined.
+            undefined,
         ],
         expectedMetadata: {
             ...EMPTY_METADATA,

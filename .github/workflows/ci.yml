@@ -205,6 +205,144 @@ jobs:
                   path: dist/performance/
                   retention-days: 14
 
+    # Decides whether a pull request can move the performance journeys, so
+    # the journeys job below does not spend a runner on docs-only changes.
+    # Pushes to master and manual dispatches always run them.
+    performance-journeys-scope:
+        name: Performance journeys scope
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            run: ${{ steps.scope.outputs.run }}
+
+        steps:
+            # The PR checkout is the merge commit: its first parent is the
+            # target branch, so two commits are enough to diff the PR.
+            - name: Checkout code
+              if: github.event_name == 'pull_request'
+              uses: actions/checkout@v7
+              with:
+                  fetch-depth: 2
+
+            # Anything can move a journey (application code, the harness, root
+            # build inputs such as .nvmrc, nx.json or tsconfig.base.json), so
+            # the filter lists what cannot: the same paths the E2E workflow
+            # ignores, plus release notes.
+            - name: Detect journey-relevant changes
+              id: scope
+              env:
+                  EVENT_NAME: ${{ github.event_name }}
+              run: |
+                  set -euo pipefail
+                  if [ "$EVENT_NAME" != "pull_request" ]; then
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  relevant="$(git diff --name-only HEAD^1 HEAD |
+                      grep -vE '\.md$|^docs/|^\.plans/|^\.codex/|^\.claude/|^\.changes/|^apps/website/' || true)"
+                  if [ -n "$relevant" ]; then
+                      echo "Journey-relevant changes:"
+                      echo "$relevant"
+                      echo "run=true" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "No journey-relevant changes; skipping the performance journeys."
+                      echo "run=false" >> "$GITHUB_OUTPUT"
+                  fi
+
+    # Runs the journey benchmarks (docs/architecture/performance-journeys.md)
+    # on the canonical Linux runner and uploads the summary as evidence.
+    performance-journeys:
+        name: Performance journeys
+        needs: performance-journeys-scope
+        if: needs.performance-journeys-scope.outputs.run == 'true'
+        runs-on: ubuntu-latest
+        # The electron-performance build is the bulk of the time; the launch
+        # journey itself is six fresh Electron processes plus one seeding run.
+        timeout-minutes: 30
+        # Warn-only for the first two weeks of plan item B3: a failure is
+        # visible on the run but does not fail the workflow.
+        continue-on-error: true
+        env:
+            NX_SKIP_NX_CACHE: true
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.0.10
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # The journeys drive Electron through Playwright's _electron API
+            # and never launch a Playwright browser, so no `playwright
+            # install`. The runner image ships Electron's shared libraries and
+            # xvfb; fail fast with a clear message if an image update drops one.
+            - name: Check Electron runtime dependencies
+              run: |
+                  command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
+                  missing="$(ldd node_modules/electron/dist/electron | grep 'not found' || true)"
+                  if [ -n "$missing" ]; then
+                      echo "::error::Electron is missing shared libraries:"
+                      echo "$missing"
+                      exit 1
+                  fi
+
+            # The Nx target builds electron-backend:build-performance first
+            # and playwright.journeys.config.ts starts the Xtream mock server.
+            - name: Run the performance journeys
+              run: xvfb-run --auto-servernum --server-args="-screen 0 1280x960x24" pnpm run perf:journeys
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            # Every run writes a fresh timestamped directory, so a clean
+            # checkout must hold exactly one summary.
+            - name: Locate the journey summary
+              id: summary
+              run: |
+                  set -euo pipefail
+                  mapfile -t summaries < <(find dist/performance/journeys -mindepth 2 -maxdepth 2 -name summary.json)
+                  if [ "${#summaries[@]}" -ne 1 ]; then
+                      echo "::error::Expected one journey summary, found ${#summaries[@]}"
+                      exit 1
+                  fi
+                  echo "path=${summaries[0]}" >> "$GITHUB_OUTPUT"
+
+            - name: Report journey measurements
+              env:
+                  SUMMARY: ${{ steps.summary.outputs.path }}
+              run: |
+                  set -euo pipefail
+                  jq -r '
+                      "## Performance journeys (\(.harness.platform), \(.harness.measuredIterations) measured iterations)", "",
+                      (.journeys | to_entries[] | .key as $journey | .value as $j |
+                          "### `\($journey)`", "",
+                          "| Measurement | Value | Iterations |",
+                          "| --- | ---: | --- |",
+                          (($j.counters // {}) | to_entries[] |
+                              ($j.counterStability[.key] // {}) as $s |
+                              "| `\(.key)` | \(.value) | \(($s.values // []) | map(tostring) | join(", "))\(if $s.stable == false then " (unstable)" else "" end) |"),
+                          (($j.wallClock // {}) | to_entries[] | "| `\(.key)` | \(.value) | |"),
+                          "")
+                  ' "$SUMMARY" | tee -a "$GITHUB_STEP_SUMMARY"
+
+            - name: Upload journey summaries
+              if: always()
+              uses: actions/upload-artifact@v7
+              with:
+                  name: performance-journeys
+                  path: dist/performance/journeys/
+                  if-no-files-found: warn
+                  retention-days: 14
+
     unit-and-typecheck:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
@@ -247,6 +385,9 @@ jobs:
 
             - name: Typecheck web and Electron entry points
               run: pnpm run typecheck:ci
+
+            - name: Typecheck Jest spec programs
+              run: pnpm run typecheck:spec:test && pnpm run typecheck:spec
 
             - name: Check i18n drift
               run: pnpm run i18n:check

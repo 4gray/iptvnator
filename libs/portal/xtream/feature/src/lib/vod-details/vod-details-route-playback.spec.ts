@@ -185,7 +185,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
             component.multiSource,
             'markRouteSourceActive'
         );
-        const beginPlayback = jest.spyOn(component.msUi, 'beginPlayback');
+        const beginPlayback = jest.spyOn(component['msUi'], 'beginPlayback');
 
         await component.playVod({
             movie_data: {
@@ -325,7 +325,9 @@ describe('VodDetailsRouteComponent — playback actions', () => {
 
     it('guards Restart and provider actions before external IPC settles', async () => {
         currentPlaylist.set({ id: 'playlist-1' });
-        stubs.openResolvedPlayback.mockReturnValue(new Promise(() => undefined));
+        stubs.openResolvedPlayback.mockReturnValue(
+            new Promise(() => undefined)
+        );
         const component = fixture.componentInstance;
         const item = {
             movie_data: {

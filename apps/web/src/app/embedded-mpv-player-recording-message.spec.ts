@@ -125,7 +125,7 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
     afterEach(() => {
         jest.useRealTimers();
         fixture.destroy();
-        delete window.electron;
+        delete (window as { electron?: typeof window.electron }).electron;
     });
 
     it('clears the saved recording path after a short delay', async () => {

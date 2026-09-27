@@ -49,7 +49,8 @@ export class CategoryViewComponent {
                     container.querySelectorAll('[data-category-id]')
                 ) as HTMLElement[];
                 const selected = candidates.find(
-                    (el) => el.dataset.categoryId === String(selectedCategory)
+                    (el) =>
+                        el.dataset['categoryId'] === String(selectedCategory)
                 );
                 if (!selected) {
                     return;

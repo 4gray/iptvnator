@@ -30,6 +30,7 @@ function createFakeController() {
         addExternalSubtitleFile: jest.fn(),
         setSubtitleDelay: jest.fn(),
         setSubtitleStyle: jest.fn(),
+        setQualityLevel: jest.fn(),
         setPlaybackSpeed: jest.fn(),
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
@@ -211,9 +212,7 @@ describe('PlayerControlsComponent subtitle settings', () => {
         });
 
         (
-            style.querySelector(
-                '[aria-label="Yellow"]'
-            ) as HTMLButtonElement
+            style.querySelector('[aria-label="Yellow"]') as HTMLButtonElement
         ).click();
         expect(fake.commands.setSubtitleStyle).toHaveBeenLastCalledWith({
             sizePercent: 100,

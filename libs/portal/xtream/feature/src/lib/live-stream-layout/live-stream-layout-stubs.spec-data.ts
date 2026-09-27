@@ -1,7 +1,6 @@
 import {
     ChangeDetectionStrategy,
     Component,
-    Directive,
     input,
     output,
     signal,
@@ -100,12 +99,6 @@ export class StubEpgTimelineComponent {
     readonly selectedDateChange = output<string>();
     readonly collapsedChange = output<boolean>();
 }
-
-@Directive({
-    selector: '[appResizable]',
-    standalone: true,
-})
-export class StubResizableDirective {}
 
 export const sampleChannel = {
     xtream_id: 101,

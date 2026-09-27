@@ -7,8 +7,11 @@ import { SettingsStore, EpgSourceSettingsService } from '@iptvnator/services';
 import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
 import { EpgProgressService } from './epg-progress.service';
 
+/** Spec-only double: capability flags are read-only getters on the real class. */
+type WritablePartial<T> = { -readonly [K in keyof T]?: T[K] };
+
 describe('EpgProgressService', () => {
-    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let epgBridge: WritablePartial<EpgRuntimeBridgeService>;
     let sources: { waitForReconciliation: jest.Mock };
     let settingsStore: {
         getSettings: jest.Mock;

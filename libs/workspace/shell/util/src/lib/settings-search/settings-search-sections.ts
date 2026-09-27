@@ -30,6 +30,11 @@ export const SETTINGS_SECTION_DEFINITIONS: readonly SettingsSectionDefinition[] 
             requires: ['remote-control'],
         },
         { id: 'tmdb', navLabelKey: 'SETTINGS.NAV_TMDB', icon: 'movie' },
+        {
+            id: 'parental',
+            navLabelKey: 'SETTINGS.NAV_PARENTAL',
+            icon: 'family_restroom',
+        },
         { id: 'backup', navLabelKey: 'SETTINGS.NAV_BACKUP', icon: 'backup' },
         {
             id: 'reset',

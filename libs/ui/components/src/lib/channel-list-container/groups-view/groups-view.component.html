@@ -1,4 +1,4 @@
-@if (!hasAnyGroups()) {
+@if (!hasAnyGroups() && withheldGroupCount() === 0) {
     <div class="groups-view-empty-state">
         <mat-icon class="empty-state-icon">{{
             searchTerm() ? 'search_off' : 'folder_off'
@@ -127,6 +127,9 @@
                                         : null
                                 "
                                 (click)="selectGroup(group.key)"
+                                (contextmenu)="
+                                    onGroupContextMenu(group.key, $event)
+                                "
                             >
                                 <span class="nav-item-label">
                                     @if (group.key) {
@@ -166,6 +169,29 @@
                                 </div>
                             }
                         </div>
+                    }
+                    @if (withheldGroupCount() > 0) {
+                        <button
+                            type="button"
+                            class="groups-locked-row"
+                            data-test-id="groups-locked-row"
+                            (click)="requestParentalUnlock()"
+                            [attr.aria-label]="
+                                'PARENTAL_LOCK.UNLOCK_TO_SHOW' | translate
+                            "
+                        >
+                            <mat-icon>lock</mat-icon>
+                            <span class="groups-locked-row__label">
+                                {{
+                                    'PARENTAL_LOCK.LOCKED_CATEGORIES_ROW'
+                                        | translate
+                                            : { count: withheldGroupCount() }
+                                }}
+                            </span>
+                            <span class="groups-locked-row__hint">
+                                {{ 'PARENTAL_LOCK.UNLOCK_TO_SHOW' | translate }}
+                            </span>
+                        </button>
                     }
                 </div>
             </div>
@@ -354,3 +380,10 @@
         <span>{{ 'CHANNELS.SHOW_DETAILS' | translate }}</span>
     </button>
 </mat-menu>
+
+<app-category-lock-menu
+    #groupLockMenu
+    lockLabelKey="PARENTAL_LOCK.LOCK_GROUP"
+    unlockLabelKey="PARENTAL_LOCK.UNLOCK_GROUP"
+    (toggleRequested)="onGroupLockToggle($event)"
+/>

@@ -171,7 +171,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly isWatched = this.watched.isWatched;
     readonly canToggleWatched = this.watched.canToggle;
-    readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
+    readonly selectedVodId = computed(() =>
+        Number(this.routeParams()['vodId'])
+    );
     readonly playbackSessionKey = computed(() => {
         const sourceId = this.xtreamStore.currentPlaylist()?.id;
         const contentId = this.selectedVodId();
@@ -206,7 +208,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             : [];
     });
     readonly selectedCategory = computed<Partial<XtreamCategory> | null>(() => {
-        const categoryId = this.routeParams().categoryId;
+        const categoryId = this.routeParams()['categoryId'];
         if (!categoryId) {
             return null;
         }
@@ -648,7 +650,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         this.xtreamStore.toggleFavorite(
-            this.route.snapshot.params.vodId,
+            this.route.snapshot.params['vodId'],
             playlist.id,
             'movie',
             this.selectedVodInfo()?.backdrop_path?.[0]

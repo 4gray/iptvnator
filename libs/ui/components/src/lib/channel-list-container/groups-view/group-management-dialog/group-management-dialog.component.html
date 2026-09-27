@@ -5,6 +5,12 @@
         <div class="selection-info">
             {{ 'CHANNELS.GROUP_MANAGEMENT.SELECTED' | translate }}:
             <strong>{{ selectedCount() }}</strong> / {{ totalCount() }}
+            @if (showLocks) {
+                <span class="selection-info__locks">
+                    · {{ 'PARENTAL_LOCK.LOCKED_COUNT' | translate }}:
+                    <strong>{{ lockedCount() }}</strong>
+                </span>
+            }
         </div>
         <div class="bulk-actions">
             <button
@@ -66,6 +72,33 @@
                     }
                 </span>
                 <span class="item-count">({{ group.count }})</span>
+                @if (showLocks) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="lock-toggle"
+                        [class.lock-toggle--locked]="group.locked"
+                        [attr.aria-pressed]="group.locked"
+                        [attr.data-test-id]="'group-lock-' + group.key"
+                        [matTooltip]="
+                            (group.locked
+                                ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                            ) | translate
+                        "
+                        [attr.aria-label]="
+                            (group.locked
+                                ? 'PARENTAL_LOCK.UNLOCK_CATEGORY'
+                                : 'PARENTAL_LOCK.LOCK_CATEGORY'
+                            ) | translate
+                        "
+                        (click)="toggleLock(group, $event)"
+                    >
+                        <mat-icon>{{
+                            group.locked ? 'lock' : 'lock_open'
+                        }}</mat-icon>
+                    </button>
+                }
             </div>
         } @empty {
             <div class="empty-message">

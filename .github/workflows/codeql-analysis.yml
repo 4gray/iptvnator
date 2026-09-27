@@ -15,6 +15,15 @@ on:
   schedule:
     - cron: '0 20 * * 3'
 
+# A newer push to a pull request cancels that PR's still-running analysis:
+# only the latest commit's result matters, and superseded runs otherwise hold
+# runners the rest of the pipeline is queued for. Pushes to master, the weekly
+# schedule and manual dispatches get a unique group (run_id), so they are never
+# cancelled or replaced, the same pattern as ci.yml.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Required so `codeql-action/analyze` can upload its SARIF results. Without an
 # explicit grant the default token is read-only and the upload fails with
 # "Resource not accessible by integration".

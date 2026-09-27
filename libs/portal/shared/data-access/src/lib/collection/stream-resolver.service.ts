@@ -710,7 +710,7 @@ export class StreamResolverService {
             // epg_channel_id column but is not declared on the TS interface.
             const epgKey = (
                 item as unknown as Record<string, string | undefined | null>
-            ).epgChannelId?.trim();
+            )['epgChannelId']?.trim();
             if (this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
                     .getChannelPrograms(epgKey)
@@ -995,7 +995,7 @@ export class StreamResolverService {
                             string,
                             string | undefined | null
                         >
-                    ).epgChannelId?.trim();
+                    )['epgChannelId']?.trim();
                     if (this.supportsProgramLookup && epgChannelKey) {
                         currentItem = await this.findCurrentInXmltv(
                             epgChannelKey,

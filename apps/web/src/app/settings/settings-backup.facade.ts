@@ -3,11 +3,11 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     PlaylistBackupImportSummary,
     PlaylistBackupService,
-    RuntimeCapabilitiesService,
-} from '@iptvnator/services';
+} from '@iptvnator/services/playlist-backup';
 import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Injectable()

@@ -106,7 +106,7 @@ describe('SettingsComponent form', () => {
 
     it('hides the portal pause setting when the desktop bridge is unavailable', () => {
         fixture.destroy();
-        window.electron = undefined;
+        (window as { electron?: typeof window.electron }).electron = undefined;
         fixture = TestBed.createComponent(SettingsComponent);
         fixture.detectChanges();
         expect(
@@ -379,6 +379,10 @@ describe('SettingsComponent form', () => {
                     ...component.settingsForm.value,
                     trustedPrivateNetworkEpgUrls: [],
                     trustedInsecureTlsHosts: [],
+                    // Parental lock settings are not on the form; Save
+                    // carries the current values through unchanged.
+                    parentalLockEnabled: false,
+                    parentalLockRelockMinutes: 15,
                 },
                 { retryEpgCleanup: false }
             );
@@ -386,6 +390,8 @@ describe('SettingsComponent form', () => {
                 ...component.settingsForm.value,
                 trustedPrivateNetworkEpgUrls: [],
                 trustedInsecureTlsHosts: [],
+                parentalLockEnabled: false,
+                parentalLockRelockMinutes: 15,
             });
         });
 
@@ -461,7 +467,8 @@ describe('SettingsComponent form', () => {
 
         it('preserves saved EPG settings when saving from the web settings form', async () => {
             fixture.destroy();
-            window.electron = undefined as unknown as typeof window.electron;
+            (window as { electron?: typeof window.electron }).electron =
+                undefined;
 
             settingsStore._setSettings({
                 epgUrl: ['https://example.com/guide.xml'],

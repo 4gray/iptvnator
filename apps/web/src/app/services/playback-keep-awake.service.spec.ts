@@ -1,7 +1,7 @@
 import { PlaybackKeepAwakeService } from './playback-keep-awake.service';
 
-type ElectronWindow = Window & {
-    electron?: { setPlaybackKeepAwake?: jest.Mock };
+type ElectronWindow = {
+    electron?: Pick<typeof window.electron, 'setPlaybackKeepAwake'>;
 };
 
 const flush = () => Promise.resolve().then(() => Promise.resolve());
@@ -215,9 +215,7 @@ describe('PlaybackKeepAwakeService', () => {
         });
 
         it('releases a lock that resolves after playback already stopped', async () => {
-            let resolveRequest:
-                | ((value: typeof sentinel) => void)
-                | undefined;
+            let resolveRequest: ((value: typeof sentinel) => void) | undefined;
             request.mockImplementationOnce(
                 () =>
                     new Promise((resolve) => {

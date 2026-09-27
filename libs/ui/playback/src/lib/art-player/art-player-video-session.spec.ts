@@ -132,7 +132,7 @@ describe('ArtPlayerVideoSession', () => {
 });
 
 function createSession(
-    player: MockArtplayer,
+    player: MockArtplayer & Artplayer,
     persistSharedVolume: boolean
 ): ArtPlayerVideoSession {
     return new ArtPlayerVideoSession({

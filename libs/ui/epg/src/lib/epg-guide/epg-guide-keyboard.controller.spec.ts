@@ -21,10 +21,10 @@ describe('EpgGuideKeyboardController', () => {
     beforeEach(() => {
         host = {
             rowCount: jest.fn(() => 5),
-            blockCount: jest.fn(() => 3),
+            blockCount: jest.fn((_row: number) => 3),
             activeRow: jest.fn(() => 2),
             isBlocked: jest.fn(() => false),
-            isOwnedTarget: jest.fn(() => true),
+            isOwnedTarget: jest.fn((_target: EventTarget | null) => true),
             play: jest.fn(),
             details: jest.fn(),
             jumpNow: jest.fn(),

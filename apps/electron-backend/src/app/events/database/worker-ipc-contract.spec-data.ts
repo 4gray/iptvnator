@@ -154,12 +154,13 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
     },
     {
         operation: 'DB_SAVE_CATEGORIES',
-        args: [playlistId, categories, 'live', categoryIds],
+        args: [playlistId, categories, 'live', categoryIds, categoryIds],
         payload: {
             playlistId,
             categories,
             type: 'live',
             hiddenCategoryXtreamIds: categoryIds,
+            lockedCategoryXtreamIds: categoryIds,
         },
     },
     {
@@ -171,6 +172,11 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         operation: 'DB_UPDATE_CATEGORY_VISIBILITY',
         args: [categoryIds, true],
         payload: { categoryIds, hidden: true },
+    },
+    {
+        operation: 'DB_SET_CATEGORY_LOCKS',
+        args: [playlistId, 'live', categoryIds],
+        payload: { playlistId, type: 'live', lockedXtreamIds: categoryIds },
     },
     {
         operation: 'DB_HAS_CONTENT',

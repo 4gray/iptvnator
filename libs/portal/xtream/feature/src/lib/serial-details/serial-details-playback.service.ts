@@ -213,7 +213,7 @@ export class SerialDetailsPlaybackService {
 
         const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
         this.recordRecentItem(streamUrl, {
-            xtreamId: this.route.snapshot.params.serialId,
+            xtreamId: this.route.snapshot.params['serialId'],
             contentType: 'series',
             backdropUrl: selectedItem.info?.backdrop_path?.[0],
         });

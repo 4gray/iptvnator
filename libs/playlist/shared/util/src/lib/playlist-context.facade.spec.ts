@@ -22,11 +22,11 @@ function createPlaylist(
     overrides: Partial<PlaylistMeta> & { _id: string }
 ): PlaylistMeta {
     return {
-        _id: overrides._id,
         title: overrides.title ?? overrides.filename ?? overrides._id,
         count: overrides.count ?? 0,
         importDate:
-            overrides.importDate ?? new Date('2026-04-05T10:00:00.000Z').toISOString(),
+            overrides.importDate ??
+            new Date('2026-04-05T10:00:00.000Z').toISOString(),
         autoRefresh: overrides.autoRefresh ?? false,
         ...overrides,
     } as PlaylistMeta;
@@ -392,24 +392,25 @@ describe('PlaylistContextFacade', () => {
             playlistId: xtreamA._id,
             section: 'recently-added',
         });
-        expect(JSON.parse(localStorage.getItem(LAST_SECTION_STORAGE_KEY) ?? '{}'))
-            .toEqual({
-                playlists: {
-                    [m3uA._id]: {
-                        provider: 'playlists',
-                        section: 'favorites',
-                        updatedAt: expect.any(Number),
-                    },
-                    [xtreamA._id]: {
-                        provider: 'xtreams',
-                        section: 'recently-added',
-                        updatedAt: expect.any(Number),
-                    },
+        expect(
+            JSON.parse(localStorage.getItem(LAST_SECTION_STORAGE_KEY) ?? '{}')
+        ).toEqual({
+            playlists: {
+                [m3uA._id]: {
+                    provider: 'playlists',
+                    section: 'favorites',
+                    updatedAt: expect.any(Number),
                 },
-                providers: {
-                    playlists: 'favorites',
-                    xtreams: 'recently-added',
+                [xtreamA._id]: {
+                    provider: 'xtreams',
+                    section: 'recently-added',
+                    updatedAt: expect.any(Number),
                 },
-            });
+            },
+            providers: {
+                playlists: 'favorites',
+                xtreams: 'recently-added',
+            },
+        });
     });
 });

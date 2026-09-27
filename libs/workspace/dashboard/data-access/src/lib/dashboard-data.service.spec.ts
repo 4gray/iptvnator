@@ -593,11 +593,17 @@ describe('DashboardDataService', () => {
             {
                 _id: 'xtream-1',
                 title: 'Xtream One',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://one.example.com',
             },
             {
                 _id: 'xtream-2',
                 title: 'Xtream Two',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://two.example.com',
             },
         ]);
@@ -661,11 +667,17 @@ describe('DashboardDataService', () => {
             {
                 _id: 'xtream-1',
                 title: 'Xtream Playlist',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://xtream.example.com',
             },
             {
                 _id: 'stalker-1',
                 title: 'Stalker Playlist',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://stalker.example.com',
                 macAddress: '00:11:22:33:44:55',
             },
@@ -778,6 +790,7 @@ describe('DashboardDataService', () => {
             playlist_id: 'xtream-1',
             playlist_name: 'Xtream Playlist',
             source: 'xtream',
+            added_at: '2026-01-01T00:00:00.000Z',
         } satisfies DashboardFavoriteItem;
 
         await service.removeGlobalFavorite(item);
@@ -1570,11 +1583,17 @@ describe('DashboardDataService', () => {
             {
                 _id: 'xtream-1',
                 title: 'Xtream One',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://one.example.com',
             },
             {
                 _id: 'xtream-2',
                 title: 'Xtream Two',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://two.example.com',
             },
         ]);
@@ -1608,11 +1627,17 @@ describe('DashboardDataService', () => {
             {
                 _id: 'xtream-1',
                 title: 'Xtream Playlist',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://xtream.example.com',
             },
             {
                 _id: 'stalker-1',
                 title: 'Stalker Playlist',
+                count: 0,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
                 serverUrl: 'https://stalker.example.com',
                 macAddress: '00:11:22:33:44:55',
             },

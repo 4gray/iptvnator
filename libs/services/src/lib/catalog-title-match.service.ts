@@ -1,9 +1,10 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import {
     CatalogTitleMatch,
     normalizeTitleKeys,
     titleYearsCompatible,
 } from '@iptvnator/shared/interfaces';
+import { ParentalLockService } from './parental-lock/parental-lock.service';
 
 /** What one caller is looking for, in catalog-match terms */
 export interface CatalogTitleLookup {
@@ -99,6 +100,8 @@ export function pickTitleMatch(
  */
 @Injectable({ providedIn: 'root' })
 export class CatalogTitleMatchService {
+    private readonly parentalLock = inject(ParentalLockService);
+
     get isAvailable(): boolean {
         return (
             typeof window !== 'undefined' &&
@@ -107,7 +110,14 @@ export class CatalogTitleMatchService {
     }
 
     async matchTitles(titles: string[]): Promise<CatalogTitleMatch[]> {
-        if (!this.isAvailable || titles.length === 0) {
+        // The worker filters locked rows by its own lock state and index;
+        // while the lock withholds everything (store unreadable, or a
+        // bridge without the worker filter) neither can be trusted.
+        if (
+            !this.isAvailable ||
+            titles.length === 0 ||
+            this.parentalLock.withholdsEverything()
+        ) {
             return [];
         }
 

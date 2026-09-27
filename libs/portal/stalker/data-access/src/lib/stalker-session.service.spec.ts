@@ -470,9 +470,9 @@ describe('StalkerSessionService identity payloads', () => {
         expect(payload.params).not.toHaveProperty('device_id2');
         expect(payload.params).not.toHaveProperty('signature');
         expect(payload.params).not.toHaveProperty('signature2');
-        expect(JSON.parse(String(payload.params.metrics))).not.toHaveProperty(
-            'sn'
-        );
+        expect(
+            JSON.parse(String(payload.params['metrics']))
+        ).not.toHaveProperty('sn');
     });
 
     it('sends provided SN, device IDs, and signatures exactly in get_profile', async () => {
@@ -505,7 +505,7 @@ describe('StalkerSessionService identity payloads', () => {
                 signature2: 'SIGNATURE-2',
             })
         );
-        expect(JSON.parse(String(payload.params.metrics))).toEqual(
+        expect(JSON.parse(String(payload.params['metrics']))).toEqual(
             expect.objectContaining({
                 sn: 'CUSTOMSN123',
             })
