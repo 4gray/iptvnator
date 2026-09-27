@@ -365,9 +365,10 @@ on either side.
   with one "Lock / Unlock category (group)" item, only while the feature
   is on. The portal rail persists through
   `WorkspaceCategoryLockActionService` (PIN gate, then one-id edit of the
-  lock store, failure snackbar); the M3U rail emits the edited list to
-  `ChannelListContainerComponent`, which persists it like the dialog's
-  result. Bulk actions stay in the dialog, and while the session is locked
+  lock store, failure snackbar); the M3U rail emits the toggled group to
+  `ChannelListContainerComponent`, which captures the playlist, asks for
+  the PIN, and persists the edit only if that playlist is still open (two
+  playlists can share a group name). Bulk actions stay in the dialog, and while the session is locked
   a locked category is not in the rail, so unlocking always goes through
   the "N locked · Enter PIN to show" row or the dialog. The M3U dialog
   hands its lock list back to `ChannelListContainerComponent`, which
@@ -378,7 +379,9 @@ on either side.
   leaving every category unlocked. The relock timeout persists through the
   same undo-on-failure pattern as the switch (`setRelockMinutes` reverts
   the in-memory value and the facade shows the settings save-failure
-  snackbar).
+  snackbar). A locked session cannot change it: the selector is disabled
+  until the PIN is entered, and `setRelockMinutes` refuses while `active`,
+  so a child cannot switch the idle relock off for the next unlock.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
 

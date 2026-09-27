@@ -513,13 +513,15 @@ export class GroupsViewComponent {
         this.groupLockMenu()?.open(event, locked.includes(groupKey));
     }
 
-    async onGroupLockToggle(lock: boolean): Promise<void> {
+    /**
+     * Emitted at once: the host asks for the PIN itself, after capturing the
+     * playlist the toggle belongs to — this view does not know it, and the
+     * user may navigate while the (lazily loaded) prompt is pending.
+     */
+    onGroupLockToggle(lock: boolean): void {
         const groupKey = this.groupLockKey;
         this.groupLockKey = null;
         if (groupKey === null || this.lockedGroupTitles() === null) {
-            return;
-        }
-        if (!(await this.parentalLock.requestUnlock())) {
             return;
         }
         this.groupLockToggled.emit({ groupKey, locked: lock });

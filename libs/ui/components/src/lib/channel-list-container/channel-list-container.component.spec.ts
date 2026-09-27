@@ -15,6 +15,7 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    ParentalLockService,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -219,6 +220,49 @@ describe('ChannelListContainerComponent', () => {
         // Other views have no unlock row to show.
         fixture.componentRef.setInput('activeView', 'all');
         expect(component.showChannelViews()).toBe(false);
+    });
+
+    it('drops a group lock toggle whose playlist changed while the PIN was asked', async () => {
+        const parentalLock = TestBed.inject(ParentalLockService);
+        const setM3uLocks = jest
+            .spyOn(parentalLock, 'setM3uLocks')
+            .mockResolvedValue(true);
+        jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+            async () => {
+                activePlaylistSignal.set({
+                    _id: 'playlist-2',
+                    title: 'Playlist Two',
+                    count: 0,
+                    importDate: '2026-04-11T00:00:00.000Z',
+                } as PlaylistMeta);
+                return true;
+            }
+        );
+
+        await fixture.componentInstance.onGroupLockToggled({
+            groupKey: 'News',
+            locked: false,
+        });
+
+        expect(setM3uLocks).not.toHaveBeenCalled();
+    });
+
+    it('saves a group lock toggle under the playlist it was requested for', async () => {
+        const parentalLock = TestBed.inject(ParentalLockService);
+        const setM3uLocks = jest
+            .spyOn(parentalLock, 'setM3uLocks')
+            .mockResolvedValue(true);
+        jest.spyOn(parentalLock, 'requestUnlock').mockResolvedValue(true);
+
+        await fixture.componentInstance.onGroupLockToggled({
+            groupKey: 'News',
+            locked: true,
+        });
+
+        expect(setM3uLocks).toHaveBeenCalledWith(
+            'playlist-1',
+            expect.any(Function)
+        );
     });
 
     it('does not clear the shared channel list on destroy', () => {

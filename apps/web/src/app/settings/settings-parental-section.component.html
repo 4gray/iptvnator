@@ -82,7 +82,7 @@
                     <mat-select
                         data-test-id="parental-lock-relock"
                         [value]="relockMinutes()"
-                        [disabled]="busy()"
+                        [disabled]="busy() || !unlocked()"
                         (selectionChange)="
                             relockMinutesChanged.emit($event.value)
                         "

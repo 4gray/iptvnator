@@ -537,7 +537,7 @@ describe('GroupsViewComponent', () => {
         ]);
     });
 
-    it('emits a single-group toggle from the right-click menu behind the PIN gate', async () => {
+    it('emits a single-group toggle from the right-click menu (the host asks for the PIN)', () => {
         const groupLockToggled = jest.fn();
         component.groupLockToggled.subscribe(groupLockToggled);
         fixture.componentRef.setInput('lockedGroupTitles', ['News']);
@@ -546,23 +546,19 @@ describe('GroupsViewComponent', () => {
 
         component.onGroupContextMenu('Sports', event);
         expect(event.defaultPrevented).toBe(true);
-        await component.onGroupLockToggle(true);
+        component.onGroupLockToggle(true);
         expect(groupLockToggled).toHaveBeenLastCalledWith({
             groupKey: 'Sports',
             locked: true,
         });
 
         component.onGroupContextMenu('News', event);
-        await component.onGroupLockToggle(false);
+        component.onGroupLockToggle(false);
         expect(groupLockToggled).toHaveBeenLastCalledWith({
             groupKey: 'News',
             locked: false,
         });
-
-        parentalLock.requestUnlock.mockResolvedValueOnce(false);
-        component.onGroupContextMenu('Movies', event);
-        await component.onGroupLockToggle(true);
-        expect(groupLockToggled).toHaveBeenCalledTimes(2);
+        expect(parentalLock.requestUnlock).not.toHaveBeenCalled();
     });
 
     it('shows the locked-groups row while groups are withheld and unlocks from it', async () => {

@@ -623,22 +623,37 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         await this.saveGroupLocks(lockedGroupTitles);
     }
 
-    /** One group from the right-click menu, applied inside the store's queue. */
+    /**
+     * One group from the right-click menu, behind the PIN, applied inside
+     * the store's queue. The playlist is captured before the prompt and must
+     * still be the open one afterwards: two playlists can share a group
+     * name, and the edit must not land on the other one.
+     */
     async onGroupLockToggled(change: {
         groupKey: string;
         locked: boolean;
     }): Promise<void> {
-        await this.saveGroupLocks((current) =>
-            change.locked
-                ? [...new Set([...current, change.groupKey])]
-                : current.filter((title) => title !== change.groupKey)
+        const playlistId = this.lockPlaylistId();
+        if (
+            !playlistId ||
+            !(await this.parentalLock.requestUnlock()) ||
+            this.lockPlaylistId() !== playlistId
+        ) {
+            return;
+        }
+        await this.saveGroupLocks(
+            (current) =>
+                change.locked
+                    ? [...new Set([...current, change.groupKey])]
+                    : current.filter((title) => title !== change.groupKey),
+            playlistId
         );
     }
 
     private async saveGroupLocks(
-        groupTitles: string[] | ((current: readonly string[]) => string[])
+        groupTitles: string[] | ((current: readonly string[]) => string[]),
+        playlistId = this.lockPlaylistId()
     ): Promise<void> {
-        const playlistId = this.lockPlaylistId();
         if (!playlistId) {
             return;
         }

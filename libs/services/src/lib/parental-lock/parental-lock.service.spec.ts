@@ -355,6 +355,20 @@ describe('ParentalLockService', () => {
         expect(service.unlocked()).toBe(true);
     });
 
+    it('refuses a relock timeout change while the session is locked', async () => {
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+        const service = await createService();
+        expect(service.active()).toBe(true);
+
+        await expect(service.setRelockMinutes(0)).resolves.toBe(false);
+
+        expect(updateSettings).not.toHaveBeenCalledWith(
+            expect.objectContaining({ parentalLockRelockMinutes: 0 })
+        );
+        expect(service.relockMinutes()).toBe(15);
+    });
+
     it('rolls the relock timeout back when it cannot be persisted', async () => {
         updateSettings.mockImplementationOnce(async () => {
             parentalLockRelockMinutes.set(30);

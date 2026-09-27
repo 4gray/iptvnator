@@ -360,6 +360,11 @@ export class ParentalLockService {
      * timer on screen never differs from the one the next launch uses.
      */
     async setRelockMinutes(minutes: number): Promise<boolean> {
+        // A locked session must not lengthen or switch off its own relock
+        // timer (Settings disables the selector until the PIN is entered).
+        if (this.active()) {
+            return false;
+        }
         return persistParentalLockRelockMinutes(
             this.settingsStore,
             minutes,
