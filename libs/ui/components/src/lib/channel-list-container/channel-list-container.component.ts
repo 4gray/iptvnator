@@ -354,6 +354,17 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             withheld.has(group.key)
         ).length;
     });
+    /**
+     * Whether the channel views render instead of the generic empty state.
+     * With every M3U group locked the filtered list is empty, yet the groups
+     * view must still render: it carries the "N locked · Enter PIN to show"
+     * row, the only in-context way back.
+     */
+    readonly showChannelViews = computed(
+        () =>
+            this.displayedChannels().length > 0 ||
+            (this.activeView() === 'groups' && this.withheldGroupCount() > 0)
+    );
     /** Group titles currently withheld: locked AND the lock is active. */
     private readonly withheldGroupTitles = computed(() => {
         this.parentalLock.version();

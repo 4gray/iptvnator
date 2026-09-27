@@ -3,7 +3,7 @@
         [view]="activeView()"
         [showEpg]="shouldShowEpg()"
     />
-} @else if (displayedChannels().length) {
+} @else if (showChannelViews()) {
     @if (
         !compact() &&
         viewTitle() &&

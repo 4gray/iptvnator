@@ -201,6 +201,26 @@ describe('ChannelListContainerComponent', () => {
         fixture = TestBed.createComponent(ChannelListContainerComponent);
     });
 
+    it('keeps the groups view (and its unlock row) when every group is withheld', () => {
+        const withheld = signal(0);
+        Object.defineProperty(fixture.componentInstance, 'withheldGroupCount', {
+            value: withheld,
+        });
+        fixture.componentRef.setInput('activeView', 'groups');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+
+        // No channels and nothing withheld: the generic empty state.
+        expect(component.showChannelViews()).toBe(false);
+
+        withheld.set(3);
+        expect(component.showChannelViews()).toBe(true);
+
+        // Other views have no unlock row to show.
+        fixture.componentRef.setInput('activeView', 'all');
+        expect(component.showChannelViews()).toBe(false);
+    });
+
     it('does not clear the shared channel list on destroy', () => {
         fixture.detectChanges();
 
