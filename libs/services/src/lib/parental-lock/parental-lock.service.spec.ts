@@ -30,6 +30,10 @@ describe('ParentalLockService', () => {
     let setCategoryLocks: jest.Mock;
     let setParentalLockState: jest.Mock;
     let updateBridgeSettings: jest.Mock;
+    let runtime: {
+        supportsXtreamSqliteDataSource: boolean;
+        supportsParentalLockSqliteFilter: boolean;
+    };
 
     beforeAll(() => {
         if (!globalThis.crypto?.subtle) {
@@ -69,6 +73,10 @@ describe('ParentalLockService', () => {
             }),
         };
         prompt = { requestPin: jest.fn() };
+        runtime = {
+            supportsXtreamSqliteDataSource: true,
+            supportsParentalLockSqliteFilter: true,
+        };
         setCategoryLocks = jest.fn(async () => true);
         setParentalLockState = jest.fn(async () => undefined);
         updateBridgeSettings = jest.fn(async () => undefined);
@@ -98,7 +106,7 @@ describe('ParentalLockService', () => {
                 { provide: PARENTAL_LOCK_PROMPT, useValue: prompt },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsXtreamSqliteDataSource: true },
+                    useValue: runtime,
                 },
                 { provide: DatabaseService, useValue: { setCategoryLocks } },
             ],
@@ -184,6 +192,24 @@ describe('ParentalLockService', () => {
         expect(service.withholdsEverything()).toBe(false);
         expect(service.isM3uGroupLocked('p', 'News')).toBe(false);
         expect(service.isM3uGroupLocked('p', 'XXX')).toBe(true);
+    });
+
+    it('withholds every category while locked when the worker filter bridge is missing', async () => {
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        runtime.supportsParentalLockSqliteFilter = false;
+        storage.pinHash = await hashParentalLockPin('1234');
+        parentalLockEnabled.set(true);
+
+        const service = await createService();
+
+        expect(service.active()).toBe(true);
+        expect(service.locksReadable()).toBe(true);
+        expect(service.withholdsEverything()).toBe(true);
+        expect(service.isXtreamCategoryLocked('p', 'live', 1)).toBe(true);
+
+        prompt.requestPin.mockResolvedValue('1234');
+        await expect(service.requestUnlock()).resolves.toBe(true);
+        expect(service.withholdsEverything()).toBe(false);
     });
 
     it('withholds everything while the initial lock store read is in flight', async () => {

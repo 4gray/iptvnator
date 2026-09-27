@@ -135,6 +135,12 @@ catalog is withheld until the PIN
 is entered or the store reads again (`requestUnlock` and every lock write
 retry the read first, and a write is refused while it still fails, since it
 would be built on an empty in-memory store and wipe the persisted locks).
+The same fail-closed mode applies while locked when Electron reads Xtream
+through the SQLite worker (`supportsXtreamSqliteDataSource`) but the bridge
+lacks the worker filter (`supportsParentalLockSqliteFilter`:
+`setParentalLockState` and `dbSetCategoryLocks`, e.g. a partial or older
+preload): the worker would never learn the lock state, so it cannot
+withhold locked rows itself.
 The window before the initial read settles is treated the same way
 (`ParentalLockLockStore.readable` is false until then): settings can report
 the feature as on before the locks are known — and the workspace route's

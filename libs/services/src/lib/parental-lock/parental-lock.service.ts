@@ -15,6 +15,7 @@ import {
     ParentalLockXtreamCategoryType,
     verifyParentalLockPin,
 } from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { SettingsStore } from '../settings-store.service';
 import { ParentalLockIdleTimer } from './parental-lock-idle-timer';
 import {
@@ -54,6 +55,23 @@ export class ParentalLockService {
     private readonly storage = inject(ParentalLockStorageService);
     private readonly locks = inject(ParentalLockLockStore);
     private readonly prompt = inject(PARENTAL_LOCK_PROMPT, { optional: true });
+    /**
+     * Electron reads Xtream through the SQLite worker, but the bridge lacks
+     * the lock-state or index IPC (a partial or older preload): the worker
+     * cannot withhold locked rows, so the locked session withholds all.
+     */
+    private readonly workerFilterMissing = (() => {
+        const runtime = inject(RuntimeCapabilitiesService);
+        const missing =
+            runtime.supportsXtreamSqliteDataSource &&
+            !runtime.supportsParentalLockSqliteFilter;
+        if (missing) {
+            console.error(
+                'The parental lock bridge is incomplete; locked sessions withhold every category.'
+            );
+        }
+        return missing;
+    })();
 
     private readonly unlockedState = signal(false);
     /** Shared by every unlock prompt: a reopened dialog keeps the cooldown. */
@@ -109,7 +127,9 @@ export class ParentalLockService {
      * protected content precisely during a storage failure.
      */
     readonly withholdsEverything = computed(
-        () => this.active() && !this.locks.readable()
+        () =>
+            this.active() &&
+            (this.workerFilterMissing || !this.locks.readable())
     );
     /** Bumps whenever `active` or the lock store changes; consumers re-query. */
     readonly version = computed(
@@ -379,7 +399,7 @@ export class ParentalLockService {
     ): boolean {
         return (
             this.active() &&
-            (!this.locks.readable() ||
+            (this.withholdsEverything() ||
                 this.lockedXtreamIds(playlistId, categoryType).includes(
                     xtreamId
                 ))
@@ -396,7 +416,7 @@ export class ParentalLockService {
         }
         // Fail-closed mode withholds rows without a genre too: "unknown
         // genre" is not "no locked genre" while the locks are unknown.
-        if (!this.locks.readable()) {
+        if (this.withholdsEverything()) {
             return true;
         }
         if (categoryId === null || categoryId === undefined) {
@@ -410,7 +430,7 @@ export class ParentalLockService {
     isM3uGroupLocked(playlistId: string, groupTitle: string): boolean {
         return (
             this.active() &&
-            (!this.locks.readable() ||
+            (this.withholdsEverything() ||
                 this.lockedGroupTitles(playlistId).includes(groupTitle))
         );
     }
