@@ -28,6 +28,9 @@ import { content, categories, playlists, type Content } from '@iptvnator/shared/
 - `closeDatabase()` - Close connection
 - `getDatabasePath()` - Get database file path
 
+### Connection observer (`connection-observer.ts`)
+- `setDatabaseConnectionObserver(observer | null)` - Called by `initDatabase` with each connection it opens, before any statement runs on it. The Electron main process registers one only with `IPTVNATOR_PERF_CAPTURE=1`, to count main-thread SQL statements. The module has no runtime dependencies and is also importable as `@iptvnator/shared/database/connection-observer`.
+
 ## Database Location
 
 The SQLite database is stored at: `~/.iptvnator/databases/iptvnator.db`

@@ -82,6 +82,7 @@ describe('database worker zero-delay cancellation', () => {
         }));
         jest.doMock('./database.worker-connection', () => ({
             closeWorkerDatabase: jest.fn(),
+            flushWorkerSqlStatementCount: jest.fn(),
             getWorkerDatabase: jest.fn().mockResolvedValue({}),
         }));
         jest.doMock('../database/operations/content.operations', () => ({

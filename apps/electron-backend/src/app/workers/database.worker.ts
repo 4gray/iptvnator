@@ -1,6 +1,7 @@
 import { migrateAppPlaylists } from '../database/operations/playlist-migration.operations';
 import {
     closeWorkerDatabase,
+    flushWorkerSqlStatementCount,
     getWorkerDatabase,
 } from './database.worker-connection';
 import { parentPort, workerData } from 'worker_threads';
@@ -218,6 +219,7 @@ function serializeError(error: unknown) {
 }
 
 function postMessage(message: DbWorkerMessage): void {
+    flushWorkerSqlStatementCount();
     parentPort?.postMessage(message);
 }
 

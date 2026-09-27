@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import Database from 'better-sqlite3';
 import { getTableConfig } from 'drizzle-orm/sqlite-core';
 import { closeDatabase, getDatabasePath, initDatabase } from '../connection';
+import { setDatabaseConnectionObserver } from '../connection-observer';
 import * as currentSchema from '../schema';
 
 const tables = [
@@ -36,6 +37,31 @@ function seed(sqlite: Database.Database) {
     if (columns.some(({ name }) => name === 'epg_channel_id')) {
         sqlite.exec("UPDATE content SET epg_channel_id = 'retained-epg-id'");
     }
+}
+
+/**
+ * The performance capture counts one `exec` call as one SQL statement
+ * (apps/electron-backend/src/app/workers/database-worker-sql-statement-count.ts),
+ * so initialization must pass exactly one statement per `exec`. better-sqlite3
+ * refuses to prepare a string with a second statement; other prepare errors
+ * are left to `exec` itself (for example an idempotent ALTER TABLE).
+ */
+function requireSingleStatementExec(): string[] {
+    const batches: string[] = [];
+    setDatabaseConnectionObserver((connection) => {
+        const exec = connection.exec;
+        connection.exec = function singleStatementExec(sql: string) {
+            try {
+                connection.prepare(sql);
+            } catch (error) {
+                if (error instanceof RangeError) {
+                    batches.push(sql.replace(/\s+/g, ' ').slice(0, 120));
+                }
+            }
+            return exec.call(this, sql);
+        };
+    });
+    return batches;
 }
 
 function snapshot(sqlite: Database.Database) {
@@ -98,6 +124,7 @@ async function main() {
     console.warn = (...args) => warnings.push(args);
     console.log = () => undefined;
     const databasePath = getDatabasePath();
+    const execBatches = requireSingleStatementExec();
 
     if (fixture === 'fresh') {
         await initDatabase();
@@ -156,6 +183,11 @@ async function main() {
         warnings,
         [],
         'Initialization must not silently skip failed migrations'
+    );
+    assert.deepEqual(
+        execBatches,
+        [],
+        'Initialization must pass one SQL statement per exec call'
     );
     process.stdout.write('upgrade verified');
 }
