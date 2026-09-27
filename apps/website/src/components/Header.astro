@@ -1,6 +1,7 @@
 ---
 const navLinks = [
   { label: 'Features', href: '/iptvnator/features/' },
+  { label: 'Guides', href: '/iptvnator/guides/' },
   { label: 'Compare', href: '/iptvnator/compare/' },
   { label: 'Screenshots', href: '/iptvnator/#screenshots' },
   { label: 'Download', href: '/iptvnator/download/' },
@@ -28,12 +29,13 @@ const navLinks = [
     </a>
 
     <!-- Desktop nav -->
-    <div class="hidden items-center gap-8 md:flex">
+    <div class="hidden items-center gap-5 lg:flex xl:gap-8">
       {
         navLinks.map((link) => (
           <a
             href={link.href}
-            class="text-[13px] font-medium uppercase tracking-[0.12em] text-surface-400 transition-colors duration-200 hover:text-accent-400"
+            aria-current={Astro.url.pathname === link.href ? 'page' : undefined}
+            class="text-[13px] font-medium uppercase tracking-[0.12em] text-surface-400 transition-colors duration-200 hover:text-accent-400 aria-[current=page]:text-accent-400"
           >
             {link.label}
           </a>
@@ -42,7 +44,7 @@ const navLinks = [
     </div>
 
     <!-- Right side actions -->
-    <div class="hidden items-center gap-4 md:flex">
+    <div class="hidden items-center gap-4 lg:flex">
       <a
         href="https://github.com/4gray/iptvnator"
         target="_blank"
@@ -65,8 +67,10 @@ const navLinks = [
     <!-- Mobile menu button -->
     <button
       id="mobile-menu-btn"
-      class="inline-flex items-center justify-center rounded-lg p-2 text-surface-400 transition-colors hover:text-surface-100 md:hidden"
+      class="inline-flex items-center justify-center rounded-lg p-2 text-surface-400 transition-colors hover:text-surface-100 lg:hidden"
       aria-label="Toggle menu"
+      aria-controls="mobile-menu"
+      aria-expanded="false"
     >
       <svg id="menu-icon-open" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 12h16M4 18h16" />
@@ -80,14 +84,15 @@ const navLinks = [
   <!-- Mobile menu -->
   <div
     id="mobile-menu"
-    class="hidden border-t border-surface-700/60 bg-surface-950/98 backdrop-blur-2xl md:hidden"
+    class="hidden border-t border-surface-700/60 bg-surface-950/98 backdrop-blur-2xl lg:hidden"
   >
     <div class="space-y-1 px-6 py-5">
       {
         navLinks.map((link) => (
           <a
             href={link.href}
-            class="block rounded-lg px-3 py-2.5 text-[13px] font-medium uppercase tracking-[0.12em] text-surface-400 transition-colors hover:bg-surface-800/50 hover:text-accent-400"
+            aria-current={Astro.url.pathname === link.href ? 'page' : undefined}
+            class="block rounded-lg px-3 py-2.5 text-[13px] font-medium uppercase tracking-[0.12em] text-surface-400 transition-colors hover:bg-surface-800/50 hover:text-accent-400 aria-[current=page]:text-accent-400"
           >
             {link.label}
           </a>
@@ -125,6 +130,7 @@ const navLinks = [
 
   btn?.addEventListener('click', () => {
     const isHidden = menu?.classList.toggle('hidden');
+    btn?.setAttribute('aria-expanded', String(!isHidden));
     iconOpen?.classList.toggle('hidden', !isHidden);
     iconClose?.classList.toggle('hidden', isHidden);
   });
