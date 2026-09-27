@@ -481,3 +481,9 @@ reports slow imports of non-Latin playlists.
    `node:test` (`pnpm nx run electron-backend-e2e:test-performance-harness`).
 6. Validate a counter before it becomes a guardrail: one PR must show that
    lowering it moved wall-clock in the same journey.
+
+## Idle work
+
+The [idle work audit](idle-work-audit-2026-09.md) records what the app does
+while the user does nothing, measured on the dashboard with the window visible
+and minimized. Its **own thread** rows are candidate performance threads.
