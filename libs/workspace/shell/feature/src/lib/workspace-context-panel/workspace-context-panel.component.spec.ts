@@ -966,6 +966,35 @@ describe('WorkspaceContextPanelComponent', () => {
             );
         });
 
+        it('opens nothing when the route changed while the PIN was asked', async () => {
+            enableLock();
+            fixture.componentRef.setInput('context', {
+                provider: 'stalker',
+                playlistId: 'stalker-1',
+            });
+            fixture.componentRef.setInput('section', 'itv');
+            fixture.detectChanges();
+            const parentalLock = TestBed.inject(ParentalLockService);
+            jest.spyOn(parentalLock, 'requestUnlock').mockImplementation(
+                async () => {
+                    fixture.componentRef.setInput('context', {
+                        provider: 'xtreams',
+                        playlistId: 'xtream-2',
+                    });
+                    return true;
+                }
+            );
+            const component = fixture.componentInstance;
+            component.loadStalkerLockDialog = jest.fn(
+                async () => class DialogStub {}
+            );
+
+            await component.openManageStalkerCategories();
+
+            expect(component.loadStalkerLockDialog).not.toHaveBeenCalled();
+            expect(dialog.open).not.toHaveBeenCalled();
+        });
+
         it('opens nothing when the route changed during the lazy import', async () => {
             enableLock();
             fixture.componentRef.setInput('context', {

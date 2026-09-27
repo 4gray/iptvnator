@@ -533,26 +533,30 @@ export class WorkspaceContextPanelComponent {
         if (!this.canManageStalkerCategories()) {
             return;
         }
-        if (!(await this.parentalLock.requestUnlock())) {
-            return;
-        }
+        // Captured before any await (the PIN prompt loads lazily on first
+        // use) and re-checked after each: the store follows the CURRENT
+        // route, and another portal's categories must not reach a dialog
+        // that saves them under this playlist.
         const context = this.context();
         const section = this.section();
         const contentType = toParentalLockStalkerCategoryType(section);
-        if (!contentType) {
+        const unchanged = (): boolean =>
+            this.context().playlistId === context.playlistId &&
+            this.context().provider === context.provider &&
+            this.section() === section &&
+            this.canManageStalkerCategories();
+        if (!contentType || !(await this.parentalLock.requestUnlock())) {
             return;
         }
-        // Snapshot before the lazy import: the store follows the CURRENT
-        // route, so reading it afterwards could hand another portal's
-        // categories to a dialog that saves them under this playlist.
+        if (!unchanged()) {
+            return;
+        }
+        // Snapshot before the lazy import, for the same reason.
         const categories = this.stalkerStore
             .getAllCategoriesForSelectedType()
             .filter((category) => String(category.category_id) !== '*');
         const dialogComponent = await this.loadStalkerLockDialog();
-        if (
-            this.context().playlistId !== context.playlistId ||
-            this.section() !== section
-        ) {
+        if (!unchanged()) {
             return;
         }
         this.dialog.open(dialogComponent, {

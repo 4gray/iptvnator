@@ -142,7 +142,9 @@ through the SQLite worker (`supportsXtreamSqliteDataSource`) but the bridge
 lacks the worker filter (`supportsParentalLockSqliteFilter`:
 `setParentalLockState` and `dbSetCategoryLocks`, e.g. a partial or older
 preload): the worker would never learn the lock state, so it cannot
-withhold locked rows itself.
+withhold locked rows itself. The direct worker consumers
+(`CatalogTitleMatchService`, `VodSourceDiscoveryService`) ask the worker
+nothing while `withholdsEverything` is true, in either case.
 The window before the initial read settles is treated the same way
 (`ParentalLockLockStore.readable` is false until then): settings can report
 the feature as on before the locks are known — and the workspace route's
