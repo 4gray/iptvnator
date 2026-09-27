@@ -460,6 +460,24 @@ describe('StalkerSearchComponent result paging', () => {
         expect(component.searchPage()).toBe(pageBefore + 1);
     });
 
+    it('drops withheld rows on screen at relock time, page 1 included', () => {
+        component.applySearchPageSuccess(
+            1,
+            [
+                { id: 'news-1', name: 'News', category_id: '5' },
+                { id: 'adult-1', name: 'Adult', category_id: '9' },
+            ],
+            2
+        );
+        expect(component.searchResults()).toHaveLength(2);
+
+        component.applyRelockToResults(new Set(['9']), 'vod');
+
+        expect(component.searchResults().map((item) => item.id)).toEqual([
+            'news-1',
+        ]);
+    });
+
     it('closes an open detail whose genre became withheld on relock', () => {
         component.selectItem({ id: 'adult-9', name: 'A', category_id: '9' });
         expect(component.itemDetails()).not.toBeNull();

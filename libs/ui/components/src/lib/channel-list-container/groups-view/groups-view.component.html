@@ -1,4 +1,4 @@
-@if (!hasAnyGroups()) {
+@if (!hasAnyGroups() && withheldGroupCount() === 0) {
     <div class="groups-view-empty-state">
         <mat-icon class="empty-state-icon">{{
             searchTerm() ? 'search_off' : 'folder_off'

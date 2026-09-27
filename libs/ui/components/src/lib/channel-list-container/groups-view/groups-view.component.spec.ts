@@ -580,6 +580,21 @@ describe('GroupsViewComponent', () => {
         expect(parentalLock.requestUnlock).toHaveBeenCalled();
     });
 
+    it('keeps the rail and its unlock row when every group is withheld', () => {
+        fixture.componentRef.setInput('groupedChannels', {});
+        fixture.componentRef.setInput('withheldGroupCount', 3);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.groups-view-empty-state')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="groups-locked-row"]'
+            )
+        ).not.toBeNull();
+    });
+
     it('offers no group lock menu while the feature is off', () => {
         const event = new MouseEvent('contextmenu', { cancelable: true });
         component.onGroupContextMenu('Sports', event);

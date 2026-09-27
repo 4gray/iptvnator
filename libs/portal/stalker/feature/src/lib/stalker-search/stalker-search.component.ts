@@ -297,22 +297,13 @@ export class StalkerSearchComponent {
                 this.searchResultsLockVersion !== params.parentalLockVersion;
             this.searchResultsLockVersion = params.parentalLockVersion;
             if (lockVersionChanged) {
-                // A relock must also close an open detail of a genre that is
-                // withheld now; the list alone hiding it is not enough.
-                this.closeWithheldDetail(withheldCategoryIds);
+                this.applyRelockToResults(withheldCategoryIds, contentType);
             }
             if (lockVersionChanged && params.page > 1) {
-                // A lock flip past page 1: drop the withheld rows on screen
-                // and rebuild from page 1 rather than appending to pages
-                // accumulated under the old lock state.
-                const retained = withoutWithheldStalkerItems(
-                    this.accumulatedSearchResults(),
-                    contentType,
-                    withheldCategoryIds
-                );
-                this.accumulatedSearchResults.set(retained);
+                // A lock flip past page 1: rebuild from page 1 rather than
+                // appending to pages accumulated under the old lock state.
                 this.searchPage.set(1);
-                return retained;
+                return this.accumulatedSearchResults();
             }
             const withheldKey = JSON.stringify([
                 params.playlistId,
@@ -743,6 +734,27 @@ export class StalkerSearchComponent {
      * lock (Lock now, idle relock): the title, its playback actions and the
      * store's selected item must not outlive the list row.
      */
+    /**
+     * A lock change reached the results on screen, which were read under
+     * the old lock state: close an open detail of a now-withheld genre (the
+     * list hiding it is not enough) and drop the withheld rows NOW, before
+     * the replacement page is awaited — on page 1 too, or they stay
+     * clickable while (or, if it hangs, after) that request is pending.
+     */
+    applyRelockToResults(
+        withheldCategoryIds: ReadonlySet<string>,
+        contentType: Parameters<typeof withoutWithheldStalkerItems>[1]
+    ): void {
+        this.closeWithheldDetail(withheldCategoryIds);
+        this.accumulatedSearchResults.set(
+            withoutWithheldStalkerItems(
+                this.accumulatedSearchResults(),
+                contentType,
+                withheldCategoryIds
+            )
+        );
+    }
+
     closeWithheldDetail(withheldCategoryIds: ReadonlySet<string>): void {
         const details = this.itemDetails();
         const categoryId = details?.category_id;

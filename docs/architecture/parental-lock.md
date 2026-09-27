@@ -255,6 +255,10 @@ on either side.
   `stalkerWithheldRowKey` (`id`, else `stream_id`/`movie_id`/`series_id`,
   else the row's `cmd`/`name`), never by a shared `''`, so a page of new
   locked rows is not mistaken for a stalled portal.
+- **Stalker search relock:** a lock change drops the withheld rows already
+  on screen at once (`applyRelockToResults`, page 1 included) and closes an
+  open detail of a now-withheld genre, before the replacement page is
+  awaited — otherwise they stay clickable while that request is pending.
 - **Stalker search staleness:** portal requests are not aborted, so a
   search page issued before a relock can finish after it, filtered with the
   pre-relock withheld set; `isStalkerSearchRequestCurrent` keys the
