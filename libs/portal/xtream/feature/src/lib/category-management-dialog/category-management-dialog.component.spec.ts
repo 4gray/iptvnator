@@ -208,6 +208,23 @@ describe('CategoryManagementDialogComponent', () => {
         expect(parentalLock.setXtreamLocks).not.toHaveBeenCalled();
     });
 
+    it('drops the lock draft when the session relocks during a pending save', async () => {
+        parentalLock.enabled.set(true);
+        fixture.detectChanges();
+        let finishVisibility: () => void = () => undefined;
+        db.updateCategoryVisibility.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finishVisibility = resolve))
+        );
+        component.deselectAll();
+
+        const saving = component.save();
+        parentalLock.active.set(true);
+        finishVisibility();
+        await saving;
+
+        expect(parentalLock.setXtreamLocks).not.toHaveBeenCalled();
+    });
+
     it('discards pending bulk changes on cancel', () => {
         component.searchTerm.set('FR');
         component.selectAll();

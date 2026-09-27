@@ -7,6 +7,7 @@ import { VodSourcePinService } from './vod-source-pin.service';
 import { PlaybackPositionService } from './playback-position.service';
 import { XtreamPendingRestoreService } from './xtream-pending-restore.service';
 import { ParentalLockService } from './parental-lock/parental-lock.service';
+import { removesParentalLocks } from './parental-lock/parental-lock-store.util';
 import {
     isParentalLockPlaylistLocksEmpty,
     isM3uRecentlyViewedItem,
@@ -1186,14 +1187,16 @@ export class PlaylistBackupService {
             };
         }
 
-        // A merge REPLACES the playlist's locks, possibly with fewer. The PIN
-        // asked at the start may be stale by now (idle relock or "Lock now"
-        // during a long import): ask again if the session relocked. A new
-        // playlist starts without locks, so its restore can only add some.
+        // Taking a lock away needs an unlocked session when it commits. The
+        // PIN asked at the start may be stale by now (idle relock or "Lock
+        // now" during a long import): ask again if the session relocked.
+        // A restore that only adds locks is not asked.
         if (
             next &&
-            isMerge &&
-            !staleOnNewId &&
+            removesParentalLocks(
+                this.parentalLock.locksFor(playlistId),
+                next
+            ) &&
             !(await this.parentalLock.requestUnlock())
         ) {
             throw new PlaylistBackupError(

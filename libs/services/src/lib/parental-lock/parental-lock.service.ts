@@ -122,6 +122,9 @@ export class ParentalLockService {
     );
 
     constructor() {
+        // Lock edits that take a lock away need an unlocked session at the
+        // moment they commit, not only when their editor opened.
+        this.locks.setRemovalGate(() => !this.active());
         effect(() => {
             const active = this.active();
             if (!this.settingsReady()) {

@@ -401,7 +401,16 @@ by the index alone:
   clear or the store write fails, the index is re-stamped from the previous
   locks at once — title matching and multi-source discovery query the
   worker directly and trust the index, so a stale flag alone would not
-  protect them.
+  protect them. The playlist stays stale until the store write has landed
+  too: while it is pending the index is already cleared but the store
+  still holds the lock.
+- An edit that takes a lock away commits only while the session is
+  unlocked, checked inside the write queue at commit time
+  (`ParentalLockLockStore.setRemovalGate`, set by `ParentalLockService`).
+  An editor opened while unlocked may still be saving, or queued behind
+  another write, when the app relocks. Adding locks is always allowed.
+  Playlist deletion and "Remove all playlists" are not edits and are not
+  gated.
 - Every launch re-derives the index from the store for each playlist that
   has locks, and a store recovered by a later successful read marks its
   playlists stale the same way. The reconcile is awaited inside the store's
@@ -436,11 +445,11 @@ never runs against the empty fail-closed snapshot.
 A backup carrying lock lists replaces the matching playlists' locks,
 possibly with an emptier set, so the import asks for the PIN first (after
 the file was chosen) and aborts when it is refused. That answer can go
-stale during a long import (idle relock, "Lock now"), so each merge asks
-again right before it replaces locks if the app has relocked; a refusal
-fails that entry and keeps its previous locks. A newly created playlist
-starts without locks, so its restore can only add some and is not asked
-again. Locks are restored LAST
+stale during a long import (idle relock, "Lock now"), so an entry whose
+restore would take a lock away asks again right before it replaces locks
+if the app has relocked; a refusal fails that entry and keeps its previous
+locks. A restore that only adds locks is not asked again. Locks are
+restored LAST
 for each entry, after the Xtream data restore, so a
 failed merge leaves the playlist's previous locks in place. M3U group titles
 travel verbatim (`normalizeParentalLockGroupTitles`, exact

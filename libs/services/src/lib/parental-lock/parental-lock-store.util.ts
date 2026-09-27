@@ -54,3 +54,42 @@ export function withM3uLocks(
 ): ParentalLockPlaylistLocks {
     return { ...current, m3u: [...new Set(groupTitles)] };
 }
+
+/** Whether `next` drops any lock that `previous` holds. */
+export function removesParentalLocks(
+    previous: ParentalLockPlaylistLocks,
+    next: ParentalLockPlaylistLocks
+): boolean {
+    const xtream = new Set(
+        next.xtream.map((lock) => `${lock.categoryType}:${lock.xtreamId}`)
+    );
+    const stalker = new Set(
+        next.stalker.map((lock) => `${lock.categoryType}:${lock.categoryId}`)
+    );
+    const m3u = new Set(next.m3u);
+    return (
+        previous.xtream.some(
+            (lock) => !xtream.has(`${lock.categoryType}:${lock.xtreamId}`)
+        ) ||
+        previous.stalker.some(
+            (lock) => !stalker.has(`${lock.categoryType}:${lock.categoryId}`)
+        ) ||
+        previous.m3u.some((title) => !m3u.has(title))
+    );
+}
+
+/**
+ * Whether an edit from `previous` to `next` may commit: adding locks always
+ * may, removing one only while `mayRemove()` says so (logged when refused).
+ */
+export function isLockRemovalAllowed(
+    previous: ParentalLockPlaylistLocks,
+    next: ParentalLockPlaylistLocks,
+    mayRemove: () => boolean
+): boolean {
+    if (!removesParentalLocks(previous, next) || mayRemove()) {
+        return true;
+    }
+    console.warn('A parental lock edit was refused: the app is locked.');
+    return false;
+}

@@ -240,7 +240,10 @@ export class CategoryManagementDialogComponent implements OnInit {
                 await this.dbService.updateCategoryVisibility(toShow, false);
             }
 
-            if (this.showLocks()) {
+            // A relock while the visibility writes ran closed the dialog:
+            // its lock draft is dropped. The lock store refuses a removal
+            // that still commits after a relock (it checks at commit time).
+            if (this.showLocks() && !this.parentalLock.active()) {
                 const saved = await this.parentalLock.setXtreamLocks(
                     this.data.playlistId,
                     this.getDbType(),

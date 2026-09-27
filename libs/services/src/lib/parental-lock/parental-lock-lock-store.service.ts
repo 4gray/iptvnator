@@ -14,6 +14,7 @@ import { DatabaseService } from '../database-electron.service';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { ParentalLockStorageService } from './parental-lock-storage';
 import {
+    isLockRemovalAllowed,
     withM3uLocks,
     withStalkerLocks,
     withXtreamLocks,
@@ -58,6 +59,13 @@ export class ParentalLockLockStore {
     private readonly revisionState = signal(0);
     private readonly loadedState = signal(false);
     private loading: Promise<void> | null = null;
+    /**
+     * Whether an edit may REMOVE a lock right now; set by
+     * `ParentalLockService` to "the session is not locked". Asked inside
+     * the write queue, at commit time: an editor opened while unlocked may
+     * still be saving (or queued) when the app relocks.
+     */
+    private mayRemoveLocks: () => boolean = () => true;
     /**
      * Mutations run one at a time: each rewrites the WHOLE persisted store
      * from the in-memory copy, so two overlapping edits would snapshot the
@@ -191,6 +199,10 @@ export class ParentalLockLockStore {
         }
     }
 
+    setRemovalGate(gate: () => boolean): void {
+        this.mayRemoveLocks = gate;
+    }
+
     locksFor(playlistId: string): ParentalLockPlaylistLocks {
         return (
             this.locks()[playlistId] ?? createEmptyParentalLockPlaylistLocks()
@@ -239,6 +251,9 @@ export class ParentalLockLockStore {
                     this.lockedXtreamIds(playlistId, categoryType)
                 )
             );
+            if (!isLockRemovalAllowed(previous, next, this.mayRemoveLocks)) {
+                return false;
+            }
             return this.commitLocks(playlistId, previous, next, [categoryType]);
         });
     }
@@ -252,16 +267,18 @@ export class ParentalLockLockStore {
             if (!(await this.ensureReadable())) {
                 return false;
             }
-            return this.persistPlaylistLocks(
-                playlistId,
-                withStalkerLocks(
-                    this.locksFor(playlistId),
-                    categoryType,
-                    applyLockListEdit(
-                        categoryIds,
-                        this.lockedStalkerIds(playlistId, categoryType)
-                    )
+            const previous = this.locksFor(playlistId);
+            const next = withStalkerLocks(
+                previous,
+                categoryType,
+                applyLockListEdit(
+                    categoryIds,
+                    this.lockedStalkerIds(playlistId, categoryType)
                 )
+            );
+            return (
+                isLockRemovalAllowed(previous, next, this.mayRemoveLocks) &&
+                this.persistPlaylistLocks(playlistId, next)
             );
         });
     }
@@ -274,15 +291,17 @@ export class ParentalLockLockStore {
             if (!(await this.ensureReadable())) {
                 return false;
             }
-            return this.persistPlaylistLocks(
-                playlistId,
-                withM3uLocks(
-                    this.locksFor(playlistId),
-                    applyLockListEdit(
-                        groupTitles,
-                        this.lockedGroupTitles(playlistId)
-                    )
+            const previous = this.locksFor(playlistId);
+            const next = withM3uLocks(
+                previous,
+                applyLockListEdit(
+                    groupTitles,
+                    this.lockedGroupTitles(playlistId)
                 )
+            );
+            return (
+                isLockRemovalAllowed(previous, next, this.mayRemoveLocks) &&
+                this.persistPlaylistLocks(playlistId, next)
             );
         });
     }
@@ -296,9 +315,13 @@ export class ParentalLockLockStore {
             if (!(await this.ensureReadable())) {
                 return false;
             }
+            const previous = this.locksFor(playlistId);
+            if (!isLockRemovalAllowed(previous, locks, this.mayRemoveLocks)) {
+                return false;
+            }
             return this.commitLocks(
                 playlistId,
-                this.locksFor(playlistId),
+                previous,
                 locks,
                 XTREAM_CATEGORY_TYPES
             );
@@ -369,6 +392,10 @@ export class ParentalLockLockStore {
             if (!(await this.ensureReadable())) {
                 return false;
             }
+            // Stale until the STORE write has landed too: while it is
+            // pending the index is already cleared but the store still
+            // holds the lock, and a relock in that window must not reload
+            // through the cleared index.
             this.markStaleWhileStamping(playlistId);
             if (
                 (await this.stampXtreamLocks(
@@ -376,9 +403,12 @@ export class ParentalLockLockStore {
                     categoryTypes,
                     normalizedNext
                 )) &&
-                (this.unmarkIndexStale(playlistId),
-                await this.persistPlaylistLocks(playlistId, normalizedNext))
+                (await this.persistPlaylistLocks(playlistId, normalizedNext, {
+                    publish: false,
+                }))
             ) {
+                this.unmarkIndexStale(playlistId);
+                this.revisionState.update((value) => value + 1);
                 return true;
             }
             // The clear (partly) reached the index but the store still holds

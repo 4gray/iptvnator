@@ -404,4 +404,72 @@ describe('ParentalLockLockStore', () => {
         expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'live', [7, 9]);
         expect(store.readable()).toBe(true);
     });
+
+    it('stays not readable until the store write of a cleared last lock lands', async () => {
+        await store.load();
+        await store.ensureReadable();
+        let finishWrite: (ok: boolean) => void = () => undefined;
+        storage.writeLocks.mockImplementationOnce(
+            () => new Promise<boolean>((resolve) => (finishWrite = resolve))
+        );
+        const revision = store.revision();
+
+        const clearing = store.setXtreamLocks('pl-1', 'live', []);
+        await waitFor(() => storage.writeLocks.mock.calls.length > 0);
+        // The index is already cleared; the store still holds the lock.
+        expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'live', []);
+        expect(store.readable()).toBe(false);
+        expect(store.revision()).toBe(revision);
+
+        finishWrite(false);
+        await expect(clearing).resolves.toBe(false);
+        // Restored from the store, which kept the lock.
+        expect(setCategoryLocks).toHaveBeenLastCalledWith('pl-1', 'live', [7]);
+        expect(store.readable()).toBe(true);
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
+    });
+    it('refuses, at commit time, an edit that removes a lock while removal is gated', async () => {
+        await store.load();
+        await store.ensureReadable();
+        let unlocked = true;
+        store.setRemovalGate(() => unlocked);
+        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        // An earlier write holds the queue while the app relocks: the edit
+        // queued behind it was built unlocked but commits locked.
+        let finishFirst: (ok: boolean) => void = () => undefined;
+        storage.writeLocks.mockImplementationOnce(
+            () => new Promise<boolean>((resolve) => (finishFirst = resolve))
+        );
+        const adding = store.setM3uLocks('pl-1', ['Adults']);
+        const removing = store.setXtreamLocks('pl-1', 'live', []);
+        await waitFor(() => storage.writeLocks.mock.calls.length > 0);
+        unlocked = false;
+        finishFirst(true);
+
+        await expect(adding).resolves.toBe(true);
+        await expect(removing).resolves.toBe(false);
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
+
+        // Adding stays allowed while locked; removing again once unlocked.
+        await expect(
+            store.setXtreamLocks('pl-1', 'live', [7, 9])
+        ).resolves.toBe(true);
+        await expect(
+            store.replacePlaylistLocks('pl-1', {
+                xtream: [],
+                stalker: [],
+                m3u: [],
+            })
+        ).resolves.toBe(false);
+        unlocked = true;
+        await expect(store.setM3uLocks('pl-1', [])).resolves.toBe(true);
+        expect(store.lockedGroupTitles('pl-1')).toEqual([]);
+    });
 });
+
+async function waitFor(condition: () => boolean): Promise<void> {
+    for (let i = 0; i < 50 && !condition(); i++) {
+        await Promise.resolve();
+    }
+    expect(condition()).toBe(true);
+}
