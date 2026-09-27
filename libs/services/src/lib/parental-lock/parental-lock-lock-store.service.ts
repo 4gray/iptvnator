@@ -79,10 +79,10 @@ export class ParentalLockLockStore {
     private writeQueue: Promise<unknown> = Promise.resolve();
     /**
      * The persisted store differs from the in-memory one and must be
-     * rewritten from it: "Remove all playlists" could not clear it. Retried
-     * on the next store access;
-     * the store is not `readable` meanwhile, since a restart would load the
-     * persisted copy.
+     * rewritten from it: "Remove all playlists" could not clear it, or a
+     * failed edit could not be rolled back. Retried on the next store
+     * access (before the index is re-stamped from memory); the store is not
+     * `readable` meanwhile.
      */
     private readonly pendingRewrite = signal(false);
     private readonly staleIndex = new ParentalLockStaleIndex();
@@ -452,6 +452,15 @@ export class ParentalLockLockStore {
         const restored = await this.persistPlaylistLocks(playlistId, previous, {
             publish: false,
         });
+        if (!restored) {
+            // Memory goes back to the previous locks anyway, and the
+            // persisted copy is rewritten from it on the next access: the
+            // failed edit must not take effect through a later re-stamp.
+            this.locks.set(
+                withPlaylistLocksInStore(this.locks(), playlistId, previous)
+            );
+            this.pendingRewrite.set(true);
+        }
         const restamped =
             restored &&
             (await this.stampXtreamLocks(playlistId, categoryTypes));

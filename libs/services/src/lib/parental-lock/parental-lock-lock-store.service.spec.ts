@@ -384,9 +384,10 @@ describe('ParentalLockLockStore', () => {
         expect(store.readable()).toBe(true);
     });
 
-    it('re-stamps on the next access when even the rollback write failed', async () => {
+    it('restores the previous locks on the next access when even the rollback write failed', async () => {
         await store.load();
         await store.ensureReadable();
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
         setCategoryLocks.mockClear();
         setCategoryLocks.mockResolvedValueOnce(false);
         storage.writeLocks
@@ -396,12 +397,22 @@ describe('ParentalLockLockStore', () => {
         await expect(
             store.setXtreamLocks('pl-1', 'live', [7, 9])
         ).resolves.toBe(false);
-        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7, 9]);
+        // The failed edit does not take effect: memory holds the previous
+        // locks and the store stays fail-closed until they are persisted.
+        expect(store.lockedXtreamIds('pl-1', 'live')).toEqual([7]);
         expect(store.readable()).toBe(false);
 
         await expect(store.ensureReadable()).resolves.toBe(true);
 
-        expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'live', [7, 9]);
+        expect(storage.writeLocks).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                'pl-1': expect.objectContaining({
+                    xtream: [{ categoryType: 'live', xtreamId: 7 }],
+                }),
+            })
+        );
+        // Re-stamped from the restored locks, not the failed edit.
+        expect(setCategoryLocks).toHaveBeenCalledWith('pl-1', 'live', [7]);
         expect(store.readable()).toBe(true);
     });
 
