@@ -1137,9 +1137,9 @@ its stream has really played, so a stream that fails straight away never
 reaches history.
 
 - Writers do not persist on selection. They hand the write to
-  `PlaybackHistoryGate` (`@iptvnator/services`) with `defer(target, commit)`,
-  where the target is what the playback will be known by: the host's
-  `playbackSessionKey` (M3U) and/or stream URLs. The Stalker resolver defers
+  `PlaybackHistoryGate` (`@iptvnator/playback/data-access`) with
+  `defer(target, commit)`, where the target is what the playback will be
+  known by: the host's `playbackSessionKey` (M3U) and/or stream URLs. The Stalker resolver defers
   by the resolved (possibly temporary) link; the persisted row still stores
   the portal `cmd`, never that link. Writers capture the item and its
   playlist when they defer, so navigating meanwhile cannot misfile it; an
@@ -1160,9 +1160,11 @@ reaches history.
   engine or format swap of the same stream keeps its progress. The radio
   `AudioPlayerComponent` confirms the same way (with the host's session key
   when given).
-- MPV/VLC cannot report whether a live stream plays, so the Electron
-  `ExternalPlaybackService` confirms a session's `streamUrl` once it is
-  `opened` or `playing`; a launch that ends in `error` is not recorded. That
+- MPV/VLC cannot report whether a live stream plays, so the gate itself
+  subscribes to the Electron external-player session updates and confirms a
+  session's `streamUrl` once it is `opened` or `playing`; a launch that ends
+  in `error` is not recorded. (Subscribing in the gate, which the first
+  deferred write creates, keeps it off the initial bundle.) That
   confirmation carries no session key, so an "Open in MPV/VLC" recovery
   launch is also confirmed by the `WebPlayerViewComponent` that requested
   it, under its own session key, once the launch has opened. M3U keeps

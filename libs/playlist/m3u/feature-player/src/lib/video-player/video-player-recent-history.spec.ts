@@ -10,12 +10,12 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import {
     DataService,
-    PlaybackHistoryGate,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     PlaylistMeta,
     Settings,

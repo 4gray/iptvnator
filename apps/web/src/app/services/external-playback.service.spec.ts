@@ -1,5 +1,3 @@
-import { TestBed } from '@angular/core/testing';
-import { PlaybackHistoryGate } from '@iptvnator/services';
 import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackService } from './external-playback.service';
 
@@ -42,36 +40,7 @@ describe('ExternalPlaybackService', () => {
             },
         });
 
-        service = TestBed.runInInjectionContext(
-            () => new ExternalPlaybackService()
-        );
-    });
-
-    it('commits deferred history once the external player has opened', () => {
-        const commit = jest.fn();
-        TestBed.inject(PlaybackHistoryGate).defer(
-            { streamUrls: ['https://example.com/video.m3u8'] },
-            commit
-        );
-
-        listener?.(createSession({ status: 'launching' }));
-        expect(commit).not.toHaveBeenCalled();
-
-        listener?.(createSession({ status: 'opened' }));
-        expect(commit).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not commit history for a launch that failed', () => {
-        const commit = jest.fn();
-        TestBed.inject(PlaybackHistoryGate).defer(
-            { streamUrls: ['https://example.com/video.m3u8'] },
-            commit
-        );
-
-        listener?.(createSession({ status: 'launching' }));
-        listener?.(createSession({ status: 'error', error: 'not found' }));
-
-        expect(commit).not.toHaveBeenCalled();
+        service = new ExternalPlaybackService();
     });
 
     it('tracks the latest launch and hides dismissed sessions until the next launch', () => {

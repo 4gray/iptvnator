@@ -6,10 +6,8 @@ import {
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import {
-    PlaybackHistoryGate,
-    PlaybackPositionRuntimeBridgeService,
-} from '@iptvnator/services';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import type {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -173,6 +171,8 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             expect.objectContaining({
                 xtreamId: ROUTE_VOD_ID,
                 contentType: 'movie',
+                // Saved to its own playlist; the store's list is now another's.
+                skipListRefresh: true,
             })
         );
         expect(recentItem.playlist()).toEqual({ id: ROUTE_PLAYLIST });

@@ -50,21 +50,6 @@ function mapDbRecentItem(
     };
 }
 
-/**
- * Whether `playlistId` is the store's current playlist. `withPortal`, composed
- * before this feature in `XtreamStore`, owns it; a store without one (a
- * feature-only test store) treats every playlist as current.
- */
-function isCurrentPlaylist(store: object, playlistId: string): boolean {
-    const currentPlaylist = (
-        store as {
-            currentPlaylist?: () => { id?: string } | null | undefined;
-        }
-    ).currentPlaylist;
-    const currentId = currentPlaylist?.()?.id;
-    return !currentId || currentId === playlistId;
-}
-
 export const withRecentItems = function () {
     const logger = createLogger('withRecentItems');
     return signalStoreFeature(
@@ -100,6 +85,8 @@ export const withRecentItems = function () {
                     contentType: 'live' | 'movie' | 'series';
                     playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
+                    /** Save only: `playlist` is no longer the one in state. */
+                    skipListRefresh?: boolean;
                 }>(
                     pipe(
                         switchMap(
@@ -108,6 +95,7 @@ export const withRecentItems = function () {
                                 contentType,
                                 playlist,
                                 backdropUrl,
+                                skipListRefresh,
                             }) => {
                                 const playlistId = playlist()?.id;
                                 const normalizedXtreamId = Number(xtreamId);
@@ -137,13 +125,10 @@ export const withRecentItems = function () {
                                         playlistId,
                                         backdropUrl
                                     );
-
-                                    // A write confirmed after the user switched
-                                    // playlists is saved to its own playlist,
-                                    // but the list in state is the current one's.
-                                    if (!isCurrentPlaylist(store, playlistId)) {
+                                    if (skipListRefresh) {
                                         return;
                                     }
+
                                     // Reload after add/update so re-watched items
                                     // immediately move to the top in recently-viewed.
                                     const items =

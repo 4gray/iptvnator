@@ -53,6 +53,19 @@ const MAX_PENDING_HISTORY_WRITES = 20;
 export class PlaybackHistoryGate {
     private pending: PendingHistoryWrite[] = [];
 
+    constructor() {
+        // MPV/VLC cannot report whether a live stream plays, so a launch
+        // that opened is the confirmation. Subscribed here rather than in
+        // the app-wide external-playback service so the gate stays off the
+        // initial bundle: it is created by the first deferred write, which
+        // always precedes the launch it waits for.
+        window.electron?.onExternalPlayerSessionUpdate?.((session) => {
+            if (session.status === 'opened' || session.status === 'playing') {
+                this.confirm({ streamUrls: [session.streamUrl] });
+            }
+        });
+    }
+
     defer(target: PlaybackHistoryTarget, commit: () => void): void {
         const normalized = normalizeTarget(target);
         if (!normalized.sessionKey && normalized.streamUrls.size === 0) {

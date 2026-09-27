@@ -1,7 +1,7 @@
 import type {
     PlaybackHistoryGate,
     PlaybackHistoryTarget,
-} from '@iptvnator/services';
+} from '@iptvnator/playback/data-access';
 import { PlaybackProgressConfirmation } from './playback-progress-confirmation';
 
 export interface PlaybackHistoryConfirmationOptions {

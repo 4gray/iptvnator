@@ -9,11 +9,8 @@ import {
 } from '@iptvnator/ui/playback';
 import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import {
-    PlaybackHistoryGate,
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { EpgProgram, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     PORTAL_PLAYER,

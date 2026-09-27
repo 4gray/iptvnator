@@ -1,3 +1,4 @@
+import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { PlaybackHistoryGate } from './playback-history-gate.service';
 
 describe('PlaybackHistoryGate', () => {
@@ -135,6 +136,58 @@ describe('PlaybackHistoryGate', () => {
         gate.confirm({ streamUrls: ['http://stream/oldest'] });
 
         expect(oldest).not.toHaveBeenCalled();
+    });
+
+    describe('MPV/VLC sessions', () => {
+        const originalElectron = window.electron;
+        let emit: (session: Partial<ExternalPlayerSession>) => void;
+
+        beforeEach(() => {
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: {
+                    onExternalPlayerSessionUpdate: (
+                        callback: (session: ExternalPlayerSession) => void
+                    ) => {
+                        emit = (session) =>
+                            callback({
+                                streamUrl: 'http://vod/1.mkv',
+                                ...session,
+                            } as ExternalPlayerSession);
+                        return () => undefined;
+                    },
+                },
+            });
+            gate = new PlaybackHistoryGate();
+        });
+
+        afterEach(() => {
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: originalElectron,
+            });
+        });
+
+        it('confirms a stream once its external player has opened', () => {
+            const commit = jest.fn();
+            gate.defer({ streamUrls: ['http://vod/1.mkv'] }, commit);
+
+            emit({ status: 'launching' });
+            expect(commit).not.toHaveBeenCalled();
+
+            emit({ status: 'opened' });
+            expect(commit).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not confirm a launch that failed', () => {
+            const commit = jest.fn();
+            gate.defer({ streamUrls: ['http://vod/1.mkv'] }, commit);
+
+            emit({ status: 'launching' });
+            emit({ status: 'error' });
+
+            expect(commit).not.toHaveBeenCalled();
+        });
     });
 
     it('keeps committing the other writes when one throws', () => {

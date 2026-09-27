@@ -1,4 +1,4 @@
-import type { PlaybackHistoryTarget } from '@iptvnator/services';
+import type { PlaybackHistoryTarget } from '@iptvnator/playback/data-access';
 import { PlaybackHistoryConfirmation } from './playback-history-confirmation';
 
 describe('PlaybackHistoryConfirmation', () => {

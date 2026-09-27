@@ -189,6 +189,14 @@ other utility projects, including shared interface contracts, while
 `ui-playback` and feature hosts may depend on it to render and execute
 session-local recovery actions.
 
+`libs/playback/data-access` is the `playback-data-access` Nx project,
+imported through `@iptvnator/playback/data-access` (tags `scope:shared`,
+`domain:playback`, `type:data-access`). It owns renderer playback state that
+store, feature and player layers share — currently `PlaybackHistoryGate`,
+which holds "recently viewed" writes until playback is confirmed. It is kept
+out of `@iptvnator/services` on purpose: that barrel ships in the initial
+bundle, and this project is only reached from lazy player and portal code.
+
 ## Project Tags
 
 Every Nx project keeps one tag from each family in `project.json`:

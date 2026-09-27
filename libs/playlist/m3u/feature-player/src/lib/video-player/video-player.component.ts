@@ -114,13 +114,13 @@ import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
 import {
     DataService,
-    PlaybackHistoryGate,
     PlaylistsService,
     RecordingsService,
     RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     Channel,
     createDevLogger,

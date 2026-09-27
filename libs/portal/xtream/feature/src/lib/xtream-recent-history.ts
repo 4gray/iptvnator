@@ -1,6 +1,6 @@
 import { inject, signal } from '@angular/core';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackHistoryGate } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 
 export interface XtreamRecentItemRequest {
     readonly xtreamId: number | string;
@@ -13,7 +13,8 @@ export interface XtreamRecentItemRequest {
  * played — inline for a couple of seconds, or launched in MPV/VLC — so a
  * source that fails straight away never reaches history or the dashboard
  * hero. The playlist is captured when playback starts, so navigating to
- * another one meanwhile cannot misfile the item.
+ * another one meanwhile cannot misfile the item — nor replace the recent
+ * list the store now holds for the playlist the user switched to.
  *
  * Must run in an injection context.
  */
@@ -27,7 +28,11 @@ export function injectXtreamRecentHistory(): (
     return (streamUrl, request) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
         gate.defer({ streamUrls: [streamUrl] }, () =>
-            store.addRecentItem({ ...request, playlist })
+            store.addRecentItem({
+                ...request,
+                playlist,
+                skipListRefresh: store.currentPlaylist()?.id !== playlist()?.id,
+            })
         );
     };
 }

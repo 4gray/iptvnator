@@ -4,11 +4,8 @@ import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYER, createLogger } from '@iptvnator/portal/shared/util';
-import {
-    DataService,
-    PlaybackHistoryGate,
-    PlaylistsService,
-} from '@iptvnator/services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     PlaylistMeta,
     ResolvedPortalPlayback,

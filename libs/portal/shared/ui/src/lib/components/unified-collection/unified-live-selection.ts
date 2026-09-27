@@ -8,7 +8,7 @@ import {
     PORTAL_PLAYER,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
-import { PlaybackHistoryGate } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { ElectronStreamHeadersService } from '@iptvnator/ui/playback';
 import { UnifiedLiveTimeshift } from './unified-live-catchup';
 import { UnifiedLiveSelectionGeneration } from './unified-live-selection-generation';

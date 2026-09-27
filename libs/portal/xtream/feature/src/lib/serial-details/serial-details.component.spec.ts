@@ -25,10 +25,8 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import {
-    PlaybackHistoryGate,
-    PlaybackPositionRuntimeBridgeService,
-} from '@iptvnator/services';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
@@ -577,6 +575,7 @@ describe('SerialDetailsComponent', () => {
             contentType: 'series',
             playlist: expect.any(Function),
             backdropUrl: undefined,
+            skipListRefresh: false,
         });
         expect(addRecentItem.mock.calls[0][0].playlist()).toEqual(
             currentPlaylist()

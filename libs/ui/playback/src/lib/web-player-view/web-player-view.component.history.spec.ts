@@ -11,11 +11,8 @@ import {
     PlaybackDiagnosticCode,
     PlaybackDiagnosticSource,
 } from '@iptvnator/playback/util';
-import {
-    PlaybackHistoryGate,
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     STORE_KEY,
     VideoPlayer,
