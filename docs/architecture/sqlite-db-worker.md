@@ -455,7 +455,9 @@ execution methods of better-sqlite3's `Statement` prototype and the
 connection's `exec`, not through the `verbose` callback: a callback makes
 better-sqlite3 expand every statement's SQL, which made bulk inserts two to
 four times slower. A call that throws is not counted, which matches the SQL
-trace for statements that fail before execution. The main process counts its
+trace for statements that fail before execution. One `exec` call counts as
+one statement, so initialization passes one statement per call; the
+historical-upgrade test enforces it. The main process counts its
 own shared connection the same way (`services/main-sql-statement-count.ts`,
 through the shared library's connection observer). Without the flag both
 connections are opened unchanged. See

@@ -124,7 +124,9 @@ ordered against the worker's responses, not against wall-clock: statements
 whose count is still in flight when `ready-to-show` is dispatched are not.
 One call of `run`, `get`, `all`, `iterate` or `exec` that returns normally is
 one statement; on the launch workloads this matches the number of SQL trace
-lines exactly.
+lines exactly. An `exec` with several statements would count as one, so the
+shared connection passes one statement per call, and its historical-upgrade
+test fails on a batch.
 
 `main.sqlStatementsBeforeReadyToShow` is not yet deterministic. The main
 thread runs the shared connection's schema creation and migrations (about 90

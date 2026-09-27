@@ -18,8 +18,13 @@ import type BetterSqlite3 from 'better-sqlite3';
  * two to four times slower and would distort the import benchmarks that run
  * with the same flag. One call of `run`, `get`, `all` or `iterate` that
  * returns normally is one statement, which includes pragmas and the
- * BEGIN/COMMIT that `db.transaction()` prepares internally; one `exec` call
- * counts as one. Calls that throw are not counted: the SQL trace skips the
+ * BEGIN/COMMIT that `db.transaction()` prepares internally. One `exec` call
+ * also counts as one: SQL cannot be split into statements reliably here
+ * (trigger bodies contain semicolons), so callers pass one statement per
+ * call. The database worker never calls `exec`, and the shared connection's
+ * historical-upgrade test (`libs/shared/database/src/lib/testing/
+ * connection-upgrade.ts`) fails on a batch. Calls that throw are not
+ * counted: the SQL trace skips the
  * ones that fail before execution (a migration's `ALTER TABLE` for a column
  * that already exists), and they did no work.
  */
