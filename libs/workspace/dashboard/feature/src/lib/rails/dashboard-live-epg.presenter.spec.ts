@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { EMPTY, of, throwError } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
@@ -12,6 +12,7 @@ import { SettingsStore } from '@iptvnator/services';
 import { DashboardDataService } from '@iptvnator/workspace/dashboard/data-access';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 import type { DashboardRailCard } from './dashboard-rail.component';
 
 const guideA = 'https://a.example/guide.xml';
@@ -89,6 +90,7 @@ describe('DashboardLiveEpgPresenter', () => {
 
         TestBed.configureTestingModule({
             providers: [
+                DashboardLiveEpgClock,
                 DashboardLiveEpgPresenter,
                 {
                     provide: DashboardPortalLiveEpgPresenter,
@@ -345,6 +347,45 @@ describe('DashboardLiveEpgPresenter', () => {
         );
     });
 
+    it('asks a guide again only once a programme on air has ended', () => {
+        const fromA = card({ id: 'a', epgLookupKey: 'ard.de', epgPlaylistId: 'a' });
+        getCurrentProgramsForChannels.mockImplementation(() =>
+            of(new Map([['ard.de', program('Tagesschau')]]))
+        );
+        setup([fromA]);
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(1);
+
+        // 10:30 → 10:59:30, one tick at a time: the 10:00–11:00 programme is
+        // still on air on every one of them.
+        for (let tick = 0; tick < 59; tick++) {
+            jest.advanceTimersByTime(30_000);
+            TestBed.tick();
+        }
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(1);
+
+        // The 11:00 tick sees it ended and asks again.
+        jest.advanceTimersByTime(30_000);
+        TestBed.tick();
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(2);
+    });
+
+    it('moves progress on every clock tick while the programme is unchanged', () => {
+        const fromA = card({ id: 'a', epgLookupKey: 'ard.de', epgPlaylistId: 'a' });
+        getCurrentProgramsForChannels.mockImplementation(() =>
+            of(new Map([['ard.de', program('Tagesschau')]]))
+        );
+        setup([fromA]);
+        const progress = TestBed.runInInjectionContext(() =>
+            computed(() => presenter.detailsFor(fromA)?.nowPlayingProgress)
+        );
+        expect(progress()).toBe(50);
+
+        jest.advanceTimersByTime(6 * 60_000);
+        TestBed.tick();
+
+        expect(progress()).toBe(60);
+    });
+
     it('keeps the other guides when one lookup is retired or fails mid-tick', () => {
         const fromA = card({
             id: 'a',
@@ -384,7 +425,13 @@ describe('DashboardLiveEpgPresenter', () => {
                   )
                 : throwError(() => new Error('lookup failed'))
         );
+        const callsBeforeTick = getCurrentProgramsForChannels.mock.calls.length;
         jest.advanceTimersByTime(30_000);
+        TestBed.tick();
+        // Guide B never answered, so the tick asks both guides again.
+        expect(getCurrentProgramsForChannels.mock.calls.length).toBe(
+            callsBeforeTick + 2
+        );
 
         expect(presenter.detailsFor(fromA)?.nowPlayingTitle).toBe(
             'Guide A bulletin'

@@ -142,6 +142,10 @@ hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
 1. Inputs: `label`, `items: DashboardRailCard[]`, optional `seeAllLink`,
    optional `aspectRatio` (default `'2 / 3'`), optional `testId`.
 2. Behavior: horizontal flex track with `scroll-snap-type: x mandatory`.
+   The track scrolls back to the start and re-observes its cards only when
+   the ids or order of `items` change. Hosts rebuild card objects on every
+   clock tick (live progress, expiry badges), and such a rebuild must not
+   move a rail the user scrolled.
 3. Chevron buttons fade in on hover (desktop only via `@media (hover: none)`).
    Edge fades follow the chevrons' visibility. The track bleeds
    `--rail-bleed` past the viewport on every side so card focus rings and
@@ -198,6 +202,14 @@ hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
        lookups" in `m3u-playlist-module.md`, forwards everything portal-shaped
        to `DashboardPortalLiveEpgPresenter`, and `enrich()` returns the cards
        with their "now on air" row filled in.
+       One component-provided `DashboardLiveEpgClock` drives every live
+       refresh and progress bar on the page. It ticks every 30 s only while
+       the XMLTV lookup has cards or the portal presenter wants one, and
+       only while the document is visible; it reads the clock at once when
+       it starts again. A tick re-reads progress for every live card. It
+       re-asks an XMLTV scope only after one of its programmes has ended or
+       while a key has no programme, and an unchanged answer is not
+       re-emitted.
        Xtream and Stalker cards have no XMLTV key of their own; their "now on
        air" line comes from the portal, **lazily and per card**:
         - `buildDashboardPortalLiveEpgEntry` (dashboard data-access) turns a
@@ -214,7 +226,8 @@ hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
         - `DashboardPortalLiveEpgPresenter` (component-provided) unions the
           visible keys of both rails with the pinned hero keys and calls
           `DashboardPortalLiveEpgService.sync()` with exactly those entries —
-          on every change, on the 30 s tick, and on a display-offset change.
+          on every change, on each tick of the shared live-EPG clock, and on
+          a display-offset change.
           It is reached through `DashboardLiveEpgPresenter`, which derives the
           portal rows itself from the enabled rails and pins the hero's live
           candidates, so the page component only forwards what a rail can see. The queue lives in
@@ -388,3 +401,8 @@ Xtream expiry from cached `PortalStatusService.checkPortalStatusDetails()`
 (`exp_date`). Stalker uses the persisted `stalkerAccountInfo` snapshot from the
 playlist payload, not the metadata row; each source therefore needs one memoized
 full-playlist read. The chip is not a separate account-refresh request.
+The badge only changes at day boundaries, so the rails do not poll the clock:
+`createSourceExpiryClock` arms one timer for the earliest boundary among the
+known facts (`nextSourceExpiryChangeMs`), capped at an hour because timers do
+not follow system sleep, and re-reads the clock when the page becomes visible.
+Facts whose badge can no longer change arm no timer.

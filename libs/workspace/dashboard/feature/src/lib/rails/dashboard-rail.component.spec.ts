@@ -335,6 +335,44 @@ describe('DashboardRailComponent', () => {
             expect(visible.at(-1)).toEqual(['a', 'b']);
         });
 
+        it('scrolls back and re-observes only when the card set changes, not on every rebuild', async () => {
+            installObservers(true);
+            const { fixture } = await render([
+                card({ id: 'a', contentType: 'live', nowPlayingProgress: 10 }),
+                card({ id: 'b', contentType: 'live', nowPlayingProgress: 20 }),
+            ]);
+            const reset = jest.spyOn(
+                fixture.componentInstance as unknown as {
+                    scheduleResetToStart: () => void;
+                },
+                'scheduleResetToStart'
+            );
+            const observedAfterFirstRender = observers[0].observed.length;
+            const rerender = async (items: DashboardRailCard[]) => {
+                fixture.componentRef.setInput('items', items);
+                fixture.detectChanges();
+                await fixture.whenStable();
+            };
+
+            // A clock tick rebuilds every card object with new progress.
+            await rerender([
+                card({ id: 'a', contentType: 'live', nowPlayingProgress: 11 }),
+                card({ id: 'b', contentType: 'live', nowPlayingProgress: 21 }),
+            ]);
+            expect(reset).not.toHaveBeenCalled();
+            expect(observers[0].observed).toHaveLength(observedAfterFirstRender);
+
+            // A newly watched channel moves to the front.
+            await rerender([
+                card({ id: 'b', contentType: 'live' }),
+                card({ id: 'a', contentType: 'live' }),
+            ]);
+            expect(reset).toHaveBeenCalledTimes(1);
+            expect(observers[0].observed.length).toBeGreaterThan(
+                observedAfterFirstRender
+            );
+        });
+
         it('shows the placeholder only while a live card is pending its first answer', async () => {
             installObservers(false);
             const { fixture } = await render([

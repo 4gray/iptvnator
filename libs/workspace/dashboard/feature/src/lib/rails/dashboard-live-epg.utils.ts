@@ -250,3 +250,53 @@ export function getLiveEpgProgramForCard(
         ? (epgMap.get(liveEpgProgramKey(scopeKey, titleKey)) ?? null)
         : null;
 }
+
+/**
+ * Whether the XMLTV answers for these groups can have gone stale by
+ * `providerClockMs` (the raw EPG clock, see `epgProviderClockMs`). A known
+ * programme stays correct until it ends, so a lookup is only repeated once
+ * one of them has ended, or while a key is still unanswered or answered
+ * with nothing on air: a guide imported meanwhile may know it now.
+ */
+export function liveEpgAnswersNeedRefresh(
+    answers: ReadonlyMap<string, EpgProgram | null> | null,
+    groups: readonly DashboardLiveEpgLookupGroup[],
+    providerClockMs: number
+): boolean {
+    if (!answers) return true;
+    for (const group of groups) {
+        for (const lookupKey of group.lookupKeys) {
+            const program = answers.get(
+                liveEpgProgramKey(group.scopeKey, lookupKey)
+            );
+            if (!program) return true;
+            const stop = epgTimestampMs(program, 'stop');
+            if (stop === null || stop <= providerClockMs) return true;
+        }
+    }
+    return false;
+}
+
+/** Same keys answered with the same programmes (by time and title). */
+export function sameLiveEpgAnswers(
+    a: ReadonlyMap<string, EpgProgram | null>,
+    b: ReadonlyMap<string, EpgProgram | null>
+): boolean {
+    if (a === b) return true;
+    if (a.size !== b.size) return false;
+    for (const [key, program] of a) {
+        if (!b.has(key)) return false;
+        const other = b.get(key) ?? null;
+        if (program === other) continue;
+        if (
+            !program ||
+            !other ||
+            program.title !== other.title ||
+            epgTimestampMs(program, 'start') !== epgTimestampMs(other, 'start') ||
+            epgTimestampMs(program, 'stop') !== epgTimestampMs(other, 'stop')
+        ) {
+            return false;
+        }
+    }
+    return true;
+}
