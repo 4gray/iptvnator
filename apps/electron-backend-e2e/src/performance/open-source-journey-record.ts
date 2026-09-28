@@ -48,6 +48,8 @@ export interface OpenSourceJourneySettle {
 
 export interface OpenSourceJourneyMeasurement {
     readonly http: {
+        /** Mock requests after the app settled but before the click stamp. */
+        readonly afterSettleBeforeClick: number;
         /** Mock requests from the spawn (J1 and settling) until the click. */
         readonly beforeClick: readonly JourneyMockRequest[];
         /** Mock requests from the click until the mock was quiet again. */
@@ -96,6 +98,23 @@ export function toOpenSourceIterationRecord(
         paintEpochMs < terminal.epochMs
     ) {
         throw new Error('open-source-journey-record-clock-order');
+    }
+    // Activity that started after the settle snapshot but before the click
+    // (while Playwright ran its actionability checks) could complete after
+    // the click and be counted as J2. The probe and the capture keep
+    // counting until the click itself, so they must still match the
+    // snapshot; otherwise the iteration is rejected.
+    const lateActivity = [
+        renderer.preStart.domMutations !== settle.preStartDomMutations
+            ? 'dom'
+            : null,
+        ipc.callsBeforeStart !== settle.preStartIpcCalls ? 'ipc' : null,
+        http.afterSettleBeforeClick > 0 ? 'http' : null,
+    ].filter((kind) => kind !== null);
+    if (lateActivity.length > 0) {
+        throw new Error(
+            `open-source-journey-record-activity-before-click-${lateActivity.join('-')}`
+        );
     }
     if (
         renderer.capabilities.changeDetectionTicks !==

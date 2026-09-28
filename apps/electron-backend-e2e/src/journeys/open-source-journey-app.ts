@@ -177,6 +177,9 @@ export async function measureOpenSourceJourney(
         ledger,
         probeOptions.stateKey
     );
+    // Requests from here on but before the renderer's click stamp arrived
+    // after the app settled; the record rejects such an iteration.
+    const settledLedgerMark = ledger.mark();
     await card.click({ timeout: timeoutMs });
     const renderer: JourneyRendererProbeState =
         await waitForJourneyRendererProbe(
@@ -200,11 +203,15 @@ export async function measureOpenSourceJourney(
         throw new Error('open-source-journey-click-not-started');
     }
     const sinceSpawn = ledger.since(spawnLedgerMark);
+    const beforeClick = sinceSpawn.filter(
+        (entry) => entry.epochMs < clickEpochMs
+    );
     return {
         http: {
-            beforeClick: sinceSpawn.filter(
-                (entry) => entry.epochMs < clickEpochMs
-            ),
+            afterSettleBeforeClick: beforeClick.filter(
+                (entry) => entry.sequence >= settledLedgerMark
+            ).length,
+            beforeClick,
             requests: sinceSpawn.filter(
                 (entry) => entry.epochMs >= clickEpochMs
             ),

@@ -82,6 +82,7 @@ function measurement(
     };
     return {
         http: {
+            afterSettleBeforeClick: 0,
             beforeClick: [
                 request(0, '/player_api.php?action=get_account_info', 2_000),
             ],
@@ -246,6 +247,41 @@ test('rejects measurements that did not start at the click or did not open the s
                 },
             }),
         /cd-hook-hook-present-not-counted/
+    );
+});
+
+test('rejects an iteration with activity between the settle snapshot and the click', () => {
+    const base = measurement();
+    assert.doesNotThrow(() => toOpenSourceIterationRecord(0, false, base));
+    // The probe counted DOM mutations after the snapshot (4) but before the
+    // click, e.g. while Playwright ran its actionability checks.
+    assert.throws(
+        () =>
+            toOpenSourceIterationRecord(0, false, {
+                ...base,
+                renderer: {
+                    ...base.renderer,
+                    preStart: { domMutations: 5, lastMutationEpochMs: 9_990 },
+                },
+            }),
+        /activity-before-click-dom$/
+    );
+    assert.throws(
+        () =>
+            toOpenSourceIterationRecord(0, false, {
+                ...base,
+                ipc: { ...base.ipc, callsBeforeStart: 1 },
+            }),
+        /activity-before-click-ipc$/
+    );
+    assert.throws(
+        () =>
+            toOpenSourceIterationRecord(0, false, {
+                ...base,
+                http: { ...base.http, afterSettleBeforeClick: 1 },
+                ipc: { ...base.ipc, callsBeforeStart: 2 },
+            }),
+        /activity-before-click-ipc-http$/
     );
 });
 

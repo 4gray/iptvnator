@@ -136,17 +136,36 @@ test('only the launch journey opts into SQL statement counting', () => {
         .filter(
             (file) => /\.(ts|cjs)$/.test(file) && !/\.spec\.ts$/.test(file)
         );
-    const optedIn = files
-        .filter((file) =>
-            readFileSync(join(sourceRoot, file), 'utf8').includes(
-                'IPTVNATOR_PERF_COUNT_SQL'
+    const containing = (needle: RegExp) =>
+        files
+            .filter((file) =>
+                needle.test(readFileSync(join(sourceRoot, file), 'utf8'))
             )
-        )
-        .map((file) => relative(sourceRoot, join(sourceRoot, file)));
-    // The journey launch builds its flags in one place, and only the
-    // launch journey asks for the main counters there (J2 launches with
-    // `mainCounters: false`; see journey-launch-environment.spec.ts).
-    assert.deepEqual(optedIn, [
+            .map((file) => relative(sourceRoot, join(sourceRoot, file)));
+    // The journey launch builds its flags in one place...
+    assert.deepEqual(containing(/IPTVNATOR_PERF_COUNT_SQL/), [
         join('performance', 'journey-launch-environment.ts'),
     ]);
+    // ...and only J1's launch asks for them there. Another journey that
+    // passed `mainCounters: true` to runLaunchJourney would be measured
+    // under the statement hook without recording its count.
+    assert.deepEqual(containing(/mainCounters:\s*true/), [
+        join('journeys', 'launch-journey-app.ts'),
+    ]);
+    const launchApp = readFileSync(
+        join(sourceRoot, 'journeys', 'launch-journey-app.ts'),
+        'utf8'
+    );
+    assert.equal(launchApp.match(/mainCounters:\s*true/g)?.length, 1);
+    assert.match(
+        launchApp,
+        /export async function measureLaunchJourney\([\s\S]*?\{ mainCounters: true \}[\s\S]*?\n\}/
+    );
+    assert.match(
+        readFileSync(
+            join(sourceRoot, 'journeys', 'open-source.journey.ts'),
+            'utf8'
+        ),
+        /\{ mainCounters: false \}/
+    );
 });
