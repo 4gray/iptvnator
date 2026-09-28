@@ -371,15 +371,6 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
-            # pnpm skips Electron's postinstall (it is not in
-            # onlyBuiltDependencies), so the binary is fetched on the first
-            # require('electron'). Specs that run SQLite under
-            # ELECTRON_RUN_AS_NODE resolve it that way while Tier A projects
-            # run concurrently, and one exec'ing it mid-extraction fails with
-            # ETXTBSY. Download and verify it once, before any test starts.
-            - name: Download Electron binary
-              run: node tools/testing/ensure-electron-binary.mjs
-
             - name: Validate agent guidance
               run: pnpm run agents:validate
 
@@ -435,6 +426,19 @@ jobs:
                   gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
                       --paginate --jq '.[] | .filename, (.previous_filename // empty)' |
                       node tools/coverage/unit-coverage-scope.mjs --base FETCH_HEAD --github-output
+
+            # pnpm skips Electron's postinstall (it is not in
+            # onlyBuiltDependencies), so the binary is fetched on the first
+            # require('electron'). Specs that run SQLite under
+            # ELECTRON_RUN_AS_NODE resolve it that way while Tier A projects
+            # run concurrently, and one exec'ing it mid-extraction fails with
+            # ETXTBSY. Download and verify it once, before any test starts;
+            # the Tier A runner does the same, so this step only separates a
+            # download failure from test failures. Skipped suites need no
+            # binary.
+            - name: Download Electron binary
+              if: steps.scope.outputs.run == 'true'
+              run: node tools/testing/ensure-electron-binary.mjs
 
             # Jest's transform cache (TypeScript/Angular transpilation plus
             # coverage instrumentation, keyed by file content) is persisted

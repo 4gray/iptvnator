@@ -113,11 +113,12 @@ pnpm does not run Electron's postinstall (`electron` is deliberately absent from
 `onlyBuiltDependencies`, see [workspace shell](workspace-shell.md)), so the
 first `require` downloads and extracts the binary. With projects and Jest
 workers in parallel, one process can exec it while another is still extracting
-it (`spawnSync … ETXTBSY` on Linux). `coverage:unit:ci` and a CI step right
-after `pnpm install` therefore run `tools/testing/ensure-electron-binary.mjs`
-first, which downloads the binary once and fails unless it runs and reports
-the pinned version. In a fresh worktree, run it before starting several of
-these specs at once by other means.
+it (`spawnSync … ETXTBSY` on Linux). When a selected project has a spec that
+calls `createRequire(...)('electron')`, `coverage:unit:ci` first runs
+`tools/testing/ensure-electron-binary.mjs`, which downloads the binary once and
+fails unless it runs and reports the pinned version; CI also runs it as its own
+step when the Tier A suite is in scope. In a fresh worktree, run it before
+starting several of these specs at once by other means.
 
 In CI, a pull request skips the Tier A suite (and the merged-coverage upload)
 when every changed file is outside Tier A test inputs:

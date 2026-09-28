@@ -13,6 +13,7 @@ import {
     resolveConcurrency,
     resolveWorkersPerProject,
     runWithConcurrency,
+    specsResolveElectronBinary,
 } from './coverage-run-pool.mjs';
 
 let workDir;
@@ -33,6 +34,29 @@ test('counts spec and test files recursively and ignores sources', async () => {
     await writeFile(path.join(root, 'nested', 'deeper', 'c.spec.ts.snap'), '');
     assert.equal(countSpecFiles(root), 3);
     assert.equal(countSpecFiles(path.join(workDir, 'missing')), 0);
+});
+
+test('detects specs that resolve the Electron binary, including split calls', async () => {
+    const mocked = path.join(workDir, 'mocked');
+    await mkdir(mocked, { recursive: true });
+    await writeFile(
+        path.join(mocked, 'a.spec.ts'),
+        "jest.mock('electron', () => ({}));\nimport { app } from 'electron';\n"
+    );
+    await writeFile(
+        path.join(mocked, 'b.ts'),
+        "createRequire(__filename)('electron');\n"
+    );
+    assert.equal(specsResolveElectronBinary(mocked), false);
+
+    const spawning = path.join(workDir, 'spawning', 'nested');
+    await mkdir(spawning, { recursive: true });
+    await writeFile(
+        path.join(spawning, 'c.spec.ts'),
+        "const electronPath = createRequire(__filename)(\n    'electron'\n) as string;\n"
+    );
+    assert.equal(specsResolveElectronBinary(path.dirname(spawning)), true);
+    assert.equal(specsResolveElectronBinary(path.join(workDir, 'missing')), false);
 });
 
 test('orders longest first and keeps policy order for ties', () => {
