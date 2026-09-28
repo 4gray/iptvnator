@@ -1149,9 +1149,10 @@ reaches history.
 - Matching: a write deferred with a session key is confirmed only by that
   same key — the same URL in two playlists must not let playback in one
   (inline, or in MPV/VLC) record a failed attempt in the other. Writes
-  without one (portal resolvers, collection tabs) match any confirmation of
-  their stream URL. The global live tab defers with its own
-  playlist-scoped session key, which also survives a switch to catch-up.
+  without one (portal resolvers) match any confirmation of their stream URL.
+  The global live tab defers with its own playlist-scoped session key, which
+  also survives a switch to catch-up, when the row plays inline; a row that
+  goes to MPV/VLC defers by URL, the only thing that launch confirms.
 - `WebPlayerViewComponent` confirms its `playbackSessionKey`, `streamUrl`
   and `playback.streamUrl` once the owned engine's reported position has
   advanced by 2 seconds while playing (`PlaybackProgressConfirmation`).

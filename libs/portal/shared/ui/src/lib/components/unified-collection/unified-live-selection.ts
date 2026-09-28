@@ -248,13 +248,20 @@ export function createUnifiedLiveSelection(options: {
             }
 
             // Selecting a channel is not watching it: the row moves to the
-            // top of Recently Viewed once its stream has really played. The
-            // tab's playlist-scoped session key — the one its players confirm
-            // with — survives a switch to catch-up and does not match the
-            // same URL listed in another playlist.
+            // top of Recently Viewed once its stream has really played. Played
+            // inline, the tab's playlist-scoped session key — the one its
+            // players confirm with — survives a switch to catch-up and does
+            // not match the same URL in another playlist. MPV/VLC can only
+            // confirm the launched URL, so an external row defers by URL.
+            const playsInline = !options.shouldOpenExternalPlayback(
+                detail,
+                true
+            );
             historyGate.defer(
                 {
-                    sessionKey: createUnifiedLivePlaybackSessionKey(item),
+                    sessionKey: playsInline
+                        ? createUnifiedLivePlaybackSessionKey(item)
+                        : null,
                     streamUrls: [detail.playback.streamUrl],
                 },
                 () => void recordLivePlayback(item)

@@ -175,7 +175,8 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         }
     );
 
-    it('correlates a row with its session key, not its stream URL', async () => {
+    it('correlates an inline row with its session key, not its stream URL', async () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         const item = buildM3uLiveItem();
         streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
             epgMode: 'm3u',
@@ -203,6 +204,29 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
             streamUrls: ['https://example.com/archive.m3u8'],
         });
         await fixture.whenStable();
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
+    });
+
+    it('records a row played in MPV/VLC from the URL its launch confirms', async () => {
+        const item = buildM3uLiveItem();
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            epgPrograms: [],
+        });
+        recentData.recordLivePlayback.mockResolvedValue(item);
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        expect(portalPlayer.openResolvedPlayback).toHaveBeenCalled();
+
+        // The external session update carries only the launched URL.
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: [item.streamUrl],
+        });
+        await fixture.whenStable();
+
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
     });
 
