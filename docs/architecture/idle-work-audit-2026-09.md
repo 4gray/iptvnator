@@ -7,6 +7,13 @@ Nothing was changed. Every row marked **own thread** is a candidate for a
 separate, benchmarked follow-up under the
 [performance journeys](performance-journeys.md) process.
 
+**Historical results.** The capture ran on `8ebb7e342` (2026-09-26). The
+cinematic rotating dashboard hero (#1725, `887ac64`) landed afterwards, so the
+measured counts and the "all dashboard idle work" conclusions below describe
+the dashboard without it. The hero is accounted for separately, from code
+reading, under
+[Added after the measurement](#added-after-the-measurement-rotating-hero).
+
 ## Result in brief
 
 - **The main process starts no periodic work at idle.** Across four
@@ -170,6 +177,15 @@ code. Costs are for the dev build unless noted.
 | [dashboard-rail.component.scss:256–271](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-rail.component.scss) `.rail__art-progress i { transition: width 0.4s ease }` | Animates the live-programme progress bar each time its width binding changes | Every 30 s tick with live cards | About 24 full-document layouts and paints over 0.4 s: about 25–40 ms renderer and 45–130 ms GPU per tick. Twelve `<i>` attribute mutations per 2 min. | **No.** A sub-pixel progress change does not need a layout-driven animation, and it runs while minimized. | Measured: trace shows one rAF, then 24 frames of Layout, HitTest and IO every 30 s | **Own thread.** Animate `transform: scaleX()` (compositor-only), or drop the transition for tick updates. |
 | Eager components on every tick: [app.component.ts:54](../../apps/web/src/app/app.component.ts), [workspace-shell.component.ts:52](../../libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts), [epg-progress-panel.component.ts:67](../../libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts), [app-update-notification-panel.component.ts:106](../../apps/web/src/app/app-update-notification-panel.component.ts) | `ChangeDetectionStrategy.Eager` roots re-render their templates on every zone tick | Every tick above | Each of the four templates updated 24 times over the 12 ticks: twice per tick, because dev mode adds the `checkNoChanges` pass | **No** for idle. Nothing in them changes on a timer. | Measured through the `TemplateUpdateStart` profiler events | Fold into plan item C6 (OnPush/zoneless). No separate thread. |
 
+### Added after the measurement: rotating hero
+
+Not in the measured counts above; found by reading the code on master after
+#1725.
+
+| Source | What it does | Period | Cost per firing | Justified | Evidence | Follow-up |
+| --- | --- | --- | --- | --- | --- | --- |
+| [dashboard-hero.component.scss:558](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-hero.component.scss) `hero-dot-fill` and the `(animationend)="onRotationTick()"` at [dashboard-hero.component.html:233](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-hero.component.html) | The active rotation dot animates `width` 0 → 18 px over `HERO_ROTATION_MS` (8 s); its `animationend` advances the slide, which starts the next fill and the backdrop's 8 s `transform` transition | Continuous while the dashboard is visible with two or more hero slides, unless the rotation is paused or reduced motion is on | A layout pass on every animation frame, because `width` is a layout property (not measured) | **Partly.** The rotation is a feature. Animating a layout property for it is not, and it runs on an otherwise idle page. | Static | **Own thread.** Animate the fill with a compositor-only `transform: scaleX()`, keep the `animationend` advance, and decide whether rotation should pause on an idle or hidden dashboard. |
+
 ### Checked and not periodic at idle
 
 | Source | What it does | Period | Cost per firing | Justified | Evidence | Follow-up |
@@ -193,6 +209,7 @@ user who leaves that screen open pays them indefinitely, minimized included.
 | [mpv-session.service.ts:140–141](../../apps/electron-backend/src/app/events/mpv-session.service.ts) | External MPV position poll | 2 s delay, then 5 s | Two IPC-socket round-trips and one `playback-position-update` | Yes while playing. The early-exit leak found here (an unstored start-delay handle leaving an orphaned 5 s poll) is **resolved by #1720**. Still open: in reuse mode the poll keeps querying an idle MPV (no IPC while `time-pos` is null). | Static | Early-exit leak: done (#1720). Reuse mode: needs an idle signal from MPV before the poll can stop; not worth its own thread at two local socket calls per 5 s. |
 | [vlc-session.service.ts:81–82](../../apps/electron-backend/src/app/events/vlc-session.service.ts) | External VLC position poll | 1.5 s delay, then 2 s | Up to three localhost TCP connections, then IPC | Yes while playing. The early-exit leak (orphaned 2 s poll) is **resolved by #1720**. | Static | Done (#1720). |
 | [embedded-mpv-native.service.ts:1068](../../apps/electron-backend/src/app/services/embedded-mpv-native.service.ts) | Embedded MPV session snapshot poll | 500 ms while a session exists | Native snapshot, diff, and IPC only on change | Yes during playback. It is cleared when the last session closes. | Static | None |
+| [embedded-mpv-session-controller.ts:197](../../libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts) | Renderer-side bounds poll for a native-view embedded MPV session: compares `getBoundingClientRect()` with the last synced bounds | 500 ms while a native-view session is open (skipped for frame-copy) | One layout read outside the Angular zone; on drift a rAF and a `setEmbeddedMpvBounds` IPC | Yes during playback: a position-only layout shift would otherwise leave the native view misplaced | Static | Cover with the throttling thread: it kept its rate while minimized under `backgroundThrottling: false`. |
 | [embedded-mpv-reconnect.ts:296](../../apps/electron-backend/src/app/services/embedded-mpv-reconnect.ts) | Reconnect backoff | 2 s to 30 s, at most 6 attempts | Native reload | Yes | Static | None |
 | [channel-list-container.component.ts:426, :431](../../libs/ui/components/src/lib/channel-list-container/channel-list-container.component.ts) | M3U list: re-queries current programmes and metadata for **all** channels in the list, plus a progress tick | 60 s / 30 s while an M3U list is mounted | IPC and SQL that grow with channel count (not measured) | **Partly.** Only visible rows need refreshing. | Static | **Own thread.** Measure on a 10k-channel list, then limit to the viewport and pause on hidden. |
 | [epg-refresh-coordinator.service.ts:82](../../libs/portal/xtream/feature/src/lib/portal-channels-list/epg-refresh-coordinator.service.ts) | Xtream live: refreshes stale visible or tracked EPG entries | 60 s while live lists are registered | Xtream HTTP through main for stale entries only | Yes (already scoped) | Static | Pause on hidden once throttling allows it. |
