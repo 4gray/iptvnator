@@ -840,6 +840,13 @@ the documented 120 s default. Failing to ping never invalidates the session —
 it only affects the portal's admin-panel "online" reporting — so ping failures
 are logged and never retried or escalated.
 
+The periodic ping ticks in a dedicated worker (`createBackgroundInterval`,
+an inline blob worker allowed by the renderer CSP's `worker-src 'self' blob:`).
+After five minutes hidden and silent, Chromium wakes page timers at most once
+per minute, which would halve a 30 s cadence while the window is minimized;
+worker timers are not subject to that page throttling. Where no worker can
+start, the controller falls back to a page `setInterval`.
+
 ## Request Transport and `cmd` Encoding
 
 Requests to an unreachable portal are short-circuited by the main process' host
