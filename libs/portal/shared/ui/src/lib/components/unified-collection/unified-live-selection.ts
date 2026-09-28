@@ -11,6 +11,7 @@ import {
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { ElectronStreamHeadersService } from '@iptvnator/ui/playback';
 import { UnifiedLiveTimeshift } from './unified-live-catchup';
+import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 import { UnifiedLiveSelectionGeneration } from './unified-live-selection-generation';
 
 export interface UnifiedLiveSelection {
@@ -247,9 +248,15 @@ export function createUnifiedLiveSelection(options: {
             }
 
             // Selecting a channel is not watching it: the row moves to the
-            // top of Recently Viewed once its stream has really played.
+            // top of Recently Viewed once its stream has really played. The
+            // tab's playlist-scoped session key — the one its players confirm
+            // with — survives a switch to catch-up and does not match the
+            // same URL listed in another playlist.
             historyGate.defer(
-                { streamUrls: [detail.playback.streamUrl] },
+                {
+                    sessionKey: createUnifiedLivePlaybackSessionKey(item),
+                    streamUrls: [detail.playback.streamUrl],
+                },
                 () => void recordLivePlayback(item)
             );
 

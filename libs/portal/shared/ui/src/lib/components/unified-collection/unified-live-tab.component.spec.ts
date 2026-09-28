@@ -161,6 +161,7 @@ describe('UnifiedLiveTabComponent', () => {
     /** What the mounted player reports once the stream has really played. */
     async function playStream(streamUrl: string): Promise<void> {
         TestBed.inject(PlaybackHistoryGate).confirm({
+            sessionKey: component.playbackSessionKey(),
             streamUrls: [streamUrl],
         });
         await fixture.whenStable();

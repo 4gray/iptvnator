@@ -22,6 +22,7 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
+import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 import {
     StubAudioPlayerComponent,
     StubEpgTimelineComponent,
@@ -174,6 +175,37 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         }
     );
 
+    it('correlates a row with its session key, not its stream URL', async () => {
+        const item = buildM3uLiveItem();
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            epgPrograms: [],
+        });
+        recentData.recordLivePlayback.mockResolvedValue(item);
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        const gate = TestBed.inject(PlaybackHistoryGate);
+
+        // The same URL played from another playlist does not confirm it.
+        gate.confirm({
+            sessionKey: 'live:another-playlist:m3u-channel',
+            streamUrls: [item.streamUrl],
+        });
+        await fixture.whenStable();
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+
+        // The row's own player does, even after switching to catch-up.
+        gate.confirm({
+            sessionKey: component.playbackSessionKey(),
+            streamUrls: ['https://example.com/archive.m3u8'],
+        });
+        await fixture.whenStable();
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
+    });
+
     it('moves a row that played to the top of Recently Viewed after another row was selected', async () => {
         const first = buildM3uLiveItem();
         const second: UnifiedCollectionItem = {
@@ -209,6 +241,7 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
         await component.onChannelSelected(row('M3U Live 2'));
         // The first row's playback is confirmed only now, after the switch.
         TestBed.inject(PlaybackHistoryGate).confirm({
+            sessionKey: createUnifiedLivePlaybackSessionKey(first),
             streamUrls: [first.streamUrl],
         });
         await fixture.whenStable();

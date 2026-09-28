@@ -1150,7 +1150,8 @@ reaches history.
   same key — the same URL in two playlists must not let playback in one
   (inline, or in MPV/VLC) record a failed attempt in the other. Writes
   without one (portal resolvers, collection tabs) match any confirmation of
-  their stream URL.
+  their stream URL. The global live tab defers with its own
+  playlist-scoped session key, which also survives a switch to catch-up.
 - `WebPlayerViewComponent` confirms its `playbackSessionKey`, `streamUrl`
   and `playback.streamUrl` once the owned engine's reported position has
   advanced by 2 seconds while playing (`PlaybackProgressConfirmation`).
