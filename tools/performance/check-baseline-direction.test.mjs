@@ -213,6 +213,37 @@ test('a counter value raised behind narrower slack still fails', () => {
     assert.equal(allowed.allowed.length, 1);
 });
 
+test('switching an entry between counter and wall-clock fails', () => {
+    const counterToWallClock = compareBaselineDirection({
+        base: file(100, { x: { value: 100, slack: 10 } }),
+        head: file(100, { x: { value: 105, toleranceRatio: 1 } }),
+    });
+    assert.equal(counterToWallClock.failures.length, 1);
+    assert.deepEqual(counterToWallClock.lowered, []);
+    assert.match(
+        counterToWallClock.failures[0],
+        /launch\/x: changed from a counter entry to a wall-clock entry/
+    );
+
+    const wallClockToCounter = compareBaselineDirection({
+        base: file(100, { x: { value: 100, toleranceRatio: 1.25 } }),
+        head: file(100, { x: { value: 90 } }),
+    });
+    assert.equal(wallClockToCounter.failures.length, 1);
+    assert.match(
+        wallClockToCounter.failures[0],
+        /changed from a wall-clock entry to a counter entry/
+    );
+
+    const allowed = compareBaselineDirection({
+        base: file(100, { x: { value: 100, slack: 10 } }),
+        head: file(100, { x: { value: 105, toleranceRatio: 1 } }),
+        allowIncrease: true,
+    });
+    assert.deepEqual(allowed.failures, []);
+    assert.equal(allowed.allowed.length, 1);
+});
+
 test('allowIncrease reports every weakening as allowed instead of failing', () => {
     const result = compareBaselineDirection({
         base: file(100, { cdTicks: { value: 5 } }),

@@ -9,6 +9,8 @@
  * or `value + slack`) went up, whose tolerance or slack widened, or that
  * disappeared, is a failure. A counter's `value` may not go up either, even
  * when narrower slack lowers its limit: the value is the measured evidence.
+ * Switching an entry between counter and wall-clock (adding or removing
+ * `toleranceRatio`) is a weakening too, so that rule cannot be sidestepped.
  * New entries and lowered limits pass.
  *
  * `--allow-increase` turns those failures into printed "allowed" lines. CI
@@ -81,6 +83,8 @@ export function compareBaselineDirection({
             );
             continue;
         }
+        const kind = (entry) =>
+            entry.toleranceRatio === undefined ? 'counter' : 'wall-clock';
         const baseTolerance = baseEntry.toleranceRatio ?? 1;
         const headTolerance = headEntry.toleranceRatio ?? 1;
         const baseSlack = baseEntry.slack ?? 0;
@@ -90,6 +94,10 @@ export function compareBaselineDirection({
         if (headTolerance > baseTolerance) {
             weakened.push(
                 `${label}: toleranceRatio widened from ${baseTolerance} to ${headTolerance}. Tolerances are a maintainer decision (the ${BASELINE_INCREASE_LABEL} label); a PR may only narrow them.`
+            );
+        } else if (kind(baseEntry) !== kind(headEntry)) {
+            weakened.push(
+                `${label}: changed from a ${kind(baseEntry)} entry to a ${kind(headEntry)} entry. The two are read from different summary sections and compared differently, so a type change is a maintainer decision (the ${BASELINE_INCREASE_LABEL} label).`
             );
         } else if (headSlack > baseSlack) {
             weakened.push(

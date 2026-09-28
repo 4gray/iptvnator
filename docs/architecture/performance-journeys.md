@@ -359,8 +359,9 @@ The job also refuses a weakened baselines file:
 entry's enforced limit (`value × toleranceRatio` or `value + slack`) went up,
 a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
 payload and raise the baseline to match. A counter's `value` may not go up
-either, even when narrower slack lowers its limit. Lowered limits and new
-entries pass.
+either, even when narrower slack lowers its limit, and switching an entry
+between counter and wall-clock (adding or removing `toleranceRatio`) counts
+as a weakening too. Lowered limits and new entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
