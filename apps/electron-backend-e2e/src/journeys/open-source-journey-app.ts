@@ -10,6 +10,7 @@ import {
     readJourneyMainIpcCapture,
 } from '../performance/journey-main-ipc-capture';
 import type { JourneyMockRequestLedger } from '../performance/journey-mock-request-ledger';
+import { waitForJourneyQuiet } from '../performance/journey-quiet-wait';
 import {
     armJourneyRendererProbe,
     createOpenSourceJourneyProbeOptions,
@@ -76,7 +77,6 @@ async function waitForQuiet(
     ledger: JourneyMockRequestLedger,
     probeStateKey: string
 ): Promise<OpenSourceJourneySettle> {
-    const startedMs = Date.now();
     const armMark = ledger.mark();
     const sample = async (): Promise<ActivitySample> => {
         const launchCapture = await peekJourneyMainIpcCapture(
@@ -99,36 +99,24 @@ async function waitForQuiet(
             ipcInFlight: countJourneyMainIpcInFlight(launchCapture),
         };
     };
-    let last = await sample();
-    let quietSinceMs = Date.now();
-    for (;;) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-        const next = await sample();
-        const now = Date.now();
-        if (
-            next.domMutations !== last.domMutations ||
-            next.httpInFlight > 0 ||
-            next.httpRequests !== last.httpRequests ||
-            next.ipcCalls !== last.ipcCalls ||
-            next.ipcInFlight > 0
-        ) {
-            last = next;
-            quietSinceMs = now;
-        } else if (now - quietSinceMs >= QUIET_MS) {
-            return {
-                preStartDomMutations: next.domMutations,
-                preStartHttpRequests: next.httpRequests - armMark,
-                preStartIpcCalls: next.ipcCalls,
-                quietMs: QUIET_MS,
-                waitedMs: now - startedMs,
-            };
-        }
-        if (now - startedMs > SETTLE_TIMEOUT_MS) {
-            throw new Error(
-                `open-source-journey-not-quiet: ${JSON.stringify(next)}`
-            );
-        }
-    }
+    const { sample: quiet, waitedMs } = await waitForJourneyQuiet({
+        inFlight: (activity) => activity.httpInFlight + activity.ipcInFlight,
+        pollMs: POLL_MS,
+        quietMs: QUIET_MS,
+        sample,
+        timeoutError: (activity) =>
+            new Error(
+                `open-source-journey-not-quiet: ${JSON.stringify(activity)}`
+            ),
+        timeoutMs: SETTLE_TIMEOUT_MS,
+    });
+    return {
+        preStartDomMutations: quiet.domMutations,
+        preStartHttpRequests: quiet.httpRequests - armMark,
+        preStartIpcCalls: quiet.ipcCalls,
+        quietMs: QUIET_MS,
+        waitedMs,
+    };
 }
 
 /**
@@ -139,22 +127,17 @@ async function waitForQuiet(
 async function waitForMockQuiet(
     ledger: JourneyMockRequestLedger
 ): Promise<void> {
-    const startedMs = Date.now();
-    let count = ledger.mark();
-    let quietSinceMs = Date.now();
-    for (;;) {
-        await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-        const now = Date.now();
-        if (ledger.mark() !== count || ledger.inFlight() > 0) {
-            count = ledger.mark();
-            quietSinceMs = now;
-        } else if (now - quietSinceMs >= QUIET_MS) {
-            return;
-        }
-        if (now - startedMs > SETTLE_TIMEOUT_MS) {
-            throw new Error('open-source-journey-mock-not-quiet');
-        }
-    }
+    await waitForJourneyQuiet({
+        inFlight: (activity) => activity.inFlight,
+        pollMs: POLL_MS,
+        quietMs: QUIET_MS,
+        sample: async () => ({
+            inFlight: ledger.inFlight(),
+            requests: ledger.mark(),
+        }),
+        timeoutError: () => new Error('open-source-journey-mock-not-quiet'),
+        timeoutMs: SETTLE_TIMEOUT_MS,
+    });
 }
 
 /**
