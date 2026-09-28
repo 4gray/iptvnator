@@ -254,6 +254,19 @@ describe('DashboardHeroComponent', () => {
         ).toBe('/workspace/a');
     });
 
+    it('positions the progress fill through a custom property, never its width', () => {
+        // Animating width re-lays out the page on every live-EPG tick; the
+        // stylesheet slides the fill with a transform driven by this property.
+        slides.set([
+            { ...slide('a', 'Live'), contentType: 'live', progress: 42 },
+        ]);
+        render();
+
+        const fill = host().querySelector<HTMLElement>('.hero__progress i');
+        expect(fill?.style.getPropertyValue('--hero-progress')).toBe('42');
+        expect(fill?.style.width).toBe('');
+    });
+
     it('renders nothing when there is nothing to feature', () => {
         slides.set([]);
         render();
