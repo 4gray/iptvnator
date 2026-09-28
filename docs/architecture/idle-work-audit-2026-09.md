@@ -188,6 +188,7 @@ Not in the measured counts above; found by reading the code on master after
 | Source | What it does | Period | Cost per firing | Justified | Evidence | Follow-up |
 | --- | --- | --- | --- | --- | --- | --- |
 | [dashboard-hero.component.scss:558](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-hero.component.scss) `hero-dot-fill` and the `(animationend)="onRotationTick()"` at [dashboard-hero.component.html:233](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-hero.component.html) | The active rotation dot animates `width` 0 → 18 px over `HERO_ROTATION_MS` (8 s); its `animationend` advances the slide, which starts the next fill and the backdrop's 8 s `transform` transition | Continuous while the dashboard is visible with two or more hero slides, unless the rotation is paused or reduced motion is on | A layout pass on every animation frame, because `width` is a layout property (not measured) | **Partly.** The rotation is a feature. Animating a layout property for it is not, and it runs on an otherwise idle page. | Static | **Own thread.** Animate the fill with a compositor-only `transform: scaleX()`, keep the `animationend` advance, and decide whether rotation should pause on an idle or hidden dashboard. |
+| [dashboard-live-epg.presenter.ts:121](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-live-epg.presenter.ts) `heroLiveCandidates` (lookup) and :191 (pinned portal keys); limits in [dashboard-hero-slides.utils.ts:14–15](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-hero-slides.utils.ts) | Up to five hero live candidates (three favourites, two recent) join the 30 s XMLTV "now on air" lookup, and are pinned for the portal live-EPG queue even when their rails are hidden or scrolled away | 30 s XMLTV heartbeat while the hero is enabled and any candidate exists; portal sync on the same tick | More lookup keys per `GET_CURRENT_PROGRAMS_BATCH` IPC and SQL, and portal `get_short_epg`-style requests for pinned Xtream/Stalker candidates when stale (not measured) | **Yes** for the programme shown on the hero; the 30 s re-ask of unchanged programmes is not | Static | Covered by #1722: the clock re-asks only when a programme ended, a key has no answer, the answer is five minutes old, or the guide changed, and it pauses while hidden. |
 
 ### Checked and not periodic at idle
 
@@ -236,8 +237,10 @@ this in the same thread as the first worst offender.
 
 ## Not covered
 
-- Production (optimized, non-dev-mode) renderer costs. Counts carry over, but
-  per-firing milliseconds are upper bounds.
+- Production (optimized, non-dev-mode) renderer costs. Timer, rAF, IPC, SQL,
+  network, layout and DOM-mutation counts carry over; the Angular
+  change-detection and template-update counts do not (production skips
+  `checkNoChanges`), and per-firing milliseconds are upper bounds.
 - Windows and Linux. Throttling and occlusion behavior differ per platform.
 - Idle during playback, and on routes other than the dashboard. The
   conditional table above is from code reading only.
