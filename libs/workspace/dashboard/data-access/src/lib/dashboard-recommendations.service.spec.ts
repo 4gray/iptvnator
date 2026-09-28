@@ -127,6 +127,8 @@ describe('DashboardRecommendationsService', () => {
                         isAvailable: options.matchingAvailable ?? true,
                         matchTitles,
                         isWithheld,
+                        visibleMatches: (matches: CatalogTitleMatch[]) =>
+                            matches.filter((m) => !isWithheld(m)),
                     },
                 },
                 {
@@ -193,6 +195,28 @@ describe('DashboardRecommendationsService', () => {
         withheldCategories.set(new Set());
         expect(service.items()).toHaveLength(recTitles.length);
         expect(service.seedTitles()).toEqual(['The Matrix']);
+    });
+
+    it('keeps cards available through an unlocked copy when the chosen one is withheld', async () => {
+        matchTitles.mockImplementation(async (titles: string[]) =>
+            titles.flatMap((title) => [
+                match(title),
+                match(title, {
+                    playlistId: 'pl-2',
+                    playlistName: 'Other',
+                    categoryId: 8,
+                }),
+            ])
+        );
+        const service = createService();
+        await service.load();
+        expect(service.items()[0].match.playlistName).toBe('My Portal');
+
+        withheldCategories.set(new Set([7]));
+        expect(service.items()).toHaveLength(recTitles.length);
+        expect(
+            service.items().every((item) => item.match.playlistName === 'Other')
+        ).toBe(true);
     });
 
     it('does nothing when TMDB is disabled', async () => {

@@ -23,8 +23,7 @@ export interface SourceExpiryFacts {
 }
 
 export type SourceExpiryBadge =
-    | { kind: 'expired' }
-    | { kind: 'expiring'; daysLeft: number };
+    { kind: 'expired' } | { kind: 'expiring'; daysLeft: number };
 
 /**
  * Decides whether a source card should carry an expiry badge. Returns null

@@ -60,6 +60,8 @@ describe('DashboardTrendingService', () => {
                         isAvailable: options.matchingAvailable ?? true,
                         matchTitles,
                         isWithheld,
+                        visibleMatches: (matches: CatalogTitleMatch[]) =>
+                            matches.filter((m) => !isWithheld(m)),
                     },
                 },
             ],
@@ -114,6 +116,19 @@ describe('DashboardTrendingService', () => {
 
         withheldCategories.set(new Set());
         expect(service.items()[0].match?.playlistName).toBe('My Portal');
+    });
+
+    it('falls back to a copy in an unlocked portal when the chosen match is withheld', async () => {
+        matchTitles.mockResolvedValue([
+            match(),
+            match({ playlistId: 'pl-2', playlistName: 'Other', categoryId: 8 }),
+        ]);
+        const service = createService();
+        await service.load();
+        expect(service.items()[0].match?.playlistId).toBe('pl-1');
+
+        withheldCategories.set(new Set([7]));
+        expect(service.items()[0].match?.playlistName).toBe('Other');
     });
 
     it('rejects year-incompatible base-tier matches', async () => {

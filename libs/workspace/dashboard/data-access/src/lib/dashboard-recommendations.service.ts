@@ -2,10 +2,11 @@ import { computed, Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
-    groupTitleMatchesByKey,
-    pickTitleMatch,
 } from '@iptvnator/services';
-import { normalizeTitleKeys } from '@iptvnator/shared/interfaces';
+import {
+    CatalogTitleMatch,
+    normalizeTitleKeys,
+} from '@iptvnator/shared/interfaces';
 import { DashboardDataService } from './dashboard-data.service';
 import {
     DashboardTmdbLookupItem,
@@ -13,15 +14,21 @@ import {
     dashboardTmdbLookupKey,
 } from './dashboard-tmdb-lookup.util';
 import {
-    DashboardRecommendationItem,
     ExclusionIndex,
     RecommendationCandidate,
     buildLoadKey,
-    candidateLookup,
+    buildRecommendationItems,
     isExcludedCandidate,
     toCandidates,
     trustedReleaseYear,
 } from './dashboard-recommendations.util';
+
+interface LoadedRecommendations {
+    candidates: readonly RecommendationCandidate[];
+    matches: readonly CatalogTitleMatch[];
+}
+
+const EMPTY_LOAD: LoadedRecommendations = { candidates: [], matches: [] };
 
 interface SeedRecommendations {
     resolved: boolean;
@@ -61,16 +68,21 @@ export class DashboardRecommendationsService {
     private readonly titleMatch = inject(CatalogTitleMatchService);
     private readonly data = inject(DashboardDataService);
 
-    private readonly matchedItems = signal<DashboardRecommendationItem[]>([]);
+    /** The last load's candidates and ALL their catalog matches. */
+    private readonly loaded = signal<LoadedRecommendations>(EMPTY_LOAD);
     private readonly matchedSeedTitles = signal<readonly string[]>([]);
     /**
-     * The matched cards the parental lock does not withhold, filtered on
-     * read so a relock hides cards matched while unlocked. Under the match
-     * threshold the rail hides, as it does on load.
+     * The cards, built on READ from the matches the parental lock does not
+     * withhold: a relock hides a card matched while unlocked, and a title
+     * that also exists in an unlocked portal stays on the rail through that
+     * copy. Under the match threshold the rail hides, as it does on load.
      */
     readonly items = computed(() => {
-        const visible = this.matchedItems().filter(
-            (item) => !this.titleMatch.isWithheld(item.match)
+        const { candidates, matches } = this.loaded();
+        const visible = buildRecommendationItems(
+            candidates,
+            this.titleMatch.visibleMatches(matches),
+            MAX_ITEMS
         );
         return visible.length < MIN_RECOMMENDATION_MATCHES ? [] : visible;
     });
@@ -104,7 +116,7 @@ export class DashboardRecommendationsService {
         if (seeds.length === 0) {
             // The service outlives the dashboard (root-provided), so a
             // cleared watch history must clear the rail too.
-            this.matchedItems.set([]);
+            this.loaded.set(EMPTY_LOAD);
             this.matchedSeedTitles.set([]);
             this.loadedKey = null;
             return;
@@ -142,12 +154,17 @@ export class DashboardRecommendationsService {
                     perSeed.map((seed) => seed.entries),
                     excluded
                 );
-                const matched = await this.attachMatches(candidates);
+                const load = await this.attachMatches(candidates);
+                const matched = buildRecommendationItems(
+                    load.candidates,
+                    load.matches,
+                    MAX_ITEMS
+                );
                 if (matched.length >= MIN_RECOMMENDATION_MATCHES) {
                     const contributed = new Set(
                         matched.map((item) => item.seedTitle)
                     );
-                    this.matchedItems.set(matched);
+                    this.loaded.set(load);
                     this.matchedSeedTitles.set(
                         perSeed
                             .map((seed) => seed.seedTitle)
@@ -175,7 +192,7 @@ export class DashboardRecommendationsService {
                     // rail that was just cleared, and returning to those
                     // exact inputs (say, un-favoriting again) would
                     // otherwise hit the equality guard and stay empty.
-                    this.matchedItems.set([]);
+                    this.loaded.set(EMPTY_LOAD);
                     this.matchedSeedTitles.set([]);
                     this.loadedKey = null;
                 }
@@ -200,7 +217,7 @@ export class DashboardRecommendationsService {
      * under the match threshold hides the rail, as everywhere else.
      */
     private dropExcludedCards(excluded: ExclusionIndex): void {
-        const current = this.matchedItems();
+        const { candidates, matches } = this.loaded();
         // A card whose playlist is gone would navigate to a dead route,
         // and the failed refresh is no excuse for keeping it — this is
         // the only path that can reach a deleted playlist without the
@@ -208,12 +225,18 @@ export class DashboardRecommendationsService {
         const livePlaylists = new Set(
             this.data.playlists().map((playlist) => playlist._id)
         );
-        const kept = current.filter(
-            (item) =>
-                livePlaylists.has(item.match.playlistId) &&
-                !isExcludedCandidate(item, excluded)
-        );
-        if (kept.length === current.length) {
+        const kept: LoadedRecommendations = {
+            candidates: candidates.filter(
+                (candidate) => !isExcludedCandidate(candidate, excluded)
+            ),
+            matches: matches.filter((match) =>
+                livePlaylists.has(match.playlistId)
+            ),
+        };
+        if (
+            kept.candidates.length === candidates.length &&
+            kept.matches.length === matches.length
+        ) {
             return;
         }
 
@@ -223,14 +246,19 @@ export class DashboardRecommendationsService {
         // would hit the equality guard and leave the rail as it is now.
         this.loadedKey = null;
 
-        if (kept.length < MIN_RECOMMENDATION_MATCHES) {
-            this.matchedItems.set([]);
+        const cards = buildRecommendationItems(
+            kept.candidates,
+            kept.matches,
+            MAX_ITEMS
+        );
+        if (cards.length < MIN_RECOMMENDATION_MATCHES) {
+            this.loaded.set(EMPTY_LOAD);
             this.matchedSeedTitles.set([]);
             return;
         }
 
-        const contributed = new Set(kept.map((item) => item.seedTitle));
-        this.matchedItems.set(kept);
+        const contributed = new Set(cards.map((item) => item.seedTitle));
+        this.loaded.set(kept);
         this.matchedSeedTitles.set(
             this.matchedSeedTitles().filter((title) => contributed.has(title))
         );
@@ -425,12 +453,12 @@ export class DashboardRecommendationsService {
 
     private async attachMatches(
         candidates: readonly RecommendationCandidate[]
-    ): Promise<DashboardRecommendationItem[]> {
+    ): Promise<LoadedRecommendations> {
         if (candidates.length === 0) {
-            return [];
+            return EMPTY_LOAD;
         }
         // Both aliases go into the ONE batched request; the index lookup
-        // below prefers the localized form. Built with a loop rather than
+        // prefers the localized form. Built with a loop rather than
         // flatMap — the web app compiles this lib against `lib: es2018`,
         // which predates Array.prototype.flatMap.
         const queryTitles: string[] = [];
@@ -441,29 +469,6 @@ export class DashboardRecommendationsService {
             }
         }
         const matches = await this.titleMatch.matchTitles(queryTitles);
-        const grouped = groupTitleMatchesByKey(matches);
-
-        // Title collisions are resolved HERE rather than before matching:
-        // two candidates that resolve to the same catalog row would render
-        // as duplicate cards opening the same item, while same-titled
-        // remakes resolve to different rows and both belong on the rail.
-        const items: DashboardRecommendationItem[] = [];
-        const claimedRows = new Set<string>();
-        for (const candidate of candidates) {
-            const match = pickTitleMatch(candidateLookup(candidate), grouped);
-            if (!match) {
-                continue;
-            }
-            const rowKey = `${match.playlistId}:${match.type}:${match.xtreamId}`;
-            if (claimedRows.has(rowKey)) {
-                continue;
-            }
-            claimedRows.add(rowKey);
-            items.push({ ...candidate, match });
-            if (items.length === MAX_ITEMS) {
-                break;
-            }
-        }
-        return items;
+        return { candidates, matches };
     }
 }

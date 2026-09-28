@@ -42,6 +42,8 @@ describe('CrossPortalSimilarService', () => {
                         matchTitles,
                         isWithheld: (m: CatalogTitleMatch) =>
                             withheld.has(m.xtreamId),
+                        visibleMatches: (ms: CatalogTitleMatch[]) =>
+                            ms.filter((m) => !withheld.has(m.xtreamId)),
                     },
                 },
             ],
@@ -150,5 +152,29 @@ describe('CrossPortalSimilarService', () => {
         withheld.add(99);
 
         expect(service.visible([kept, locked])).toEqual([kept]);
+    });
+
+    it('falls back to an unlocked candidate when the chosen match is withheld', async () => {
+        matchTitles.mockResolvedValue([
+            match(),
+            match({
+                playlistId: 'pl-2',
+                playlistName: 'Portal Two',
+                xtreamId: 43,
+            }),
+        ]);
+        const service = createService();
+        const [item] = await service.matchRecommendations(
+            [rec('The Matrix')],
+            'movie'
+        );
+        expect(item.match.xtreamId).toBe(42);
+
+        withheld.add(42);
+        const [visible] = service.visible([item]);
+        expect(visible.match.playlistName).toBe('Portal Two');
+
+        withheld.add(43);
+        expect(service.visible([item])).toEqual([]);
     });
 });
