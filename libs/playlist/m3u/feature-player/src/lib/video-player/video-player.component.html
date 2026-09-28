@@ -106,10 +106,13 @@
                         <app-audio-player
                             [url]="activeChannel.url"
                             [icon]="
-                                $safeNavigationMigration(activeChannel?.tvg?.logo)!
+                                $safeNavigationMigration(
+                                    activeChannel?.tvg?.logo
+                                )!
                             "
                             [channelName]="displayChannelName()"
                             [volume]="volume()"
+                            [playbackSessionKey]="playbackSessionKey()"
                             (volumeChange)="onInlineVolumeChange($event)"
                         />
                     } @else {

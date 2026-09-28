@@ -25,6 +25,10 @@ import {
     getXtreamTitle,
     pickDistinctTitles,
 } from './portal-mock-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
 
 test.describe('Dashboard Activation', () => {
     test('opens live favorites in the collection route and movies/series in global collection detail views from the dashboard', async ({
@@ -76,6 +80,7 @@ test.describe('Dashboard Activation', () => {
             return new RegExp(titles.join('|'));
         };
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await addXtreamPortal(app.mainWindow, {
@@ -99,7 +104,10 @@ test.describe('Dashboard Activation', () => {
             );
             const movieTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
-            await playCurrentDetail(app.mainWindow);
+            // Recorded as recently viewed once it has really played.
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playCurrentDetail(app.mainWindow)
+            );
             await goBackFromDetail(app.mainWindow);
 
             await app.mainWindow
@@ -111,7 +119,9 @@ test.describe('Dashboard Activation', () => {
             );
             const seriesTitle = await clickFirstGridListCard(app.mainWindow);
             await addCurrentDetailToFavorites(app.mainWindow);
-            await playFirstSeriesEpisode(app.mainWindow);
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                playFirstSeriesEpisode(app.mainWindow)
+            );
 
             await goToDashboard(app.mainWindow);
 
@@ -176,11 +186,13 @@ test.describe('Dashboard Activation', () => {
                     liveTitle
                 ).locator('.rail__channel-now')
             ).toContainText(liveNowTitle(), { timeout: 30000 });
-            await dashboardRailCardByTitle(
-                app.mainWindow,
-                'dashboard-live-favorites-rail',
-                liveTitle
-            ).click();
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                dashboardRailCardByTitle(
+                    app.mainWindow,
+                    'dashboard-live-favorites-rail',
+                    liveTitle
+                ).click()
+            );
             await app.mainWindow.waitForURL(
                 /\/workspace\/xtreams\/[^/]+\/favorites$/
             );

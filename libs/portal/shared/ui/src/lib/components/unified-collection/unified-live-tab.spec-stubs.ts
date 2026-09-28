@@ -101,6 +101,7 @@ export class StubAudioPlayerComponent {
     readonly icon = input('');
     readonly url = input.required<string>();
     readonly channelName = input('');
+    readonly playbackSessionKey = input<string | null>(null);
 }
 
 @Component({

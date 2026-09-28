@@ -1129,6 +1129,58 @@ This keeps:
 - series and VOD-as-series support intact
 - external MPV/VLC launches unchanged
 
+## Recently Viewed Confirmation
+
+Selecting or resolving an item is not watching it. A channel, movie or series
+becomes a recently viewed item — and with it the dashboard hero — only once
+its stream has really played, so a stream that fails straight away never
+reaches history.
+
+- Writers do not persist on selection. They hand the write to
+  `PlaybackHistoryGate` (`@iptvnator/playback/data-access`) with
+  `defer(target, commit)`, where the target is what the playback will be
+  known by: the host's `playbackSessionKey` (M3U) and/or stream URLs. The Stalker resolver defers
+  by the resolved (possibly temporary) link; the persisted row still stores
+  the portal `cmd`, never that link. Writers capture the item and its
+  playlist when they defer, so navigating meanwhile cannot misfile it; an
+  Xtream write confirmed after a switch to another playlist (only a slow
+  MPV/VLC launch can) is saved to its own playlist without reloading the
+  store's recent list, which belongs to the other playlist by then.
+- Matching: a write deferred with a session key is confirmed only by that
+  same key — the same URL in two playlists must not let playback in one
+  (inline, or in MPV/VLC) record a failed attempt in the other. Writes
+  without one (portal resolvers) match any confirmation of their stream URL.
+  The global live tab defers with its own playlist-scoped session key, which
+  also survives a switch to catch-up, when the row plays inline; a row that
+  goes to MPV/VLC defers by URL, the only thing that launch confirms.
+- `WebPlayerViewComponent` confirms its `playbackSessionKey`, `streamUrl`
+  and `playback.streamUrl` once the owned engine's reported position has
+  advanced by 2 seconds while playing (`PlaybackProgressConfirmation`).
+  Engines report `playing` (not paused, not seeking) with each time update,
+  so seeks of paused media do not count; neither do steps above 3 seconds
+  (seeks, a resume jump, live-edge catch-up), stalls or backwards jumps. A
+  report of a new stream never adds to the progress of the previous one; an
+  engine or format swap of the same stream keeps its progress. The radio
+  `AudioPlayerComponent` confirms the same way (with the host's session key
+  when given).
+- MPV/VLC cannot report whether a live stream plays, so the gate itself
+  subscribes to the Electron external-player session updates and confirms a
+  session's `streamUrl` once it is `opened` or `playing`; a launch that ends
+  in `error` is not recorded. (Subscribing in the gate, which the first
+  deferred write creates, keeps it off the initial bundle.) That
+  confirmation carries no session key, so an "Open in MPV/VLC" recovery
+  launch is also confirmed by the `WebPlayerViewComponent` that requested
+  it, under its own session key, once the launch has opened. M3U keeps
+  recording on selection when MPV/VLC is the configured player.
+- A confirmation commits every write matching it, once. Unconfirmed writes
+  are bounded (oldest dropped) and simply never commit. The global live tab
+  moves a confirmed row to the top of an open Recently Viewed list even if
+  another row was selected meanwhile.
+- A committed write updates the source while the item keeps playing. Hosts
+  must not hand the player a new but identical playback for it: the M3U
+  host's `embeddedPlayback` also reads the playlist meta, so it is compared
+  by value — a new object would remount the engine and restart the stream.
+
 ## Playback Position Saving
 
 The old dialog path saved playback positions from inside the removed Xtream

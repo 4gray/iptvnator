@@ -5,6 +5,7 @@ import {
     classifyNativePlaybackIssue,
     createPlaybackSourceMetadata,
 } from '@iptvnator/playback/util';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
@@ -13,7 +14,7 @@ export interface HtmlVideoElementSessionConfig {
     getChannelUrl: () => string | undefined;
     getStartTime: () => number;
     emitPlaybackIssue: (issue: PlaybackDiagnostic | null) => void;
-    emitTimeUpdate: (value: { currentTime: number; duration: number }) => void;
+    emitTimeUpdate: (value: PlayerTimeUpdate) => void;
     emitPlaybackEnded: () => void;
     emitPlaybackStarted?: () => void;
 }
@@ -62,6 +63,7 @@ export class HtmlVideoElementSession {
         this.config.emitTimeUpdate({
             currentTime: video.currentTime,
             duration: video.duration,
+            playing: !video.paused && !video.seeking,
         });
     };
 

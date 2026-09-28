@@ -431,7 +431,7 @@ for (const theme of ['light', 'dark']) {
         const channels = Array.from(
             { length: 60 },
             (_, index) =>
-                `#EXTINF:-1 group-title="News",Station ${index + 1}\n${FIXTURE_HOST}/live-${index}.m3u8`
+                `#EXTINF:-1 group-title="News",Station ${index + 1}\n${FIXTURE_HOST}/live-${index}.webm`
         );
         await importPlaylist(page, ['#EXTM3U', ...channels].join('\n'), 60);
         await page.evaluate(
@@ -462,6 +462,19 @@ for (const theme of ['light', 'dark']) {
         await expect(viewport.locator('.channel-list-item').nth(1)).toHaveClass(
             /active/
         );
+        // Recently viewed lists the station once it has played two seconds.
+        await expect
+            .poll(
+                () =>
+                    page
+                        .locator('app-web-player-view video')
+                        .first()
+                        .evaluate(
+                            (video: HTMLVideoElement) => video.currentTime
+                        ),
+                { timeout: 20_000 }
+            )
+            .toBeGreaterThan(2.5);
         await pressTab(page, browserName);
         const favorite = viewport.locator('.favorite-button').nth(1);
         await expect(favorite).toBeFocused();

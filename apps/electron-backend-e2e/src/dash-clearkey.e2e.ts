@@ -31,6 +31,7 @@ import {
     waitForM3uCatalog,
     workspaceRoot,
 } from './electron-test-fixtures';
+import { startAndConfirmPlayback } from './playable-stream-fixture';
 
 /**
  * DASH + ClearKey playback in the real Electron runtime — the only automated
@@ -541,7 +542,8 @@ for (const configuredPlayer of ['videojs', 'mpv', 'artplayer']) {
                 buildDashPlaylist(fixtureServer.origin)
             );
             const channel = channelItemByTitle(page, 'ClearKey DASH').first();
-            await channel.click();
+            // Recent history records the channel once it has really played.
+            await startAndConfirmPlayback(page, () => channel.click());
             await channel.locator('.favorite-button').click();
             await expect(
                 channel.locator('.favorite-button mat-icon')

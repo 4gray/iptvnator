@@ -5,6 +5,7 @@ import {
     classifyNativePlaybackIssue,
     createPlaybackSourceMetadata,
 } from '@iptvnator/playback/util';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 export interface ArtPlayerVideoSessionConfig {
     player: Artplayer;
@@ -13,7 +14,7 @@ export interface ArtPlayerVideoSessionConfig {
     getDuration: () => number;
     persistSharedVolume: boolean;
     emitPlaybackIssue: (issue: PlaybackDiagnostic | null) => void;
-    emitTimeUpdate: (value: { currentTime: number; duration: number }) => void;
+    emitTimeUpdate: (value: PlayerTimeUpdate) => void;
     emitPlaybackEnded: () => void;
     emitPlaybackStarted?: () => void;
 }
@@ -71,6 +72,7 @@ export class ArtPlayerVideoSession {
         this.config.emitTimeUpdate({
             currentTime: player.currentTime,
             duration: this.config.getDuration(),
+            playing: !player.video.paused && !player.video.seeking,
         });
     };
 

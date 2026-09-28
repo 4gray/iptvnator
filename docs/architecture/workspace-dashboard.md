@@ -75,7 +75,10 @@ Render rules:
    full-bleed. All rails and the hero are skipped.
 3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
    see [Cinematic Hero](#cinematic-hero). It shows its own skeleton while
-   the first history load runs.
+   the first history load runs. An item enters recent history only after
+   its stream has really played (see "Recently Viewed Confirmation" in
+   `embedded-inline-playback.md`), so a channel that failed at once never
+   becomes a hero slide.
 4. Each rail is emitted via `@if (cards.length > 0)`. Empty rails are hidden
    — there is no "empty widget" placeholder.
 5. Hero slides prefer a stored `backdrop_url`, then the TMDB backdrop; when

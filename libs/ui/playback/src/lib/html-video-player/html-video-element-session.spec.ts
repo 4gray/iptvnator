@@ -4,8 +4,11 @@ describe('HtmlVideoElementSession', () => {
     it('owns native video events and detaches them idempotently', () => {
         const video = document.createElement('video');
         const playbackIssues: unknown[] = [];
-        const timeUpdates: Array<{ currentTime: number; duration: number }> =
-            [];
+        const timeUpdates: Array<{
+            currentTime: number;
+            duration: number;
+            playing?: boolean;
+        }> = [];
         const playbackEnded = jest.fn();
         const removeEventListener = jest.spyOn(video, 'removeEventListener');
         const session = new HtmlVideoElementSession({
@@ -40,7 +43,20 @@ describe('HtmlVideoElementSession', () => {
         video.dispatchEvent(new Event('ended'));
 
         expect(video.currentTime).toBe(18);
-        expect(timeUpdates).toEqual([{ currentTime: 18, duration: 90 }]);
+        // A paused element's position moves too (a seek): not playing.
+        expect(timeUpdates).toEqual([
+            { currentTime: 18, duration: 90, playing: false },
+        ]);
+        Object.defineProperty(video, 'paused', {
+            configurable: true,
+            value: false,
+        });
+        video.dispatchEvent(new Event('timeupdate'));
+        expect(timeUpdates.at(-1)).toEqual({
+            currentTime: 18,
+            duration: 90,
+            playing: true,
+        });
         expect(playbackIssues[0]).toEqual(
             expect.objectContaining({
                 code: 'unsupported-container',

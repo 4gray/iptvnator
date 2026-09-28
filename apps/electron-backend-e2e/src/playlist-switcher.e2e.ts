@@ -30,6 +30,10 @@ import {
     writeTemporaryM3uFile,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import {
+    routePlayableStreams,
+    startAndConfirmPlayback,
+} from './playable-stream-fixture';
 
 const xtreamStressUsername = 'stress';
 const xtreamStressPassword = 'stress';
@@ -202,6 +206,7 @@ test.describe('Electron Playlist Switcher', () => {
             },
         ]);
         const app = await launchElectronApp(dataDir);
+        await routePlayableStreams(app.mainWindow);
 
         try {
             await importM3uPlaylistFromNativeDialog(app, localAPath);
@@ -213,9 +218,12 @@ test.describe('Electron Playlist Switcher', () => {
                 .click();
             await waitForM3uCatalog(app.mainWindow);
             await toggleFavoriteForChannel(app.mainWindow, localAChannelName);
-            await channelItemByTitle(app.mainWindow, localAChannelName)
-                .first()
-                .click();
+            // Recorded as recently viewed once it has really played.
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, localAChannelName)
+                    .first()
+                    .click()
+            );
 
             await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, localBDisplayName)
@@ -223,9 +231,12 @@ test.describe('Electron Playlist Switcher', () => {
                 .click();
             await waitForM3uCatalog(app.mainWindow);
             await toggleFavoriteForChannel(app.mainWindow, localBChannelName);
-            await channelItemByTitle(app.mainWindow, localBChannelName)
-                .first()
-                .click();
+            // Recorded as recently viewed once it has really played.
+            await startAndConfirmPlayback(app.mainWindow, () =>
+                channelItemByTitle(app.mainWindow, localBChannelName)
+                    .first()
+                    .click()
+            );
 
             await openSources(app.mainWindow);
             await sourceRowByTitle(app.mainWindow, localADisplayName)
