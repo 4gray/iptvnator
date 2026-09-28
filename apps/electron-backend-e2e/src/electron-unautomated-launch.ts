@@ -172,12 +172,25 @@ async function stopElectron(
     child: ChildProcess,
     exited: Promise<void>
 ): Promise<void> {
+    let lastKillError: unknown;
     for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
-        terminateElectronProcess(child, signal);
+        // Already gone (exited on its own, or during startup): nothing to
+        // kill. On Windows taskkill throws for a PID that no longer exists.
+        if (await waitForExit(child, exited, 0)) return;
+        try {
+            terminateElectronProcess(child, signal);
+        } catch (error) {
+            // The process may have exited between the check and the kill.
+            lastKillError = error;
+        }
         if (await waitForExit(child, exited, EXIT_WAIT_MS)) return;
     }
+    const killFailure =
+        lastKillError === undefined
+            ? ''
+            : ` (last kill: ${String(lastKillError)})`;
     throw new Error(
-        `Electron (pid ${child.pid}) did not exit after SIGTERM and SIGKILL`
+        `Electron (pid ${child.pid}) did not exit after SIGTERM and SIGKILL${killFailure}`
     );
 }
 
@@ -220,7 +233,10 @@ export async function launchUnautomatedElectronApp(
             },
         };
     } catch (error) {
-        await stopElectron(child, exited);
+        // Cleanup must never replace the startup failure that explains the test.
+        await stopElectron(child, exited).catch((cleanupError: unknown) =>
+            console.warn('Unautomated Electron cleanup failed:', cleanupError)
+        );
         throw error;
     }
 }
