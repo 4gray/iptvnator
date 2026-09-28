@@ -76,7 +76,11 @@ async function waitForQuiet(
     page: Page,
     ledger: JourneyMockRequestLedger,
     probeStateKey: string
-): Promise<OpenSourceJourneySettle> {
+): Promise<{
+    /** Ledger position read by the accepted quiet sample itself. */
+    readonly ledgerMark: number;
+    readonly settle: OpenSourceJourneySettle;
+}> {
     const armMark = ledger.mark();
     const sample = async (): Promise<ActivitySample> => {
         const launchCapture = await peekJourneyMainIpcCapture(
@@ -111,11 +115,14 @@ async function waitForQuiet(
         timeoutMs: SETTLE_TIMEOUT_MS,
     });
     return {
-        preStartDomMutations: quiet.domMutations,
-        preStartHttpRequests: quiet.httpRequests - armMark,
-        preStartIpcCalls: quiet.ipcCalls,
-        quietMs: QUIET_MS,
-        waitedMs,
+        ledgerMark: quiet.httpRequests,
+        settle: {
+            preStartDomMutations: quiet.domMutations,
+            preStartHttpRequests: quiet.httpRequests - armMark,
+            preStartIpcCalls: quiet.ipcCalls,
+            quietMs: QUIET_MS,
+            waitedMs,
+        },
     };
 }
 
@@ -171,15 +178,18 @@ export async function measureOpenSourceJourney(
     // Hover first so hover effects (and anything they trigger) happen
     // before the app settles, not inside the measured window.
     await card.hover({ timeout: timeoutMs });
-    const settle = await waitForQuiet(
+    // The boundary for late requests is the ledger position the accepted
+    // quiet sample read, like its DOM and IPC counts; a fresh mark taken
+    // here would skip a request that arrived while that sample was still
+    // reading the IPC capture. Requests from that position on but before
+    // the renderer's click stamp arrived after the app settled, and the
+    // record rejects such an iteration.
+    const { ledgerMark: settledLedgerMark, settle } = await waitForQuiet(
         electronApp,
         mainWindow,
         ledger,
         probeOptions.stateKey
     );
-    // Requests from here on but before the renderer's click stamp arrived
-    // after the app settled; the record rejects such an iteration.
-    const settledLedgerMark = ledger.mark();
     await card.click({ timeout: timeoutMs });
     const renderer: JourneyRendererProbeState =
         await waitForJourneyRendererProbe(
