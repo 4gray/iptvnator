@@ -9,12 +9,16 @@ separate, benchmarked follow-up under the
 
 ## Result in brief
 
-- **The main process and its workers do no periodic work at idle.** Across
-  four two-minute windows the probes saw zero IPC handled, zero timers fired,
-  zero outbound HTTP requests, zero SQL statements and zero file writes. The
-  EPG refresh, download manager, source health probe, auto-updater,
-  remote-control server and connectivity guard are all demand-driven or off
-  by default.
+- **The main process starts no periodic work at idle.** Across four
+  two-minute windows its probes saw zero timers fired, zero outbound HTTP
+  requests and zero file writes. With a fresh profile they also saw zero IPC
+  and zero SQL. With recent live channels, the dashboard's renderer timers
+  caused 1–2 IPC calls and 2–4 SQL statements per window (see the table
+  below). Workers were not probed directly: the SQL trace covers the
+  database worker, and reading the code found worker timers only inside
+  running operations. The EPG refresh, download manager, source health
+  probe, auto-updater, remote-control server and connectivity guard are all
+  demand-driven or off by default.
 - **All idle work is in the renderer, on the dashboard.** With a fresh
   profile, two RxJS intervals (30 s and 60 s) cause 12 app-wide Angular
   change-detection passes per two minutes. With recently watched live
@@ -105,8 +109,12 @@ Harness artifacts that were excluded:
 - The probe's own stdout tee.
 - Playwright `evaluate` round-trips at window boundaries.
 
-The harness scripts stayed in the session scratchpad and are not committed.
-The method above is enough to rebuild them.
+The harness was a one-off and is deliberately not committed, so the figures
+below cannot be rerun from the repository as is. They are observations from
+this run, and the method above describes how to rebuild the harness. The
+maintained way to measure is the journey harness in
+[performance journeys](performance-journeys.md); an idle journey there is the
+path to making these counters reproducible and guarded.
 
 ## Measurements
 
@@ -160,7 +168,7 @@ code. Costs are for the dev build unless noted.
 | [workspace-dashboard-rails.component.ts:345](../../libs/workspace/dashboard/feature/src/lib/rails/workspace-dashboard-rails.component.ts) `interval(SOURCE_EXPIRY_TICK_MS)`, read at :753 | Minute heartbeat for source-expiry badges. It recomputes `sourceCards`, which returns a new array. | 60 s, whenever recent sources exist | One CD tick of about 2 ms. The new `items` input also fires the rail effects: two chained rAF CD ticks and a `scrollTo(0)` from `scheduleResetToStart` ([dashboard-rail.component.ts:176–187, :317](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-rail.component.ts)), and an IntersectionObserver re-observe of every card. | **Partly.** Badges must cross day boundaries, but a minute tick for day-granular badges is excessive. Returning a new array each time also resets a user-scrolled rail. | Measured: 2 timer and 4 rAF per 2 min | **Own thread.** Schedule the next badge boundary instead of polling, give `sourceCards` a structural `equal`, and reset the rail scroll only when card identity changes. |
 | [dashboard-live-epg.presenter.ts:116–132](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-live-epg.presenter.ts) `interval(LIVE_EPG_TICK_MS)` with `forkJoin(askScope…)` | "Now on air" lookup for hero, live-favourite and recent-live cards | 30 s, only when live cards exist | `GET_CURRENT_PROGRAMS_BATCH` IPC about every second tick, because of the 60 s program cache, running 2 SQL `SELECT`s. Every emission is a new `Map`, so the live rails rebuild. That adds rAF scroll resets, IO re-observe, and new progress widths (next row). | **Partly.** Progress and "now" titles are a feature. Rebuilding the rails when the programme did not change is not. | Measured: 1–2 IPC and 2–4 SQL per 2 min | **Own thread.** Emit only on programme change, tick on the next programme boundary instead of every 30 s, and pause on hidden. |
 | [dashboard-rail.component.scss:256–271](../../libs/workspace/dashboard/feature/src/lib/rails/dashboard-rail.component.scss) `.rail__art-progress i { transition: width 0.4s ease }` | Animates the live-programme progress bar each time its width binding changes | Every 30 s tick with live cards | About 24 full-document layouts and paints over 0.4 s: about 25–40 ms renderer and 45–130 ms GPU per tick. Twelve `<i>` attribute mutations per 2 min. | **No.** A sub-pixel progress change does not need a layout-driven animation, and it runs while minimized. | Measured: trace shows one rAF, then 24 frames of Layout, HitTest and IO every 30 s | **Own thread.** Animate `transform: scaleX()` (compositor-only), or drop the transition for tick updates. |
-| Eager components on every tick: [app.component.ts:54](../../apps/web/src/app/app.component.ts), [workspace-shell.component.ts:52](../../libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts), [epg-progress-panel.component.ts:35](../../libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts), [app-update-notification-panel.component.ts:106](../../apps/web/src/app/app-update-notification-panel.component.ts) | `ChangeDetectionStrategy.Eager` roots re-render their templates on every zone tick | Every tick above | These four templates are checked on each tick (24 template updates per 12 ticks in dev mode) | **No** for idle. Nothing in them changes on a timer. | Measured through the `TemplateUpdateStart` profiler events | Fold into plan item C6 (OnPush/zoneless). No separate thread. |
+| Eager components on every tick: [app.component.ts:54](../../apps/web/src/app/app.component.ts), [workspace-shell.component.ts:52](../../libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts), [epg-progress-panel.component.ts:67](../../libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts), [app-update-notification-panel.component.ts:106](../../apps/web/src/app/app-update-notification-panel.component.ts) | `ChangeDetectionStrategy.Eager` roots re-render their templates on every zone tick | Every tick above | Each of the four templates updated 24 times over the 12 ticks: twice per tick, because dev mode adds the `checkNoChanges` pass | **No** for idle. Nothing in them changes on a timer. | Measured through the `TemplateUpdateStart` profiler events | Fold into plan item C6 (OnPush/zoneless). No separate thread. |
 
 ### Checked and not periodic at idle
 
