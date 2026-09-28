@@ -144,7 +144,9 @@ describe('PlayerControlsComponent interactions', () => {
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0.95);
             expect(component.feedback.current()?.label).toBe('95%');
 
-            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: -100 }));
+            component.volumeInteractions.wheel(
+                new WheelEvent('wheel', { deltaY: -100 })
+            );
             expect(fake.commands.setVolume).toHaveBeenLastCalledWith(1);
         });
 
@@ -170,7 +172,9 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('keeps optimistic volume across capability and visibility changes', () => {
-            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: 100 }));
+            component.volumeInteractions.wheel(
+                new WheelEvent('wheel', { deltaY: 100 })
+            );
             expect(component.displayVolume()).toBe(0.95);
 
             setState({ positionSeconds: 15, volume: 1 });
@@ -187,7 +191,9 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('reapplies persisted volume when the capability returns', () => {
-            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: 100 }));
+            component.volumeInteractions.wheel(
+                new WheelEvent('wheel', { deltaY: 100 })
+            );
             fake.commands.setVolume.mockClear();
 
             setCapabilities({ volume: false });
@@ -202,7 +208,9 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('reconciles volume when the controller changes at the same value', () => {
-            component.volumeInteractions.wheel(new WheelEvent('wheel', { deltaY: 100 }));
+            component.volumeInteractions.wheel(
+                new WheelEvent('wheel', { deltaY: 100 })
+            );
             expect(component.displayVolume()).toBe(0.95);
             localStorage.removeItem('volume');
 
@@ -218,40 +226,40 @@ describe('PlayerControlsComponent interactions', () => {
         });
     });
 
-    describe('menu selections', () => {
-        it('applies a speed preset and closes the menu', () => {
+    describe('settings panel selections', () => {
+        it('applies a speed preset from the chip-opened panel and keeps it open', () => {
             setCapabilities({ playbackSpeed: true });
             fixture.detectChanges();
 
-            query('[aria-label="EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED"]')?.click();
+            query('[data-test-id="player-controls-speed-chip"]')?.click();
             fixture.detectChanges();
-            expect(component.menus.speedOpen()).toBe(true);
+            expect(component.menus.settingsOpen()).toBe(true);
+            expect(component.menus.settingsFocus()).toBe('speed');
 
-            const preset = queryAll('.player-controls__track').find((item) =>
-                item.textContent?.includes('1.5×')
-            );
+            const preset = queryAll(
+                '[data-test-id="player-settings-speed"] .player-settings__seg-item'
+            ).find((item) => item.textContent?.includes('1.5×'));
             preset?.click();
             fixture.detectChanges();
 
             expect(fake.commands.setPlaybackSpeed).toHaveBeenCalledWith(1.5);
-            expect(component.menus.speedOpen()).toBe(false);
+            expect(component.menus.settingsOpen()).toBe(true);
         });
 
-        it('applies an aspect preset and closes the menu', () => {
+        it('applies an aspect preset from the panel', () => {
             setCapabilities({ aspectRatio: true });
             fixture.detectChanges();
 
-            query('[aria-label="EMBEDDED_MPV.PLAYER.ASPECT_RATIO"]')?.click();
+            component.settings.open('aspect');
             fixture.detectChanges();
 
-            const preset = queryAll('.player-controls__track').find((item) =>
-                item.textContent?.includes('16:9')
-            );
+            const preset = queryAll(
+                '[data-test-id="player-settings-aspect"] .player-settings__seg-item'
+            ).find((item) => item.textContent?.includes('16:9'));
             preset?.click();
             fixture.detectChanges();
 
             expect(fake.commands.setAspectRatio).toHaveBeenCalledWith('16:9');
-            expect(component.menus.aspectOpen()).toBe(false);
         });
 
         it('disables subtitles via the Off entry', () => {
@@ -262,22 +270,24 @@ describe('PlayerControlsComponent interactions', () => {
             });
             fixture.detectChanges();
 
-            query('[aria-label="EMBEDDED_MPV.PLAYER.SUBTITLES"]')?.click();
+            query('[data-test-id="player-controls-subtitle-chip"]')?.click();
             fixture.detectChanges();
+            expect(component.menus.settingsFocus()).toBe('subtitles');
 
-            queryAll('.player-controls__track')[0]?.click();
+            queryAll(
+                '[data-test-id="player-settings-subtitles"] .player-settings__option'
+            )[0]?.click();
             expect(fake.commands.setSubtitleTrack).toHaveBeenCalledWith(-1);
-            expect(component.menus.subtitleOpen()).toBe(false);
         });
 
         it('opening one menu closes the others', () => {
-            setCapabilities({ playbackSpeed: true, aspectRatio: true });
+            setCapabilities({ playbackSpeed: true, volume: true });
             fixture.detectChanges();
 
-            component.toggleMenu('speed');
-            component.toggleMenu('aspect');
-            expect(component.menus.speedOpen()).toBe(false);
-            expect(component.menus.aspectOpen()).toBe(true);
+            component.settings.open('speed');
+            component.toggleMenu('volume');
+            expect(component.menus.settingsOpen()).toBe(false);
+            expect(component.menus.volumeOpen()).toBe(true);
             expect(component.anyMenuOpen()).toBe(true);
         });
     });
@@ -339,14 +349,22 @@ describe('PlayerControlsComponent interactions', () => {
         it('keeps the controls visible while a menu is open, hides after close', () => {
             setCapabilities({ playbackSpeed: true });
             fixture.detectChanges();
-            component.toggleMenu('speed');
+            component.settings.open('speed');
             fixture.detectChanges();
 
             jest.advanceTimersByTime(10000);
             fixture.detectChanges();
             expect(component.controlsAreVisible()).toBe(true);
 
+            // A choice keeps the panel (and the controls) on screen…
             component.menuSelection.speed(1.25);
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(component.controlsAreVisible()).toBe(true);
+
+            // …closing it re-arms the auto-hide.
+            component.settings.close();
             fixture.detectChanges();
             jest.advanceTimersByTime(10000);
             fixture.detectChanges();
@@ -403,21 +421,39 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('opens the popover on the first tap instead of muting', () => {
-            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'touch'));
+            component.volumeInteractions.buttonClick(
+                pointerTypedEvent('click', 'touch')
+            );
 
             expect(component.menus.volumeOpen()).toBe(true);
             expect(fake.commands.setVolume).not.toHaveBeenCalled();
         });
 
         it('toggles mute on a tap while the popover is open', () => {
-            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'touch'));
-            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'touch'));
+            component.volumeInteractions.buttonClick(
+                pointerTypedEvent('click', 'touch')
+            );
+            component.volumeInteractions.buttonClick(
+                pointerTypedEvent('click', 'touch')
+            );
 
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
         });
 
+        it('mutes on a tap when the slider is already inline (wide dock)', () => {
+            component.volumeInteractions.buttonClick(
+                pointerTypedEvent('click', 'touch'),
+                { inlineSlider: true }
+            );
+
+            expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
+            expect(component.menus.volumeOpen()).toBe(false);
+        });
+
         it('mutes directly on a mouse click without opening the popover', () => {
-            component.volumeInteractions.buttonClick(pointerTypedEvent('click', 'mouse'));
+            component.volumeInteractions.buttonClick(
+                pointerTypedEvent('click', 'mouse')
+            );
 
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
             expect(component.menus.volumeOpen()).toBe(false);
@@ -440,7 +476,9 @@ describe('PlayerControlsComponent interactions', () => {
                 component.volumeInteractions.buttonClick(
                     pointerTypedEvent('click', 'touch')
                 );
-                component.volumeInteractions.hoverLeave(new FocusEvent('focusout'));
+                component.volumeInteractions.hoverLeave(
+                    new FocusEvent('focusout')
+                );
                 jest.advanceTimersByTime(1000);
 
                 expect(component.menus.volumeOpen()).toBe(true);

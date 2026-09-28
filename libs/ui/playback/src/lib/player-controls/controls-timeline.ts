@@ -1,5 +1,13 @@
 import { Signal, computed, signal } from '@angular/core';
-import type { PlayerControlsState } from './player-controls.model';
+import {
+    normalizeTimelineSegments,
+    segmentFillPercent,
+    type TimelineSegmentView,
+} from './controls-timeline-segments';
+import type {
+    PlayerControlsState,
+    PlayerTimelineSegment,
+} from './player-controls.model';
 
 /**
  * Owns the scrub state and timeline projections for the controls bar: the
@@ -9,7 +17,12 @@ import type { PlayerControlsState } from './player-controls.model';
 export class ControlsTimeline {
     readonly scrubPosition = signal<number | null>(null);
 
-    constructor(private readonly state: Signal<PlayerControlsState>) {}
+    constructor(
+        private readonly state: Signal<PlayerControlsState>,
+        private readonly hostSegments: Signal<
+            readonly PlayerTimelineSegment[] | null
+        > = signal(null)
+    ) {}
 
     readonly duration = computed(() => {
         const duration = this.state().durationSeconds;
@@ -31,6 +44,19 @@ export class ControlsTimeline {
             ? (this.value() / duration) * 100
             : 0;
     });
+
+    /** The drawn track: host segments over the duration, else one segment. */
+    readonly segments = computed<TimelineSegmentView[]>(() =>
+        normalizeTimelineSegments(this.hostSegments(), this.duration())
+    );
+
+    /** Played share of one segment for the current (scrub or playback) value. */
+    fillPercent(segment: TimelineSegmentView): number {
+        if (!this.state().canSeek) {
+            return 0;
+        }
+        return segmentFillPercent(segment, this.value());
+    }
 
     readEventValue(event: Event): number | null {
         return this.normalize(Number((event.target as HTMLInputElement).value));

@@ -20,6 +20,7 @@ import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
+    PlayerUpNextItem,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -59,6 +60,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 

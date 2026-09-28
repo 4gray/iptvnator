@@ -26,7 +26,10 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
-import type { PlayerMediaTitle } from '../player-controls/player-controls.model';
+import type {
+    PlayerMediaTitle,
+    PlayerUpNextItem,
+} from '../player-controls/player-controls.model';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
@@ -82,6 +85,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the root. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 

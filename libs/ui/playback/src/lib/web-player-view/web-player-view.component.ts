@@ -38,6 +38,7 @@ import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player
 import { PlaybackDiagnosticPanelComponent } from '../playback-diagnostic-panel/playback-diagnostic-panel.component';
 import {
     type PlayerMediaTitle,
+    PlayerUpNextItem,
     WEB_PLAYER_SHARED_CONTROLS,
 } from '../player-controls';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
@@ -134,6 +135,8 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly playerOverride = input<VideoPlayer | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    /** Next episode for the shared controls' "Up next" card; series hosts only. */
+    readonly upNext = input<PlayerUpNextItem | null>(null);
     readonly alternativeSources = input<VodSourceDescriptor[]>([]);
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
