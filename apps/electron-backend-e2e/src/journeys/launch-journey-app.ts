@@ -33,6 +33,10 @@ import {
     readJourneyMainCounters,
 } from '../performance/journey-main-counters';
 import {
+    journeyLaunchEnvironment,
+    type JourneyLaunchInstrumentation,
+} from '../performance/journey-launch-environment';
+import {
     createLaunchJourneyProbeOptions,
     installJourneyRendererProbe,
     waitForJourneyRendererProbe,
@@ -129,6 +133,7 @@ export async function measureLaunchJourney(
     const { launch } = await runLaunchJourney(
         templateDirectory,
         timeoutMs,
+        { mainCounters: true },
         async () => undefined
     );
     return launch;
@@ -142,10 +147,13 @@ export async function measureLaunchJourney(
  * therefore in place before the renderer runs any script, and the probe,
  * capture and gate records still prove it. `continueJourney` runs in the
  * same process after J1's counters are final, before the app is closed.
+ * Without `instrumentation.mainCounters` the main-process counters and SQL
+ * counting stay off and `launch.mainCounters` is null.
  */
 export async function runLaunchJourney<T>(
     templateDirectory: string,
     timeoutMs: number,
+    instrumentation: JourneyLaunchInstrumentation,
     continueJourney: (session: LaunchJourneySession) => Promise<T>
 ): Promise<{
     readonly continuation: T;
@@ -156,17 +164,9 @@ export async function runLaunchJourney<T>(
     );
     try {
         await cp(templateDirectory, dataDirectory, { recursive: true });
-        // IPTVNATOR_PERF_CAPTURE turns on the main-process counters and
-        // their read handler, IPTVNATOR_PERF_COUNT_SQL the SQL statement
-        // count behind main.sqlStatementsBeforeReadyToShow; only this journey
-        // sets it. See journey-main-counters.ts.
         const env = buildElectronLaunchEnvironment(
             dataDirectory,
-            launchOptions({
-                IPTVNATOR_PERF_CAPTURE: '1',
-                IPTVNATOR_PERF_COUNT_SQL: '1',
-                IPTVNATOR_TRACE_IPC: '1',
-            })
+            launchOptions(journeyLaunchEnvironment(instrumentation))
         );
         const args = buildElectronLaunchArgs([
             '-r',
@@ -229,13 +229,15 @@ export async function runLaunchJourney<T>(
                 10_000
             );
             // Read after the probe finished, so both frozen counters exist.
-            const mainCounters = assertJourneyMainCounters(
-                await readJourneyMainCounters(
-                    electronApp,
-                    JOURNEY_RENDERER_GATE_KEY
-                ),
-                gate
-            );
+            const mainCounters = instrumentation.mainCounters
+                ? assertJourneyMainCounters(
+                      await readJourneyMainCounters(
+                          electronApp,
+                          JOURNEY_RENDERER_GATE_KEY
+                      ),
+                      gate
+                  )
+                : null;
             if (ipc.installedEpochMs > renderer.installed.epochMs) {
                 throw new Error('journey-main-ipc-capture-installed-late');
             }

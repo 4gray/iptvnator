@@ -143,5 +143,10 @@ test('only the launch journey opts into SQL statement counting', () => {
             )
         )
         .map((file) => relative(sourceRoot, join(sourceRoot, file)));
-    assert.deepEqual(optedIn, [join('journeys', 'launch-journey-app.ts')]);
+    // The journey launch builds its flags in one place, and only the
+    // launch journey asks for the main counters there (J2 launches with
+    // `mainCounters: false`; see journey-launch-environment.spec.ts).
+    assert.deepEqual(optedIn, [
+        join('performance', 'journey-launch-environment.ts'),
+    ]);
 });

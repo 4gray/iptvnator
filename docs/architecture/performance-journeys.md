@@ -120,8 +120,9 @@ registers the `performance:read-counters` IPC handler. Without the flag
 nothing is counted, no listener is attached and the handler does not exist;
 the preload never exposes the channel. SQL statements are counted only with
 `IPTVNATOR_PERF_COUNT_SQL=1` as well, because the hook wraps every statement
-execution: the journey sets both, while the M3U, refresh and Xtream
-benchmarks run with the capture flag alone and keep measuring unwrapped
+execution: the launch journey sets both (the flags are built in
+`journey-launch-environment.ts`), while J2's launches and the M3U, refresh
+and Xtream benchmarks do not set the SQL flag and keep measuring unwrapped
 statements. A harness test fails if any other source sets the SQL flag. After the renderer probe completes,
 `journey-main-counters.ts` calls the handler through `electronApp.evaluate`
 and the gate's tap.
@@ -247,7 +248,11 @@ running app to `measureOpenSourceJourney` in
 `src/journeys/open-source-journey-app.ts`. The click therefore happens after
 J1's terminal condition and its counters are final, and the two journeys never
 overlap. One warm-up and five measured iterations, as for J1; the J1 numbers
-of these launches are not reported again.
+of these launches are not reported again. J2 does not read J1's
+main-process counters, so its launches run without `IPTVNATOR_PERF_CAPTURE`
+and `IPTVNATOR_PERF_COUNT_SQL` (`runLaunchJourney` with
+`mainCounters: false`). The click is not measured under the SQL hook that
+wraps every statement.
 
 **Start.** The click on the dashboard card of the Xtream portal
 (`dashboard-recent-sources-rail-card` with the portal's name; the probe also

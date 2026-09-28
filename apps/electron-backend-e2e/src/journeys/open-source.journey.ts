@@ -50,6 +50,9 @@ test('J2 open a source', async () => {
                 const { continuation, launch } = await runLaunchJourney(
                     templateDirectory,
                     JOURNEY_ITERATION_TIMEOUT_MS,
+                    // J2 does not read J1's main-process counters, so their
+                    // SQL instrumentation stays off during the click.
+                    { mainCounters: false },
                     (session) =>
                         measureOpenSourceJourney(
                             session,

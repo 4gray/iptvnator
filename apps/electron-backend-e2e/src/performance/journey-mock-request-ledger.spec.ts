@@ -87,6 +87,7 @@ test('forwards every request to the mock and records it from a mark', async () =
         ]);
         const mark = ledger.mark();
         assert.equal(mark, 1);
+        const beforeSecond = performance.timeOrigin + performance.now();
         const second = await fetch(
             `${ledger.origin}/player_api.php?username=u&password=p&action=get_account_info`
         );
@@ -103,6 +104,10 @@ test('forwards every request to the mock and records it from a mark', async () =
         );
         assert.equal(since[0]?.method, 'GET');
         assert.equal(since[0]?.sequence, 1);
+        // Stamped on the same high-resolution epoch as the renderer's click.
+        const stamped = since[0]?.epochMs ?? 0;
+        assert.ok(stamped >= beforeSecond);
+        assert.ok(stamped <= performance.timeOrigin + performance.now());
         assert.ok(!JSON.stringify(ledger.since(0)).includes('password'));
     } finally {
         await ledger.close();

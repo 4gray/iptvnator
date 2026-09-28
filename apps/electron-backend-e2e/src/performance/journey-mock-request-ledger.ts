@@ -23,6 +23,12 @@ import type { AddressInfo } from 'node:net';
  * never stored.
  */
 export interface JourneyMockRequest {
+    /**
+     * Arrival as a sub-millisecond epoch (`performance.timeOrigin +
+     * performance.now()`), the same form as the renderer's click stamp. With
+     * `Date.now()` a request later in the click's millisecond would compare
+     * as earlier than the fractional click and be counted before it.
+     */
     readonly epochMs: number;
     readonly method: string;
     readonly route: string;
@@ -94,7 +100,7 @@ export async function startJourneyMockRequestLedger(
             active -= 1;
         });
         requests.push({
-            epochMs: Date.now(),
+            epochMs: performance.timeOrigin + performance.now(),
             method: incoming.method ?? 'GET',
             route: describeJourneyMockRoute(incoming.url),
             sequence: requests.length,

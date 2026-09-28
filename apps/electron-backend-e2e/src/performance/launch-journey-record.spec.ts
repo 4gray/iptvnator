@@ -155,6 +155,13 @@ test('rejects measurements whose clocks or probes are inconsistent', () => {
             }),
         /incomplete-probe/
     );
+    // A launch that ran without the main-process counters (as J2's do) is
+    // not a J1 measurement.
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(0, false, { ...base, mainCounters: null }),
+        /main-counters-missing/
+    );
     assert.throws(
         () =>
             toLaunchIterationRecord(0, false, { ...base, spawnEpochMs: 2_700 }),
