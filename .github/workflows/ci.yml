@@ -196,12 +196,12 @@ jobs:
                       rm -f /tmp/base-journey-baselines.json
                   case "$EVENT_NAME" in
                       pull_request)
-                          labels="$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')"
+                          labels="$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/labels?per_page=100" --paginate --jq '.[].name')"
                           ;;
                       push)
                           parent="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA" --jq '.parents[0].sha')"
                           if [ "$parent" = "$BEFORE_SHA" ]; then
-                              labels="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[].labels[].name')"
+                              labels="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls?per_page=100" --paginate --jq '.[].labels[].name')"
                           else
                               echo "This push added more than one commit; the $INCREASE_LABEL label is not consulted."
                               labels=""
