@@ -407,16 +407,6 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
-            # pnpm only runs build scripts for allow-listed packages
-            # (pnpm-workspace.yaml), so electron's postinstall never fetches
-            # its binary. `require('electron')` then downloads it lazily, and
-            # parallel Jest workers that spawn Electron race on the same
-            # download: one executes the half-written binary (ETXTBSY).
-            # Fetch it once before any test runs; install.js skips an
-            # existing binary.
-            - name: Install the Electron binary
-              run: node node_modules/electron/install.js
-
             - name: Validate agent guidance
               run: pnpm run agents:validate
 
@@ -472,6 +462,17 @@ jobs:
                   gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
                       --paginate --jq '.[] | .filename, (.previous_filename // empty)' |
                       node tools/coverage/unit-coverage-scope.mjs --base FETCH_HEAD --github-output
+
+            # pnpm only runs build scripts for allow-listed packages
+            # (pnpm-workspace.yaml), so electron's postinstall never fetches
+            # its binary. `require('electron')` then downloads it lazily, and
+            # parallel Jest workers that spawn Electron race on the same
+            # download: one executes the half-written binary (ETXTBSY).
+            # Fetch it once before the Tier A suite, the only step here whose
+            # specs spawn Electron; install.js skips an existing binary.
+            - name: Install the Electron binary
+              if: steps.scope.outputs.run == 'true'
+              run: node node_modules/electron/install.js
 
             # Jest's transform cache (TypeScript/Angular transpilation plus
             # coverage instrumentation, keyed by file content) is persisted
