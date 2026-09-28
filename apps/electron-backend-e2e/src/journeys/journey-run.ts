@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { relative } from 'node:path';
 
 import { test } from '@playwright/test';
@@ -8,6 +9,7 @@ import {
     workspaceRoot,
 } from '../electron-test-fixtures';
 import {
+    JOURNEY_RUN_ID_ENV,
     recordJourneySummaryEntry,
     resolveJourneyRunSummaryPath,
     summarizeJourneyIterations,
@@ -25,6 +27,8 @@ export const JOURNEY_MEASURED_ITERATIONS = readPositiveInteger(
     5
 );
 export const JOURNEY_ITERATION_TIMEOUT_MS = 120_000;
+/** Outside `playwright.journeys.config.ts` every worker is its own run. */
+const JOURNEY_RUN_ID = process.env[JOURNEY_RUN_ID_ENV] || randomUUID();
 
 function readPositiveInteger(name: string, fallback: number): number {
     const raw = process.env[name];
@@ -66,12 +70,20 @@ export async function writeJourneyRunEntry(
         node: process.version,
         platform: process.platform,
         rendererIndex: relative(workspaceRoot, packagedRendererIndexPath),
+        runId: JOURNEY_RUN_ID,
         warmupIterations: JOURNEY_WARMUP_ITERATIONS,
     };
     const summaryPath = resolveJourneyRunSummaryPath(workspaceRoot);
-    await recordJourneySummaryEntry(summaryPath, harness, journeyId, entry);
+    const summary = await recordJourneySummaryEntry(
+        summaryPath,
+        harness,
+        journeyId,
+        entry
+    );
+    // The whole summary as written so far, so the attachment is a valid
+    // journey summary on its own.
     await test.info().attach(`journey-summary-${journeyId}`, {
-        body: JSON.stringify(entry, null, 2),
+        body: JSON.stringify(summary, null, 2),
         contentType: 'application/json',
     });
     console.log(

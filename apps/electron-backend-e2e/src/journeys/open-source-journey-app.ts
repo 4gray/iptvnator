@@ -37,6 +37,7 @@ const SETTLE_TIMEOUT_MS = 30_000;
 
 interface ActivitySample {
     readonly domMutations: number;
+    readonly httpInFlight: number;
     readonly httpRequests: number;
     readonly ipcCalls: number;
 }
@@ -59,8 +60,9 @@ async function readPreStartMutations(
 
 /**
  * Waits until DOM, bridge and mock traffic have all been unchanged for
- * `QUIET_MS`. An app that never settles fails the iteration instead of
- * producing a count that includes its background work.
+ * `QUIET_MS` with no mock request in flight (a slow response can still
+ * trigger follow-up work). An app that never settles fails the iteration
+ * instead of producing a count that includes its background work.
  */
 async function waitForQuiet(
     electronApp: ElectronApplication,
@@ -72,6 +74,7 @@ async function waitForQuiet(
     const armMark = ledger.mark();
     const sample = async (): Promise<ActivitySample> => ({
         domMutations: await readPreStartMutations(page, probeStateKey),
+        httpInFlight: ledger.inFlight(),
         httpRequests: ledger.mark(),
         ipcCalls: (
             await peekJourneyMainIpcCapture(
@@ -88,6 +91,7 @@ async function waitForQuiet(
         const now = Date.now();
         if (
             next.domMutations !== last.domMutations ||
+            next.httpInFlight > 0 ||
             next.httpRequests !== last.httpRequests ||
             next.ipcCalls !== last.ipcCalls
         ) {
@@ -110,7 +114,11 @@ async function waitForQuiet(
     }
 }
 
-/** Waits until the mock has seen no request for `QUIET_MS`. */
+/**
+ * Waits until the mock has seen no new request for `QUIET_MS` and none is
+ * in flight, so responses slower than the quiet interval and the requests
+ * they trigger stay inside the measured window.
+ */
 async function waitForMockQuiet(
     ledger: JourneyMockRequestLedger
 ): Promise<void> {
@@ -120,7 +128,7 @@ async function waitForMockQuiet(
     for (;;) {
         await new Promise((resolve) => setTimeout(resolve, POLL_MS));
         const now = Date.now();
-        if (ledger.mark() !== count) {
+        if (ledger.mark() !== count || ledger.inFlight() > 0) {
             count = ledger.mark();
             quietSinceMs = now;
         } else if (now - quietSinceMs >= QUIET_MS) {

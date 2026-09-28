@@ -22,7 +22,10 @@ export const OPEN_SOURCE_JOURNEY_COUNTER = {
 } as const;
 
 export const OPEN_SOURCE_JOURNEY_WALL_CLOCK = {
+    /** Click until the batch that made the first page visible. */
     CLICK_TO_FIRST_PAGE: 'clickToFirstPageMs',
+    /** Click until the frame that paints it has been committed. */
+    CLICK_TO_FIRST_PAGE_PAINT: 'clickToFirstPagePaintMs',
 } as const;
 
 export const OPEN_SOURCE_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
@@ -86,7 +89,12 @@ export function toOpenSourceIterationRecord(
         throw new Error('open-source-journey-record-started-inside-source');
     }
     const clickToFirstPageMs = terminal.epochMs - start.epochMs;
-    if (clickToFirstPageMs <= 0) {
+    const paintEpochMs = renderer.firstCardPaintEpochMs;
+    if (
+        clickToFirstPageMs <= 0 ||
+        paintEpochMs === null ||
+        paintEpochMs < terminal.epochMs
+    ) {
         throw new Error('open-source-journey-record-clock-order');
     }
     if (
@@ -169,6 +177,8 @@ export function toOpenSourceIterationRecord(
         wallClock: Object.freeze({
             [OPEN_SOURCE_JOURNEY_WALL_CLOCK.CLICK_TO_FIRST_PAGE]:
                 roundTenth(clickToFirstPageMs),
+            [OPEN_SOURCE_JOURNEY_WALL_CLOCK.CLICK_TO_FIRST_PAGE_PAINT]:
+                roundTenth(paintEpochMs - start.epochMs),
         }),
         warmup,
     });

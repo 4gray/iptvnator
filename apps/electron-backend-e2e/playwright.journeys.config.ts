@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { workspaceRoot } from '@nx/devkit';
 import { defineConfig } from '@playwright/test';
 
@@ -15,9 +17,15 @@ import { defineConfig } from '@playwright/test';
 const xtreamMockPort =
     process.env['IPTVNATOR_JOURNEY_XTREAM_MOCK_PORT'] ?? '3231';
 
-// One summary file per invocation: the runner loads this config before it
-// forks the worker, so every journey spec sees the same start time.
-process.env['IPTVNATOR_JOURNEY_RUN_STARTED_AT'] ??= new Date().toISOString();
+// One summary file per invocation. The runner loads this config before it
+// forks the worker, and the worker (which has TEST_WORKER_INDEX) loads it
+// again: only the runner starts a run, so every journey spec of one
+// invocation shares its start time and id, a restarted worker keeps them,
+// and values left in the environment by an earlier invocation are replaced.
+if (process.env['TEST_WORKER_INDEX'] === undefined) {
+    process.env['IPTVNATOR_JOURNEY_RUN_STARTED_AT'] = new Date().toISOString();
+    process.env['IPTVNATOR_JOURNEY_RUN_ID'] = randomUUID();
+}
 
 export default defineConfig({
     fullyParallel: false,

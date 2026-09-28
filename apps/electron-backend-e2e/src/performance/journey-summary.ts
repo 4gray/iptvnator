@@ -44,6 +44,8 @@ export interface JourneySummaryHarness {
     readonly node: string;
     readonly platform: string;
     readonly rendererIndex: string;
+    /** Unique per `perf:journeys` invocation; see `JOURNEY_RUN_ID_ENV`. */
+    readonly runId: string;
     readonly warmupIterations: number;
 }
 
@@ -199,6 +201,12 @@ export function resolveJourneySummaryPath(
  * same file.
  */
 export const JOURNEY_RUN_STARTED_AT_ENV = 'IPTVNATOR_JOURNEY_RUN_STARTED_AT';
+/**
+ * Unique id of the invocation, set next to the start time. Two invocations
+ * that start in the same second resolve to the same directory; the id keeps
+ * one from merging into the other's summary.
+ */
+export const JOURNEY_RUN_ID_ENV = 'IPTVNATOR_JOURNEY_RUN_ID';
 
 export function resolveJourneyRunSummaryPath(
     repositoryRoot: string,
@@ -219,9 +227,9 @@ function isFileExistsError(error: unknown): boolean {
 
 /**
  * Adds one journey to the run's summary. The first journey creates the
- * file; later journeys of the same run merge into it when the harness is
- * identical. A journey that is already present fails, so a second run in
- * the same second can never overwrite a measurement.
+ * file; later journeys merge into it only when they belong to the same run
+ * (`harness.runId`) and the rest of the harness is identical. A journey that
+ * is already present fails, so no measurement is ever overwritten.
  */
 export async function recordJourneySummaryEntry(
     summaryPath: string,
@@ -246,6 +254,9 @@ export async function recordJourneySummaryEntry(
     ) as JourneySummary;
     if (existing.schemaVersion !== JOURNEY_SUMMARY_SCHEMA_VERSION) {
         throw new Error('journey-summary-merge-schema-mismatch');
+    }
+    if (existing.harness?.runId !== harness.runId) {
+        throw new Error('journey-summary-merge-other-run');
     }
     if (JSON.stringify(existing.harness) !== JSON.stringify(harness)) {
         throw new Error('journey-summary-merge-harness-mismatch');

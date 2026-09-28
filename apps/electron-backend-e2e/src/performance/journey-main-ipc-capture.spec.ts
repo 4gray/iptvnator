@@ -69,13 +69,28 @@ test('the preload traces every bridge invocation on that channel when IPC tracin
     assert.match(preload, /name\.startsWith\('remove'\)/);
     assert.match(
         preload,
-        new RegExp(`${JOURNEY_IPC_SENTINEL_METHOD}: \\(playlistId: string`)
+        new RegExp(
+            `${JOURNEY_IPC_SENTINEL_METHOD}: \\(id: string\\) =>\\s+ipcRenderer\\.invoke\\('SOURCE_HEALTH_CANCEL', id\\)`
+        )
     );
     const debugTrace = readFileSync(
         resolve(electronBackendSource, 'services/debug-trace.ts'),
         'utf8'
     );
     assert.match(debugTrace, /readFlag\('IPTVNATOR_TRACE_IPC'\)/);
+});
+
+test('the sentinel method is a no-op for an unknown id in the main process', () => {
+    // The markers must not queue work ahead of the measured journey: the
+    // handler only aborts a probe registered under that id, if any.
+    const control = readFileSync(
+        resolve(electronBackendSource, 'events/source-probe-control.ts'),
+        'utf8'
+    );
+    assert.match(
+        control,
+        /ipcMain\.handle\(SOURCE_HEALTH_CANCEL, \(event, requestId: string\) => \{\s+requests\.get\(`\$\{event\.sender\.id\}:\$\{requestId\}`\)\?\.abort\(\);\s+\}\);/
+    );
 });
 
 test('accepts a capture with exactly one sentinel from one renderer', () => {

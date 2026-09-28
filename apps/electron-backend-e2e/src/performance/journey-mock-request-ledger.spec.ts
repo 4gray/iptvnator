@@ -7,6 +7,7 @@ import {
     countJourneyMockRoutes,
     describeJourneyMockRoute,
     startJourneyMockRequestLedger,
+    type JourneyMockRequestLedger,
 } from './journey-mock-request-ledger';
 
 test('routes keep the Xtream action but never the credentials', () => {
@@ -109,6 +110,43 @@ test('forwards every request to the mock and records it from a mark', async () =
     }
 });
 
+/** `close` on the proxied response can fire just after the client has read it. */
+async function waitForIdle(ledger: JourneyMockRequestLedger): Promise<void> {
+    for (let attempt = 0; attempt < 50 && ledger.inFlight() > 0; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+}
+
+test('reports a request as in flight until its response has finished', async () => {
+    let release: () => void = () => undefined;
+    const server = createServer((_request, response) => {
+        response.setHeader('content-type', 'text/plain');
+        response.write('partial');
+        release = () => response.end('done');
+    });
+    await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', () => resolve())
+    );
+    const { port } = server.address() as AddressInfo;
+    const ledger = await startJourneyMockRequestLedger(
+        `http://127.0.0.1:${port}`
+    );
+    try {
+        assert.equal(ledger.inFlight(), 0);
+        const response = await fetch(`${ledger.origin}/player_api.php`);
+        // Headers arrived; the body is still open upstream.
+        assert.equal(ledger.mark(), 1);
+        assert.equal(ledger.inFlight(), 1);
+        release();
+        assert.equal(await response.text(), 'partialdone');
+        await waitForIdle(ledger);
+        assert.equal(ledger.inFlight(), 0);
+    } finally {
+        await ledger.close();
+        await new Promise((resolve) => server.close(resolve));
+    }
+});
+
 test('answers 502 when the mock is gone and refuses non-HTTP targets', async () => {
     const upstream = await startUpstream();
     await new Promise((resolve) => upstream.server.close(resolve));
@@ -117,6 +155,8 @@ test('answers 502 when the mock is gone and refuses non-HTTP targets', async () 
         const response = await fetch(`${ledger.origin}/health`);
         assert.equal(response.status, 502);
         assert.equal(ledger.mark(), 1);
+        await waitForIdle(ledger);
+        assert.equal(ledger.inFlight(), 0);
     } finally {
         await ledger.close();
     }

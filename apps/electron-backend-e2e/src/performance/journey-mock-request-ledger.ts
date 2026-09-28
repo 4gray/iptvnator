@@ -31,6 +31,8 @@ export interface JourneyMockRequest {
 
 export interface JourneyMockRequestLedger {
     close(): Promise<void>;
+    /** Requests whose response has not finished yet. */
+    inFlight(): number;
     /** Sequence number of the next request; pass it to `since`. */
     mark(): number;
     readonly origin: string;
@@ -81,10 +83,16 @@ export async function startJourneyMockRequestLedger(
         throw new Error('journey-mock-ledger-http-only');
     }
     const requests: JourneyMockRequest[] = [];
+    let active = 0;
     const forward = (
         incoming: IncomingMessage,
         outgoing: ServerResponse
     ): void => {
+        active += 1;
+        // `close` fires once per response, finished or aborted.
+        outgoing.once('close', () => {
+            active -= 1;
+        });
         requests.push({
             epochMs: Date.now(),
             method: incoming.method ?? 'GET',
@@ -127,6 +135,7 @@ export async function startJourneyMockRequestLedger(
                 server.closeAllConnections();
                 server.close(() => resolve());
             }),
+        inFlight: () => active,
         mark: () => requests.length,
         origin: `http://127.0.0.1:${port}`,
         since: (mark) => requests.slice(mark),

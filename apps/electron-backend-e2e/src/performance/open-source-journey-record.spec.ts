@@ -114,7 +114,10 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
         'renderer.layoutShiftScore': 0.221,
         'renderer.longTasks': 1,
     });
-    assert.deepEqual(record.wallClock, { clickToFirstPageMs: 78.3 });
+    assert.deepEqual(record.wallClock, {
+        clickToFirstPageMs: 78.3,
+        clickToFirstPagePaintMs: 89.8,
+    });
     assert.deepEqual(record.evidence['layoutShift'], {
         recentInput: 0.221,
         withoutRecentInput: 0,
@@ -218,6 +221,16 @@ test('rejects measurements that did not start at the click or did not open the s
             }),
         /clock-order/
     );
+    for (const firstCardPaintEpochMs of [null, terminal.epochMs - 1]) {
+        assert.throws(
+            () =>
+                toOpenSourceIterationRecord(0, false, {
+                    ...base,
+                    renderer: { ...renderer, firstCardPaintEpochMs },
+                }),
+            /clock-order/
+        );
+    }
     assert.throws(
         () =>
             toOpenSourceIterationRecord(0, false, {
@@ -251,6 +264,7 @@ test('summarizes under the J2 counters with the unmeasurable ones listed', () =>
         true
     );
     assert.equal(entry.wallClock['clickToFirstPageMs.p50'], 78.3);
+    assert.equal(entry.wallClock['clickToFirstPagePaintMs.p90'], 89.8);
     assert.deepEqual(Object.keys(entry.unavailable).sort(), [
         'main.sqlStatementsToFirstPage',
         'renderer.cdTicksToFirstPage',

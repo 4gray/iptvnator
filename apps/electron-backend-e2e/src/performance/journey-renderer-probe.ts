@@ -34,8 +34,14 @@ export const JOURNEY_OPEN_SOURCE_END_SENTINEL_ID =
 /** The Xtream portal card on the dashboard or its row on /workspace/sources. */
 export const JOURNEY_OPEN_SOURCE_START_SELECTOR =
     '[data-test-id="dashboard-recent-sources-rail-card"], app-playlist-item';
-/** Bridge method used for the sentinel: a read-only lookup by id. */
-export const JOURNEY_IPC_SENTINEL_METHOD = 'dbGetAppPlaylist';
+/**
+ * Bridge method used for the sentinels. The preload emits the trace event
+ * before it forwards the call, and `SOURCE_HEALTH_CANCEL` only looks the id
+ * up in an in-memory map in the main process, so a marker call never
+ * reaches the database worker, the disk or the network and cannot queue
+ * ahead of the work being measured.
+ */
+export const JOURNEY_IPC_SENTINEL_METHOD = 'cancelSourceProbe';
 
 export interface JourneyRendererProbeStartClick {
     /** The journey starts at the first click inside this selector. */

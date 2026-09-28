@@ -176,6 +176,7 @@ test('writes the summary below dist/performance/journeys/<timestamp> and never o
                 node: 'v22',
                 platform: 'darwin',
                 rendererIndex: 'dist/apps/web/index.html',
+                runId: 'run-a',
                 warmupIterations: 0,
             },
             journeys: {
@@ -210,6 +211,7 @@ const HARNESS: JourneySummaryHarness = {
     node: 'v22',
     platform: 'darwin',
     rendererIndex: 'dist/apps/web/index.html',
+    runId: 'run-a',
     warmupIterations: 0,
 };
 
@@ -287,6 +289,17 @@ test('journeys of one run are merged into one summary and never replaced', async
                 launch
             ),
             /merge-harness-mismatch/
+        );
+        // Another invocation in the same second, with journeys this file
+        // does not have yet, must not merge into this run.
+        await assert.rejects(
+            recordJourneySummaryEntry(
+                summaryPath,
+                { ...HARNESS, runId: 'run-b' },
+                'playback',
+                launch
+            ),
+            /merge-other-run/
         );
         const unchanged = JSON.parse(
             await readFile(summaryPath, 'utf8')

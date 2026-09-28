@@ -40,13 +40,16 @@ dist/performance/journeys/<YYYYMMDDTHHMMSSZ>/summary.json
 ```
 
 Every journey spec (`src/journeys/*.journey.ts`) adds its own
-`journeys.<id>` entry to that file. The config pins the timestamp to the start
-of the invocation (`IPTVNATOR_JOURNEY_RUN_STARTED_AT`, set in the runner before
-the worker forks), so all specs of one run share the directory. The first spec
-creates the file; a later one merges into it only when the `harness` block is
-identical, through a temporary file and a rename. A journey that is already
-present fails, so no measurement is ever overwritten and a second run in the
-same second fails instead.
+`journeys.<id>` entry to that file. The config starts a run only in the
+Playwright runner (not in a worker, which has `TEST_WORKER_INDEX`): it sets
+`IPTVNATOR_JOURNEY_RUN_STARTED_AT` and a random `IPTVNATOR_JOURNEY_RUN_ID`
+before the worker forks, replacing any value left in the environment. All
+specs of one invocation, including a restarted worker, therefore share the
+directory and `harness.runId`. The first spec creates the file; a later one
+merges into it only when `harness.runId` matches and the rest of the harness
+is identical, through a temporary file and a rename. A journey that is
+already present fails, so no measurement is ever overwritten; a second
+invocation in the same second fails instead of merging into the first.
 `IPTVNATOR_JOURNEY_MEASURED_ITERATIONS` lowers the five measured iterations
 for a quick local check; the warm-up iteration always runs. Numbers from a
 laptop are previews: the Linux CI runner is the canonical measurer for
@@ -103,7 +106,7 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
 
 | Counter                            | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `renderer.ipcCallsToFirstCard`     | `start` trace events the preload emits for every bridge invocation (listener registrations `on*`/`remove*` excluded, as in `wrapElectronApi`). The renderer probe fires one sentinel `dbGetAppPlaylist('__iptvnator-journey-sentinel__')` at the terminal moment; renderer-to-main IPC is ordered, so events before the sentinel are the exact count.                                                                                                                                                                                                 |
+| `renderer.ipcCallsToFirstCard`     | `start` trace events the preload emits for every bridge invocation (listener registrations `on*`/`remove*` excluded, as in `wrapElectronApi`). The renderer probe fires one sentinel `cancelSourceProbe('__iptvnator-journey-sentinel__')` at the terminal moment; renderer-to-main IPC is ordered, so events before the sentinel are the exact count. The preload traces the call before forwarding it, and `SOURCE_HEALTH_CANCEL` only looks the id up in an in-memory map, so the sentinel never reaches the database worker.                      |
 | `renderer.domMutationsToFirstCard` | `MutationRecord`s (not callback batches) from a `MutationObserver` on the document element with `childList`, `attributes`, `characterData` and `subtree`. When the init script runs before `<html>` exists the observer watches `document`, which the blob reports in `capabilities.observedTarget`.                                                                                                                                                                                                                                                  |
 | `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to three decimals (a shift of 0.0001 flips in and out of the cutoff between runs; the CLS "good" threshold is 0.1, so three decimals keep the counter exact without hiding anything a user could see). The cutoff is sampled in a timer queued from the first `requestAnimationFrame` after the terminal batch, that is after the frame that paints the card has been committed; entries delivered live after the terminal batch are buffered and filtered by the same cutoff. |
 | `renderer.longTasks`               | `longtask` entries over 50 ms up to that same cutoff, which includes the task that rendered the card. The count depends on machine speed, so it is evidence until a run shows it is stable on the CI runner.                                                                                                                                                                                                                                                                                                                                          |
@@ -196,6 +199,7 @@ harness, which is what the ratchet needs. The main process start
     "platform": "darwin",
     "electron": "43.3.0",
     "measuredIterations": 5,
+    "runId": "0b6f7f1e-…",
     "warmupIterations": 1
   },
   "journeys": {
@@ -249,7 +253,8 @@ of these launches are not reported again.
 (`dashboard-recent-sources-rail-card` with the portal's name; the probe also
 accepts an `app-playlist-item` row on `/workspace/sources`). Before the
 click the test hovers the card and waits until the app has been quiet for
-1 s: no DOM mutation, no bridge call and no request to the mock (30 s
+1 s: no DOM mutation, no bridge call, no new request to the mock and none
+in flight (30 s
 timeout, which fails the iteration). The settle wait and what happened during
 it are kept under `evidence.settle`. The renderer probe is armed in the
 loaded document with `page.evaluate` (the same self-contained script as J1,
@@ -257,7 +262,8 @@ with `startClick` set). It registers a capture-phase `click` listener on
 `window`, which runs before every listener of the app. On the first click
 inside the start selector it stamps the start at the event's timestamp (or
 the listener's time if that is earlier) and sends the start sentinel
-`dbGetAppPlaylist('__iptvnator-journey-open-source-start__')`. Only then do
+`cancelSourceProbe('__iptvnator-journey-open-source-start__')`, the same
+no-op marker as J1's. Only then do
 the counters start.
 
 **End.** The first `MutationObserver` batch after the start in which the
@@ -265,7 +271,7 @@ path contains `/workspace/xtreams/`, an item of the first page is visible
 (`app-grid-list mat-card, .content-card, [data-test-id="channel-item"]`;
 skeleton cards do not match) and a category of the context panel is visible
 (`app-workspace-context-panel .category-item`). The probe then sends the end
-sentinel `dbGetAppPlaylist('__iptvnator-journey-open-source-end__')` and closes
+sentinel `cancelSourceProbe('__iptvnator-journey-open-source-end__')` and closes
 the observers at the same post-paint cutoff as J1. A portal card opens the
 source's default section, which is VOD (`getPlaylistLink` links to
 `/workspace/xtreams/<id>/vod`): the category list is the movie category list
@@ -291,22 +297,25 @@ strings and stream paths carry credentials and are never stored.
 
 ### Counters
 
-| Counter                            | Source                                                                                                                                                                                                                                                                                                                                          |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `renderer.ipcCallsToFirstPage`     | Bridge `start` trace events between the start and end sentinels, counted by a second `journey-main-ipc-capture.ts` instance installed with `startSentinelId`. Calls before the start marker are tallied separately (`callsBeforeStart`); a start marker that is missing, repeated or received after the end sentinel fails the iteration.       |
-| `renderer.domMutationsToFirstPage` | `MutationRecord`s from the click until the terminal batch. Records produced before the click (hover, settling) are taken from the observer at the start and counted under `evidence.settle` instead.                                                                                                                                            |
-| `renderer.layoutShiftScore`        | Sum of all `layout-shift` entries from the click until the post-paint cutoff, rounded to three decimals. Unlike J1 it includes entries with `hadRecentInput === true`: the journey is a response to the click and runs inside the 500 ms input window, so the CLS filter would always read 0. The split is under `evidence.layoutShift`.        |
-| `renderer.longTasks`               | `longtask` entries over 50 ms that started at or after the click (buffered entries from J1 are dropped) and before the cutoff. Evidence until it is shown to be stable on the CI runner, as for J1.                                                                                                                                             |
-| `main.mockHttpRequestsToSettled`   | Requests the proxy received from the click until the mock had been quiet for 1 s after the terminal batch. Bounding by the terminal would compare the test process's clock with the renderer's, so the count up to the terminal epoch is evidence only (`evidence.httpRequestsToFirstPage`); `evidence.httpRequestsByRoute` names the requests. |
+| Counter                            | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderer.ipcCallsToFirstPage`     | Bridge `start` trace events between the start and end sentinels, counted by a second `journey-main-ipc-capture.ts` instance installed with `startSentinelId`. Calls before the start marker are tallied separately (`callsBeforeStart`); a start marker that is missing, repeated or received after the end sentinel fails the iteration.                                                                                                                |
+| `renderer.domMutationsToFirstPage` | `MutationRecord`s from the click until the terminal batch. Records produced before the click (hover, settling) are taken from the observer at the start and counted under `evidence.settle` instead.                                                                                                                                                                                                                                                     |
+| `renderer.layoutShiftScore`        | Sum of all `layout-shift` entries from the click until the post-paint cutoff, rounded to three decimals. Unlike J1 it includes entries with `hadRecentInput === true`: the journey is a response to the click and runs inside the 500 ms input window, so the CLS filter would always read 0. The split is under `evidence.layoutShift`.                                                                                                                 |
+| `renderer.longTasks`               | `longtask` entries over 50 ms that started at or after the click (buffered entries from J1 are dropped) and before the cutoff. Evidence until it is shown to be stable on the CI runner, as for J1.                                                                                                                                                                                                                                                      |
+| `main.mockHttpRequestsToSettled`   | Requests the proxy received from the click until, after the terminal batch, no new request had arrived for 1 s and none was in flight (a response slower than that, and what it triggers, stays inside the window). Bounding by the terminal would compare the test process's clock with the renderer's, so the count up to the terminal epoch is evidence only (`evidence.httpRequestsToFirstPage`); `evidence.httpRequestsByRoute` names the requests. |
 
 `renderer.cdTicksToFirstPage` and `main.sqlStatementsToFirstPage` are listed
 under `unavailable` for the same reasons as their J1 counterparts.
 
 ### Wall-clock
 
-| Entry                         | Derivation                                                                                                                                          |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `clickToFirstPageMs.p50/.p90` | Terminal epoch minus start epoch, both taken in the renderer, so there is no cross-process clock. The post-paint cutoff is under `evidence.epochs`. |
+| Entry                              | Derivation                                                                                                                                                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `clickToFirstPageMs.p50/.p90`      | Terminal epoch minus start epoch: the click until the batch that made the category list and first page visible, the same boundary J1's `spawnToFirstCardMs` uses.                                                              |
+| `clickToFirstPagePaintMs.p50/.p90` | Post-paint cutoff minus start epoch: the click until the frame that paints the first page has been committed (the timer queued from the next `requestAnimationFrame`). This is the "painted" figure of the journey definition. |
+
+All epochs are taken in the renderer, so neither entry crosses a process clock.
 
 ## `renderer.initialBytes`
 

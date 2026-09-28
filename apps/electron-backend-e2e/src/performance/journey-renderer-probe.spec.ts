@@ -155,6 +155,7 @@ function createFixtureFromDom(
         (window as unknown as Record<string, JourneyRendererProbeState>)[
             options.stateKey
         ] as JourneyRendererProbeState;
+    liveStates.push(rawState);
     return {
         bridgeCalls,
         observers,
@@ -165,8 +166,26 @@ function createFixtureFromDom(
     };
 }
 
-function settle(ms = 40): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+/** Probes created by this file, so `settle` can wait for their cutoff. */
+const liveStates: (() => JourneyRendererProbeState)[] = [];
+
+/**
+ * Waits `ms`, then until every probe that reached its terminal batch has also
+ * passed the post-paint cutoff (a rAF plus a timer). A fixed delay alone
+ * flakes when the harness runs all spec files in parallel.
+ */
+async function settle(ms = 40): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+    const deadline = Date.now() + 2_000;
+    while (
+        liveStates.some((read) => {
+            const state = read();
+            return state.terminal !== null && !state.final;
+        }) &&
+        Date.now() < deadline
+    ) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+    }
 }
 
 function renderFirstCard(fixture: Fixture): void {
@@ -413,7 +432,7 @@ test('rejects a probe whose performance observers were unavailable instead of re
 test('launch options target the workspace source cards and the shared sentinel', () => {
     const options = createLaunchJourneyProbeOptions();
     assert.equal(options.stateKey, JOURNEY_PROBE_STATE_KEY);
-    assert.equal(options.sentinelMethod, 'dbGetAppPlaylist');
+    assert.equal(options.sentinelMethod, 'cancelSourceProbe');
     assert.equal(options.splashId, 'initial-splash');
     assert.equal(options.routeFragment, '/workspace');
     assert.match(options.cardSelector, /dashboard-recent-sources-rail-card/);
