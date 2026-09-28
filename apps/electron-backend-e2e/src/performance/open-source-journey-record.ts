@@ -32,7 +32,7 @@ export const OPEN_SOURCE_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
     Record<string, string>
 > = Object.freeze({
     'main.sqlStatementsToFirstPage':
-        'SQL statements are only visible as worker stdout trace lines, which are forwarded asynchronously; plan item A2 adds a countable channel.',
+        'The main.sqlStatements running total is read from the test process through the journey gate, so it cannot be sampled at the click or at the first-page batch, and the worker count is ordered against worker responses rather than the renderer. A click-to-settled count is a follow-up.',
     'renderer.cdTicksToFirstPage':
         'The electron-performance build optimizes scripts (ngDevMode=false), so Angular does not publish window.ng and ɵsetProfiler is unavailable.',
 });

@@ -309,8 +309,15 @@ strings and stream paths carry credentials and are never stored.
 | `renderer.longTasks`               | `longtask` entries over 50 ms that started at or after the click (buffered entries from J1 are dropped) and before the cutoff. Evidence until it is shown to be stable on the CI runner, as for J1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `main.mockHttpRequestsToSettled`   | Requests the proxy received from the click until, after the terminal batch, no new request had arrived for 1 s and none was in flight (a response slower than that, and what it triggers, stays inside the window). The window starts at the renderer's click stamp, the same boundary as every other J2 counter, not when Playwright began its actionability checks; the proxy stamps requests with the test process's wall clock, and both processes read the same host clock. Bounding by the terminal would compare the test process's clock with the renderer's, so the count up to the terminal epoch is evidence only (`evidence.httpRequestsToFirstPage`); `evidence.httpRequestsByRoute` names the requests. |
 
-`renderer.cdTicksToFirstPage` and `main.sqlStatementsToFirstPage` are listed
-under `unavailable` for the same reasons as their J1 counterparts.
+Two counters are listed under `unavailable`. `renderer.cdTicksToFirstPage`
+is missing for the same reason as its J1 counterpart.
+`main.sqlStatementsToFirstPage` is missing because the running
+`main.sqlStatements` total that J1 freezes at `ready-to-show` can only be
+read from the test process through the journey gate. It therefore cannot be
+sampled at the click or at the first-page batch, and the worker's count is
+ordered against its responses, not against the renderer. Reading it after
+the app has settled before the click and again after the first page would
+give a click-to-settled count; that is left to a follow-up.
 
 ### Wall-clock
 
