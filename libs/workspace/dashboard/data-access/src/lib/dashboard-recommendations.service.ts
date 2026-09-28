@@ -70,7 +70,12 @@ export class DashboardRecommendationsService {
 
     /** The last load's candidates and ALL their catalog matches. */
     private readonly loaded = signal<LoadedRecommendations>(EMPTY_LOAD);
-    private readonly matchedSeedTitles = signal<readonly string[]>([]);
+    /**
+     * Every seed of the last load, most recent first. `seedTitles` keeps
+     * those that contribute a card NOW: a relock can hide some cards and let
+     * another seed's recommendations fill their places.
+     */
+    private readonly seedOrder = signal<readonly string[]>([]);
     /**
      * The cards, built on READ from the matches the parental lock does not
      * withhold: a relock hides a card matched while unlocked, and a title
@@ -89,9 +94,7 @@ export class DashboardRecommendationsService {
     /** Seeds that contributed at least one visible card, most recent first */
     readonly seedTitles = computed(() => {
         const contributed = new Set(this.items().map((item) => item.seedTitle));
-        return this.matchedSeedTitles().filter((title) =>
-            contributed.has(title)
-        );
+        return this.seedOrder().filter((title) => contributed.has(title));
     });
     readonly loading = signal(false);
 
@@ -117,7 +120,7 @@ export class DashboardRecommendationsService {
             // The service outlives the dashboard (root-provided), so a
             // cleared watch history must clear the rail too.
             this.loaded.set(EMPTY_LOAD);
-            this.matchedSeedTitles.set([]);
+            this.seedOrder.set([]);
             this.loadedKey = null;
             return;
         }
@@ -161,15 +164,8 @@ export class DashboardRecommendationsService {
                     MAX_ITEMS
                 );
                 if (matched.length >= MIN_RECOMMENDATION_MATCHES) {
-                    const contributed = new Set(
-                        matched.map((item) => item.seedTitle)
-                    );
                     this.loaded.set(load);
-                    this.matchedSeedTitles.set(
-                        perSeed
-                            .map((seed) => seed.seedTitle)
-                            .filter((title) => contributed.has(title))
-                    );
+                    this.seedOrder.set(perSeed.map((seed) => seed.seedTitle));
                     // Latch only once EVERY seed answered. A seed that did
                     // not resolve may have failed transiently, and latching
                     // on its behalf would drop its recommendations for the
@@ -193,7 +189,7 @@ export class DashboardRecommendationsService {
                     // exact inputs (say, un-favoriting again) would
                     // otherwise hit the equality guard and stay empty.
                     this.loaded.set(EMPTY_LOAD);
-                    this.matchedSeedTitles.set([]);
+                    this.seedOrder.set([]);
                     this.loadedKey = null;
                 }
             }
@@ -253,15 +249,11 @@ export class DashboardRecommendationsService {
         );
         if (cards.length < MIN_RECOMMENDATION_MATCHES) {
             this.loaded.set(EMPTY_LOAD);
-            this.matchedSeedTitles.set([]);
+            this.seedOrder.set([]);
             return;
         }
 
-        const contributed = new Set(cards.map((item) => item.seedTitle));
         this.loaded.set(kept);
-        this.matchedSeedTitles.set(
-            this.matchedSeedTitles().filter((title) => contributed.has(title))
-        );
     }
 
     /**

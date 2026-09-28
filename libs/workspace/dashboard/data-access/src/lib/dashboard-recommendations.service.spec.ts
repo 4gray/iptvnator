@@ -1044,4 +1044,36 @@ describe('DashboardRecommendationsService', () => {
 
         expect(service.seedTitles()).toEqual(['The Matrix']);
     });
+
+    it('derives the seed heading from the cards visible now', async () => {
+        recentVod = [
+            { title: 'The Matrix', type: 'movie' },
+            { title: 'Blade Runner', type: 'movie' },
+        ];
+        recentAll = [...recentVod];
+        const second = ['Akira', 'Ghost in the Shell', 'Paprika'];
+        enrichMovie.mockImplementation(async (query: { title: string }) => ({
+            recommendations: {
+                results:
+                    query.title === 'The Matrix'
+                        ? recTitles.map((t, i) => rec(100 + i, t))
+                        : second.map((t, i) => rec(300 + i, t)),
+            },
+        }));
+        // The second seed's recommendations sit in category 8.
+        matchTitles.mockImplementation(async (titles: string[]) =>
+            titles.map((title) =>
+                match(title, second.includes(title) ? { categoryId: 8 } : {})
+            )
+        );
+        // Locked at load: the second seed has no visible card yet.
+        withheldCategories.set(new Set([8]));
+        const service = createService();
+        await service.load();
+        expect(service.seedTitles()).toEqual(['The Matrix']);
+
+        // Unlocked: its cards appear, and so does its heading.
+        withheldCategories.set(new Set());
+        expect(service.seedTitles()).toEqual(['The Matrix', 'Blade Runner']);
+    });
 });
