@@ -282,7 +282,11 @@ export function liveEpgAnswersNeedRefresh(
     return false;
 }
 
-/** Same keys answered with the same programmes (by time and title). */
+/**
+ * Same keys answered with the same programmes: everything the dashboard
+ * renders from one (title, times, description, category) must match, or a
+ * guide correction to any of them would be dropped as "unchanged".
+ */
 export function sameLiveEpgAnswers(
     a: ReadonlyMap<string, EpgProgram | null>,
     b: ReadonlyMap<string, EpgProgram | null>
@@ -297,6 +301,8 @@ export function sameLiveEpgAnswers(
             !program ||
             !other ||
             program.title !== other.title ||
+            program.desc !== other.desc ||
+            program.category !== other.category ||
             epgTimestampMs(program, 'start') !==
                 epgTimestampMs(other, 'start') ||
             epgTimestampMs(program, 'stop') !== epgTimestampMs(other, 'stop')
