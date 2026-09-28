@@ -38,7 +38,6 @@ describe('Electron legacy playlist migration', () => {
             dbService,
             runtime: { supportsSqlite: true },
             electronMigrationPromise: null,
-            pendingMetas: null,
         });
         return { playlists, dbService, electron, service };
     }

@@ -184,13 +184,14 @@ harness, which is what the ratchet needs. The main process start
 `renderer.ipcCallsToFirstCard` counts what the renderer asks of the main
 process before the first card.
 
-- `PlaylistsService.getAllPlaylists()` shares one pending SQLite read between
-  concurrent callers: at startup the playlist effect and the XMLTV source
-  reconciliation both read the inventory, and the second caller joins the
-  first read and receives a `structuredClone` of its result. A settled read
-  is never reused, and every SQLite write detaches the pending read, so a
-  caller that follows a write reads again. `dbGetAppPlaylistMetas` before the
-  first card: 2 → 1.
+- `PlaylistsService.getAllPlaylists()` shares its first SQLite read: at
+  startup the playlist effect and the XMLTV source reconciliation both read
+  the inventory, and the second caller joins the first read and receives a
+  `structuredClone` of its result. Sharing ends when that read settles or a
+  `PlaylistsService` write starts. It is limited to startup on purpose:
+  other services write playlists too (the settings reset deletes them
+  through `DatabaseService`), and while the startup screen is up no such
+  action can run. `dbGetAppPlaylistMetas` before the first card: 2 → 1.
 - `reconcileEpgSources` stays before the first card on purpose: its
   completion bumps `EpgSourceSettingsService.revision()`, the fence that
   keeps XMLTV lookups from returning data of a removed source.

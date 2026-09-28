@@ -18,6 +18,13 @@ describe('PlaylistsService inventory reads', () => {
         return { promise, resolve };
     }
 
+    async function until(ready: () => boolean, what: string) {
+        for (let turn = 0; !ready(); turn += 1) {
+            if (turn > 100) throw new Error(`${what} never started`);
+            await Promise.resolve();
+        }
+    }
+
     function setup() {
         const reads: ReturnType<typeof deferred<Playlist[]>>[] = [];
         const electron = {
@@ -43,12 +50,11 @@ describe('PlaylistsService inventory reads', () => {
             dbService: { getAll: jest.fn(() => of([])) },
             runtime: { supportsSqlite: true },
             electronMigrationPromise: null,
-            pendingMetas: null,
             playlistWriteQueues: new Map(),
         });
         const settle = async (index: number, playlists: Playlist[]) => {
             // The read starts after the memoized migration's awaits.
-            while (!reads[index]) await Promise.resolve();
+            await until(() => !!reads[index], `metadata read ${index}`);
             reads[index].resolve(playlists);
         };
         return { electron, service, settle };
@@ -85,13 +91,33 @@ describe('PlaylistsService inventory reads', () => {
         expect(electron.dbGetAppPlaylistMetas).toHaveBeenCalledTimes(2);
     });
 
+    it('stops sharing once the startup read settled', async () => {
+        const { electron, service, settle } = setup();
+
+        const startup = firstValueFrom(service.getAllPlaylists());
+        await settle(0, [source('startup')]);
+        await startup;
+        // Writes that bypass this service (e.g. the settings reset through
+        // DatabaseService) are possible from here on, so every caller reads.
+        const first = firstValueFrom(service.getAllPlaylists());
+        const second = firstValueFrom(service.getAllPlaylists());
+        await settle(1, [source('one')]);
+        await settle(2, [source('two')]);
+
+        await expect(first).resolves.toEqual([source('one')]);
+        await expect(second).resolves.toEqual([source('two')]);
+        expect(electron.dbGetAppPlaylistMetas).toHaveBeenCalledTimes(3);
+    });
+
     it('starts a fresh read for callers that arrive after a write', async () => {
         const { electron, service, settle } = setup();
         const added = source('added');
 
         const staleRead = firstValueFrom(service.getAllPlaylists());
-        while (electron.dbGetAppPlaylistMetas.mock.calls.length === 0)
-            await Promise.resolve();
+        await until(
+            () => electron.dbGetAppPlaylistMetas.mock.calls.length > 0,
+            'metadata read 0'
+        );
         await firstValueFrom(service.addPlaylist(added));
         const freshRead = firstValueFrom(service.getAllPlaylists());
         await settle(0, []);

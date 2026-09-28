@@ -117,9 +117,11 @@ export class PlaylistsService {
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
     private electronMigrationPromise: Promise<void> | null = null;
     // Startup reads the inventory twice at once (the playlist effect and the
-    // XMLTV source reconciliation); both share one worker round trip. Only a
-    // pending read is shared, and every SQLite write detaches it.
-    private pendingMetas: Promise<Playlist[]> | null = null;
+    // XMLTV source reconciliation); both share one worker round trip. Only the
+    // first read is shared, while the startup screen still hides every action
+    // that writes playlists (other services write them too, e.g. the settings
+    // reset); it ends when that read settles or a write here starts (null).
+    private startupMetas?: Promise<Playlist[]> | null;
     private indexedDbMigrationPromise: Promise<void> | null = null;
     private readonly playlistWriteQueues = new Map<string, Promise<unknown>>();
 
@@ -401,7 +403,7 @@ export class PlaylistsService {
                 return playlist;
             }
 
-            this.pendingMetas = null;
+            this.startupMetas = null;
             if (operationId === undefined) {
                 await electron.dbUpsertAppPlaylist(playlist);
             } else {
@@ -419,7 +421,7 @@ export class PlaylistsService {
                 return playlists;
             }
 
-            this.pendingMetas = null;
+            this.startupMetas = null;
             await electron.dbUpsertAppPlaylists(playlists);
             playlists.forEach((playlist) => this.healthEvidence?.connections.next({ id: playlist._id, playlist }));
             return playlists;
@@ -498,9 +500,9 @@ export class PlaylistsService {
 
     getAllPlaylists() {
         if (this.isElectronStorageAvailable) {
-            const pending = this.pendingMetas;
+            const shared = this.startupMetas;
             // A joining caller gets its own copy of the shared result.
-            if (pending) return from(pending.then((p) => structuredClone(p)));
+            if (shared) return from(shared.then((p) => structuredClone(p)));
             const read = firstValueFrom(
                 this.runOnSqlite(async () => {
                     const electron = this.electronApi;
@@ -513,12 +515,11 @@ export class PlaylistsService {
                     );
                 })
             );
-            this.pendingMetas = read;
-            const settle = () => {
-                if (this.pendingMetas === read)
-                    this.pendingMetas = null;
-            };
-            read.then(settle, settle);
+            if (shared === undefined) {
+                this.startupMetas = read;
+                const end = () => (this.startupMetas = null);
+                read.then(end, end);
+            }
             return from(read);
         }
 
@@ -573,7 +574,7 @@ export class PlaylistsService {
                         await this.ensureElectronPlaylistMigrations();
                         const electron = this.electronApi;
                         if (electron) {
-                            this.pendingMetas = null;
+                            this.startupMetas = null;
                             if (options) {
                                 const deleted =
                                     await this.databaseService.deletePlaylist(
@@ -1345,7 +1346,7 @@ export class PlaylistsService {
                     await this.ensureElectronPlaylistMigrations();
                     const electron = this.electronApi;
                     if (electron) {
-                        this.pendingMetas = null;
+                        this.startupMetas = null;
                         await electron.dbDeleteAllPlaylists();
                         this.healthEvidence?.connections.next({});
                     }
