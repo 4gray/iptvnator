@@ -850,7 +850,9 @@ export class VideoPlayerComponent
                 return;
             }
 
-            const nextKey = `${playlistId}::${activeChannel.url}`;
+            // Channel identity too: two rows of one URL are separate
+            // attempts, confirmed under their own session keys.
+            const nextKey = `${playlistId}::${activeChannel.id}::${activeChannel.url}`;
             if (this.lastRecordedRecentKey === nextKey) {
                 return;
             }

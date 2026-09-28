@@ -9,7 +9,10 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    PlaybackPositionRuntimeBridgeService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import type {
     PlaybackPositionData,
@@ -212,6 +215,42 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
             undefined
         );
     });
+
+    it.each([
+        ['the API-only data source', false, 1],
+        ['the SQLite data source', true, 0],
+    ])(
+        'keys a late, uncached write by Xtream id only for %s',
+        async (_label, sqlite: boolean, saves: number) => {
+            // A partial Electron bridge still selects the API-only source.
+            jest.spyOn(
+                TestBed.inject(RuntimeCapabilitiesService),
+                'supportsXtreamSqliteDataSource',
+                'get'
+            ).mockReturnValue(sqlite);
+            xtreamDataSource.getContentByXtreamId.mockResolvedValue(null);
+            await service.startResolvedPlayback({
+                streamUrl: 'https://example.com/route.mkv',
+                title: 'Slow external launch',
+            });
+            currentPlaylist.set({ id: 'playlist-switched-meanwhile' });
+
+            TestBed.inject(PlaybackHistoryGate).confirm({
+                streamUrls: ['https://example.com/route.mkv'],
+            });
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(xtreamDataSource.addRecentItem).toHaveBeenCalledTimes(saves);
+            if (saves) {
+                expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
+                    ROUTE_VOD_ID,
+                    ROUTE_PLAYLIST,
+                    undefined
+                );
+            }
+        }
+    );
 
     it('owns a session launched for the route’s own stream', () => {
         activeSession.set(sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID));

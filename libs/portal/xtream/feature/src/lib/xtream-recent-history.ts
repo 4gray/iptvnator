@@ -1,5 +1,6 @@
 import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     type IXtreamDataSource,
     XTREAM_DATA_SOURCE,
@@ -43,6 +44,10 @@ export function injectXtreamRecentHistory(): (
             } else if (playlistId) {
                 void saveWithoutListRefresh(
                     injector.get(XTREAM_DATA_SOURCE),
+                    // The data source factory picks SQLite by this contract,
+                    // not by a generic Electron bridge.
+                    !injector.get(RuntimeCapabilitiesService)
+                        .supportsXtreamSqliteDataSource,
                     playlistId,
                     request
                 );
@@ -52,14 +57,15 @@ export function injectXtreamRecentHistory(): (
 }
 
 /**
- * The save half of `withRecentItems.addRecentItem` (same content lookup and
- * PWA fallback to the Xtream id for cold content), without reloading the
- * store's recent list. Kept here rather than shared with the store: the
+ * The save half of `withRecentItems.addRecentItem` (same content lookup;
+ * the API-only data source keys cold content by its Xtream id), without
+ * reloading the store's recent list. Kept here rather than shared with the store: the
  * store and its library barrel ship in the initial bundle, this path is
  * only reached from lazy detail pages.
  */
 async function saveWithoutListRefresh(
     dataSource: IXtreamDataSource,
+    keysByXtreamId: boolean,
     playlistId: string,
     { xtreamId, contentType, backdropUrl }: XtreamRecentItemRequest
 ): Promise<void> {
@@ -72,7 +78,7 @@ async function saveWithoutListRefresh(
         playlistId,
         contentType
     );
-    const contentId = content?.id ?? (!window.electron ? id : null);
+    const contentId = content?.id ?? (keysByXtreamId ? id : null);
     if (contentId != null) {
         await dataSource.addRecentItem(contentId, playlistId, backdropUrl);
     }

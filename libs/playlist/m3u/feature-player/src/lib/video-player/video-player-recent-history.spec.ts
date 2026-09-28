@@ -229,6 +229,26 @@ describe('VideoPlayerComponent — recently viewed history', () => {
         );
     });
 
+    it('records a second row of the same URL that plays after the first failed', () => {
+        // One stream listed twice in a playlist, under two channel ids.
+        select();
+        select({
+            ...sampleChannel,
+            id: 'channel-1-copy',
+            name: 'Sample TV HD',
+        });
+
+        gate.confirm({
+            sessionKey: component.playbackSessionKey(),
+            streamUrls: [sampleChannel.url],
+        });
+
+        expect(playlistsServiceMock.addM3uRecentlyViewed).toHaveBeenCalledWith(
+            'playlist-1',
+            expect.objectContaining({ title: 'Sample TV HD' })
+        );
+    });
+
     it('records a radio station once the audio player confirms it', () => {
         const radio = { ...sampleChannel, radio: 'true' };
         select(radio);
