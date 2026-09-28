@@ -142,6 +142,143 @@ test('the enforced limit is what is compared for wall-clock entries', () => {
     );
 });
 
+test('a widened or newly added slack fails; a narrowed one lowers the limit', () => {
+    const withSlack = (value, slack) => ({
+        version: 1,
+        journeys: {
+            launch: {
+                'renderer.initialBytes': { value, unit: 'bytes', slack },
+            },
+        },
+    });
+
+    const added = compareBaselineDirection({
+        base: file(100),
+        head: withSlack(90, 20),
+    });
+    assert.equal(added.failures.length, 1);
+    assert.match(
+        added.failures[0],
+        /renderer\.initialBytes: slack widened from 0 to 20 bytes/
+    );
+
+    const widened = compareBaselineDirection({
+        base: withSlack(100, 10),
+        head: withSlack(95, 12),
+    });
+    assert.equal(widened.failures.length, 1);
+    assert.match(widened.failures[0], /slack widened from 10 to 12 bytes/);
+
+    const narrowed = compareBaselineDirection({
+        base: withSlack(100, 10),
+        head: withSlack(100, 4),
+    });
+    assert.deepEqual(narrowed.failures, []);
+    assert.match(narrowed.lowered[0], /110 -> 104 bytes/);
+
+    const raised = compareBaselineDirection({
+        base: withSlack(100, 10),
+        head: withSlack(101, 10),
+    });
+    assert.match(raised.failures[0], /baseline raised from 110 to 111 bytes/);
+    assert.match(raised.failures[0], /perf-baseline-increase label/);
+});
+
+test('a counter value raised behind narrower slack still fails', () => {
+    const withSlack = (value, slack) => ({
+        version: 1,
+        journeys: {
+            launch: {
+                'renderer.initialBytes': { value, unit: 'bytes', slack },
+            },
+        },
+    });
+    const result = compareBaselineDirection({
+        base: withSlack(100, 10),
+        head: withSlack(105, 0),
+    });
+    assert.equal(result.failures.length, 1);
+    assert.deepEqual(result.lowered, []);
+    assert.match(
+        result.failures[0],
+        /renderer\.initialBytes: baseline value raised from 100 to 105 bytes while slack narrowed from 10 to 0/
+    );
+
+    const allowed = compareBaselineDirection({
+        base: withSlack(100, 10),
+        head: withSlack(105, 0),
+        allowIncrease: true,
+    });
+    assert.deepEqual(allowed.failures, []);
+    assert.equal(allowed.allowed.length, 1);
+});
+
+test('switching an entry between counter and wall-clock fails', () => {
+    const counterToWallClock = compareBaselineDirection({
+        base: file(100, { x: { value: 100, slack: 10 } }),
+        head: file(100, { x: { value: 105, toleranceRatio: 1 } }),
+    });
+    assert.equal(counterToWallClock.failures.length, 1);
+    assert.deepEqual(counterToWallClock.lowered, []);
+    assert.match(
+        counterToWallClock.failures[0],
+        /launch\/x: changed from a counter entry to a wall-clock entry/
+    );
+
+    const wallClockToCounter = compareBaselineDirection({
+        base: file(100, { x: { value: 100, toleranceRatio: 1.25 } }),
+        head: file(100, { x: { value: 90 } }),
+    });
+    assert.equal(wallClockToCounter.failures.length, 1);
+    assert.match(
+        wallClockToCounter.failures[0],
+        /changed from a wall-clock entry to a counter entry/
+    );
+
+    const allowed = compareBaselineDirection({
+        base: file(100, { x: { value: 100, slack: 10 } }),
+        head: file(100, { x: { value: 105, toleranceRatio: 1 } }),
+        allowIncrease: true,
+    });
+    assert.deepEqual(allowed.failures, []);
+    assert.equal(allowed.allowed.length, 1);
+});
+
+test('allowIncrease reports every weakening as allowed instead of failing', () => {
+    const result = compareBaselineDirection({
+        base: file(100, { cdTicks: { value: 5 } }),
+        head: {
+            version: 1,
+            journeys: {
+                launch: {
+                    'renderer.initialBytes': {
+                        value: 120,
+                        unit: 'bytes',
+                        slack: 8,
+                    },
+                },
+            },
+        },
+        allowIncrease: true,
+    });
+    assert.deepEqual(result.failures, []);
+    assert.equal(result.allowed.length, 2);
+    assert.match(result.allowed[0], /slack widened from 0 to 8 bytes/);
+    assert.match(result.allowed[1], /cdTicks: baseline 5 was removed/);
+    assert.match(
+        formatDirectionResult(result),
+        /^ALLOWED {2}launch\/renderer\.initialBytes.*\nALLOWED {2}launch\/cdTicks.*\nBaseline direction OK: 0 unchanged, 0 lowered, 0 added, 2 weakened with the perf-baseline-increase label\.$/
+    );
+
+    const lowered = compareBaselineDirection({
+        base: file(100),
+        head: file(90),
+        allowIncrease: true,
+    });
+    assert.deepEqual(lowered.allowed, []);
+    assert.equal(lowered.lowered.length, 1);
+});
+
 test('an empty target-branch file cannot be weakened', () => {
     const result = compareBaselineDirection({
         base: { journeys: {} },
@@ -170,11 +307,16 @@ test('parses arguments and requires --base', () => {
     assert.deepEqual(parseArgs(['--base', 'b.json']), {
         base: 'b.json',
         head: DEFAULT_HEAD_PATH,
+        allowIncrease: false,
     });
-    assert.deepEqual(parseArgs(['--', '--base=b.json', '--head=h.json']), {
-        base: 'b.json',
-        head: 'h.json',
-    });
+    assert.deepEqual(
+        parseArgs(['--', '--base=b.json', '--head=h.json', '--allow-increase']),
+        {
+            base: 'b.json',
+            head: 'h.json',
+            allowIncrease: true,
+        }
+    );
     assert.throws(
         () => parseArgs([]),
         /--base <target-branch-journey-baselines\.json> is required/
@@ -186,7 +328,7 @@ test('parses arguments and requires --base', () => {
     );
 });
 
-async function runCli(base, head) {
+async function runCli(base, head, extraArgs = []) {
     const basePath =
         base === null
             ? path.join(workDir, 'absent.json')
@@ -196,14 +338,14 @@ async function runCli(base, head) {
     await writeFile(headPath, JSON.stringify(head));
     return spawnSync(
         process.execPath,
-        [scriptPath, '--base', basePath, '--head', headPath],
+        [scriptPath, '--base', basePath, '--head', headPath, ...extraArgs],
         {
             encoding: 'utf8',
         }
     );
 }
 
-test('CLI exits 0 for a lowered baseline, 1 for a raised one, 0 when the target branch has no file', async () => {
+test('CLI exits 0 for a lowered baseline, 1 for a raised one, 0 for a raised one with --allow-increase, 0 when the target branch has no file', async () => {
     const lowered = await runCli(file(100), file(90));
     assert.equal(lowered.status, 0, lowered.stderr);
     assert.match(lowered.stdout, /Baseline direction OK/);
@@ -213,6 +355,13 @@ test('CLI exits 0 for a lowered baseline, 1 for a raised one, 0 when the target 
     assert.match(
         raised.stderr,
         /FAIL {5}launch\/renderer\.initialBytes: baseline raised/
+    );
+
+    const allowed = await runCli(file(100), file(101), ['--allow-increase']);
+    assert.equal(allowed.status, 0, allowed.stderr);
+    assert.match(
+        allowed.stdout,
+        /ALLOWED {2}launch\/renderer\.initialBytes: baseline raised/
     );
 
     const noBase = await runCli(null, file(100));

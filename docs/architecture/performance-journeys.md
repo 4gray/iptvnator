@@ -276,6 +276,7 @@ counter:
       "renderer.initialBytes": {
         "value": 2739510,
         "unit": "bytes",
+        "slack": 4096,
         "updatedAt": "2026-09-26",
         "evidencePr": 1693,
         "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
@@ -288,7 +289,9 @@ counter:
 `tools/performance/check-journey-ratchet.mjs` compares a journey summary with
 that file:
 
-- a counter above its `value` fails; counters are exact, there is no slack;
+- a counter above `value + slack` fails; counters are exact, and `slack`
+  (default 0, in the entry's unit) is the only allowance, printed as "uses N
+  of S slack" whenever a measurement is above `value`;
 - a wall-clock entry carries `toleranceRatio` and fails above
   `value × toleranceRatio`;
 - a baseline with no measurement in the summary fails, so dropping a
@@ -338,19 +341,48 @@ chunk-level identifier renaming shifts when a module enters or leaves
 call sites, eating about 320 of the bytes saved. Judge a small change by the
 `--stats-json` input sizes, not only by the counter.
 
+Both effects are why `renderer.initialBytes` carries `"slack": 4096`. With a
+zero allowance the +108 above failed every PR for hours on 2026-09-27, and
+PRs growing the counter by 243 and 302 bytes, each through one service
+change, had no way to pass. The
+slack is fixed, not a ratio, and sits on top of `value`, which still only
+moves down: growth accumulates at most 4 KiB past the last lowered baseline
+before the job fails again, while a regression such as #1601's +35,435 bytes
+fails as before. Lower `value` to the measured number as usual; the slack
+stays and is not part of the evidence.
+
 The job also refuses a weakened baselines file:
 `tools/performance/check-baseline-direction.mjs` compares
 `journey-baselines.json` with the revision the change is measured against
 (the target branch of a pull request, the previous head of a `master` push,
 `master` for a manual dispatch) and fails when any
-entry's enforced limit (`value × toleranceRatio`) went up, a tolerance widened
-or an entry disappeared, so a PR cannot grow the payload and raise the
-baseline to match. Lowered limits and new entries pass.
+entry's enforced limit (`value × toleranceRatio` or `value + slack`) went up,
+a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
+payload and raise the baseline to match. A counter's `value` may not go up
+either, even when narrower slack lowers its limit, and switching an entry
+between counter and wall-clock (adding or removing `toleranceRatio`) counts
+as a weakening too. Lowered limits and new entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
 into the PR. Never raise a value to make a PR pass: if growth is a deliberate
-trade-off, say so in the PR and let the maintainer decide.
+trade-off (a framework upgrade, a feature that must be on the initial path),
+raise `value` to the runner's measurement in the PR, make the case with the
+per-file breakdown, and ask a maintainer to add the `perf-baseline-increase`
+label. With the label the direction check prints the weakened entries as
+`ALLOWED` and passes; the job reads labels from the API when it runs, so
+re-run the job after the label is added. For a `master` push the label is
+read from the pull request merged as the pushed commit, and only when the
+push added exactly one first-parent commit: a squash or merge of a labelled
+PR passes, while a direct push, or a push of several commits (which the check
+compares as a whole), that raises a baseline still fails.
+Only people with triage access can set labels, so the label is the
+maintainer decision.
+
+A PR merged while this job is red makes every later PR fail it with the same
+numbers until `master` is fixed: #1601 merged at +35,435 bytes and failed
+the job for every PR until #1734. Treat the job as blocking before merging;
+making it a required check is a maintainer decision.
 
 The runtime counters come from the `Performance journeys` job of the same
 workflow, on `ubuntu-latest` only. It runs `pnpm run perf:journeys` under

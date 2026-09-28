@@ -3,7 +3,9 @@
  * committed baselines in tools/performance/journey-baselines.json.
  *
  * Rules, from docs/architecture/performance-journeys.md:
- * - A counter above its baseline fails. Counters are exact; there is no slack.
+ * - A counter above `value + slack` fails. Counters are exact; `slack`
+ *   (default 0, in the entry's unit) absorbs bundler noise and concurrent
+ *   merges without letting growth accumulate past it.
  * - An entry with `toleranceRatio` (wall-clock) fails above
  *   `value * toleranceRatio`.
  * - A baseline without a measurement fails, so removing a measurement can
@@ -28,6 +30,9 @@ import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_BASELINES_PATH =
     'tools/performance/journey-baselines.json';
+
+/** The PR label that lets check-baseline-direction.mjs accept a weakening. */
+export const BASELINE_INCREASE_LABEL = 'perf-baseline-increase';
 
 function formatNumber(value) {
     return Number.isInteger(value)
@@ -69,6 +74,22 @@ export function validateBaselines(baselines) {
                     `Baseline ${label} has an invalid "toleranceRatio" (must be >= 1).`
                 );
             }
+            if (
+                entry.slack !== undefined &&
+                !(Number.isInteger(entry.slack) && entry.slack >= 0)
+            ) {
+                throw new Error(
+                    `Baseline ${label} has an invalid "slack" (must be an integer >= 0).`
+                );
+            }
+            if (
+                entry.slack !== undefined &&
+                entry.toleranceRatio !== undefined
+            ) {
+                throw new Error(
+                    `Baseline ${label} sets both "slack" and "toleranceRatio"; slack is for counters, toleranceRatio for wall-clock entries.`
+                );
+            }
         }
     }
     return baselines;
@@ -82,6 +103,25 @@ export function validateBaselines(baselines) {
  */
 function summarySection(entry) {
     return entry.toleranceRatio !== undefined ? 'wallClock' : 'counters';
+}
+
+/**
+ * What the ratchet enforces: `value × toleranceRatio` for a wall-clock entry,
+ * `value + slack` for a counter. check-baseline-direction.mjs compares this,
+ * not the bare value, so a PR cannot lower a value while widening a tolerance.
+ */
+export function enforcedLimit(entry) {
+    return entry.value * (entry.toleranceRatio ?? 1) + (entry.slack ?? 0);
+}
+
+function describeLimit(entry, unit) {
+    if (entry.toleranceRatio !== undefined) {
+        return `${formatNumber(enforcedLimit(entry))} (baseline ${formatNumber(entry.value)} × ${entry.toleranceRatio})`;
+    }
+    if (entry.slack) {
+        return `${formatNumber(enforcedLimit(entry))} (baseline ${formatNumber(entry.value)} + slack ${formatNumber(entry.slack)}${unit})`;
+    }
+    return `baseline ${formatNumber(entry.value)}`;
 }
 
 function measuredValue(summaryJourney, name, entry) {
@@ -141,18 +181,16 @@ export function compareToBaselines({ baselines, summary, only = [] }) {
                 continue;
             }
 
-            const limit =
-                entry.toleranceRatio !== undefined
-                    ? entry.value * entry.toleranceRatio
-                    : entry.value;
-            const limitText =
-                entry.toleranceRatio !== undefined
-                    ? `${formatNumber(limit)} (baseline ${formatNumber(entry.value)} × ${entry.toleranceRatio})`
-                    : `baseline ${formatNumber(entry.value)}`;
+            const limit = enforcedLimit(entry);
+            const limitText = describeLimit(entry, unit);
 
             if (measured > limit) {
                 result.failures.push(
-                    `${label}: ${formatNumber(measured)}${unit} exceeds ${limitText} by ${formatNumber(measured - limit)}${unit}. Bring the value back down; baselines only move down. If the growth is a deliberate trade-off, say so in the PR and let the maintainer decide.`
+                    `${label}: ${formatNumber(measured)}${unit} exceeds ${limitText} by ${formatNumber(measured - limit)}${unit}. Bring the value back down; baselines only move down. If the growth is a deliberate trade-off, raise the baseline in ${DEFAULT_BASELINES_PATH}, make the case in the PR, and ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label.`
+                );
+            } else if (entry.slack && measured > entry.value) {
+                result.passed.push(
+                    `${label}: ${formatNumber(measured)}${unit} within ${limitText}; uses ${formatNumber(measured - entry.value)} of ${formatNumber(limit - entry.value)}${unit} slack.`
                 );
             } else if (measured < entry.value) {
                 result.tightenable.push(

@@ -5,6 +5,7 @@
             "renderer.initialBytes": {
                 "value": 1598232,
                 "unit": "bytes",
+                "slack": 4096,
                 "updatedAt": "2026-09-27",
                 "evidencePr": 1734,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
