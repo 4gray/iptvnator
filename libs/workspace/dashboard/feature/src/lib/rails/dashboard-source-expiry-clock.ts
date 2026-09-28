@@ -1,4 +1,11 @@
-import { DestroyRef, effect, inject, signal, type Signal } from '@angular/core';
+import {
+    DestroyRef,
+    effect,
+    inject,
+    signal,
+    untracked,
+    type Signal,
+} from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import {
     nextSourceExpiryChangeMs,
@@ -52,6 +59,16 @@ export function createSourceExpiryClock(
         );
         const timer = setTimeout(() => now.set(Date.now()), delay);
         onCleanup(() => clearTimeout(timer));
+    });
+
+    // Re-enabling the rail must not show a badge cached while it was off: a
+    // boundary may have passed (an expired source has no next boundary to
+    // wait for), so read the clock at once, as becoming visible does.
+    let wasActive = untracked(active);
+    effect(() => {
+        const isActive = active();
+        if (isActive && !wasActive) untracked(() => now.set(Date.now()));
+        wasActive = isActive;
     });
 
     const onVisibilityChange = () => {

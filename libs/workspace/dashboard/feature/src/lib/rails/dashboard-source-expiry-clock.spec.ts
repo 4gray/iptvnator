@@ -126,4 +126,21 @@ describe('createSourceExpiryClock', () => {
         TestBed.tick();
         expect(jest.getTimerCount()).toBe(1);
     });
+
+    it('reads the clock at once when the sources rail is re-enabled', () => {
+        active.set(false);
+        TestBed.tick();
+        // Past the expiry while the rail is off: no boundary is left to wait
+        // for, so only the re-enable can refresh the cached badge.
+        facts.set(new Map([['xtream', expiringIn(60_000)]]));
+        TestBed.tick();
+        jest.advanceTimersByTime(3 * 60_000);
+        const before = clock();
+
+        active.set(true);
+        TestBed.tick();
+
+        expect(clock()).toBe(Date.now());
+        expect(clock()).toBeGreaterThan(before);
+    });
 });
