@@ -629,7 +629,12 @@ test('drops performance entries from before the click and keeps recent-input shi
         },
     ]);
     longTask.emit([
-        { duration: 250, entryType: 'longtask', startTime: beforeClick },
+        // A buffered J1 task that ended before the click.
+        {
+            duration: 250,
+            entryType: 'longtask',
+            startTime: beforeClick - 300,
+        },
         { duration: 90, entryType: 'longtask', startTime: now() },
     ]);
     openSource(fixture);
@@ -640,6 +645,30 @@ test('drops performance entries from before the click and keeps recent-input shi
     assert.equal(state.counters.recentInputLayoutShiftScore, 0.25);
     assert.equal(state.counters.longTasks, 1);
     assert.deepEqual(state.longTaskDurationsMs, [90]);
+});
+
+test('counts the long task that dispatches the click although it began before the event', async () => {
+    const fixture = createOpenSourceFixture();
+    const [, longTask] = fixture.observers as [FakeObserver, FakeObserver];
+    const now = () => fixture.window.performance.now();
+    fixture.card.addEventListener('click', () => openSource(fixture));
+    fixture.card.click();
+    const clickMs =
+        (fixture.rawState().start?.epochMs ?? 0) -
+        fixture.window.performance.timeOrigin;
+    longTask.emit([
+        // Began 20 ms before the click stamp and ran through it: the task
+        // that dispatched the click and rendered the page.
+        { duration: 120, entryType: 'longtask', startTime: clickMs - 20 },
+        // Ended before the click: earlier work, not part of the journey.
+        { duration: 60, entryType: 'longtask', startTime: clickMs - 100 },
+        { duration: 70, entryType: 'longtask', startTime: now() },
+    ]);
+    await settle();
+    const state = fixture.state();
+    assert.equal(state.final, true);
+    assert.equal(state.counters.longTasks, 2);
+    assert.deepEqual(state.longTaskDurationsMs, [120, 70]);
 });
 
 test('rejects a click start whose sentinel could not be sent', async () => {

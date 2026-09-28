@@ -199,6 +199,17 @@ export function journeyRendererProbeScript(
         const entryEpochMs = performance.timeOrigin + entry.startTime;
         return entryEpochMs >= fromEpochMs && entryEpochMs <= untilEpochMs;
     };
+    // A task overlaps the window when it ends after the start. The main
+    // thread runs one task at a time, so the only task that overlaps the
+    // click is the one that dispatches it, which began before the event's
+    // timestamp and must still count.
+    const overlapsWindow = (entry: PerformanceEntry, untilEpochMs: number) => {
+        const entryEpochMs = performance.timeOrigin + entry.startTime;
+        return (
+            entryEpochMs + entry.duration >= fromEpochMs &&
+            entryEpochMs <= untilEpochMs
+        );
+    };
 
     const acceptLayoutShift = (
         entries: readonly PerformanceEntry[],
@@ -227,7 +238,7 @@ export function journeyRendererProbeScript(
         untilEpochMs: number
     ): void => {
         for (const entry of entries) {
-            if (entry.duration <= 50 || !inWindow(entry, untilEpochMs)) {
+            if (entry.duration <= 50 || !overlapsWindow(entry, untilEpochMs)) {
                 continue;
             }
             state.counters.longTasks += 1;
