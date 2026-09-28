@@ -30,6 +30,7 @@
 #include <ctime>
 #include <iostream>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 #include <utility>
@@ -788,6 +789,28 @@ void onRenderUpdate(void* pipeline) {
     static_cast<RenderPipeline*>(pipeline)->notifyUpdate();
 }
 
+/* mpv's LUT scalers (the default lanczos/spline family) upload their weight
+ * texture with uninitialized row padding (reinit_scaler in
+ * video/out/gpu/video.c, still present in mpv 0.41 and master). Mesa's CPU
+ * rasterizers carry NaN/Inf from that padding through zero-weight linear
+ * filtering, so a session randomly renders pure black depending on heap
+ * contents. Software GL gets mpv's LUT-free bilinear scalers instead, which
+ * is also what it can afford; a session option for the same key wins. */
+void applySoftwareRendererOptions(const std::set<std::string>& sessionKeys) {
+    static const std::pair<const char*, const char*> kOptions[] = {
+        {"scale", "bilinear"},
+        {"cscale", "bilinear"},
+        {"dscale", "bilinear"},
+        {"sigmoid-upscaling", "no"},
+    };
+    for (const auto& [key, value] : kOptions) {
+        if (sessionKeys.count(key) == 0) {
+            mpv_set_property_string(g_state.mpv, key, value);
+        }
+    }
+    std::fprintf(stderr, "software renderer: using bilinear scalers\n");
+}
+
 struct HelperArgs {
     std::string shmBase = "/impv";
     std::string hwdec = "auto";
@@ -987,6 +1010,7 @@ int main(int argc, char** argv) {
         mpv_set_option_string(g_state.mpv, "audio-delay",
                               args.audioDelay.c_str());
     }
+    std::set<std::string> sessionOptionKeys;
     if (args.mpvOptionsOnStdin) {
         /* `mpv-options\to000=<key=value>\to001=...` in the regular command
          * encoding; zero-padded keys keep the application order (network
@@ -1022,7 +1046,9 @@ int main(int argc, char** argv) {
             const std::string value = option.substr(separator + 1);
             const int optionResult = mpv_set_option_string(
                 g_state.mpv, key.c_str(), value.c_str());
-            if (optionResult < 0) {
+            if (optionResult >= 0) {
+                sessionOptionKeys.insert(key);
+            } else {
                 emitLine(JsonWriter()
                              .str("event", "log")
                              .str("level", "warn")
@@ -1093,6 +1119,10 @@ int main(int argc, char** argv) {
                      .num("height", height)
                      .num("generation", generation)
                      .finish());
+    };
+
+    g_state.pipeline.onSoftwareRenderer = [sessionOptionKeys] {
+        applySoftwareRendererOptions(sessionOptionKeys);
     };
 
     g_state.viewportWidth = args.width;
