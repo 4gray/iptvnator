@@ -158,10 +158,13 @@ jobs:
             # branch for a pull request, the previous head for a master push,
             # master for a manual dispatch. Any raised limit, widened tolerance
             # or slack, or removed entry fails, unless a maintainer put the
-            # perf-baseline-increase label on the pull request (for a master
-            # push: on the pull request merged as the pushed commit). Labels
-            # are read from the API, not the event payload, so re-running this
-            # job after adding the label picks it up.
+            # perf-baseline-increase label on the pull request. For a master
+            # push the label counts only when the push added exactly one
+            # first-parent commit (a squash or merge of one PR) and that
+            # commit's PR carries it: the check compares the whole push, so a
+            # multi-commit push cannot borrow one PR's label for another's
+            # increase. Labels are read from the API, not the event payload,
+            # so re-running this job after adding the label picks it up.
             - name: Refuse baseline increases against the previous revision
               env:
                   EVENT_NAME: ${{ github.event_name }}
@@ -196,7 +199,13 @@ jobs:
                           labels="$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')"
                           ;;
                       push)
-                          labels="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[].labels[].name')"
+                          parent="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA" --jq '.parents[0].sha')"
+                          if [ "$parent" = "$BEFORE_SHA" ]; then
+                              labels="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[].labels[].name')"
+                          else
+                              echo "This push added more than one commit; the $INCREASE_LABEL label is not consulted."
+                              labels=""
+                          fi
                           ;;
                       *)
                           labels=""

@@ -184,6 +184,35 @@ test('a widened or newly added slack fails; a narrowed one lowers the limit', ()
     assert.match(raised.failures[0], /perf-baseline-increase label/);
 });
 
+test('a counter value raised behind narrower slack still fails', () => {
+    const withSlack = (value, slack) => ({
+        version: 1,
+        journeys: {
+            launch: {
+                'renderer.initialBytes': { value, unit: 'bytes', slack },
+            },
+        },
+    });
+    const result = compareBaselineDirection({
+        base: withSlack(100, 10),
+        head: withSlack(105, 0),
+    });
+    assert.equal(result.failures.length, 1);
+    assert.deepEqual(result.lowered, []);
+    assert.match(
+        result.failures[0],
+        /renderer\.initialBytes: baseline value raised from 100 to 105 bytes while slack narrowed from 10 to 0/
+    );
+
+    const allowed = compareBaselineDirection({
+        base: withSlack(100, 10),
+        head: withSlack(105, 0),
+        allowIncrease: true,
+    });
+    assert.deepEqual(allowed.failures, []);
+    assert.equal(allowed.allowed.length, 1);
+});
+
 test('allowIncrease reports every weakening as allowed instead of failing', () => {
     const result = compareBaselineDirection({
         base: file(100, { cdTicks: { value: 5 } }),

@@ -358,7 +358,9 @@ The job also refuses a weakened baselines file:
 `master` for a manual dispatch) and fails when any
 entry's enforced limit (`value × toleranceRatio` or `value + slack`) went up,
 a tolerance or slack widened or an entry disappeared, so a PR cannot grow the
-payload and raise the baseline to match. Lowered limits and new entries pass.
+payload and raise the baseline to match. A counter's `value` may not go up
+either, even when narrower slack lowers its limit. Lowered limits and new
+entries pass.
 
 Baselines only move down. Lower `value` in the same PR as the change that
 earned it, set `updatedAt` and `evidencePr`, and paste the measurement output
@@ -369,8 +371,10 @@ per-file breakdown, and ask a maintainer to add the `perf-baseline-increase`
 label. With the label the direction check prints the weakened entries as
 `ALLOWED` and passes; the job reads labels from the API when it runs, so
 re-run the job after the label is added. For a `master` push the label is
-read from the pull request merged as the pushed commit, so a squash merge of
-a labelled PR passes and a direct push that raises a baseline still fails.
+read from the pull request merged as the pushed commit, and only when the
+push added exactly one first-parent commit: a squash or merge of a labelled
+PR passes, while a direct push, or a push of several commits (which the check
+compares as a whole), that raises a baseline still fails.
 Only people with triage access can set labels, so the label is the
 maintainer decision.
 

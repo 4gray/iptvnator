@@ -7,7 +7,9 @@
  * check closes that gap: given the baselines file of the target branch and
  * the one of the PR, any entry whose enforced limit (`value × toleranceRatio`
  * or `value + slack`) went up, whose tolerance or slack widened, or that
- * disappeared, is a failure. New entries and lowered limits pass.
+ * disappeared, is a failure. A counter's `value` may not go up either, even
+ * when narrower slack lowers its limit: the value is the measured evidence.
+ * New entries and lowered limits pass.
  *
  * `--allow-increase` turns those failures into printed "allowed" lines. CI
  * passes it only when a maintainer put the perf-baseline-increase label on
@@ -96,6 +98,13 @@ export function compareBaselineDirection({
         } else if (headLimit > baseLimit) {
             weakened.push(
                 `${label}: baseline raised from ${formatNumber(baseLimit)} to ${formatNumber(headLimit)}${unit}. Baselines only move down; bring the measurement back under ${formatNumber(baseLimit)}, or make the case for the increase in the PR and ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label.`
+            );
+        } else if (
+            headEntry.toleranceRatio === undefined &&
+            headEntry.value > baseEntry.value
+        ) {
+            weakened.push(
+                `${label}: baseline value raised from ${formatNumber(baseEntry.value)} to ${formatNumber(headEntry.value)}${unit} while slack narrowed from ${formatNumber(baseSlack)} to ${formatNumber(headSlack)}. A counter's value only moves down; narrowing its slack does not offset a raise. Ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label if the raise is deliberate.`
             );
         } else if (headLimit < baseLimit) {
             result.lowered.push(
