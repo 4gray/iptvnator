@@ -143,4 +143,15 @@ describe('createSourceExpiryClock', () => {
         expect(clock()).toBe(Date.now());
         expect(clock()).toBeGreaterThan(before);
     });
+
+    it('keeps rechecking an expired timestamp hourly in case the clock is corrected', () => {
+        facts.set(new Map([['xtream', expiringIn(-60_000)]]));
+        TestBed.tick();
+        expect(jest.getTimerCount()).toBe(1);
+        const before = clock();
+
+        jest.advanceTimersByTime(SOURCE_EXPIRY_MAX_WAIT_MS);
+        TestBed.tick();
+        expect(clock()).toBe(before + SOURCE_EXPIRY_MAX_WAIT_MS);
+    });
 });

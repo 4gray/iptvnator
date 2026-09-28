@@ -21,7 +21,8 @@ const BOUNDARY_SLACK_MS = 1_000;
  *
  * Badges move at day granularity, so instead of polling the clock this arms
  * one timer for the earliest badge boundary among the known facts (none at
- * all when no badge can change), capped at {@link SOURCE_EXPIRY_MAX_WAIT_MS}
+ * all when no badge can change; an hourly recheck for a timestamp that has
+ * already passed, in case the system clock is corrected backward), capped at {@link SOURCE_EXPIRY_MAX_WAIT_MS}
  * because timers do not follow system sleep or clock changes. No timer is
  * armed while the document is hidden or `active` is false; becoming visible
  * re-reads the clock at once. Must be created in
@@ -45,18 +46,28 @@ export function createSourceExpiryClock(
         if (!visible() || !active()) return;
         const nowMs = Date.now();
         let next: number | null = null;
+        // A badge derived from a timestamp can still change if the system
+        // clock is corrected backward, so it keeps the hourly recheck even
+        // with no boundary ahead. A portal-reported expiry is terminal.
+        let clockDependent = false;
         for (const entry of facts().values()) {
+            if (!entry.reportedExpired && (entry.expiresAtSeconds ?? 0) > 0) {
+                clockDependent = true;
+            }
             const change = nextSourceExpiryChangeMs(entry, nowMs);
             if (change !== null && (next === null || change < next)) {
                 next = change;
             }
         }
         // No badge can change any more: new facts re-run this effect.
-        if (next === null) return;
-        const delay = Math.min(
-            Math.max(next - nowMs, 0) + BOUNDARY_SLACK_MS,
-            SOURCE_EXPIRY_MAX_WAIT_MS
-        );
+        if (next === null && !clockDependent) return;
+        const delay =
+            next === null
+                ? SOURCE_EXPIRY_MAX_WAIT_MS
+                : Math.min(
+                      Math.max(next - nowMs, 0) + BOUNDARY_SLACK_MS,
+                      SOURCE_EXPIRY_MAX_WAIT_MS
+                  );
         const timer = setTimeout(() => now.set(Date.now()), delay);
         onCleanup(() => clearTimeout(timer));
     });

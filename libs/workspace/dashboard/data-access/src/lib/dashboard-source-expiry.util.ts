@@ -57,10 +57,12 @@ export function resolveSourceExpiryBadge(
 
 /**
  * The next instant (ms) at which {@link resolveSourceExpiryBadge} would answer
- * differently for these facts, or null when it never will again. The badge
- * moves only at day granularity: it appears `warningDays` days before
- * expiry, counts down once per day and turns into "expired" at expiry, so a
- * consumer can wait for that boundary instead of polling the clock.
+ * differently for these facts, or null when no boundary lies ahead: a
+ * portal-reported expiry, or a timestamp already in the past (for as long as
+ * the system clock only moves forward). The badge moves only at day
+ * granularity: it appears `warningDays` days before expiry, counts down once
+ * per day and turns into "expired" at expiry, so a consumer can wait for that
+ * boundary instead of polling the clock.
  */
 export function nextSourceExpiryChangeMs(
     facts: SourceExpiryFacts | null | undefined,
