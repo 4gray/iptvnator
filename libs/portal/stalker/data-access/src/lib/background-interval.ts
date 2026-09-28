@@ -24,7 +24,10 @@ export function createBackgroundInterval(
     periodMs: number
 ): () => void {
     let fallback: ReturnType<typeof setInterval> | undefined;
+    let stopped = false;
     const startFallback = () => {
+        // A worker error that arrives after stop() must not revive the tick.
+        if (stopped) return;
         fallback ??= setInterval(callback, periodMs);
     };
     const ticker = startTickerWorker();
@@ -45,6 +48,11 @@ export function createBackgroundInterval(
         startFallback();
     }
     return () => {
+        stopped = true;
+        if (ticker) {
+            ticker.worker.onmessage = null;
+            ticker.worker.onerror = null;
+        }
         stopWorker();
         if (fallback !== undefined) clearInterval(fallback);
     };

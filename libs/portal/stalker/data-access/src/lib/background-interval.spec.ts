@@ -98,4 +98,19 @@ describe('createBackgroundInterval', () => {
         jest.advanceTimersByTime(60_000);
         expect(callback).toHaveBeenCalledTimes(1);
     });
+
+    it('stays stopped when a worker error arrives after stop', () => {
+        scope.Worker = FakeWorker;
+        const callback = jest.fn();
+
+        const stop = createBackgroundInterval(callback, 30_000);
+        const [worker] = FakeWorker.instances;
+        const lateError = worker.onerror;
+        stop();
+        lateError?.(new Event('error'));
+
+        jest.advanceTimersByTime(90_000);
+        expect(callback).not.toHaveBeenCalled();
+        expect(jest.getTimerCount()).toBe(0);
+    });
 });
