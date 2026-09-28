@@ -71,12 +71,14 @@ function measurement(
         callsBeforeStart: 0,
         callsBeforeSentinel: 17,
         callsByMethod: { dbGetAppState: 6, dbGetContent: 2, xtreamRequest: 1 },
+        inFlightByMethod: {},
         installedEpochMs: 9_500,
         malformedEvents: 0,
         processStartEpochMs: 1_000,
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 10_081 },
         start: { occurrences: 1, receivedEpochMs: 10_002 },
+        unmatchedCompletions: 0,
     };
     return {
         http: {

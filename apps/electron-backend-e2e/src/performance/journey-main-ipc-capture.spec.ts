@@ -8,6 +8,7 @@ import type { ElectronApplication } from '@playwright/test';
 
 import {
     assertJourneyMainIpcCapture,
+    countJourneyMainIpcInFlight,
     installJourneyMainIpcCapture,
     JOURNEY_RENDERER_API_TRACE_CHANNEL,
     peekJourneyMainIpcCapture,
@@ -33,11 +34,13 @@ function validCapture(
         callsBeforeStart: 0,
         callsBeforeSentinel: 7,
         callsByMethod: { dbGetAppPlaylists: 1, getSettings: 6 },
+        inFlightByMethod: {},
         installedEpochMs: 1,
         malformedEvents: 0,
         processStartEpochMs: 0,
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 2 },
+        unmatchedCompletions: 0,
         start: null,
         ...overrides,
     };
@@ -306,4 +309,38 @@ test('rejects a start marker that is missing, repeated or after the sentinel', a
         ).callsBeforeSentinel,
         7
     );
+});
+
+test('tracks bridge calls in flight from start to success or error', async () => {
+    await withCapture({}, async (fake, read) => {
+        fake.send(1, 'getSettings', []);
+        fake.send(1, 'getSettings', []);
+        fake.send(1, 'xtreamRequest', [{ action: 'get_account_info' }]);
+        let state = await read();
+        assert.deepEqual(state.inFlightByMethod, {
+            getSettings: 2,
+            xtreamRequest: 1,
+        });
+        assert.equal(countJourneyMainIpcInFlight(state), 3);
+        fake.send(1, 'getSettings', [], 'success');
+        fake.send(1, 'xtreamRequest', [], 'error');
+        fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+            JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+        ]);
+        state = await read();
+        assert.deepEqual(state.inFlightByMethod, {
+            [JOURNEY_IPC_SENTINEL_METHOD]: 1,
+            getSettings: 1,
+        });
+        fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [], 'success');
+        fake.send(1, 'getSettings', [], 'success');
+        state = await read();
+        assert.equal(countJourneyMainIpcInFlight(state), 0);
+        assert.equal(state.unmatchedCompletions, 0);
+        // A completion whose start this capture never saw.
+        fake.send(1, 'dbGetAppState', [], 'success');
+        state = await read();
+        assert.equal(state.unmatchedCompletions, 1);
+        assert.equal(countJourneyMainIpcInFlight(state), 0);
+    });
 });

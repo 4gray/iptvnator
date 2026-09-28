@@ -43,11 +43,20 @@ export interface JourneyMainIpcCaptureState {
     /** Calls from the start marker (or install) up to the sentinel. */
     readonly callsBeforeSentinel: number;
     readonly callsByMethod: Record<string, number>;
+    /**
+     * Bridge calls started but not yet completed, per method. The preload
+     * follows every `start` with exactly one `success` or `error` (sync and
+     * async results alike), so a capture installed before the document
+     * loads sees every pair.
+     */
+    readonly inFlightByMethod: Record<string, number>;
     readonly installedEpochMs: number;
     readonly malformedEvents: number;
     readonly processStartEpochMs: number;
     readonly senderIds: number[];
     readonly sentinel: JourneyMainIpcSentinelState;
+    /** Completions without a start seen by this capture (installed late). */
+    readonly unmatchedCompletions: number;
     /** Null when the capture has no start marker. */
     readonly start: JourneyMainIpcSentinelState | null;
 }
@@ -70,11 +79,13 @@ export async function installJourneyMainIpcCapture(
             installedEpochMs: Date.now(),
             malformedEvents: 0,
             processStartEpochMs: Date.now() - process.uptime() * 1000,
+            inFlightByMethod: {} as Record<string, number>,
             senderIds: [] as number[],
             sentinel: {
                 occurrences: 0,
                 receivedEpochMs: null as number | null,
             },
+            unmatchedCompletions: 0,
             start:
                 startSentinelId === null
                     ? null
@@ -100,9 +111,24 @@ export async function installJourneyMainIpcCapture(
                 state.malformedEvents += 1;
                 return;
             }
-            if (record['phase'] !== 'start') {
+            const phase = record['phase'];
+            if (phase === 'success' || phase === 'error') {
+                const pending = state.inFlightByMethod[record['method']] ?? 0;
+                if (pending === 0) {
+                    state.unmatchedCompletions += 1;
+                } else if (pending === 1) {
+                    delete state.inFlightByMethod[record['method']];
+                } else {
+                    state.inFlightByMethod[record['method']] = pending - 1;
+                }
                 return;
             }
+            if (phase !== 'start') {
+                return;
+            }
+            // Sentinels included: their completions arrive like any other.
+            state.inFlightByMethod[record['method']] =
+                (state.inFlightByMethod[record['method']] ?? 0) + 1;
             const senderId = event.sender.id;
             if (!state.senderIds.includes(senderId)) {
                 state.senderIds.push(senderId);
@@ -141,6 +167,16 @@ export async function installJourneyMainIpcCapture(
                 (state.callsByMethod[method] ?? 0) + 1;
         });
     }, options);
+}
+
+/** Total of `inFlightByMethod`. */
+export function countJourneyMainIpcInFlight(
+    state: JourneyMainIpcCaptureState
+): number {
+    return Object.values(state.inFlightByMethod).reduce(
+        (total, count) => total + count,
+        0
+    );
 }
 
 /** Raw state without waiting for the sentinel, for settling checks. */

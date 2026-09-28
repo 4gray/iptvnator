@@ -2,7 +2,9 @@ import type { ElectronApplication, Page } from '@playwright/test';
 
 import { defaultXtreamPortalName } from '../electron-test-fixtures';
 import {
+    countJourneyMainIpcInFlight,
     installJourneyMainIpcCapture,
+    JOURNEY_MAIN_IPC_STATE_KEY,
     JOURNEY_RENDERER_API_TRACE_CHANNEL,
     peekJourneyMainIpcCapture,
     readJourneyMainIpcCapture,
@@ -40,6 +42,7 @@ interface ActivitySample {
     readonly httpInFlight: number;
     readonly httpRequests: number;
     readonly ipcCalls: number;
+    readonly ipcInFlight: number;
 }
 
 async function readPreStartMutations(
@@ -60,9 +63,12 @@ async function readPreStartMutations(
 
 /**
  * Waits until DOM, bridge and mock traffic have all been unchanged for
- * `QUIET_MS` with no mock request in flight (a slow response can still
- * trigger follow-up work). An app that never settles fails the iteration
- * instead of producing a count that includes its background work.
+ * `QUIET_MS` with no mock request and no bridge call in flight: a slow
+ * response or a pending bridge call can still change the DOM or trigger
+ * follow-up work after the click. Pending bridge calls come from J1's
+ * capture, which was installed before the document loaded and so has seen
+ * every call start. An app that never settles fails the iteration instead
+ * of producing a count that includes its background work.
  */
 async function waitForQuiet(
     electronApp: ElectronApplication,
@@ -72,17 +78,27 @@ async function waitForQuiet(
 ): Promise<OpenSourceJourneySettle> {
     const startedMs = Date.now();
     const armMark = ledger.mark();
-    const sample = async (): Promise<ActivitySample> => ({
-        domMutations: await readPreStartMutations(page, probeStateKey),
-        httpInFlight: ledger.inFlight(),
-        httpRequests: ledger.mark(),
-        ipcCalls: (
-            await peekJourneyMainIpcCapture(
-                electronApp,
-                OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY
-            )
-        ).callsBeforeStart,
-    });
+    const sample = async (): Promise<ActivitySample> => {
+        const launchCapture = await peekJourneyMainIpcCapture(
+            electronApp,
+            JOURNEY_MAIN_IPC_STATE_KEY
+        );
+        if (launchCapture.unmatchedCompletions > 0) {
+            throw new Error('open-source-journey-bridge-completions-unmatched');
+        }
+        return {
+            domMutations: await readPreStartMutations(page, probeStateKey),
+            httpInFlight: ledger.inFlight(),
+            httpRequests: ledger.mark(),
+            ipcCalls: (
+                await peekJourneyMainIpcCapture(
+                    electronApp,
+                    OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY
+                )
+            ).callsBeforeStart,
+            ipcInFlight: countJourneyMainIpcInFlight(launchCapture),
+        };
+    };
     let last = await sample();
     let quietSinceMs = Date.now();
     for (;;) {
@@ -93,7 +109,8 @@ async function waitForQuiet(
             next.domMutations !== last.domMutations ||
             next.httpInFlight > 0 ||
             next.httpRequests !== last.httpRequests ||
-            next.ipcCalls !== last.ipcCalls
+            next.ipcCalls !== last.ipcCalls ||
+            next.ipcInFlight > 0
         ) {
             last = next;
             quietSinceMs = now;
@@ -177,7 +194,6 @@ export async function measureOpenSourceJourney(
         ledger,
         probeOptions.stateKey
     );
-    const ledgerMark = ledger.mark();
     await card.click({ timeout: timeoutMs });
     const renderer: JourneyRendererProbeState =
         await waitForJourneyRendererProbe(
@@ -191,12 +207,24 @@ export async function measureOpenSourceJourney(
         10_000
     );
     await waitForMockQuiet(ledger);
+    // The journey starts at the renderer's click stamp, not when Playwright
+    // began its actionability checks, so a request that arrives in between
+    // stays before the click like it does for every other J2 counter. The
+    // ledger's clock is this process's wall clock and the stamp is the
+    // renderer's; both read the same host clock.
+    const clickEpochMs = renderer.start?.epochMs;
+    if (clickEpochMs === undefined) {
+        throw new Error('open-source-journey-click-not-started');
+    }
+    const sinceSpawn = ledger.since(spawnLedgerMark);
     return {
         http: {
-            beforeClick: ledger
-                .since(spawnLedgerMark)
-                .slice(0, ledgerMark - spawnLedgerMark),
-            requests: ledger.since(ledgerMark),
+            beforeClick: sinceSpawn.filter(
+                (entry) => entry.epochMs < clickEpochMs
+            ),
+            requests: sinceSpawn.filter(
+                (entry) => entry.epochMs >= clickEpochMs
+            ),
         },
         ipc,
         pid: session.launch.pid,

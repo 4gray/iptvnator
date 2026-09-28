@@ -59,12 +59,14 @@ function measurement(
         callsBeforeStart: 0,
         callsBeforeSentinel: 14,
         callsByMethod: { dbGetAppPlaylists: 1, getSettings: 13 },
+        inFlightByMethod: {},
         installedEpochMs: 1_100,
         malformedEvents: 0,
         processStartEpochMs: 900,
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 2_602 },
         start: null,
+        unmatchedCompletions: 0,
     };
     return {
         electronVersion: '43.3.0',
