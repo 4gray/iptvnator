@@ -407,7 +407,7 @@ full-playlist read. The chip is not a separate account-refresh request.
 The badge only changes at day boundaries, so the rails do not poll the clock:
 `createSourceExpiryClock` arms one timer for the earliest boundary among the
 known facts (`nextSourceExpiryChangeMs`), capped at an hour because timers do
-not follow system sleep. It arms no timer while the page is hidden and
-re-reads the clock when the page becomes visible. It schedules from the real
+not follow system sleep. It arms no timer while the page is hidden or the
+sources rail is disabled, and re-reads the clock when the page becomes visible. It schedules from the real
 time, so facts that arrive long after the last tick are not scheduled late.
 Facts whose badge can no longer change arm no timer.

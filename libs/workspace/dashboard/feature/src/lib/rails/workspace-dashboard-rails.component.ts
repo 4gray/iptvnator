@@ -269,7 +269,8 @@ export class WorkspaceDashboardRailsComponent {
     // open needs a reactive clock to cross a day-countdown or expiration
     // boundary. It moves only at those boundaries, not on a polling tick.
     private readonly sourceExpiryNow = createSourceExpiryClock(
-        this.sourceExpiry.facts
+        this.sourceExpiry.facts,
+        computed(() => this.dashboardRails().recentSources)
     );
 
     readonly sourceCards = computed<DashboardRailCard[]>(() => {

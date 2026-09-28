@@ -14,6 +14,7 @@ describe('createSourceExpiryClock', () => {
         typeof signal<ReadonlyMap<string, SourceExpiryFacts>>
     >;
     let clock: Signal<number>;
+    let active: ReturnType<typeof signal<boolean>>;
 
     const expiringIn = (ms: number): SourceExpiryFacts => ({
         expiresAtSeconds: (nowMs + ms) / 1000,
@@ -31,8 +32,9 @@ describe('createSourceExpiryClock', () => {
             get: () => hidden,
         });
         facts = signal<ReadonlyMap<string, SourceExpiryFacts>>(new Map());
+        active = signal(true);
         clock = TestBed.runInInjectionContext(() =>
-            createSourceExpiryClock(facts)
+            createSourceExpiryClock(facts, active)
         );
         TestBed.tick();
     });
@@ -111,6 +113,17 @@ describe('createSourceExpiryClock', () => {
         TestBed.tick();
 
         expect(clock()).toBe(Date.now());
+        expect(jest.getTimerCount()).toBe(1);
+    });
+
+    it('arms no timer while the sources rail is disabled', () => {
+        active.set(false);
+        facts.set(new Map([['xtream', expiringIn(2 * DAY_MS + 20 * 60_000)]]));
+        TestBed.tick();
+        expect(jest.getTimerCount()).toBe(0);
+
+        active.set(true);
+        TestBed.tick();
         expect(jest.getTimerCount()).toBe(1);
     });
 });

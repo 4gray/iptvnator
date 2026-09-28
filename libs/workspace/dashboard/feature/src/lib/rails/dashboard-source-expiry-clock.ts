@@ -16,12 +16,14 @@ const BOUNDARY_SLACK_MS = 1_000;
  * one timer for the earliest badge boundary among the known facts (none at
  * all when no badge can change), capped at {@link SOURCE_EXPIRY_MAX_WAIT_MS}
  * because timers do not follow system sleep or clock changes. No timer is
- * armed while the document is hidden; becoming visible re-reads the clock
- * at once. Must be created in
+ * armed while the document is hidden or `active` is false; becoming visible
+ * re-reads the clock at once. Must be created in
  * an injection context.
  */
 export function createSourceExpiryClock(
-    facts: Signal<ReadonlyMap<string, SourceExpiryFacts>>
+    facts: Signal<ReadonlyMap<string, SourceExpiryFacts>>,
+    /** False while no badge can render (the sources rail is disabled). */
+    active: Signal<boolean> = signal(true)
 ): Signal<number> {
     const document = inject(DOCUMENT);
     const now = signal(Date.now());
@@ -31,9 +33,9 @@ export function createSourceExpiryClock(
         // Read for the dependency; schedule from the real time, because the
         // facts can change long after the clock last moved.
         now();
-        // Hidden: no badge is on screen. Becoming visible moves the clock,
-        // which re-runs this effect.
-        if (!visible()) return;
+        // Hidden, or the sources rail is off: no badge is on screen. Becoming
+        // visible moves the clock and re-runs this effect; so does `active`.
+        if (!visible() || !active()) return;
         const nowMs = Date.now();
         let next: number | null = null;
         for (const entry of facts().values()) {
