@@ -26,6 +26,13 @@ interface CdpSocket {
     close(): void;
 }
 
+const EXIT_WAIT_MS = 5_000;
+/**
+ * `electron` for main-process evaluation. `process.mainModule` exists only
+ * when the app entry is CommonJS; a require created from the core `module`
+ * builtin resolves Electron's built-in module either way.
+ */
+const MAIN_PROCESS_ELECTRON = `process.getBuiltinModule('node:module').createRequire(process.execPath)('electron')`;
 const DEVTOOLS_PATTERN = /DevTools listening on (ws:\/\/[^\s]+)/;
 const INSPECTOR_PATTERN = /Debugger listening on (ws:\/\/[^\s]+)/;
 const STARTUP_TIMEOUT_MS = 30_000;
@@ -115,6 +122,12 @@ async function evaluate<T>(socket: CdpSocket, expression: string): Promise<T> {
         awaitPromise: true,
         returnByValue: true,
     });
+    const protocolError = response['error'] as { message?: string } | undefined;
+    if (protocolError) {
+        throw new Error(
+            `CDP Runtime.evaluate: ${protocolError.message ?? 'failed'}`
+        );
+    }
     const result = response['result'] as {
         result?: { value?: T };
         exceptionDetails?: { text?: string };
@@ -123,6 +136,40 @@ async function evaluate<T>(socket: CdpSocket, expression: string): Promise<T> {
         throw new Error(result.exceptionDetails.text ?? 'evaluation failed');
     }
     return result?.result?.value as T;
+}
+
+function waitForExit(
+    child: ChildProcess,
+    exited: Promise<void>,
+    timeoutMs: number
+): Promise<boolean> {
+    if (child.exitCode !== null || child.signalCode !== null) {
+        return Promise.resolve(true);
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    return Promise.race([
+        exited.then(() => true),
+        new Promise<boolean>((resolve) => {
+            timer = setTimeout(() => resolve(false), timeoutMs);
+        }),
+    ]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * Bounded like `closeElectronApplicationAndConfirmExit`: a stuck Electron
+ * must neither stall the worker nor keep holding the test profile.
+ */
+async function stopElectron(
+    child: ChildProcess,
+    exited: Promise<void>
+): Promise<void> {
+    for (const signal of ['SIGTERM', 'SIGKILL'] as const) {
+        terminateElectronProcess(child, signal);
+        if (await waitForExit(child, exited, EXIT_WAIT_MS)) return;
+    }
+    throw new Error(
+        `Electron (pid ${child.pid}) did not exit after SIGTERM and SIGKILL`
+    );
 }
 
 export async function launchUnautomatedElectronApp(
@@ -154,19 +201,17 @@ export async function launchUnautomatedElectronApp(
             evaluateInMain: (body) =>
                 evaluate(
                     main,
-                    `(async (electron) => { ${body} })(process.mainModule.require('electron'))`
+                    `(async (electron) => { ${body} })(${MAIN_PROCESS_ELECTRON})`
                 ),
             evaluateInPage: (expression) => evaluate(page, expression),
             close: async () => {
                 page.close();
                 main.close();
-                terminateElectronProcess(child);
-                await exited;
+                await stopElectron(child, exited);
             },
         };
     } catch (error) {
-        terminateElectronProcess(child, 'SIGKILL');
-        await exited;
+        await stopElectron(child, exited);
         throw error;
     }
 }

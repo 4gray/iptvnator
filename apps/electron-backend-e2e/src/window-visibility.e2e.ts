@@ -21,6 +21,23 @@ const setWindowState = (
     );
 
 /**
+ * The app creates its window with `show: false` and shows it on
+ * `ready-to-show`; a `hide()` sent earlier would be undone by that `show()`.
+ */
+async function waitUntilShown(app: UnautomatedElectronApp): Promise<void> {
+    await expect
+        .poll(
+            () =>
+                app.evaluateInMain<boolean>(
+                    'return electron.BrowserWindow.getAllWindows()[0]?.isVisible() ?? false;'
+                ),
+            { timeout: 30_000 }
+        )
+        .toBe(true);
+    await expect.poll(() => visibility(app)).toBe('visible');
+}
+
+/**
  * The renderer must see a hidden or minimized window as hidden: idle timers
  * pause on `visibilitychange`, and the playback keep-awake gate releases the
  * display for a minimized window. A main window created with
@@ -35,7 +52,7 @@ test.describe('Main window visibility', () => {
     }) => {
         const app = await launchUnautomatedElectronApp(dataDir);
         try {
-            await expect.poll(() => visibility(app)).toBe('visible');
+            await waitUntilShown(app);
 
             await setWindowState(app, 'hide');
             await expect
@@ -60,7 +77,7 @@ test.describe('Main window visibility', () => {
         );
         const app = await launchUnautomatedElectronApp(dataDir);
         try {
-            await expect.poll(() => visibility(app)).toBe('visible');
+            await waitUntilShown(app);
 
             await setWindowState(app, 'minimize');
             await expect
