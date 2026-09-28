@@ -5,7 +5,10 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import type {
@@ -29,6 +32,10 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
     /** The bridge callback the service registers at construction. */
     let positionListener: ((data: PlaybackPositionData) => void) | undefined;
     const addRecentItem = jest.fn();
+    const xtreamDataSource = {
+        getContentByXtreamId: jest.fn(),
+        addRecentItem: jest.fn(),
+    };
     const activeSession = signal<unknown>(null);
     const closeSession = jest.fn().mockResolvedValue(undefined);
     const openResolvedPlayback = jest.fn();
@@ -82,6 +89,10 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         routeVodId.set(ROUTE_VOD_ID);
         positionListener = undefined;
         addRecentItem.mockClear();
+        xtreamDataSource.getContentByXtreamId
+            .mockReset()
+            .mockResolvedValue({ id: 77 });
+        xtreamDataSource.addRecentItem.mockReset().mockResolvedValue(undefined);
         closeSession.mockReset().mockResolvedValue(undefined);
         openResolvedPlayback
             .mockReset()
@@ -106,6 +117,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                             .mockReturnValue('https://example.com/route.mkv'),
                     },
                 },
+                { provide: XTREAM_DATA_SOURCE, useValue: xtreamDataSource },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
                     useValue: { activeSession, closeSession },
@@ -174,7 +186,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         expect(recentItem.playlist()).toEqual({ id: ROUTE_PLAYLIST });
     });
 
-    it('drops a confirmation that arrives after a switch to another playlist', async () => {
+    it('saves a confirmation that arrives after a playlist switch without touching the store', async () => {
         // Only a slow MPV/VLC launch can confirm after the page is gone; the
         // store's recent list belongs to the other playlist by then.
         await service.startResolvedPlayback({
@@ -186,8 +198,19 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         TestBed.inject(PlaybackHistoryGate).confirm({
             streamUrls: ['https://example.com/route.mkv'],
         });
+        await Promise.resolve();
 
         expect(addRecentItem).not.toHaveBeenCalled();
+        expect(xtreamDataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            ROUTE_VOD_ID,
+            ROUTE_PLAYLIST,
+            'movie'
+        );
+        expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
+            77,
+            ROUTE_PLAYLIST,
+            undefined
+        );
     });
 
     it('owns a session launched for the route’s own stream', () => {

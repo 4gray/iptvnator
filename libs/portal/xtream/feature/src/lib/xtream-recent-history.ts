@@ -1,6 +1,10 @@
-import { inject, signal } from '@angular/core';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { inject, Injector, signal } from '@angular/core';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
+import {
+    type IXtreamDataSource,
+    XTREAM_DATA_SOURCE,
+    XtreamStore,
+} from '@iptvnator/portal/xtream/data-access';
 
 export interface XtreamRecentItemRequest {
     readonly xtreamId: number | string;
@@ -12,13 +16,13 @@ export interface XtreamRecentItemRequest {
  * Records a movie or series as recently viewed once `streamUrl` has really
  * played — inline for a couple of seconds, or launched in MPV/VLC — so a
  * source that fails straight away never reaches history or the dashboard
- * hero.
+ * hero. The playlist is captured when playback starts, so navigating to
+ * another one meanwhile cannot misfile the item.
  *
  * A confirmation that arrives after the user switched to another playlist
  * (only a slow MPV/VLC launch can: the inline player goes with the page) is
- * dropped: the store's recent list belongs to the other playlist by then,
- * and recording it would misfile the item or replace that list. The check
- * lives here, off the initial bundle the Xtream store ships in.
+ * saved to the captured playlist without touching the store, whose recent
+ * list belongs to the other playlist by then.
  *
  * Must run in an injection context.
  */
@@ -28,13 +32,48 @@ export function injectXtreamRecentHistory(): (
 ) => void {
     const gate = inject(PlaybackHistoryGate);
     const store = inject(XtreamStore);
+    const injector = inject(Injector);
 
     return (streamUrl, request) => {
         const playlist = signal(store.currentPlaylist()).asReadonly();
         gate.defer({ streamUrls: [streamUrl] }, () => {
-            if (store.currentPlaylist()?.id === playlist()?.id) {
+            const playlistId = playlist()?.id;
+            if (store.currentPlaylist()?.id === playlistId) {
                 store.addRecentItem({ ...request, playlist });
+            } else if (playlistId) {
+                void saveWithoutListRefresh(
+                    injector.get(XTREAM_DATA_SOURCE),
+                    playlistId,
+                    request
+                );
             }
         });
     };
+}
+
+/**
+ * The save half of `withRecentItems.addRecentItem` (same content lookup and
+ * PWA fallback to the Xtream id for cold content), without reloading the
+ * store's recent list. Kept here rather than shared with the store: the
+ * store and its library barrel ship in the initial bundle, this path is
+ * only reached from lazy detail pages.
+ */
+async function saveWithoutListRefresh(
+    dataSource: IXtreamDataSource,
+    playlistId: string,
+    { xtreamId, contentType, backdropUrl }: XtreamRecentItemRequest
+): Promise<void> {
+    const id = Number(xtreamId);
+    if (!Number.isFinite(id) || id <= 0) {
+        return;
+    }
+    const content = await dataSource.getContentByXtreamId(
+        id,
+        playlistId,
+        contentType
+    );
+    const contentId = content?.id ?? (!window.electron ? id : null);
+    if (contentId != null) {
+        await dataSource.addRecentItem(contentId, playlistId, backdropUrl);
+    }
 }
