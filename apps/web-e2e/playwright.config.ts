@@ -15,6 +15,7 @@ const webServerCommand =
         ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
         : 'pnpm nx run web:serve';
 const reuseExistingWebServer = isStaticPwaE2E ? false : !process.env['CI'];
+const webBackendPort = process.env['WEB_BACKEND_PORT'] ?? '3333';
 
 /**
  * Read environment variables from file.
@@ -57,7 +58,8 @@ export default defineConfig({
      * both mock servers honour them as a fallback for PORT (their serve
      * targets no longer pin PORT, so an explicit shell value reaches the
      * process). That is what lets two worktrees run E2E side by side when one
-     * already holds 3210/3211.
+     * already holds 3210/3211. WEB_BACKEND_PORT does the same for the web
+     * backend and self-hosted.e2e.ts, which is the only spec that calls it.
      */
     webServer: [
         {
@@ -89,9 +91,18 @@ export default defineConfig({
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },
+        /* Same single-process launch for the backend; `env` mirrors the
+         * `web-backend:serve` target, which stays the manual entry point. */
         {
-            command: 'pnpm nx run web-backend:serve',
-            url: 'http://localhost:3333/health',
+            command: 'node --import tsx apps/web-backend/src/main.ts',
+            env: {
+                PORT: webBackendPort,
+                CLIENT_URL: 'http://localhost:4200',
+                BACKEND_URL: '/api',
+                IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: '1',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
+            url: `http://localhost:${webBackendPort}/health`,
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },

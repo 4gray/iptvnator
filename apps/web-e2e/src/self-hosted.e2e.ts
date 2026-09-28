@@ -4,7 +4,8 @@ import { openSourceEditor, sourceRowByTitle } from './sources-pwa.helpers';
 import { postWithRetry, setInputValue } from './e2e-helpers';
 import { expect, test } from './fixtures';
 
-const WEB_BACKEND_URL = 'http://localhost:3333';
+const WEB_BACKEND_PORT = process.env['WEB_BACKEND_PORT'] ?? '3333';
+const WEB_BACKEND_URL = `http://localhost:${WEB_BACKEND_PORT}`;
 const XTREAM_MOCK_PORT = process.env['XTREAM_MOCK_PORT'] ?? '3211';
 const STALKER_MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
 const XTREAM_MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
