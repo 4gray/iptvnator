@@ -225,6 +225,16 @@ user who leaves that screen open pays them indefinitely, minimized included.
 | 30 s EPG clocks in the Xtream, Stalker, EPG guide and unified live views | "Now" clocks for progress and the current programme | 30 s for as long as their route is open | CD tick each | Yes while visible | Static | Cover with the throttling thread (pause on hidden). |
 | [empty-state.welcome-dashboard.scss:58](../../libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.welcome-dashboard.scss) (`gridMove`, keyframes in `empty-state.component.scss:169`) | First-run dashboard with no playlists: the welcome state's `::before` grid drifts via an infinite `transform` animation | Continuous (60 s loop) while the empty dashboard is shown; the reduced-motion block does not stop the pseudo-element | Compositor and GPU frames only, no main-thread layout (not measured) | **Partly.** Decorative; a first-run screen left open keeps the GPU busy, and reduced motion should stop it. | Static | **Own thread** (small): stop the `::before` animation under `prefers-reduced-motion`, and consider pausing it while hidden (throttling stops compositor frames in a hidden window once #1724 lands). |
 | [video-player.component.ts:790](../../libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts) `epgNowMs` | M3U playlist view: refreshes "now" for EPG state, unconditionally, separate from the channel-list timers above | 30 s while an M3U playlist route is open, with or without an active channel | A signal write and an app-wide CD tick | **Partly.** Needed while a programme is shown; not with no channel selected. | Static | Cover with the throttling thread (pause on hidden), and start it only while a channel with EPG is active. |
+| [portal-empty-state.component.scss:25](../../libs/portal/shared/ui/src/lib/components/portal-empty-state/portal-empty-state.component.scss) `portal-empty-state-float` | Xtream, Stalker and unified live views with nothing selected or no results: the empty-state icon floats on an infinite `transform` animation | Continuous (2.8 s loop) while the empty state is shown | Compositor and GPU frames only (not measured) | **Partly.** Decorative; an empty portal view left open keeps the GPU busy. | Static | **Own thread** (small, with the welcome grid): stop decorative loops under reduced motion; #1724 stops their frames in a hidden window. |
+
+Every infinite CSS animation in the renderer styles (`animation: … infinite`)
+falls into one of three groups. **Loading indicators** (skeleton and list
+shimmers, spinners, the refresh and download spinners, the EPG import spinner)
+end with their loading state. **Playback and recording indicators** (live
+pulses, the radio artwork and ring, the recording pulse and slide) run only
+while something plays or records. **Decorative loops in idle states** are the
+welcome grid and the portal empty-state icon listed above; they are the only
+ones that keep running on a screen left alone.
 
 ## Related observation
 
