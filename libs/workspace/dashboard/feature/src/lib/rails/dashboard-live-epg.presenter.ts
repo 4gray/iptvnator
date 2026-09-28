@@ -16,7 +16,9 @@ import {
     filter,
     forkJoin,
     map,
+    merge,
     of,
+    skip,
     switchMap,
     tap,
 } from 'rxjs';
@@ -44,6 +46,7 @@ import {
     liveEpgAnswersNeedRefresh,
     liveEpgProgramKey,
     liveEpgScopeKey,
+    LIVE_EPG_MAX_ANSWER_AGE_MS,
     sameLiveEpgAnswers,
     type DashboardLiveEpgDetails,
     type DashboardLiveEpgLookupGroup,
@@ -152,11 +155,18 @@ export class DashboardLiveEpgPresenter {
     /** Created once: `toObservable` owns an effect for the injector's life. */
     private readonly now$ = toObservable(this.clock.now);
 
-    // Asked on rail or offset change, then on clock ticks only once an
-    // answer can be stale: a programme ended, or a key is still without
-    // one. A programme that is still on air is not asked for again, and an
-    // unchanged answer is not re-emitted, so the rails rebuild on a tick
-    // only for the progress bars.
+    /** A guide import or source change can replace a programme on air. */
+    private readonly guideChanged$ = this.epgService.epgAvailable$.pipe(
+        skip(1),
+        filter(Boolean),
+        map(() => Date.now())
+    );
+
+    // Asked on rail or offset change and whenever the guide changes. On
+    // clock ticks it is asked again only once an answer can be stale: a
+    // programme ended, a key is still without one, or the answer is older
+    // than LIVE_EPG_MAX_ANSWER_AGE_MS. An unchanged answer is not
+    // re-emitted, so the rails rebuild on a tick only for the progress bars.
     private readonly programs = toSignal(
         combineLatest([
             toObservable(this.lookupGroups),
@@ -168,20 +178,29 @@ export class DashboardLiveEpgPresenter {
                 }
                 let answers: ReadonlyMap<string, EpgProgram | null> | null =
                     null;
-                return this.now$.pipe(
-                    filter((nowMs) =>
-                        liveEpgAnswersNeedRefresh(
-                            answers,
-                            groups,
-                            epgProviderClockMs(nowMs, offsetMinutes)
-                        )
+                let answeredAt = 0;
+                return merge(
+                    this.now$,
+                    this.guideChanged$.pipe(tap(() => (answers = null)))
+                ).pipe(
+                    filter(
+                        (nowMs) =>
+                            nowMs - answeredAt >= LIVE_EPG_MAX_ANSWER_AGE_MS ||
+                            liveEpgAnswersNeedRefresh(
+                                answers,
+                                groups,
+                                epgProviderClockMs(nowMs, offsetMinutes)
+                            )
                     ),
                     switchMap(() =>
                         forkJoin(
                             groups.map((group) => this.askScope(group))
                         ).pipe(map((scopes) => mergeAnswers(scopes)))
                     ),
-                    tap((merged) => (answers = merged)),
+                    tap((merged) => {
+                        answers = merged;
+                        answeredAt = Date.now();
+                    }),
                     distinctUntilChanged(sameLiveEpgAnswers)
                 );
             })

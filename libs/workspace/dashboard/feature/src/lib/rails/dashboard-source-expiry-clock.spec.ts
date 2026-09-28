@@ -20,9 +20,16 @@ describe('createSourceExpiryClock', () => {
         reportedExpired: false,
     });
 
+    let hidden: boolean;
+
     beforeEach(() => {
         jest.useFakeTimers();
         jest.setSystemTime(nowMs);
+        hidden = false;
+        Object.defineProperty(document, 'hidden', {
+            configurable: true,
+            get: () => hidden,
+        });
         facts = signal<ReadonlyMap<string, SourceExpiryFacts>>(new Map());
         clock = TestBed.runInInjectionContext(() =>
             createSourceExpiryClock(facts)
@@ -32,6 +39,7 @@ describe('createSourceExpiryClock', () => {
 
     afterEach(() => {
         TestBed.resetTestingModule();
+        delete (document as { hidden?: boolean }).hidden;
         jest.useRealTimers();
     });
 
@@ -74,5 +82,35 @@ describe('createSourceExpiryClock', () => {
         TestBed.tick();
 
         expect(clock()).toBe(before + SOURCE_EXPIRY_MAX_WAIT_MS);
+    });
+
+    it('schedules from the real time when facts arrive long after the last tick', () => {
+        // No facts yet, so no timer: the clock stays at its start value.
+        jest.advanceTimersByTime(50 * 60_000);
+        const before = clock();
+
+        // The boundary is 5 minutes from the real time, 55 from the clock.
+        facts.set(new Map([['xtream', expiringIn(2 * DAY_MS + 55 * 60_000)]]));
+        TestBed.tick();
+
+        jest.advanceTimersByTime(6 * 60_000);
+        TestBed.tick();
+        expect(clock()).toBeGreaterThan(before);
+    });
+
+    it('arms no timer while hidden and catches up as the page returns', () => {
+        facts.set(new Map([['xtream', expiringIn(2 * DAY_MS + 20 * 60_000)]]));
+        hidden = true;
+        document.dispatchEvent(new Event('visibilitychange'));
+        TestBed.tick();
+        expect(jest.getTimerCount()).toBe(0);
+
+        jest.advanceTimersByTime(3 * 60 * 60_000);
+        hidden = false;
+        document.dispatchEvent(new Event('visibilitychange'));
+        TestBed.tick();
+
+        expect(clock()).toBe(Date.now());
+        expect(jest.getTimerCount()).toBe(1);
     });
 });

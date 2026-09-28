@@ -11,6 +11,11 @@ import type { DashboardRailCard } from './dashboard-rail.component';
 // the SQLite backend with a batched IPC every animation frame.
 export const LIVE_EPG_TICK_MS = 30_000;
 
+// A programme still on air is asked for again at least this often: a guide
+// refreshed outside this page's view can correct or replace it, and nothing
+// else tells the dashboard.
+export const LIVE_EPG_MAX_ANSWER_AGE_MS = 5 * 60_000;
+
 // Reads either an ISO `start`/`stop` or the pre-computed `startTimestamp`
 // when present. The parsed XMLTV pipeline populates both, but legacy rows
 // only carry the strings. `startTimestamp`/`stopTimestamp` are unix SECONDS

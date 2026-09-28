@@ -1,6 +1,6 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { EMPTY, of, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, of, throwError } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
@@ -42,6 +42,7 @@ const program = (title: string): EpgProgram =>
 describe('DashboardLiveEpgPresenter', () => {
     let presenter: DashboardLiveEpgPresenter;
     let getCurrentProgramsForChannels: jest.Mock;
+    let epgAvailable: BehaviorSubject<boolean>;
     let playlists: ReturnType<typeof signal<PlaylistMeta[]>>;
     let recentItems: ReturnType<typeof signal<PortalActivityItem[]>>;
     let favoriteLiveItems: ReturnType<typeof signal<PortalActivityItem[]>>;
@@ -69,6 +70,7 @@ describe('DashboardLiveEpgPresenter', () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
         getCurrentProgramsForChannels = jest.fn(() => of(new Map()));
+        epgAvailable = new BehaviorSubject(false);
         playlists = signal<PlaylistMeta[]>([
             m3uPlaylist('a', [guideA]),
             m3uPlaylist('a2', [guideA]),
@@ -108,7 +110,10 @@ describe('DashboardLiveEpgPresenter', () => {
                 },
                 {
                     provide: EpgService,
-                    useValue: { getCurrentProgramsForChannels },
+                    useValue: {
+                        getCurrentProgramsForChannels,
+                        epgAvailable$: epgAvailable,
+                    },
                 },
                 {
                     provide: SettingsStore,
@@ -347,7 +352,66 @@ describe('DashboardLiveEpgPresenter', () => {
         );
     });
 
-    it('asks a guide again only once a programme on air has ended', () => {
+    /** One clock tick: the interval fires, then effects flush. */
+    const tick = (count = 1) => {
+        for (let index = 0; index < count; index++) {
+            jest.advanceTimersByTime(30_000);
+            TestBed.tick();
+        }
+    };
+
+    it('asks a guide again once a programme on air has ended', () => {
+        const fromA = card({
+            id: 'a',
+            epgLookupKey: 'ard.de',
+            epgPlaylistId: 'a',
+        });
+        getCurrentProgramsForChannels.mockImplementation(() =>
+            of(
+                new Map([
+                    [
+                        'ard.de',
+                        {
+                            ...program('Short'),
+                            stop: '2026-05-23T10:32:00.000Z',
+                        },
+                    ],
+                ])
+            )
+        );
+        setup([fromA]);
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(1);
+
+        // 10:30 → 10:31:30: still on air.
+        tick(3);
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(1);
+
+        // The 10:32 tick sees it ended and asks again.
+        tick();
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks again at least every five minutes while a programme is on air', () => {
+        const fromA = card({
+            id: 'a',
+            epgLookupKey: 'ard.de',
+            epgPlaylistId: 'a',
+        });
+        getCurrentProgramsForChannels.mockImplementation(() =>
+            of(new Map([['ard.de', program('Tagesschau')]]))
+        );
+        setup([fromA]);
+
+        // 10:30 → 10:34:30: the 10:00–11:00 programme is on air and fresh.
+        tick(9);
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(1);
+
+        // 10:35: the answer is five minutes old; a guide may have changed.
+        tick();
+        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(2);
+    });
+
+    it('asks again at once when a guide import or source change lands', () => {
         const fromA = card({
             id: 'a',
             epgLookupKey: 'ard.de',
@@ -359,18 +423,14 @@ describe('DashboardLiveEpgPresenter', () => {
         setup([fromA]);
         expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(1);
 
-        // 10:30 → 10:59:30, one tick at a time: the 10:00–11:00 programme is
-        // still on air on every one of them.
-        for (let tick = 0; tick < 59; tick++) {
-            jest.advanceTimersByTime(30_000);
-            TestBed.tick();
-        }
-        expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(1);
-
-        // The 11:00 tick sees it ended and asks again.
-        jest.advanceTimersByTime(30_000);
+        getCurrentProgramsForChannels.mockImplementation(() =>
+            of(new Map([['ard.de', program('Corrected')]]))
+        );
+        epgAvailable.next(true);
         TestBed.tick();
+
         expect(getCurrentProgramsForChannels).toHaveBeenCalledTimes(2);
+        expect(presenter.detailsFor(fromA)?.nowPlayingTitle).toBe('Corrected');
     });
 
     it('moves progress on every clock tick while the programme is unchanged', () => {

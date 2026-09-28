@@ -207,9 +207,12 @@ hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
        the XMLTV lookup has cards or the portal presenter wants one, and
        only while the document is visible; it reads the clock at once when
        it starts again. A tick re-reads progress for every live card. It
-       re-asks an XMLTV scope only after one of its programmes has ended or
-       while a key has no programme, and an unchanged answer is not
-       re-emitted.
+       re-asks an XMLTV scope only after one of its programmes has ended,
+       while a key has no programme, or once the answer is five minutes old
+       (`LIVE_EPG_MAX_ANSWER_AGE_MS`), because a guide refreshed elsewhere
+       can correct a programme still on air. A guide import or source change
+       (`EpgService.epgAvailable$`) re-asks at once. An unchanged answer is
+       not re-emitted.
        Xtream and Stalker cards have no XMLTV key of their own; their "now on
        air" line comes from the portal, **lazily and per card**:
         - `buildDashboardPortalLiveEpgEntry` (dashboard data-access) turns a
@@ -404,5 +407,7 @@ full-playlist read. The chip is not a separate account-refresh request.
 The badge only changes at day boundaries, so the rails do not poll the clock:
 `createSourceExpiryClock` arms one timer for the earliest boundary among the
 known facts (`nextSourceExpiryChangeMs`), capped at an hour because timers do
-not follow system sleep, and re-reads the clock when the page becomes visible.
+not follow system sleep. It arms no timer while the page is hidden and
+re-reads the clock when the page becomes visible. It schedules from the real
+time, so facts that arrive long after the last tick are not scheduled late.
 Facts whose badge can no longer change arm no timer.
