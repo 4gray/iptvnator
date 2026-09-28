@@ -55,9 +55,18 @@ async function openCdpSocket(url: string): Promise<CdpSocket> {
         );
     });
     socket.addEventListener('message', (event) => {
-        const message = JSON.parse(String(event.data));
-        pending.get(message.id)?.(message);
-        pending.delete(message.id);
+        const message = JSON.parse(String(event.data)) as Record<
+            string,
+            unknown
+        >;
+        // Only replies to our own numbered requests settle a promise; events
+        // and unknown ids are ignored.
+        const id = message['id'];
+        if (typeof id !== 'number') return;
+        const settle = pending.get(id);
+        if (typeof settle !== 'function') return;
+        pending.delete(id);
+        settle(message);
     });
     return {
         send: (method, params = {}) =>

@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { expect, test } from './electron-test-fixtures';
 import {
     launchUnautomatedElectronApp,
@@ -8,6 +10,10 @@ import {
 // request never takes effect there (see window-controls.e2e.ts).
 const isWindowManagerlessCi =
     process.platform === 'linux' && !!process.env['CI'];
+
+const videoFixtureUrl = pathToFileURL(
+    join(__dirname, '../../web-e2e/src/fixtures/playback/episode.webm')
+).href;
 
 const visibility = (app: UnautomatedElectronApp) =>
     app.evaluateInPage<string>('document.visibilityState');
@@ -88,6 +94,52 @@ test.describe('Main window visibility', () => {
             await expect
                 .poll(() => visibility(app), { timeout: 10_000 })
                 .toBe('visible');
+        } finally {
+            await app.close();
+        }
+    });
+
+    test('@electron releases the playback display lock while the window is hidden', async ({
+        dataDir,
+    }) => {
+        const app = await launchUnautomatedElectronApp(dataDir);
+        try {
+            await waitUntilShown(app);
+            // Record the display-sleep blockers the keep-awake service holds.
+            await app.evaluateInMain(`
+                const blocker = electron.powerSaveBlocker;
+                const active = (globalThis.__e2eDisplayBlockers = new Set());
+                const start = blocker.start.bind(blocker);
+                const stop = blocker.stop.bind(blocker);
+                blocker.start = (type) => {
+                    const id = start(type);
+                    if (type === 'prevent-display-sleep') active.add(id);
+                    return id;
+                };
+                blocker.stop = (id) => {
+                    active.delete(id);
+                    return stop(id);
+                };
+            `);
+            const heldBlockers = () =>
+                app.evaluateInMain<number>(
+                    'return globalThis.__e2eDisplayBlockers.size;'
+                );
+            await app.evaluateInPage(`(() => {
+                const video = document.createElement('video');
+                video.muted = true;
+                video.loop = true;
+                video.src = ${JSON.stringify(videoFixtureUrl)};
+                document.body.append(video);
+                return video.play().then(() => true);
+            })()`);
+            await expect.poll(heldBlockers, { timeout: 10_000 }).toBe(1);
+
+            await setWindowState(app, 'hide');
+            await expect.poll(heldBlockers, { timeout: 10_000 }).toBe(0);
+
+            await setWindowState(app, 'show');
+            await expect.poll(heldBlockers, { timeout: 10_000 }).toBe(1);
         } finally {
             await app.close();
         }
