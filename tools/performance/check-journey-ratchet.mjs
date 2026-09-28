@@ -188,7 +188,7 @@ export function compareToBaselines({ baselines, summary, only = [] }) {
                 result.failures.push(
                     `${label}: ${formatNumber(measured)}${unit} exceeds ${limitText} by ${formatNumber(measured - limit)}${unit}. Bring the value back down; baselines only move down. If the growth is a deliberate trade-off, raise the baseline in ${DEFAULT_BASELINES_PATH}, make the case in the PR, and ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label.`
                 );
-            } else if (measured > entry.value) {
+            } else if (entry.slack && measured > entry.value) {
                 result.passed.push(
                     `${label}: ${formatNumber(measured)}${unit} within ${limitText}; uses ${formatNumber(measured - entry.value)} of ${formatNumber(limit - entry.value)}${unit} slack.`
                 );

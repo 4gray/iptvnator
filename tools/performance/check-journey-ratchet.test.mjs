@@ -155,8 +155,9 @@ test('wall-clock entries fail only above value × toleranceRatio', () => {
     assert.deepEqual(within.failures, []);
     assert.match(
         within.passed[1],
-        /1,250 ms within 1,250 \(baseline 1,000 × 1\.25\)/
+        /1,250 ms within 1,250 \(baseline 1,000 × 1\.25\)\.$/
     );
+    assert.doesNotMatch(within.passed[1], /slack/);
 
     const above = compareToBaselines({
         baselines,
