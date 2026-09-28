@@ -50,6 +50,11 @@ export interface OpenSourceJourneyMeasurement {
     readonly http: {
         /** Mock requests after the app settled but before the click stamp. */
         readonly afterSettleBeforeClick: number;
+        /**
+         * Requests after the post-terminal quiet sample; outside the window
+         * because their completion was not waited for.
+         */
+        readonly afterSettled: readonly JourneyMockRequest[];
         /** Mock requests from the spawn (J1 and settling) until the click. */
         readonly beforeClick: readonly JourneyMockRequest[];
         /** Mock requests from the click until the mock was quiet again. */
@@ -170,6 +175,9 @@ export function toOpenSourceIterationRecord(
             }),
             httpRequestsBeforeClickByRoute: countJourneyMockRoutes(
                 http.beforeClick
+            ),
+            httpRequestsAfterSettledByRoute: countJourneyMockRoutes(
+                http.afterSettled
             ),
             httpRequestsByRoute: countJourneyMockRoutes(http.requests),
             httpRequestsToFirstPage: requestsToFirstPage,

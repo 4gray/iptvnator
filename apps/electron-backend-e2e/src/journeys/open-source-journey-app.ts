@@ -133,8 +133,8 @@ async function waitForQuiet(
  */
 async function waitForMockQuiet(
     ledger: JourneyMockRequestLedger
-): Promise<void> {
-    await waitForJourneyQuiet({
+): Promise<number> {
+    const { sample: quiet } = await waitForJourneyQuiet({
         inFlight: (activity) => activity.inFlight,
         pollMs: POLL_MS,
         quietMs: QUIET_MS,
@@ -145,6 +145,11 @@ async function waitForMockQuiet(
         timeoutError: () => new Error('open-source-journey-mock-not-quiet'),
         timeoutMs: SETTLE_TIMEOUT_MS,
     });
+    // The window ends at the ledger position this accepted sample read. A
+    // request that arrives after it was never seen in flight, so its
+    // response and follow-ups are not waited for; counting it would make
+    // the counter depend on when the ledger is read.
+    return quiet.requests;
 }
 
 /**
@@ -202,7 +207,7 @@ export async function measureOpenSourceJourney(
         OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY,
         10_000
     );
-    await waitForMockQuiet(ledger);
+    const settledAfterLedgerMark = await waitForMockQuiet(ledger);
     // The journey starts at the renderer's click stamp, not when Playwright
     // began its actionability checks, so a request that arrives in between
     // stays before the click like it does for every other J2 counter. The
@@ -216,14 +221,20 @@ export async function measureOpenSourceJourney(
     const beforeClick = sinceSpawn.filter(
         (entry) => entry.epochMs < clickEpochMs
     );
+    const afterClick = sinceSpawn.filter(
+        (entry) => entry.epochMs >= clickEpochMs
+    );
     return {
         http: {
             afterSettleBeforeClick: beforeClick.filter(
                 (entry) => entry.sequence >= settledLedgerMark
             ).length,
+            afterSettled: afterClick.filter(
+                (entry) => entry.sequence >= settledAfterLedgerMark
+            ),
             beforeClick,
-            requests: sinceSpawn.filter(
-                (entry) => entry.epochMs >= clickEpochMs
+            requests: afterClick.filter(
+                (entry) => entry.sequence < settledAfterLedgerMark
             ),
         },
         ipc,

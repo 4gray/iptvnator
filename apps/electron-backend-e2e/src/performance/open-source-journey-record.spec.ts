@@ -83,6 +83,9 @@ function measurement(
     return {
         http: {
             afterSettleBeforeClick: 0,
+            afterSettled: [
+                request(3, '/player_api.php?action=get_vod_streams', 12_500),
+            ],
             beforeClick: [
                 request(0, '/player_api.php?action=get_account_info', 2_000),
             ],
@@ -128,6 +131,10 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
     assert.deepEqual(record.evidence['httpRequestsByRoute'], {
         '/assets/marketing/poster/a': 1,
         '/player_api.php?action=get_account_info': 1,
+    });
+    // Arrived after the post-terminal quiet sample: evidence, not counted.
+    assert.deepEqual(record.evidence['httpRequestsAfterSettledByRoute'], {
+        '/player_api.php?action=get_vod_streams': 1,
     });
     assert.deepEqual(record.evidence['httpRequestsBeforeClickByRoute'], {
         '/player_api.php?action=get_account_info': 1,
