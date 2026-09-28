@@ -130,6 +130,10 @@ jobs:
         name: Initial bytes ratchet
         runs-on: ubuntu-latest
         timeout-minutes: 30
+        # pull-requests: read lets the direction check read the PR's labels.
+        permissions:
+            contents: read
+            pull-requests: read
 
         steps:
             - name: Checkout code
@@ -153,12 +157,21 @@ jobs:
             # the revision this one is measured against instead: the target
             # branch for a pull request, the previous head for a master push,
             # master for a manual dispatch. Any raised limit, widened tolerance
-            # or removed entry fails.
+            # or slack, or removed entry fails, unless a maintainer put the
+            # perf-baseline-increase label on the pull request (for a master
+            # push: on the pull request merged as the pushed commit). Labels
+            # are read from the API, not the event payload, so re-running this
+            # job after adding the label picks it up.
             - name: Refuse baseline increases against the previous revision
               env:
                   EVENT_NAME: ${{ github.event_name }}
                   BASE_REF: ${{ github.base_ref }}
                   BEFORE_SHA: ${{ github.event.before }}
+                  HEAD_SHA: ${{ github.sha }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  REPOSITORY: ${{ github.repository }}
+                  GH_TOKEN: ${{ github.token }}
+                  INCREASE_LABEL: perf-baseline-increase
               run: |
                   set -euo pipefail
                   case "$EVENT_NAME" in
@@ -178,9 +191,26 @@ jobs:
                   esac
                   git show "FETCH_HEAD:tools/performance/journey-baselines.json" > /tmp/base-journey-baselines.json 2>/dev/null ||
                       rm -f /tmp/base-journey-baselines.json
+                  case "$EVENT_NAME" in
+                      pull_request)
+                          labels="$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/labels" --jq '.[].name')"
+                          ;;
+                      push)
+                          labels="$(gh api "repos/$REPOSITORY/commits/$HEAD_SHA/pulls" --jq '.[].labels[].name')"
+                          ;;
+                      *)
+                          labels=""
+                          ;;
+                  esac
+                  allow=()
+                  if grep -qxF "$INCREASE_LABEL" <<< "$labels"; then
+                      echo "The $INCREASE_LABEL label is set; weakened baselines are reported, not failed."
+                      allow=(--allow-increase)
+                  fi
                   node tools/performance/check-baseline-direction.mjs \
                       --base /tmp/base-journey-baselines.json \
-                      --head tools/performance/journey-baselines.json
+                      --head tools/performance/journey-baselines.json \
+                      "${allow[@]}"
 
             # The production configuration is what users download; measuring
             # any other build would ratchet a number nobody ships.
@@ -190,8 +220,8 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
-            # Fails when renderer.initialBytes exceeds the value committed in
-            # tools/performance/journey-baselines.json. Baselines only move
+            # Fails when renderer.initialBytes exceeds value + slack committed
+            # in tools/performance/journey-baselines.json. Baselines only move
             # down, with the printed measurement as evidence; the contract is
             # docs/architecture/performance-journeys.md.
             - name: Check renderer.initialBytes against the baseline

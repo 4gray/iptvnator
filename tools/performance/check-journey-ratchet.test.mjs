@@ -98,6 +98,55 @@ test('a counter below its baseline passes and asks to tighten', () => {
     );
 });
 
+test('a counter with slack passes up to value + slack and reports the slack used', () => {
+    const withSlack = {
+        version: 1,
+        journeys: {
+            launch: {
+                'renderer.initialBytes': {
+                    value: 1000,
+                    unit: 'bytes',
+                    slack: 100,
+                },
+            },
+        },
+    };
+    const check = (initialBytes) =>
+        compareToBaselines({
+            baselines: withSlack,
+            summary: {
+                journeys: {
+                    launch: {
+                        counters: { 'renderer.initialBytes': initialBytes },
+                    },
+                },
+            },
+        });
+
+    const within = check(1100);
+    assert.deepEqual(within.failures, []);
+    assert.deepEqual(within.tightenable, []);
+    assert.match(
+        within.passed[0],
+        /1,100 bytes within 1,100 \(baseline 1,000 \+ slack 100 bytes\); uses 100 of 100 bytes slack/
+    );
+
+    const above = check(1101);
+    assert.equal(above.failures.length, 1);
+    assert.match(
+        above.failures[0],
+        /1,101 bytes exceeds 1,100 \(baseline 1,000 \+ slack 100 bytes\) by 1 bytes/
+    );
+    assert.match(above.failures[0], /add the perf-baseline-increase label/);
+
+    const exact = check(1000);
+    assert.match(exact.passed[0], /1,000 bytes within 1,100/);
+    assert.doesNotMatch(exact.passed[0], /uses/);
+
+    const below = check(990);
+    assert.match(below.tightenable[0], /below baseline 1,000 by 10 bytes/);
+});
+
 test('wall-clock entries fail only above value × toleranceRatio', () => {
     const within = compareToBaselines({
         baselines,
@@ -283,6 +332,29 @@ test('rejects malformed baseline files', () => {
                 journeys: { launch: { x: { value: 1, toleranceRatio: 0.5 } } },
             }),
         /invalid "toleranceRatio"/
+    );
+    assert.throws(
+        () =>
+            validateBaselines({
+                journeys: { launch: { x: { value: 1, slack: -1 } } },
+            }),
+        /invalid "slack"/
+    );
+    assert.throws(
+        () =>
+            validateBaselines({
+                journeys: { launch: { x: { value: 1, slack: 1.5 } } },
+            }),
+        /invalid "slack"/
+    );
+    assert.throws(
+        () =>
+            validateBaselines({
+                journeys: {
+                    launch: { x: { value: 1, slack: 1, toleranceRatio: 1.1 } },
+                },
+            }),
+        /sets both "slack" and "toleranceRatio"/
     );
 });
 
