@@ -37,6 +37,12 @@ export const OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY =
 const QUIET_MS = 1_000;
 const POLL_MS = 100;
 const SETTLE_TIMEOUT_MS = 30_000;
+/**
+ * After the mock settled, the ledger is watched this much longer before it
+ * is read, so requests that arrive after the accepted quiet sample show up
+ * in `httpRequestsAfterSettledByRoute` instead of vanishing unseen.
+ */
+const LATE_REQUEST_OBSERVATION_MS = QUIET_MS;
 
 interface ActivitySample {
     readonly domMutations: number;
@@ -208,6 +214,9 @@ export async function measureOpenSourceJourney(
         10_000
     );
     const settledAfterLedgerMark = await waitForMockQuiet(ledger);
+    await new Promise((resolve) =>
+        setTimeout(resolve, LATE_REQUEST_OBSERVATION_MS)
+    );
     // The journey starts at the renderer's click stamp, not when Playwright
     // began its actionability checks, so a request that arrives in between
     // stays before the click like it does for every other J2 counter. The
