@@ -1,9 +1,13 @@
+import { AsyncPipe } from '@angular/common';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslatePipe } from '@ngx-translate/core';
+import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
+import { By } from '@angular/platform-browser';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
@@ -40,6 +44,17 @@ import {
     syncStoreState,
     translateServiceProvider,
 } from './video-player.spec-harness';
+import {
+    StubAudioPlayerComponent,
+    StubChannelListLoadingStateComponent,
+    StubEpgGuideComponent,
+    StubEpgGuideNowPlayingComponent,
+    StubEpgTimelineComponent,
+    StubPortalEmptyStateComponent,
+    StubResizableDirective,
+    StubSidebarComponent,
+    StubWebPlayerViewComponent,
+} from './video-player.spec-stubs';
 
 jest.unstable_mockModule('video.js', () => ({
     default: jest.fn(),
@@ -67,15 +82,13 @@ function programme(title: string, fromHour: number, toHour: number) {
 }
 
 /**
- * Catch-up programmes on the seek bar. Kept apart from
- * `video-player.component.spec.ts`, which sits at the spec line budget; the
- * template is reduced to the panel's `ng-template`, so this reads the
- * signal the template binds to `app-web-player-view`.
+ * Catch-up programmes on the seek bar, read from the `app-web-player-view`
+ * the real template binds. Kept apart from `video-player.component.spec.ts`,
+ * which sits at the spec line budget.
  */
 describe('VideoPlayerComponent — catch-up timeline segments', () => {
     let VideoPlayerComponent: typeof import('./video-player.component').VideoPlayerComponent;
     let fixture: ComponentFixture<VideoPlayerComponentInstance>;
-    let component: VideoPlayerComponentInstance;
 
     beforeAll(async () => {
         ({ VideoPlayerComponent } = await import('./video-player.component'));
@@ -158,15 +171,27 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
         })
             .overrideComponent(VideoPlayerComponent, {
                 set: {
-                    imports: [],
-                    template:
-                        '<ng-template #fullscreenChannelPanel></ng-template>',
+                    imports: [
+                        AsyncPipe,
+                        StubAudioPlayerComponent,
+                        StubChannelListLoadingStateComponent,
+                        StubEpgGuideComponent,
+                        StubEpgGuideNowPlayingComponent,
+                        StubEpgTimelineComponent,
+                        StubPortalEmptyStateComponent,
+                        StubResizableDirective,
+                        StubSidebarComponent,
+                        StubWebPlayerViewComponent,
+                        MockPipe(
+                            TranslatePipe,
+                            (value: string | null | undefined) => value ?? ''
+                        ),
+                    ],
                 },
             })
             .compileComponents();
 
         fixture = TestBed.createComponent(VideoPlayerComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
     });
 
@@ -174,11 +199,19 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
         fixture?.destroy();
     });
 
+    const forwarded = () => {
+        fixture.detectChanges();
+        return (
+            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
+                .componentInstance as StubWebPlayerViewComponent
+        ).timelineSegments();
+    };
+
     it('draws nothing during live playback', () => {
         epgPrograms$.next([programme('Picked', 0, 1)]);
         activeEpgProgram.set(programme('Picked', 0, 1));
 
-        expect(component.catchupTimelineSegments()).toBeNull();
+        expect(forwarded()).toBeNull();
     });
 
     it('spans the programmes from utc up to the lutc of the archive URL', () => {
@@ -193,13 +226,13 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
             `http://localhost/archive.m3u8?utc=${T0}&lutc=${T0 + 1.5 * HOUR}`
         );
 
-        expect(component.catchupTimelineSegments()).toEqual([
+        expect(forwarded()).toEqual([
             { startSeconds: 0, endSeconds: HOUR, title: 'Picked' },
             { startSeconds: HOUR, endSeconds: 1.5 * HOUR, title: 'Next' },
         ]);
 
         activePlaybackUrl.set(null);
-        expect(component.catchupTimelineSegments()).toBeNull();
+        expect(forwarded()).toBeNull();
     });
 
     it('falls back to the programme when the URL carries no lutc', () => {
@@ -207,7 +240,7 @@ describe('VideoPlayerComponent — catch-up timeline segments', () => {
         activeEpgProgram.set(programme('Picked', 0, 1));
         activePlaybackUrl.set('http://localhost/archive.m3u8');
 
-        expect(component.catchupTimelineSegments()).toEqual([
+        expect(forwarded()).toEqual([
             { startSeconds: 0, endSeconds: HOUR, title: 'Picked' },
         ]);
     });

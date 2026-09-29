@@ -64,15 +64,33 @@ describe('buildCatchupTimelineSegments', () => {
         ]);
     });
 
-    it('clips programmes that straddle the window edges', () => {
+    it('clips programmes that straddle the window end', () => {
         const segments = buildCatchupTimelineSegments(
-            [programme('Early', -10, 20), programme('Mid', 20, 40)],
-            programme('Picked', 5, 30)
+            [programme('Picked', 0, 30), programme('Long film', 30, 200)],
+            programme('Picked', 0, 30),
+            T0 + 60 * 60
         );
 
         expect(segments).toEqual([
-            { startSeconds: 0, endSeconds: 900, title: 'Early' },
-            { startSeconds: 900, endSeconds: 1500, title: 'Mid' },
+            { startSeconds: 0, endSeconds: 1800, title: 'Picked' },
+            { startSeconds: 1800, endSeconds: 3600, title: 'Long film' },
+        ]);
+    });
+
+    it('keeps the picked title over overlapping or revised guide entries', () => {
+        const segments = buildCatchupTimelineSegments(
+            [
+                programme('Early', -10, 20),
+                programme('Revised Picked', 5, 30),
+                programme('Mid', 20, 40),
+            ],
+            programme('Picked', 5, 30),
+            T0 + 40 * 60
+        );
+
+        expect(segments).toEqual([
+            { startSeconds: 0, endSeconds: 1500, title: 'Picked' },
+            { startSeconds: 1500, endSeconds: 2100, title: 'Mid' },
         ]);
     });
 

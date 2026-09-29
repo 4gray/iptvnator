@@ -44,16 +44,23 @@ export function buildCatchupTimelineSegments(
         return null;
     }
 
-    const candidates = [...(programmes ?? [])];
-    // The activated programme may come from a list the host no longer
-    // holds (another EPG date); without a listed programme at the window
-    // start it stands in for itself.
-    if (!candidates.some((programme) => coversStart(programme, windowStart))) {
-        candidates.push(active);
-    }
-
-    const segments: PlayerTimelineSegment[] = [];
-    for (const programme of candidates) {
+    // The activated programme owns its own span, whatever the guide holds
+    // there: another date's list may lack it, and an overlapping or revised
+    // entry must not relabel the archive being played. Other programmes
+    // only fill the window after it.
+    const activeStop = programmeSeconds(active.stop, active.stopTimestamp);
+    const ownEnd = Math.min(activeStop ?? windowStart, windowEnd);
+    const segments: PlayerTimelineSegment[] =
+        ownEnd > windowStart
+            ? [
+                  {
+                      startSeconds: 0,
+                      endSeconds: ownEnd - windowStart,
+                      title: active.title?.trim() || null,
+                  },
+              ]
+            : [];
+    for (const programme of programmes ?? []) {
         const start = programmeSeconds(
             programme.start,
             programme.startTimestamp
@@ -62,7 +69,7 @@ export function buildCatchupTimelineSegments(
         if (start === null || stop === null) {
             continue;
         }
-        const clippedStart = Math.max(start, windowStart);
+        const clippedStart = Math.max(start, ownEnd, windowStart);
         const clippedEnd = Math.min(stop, windowEnd);
         if (clippedEnd <= clippedStart) {
             continue;
@@ -74,17 +81,6 @@ export function buildCatchupTimelineSegments(
         });
     }
     return segments.sort((a, b) => a.startSeconds - b.startSeconds);
-}
-
-function coversStart(
-    programme: CatchupTimelineProgramme,
-    seconds: number
-): boolean {
-    const start = programmeSeconds(programme.start, programme.startTimestamp);
-    const stop = programmeSeconds(programme.stop, programme.stopTimestamp);
-    return (
-        start !== null && stop !== null && start <= seconds && seconds < stop
-    );
 }
 
 /** Epoch seconds: the positive unix timestamp, else the parsed ISO date. */

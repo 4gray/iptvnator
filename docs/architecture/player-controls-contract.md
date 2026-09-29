@@ -376,8 +376,10 @@ to `lutc`, the moment the URL was resolved, so M3U hosts pass
 `getM3uCatchupWindowEndSeconds(url)` (`@iptvnator/shared/m3u-utils`) and every
 programme up to then is drawn. Programme and window times follow the EPG view
 rule (unix timestamp, else the ISO string), so the display offset cancels.
-The activated programme stands in for itself when the host's list has
-nothing at the window start. Live playback returns `null`. Stalker has no
+The activated programme always owns its own span, with its own title: a
+list from another date may lack it, and an overlapping or revised guide
+entry must not relabel the archive being played, so other programmes only
+fill the window after it. Live playback returns `null`. Stalker has no
 archive playback, so it has no producer.
 
 Plumbing mirrors `mediaTitle`: each live host derives
@@ -387,7 +389,9 @@ layout (`controlledEpgPrograms` + `activeCatchupProgram`), the unified live
 tab for Favorites and Recent (`createUnifiedLiveEpgView`, both Xtream and
 M3U), and the M3U playlist player (`epgPrograms` + `activeEpgProgram` while
 `activePlaybackUrl` is set). `PortalInlinePlayerComponent` hosts no catch-up
-and passes nothing.
+and passes nothing. Like the Up next card, the segments reach Embedded MPV
+under the frame-copy engine only, the one that mounts `app-player-controls`;
+the native-view legacy dock keeps its plain slider.
 
 ### Up next card
 
