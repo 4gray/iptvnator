@@ -70,16 +70,19 @@ describe('Playwright mock-server launch', () => {
             const source = readSource(configPath);
 
             expect(source).not.toMatch(/\bnx\b[^'"`\n]*mock-server/);
+            // Other single-process webServers (web-e2e's web-backend) also set
+            // TSX_TSCONFIG_PATH, so check it inside each mock's own entry.
             for (const mock of mocks) {
-                expect(source).toContain(
-                    `'node --import tsx apps/${mock}-mock-server/src/main.ts'`
-                );
+                const launch = `'node --import tsx apps/${mock}-mock-server/src/main.ts'`;
+                const start = source.indexOf(launch);
+
+                expect(start).toBeGreaterThan(-1);
+                expect(
+                    source.slice(start, source.indexOf('url:', start))
+                ).toContain("TSX_TSCONFIG_PATH: 'tsconfig.base.json'");
             }
             expect(
                 source.match(/node --import tsx apps\/[\w-]+-mock-server\//g)
-            ).toHaveLength(mocks.length);
-            expect(
-                source.match(/TSX_TSCONFIG_PATH: 'tsconfig\.base\.json'/g)
             ).toHaveLength(mocks.length);
         }
     );

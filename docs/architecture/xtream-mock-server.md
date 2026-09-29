@@ -579,7 +579,8 @@ for the serve target's `--tsconfig` flag and is required for the `@iptvnator/*`
 path aliases. `project-config.spec.ts` pins which configs start which mock,
 and fails if any of them launches a mock through Nx or a new config starts one
 without being listed there. The `serve` targets remain the entry point
-for starting a mock by hand.
+for starting a mock by hand. The web-e2e `web-backend` entry uses the same
+launch form; see [PWA web backend](pwa-self-hosted.md#web-backend).
 
 ### Request Interception
 
