@@ -325,8 +325,10 @@
 
 // The glyph is the only visible part of the button, and the icon-button rule
 // below colours the mat-icon directly, so the red must name the icon too.
-.player-controls__record-button--active,
-.player-controls__record-button--active mat-icon {
+// A disabled button (loading, e.g. a reconnect mid-recording) keeps the muted
+// disabled colour, so it does not look clickable.
+.player-controls__record-button--active:not([disabled]),
+.player-controls__record-button--active:not([disabled]) mat-icon {
     color: var(--pc-danger) !important;
 }
 

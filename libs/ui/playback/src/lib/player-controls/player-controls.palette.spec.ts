@@ -9,12 +9,21 @@ const CONTROLS_DIR = resolve(
     'libs/ui/playback/src/lib/player-controls'
 );
 
+// Comments are dropped so prose that names a token can neither trip nor
+// satisfy the checks below. A `//` counts only after whitespace, which keeps
+// the `://` of a URL intact.
+function stripComments(source: string): string {
+    return source
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|\s)\/\/[^\n]*/g, '$1');
+}
+
 const STYLE_SOURCES = new Map(
     readdirSync(CONTROLS_DIR)
         .filter((file) => file.endsWith('.scss'))
         .map((file) => [
             file,
-            readFileSync(resolve(CONTROLS_DIR, file), 'utf8'),
+            stripComments(readFileSync(resolve(CONTROLS_DIR, file), 'utf8')),
         ])
 );
 
@@ -72,6 +81,12 @@ describe('player controls overlay palette', () => {
             .map(([file]) => file);
 
         expect(offenders).toEqual([]);
+        expect(
+            stripComments('// names --mat-sys-error\n/* and --mat-sys-x */')
+        ).not.toContain('--mat-sys-');
+        expect(stripComments("url('https://example.com/a.svg')")).toBe(
+            "url('https://example.com/a.svg')"
+        );
     });
 
     it('draws the LIVE badge and the recording reds from the palette', () => {
@@ -87,7 +102,31 @@ describe('player controls overlay palette', () => {
         // The icon-button rule colours the mat-icon itself, so a red set only
         // on the button never reaches the glyph.
         expect(HOST_STYLES).toMatch(
-            /\.player-controls__record-button--active,\s*\.player-controls__record-button--active mat-icon\s*\{[^}]*color:\s*var\(--pc-danger\)/
+            /\.player-controls__record-button--active:not\(\[disabled\]\),\s*\.player-controls__record-button--active:not\(\[disabled\]\) mat-icon\s*\{[^}]*color:\s*var\(--pc-danger\)/
+        );
+    });
+
+    it('lets a disabled record button keep its muted colour while recording', () => {
+        // The red is `!important`, so an unscoped rule would also beat the
+        // disabled icon colour: a recording that reconnects (loading, so the
+        // button is disabled) would show a red glyph that cannot be clicked.
+        const activeRecordSelectors = [
+            ...HOST_STYLES.matchAll(/([^{}]*)\{[^}]*var\(--pc-danger\)/g),
+        ].flatMap(([, selectors]) =>
+            selectors
+                .split(',')
+                .map((selector) => selector.trim())
+                .filter((selector) =>
+                    selector.includes('player-controls__record-button--active')
+                )
+        );
+
+        expect(activeRecordSelectors).toEqual([
+            '.player-controls__record-button--active:not([disabled])',
+            '.player-controls__record-button--active:not([disabled]) mat-icon',
+        ]);
+        expect(HOST_STYLES).toMatch(
+            /:host :is\(button\[mat-icon-button\]\[disabled\]\) mat-icon\s*\{[^}]*color:\s*var\(--pc-text-tertiary\);/
         );
     });
 
