@@ -113,8 +113,11 @@ export class XtreamDiscoverRouteComponent {
     private readonly serialIndex = computed(() =>
         buildCatalogTitleIndex(this.xtreamStore.serialStreams())
     );
+    // Filtered on read: a relock hides matches cached while unlocked.
     private readonly globalIndex = computed(() =>
-        groupTitleMatchesByKey(this.globalMatches() ?? [])
+        groupTitleMatchesByKey(
+            this.titleMatch.visibleMatches(this.globalMatches() ?? [])
+        )
     );
 
     readonly items = computed<DiscoverItem[]>(() => {

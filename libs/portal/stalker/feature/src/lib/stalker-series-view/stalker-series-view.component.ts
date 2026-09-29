@@ -283,11 +283,17 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * match, Electron only) — Stalker catalogs are server-paginated, so
      * "Similar" can only point at OTHER portals' libraries.
      */
-    readonly similarInPortals = signal<CrossPortalSimilarItem[]>([]);
+    private readonly similarInPortalsMatched = signal<CrossPortalSimilarItem[]>(
+        []
+    );
+    /** Filtered on read: a relock hides matches cached while unlocked. */
+    readonly similarInPortals = computed(() =>
+        this.crossPortalSimilar.visible(this.similarInPortalsMatched())
+    );
     private readonly loadSimilarInPortals = effect(() => {
         const recommendations = this.displayItem()?.info?.tmdb_recommendations;
         untracked(() => {
-            this.similarInPortals.set([]);
+            this.similarInPortalsMatched.set([]);
             if (
                 !recommendations?.length ||
                 !this.crossPortalSimilar.isAvailable
@@ -301,7 +307,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                         this.displayItem()?.info?.tmdb_recommendations ===
                         recommendations
                     ) {
-                        this.similarInPortals.set(items);
+                        this.similarInPortalsMatched.set(items);
                     }
                 });
         });

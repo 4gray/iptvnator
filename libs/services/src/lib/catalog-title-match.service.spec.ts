@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import {
@@ -219,4 +219,37 @@ describe('CatalogTitleMatchService parental lock', () => {
             expect(dbMatchTitles).toHaveBeenCalledTimes(withholds ? 0 : 1);
         }
     );
+
+    it('filters cached matches by the lock state at read time', () => {
+        const locked = signal(new Set<string>());
+        const isXtreamCategoryLocked = jest.fn(
+            (playlistId: string, type: string, categoryId: number) =>
+                locked().has(`${playlistId}:${type}:${categoryId}`)
+        );
+        TestBed.configureTestingModule({
+            providers: [
+                {
+                    provide: ParentalLockService,
+                    useValue: { isXtreamCategoryLocked },
+                },
+            ],
+        });
+        const service = TestBed.inject(CatalogTitleMatchService);
+        const film = {
+            queryTitle: 'Dune',
+            playlistId: 'pl-1',
+            playlistName: 'Portal',
+            categoryId: 7,
+            xtreamId: 1,
+            type: 'movie' as const,
+            trailingYear: null,
+        };
+        const show = { ...film, type: 'series' as const, xtreamId: 2 };
+        const visible = computed(() => service.visibleMatches([film, show]));
+        expect(visible()).toEqual([film, show]);
+
+        // The film's category is locked: its category type is 'movies'.
+        locked.set(new Set(['pl-1:movies:7']));
+        expect(visible()).toEqual([show]);
+    });
 });

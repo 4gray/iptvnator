@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
     CatalogTitleMatchService,
@@ -8,6 +9,12 @@ import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import { DashboardTrendingService } from './dashboard-trending.service';
 
 describe('DashboardTrendingService', () => {
+    // The parental lock's view of each match's category, as a signal so a
+    // relock re-runs the services' computed filters.
+    const withheldCategories = signal(new Set<number>());
+    const isWithheld = (match: CatalogTitleMatch) =>
+        withheldCategories().has(match.categoryId);
+
     const entry = (
         overrides: Partial<TmdbTrendingEntry> = {}
     ): TmdbTrendingEntry => ({
@@ -52,6 +59,9 @@ describe('DashboardTrendingService', () => {
                     useValue: {
                         isAvailable: options.matchingAvailable ?? true,
                         matchTitles,
+                        isWithheld,
+                        visibleMatches: (matches: CatalogTitleMatch[]) =>
+                            matches.filter((m) => !isWithheld(m)),
                     },
                 },
             ],
@@ -60,6 +70,7 @@ describe('DashboardTrendingService', () => {
     }
 
     beforeEach(() => {
+        withheldCategories.set(new Set());
         isEnabled = jest.fn().mockReturnValue(true);
         getTrendingWeek = jest.fn().mockResolvedValue([entry()]);
         matchTitles = jest.fn().mockResolvedValue([match()]);
@@ -91,6 +102,33 @@ describe('DashboardTrendingService', () => {
         expect(service.items()).toHaveLength(1);
         expect(service.items()[0].match?.playlistName).toBe('My Portal');
         expect(service.loading()).toBe(false);
+    });
+
+    it('drops the library match of a category the lock withholds, on read', async () => {
+        const service = createService();
+        await service.load();
+        expect(service.items()[0].match).not.toBeNull();
+
+        // Lock now: the cached match must stop advertising the title.
+        withheldCategories.set(new Set([7]));
+        expect(service.items()).toHaveLength(1);
+        expect(service.items()[0].match).toBeNull();
+
+        withheldCategories.set(new Set());
+        expect(service.items()[0].match?.playlistName).toBe('My Portal');
+    });
+
+    it('falls back to a copy in an unlocked portal when the chosen match is withheld', async () => {
+        matchTitles.mockResolvedValue([
+            match(),
+            match({ playlistId: 'pl-2', playlistName: 'Other', categoryId: 8 }),
+        ]);
+        const service = createService();
+        await service.load();
+        expect(service.items()[0].match?.playlistId).toBe('pl-1');
+
+        withheldCategories.set(new Set([7]));
+        expect(service.items()[0].match?.playlistName).toBe('Other');
     });
 
     it('rejects year-incompatible base-tier matches', async () => {

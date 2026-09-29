@@ -271,6 +271,7 @@ describe('VodDetailsComponent offline playback', () => {
                         isAvailable: false,
                         matchRecommendations: jest.fn().mockResolvedValue([]),
                         buildLink: jest.fn(),
+                        visible: <T>(items: T[]) => items,
                     },
                 },
                 {

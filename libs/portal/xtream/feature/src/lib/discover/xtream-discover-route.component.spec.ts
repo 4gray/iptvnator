@@ -135,6 +135,49 @@ describe('XtreamDiscoverRouteComponent — catalog readiness', () => {
         expect(component.items()).toHaveLength(1);
     });
 
+    it('stops marking a title available in another portal once the lock withholds it', async () => {
+        const withheld = signal(false);
+        const goodfellas = {
+            queryTitle: 'Goodfellas',
+            playlistId: 'pl-2',
+            playlistName: 'Other Portal',
+            categoryId: 9,
+            xtreamId: 7,
+            type: 'movie' as const,
+            trailingYear: null,
+        };
+        TestBed.overrideProvider(CatalogTitleMatchService, {
+            useValue: {
+                isAvailable: true,
+                matchTitles: jest.fn().mockResolvedValue([goodfellas]),
+                visibleMatches: (matches: unknown[]) =>
+                    withheld() ? [] : matches,
+            },
+        });
+        const component = createComponent();
+        resolveDiscover([
+            {
+                tmdbId: 1,
+                mediaType: 'movie',
+                title: 'Goodfellas',
+                originalTitle: null,
+                year: 1990,
+                posterUrl: null,
+            },
+        ]);
+        isLoadingContent.set(false);
+        isLoadingCategories.set(false);
+        await settle();
+        component.onScopeChanged('global');
+        await settle();
+        expect(component.items()[0].available).toBe(true);
+
+        // Lock now: the cached match must not keep the title available.
+        withheld.set(true);
+        expect(component.items()[0].available).toBe(false);
+        expect(component.items()[0].availableIn).toBeUndefined();
+    });
+
     it('settles when the catalog load fails instead of spinning forever', async () => {
         const component = createComponent();
         resolveDiscover(null);

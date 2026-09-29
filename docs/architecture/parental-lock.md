@@ -150,8 +150,19 @@ nothing while `withholdsEverything` is true, in either case. The VOD
 multi-source host keys its discovery session to the lock version: a lock
 change drops the discovered sources, retires discoveries and switches in
 flight, and rediscovers through the worker's new lock state. Title-match
-results cached by the Actor/Discover routes and dashboard services are not
-yet retired on relock (tracked in #1723).
+results are cached by their consumers (Xtream/Stalker Actor and Discover
+routes, the dashboard trending and recommendation rails, the four
+"similar in your portals" rails), so each filters them on READ through
+`CatalogTitleMatchService.visibleMatches` / `isWithheld` or
+`CrossPortalSimilarService.visible`. Every match carries its provider
+category id, and the predicate reads the lock state, so a relock hides
+matches cached while unlocked (and those of a lookup issued before it) at
+once, with no re-query; an unlock shows them again. Consumers keep ALL the
+rows a lookup returned and pick a title's match from the visible ones on
+read (the Actor/Discover indexes, the trending rail, the recommendation
+rail through `buildRecommendationItems`, and each "similar" item's
+`candidates`), so a title that also exists in an unlocked portal stays
+available through that copy instead of disappearing with the locked one.
 The window before the initial read settles is treated the same way
 (`ParentalLockLockStore.readable` is false until then): settings can report
 the feature as on before the locks are known — and the workspace route's

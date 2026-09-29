@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { computed, Injectable, inject, signal } from '@angular/core';
 import {
     CatalogTitleMatchService,
     TmdbEnrichmentService,
@@ -26,7 +26,26 @@ export class DashboardTrendingService {
     private readonly enrichment = inject(TmdbEnrichmentService);
     private readonly titleMatch = inject(CatalogTitleMatchService);
 
-    readonly items = signal<DashboardTrendingItem[]>([]);
+    private readonly loaded = signal<{
+        entries: TmdbTrendingEntry[];
+        matches: CatalogTitleMatch[];
+    }>({ entries: [], matches: [] });
+    /**
+     * Trending entries with their library match, picked on READ from the
+     * matches the parental lock does not withhold: a relock hides a match
+     * found while unlocked, and a title that also exists in an unlocked
+     * portal stays available through that copy.
+     */
+    readonly items = computed<DashboardTrendingItem[]>(() => {
+        const { entries, matches } = this.loaded();
+        const grouped = groupTitleMatchesByKey(
+            this.titleMatch.visibleMatches(matches)
+        );
+        return entries.map((entry) => ({
+            ...entry,
+            match: this.matchFor(entry, grouped),
+        }));
+    });
     readonly loading = signal(false);
 
     private loadedOnce = false;
@@ -55,14 +74,7 @@ export class DashboardTrendingService {
             const matches = await this.titleMatch.matchTitles(
                 entries.map((entry) => entry.title)
             );
-            const grouped = groupTitleMatchesByKey(matches);
-
-            this.items.set(
-                entries.map((entry) => ({
-                    ...entry,
-                    match: this.matchFor(entry, grouped),
-                }))
-            );
+            this.loaded.set({ entries, matches });
             this.loadedOnce = true;
         } catch (error) {
             console.warn('Dashboard trending load failed:', error);

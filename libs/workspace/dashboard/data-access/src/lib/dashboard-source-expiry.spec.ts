@@ -140,7 +140,8 @@ describe('DashboardSourceExpiryService', () => {
     });
 
     it('collects Xtream facts from the shared status details', async () => {
-        const expiresAtSeconds = Math.floor(Date.now() / 1000) + 3 * DAY_SECONDS;
+        const expiresAtSeconds =
+            Math.floor(Date.now() / 1000) + 3 * DAY_SECONDS;
         portalStatusService.checkPortalStatusDetails.mockResolvedValue({
             status: 'active',
             expiresAtSeconds,
