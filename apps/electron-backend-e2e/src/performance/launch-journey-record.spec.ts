@@ -22,6 +22,7 @@ function measurement(
         counters: {
             domMutations: 480,
             layoutShiftScore: 0.123456789,
+            layoutShiftScoreSettled: 0.2304999,
             longTasks: 2,
             recentInputLayoutShiftScore: 0,
         },
@@ -44,6 +45,13 @@ function measurement(
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: 2_601, status: 'sent' },
+        settle: {
+            domMutations: 37,
+            epochMs: 3_180.06,
+            lastMutationEpochMs: 2_680,
+            observedTarget: 'root',
+            status: 'quiet',
+        },
         start: null,
         terminal: {
             cardCount: 2,
@@ -111,6 +119,7 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         'renderer.domMutationsToFirstCard': 480,
         'renderer.ipcCallsToFirstCard': 14,
         'renderer.layoutShiftScore': 0.123,
+        'renderer.layoutShiftScoreSettled': 0.23,
         'renderer.longTasks': 2,
     });
     assert.deepEqual(record.wallClock, {
@@ -141,7 +150,14 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         rendererGateBlankLoaded: 1_050,
         rendererGateReleased: 1_150,
         rendererProbeInstalled: 1_200,
+        settled: 3_180.06,
         spawn: 1_000,
+    });
+    assert.deepEqual(record.evidence['settle'], {
+        domMutations: 37,
+        firstCardToSettledMs: 580,
+        observedTarget: 'root',
+        reason: 'quiet',
     });
 });
 
@@ -180,6 +196,50 @@ test('rejects measurements whose clocks or probes are inconsistent', () => {
                 },
             }),
         /cd-hook-hook-present-not-counted/
+    );
+});
+
+test('refuses a launch whose settle window did not end after the first-card cutoff', () => {
+    const base = measurement();
+    const withSettle = (
+        settle: Partial<LaunchJourneyMeasurement['renderer']['settle']>
+    ): LaunchJourneyMeasurement => ({
+        ...base,
+        renderer: {
+            ...base.renderer,
+            settle: { ...base.renderer.settle, ...settle },
+        },
+    });
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(
+                0,
+                false,
+                withSettle({ epochMs: null, status: 'pending' })
+            ),
+        /settle-pending/
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(
+                0,
+                false,
+                withSettle({ epochMs: null, status: 'disabled' })
+            ),
+        /settle-disabled/
+    );
+    assert.throws(
+        () => toLaunchIterationRecord(0, false, withSettle({ epochMs: 2_640 })),
+        /settle-quiet/
+    );
+    const capped = toLaunchIterationRecord(
+        0,
+        false,
+        withSettle({ epochMs: 5_650, status: 'cap' })
+    );
+    assert.equal(
+        (capped.evidence['settle'] as { reason: string }).reason,
+        'cap'
     );
 });
 

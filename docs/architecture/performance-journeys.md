@@ -95,7 +95,8 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
 - `journey-renderer-probe.ts` is registered with `addInitScript` on that
   `about:blank` page, so it runs at the start of the real document. It
   records that it ran while the document was still `loading` with zero
-  scripts and emits one JSON blob under `window.__iptvnatorJourneyProbe`.
+  scripts and emits one JSON blob under `window.__iptvnatorJourneyProbe`,
+  complete once the [settle window](#settle-window) has closed.
 - `journey-main-ipc-capture.ts` subscribes to the preload's renderer-API trace
   channel (`IPTVNATOR_DEBUG_TRACE_EVENT`, enabled with
   `IPTVNATOR_TRACE_IPC=1`) through `electronApp.evaluate`, also before the
@@ -109,7 +110,53 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
 | `renderer.ipcCallsToFirstCard`     | `start` trace events the preload emits for every bridge invocation (listener registrations `on*`/`remove*` excluded, as in `wrapElectronApi`). The renderer probe fires one sentinel `cancelSourceProbe('__iptvnator-journey-sentinel__')` at the terminal moment; renderer-to-main IPC is ordered, so events before the sentinel are the exact count. The preload traces the call before forwarding it, and `SOURCE_HEALTH_CANCEL` only looks the id up in an in-memory map, so the sentinel never reaches the database worker.                      |
 | `renderer.domMutationsToFirstCard` | `MutationRecord`s (not callback batches) from a `MutationObserver` on the document element with `childList`, `attributes`, `characterData` and `subtree`. When the init script runs before `<html>` exists the observer watches `document`, which the blob reports in `capabilities.observedTarget`.                                                                                                                                                                                                                                                  |
 | `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to three decimals (a shift of 0.0001 flips in and out of the cutoff between runs; the CLS "good" threshold is 0.1, so three decimals keep the counter exact without hiding anything a user could see). The cutoff is sampled in a timer queued from the first `requestAnimationFrame` after the terminal batch, that is after the frame that paints the card has been committed; entries delivered live after the terminal batch are buffered and filtered by the same cutoff. |
+| `renderer.layoutShiftScoreSettled` | The same filter from navigation start until the settle point after the first card (see [Settle window](#settle-window)), rounded to three decimals. It catches shifts that land after the cutoff, such as skeletons that collapse once their data resolves.                                                                                                                                                                                                                                                                                           |
 | `renderer.longTasks`               | `longtask` entries over 50 ms up to that same cutoff, which includes the task that rendered the card. The count depends on machine speed, so it is evidence until a run shows it is stable on the CI runner.                                                                                                                                                                                                                                                                                                                                          |
+
+#### Settle window
+
+`renderer.layoutShiftScore` stops at the first-card cutoff, one frame after
+the terminal batch. A shift that lands later is invisible to it: in #1738,
+rail skeletons of rails that resolved empty collapsed about 15 ms after the
+first card and pulled the rails below upwards, a shift of about 0.23 on every
+relaunch with sources that the counter read as 0.
+`renderer.layoutShiftScoreSettled` sums the same entries until the page has
+settled. The first-card counter is unchanged, so its baselines and history
+stay comparable.
+
+The settle window opens at the first-card cutoff. A second
+`MutationObserver` watches `main.workspace-content`, the workspace shell's
+content pane (the document element if it is missing, reported in
+`evidence.settle.observedTarget`). The window closes when nothing in that
+subtree has mutated for 500 ms, or 3 s after the cutoff, whichever comes
+first. The settle point is sampled when the timer fires, and every entry
+that starts before it counts, including entries still queued in the
+observer. Why this point:
+
+- A DOM change in the content pane is what causes the shifts this counter
+  is after (data resolving, skeletons swapped for content), so quiet in that
+  subtree is a condition the page reaches, not a guess at a delay. The rail
+  and header stay outside the watched subtree, so their own updates neither
+  keep the window open nor hide a shift in the content, which still counts
+  wherever it happens.
+- 500 ms is longer than any frame and any local round trip to the mock in
+  the J1 profile, so data that is already on its way lands inside the window.
+  The window does not wait for idle timers and polling, which a user would
+  not see as part of the launch either.
+- The 3 s cap bounds each iteration when something keeps mutating (an
+  animation, a ticking label). A capped window can end in the middle of that
+  activity, so `evidence.settle.reason` (`quiet` or `cap`) is recorded for
+  every iteration, together with `firstCardToSettledMs` and the mutation
+  records seen (`domMutations`). If iterations close for different reasons,
+  the counter is not deterministic and will show `stable: false`.
+
+Entries with `hadRecentInput === true` are excluded, as for the first-card
+counter; J1 has no input. The probe keeps its layout-shift observer open
+only for this window: `final` still marks the first-card counters as
+frozen, `settle.status` moves from `pending` to `quiet` or `cap`, and the
+test waits for both. The record refuses an iteration whose window never
+closed or closed before the cutoff. J2's probe has no settle window
+(`settle.status` is `disabled`) and its counters are unchanged.
 
 #### Main-process counters
 
@@ -231,11 +278,18 @@ serial-depth counter is a better guardrail candidate than a raw call count.
   },
   "journeys": {
     "launch": {
-      "counters": { "renderer.ipcCallsToFirstCard": 12 },
+      "counters": {
+        "renderer.ipcCallsToFirstCard": 12,
+        "renderer.layoutShiftScoreSettled": 0
+      },
       "counterStability": {
         "renderer.ipcCallsToFirstCard": {
           "stable": true,
           "values": [12, 12, 12, 12, 12]
+        },
+        "renderer.layoutShiftScoreSettled": {
+          "stable": true,
+          "values": [0, 0, 0, 0, 0]
         }
       },
       "wallClock": {
@@ -250,7 +304,14 @@ serial-depth counter is a better guardrail candidate than a raw call count.
           "pid": 1,
           "counters": {},
           "wallClock": {},
-          "evidence": {}
+          "evidence": {
+            "settle": {
+              "domMutations": 42,
+              "firstCardToSettledMs": 612.4,
+              "observedTarget": "root",
+              "reason": "quiet"
+            }
+          }
         }
       ]
     }
@@ -260,7 +321,9 @@ serial-depth counter is a better guardrail candidate than a raw call count.
 
 `journeys.<id>.counters.<name>` and `journeys.<id>.wallClock.<name>` are plain
 numbers so `tools/performance/check-journey-ratchet.mjs` can compare them with
-`tools/performance/journey-baselines.json`. A J1 runtime baseline is added
+`tools/performance/journey-baselines.json`. The summary writer checks only
+that every measured iteration reports the same counter names with finite
+values, so a new counter needs no schema change. A J1 runtime baseline is added
 once its counter is deterministic on the CI runner; the launch counters are
 not yet (see [Ratchet](#ratchet)), so the summary is evidence only.
 
@@ -272,8 +335,8 @@ iteration copies it and spawns a fresh process through `runLaunchJourney`,
 which measures J1 as usual (gate, probe, IPC capture) and then hands the
 running app to `measureOpenSourceJourney` in
 `src/journeys/open-source-journey-app.ts`. The click therefore happens after
-J1's terminal condition and its counters are final, and the two journeys never
-overlap. One warm-up and five measured iterations, as for J1; the J1 numbers
+J1's terminal condition and its counters are final, and after J1's settle
+window has closed, so the two journeys never overlap. One warm-up and five measured iterations, as for J1; the J1 numbers
 of these launches are not reported again. J2 does not read J1's
 main-process counters, so its launches run without `IPTVNATOR_PERF_CAPTURE`
 and `IPTVNATOR_PERF_COUNT_SQL` (`runLaunchJourney` with

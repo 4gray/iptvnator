@@ -13,6 +13,9 @@ import {
     JOURNEY_OPEN_SOURCE_PROBE_STATE_KEY,
     JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
     JOURNEY_PROBE_STATE_KEY,
+    JOURNEY_SETTLE_CAP_MS,
+    JOURNEY_SETTLE_QUIET_MS,
+    JOURNEY_SETTLE_ROOT_SELECTOR,
     journeyRendererProbeScript,
     type JourneyRendererProbeOptions,
     type JourneyRendererProbeState,
@@ -45,7 +48,14 @@ interface Fixture {
 
 const PAGE = `<!doctype html><html><head></head><body class="mat-app-background">
 <div id="initial-splash" role="status"><span>IPTVnator</span></div>
-<app-root></app-root></body></html>`;
+<app-root><main class="workspace-content"></main></app-root></body></html>`;
+
+/** Short settle timers so the launch fixtures do not wait 500 ms each. */
+const FAST_SETTLE = {
+    capMs: 1_000,
+    quietMs: 30,
+    rootSelector: JOURNEY_SETTLE_ROOT_SELECTOR,
+} as const;
 
 function installFakePerformance(
     window: JSDOM['window'],
@@ -114,7 +124,11 @@ function createFixture(
     });
     return createFixtureFromDom(
         dom,
-        { ...createLaunchJourneyProbeOptions(), ...optionOverrides },
+        {
+            ...createLaunchJourneyProbeOptions(),
+            settle: FAST_SETTLE,
+            ...optionOverrides,
+        },
         bridge
     );
 }
@@ -171,16 +185,20 @@ const liveStates: (() => JourneyRendererProbeState)[] = [];
 
 /**
  * Waits `ms`, then until every probe that reached its terminal batch has also
- * passed the post-paint cutoff (a rAF plus a timer). A fixed delay alone
- * flakes when the harness runs all spec files in parallel.
+ * passed the post-paint cutoff (a rAF plus a timer) and closed its settle
+ * window. A fixed delay alone flakes when the harness runs all spec files in
+ * parallel.
  */
 async function settle(ms = 40): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms));
-    const deadline = Date.now() + 2_000;
+    const deadline = Date.now() + 3_000;
     while (
         liveStates.some((read) => {
             const state = read();
-            return state.terminal !== null && !state.final;
+            return (
+                state.terminal !== null &&
+                (!state.final || state.settle.status === 'pending')
+            );
         }) &&
         Date.now() < deadline
     ) {
@@ -193,7 +211,7 @@ function renderFirstCard(fixture: Fixture): void {
     document.getElementById('initial-splash')?.remove();
     const rail = document.createElement('section');
     rail.setAttribute('data-test-id', 'dashboard-recent-sources-rail');
-    document.querySelector('app-root')?.append(rail);
+    document.querySelector('main.workspace-content')?.append(rail);
     const card = document.createElement('div');
     card.setAttribute('data-test-id', 'dashboard-recent-sources-rail-card');
     rail.append(card);
@@ -361,6 +379,140 @@ test('sums layout shifts without recent input and counts long tasks over 50 ms u
     assert.equal(fixture.state().counters.longTasks, 3);
 });
 
+function layoutShift(
+    startTime: number,
+    value: number,
+    hadRecentInput = false
+): FakeEntry {
+    return { entryType: 'layout-shift', hadRecentInput, startTime, value };
+}
+
+async function waitFor(
+    predicate: () => boolean,
+    timeoutMs = 3_000
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (!predicate()) {
+        if (Date.now() > deadline) throw new Error('waitFor timed out');
+        await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+}
+
+test('keeps summing shifts without recent input after the first-card cutoff until the workspace content is quiet', async () => {
+    const fixture = createFixture({
+        settle: { ...FAST_SETTLE, capMs: 5_000, quietMs: 80 },
+    });
+    const [observer] = fixture.observers as [FakeObserver];
+    const now = () => fixture.window.performance.now();
+    const content = fixture.window.document.querySelector(
+        'main.workspace-content'
+    ) as HTMLElement;
+    observer.emit([layoutShift(now(), 0.25)]);
+    renderFirstCard(fixture);
+    await waitFor(() => fixture.rawState().final);
+    const cutoff = fixture.state();
+    assert.equal(cutoff.counters.layoutShiftScore, 0.25);
+    assert.equal(cutoff.settle.status, 'pending');
+    assert.equal(cutoff.settle.observedTarget, 'root');
+    assert.equal(cutoff.counters.layoutShiftScoreSettled, 0);
+    assert.equal(observer.disconnected, false);
+
+    // A skeleton rail that resolved empty collapses about 15 ms after the
+    // first card and pulls the rails below upwards (#1738).
+    observer.emit([layoutShift(now(), 0.5), layoutShift(now(), 0.3, true)]);
+    for (let step = 0; step < 3; step += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        content.append(fixture.window.document.createElement('div'));
+    }
+    // Queued, not yet delivered, when the settle point is sampled.
+    observer.queue.push(
+        layoutShift(now(), 0.125),
+        layoutShift(now() + 60_000, 9)
+    );
+    // Outside the settle root: does not keep the window open.
+    fixture.window.document.body.setAttribute('data-late', '1');
+    await settle();
+    const state = fixture.state();
+    assert.equal(state.settle.status, 'quiet');
+    assert.equal(state.settle.domMutations, 3);
+    assert.ok(state.settle.epochMs !== null && state.settle.epochMs > 0);
+    assert.ok(
+        state.settle.epochMs - (state.settle.lastMutationEpochMs ?? 0) >= 75,
+        'the quiet period restarts at the last mutation'
+    );
+    assert.equal(state.counters.layoutShiftScoreSettled, 0.875);
+    // The first-card counters were frozen at the cutoff.
+    assert.equal(state.counters.layoutShiftScore, 0.25);
+    assert.equal(state.counters.recentInputLayoutShiftScore, 0);
+    assert.equal(observer.disconnected, true);
+    assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
+
+    observer.emit([layoutShift(now(), 1)]);
+    content.append(fixture.window.document.createElement('div'));
+    await settle();
+    assert.equal(fixture.state().counters.layoutShiftScoreSettled, 0.875);
+    assert.equal(fixture.state().settle.domMutations, 3);
+});
+
+test('the cap ends the settle window while the workspace content keeps mutating', async () => {
+    const fixture = createFixture({
+        settle: { ...FAST_SETTLE, capMs: 250, quietMs: 150 },
+    });
+    const [observer] = fixture.observers as [FakeObserver];
+    const now = () => fixture.window.performance.now();
+    const { document } = fixture.window;
+    renderFirstCard(fixture);
+    await waitFor(() => fixture.rawState().final);
+    const content = document.querySelector('main.workspace-content');
+    const ticker = setInterval(() => {
+        content?.setAttribute('data-tick', String(now()));
+    }, 10);
+    try {
+        observer.emit([layoutShift(now(), 0.0625)]);
+        await waitFor(() => fixture.rawState().settle.status !== 'pending');
+        observer.emit([layoutShift(now(), 0.5)]);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+    } finally {
+        clearInterval(ticker);
+    }
+    const state = fixture.state();
+    assert.equal(state.settle.status, 'cap');
+    assert.ok(state.settle.domMutations > 0);
+    assert.ok(
+        (state.settle.epochMs ?? 0) - (state.firstCardPaintEpochMs ?? 0) >= 245,
+        'the cap is measured from the first-card cutoff'
+    );
+    assert.equal(state.counters.layoutShiftScoreSettled, 0.0625);
+    assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
+});
+
+test('watches the document element when the settle root is missing', async () => {
+    const fixture = createFixture({
+        settle: { ...FAST_SETTLE, rootSelector: 'app-missing-root' },
+    });
+    renderFirstCard(fixture);
+    await settle();
+    const state = fixture.state();
+    assert.equal(state.settle.observedTarget, 'documentElement');
+    assert.equal(state.settle.status, 'quiet');
+});
+
+test('refuses a probe whose settle window is still open', async () => {
+    const fixture = createFixture({
+        settle: { ...FAST_SETTLE, capMs: 60_000, quietMs: 60_000 },
+    });
+    renderFirstCard(fixture);
+    await waitFor(() => fixture.rawState().final);
+    assert.throws(
+        () => assertJourneyRendererProbeState(fixture.state()),
+        /settle-pending/
+    );
+    // Mark the window closed so later tests' `settle()` does not wait on it,
+    // and stop its timers so they do not keep the runner alive.
+    fixture.rawState().settle.status = 'cap';
+    fixture.window.close();
+});
+
 test('does not end while the splash is present, off the workspace route, or before a card is visible', async () => {
     const withSplash = createFixture();
     const rail = withSplash.window.document.createElement('div');
@@ -437,6 +589,13 @@ test('launch options target the workspace source cards and the shared sentinel',
     assert.equal(options.routeFragment, '/workspace');
     assert.match(options.cardSelector, /dashboard-recent-sources-rail-card/);
     assert.match(options.cardSelector, /app-playlist-item/);
+    assert.deepEqual(options.settle, {
+        capMs: JOURNEY_SETTLE_CAP_MS,
+        quietMs: JOURNEY_SETTLE_QUIET_MS,
+        rootSelector: 'main.workspace-content',
+    });
+    assert.equal(JOURNEY_SETTLE_QUIET_MS, 500);
+    assert.equal(JOURNEY_SETTLE_CAP_MS, 3_000);
 });
 
 // J2 "Open a source": the probe is armed in a loaded document and starts at
@@ -643,6 +802,10 @@ test('drops performance entries from before the click and keeps recent-input shi
     assert.equal(state.final, true);
     assert.equal(state.counters.layoutShiftScore, 0.125);
     assert.equal(state.counters.recentInputLayoutShiftScore, 0.25);
+    // J2 has no settle window: the observers close at the cutoff.
+    assert.equal(state.settle.status, 'disabled');
+    assert.equal(state.counters.layoutShiftScoreSettled, 0);
+    assert.ok(fixture.observers.every((observer) => observer.disconnected));
     assert.equal(state.counters.longTasks, 1);
     assert.deepEqual(state.longTaskDurationsMs, [90]);
 });

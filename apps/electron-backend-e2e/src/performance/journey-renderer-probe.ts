@@ -12,7 +12,9 @@ import type { Page } from '@playwright/test';
  * `window` (which runs before any listener of the app) and starts counting at
  * the first click inside `startClick.selector`. It counts DOM mutations,
  * layout shifts and long tasks until the journey's terminal condition and
- * then emits one JSON blob under `options.stateKey`.
+ * then emits one JSON blob under `options.stateKey`. With `options.settle`
+ * (J1) it keeps summing layout shifts after the first card until the page
+ * has settled, for shifts such as collapsing skeletons that land later.
  *
  * IPC invocations are not counted here: the bridge object exposed by
  * `contextBridge` is frozen, so the probe cannot wrap it. Instead the probe
@@ -50,6 +52,23 @@ export interface JourneyRendererProbeStartClick {
     readonly sentinelId: string;
 }
 
+/**
+ * J1's settle window after the first card: it ends once nothing under
+ * `rootSelector` has mutated for `quietMs`, or `capMs` after the first-card
+ * cutoff, whichever comes first. See docs/architecture/performance-journeys.md.
+ */
+export interface JourneyRendererProbeSettleOptions {
+    readonly capMs: number;
+    readonly quietMs: number;
+    /** Falls back to the document element when nothing matches. */
+    readonly rootSelector: string;
+}
+
+export const JOURNEY_SETTLE_QUIET_MS = 500;
+export const JOURNEY_SETTLE_CAP_MS = 3_000;
+/** The workspace shell's content pane; the rail and header stay outside. */
+export const JOURNEY_SETTLE_ROOT_SELECTOR = 'main.workspace-content';
+
 export interface JourneyRendererProbeOptions {
     /** Selector for the element whose visibility ends the journey. */
     readonly cardSelector: string;
@@ -59,6 +78,8 @@ export interface JourneyRendererProbeOptions {
     /** Pathname fragment the terminal route must contain. */
     readonly routeFragment: string;
     readonly sentinelId: string;
+    /** Absent: no settle window, the probe ends at the first-card cutoff. */
+    readonly settle?: JourneyRendererProbeSettleOptions;
     readonly sentinelMethod: string;
     /** Element id of the inline splash that must be gone at the end. */
     readonly splashId: string;
@@ -71,6 +92,11 @@ export interface JourneyRendererProbeCounters {
     domMutations: number;
     /** Shifts with `hadRecentInput === false` (the CLS definition). */
     layoutShiftScore: number;
+    /**
+     * The same filter from the journey's start until the settle point. Zero
+     * while `settle.status` is `pending` or `disabled`.
+     */
+    layoutShiftScoreSettled: number;
     longTasks: number;
     /**
      * Shifts with `hadRecentInput === true`. Zero for J1, which has no
@@ -113,6 +139,15 @@ export interface JourneyRendererProbeState {
         readonly epochMs: number | null;
         readonly status: 'bridge-missing' | 'failed' | 'not-sent' | 'sent';
     };
+    /** `final` freezes the first-card counters; the settle window ends later. */
+    settle: {
+        /** Mutation records under the settle root after the cutoff. */
+        domMutations: number;
+        epochMs: number | null;
+        lastMutationEpochMs: number | null;
+        observedTarget: 'documentElement' | 'root' | null;
+        status: 'cap' | 'disabled' | 'pending' | 'quiet';
+    };
     start: {
         /** `min(event.timeStamp, listener time)` as epoch milliseconds. */
         readonly epochMs: number;
@@ -145,6 +180,7 @@ export function journeyRendererProbeScript(
     }
     const epoch = (): number => performance.timeOrigin + performance.now();
     const startClick = options.startClick ?? null;
+    const settleOptions = options.settle ?? null;
     const companionSelectors = options.companionSelectors ?? [];
     const bridge = target['electron'] as Record<string, unknown> | undefined;
     const state: JourneyRendererProbeState = {
@@ -159,6 +195,7 @@ export function journeyRendererProbeScript(
         counters: {
             domMutations: 0,
             layoutShiftScore: 0,
+            layoutShiftScoreSettled: 0,
             longTasks: 0,
             recentInputLayoutShiftScore: 0,
         },
@@ -178,6 +215,13 @@ export function journeyRendererProbeScript(
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: null, status: 'not-sent' },
+        settle: {
+            domMutations: 0,
+            epochMs: null,
+            lastMutationEpochMs: null,
+            observedTarget: null,
+            status: settleOptions === null ? 'disabled' : 'pending',
+        },
         start: null,
         terminal: null,
     };
@@ -249,13 +293,24 @@ export function journeyRendererProbeScript(
     // cutoff wait here so the cutoff applies to them as well.
     const pendingLayoutShifts: PerformanceEntry[] = [];
     const pendingLongTasks: PerformanceEntry[] = [];
+    // Every layout shift delivered until the settle point, kept apart from
+    // the first-card path so that counter stays exactly as it was; the
+    // settle bound is applied once it is known.
+    const settleLayoutShifts: PerformanceEntry[] = [];
+    const collectSettleShifts = (entries: readonly PerformanceEntry[]) => {
+        if (state.settle.status === 'pending') {
+            settleLayoutShifts.push(...entries);
+        }
+    };
     const observe = (
         type: string,
         accept: (entries: readonly PerformanceEntry[], until: number) => void,
-        pending: PerformanceEntry[]
+        pending: PerformanceEntry[],
+        collect: ((entries: readonly PerformanceEntry[]) => void) | null
     ): PerformanceObserver | null => {
         try {
             const observer = new PerformanceObserver((list) => {
+                collect?.(list.getEntries());
                 if (state.final) return;
                 if (state.terminal !== null) {
                     pending.push(...list.getEntries());
@@ -272,23 +327,85 @@ export function journeyRendererProbeScript(
     const layoutShiftObserver = observe(
         'layout-shift',
         acceptLayoutShift,
-        pendingLayoutShifts
+        pendingLayoutShifts,
+        collectSettleShifts
     );
     const longTaskObserver = observe(
         'longtask',
         acceptLongTasks,
-        pendingLongTasks
+        pendingLongTasks,
+        null
     );
     state.capabilities.layoutShift = layoutShiftObserver !== null;
     state.capabilities.longTask = longTaskObserver !== null;
 
+    const endSettle = (status: 'cap' | 'quiet', untilEpochMs: number) => {
+        if (layoutShiftObserver) {
+            collectSettleShifts(layoutShiftObserver.takeRecords());
+            layoutShiftObserver.disconnect();
+        }
+        let score = 0;
+        for (const entry of settleLayoutShifts) {
+            const shift = entry as PerformanceEntry & {
+                hadRecentInput?: boolean;
+                value?: number;
+            };
+            if (
+                typeof shift.value === 'number' &&
+                shift.hadRecentInput !== true &&
+                inWindow(entry, untilEpochMs)
+            ) {
+                score += shift.value;
+            }
+        }
+        state.counters.layoutShiftScoreSettled = score;
+        state.settle.epochMs = untilEpochMs;
+        state.settle.status = status;
+    };
+    // Starts at the first-card cutoff. Every mutation record under the root
+    // restarts the quiet timer; the cap timer never moves.
+    const startSettle = (settle: JourneyRendererProbeSettleOptions) => {
+        const root = document.querySelector(settle.rootSelector);
+        state.settle.observedTarget =
+            root === null ? 'documentElement' : 'root';
+        let quietTimer: ReturnType<typeof setTimeout> | undefined;
+        const capTimer = setTimeout(() => end('cap'), settle.capMs);
+        const settleObserver = new MutationObserver((records) => {
+            if (state.settle.status !== 'pending') return;
+            state.settle.domMutations += records.length;
+            state.settle.lastMutationEpochMs = epoch();
+            armQuiet();
+        });
+        const end = (status: 'cap' | 'quiet'): void => {
+            if (state.settle.status !== 'pending') return;
+            clearTimeout(quietTimer);
+            clearTimeout(capTimer);
+            state.settle.domMutations += settleObserver.takeRecords().length;
+            settleObserver.disconnect();
+            endSettle(status, epoch());
+        };
+        const armQuiet = (): void => {
+            clearTimeout(quietTimer);
+            quietTimer = setTimeout(() => end('quiet'), settle.quietMs);
+        };
+        settleObserver.observe(root ?? document.documentElement ?? document, {
+            attributes: true,
+            characterData: true,
+            childList: true,
+            subtree: true,
+        });
+        armQuiet();
+    };
+
     const finalize = (untilEpochMs: number): void => {
         if (layoutShiftObserver) {
+            const records = layoutShiftObserver.takeRecords();
+            collectSettleShifts(records);
             acceptLayoutShift(
-                [...pendingLayoutShifts, ...layoutShiftObserver.takeRecords()],
+                [...pendingLayoutShifts, ...records],
                 untilEpochMs
             );
-            layoutShiftObserver.disconnect();
+            if (settleOptions === null) layoutShiftObserver.disconnect();
         }
         if (longTaskObserver) {
             acceptLongTasks(
@@ -299,6 +416,7 @@ export function journeyRendererProbeScript(
         }
         state.firstCardPaintEpochMs = untilEpochMs;
         state.final = true;
+        if (settleOptions !== null) startSettle(settleOptions);
     };
     const callSentinel = (id: string): 'bridge-missing' | 'failed' | 'sent' => {
         const method = bridge?.[options.sentinelMethod];
@@ -441,6 +559,11 @@ export function createLaunchJourneyProbeOptions(): JourneyRendererProbeOptions {
         routeFragment: '/workspace',
         sentinelId: JOURNEY_IPC_SENTINEL_ID,
         sentinelMethod: JOURNEY_IPC_SENTINEL_METHOD,
+        settle: {
+            capMs: JOURNEY_SETTLE_CAP_MS,
+            quietMs: JOURNEY_SETTLE_QUIET_MS,
+            rootSelector: JOURNEY_SETTLE_ROOT_SELECTOR,
+        },
         splashId: 'initial-splash',
         stateKey: JOURNEY_PROBE_STATE_KEY,
     };
@@ -501,10 +624,17 @@ export async function waitForJourneyRendererProbe(
     stateKey: string,
     timeoutMs: number
 ): Promise<JourneyRendererProbeState> {
+    // A settle window, where enabled, ends after `final`.
     await page.waitForFunction(
-        (key) =>
-            (globalThis as unknown as Record<string, { final?: boolean }>)[key]
-                ?.final === true,
+        (key) => {
+            const state = (
+                globalThis as unknown as Record<
+                    string,
+                    { final?: boolean; settle?: { status?: string } }
+                >
+            )[key];
+            return state?.final === true && state.settle?.status !== 'pending';
+        },
         stateKey,
         { polling: 50, timeout: timeoutMs }
     );
@@ -531,6 +661,9 @@ export function assertJourneyRendererProbeState(
         state.terminal === null
     ) {
         throw new Error('journey-renderer-probe-incomplete');
+    }
+    if (state.settle.status === 'pending') {
+        throw new Error('journey-renderer-probe-settle-pending');
     }
     if (state.invalidReasons.length > 0) {
         throw new Error(
