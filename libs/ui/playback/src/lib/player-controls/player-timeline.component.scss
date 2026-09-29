@@ -141,12 +141,12 @@
 }
 
 .player-controls__recording-status--active {
-    color: var(--mat-sys-error, #ff5252);
+    color: var(--pc-danger);
     font-weight: 700;
 }
 
 .player-controls__recording-status--active mat-icon {
-    color: var(--mat-sys-error, #ff5252);
+    color: var(--pc-danger);
 }
 
 .player-controls__live-badge {
@@ -156,7 +156,7 @@
     padding: 2px 8px;
     border-radius: 4px;
     color: #ffffff;
-    background: var(--mat-sys-error, #e53935);
+    background: var(--pc-live);
     font-size: 0.66rem;
     font-weight: 700;
     letter-spacing: 0.08em;

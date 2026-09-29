@@ -12,6 +12,13 @@
     --pc-accent-blue-hover: #2a66d6;
     --pc-accent-cyan: #5cd6ff;
     --pc-accent-violet: #b599ff;
+    // Reds, literal like the rest: the theme's error colour changes with the
+    // theme, and its dark-theme tone is too pale to carry a white label.
+    // White on the LIVE fill is 5.0:1; the earlier #e53935 gave only 4.2:1,
+    // under the 4.5:1 text floor. The record glyph and the recording status
+    // text read 6.2:1 on the glass over a black frame.
+    --pc-live: #d32f2f;
+    --pc-danger: #ff5252;
     --pc-text: #e7ecf3;
     --pc-text-secondary: #9aa3b2;
     --pc-text-tertiary: #6b7384;
@@ -316,8 +323,11 @@
     gap: 4px;
 }
 
-.player-controls__record-button--active {
-    color: var(--mat-sys-error, #ff5252) !important;
+// The glyph is the only visible part of the button, and the icon-button rule
+// below colours the mat-icon directly, so the red must name the icon too.
+.player-controls__record-button--active,
+.player-controls__record-button--active mat-icon {
+    color: var(--pc-danger) !important;
 }
 
 // Value chips (subtitles, speed): the two settings a viewer changes mid-film.

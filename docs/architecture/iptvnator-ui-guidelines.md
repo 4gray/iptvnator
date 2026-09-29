@@ -89,7 +89,9 @@ app text. Loader/stall and transient feedback overlays own a light foreground
 and dark scrim because they cover video. Video viewports remain black in both
 themes and fullscreen; frame-copy and built-in shared controls keep their
 light-on-dark overlay palette — the fixed `--pc-*` token set of the shared
-dock (accent blue, cyan, violet and a light text ramp), never the app theme.
+dock (accent blue, cyan, violet, the `--pc-live` / `--pc-danger` reds and a
+light text ramp), never the app theme. The overlay styles in
+`player-controls/` never read a `--mat-sys-*` token.
 
 EPG timeline, list, empty states and programme details use the library-local
 `libs/ui/epg/src/lib/_epg-theme.scss` palette, based on app surfaces, separators,
