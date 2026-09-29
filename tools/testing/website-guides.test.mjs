@@ -16,6 +16,14 @@ const SITE = 'https://4gray.github.io/iptvnator';
 
 const GUIDES = [
   {
+    slug: 'fullscreen-channel-episode-guide',
+    screenshots: ['blog/feature-guides/screenshots/guide-fullscreen-channels-dark.png'],
+  },
+  {
+    slug: 'stream-info-diagnostics-guide',
+    screenshots: ['blog/feature-guides/screenshots/guide-stream-info-dark.png'],
+  },
+  {
     slug: 'm3u-programme-guide',
     screenshots: ['blog/feature-guides/multi-epg-v0-24.jpg'],
   },
@@ -91,6 +99,7 @@ const FEATURE_GUIDE_SHOTS = {
 
 if (process.env.PUBLIC_INCLUDE_DRAFTS === 'true') {
   for (const [slug, shot] of Object.entries(FEATURE_GUIDE_SHOTS)) {
+    if (GUIDES.some((guide) => guide.slug === slug)) continue;
     GUIDES.push({ slug, screenshots: [`blog/feature-guides/screenshots/${shot}-dark.png`] });
   }
 }
