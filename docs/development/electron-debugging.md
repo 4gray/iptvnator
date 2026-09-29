@@ -91,7 +91,12 @@ exit. The retained handle still provides the actual exit code and signal.
 
 The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before
-classifying a zero rendered-frame signal as an infrastructure flake.
+classifying a zero rendered-frame signal as an infrastructure flake. A zero
+signal also attaches `frame-copy-diagnostics` (the session's stream stats,
+including mpv's drop counter, and its helper rings read from `/dev/shm`) and
+`mpv-log`, the session's verbose mpv log. A `latestSeq` of 0 means the helper
+never published; a `latestFrameSignal` of 0 means mpv rendered black; a
+visible ring frame behind a black canvas points at the preload pump.
 The Snap and Flatpak `--embedded-mpv-runtime-probe` launches in
 `build-and-make.yaml` run under GNU `timeout --verbose -k 10 300` with
 `ELECTRON_ENABLE_LOGGING=1`, so a main process that throws before app ready

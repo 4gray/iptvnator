@@ -443,7 +443,12 @@ Trade-offs and constraints:
   string to stderr. If an early tier selects Mesa software rendering (for
   example, while a proprietary NVIDIA driver is reachable through the default
   display or GBM), it probes the remaining tiers and uses software only when
-  no hardware-backed context works. Windows (any arch with a helper, in
+  no hardware-backed context works. On a software renderer the helper sets
+  `scale`, `cscale` and `dscale` to `bilinear` and `sigmoid-upscaling=no`
+  unless a session option sets the same key: mpv's LUT scalers upload their
+  weight texture with uninitialized row padding (`reinit_scaler`, mpv 0.41),
+  and llvmpipe carries NaN/Inf from it through zero-weight filtering, so
+  sessions otherwise render pure black at random. Windows (any arch with a helper, in
   practice x64) is ported: WGL renders offscreen against a hidden window,
   the shm ring is a session-local named file mapping, and the reader addon
   compiles as C++ there (MSVC has no C11 `<stdatomic.h>`). The helper

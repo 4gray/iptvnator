@@ -18,9 +18,9 @@ import {
     installEmbeddedMpvSessionCapture,
     installFrameCanvasAndSessionCapture,
     isMeaningfulNativePlaybackSnapshot,
-    renderedFrameSignal,
     type LocalMediaServer,
 } from './embedded-mpv-frame-copy-packaged-fixtures';
+import { expectRenderedFrame } from './embedded-mpv-frame-copy-packaged-diagnostics';
 import {
     createDisposablePackagedLinuxApp,
     createPackagedEntryGuard,
@@ -120,18 +120,21 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 });
 
             await installFrameCanvasAndSessionCapture(launchedFrameCopyApp);
+            const mpvLogPath = join(dataDir, 'mpv-frame-copy.log');
             const created = await launchedFrameCopyApp.mainWindow.evaluate(
-                async () => {
-                    // Decode audio without requiring a sound device on CI.
+                async (logFile) => {
+                    // Decode audio without requiring a sound device on CI;
+                    // keep mpv's verbose log for failure diagnostics.
                     await window.electron.updateSettings({
-                        embeddedMpvExtraOptions: 'ao=null',
+                        embeddedMpvExtraOptions: `ao=null\nlog-file=${logFile}`,
                     });
                     return window.electron.createEmbeddedMpvSession(
                         { x: 0, y: 0, width: 320, height: 180 },
                         'Packaged frame-copy smoke',
                         0
                     );
-                }
+                },
+                mpvLogPath
             );
 
             await launchedFrameCopyApp.mainWindow.evaluate(
@@ -179,11 +182,12 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                     'packaged-embedded-mpv-frame'
                 )
             ).toHaveAttribute('height', '180');
-            await expect
-                .poll(() => renderedFrameSignal(launchedFrameCopyApp), {
-                    timeout: 15000,
-                })
-                .toBeGreaterThan(0);
+            await expectRenderedFrame(
+                launchedFrameCopyApp,
+                created.id,
+                15000,
+                mpvLogPath
+            );
 
             // Relative seek steps (arrow keys, ±10 s buttons) must reach mpv
             // as `seek <delta> relative+exact` through the real preload →
