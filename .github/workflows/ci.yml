@@ -324,9 +324,12 @@ jobs:
             # and never launch a Playwright browser, so no `playwright
             # install`. The runner image ships Electron's shared libraries and
             # xvfb; fail fast with a clear message if an image update drops one.
+            # pnpm skips Electron's postinstall, so download the binary first;
+            # otherwise ldd sees no file and the check passes vacuously.
             - name: Check Electron runtime dependencies
               run: |
                   command -v xvfb-run || { echo "::error::xvfb-run is missing on the runner"; exit 1; }
+                  node tools/testing/ensure-electron-binary.mjs || { echo "::error::Electron binary download failed"; exit 1; }
                   missing="$(ldd node_modules/electron/dist/electron | grep 'not found' || true)"
                   if [ -n "$missing" ]; then
                       echo "::error::Electron is missing shared libraries:"
@@ -466,13 +469,16 @@ jobs:
             # pnpm only runs build scripts for allow-listed packages
             # (pnpm-workspace.yaml), so electron's postinstall never fetches
             # its binary. `require('electron')` then downloads it lazily, and
-            # parallel Jest workers that spawn Electron race on the same
-            # download: one executes the half-written binary (ETXTBSY).
-            # Fetch it once before the Tier A suite, the only step here whose
-            # specs spawn Electron; install.js skips an existing binary.
+            # parallel Jest workers and Tier A projects that spawn Electron
+            # race on the same download: one executes the half-written binary
+            # (ETXTBSY). Fetch it once before the Tier A suite, the only step
+            # here whose specs spawn Electron. Unlike a bare install.js, the
+            # helper also runs the binary, so a partial extraction fails here.
+            # The Tier A runner calls it too; this step only separates a
+            # download failure from test failures.
             - name: Install the Electron binary
               if: steps.scope.outputs.run == 'true'
-              run: node node_modules/electron/install.js
+              run: node tools/testing/ensure-electron-binary.mjs
 
             # Jest's transform cache (TypeScript/Angular transpilation plus
             # coverage instrumentation, keyed by file content) is persisted

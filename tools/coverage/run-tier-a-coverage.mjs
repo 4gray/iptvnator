@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,6 +19,7 @@ import {
     resolveConcurrency,
     resolveWorkersPerProject,
     runWithConcurrency,
+    specsResolveElectronBinary,
 } from './coverage-run-pool.mjs';
 
 const workspaceRoot = process.cwd();
@@ -253,6 +254,23 @@ const specCounts = new Map(
         countSpecFiles(path.join(workspaceRoot, project.sourceRoot)),
     ])
 );
+// Concurrent specs would otherwise race to download and extract the binary
+// (ETXTBSY), so fetch it once before any project starts.
+if (
+    tierAProjects.some((project) =>
+        specsResolveElectronBinary(path.join(workspaceRoot, project.sourceRoot))
+    )
+) {
+    const prefetch = spawnSync(
+        process.execPath,
+        [path.join(workspaceRoot, 'tools/testing/ensure-electron-binary.mjs')],
+        { stdio: 'inherit' }
+    );
+    if (prefetch.status !== 0) {
+        process.exit(prefetch.status ?? 1);
+    }
+}
+
 const ordered = orderLongestFirst(tierAProjects, (project) =>
     specCounts.get(project.name)
 );

@@ -8,29 +8,41 @@
  * bounded worker count, so the runner's total CPU budget stays close to the
  * machine's core count instead of multiplying with it.
  */
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const SPEC_FILE = /\.(spec|test)\.ts$/;
 
-/** Counts spec files under a directory; used to start the big projects first. */
-export function countSpecFiles(directory) {
-    let count = 0;
+function listSpecFiles(directory) {
     let entries;
     try {
         entries = readdirSync(directory, { withFileTypes: true });
     } catch {
-        return 0;
+        return [];
     }
-    for (const entry of entries) {
+    return entries.flatMap((entry) => {
         const fullPath = path.join(directory, entry.name);
         if (entry.isDirectory()) {
-            count += countSpecFiles(fullPath);
-        } else if (entry.isFile() && SPEC_FILE.test(entry.name)) {
-            count += 1;
+            return listSpecFiles(fullPath);
         }
-    }
-    return count;
+        return entry.isFile() && SPEC_FILE.test(entry.name) ? [fullPath] : [];
+    });
+}
+
+/** Counts spec files under a directory; used to start the big projects first. */
+export function countSpecFiles(directory) {
+    return listSpecFiles(directory).length;
+}
+
+// `createRequire(__filename)('electron')` resolves the binary path, which
+// downloads it on first use (see tools/testing/ensure-electron-binary.mjs).
+const ELECTRON_BINARY_REQUIRE = /createRequire\([^)]*\)\(\s*['"]electron['"]\s*\)/;
+
+/** Whether any spec under a directory resolves the Electron binary to exec it. */
+export function specsResolveElectronBinary(directory) {
+    return listSpecFiles(directory).some((file) =>
+        ELECTRON_BINARY_REQUIRE.test(readFileSync(file, 'utf8'))
+    );
 }
 
 /**
