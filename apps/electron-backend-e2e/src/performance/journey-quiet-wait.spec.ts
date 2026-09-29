@@ -70,3 +70,30 @@ test('never returns while work stays in flight and fails at the timeout', async 
         /not-quiet \{"inFlight":1,"requests":1\}/
     );
 });
+
+test('fails when a sample stalls past the deadline instead of accepting it as quiet', async () => {
+    let clock = 0;
+    let samples = 0;
+    await assert.rejects(
+        waitForJourneyQuiet<Activity>({
+            inFlight: (activity) => activity.inFlight,
+            now: () => clock,
+            pollMs: 100,
+            quietMs: 1_000,
+            sample: async () => {
+                samples += 1;
+                // The second sample hangs for 5 s (e.g. behind a busy main
+                // process) and then reports nothing changed.
+                if (samples === 2) clock += 5_000;
+                return { inFlight: 0, requests: 1 };
+            },
+            sleep: async (ms) => {
+                clock += ms;
+            },
+            timeoutError: () => new Error('not-quiet-stalled'),
+            timeoutMs: 3_000,
+        }),
+        /not-quiet-stalled/
+    );
+    assert.equal(samples, 2);
+});

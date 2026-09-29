@@ -41,14 +41,17 @@ export async function waitForJourneyQuiet<T>(
         const next = await options.sample();
         const nextKey = JSON.stringify(next);
         const sampledMs = now();
+        // The deadline is checked first: a sample that stalled past it (for
+        // example behind a busy main process) must fail the wait, not be
+        // accepted as the end of a quiet period nobody observed.
+        if (sampledMs - startedMs > options.timeoutMs) {
+            throw options.timeoutError(next);
+        }
         if (nextKey !== lastKey || options.inFlight(next) > 0) {
             lastKey = nextKey;
             quietSinceMs = sampledMs;
         } else if (sampledMs - quietSinceMs >= options.quietMs) {
             return { sample: next, waitedMs: sampledMs - startedMs };
-        }
-        if (sampledMs - startedMs > options.timeoutMs) {
-            throw options.timeoutError(next);
         }
     }
 }
