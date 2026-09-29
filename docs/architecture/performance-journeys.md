@@ -525,7 +525,9 @@ the job for every PR until #1734. Treat the job as blocking before merging;
 making it a required check is a maintainer decision.
 
 The runtime counters come from the `Performance journeys` job of the same
-workflow, on `ubuntu-latest` only. It runs `pnpm run perf:journeys` under
+workflow, on `ubuntu-latest` only. Through the
+`.github/actions/performance-journeys` composite action it runs
+`pnpm run perf:journeys` under
 `xvfb-run` (the Nx target builds `electron-backend:build-performance`, the
 Playwright config starts the Xtream mock), writes the measurements to the job
 summary and uploads `dist/performance/journeys/` as the `performance-journeys`
@@ -553,6 +555,44 @@ in all eighteen runner iterations; the `spawnToFirstCardMs` P50 ranged from
 1,401 to 1,674 ms. All four stay evidence for now. Runner counters also
 differ from a Mac (12 and 571 there, the fast path without the Linux-only
 `getWindowState` call), so take J1 baseline values from the runner only.
+
+### Weekly tightening
+
+`.github/workflows/performance-ratchet.yml` lowers baselines without waiting
+for someone to act on a "tighten" hint. Every Monday, and on
+`workflow_dispatch`, three `ubuntu-latest` jobs measure the same commit
+independently: the production `apps/web` build with
+`measure-initial-bytes.mjs --summary`, then the journeys through the
+`.github/actions/performance-journeys` composite action, which the
+`Performance journeys` job above uses too. A failed journey run does not stop
+its job; its entries are then unmeasured in that run. A final job runs
+`tools/performance/tighten-baselines.mjs` on the three runs:
+
+- an entry is lowered only when every run measured it and every measurement
+  is strictly below `value`; the new `value` is the largest of the three (for
+  a wall-clock entry the largest per-run summary value, which is the largest
+  P50 for a `.p50` entry);
+- a counter marked `counterStability.<name>.stable: false` in any run is
+  kept, and the report says which run and which iterations disagreed;
+- `value` never goes up, `slack` and `toleranceRatio` never change, and no
+  entry is added or removed: the result must pass
+  `check-baseline-direction.mjs` without `--allow-increase`, which both the
+  script and the job check;
+- a lowered entry gets `updatedAt`, `measuredWith` and `evidenceRun` (the
+  workflow run URL); `evidencePr` is set to the tightening PR once it exists.
+
+When the file changed and the run is on `master`, the job pushes
+`automation/performance-ratchet` and opens (or updates) a pull request with
+the per-run table, the diff and the run URL, labelled `no-release-note`. It
+pushes with the existing `PAT` secret, as the Windows MPV pin refresh does,
+because a pull request pushed with `GITHUB_TOKEN` starts no CI. When no
+baseline was below its value in all three runs, the workflow ends without a
+pull request. A dispatch on another branch measures and prints the diff but
+never opens one; use `gh workflow run performance-ratchet.yml --ref <branch>`
+to validate a change to the workflow. Review the pull request like a manual
+tightening: if `master` moved since the measured commit, the
+`Initial bytes ratchet` job on the pull request is what shows that the new
+value still holds (the concurrent-merge effect above).
 
 ## Charset parse benchmark
 
