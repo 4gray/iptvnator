@@ -538,6 +538,7 @@ describe('GroupsViewComponent', () => {
                     ]),
                 }),
                 maxHeight: '90vh',
+                maxWidth: 'calc(100vw - 32px)',
                 width: '500px',
             })
         );

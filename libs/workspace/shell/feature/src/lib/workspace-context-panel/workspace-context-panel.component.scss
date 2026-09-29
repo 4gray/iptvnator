@@ -271,20 +271,26 @@ app-workspace-context-category-view {
     width: 100%;
     margin-top: 4px;
     padding: 8px 12px;
-    border: 1px dashed var(--mat-sys-outline-variant);
+    border: 1px dashed var(--app-separator);
     border-radius: 10px;
     background: transparent;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     font: inherit;
     font-size: 0.8125rem;
     text-align: left;
     cursor: pointer;
 
-    &:hover,
+    // Hover tints like the rail's other rows. Keyboard focus keeps the rail
+    // background so the ring holds >= 3:1 against what surrounds it.
+    &:hover:not(:focus-visible) {
+        background: var(--app-selection-surface);
+        color: var(--app-heading-color);
+    }
+
     &:focus-visible {
-        background: var(--mat-sys-surface-container);
-        color: var(--mat-sys-on-surface);
-        outline: none;
+        color: var(--app-heading-color);
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
     }
 
     mat-icon {

@@ -963,6 +963,39 @@ describe('WorkspaceContextPanelComponent', () => {
         expect(dialog.open).not.toHaveBeenCalled();
     });
 
+    it('opens the Xtream category dialog capped at the viewport width', async () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'xtreams',
+            playlistId: 'xtream-1',
+        });
+        fixture.componentRef.setInput('section', 'vod');
+        fixture.detectChanges();
+        const component = fixture.componentInstance;
+        Object.defineProperty(component, 'canManageXtreamCategories', {
+            configurable: true,
+            value: () => true,
+        });
+        jest.spyOn(
+            TestBed.inject(ParentalLockService),
+            'requestUnlock'
+        ).mockResolvedValue(true);
+        component.loadXtreamCategoryDialog = jest.fn(
+            async () => class DialogStub {}
+        );
+        dialog.open.mockReturnValueOnce({ afterClosed: () => of(false) });
+
+        await component.openManageCategories();
+
+        // A 500px panel on a 375px phone would scroll sideways.
+        expect(dialog.open).toHaveBeenCalledWith(
+            expect.any(Function),
+            expect.objectContaining({
+                width: '500px',
+                maxWidth: 'calc(100vw - 32px)',
+            })
+        );
+    });
+
     describe('Stalker lock dialog', () => {
         function enableLock(): void {
             const parentalLock = TestBed.inject(ParentalLockService);
@@ -1001,6 +1034,7 @@ describe('WorkspaceContextPanelComponent', () => {
                             { category_id: '1', category_name: 'News' },
                         ],
                     },
+                    maxWidth: 'calc(100vw - 32px)',
                 })
             );
         });

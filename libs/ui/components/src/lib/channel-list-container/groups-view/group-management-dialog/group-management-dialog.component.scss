@@ -3,7 +3,6 @@
     gap: 10px;
     flex-direction: column;
     overflow: hidden !important;
-    min-width: 480px;
     max-width: 600px;
     max-height: 85vh !important;
 }
@@ -159,7 +158,7 @@
     min-width: 28px;
     padding: 0;
     line-height: 28px;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-eyebrow-color);
     flex-shrink: 0;
 
     mat-icon {
@@ -168,7 +167,10 @@
         height: 18px;
     }
 
+    // Locked reads as state, not only as a different glyph: accent colour
+    // plus the selection tint behind it.
     &--locked {
-        color: var(--mat-sys-primary);
+        color: var(--app-selection-color);
+        background: var(--app-selection-surface);
     }
 }
