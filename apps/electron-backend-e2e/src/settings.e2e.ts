@@ -715,10 +715,9 @@ test.describe('Electron Settings', () => {
                 app.mainWindow.getByTestId('dashboard-recent-sources-rail')
             ).toHaveCount(0);
             await expect(
-                app.mainWindow.getByRole('link', {
-                    name: 'Dashboard',
-                    exact: true,
-                })
+                app.mainWindow
+                    .getByRole('link', { name: 'Dashboard', exact: true })
+                    .and(app.mainWindow.locator('.portal-rail-link'))
             ).toBeVisible();
         } finally {
             await closeElectronApp(app);
