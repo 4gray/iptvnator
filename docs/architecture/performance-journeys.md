@@ -139,16 +139,17 @@ observer. Why this point:
   and header stay outside the watched subtree, so their own updates neither
   keep the window open nor hide a shift in the content, which still counts
   wherever it happens.
-- 500 ms is longer than any frame and any local round trip to the mock in
-  the J1 profile, so data that is already on its way lands inside the window.
-  The window does not wait for idle timers and polling, which a user would
-  not see as part of the launch either.
+- 500 ms is many frames and well above the round trips to the local mock,
+  so startup data that is already on its way lands inside the window. On the
+  J1 profile the content pane goes quiet within about 110 ms of the first
+  card, so the window closes about 520-610 ms after it.
 - The 3 s cap bounds each iteration when something keeps mutating (an
   animation, a ticking label). A capped window can end in the middle of that
   activity, so `evidence.settle.reason` (`quiet` or `cap`) is recorded for
   every iteration, together with `firstCardToSettledMs` and the mutation
-  records seen (`domMutations`). If iterations close for different reasons,
-  the counter is not deterministic and will show `stable: false`.
+  records seen (`domMutations`). Iterations that close for different reasons
+  point at a settle point that is not deterministic; compare them before
+  trusting `stable`.
 
 Entries with `hadRecentInput === true` are excluded, as for the first-card
 counter; J1 has no input. The probe keeps its layout-shift observer open
@@ -157,6 +158,24 @@ frozen, `settle.status` moves from `pending` to `quiet` or `cap`, and the
 test waits for both. The record refuses an iteration whose window never
 closed or closed before the cutoff. J2's probe has no settle window
 (`settle.status` is `disabled`) and its counters are unchanged.
+
+`evidence.settle.lateShifts` lists the counted shifts after the cutoff (at
+most 20): the time after the first card, the value and, for each source the
+browser attributes the shift to, the node (`tag.class[data-test-id]`; a
+component host such as `lib-dashboard-rail` takes its first child's test id)
+and its vertical move. A late shift can therefore be traced to its component
+from the summary alone.
+
+First local measurement (macOS, 2026-09-29, `master` with #1738): all
+windows closed on `quiet`, `renderer.layoutShiftScore` stayed 0, and
+`renderer.layoutShiftScoreSettled` was 0.236 in 14 of 15 measured
+iterations over three runs (`stable: false` in the first run with one 0,
+stable in the other two). Every iteration shows the same two shifts of 0.118:
+about 12 ms after the first card the `dashboard-recent-sources-rail`, which
+holds the first card, moves up by 316 px, and 12-65 ms later it moves back
+down. Something 316 px tall above it is removed and inserted again during
+startup, a flicker #1738 did not cover. The counter is working as intended;
+the flicker is a separate fix.
 
 #### Main-process counters
 
@@ -280,7 +299,7 @@ serial-depth counter is a better guardrail candidate than a raw call count.
     "launch": {
       "counters": {
         "renderer.ipcCallsToFirstCard": 12,
-        "renderer.layoutShiftScoreSettled": 0
+        "renderer.layoutShiftScoreSettled": 0.236
       },
       "counterStability": {
         "renderer.ipcCallsToFirstCard": {
@@ -289,7 +308,7 @@ serial-depth counter is a better guardrail candidate than a raw call count.
         },
         "renderer.layoutShiftScoreSettled": {
           "stable": true,
-          "values": [0, 0, 0, 0, 0]
+          "values": [0.236, 0.236, 0.236, 0.236, 0.236]
         }
       },
       "wallClock": {
@@ -306,8 +325,21 @@ serial-depth counter is a better guardrail candidate than a raw call count.
           "wallClock": {},
           "evidence": {
             "settle": {
-              "domMutations": 42,
-              "firstCardToSettledMs": 612.4,
+              "domMutations": 458,
+              "firstCardToSettledMs": 536.6,
+              "lateShifts": [
+                {
+                  "afterFirstCardMs": 12.4,
+                  "sources": [
+                    {
+                      "deltaHeight": 0,
+                      "deltaY": -316,
+                      "node": "lib-dashboard-rail[data-test-id=\"dashboard-recent-sources-rail\"]"
+                    }
+                  ],
+                  "value": 0.118
+                }
+              ],
               "observedTarget": "root",
               "reason": "quiet"
             }
@@ -616,6 +648,10 @@ in all eighteen runner iterations; the `spawnToFirstCardMs` P50 ranged from
 1,401 to 1,674 ms. All four stay evidence for now. Runner counters also
 differ from a Mac (12 and 571 there, the fast path without the Linux-only
 `getWindowState` call), so take J1 baseline values from the runner only.
+`renderer.layoutShiftScoreSettled` has no baseline either: it has only been
+measured on a Mac so far (see [Settle window](#settle-window)), and a
+baseline needs the runner's number once the dashboard flicker it reports
+is fixed.
 
 ## Charset parse benchmark
 

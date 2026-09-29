@@ -25,6 +25,11 @@ interface FakeEntry {
     duration?: number;
     entryType: string;
     hadRecentInput?: boolean;
+    sources?: {
+        currentRect: { height: number; y: number };
+        node: unknown;
+        previousRect: { height: number; y: number };
+    }[];
     startTime: number;
     value?: number;
 }
@@ -419,7 +424,22 @@ test('keeps summing shifts without recent input after the first-card cutoff unti
 
     // A skeleton rail that resolved empty collapses about 15 ms after the
     // first card and pulls the rails below upwards (#1738).
-    observer.emit([layoutShift(now(), 0.5), layoutShift(now(), 0.3, true)]);
+    const rail = fixture.window.document.createElement('lib-dashboard-rail');
+    const railSection = fixture.window.document.createElement('section');
+    railSection.className = 'rail';
+    railSection.setAttribute('data-test-id', 'dashboard-favorites-rail');
+    rail.append(railSection);
+    const collapse = {
+        ...layoutShift(now(), 0.5),
+        sources: [
+            {
+                currentRect: { height: 220, y: 300 },
+                node: rail,
+                previousRect: { height: 220, y: 540 },
+            },
+        ],
+    };
+    observer.emit([collapse, layoutShift(now(), 0.3, true)]);
     for (let step = 0; step < 3; step += 1) {
         await new Promise((resolve) => setTimeout(resolve, 20));
         content.append(fixture.window.document.createElement('div'));
@@ -441,6 +461,26 @@ test('keeps summing shifts without recent input after the first-card cutoff unti
         'the quiet period restarts at the last mutation'
     );
     assert.equal(state.counters.layoutShiftScoreSettled, 0.875);
+    // Only shifts after the cutoff are attributed; input-flagged ones are not.
+    assert.deepEqual(
+        state.settle.lateShifts.map((shift) => [shift.value, shift.sources]),
+        [
+            [
+                0.5,
+                [
+                    {
+                        deltaHeight: 0,
+                        deltaY: -240,
+                        node: 'lib-dashboard-rail[data-test-id="dashboard-favorites-rail"]',
+                    },
+                ],
+            ],
+            [0.125, []],
+        ]
+    );
+    assert.ok(
+        state.settle.lateShifts.every((shift) => shift.afterFirstCardMs > 0)
+    );
     // The first-card counters were frozen at the cutoff.
     assert.equal(state.counters.layoutShiftScore, 0.25);
     assert.equal(state.counters.recentInputLayoutShiftScore, 0);

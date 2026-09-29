@@ -49,6 +49,19 @@ function measurement(
             domMutations: 37,
             epochMs: 3_180.06,
             lastMutationEpochMs: 2_680,
+            lateShifts: [
+                {
+                    afterFirstCardMs: 14.96,
+                    sources: [
+                        {
+                            deltaHeight: 0,
+                            deltaY: -240,
+                            node: 'section.dashboard-rail',
+                        },
+                    ],
+                    value: 0.23049,
+                },
+            ],
             observedTarget: 'root',
             status: 'quiet',
         },
@@ -156,6 +169,19 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
     assert.deepEqual(record.evidence['settle'], {
         domMutations: 37,
         firstCardToSettledMs: 580,
+        lateShifts: [
+            {
+                afterFirstCardMs: 15,
+                sources: [
+                    {
+                        deltaHeight: 0,
+                        deltaY: -240,
+                        node: 'section.dashboard-rail',
+                    },
+                ],
+                value: 0.2305,
+            },
+        ],
         observedTarget: 'root',
         reason: 'quiet',
     });

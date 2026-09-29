@@ -54,6 +54,7 @@ function measurement(
             domMutations: 0,
             epochMs: null,
             lastMutationEpochMs: null,
+            lateShifts: [],
             observedTarget: null,
             status: 'disabled',
         },

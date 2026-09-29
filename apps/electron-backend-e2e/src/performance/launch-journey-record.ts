@@ -162,6 +162,13 @@ export function toLaunchIterationRecord(
                 firstCardToSettledMs: roundTenth(
                     settle.epochMs - renderer.terminal.epochMs
                 ),
+                lateShifts: settle.lateShifts.map((shift) =>
+                    Object.freeze({
+                        afterFirstCardMs: roundTenth(shift.afterFirstCardMs),
+                        sources: shift.sources,
+                        value: Math.round(shift.value * 10_000) / 10_000,
+                    })
+                ),
                 observedTarget: settle.observedTarget,
                 reason: settle.status,
             }),

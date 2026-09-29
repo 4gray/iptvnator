@@ -105,6 +105,18 @@ export interface JourneyRendererProbeCounters {
     recentInputLayoutShiftScore: number;
 }
 
+export interface JourneyRendererProbeLateShift {
+    /** Entry start minus the first-card terminal epoch. */
+    readonly afterFirstCardMs: number;
+    /** `tag.class[data-test-id]` and the vertical move of each source. */
+    readonly sources: readonly {
+        readonly deltaHeight: number;
+        readonly deltaY: number;
+        readonly node: string;
+    }[];
+    readonly value: number;
+}
+
 export interface JourneyRendererProbeState {
     readonly capabilities: {
         changeDetectionTicks: string;
@@ -145,6 +157,11 @@ export interface JourneyRendererProbeState {
         domMutations: number;
         epochMs: number | null;
         lastMutationEpochMs: number | null;
+        /**
+         * Counted shifts after the first-card cutoff, at most 20, with the
+         * nodes that moved, so a late shift can be traced to its component.
+         */
+        lateShifts: JourneyRendererProbeLateShift[];
         observedTarget: 'documentElement' | 'root' | null;
         status: 'cap' | 'disabled' | 'pending' | 'quiet';
     };
@@ -219,6 +236,7 @@ export function journeyRendererProbeScript(
             domMutations: 0,
             epochMs: null,
             lastMutationEpochMs: null,
+            lateShifts: [],
             observedTarget: null,
             status: settleOptions === null ? 'disabled' : 'pending',
         },
@@ -348,19 +366,59 @@ export function journeyRendererProbeScript(
         for (const entry of settleLayoutShifts) {
             const shift = entry as PerformanceEntry & {
                 hadRecentInput?: boolean;
+                sources?: readonly LateShiftSource[];
                 value?: number;
             };
             if (
-                typeof shift.value === 'number' &&
-                shift.hadRecentInput !== true &&
-                inWindow(entry, untilEpochMs)
+                typeof shift.value !== 'number' ||
+                shift.hadRecentInput === true ||
+                !inWindow(entry, untilEpochMs)
             ) {
-                score += shift.value;
+                continue;
+            }
+            score += shift.value;
+            const entryEpochMs = performance.timeOrigin + entry.startTime;
+            if (
+                entryEpochMs > (state.firstCardPaintEpochMs ?? untilEpochMs) &&
+                state.settle.lateShifts.length < 20
+            ) {
+                state.settle.lateShifts.push({
+                    afterFirstCardMs:
+                        entryEpochMs - (state.terminal?.epochMs ?? 0),
+                    sources: (shift.sources ?? []).map(describeSource),
+                    value: shift.value,
+                });
             }
         }
         state.counters.layoutShiftScoreSettled = score;
         state.settle.epochMs = untilEpochMs;
         state.settle.status = status;
+    };
+    type LateShiftSource = {
+        currentRect?: { height: number; y: number };
+        node?: Node | null;
+        previousRect?: { height: number; y: number };
+    };
+    const describeSource = (source: LateShiftSource) => {
+        const node = source.node;
+        let label = node ? node.nodeName.toLowerCase() : 'unknown';
+        if (node instanceof Element) {
+            const className = node.classList.item(0);
+            // Component hosts such as `lib-dashboard-rail` carry the test
+            // id on their first child.
+            const testId =
+                node.getAttribute('data-test-id') ??
+                node.firstElementChild?.getAttribute('data-test-id');
+            label += className ? `.${className}` : '';
+            label += testId ? `[data-test-id="${testId}"]` : '';
+        }
+        const before = source.previousRect;
+        const after = source.currentRect;
+        return {
+            deltaHeight: before && after ? after.height - before.height : 0,
+            deltaY: before && after ? after.y - before.y : 0,
+            node: label,
+        };
     };
     // Starts at the first-card cutoff. Every mutation record under the root
     // restarts the quiet timer; the cap timer never moves.
