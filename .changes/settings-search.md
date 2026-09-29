@@ -2,7 +2,6 @@
 type: feature
 area: settings
 screenshot: settings-search
-highlight: Search your settings
 ---
 
 Settings are now searchable: type in the search box on the Settings page to
