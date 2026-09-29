@@ -61,6 +61,7 @@ export class StubWebPlayerViewComponent {
     readonly streamUrl = input('');
     readonly title = input('');
     readonly playback = input<unknown>(null);
+    readonly timelineSegments = input<unknown>(null);
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
     readonly recordingStopped = output<RecordingStoppedEvent>();

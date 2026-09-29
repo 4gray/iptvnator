@@ -70,6 +70,7 @@ import {
 } from '@iptvnator/ui/epg';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
+    buildCatchupTimelineSegments,
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
     type FullscreenChannelPanelHost,
@@ -303,6 +304,13 @@ export class LiveStreamLayoutComponent
     }
     private readonly currentTimeMs = signal(Date.now());
     readonly activeCatchupProgram = signal<EpgProgram | null>(null);
+    /** The archive window's programmes as seek-bar segments; null live. */
+    readonly catchupTimelineSegments = computed(() =>
+        buildCatchupTimelineSegments(
+            this.controlledEpgPrograms(),
+            this.activeCatchupProgram()
+        )
+    );
     readonly controlledArchiveDays = computed(() =>
         Math.max(
             0,

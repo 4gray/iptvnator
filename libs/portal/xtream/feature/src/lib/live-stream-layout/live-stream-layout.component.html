@@ -154,6 +154,7 @@
                     [streamUrl]="streamUrl"
                     [title]="activePlayback()?.title ?? ''"
                     [playback]="activePlayback()"
+                    [timelineSegments]="catchupTimelineSegments()"
                     [recordingMetadata]="recordingMetadata()"
                     (externalFallbackRequested)="
                         handleExternalFallbackRequest($event)

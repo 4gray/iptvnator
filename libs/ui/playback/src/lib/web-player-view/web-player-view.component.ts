@@ -42,6 +42,7 @@ import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 import {
     type PlayerMediaTitle,
     PlayerUpNextItem,
+    type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
 } from '../player-controls';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
@@ -148,6 +149,10 @@ export class WebPlayerViewComponent implements OnDestroy {
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     /** Next episode for the shared controls' "Up next" card; series hosts only. */
     readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     readonly alternativeSources = input<VodSourceDescriptor[]>([]);
     /** Channel/EPG snapshot for the embedded-MPV recording tracker. */
     readonly recordingMetadata = input<RecordingStartMetadata | null>(null);

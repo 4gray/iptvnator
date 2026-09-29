@@ -25,6 +25,7 @@ import {
     PlayerControlsComponent,
     type PlayerMediaTitle,
     PlayerUpNextItem,
+    type PlayerTimelineSegment,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -80,6 +81,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly showCaptions = input(false);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 

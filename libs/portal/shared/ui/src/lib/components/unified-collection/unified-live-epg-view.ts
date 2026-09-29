@@ -2,6 +2,7 @@ import { computed, inject, Signal, signal } from '@angular/core';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
+    getM3uCatchupWindowEndSeconds,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
 import { ResolvedLiveCollectionDetail } from '@iptvnator/portal/shared/data-access';
@@ -23,6 +24,10 @@ import {
     EpgProgram,
     EpgViewMode,
 } from '@iptvnator/shared/interfaces';
+import {
+    buildCatchupTimelineSegments,
+    type PlayerTimelineSegment,
+} from '@iptvnator/ui/playback';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import {
     getLiveEpgPanelSummary,
@@ -48,6 +53,8 @@ export interface UnifiedLiveEpgView {
     readonly timelineChannelLogo: Signal<string>;
     readonly timelineArchiveAvailable: Signal<boolean>;
     readonly timelineArchiveDays: Signal<number>;
+    /** The archive window's programmes as seek-bar segments; null live. */
+    readonly catchupTimelineSegments: Signal<PlayerTimelineSegment[] | null>;
     readonly panelSummary: Signal<LiveEpgPanelSummary | null>;
     readonly panelSummaryLabelKey: Signal<string>;
     setPanelCollapsed(collapsed: boolean): void;
@@ -141,6 +148,19 @@ export function createUnifiedLiveEpgView(options: {
             return Math.max(
                 0,
                 Number(options.activeItem()?.tvArchiveDuration ?? 0) || 0
+            );
+        }),
+        catchupTimelineSegments: computed(() => {
+            const timeshift = options.activeTimeshift();
+            // M3U catch-up runs up to `lutc`; Xtream's is the programme.
+            const windowEnd =
+                timeshift && options.isM3uSelection()
+                    ? getM3uCatchupWindowEndSeconds(timeshift.url)
+                    : null;
+            return buildCatchupTimelineSegments(
+                timelinePrograms(),
+                timeshift?.program,
+                windowEnd ?? undefined
             );
         }),
         panelSummary: computed(() => {

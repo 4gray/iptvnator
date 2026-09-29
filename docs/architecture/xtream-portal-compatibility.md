@@ -306,6 +306,10 @@ tab can gate the timeline's archive window. `tv_archive_duration` is
 interpreted as **days** everywhere, matching
 `live-stream-layout.controlledArchiveDays` (issue #1138).
 
+While a programme plays from the archive, both entry points draw it on the
+player's seek bar as a titled segment; see "Timeline segments" in the
+[player controls contract](player-controls-contract.md#timeline-segments).
+
 Programme details in the Live TV and Favorites/Recent EPG timeline/list also
 offer **Copy archive URL**. This uses the same resolver and persisted server
 timezone without changing playback. See the M3U module's "Copy archive URL"
