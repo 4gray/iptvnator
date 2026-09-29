@@ -803,12 +803,19 @@ void applySoftwareRendererOptions(const std::set<std::string>& sessionKeys) {
         {"dscale", "bilinear"},
         {"sigmoid-upscaling", "no"},
     };
+    std::string applied;
+    std::string failed;
     for (const auto& [key, value] : kOptions) {
-        if (sessionKeys.count(key) == 0) {
-            mpv_set_property_string(g_state.mpv, key, value);
+        if (sessionKeys.count(key) != 0) continue;
+        const int result = mpv_set_property_string(g_state.mpv, key, value);
+        std::string& list = result < 0 ? failed : applied;
+        list += (list.empty() ? "" : ", ") + std::string(key) + "=" + value;
+        if (result < 0) {
+            list += std::string(" (") + mpv_error_string(result) + ")";
         }
     }
-    std::fprintf(stderr, "software renderer: using bilinear scalers\n");
+    std::fprintf(stderr, "software renderer: applied [%s]; failed [%s]\n",
+                 applied.c_str(), failed.c_str());
 }
 
 struct HelperArgs {

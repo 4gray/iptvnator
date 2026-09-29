@@ -93,7 +93,7 @@ The Linux portable build uploads `packaged-frame-copy-smoke` reports and traces
 even when the smoke fails. Check the paused-frame screenshot and trace before
 classifying a zero rendered-frame signal as an infrastructure flake. A zero
 signal also attaches `frame-copy-diagnostics` (the session's stream stats,
-including mpv's drop counter, and each helper ring read from `/dev/shm`) and
+including mpv's drop counter, and its helper rings read from `/dev/shm`) and
 `mpv-log`, the session's verbose mpv log. A `latestSeq` of 0 means the helper
 never published; a `latestFrameSignal` of 0 means mpv rendered black; a
 visible ring frame behind a black canvas points at the preload pump.

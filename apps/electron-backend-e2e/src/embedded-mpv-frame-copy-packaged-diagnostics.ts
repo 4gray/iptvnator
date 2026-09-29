@@ -20,7 +20,6 @@ import {
  */
 
 const SHM_DIRECTORY = '/dev/shm';
-const SHM_PREFIX = 'impv-fc-';
 const FRAME_SHM_MAGIC = 0x564d5046;
 const FRAME_SHM_RING_SLOTS = 3;
 const HEADER_BYTES = 56 + FRAME_SHM_RING_SLOTS * 16;
@@ -103,10 +102,16 @@ export function describeFrameRing(
     };
 }
 
-export function describeFrameRings(): FrameRingDiagnostics[] | string {
+/**
+ * The helper names its rings `/<sessionId>-g<generation>`, so the prefix
+ * keeps stale or concurrent sessions out of the report.
+ */
+export function describeFrameRings(
+    sessionId: string
+): FrameRingDiagnostics[] | string {
     try {
         return readdirSync(SHM_DIRECTORY)
-            .filter((entry) => entry.startsWith(SHM_PREFIX))
+            .filter((entry) => entry.startsWith(`${sessionId}-g`))
             .map((entry) =>
                 describeFrameRing(
                     entry,
@@ -146,7 +151,7 @@ export async function expectRenderedFrame(
                 videoHeight: session.videoHeight,
                 stats: session.stats,
             },
-            frameRings: describeFrameRings(),
+            frameRings: describeFrameRings(sessionId),
         };
         const body = JSON.stringify(diagnostics, null, 2);
         console.log(`[frame-copy smoke diagnostics] ${body}`);
