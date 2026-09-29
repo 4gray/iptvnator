@@ -3,6 +3,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { defaultXtreamPortalName } from '../electron-test-fixtures';
 import {
     countJourneyMainIpcInFlight,
+    detachJourneyMainIpcCapture,
     installJourneyMainIpcCapture,
     JOURNEY_MAIN_IPC_STATE_KEY,
     JOURNEY_RENDERER_API_TRACE_CHANNEL,
@@ -201,6 +202,9 @@ export async function measureOpenSourceJourney(
         ledger,
         probeOptions.stateKey
     );
+    // J1's capture was only needed to see pending launch calls while
+    // settling; detached, it no longer runs for every J2 bridge call.
+    await detachJourneyMainIpcCapture(electronApp, JOURNEY_MAIN_IPC_STATE_KEY);
     await card.click({ timeout: timeoutMs });
     const renderer: JourneyRendererProbeState =
         await waitForJourneyRendererProbe(

@@ -102,7 +102,10 @@ export async function installJourneyMainIpcCapture(
             }
         };
         target[input.stateKey] = state;
-        ipcMain.on(input.channel, (event, payload: unknown) => {
+        const listener = (
+            event: { sender: { id: number } },
+            payload: unknown
+        ): void => {
             const record =
                 typeof payload === 'object' && payload !== null
                     ? (payload as Record<string, unknown>)
@@ -165,8 +168,34 @@ export async function installJourneyMainIpcCapture(
             state.callsBeforeSentinel += 1;
             state.callsByMethod[method] =
                 (state.callsByMethod[method] ?? 0) + 1;
-        });
+        };
+        ipcMain.on(input.channel, listener);
+        // Kept next to the state (which is read as JSON) so the capture can
+        // be detached from the same main process later.
+        target[`${input.stateKey}:detach`] = () => {
+            ipcMain.removeListener(input.channel, listener);
+        };
     }, options);
+}
+
+/**
+ * Removes a capture's listener. J2 detaches J1's capture once it has used it
+ * to settle, so the launch listener does not run for every bridge call of
+ * the measured click.
+ */
+export async function detachJourneyMainIpcCapture(
+    electronApp: ElectronApplication,
+    stateKey: string
+): Promise<void> {
+    await electronApp.evaluate((_electron, key) => {
+        const target = globalThis as unknown as Record<string, unknown>;
+        const detach = target[`${key}:detach`];
+        if (typeof detach !== 'function') {
+            throw new Error('journey-main-ipc-capture-not-attached');
+        }
+        (detach as () => void)();
+        delete target[`${key}:detach`];
+    }, stateKey);
 }
 
 /** Total of `inFlightByMethod`. */

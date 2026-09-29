@@ -9,6 +9,7 @@ import type { ElectronApplication } from '@playwright/test';
 import {
     assertJourneyMainIpcCapture,
     countJourneyMainIpcInFlight,
+    detachJourneyMainIpcCapture,
     installJourneyMainIpcCapture,
     JOURNEY_RENDERER_API_TRACE_CHANNEL,
     peekJourneyMainIpcCapture,
@@ -139,6 +140,7 @@ test('rejects captures that cannot bound the counter exactly', () => {
  */
 function createFakeElectronApp(): {
     readonly app: ElectronApplication;
+    listeners(): number;
     send(
         senderId: number,
         method: string,
@@ -161,6 +163,7 @@ function createFakeElectronApp(): {
     } as unknown as ElectronApplication;
     return {
         app,
+        listeners: () => ipcMain.listenerCount(channel),
         send: (senderId, method, args, phase = 'start') => {
             ipcMain.emit(
                 channel,
@@ -175,7 +178,8 @@ async function withCapture(
     options: Partial<JourneyMainIpcCaptureOptions>,
     run: (
         fake: ReturnType<typeof createFakeElectronApp>,
-        read: () => Promise<JourneyMainIpcCaptureState>
+        read: () => Promise<JourneyMainIpcCaptureState>,
+        stateKey: string
     ) => Promise<void>
 ): Promise<void> {
     const stateKey = `__journeyIpcCaptureTest${Math.random()}`;
@@ -188,9 +192,15 @@ async function withCapture(
             stateKey,
             ...options,
         });
-        await run(fake, () => peekJourneyMainIpcCapture(fake.app, stateKey));
+        await run(
+            fake,
+            () => peekJourneyMainIpcCapture(fake.app, stateKey),
+            stateKey
+        );
     } finally {
-        delete (globalThis as unknown as Record<string, unknown>)[stateKey];
+        const target = globalThis as unknown as Record<string, unknown>;
+        delete target[stateKey];
+        delete target[`${stateKey}:detach`];
     }
 }
 
@@ -342,5 +352,23 @@ test('tracks bridge calls in flight from start to success or error', async () =>
         state = await read();
         assert.equal(state.unmatchedCompletions, 1);
         assert.equal(countJourneyMainIpcInFlight(state), 0);
+    });
+});
+
+test('a detached capture stops listening and keeps its last state', async () => {
+    await withCapture({}, async (fake, read, stateKey) => {
+        fake.send(1, 'getSettings', []);
+        assert.equal(fake.listeners(), 1);
+        await detachJourneyMainIpcCapture(fake.app, stateKey);
+        assert.equal(fake.listeners(), 0);
+        fake.send(1, 'getSettings', []);
+        fake.send(1, 'dbGetAppState', []);
+        const state = await read();
+        assert.equal(state.callsBeforeSentinel, 1);
+        assert.deepEqual(state.inFlightByMethod, { getSettings: 1 });
+        await assert.rejects(
+            detachJourneyMainIpcCapture(fake.app, stateKey),
+            /not-attached/
+        );
     });
 });

@@ -264,7 +264,9 @@ fails the iteration). Bridge calls in flight come from J1's IPC capture: it
 was installed before the document loaded, and the preload follows every
 traced `start` with exactly one `success` or `error`, so a call that is still
 pending cannot resolve after the click and have its DOM changes or follow-up
-calls counted as J2. The settle is a snapshot, and Playwright's
+calls counted as J2. After settling, J1's capture is detached
+(`detachJourneyMainIpcCapture`), so its listener does not run for every
+bridge call of the measured click. The settle is a snapshot, and Playwright's
 actionability checks run between it and the click. The probe and the IPC
 capture keep counting pre-click activity until the click event itself, and
 the ledger splits at the click stamp. So the record rejects an iteration
