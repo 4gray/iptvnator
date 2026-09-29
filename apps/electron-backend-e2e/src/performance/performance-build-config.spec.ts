@@ -88,8 +88,21 @@ test('the performance harness target runs only Node performance specs', () => {
     assert.equal(target.options?.['cwd'], 'apps/electron-backend-e2e');
     assert.equal(
         target.options?.['command'],
-        'pnpm exec tsx --test src/performance/*.spec.ts'
+        'tsx --test "src/performance/*.spec.ts"'
     );
+});
+
+// A nested `pnpm exec` under `pnpm nx` can run from the workspace root instead
+// of the target cwd (an older global pnpm with version switching disabled), so
+// cwd-relative globs, specs and configs are not found. run-commands already
+// puts node_modules/.bin on PATH.
+test('electron-backend-e2e command targets call binaries without pnpm exec', () => {
+    for (const [name, target] of Object.entries(e2eProject.targets)) {
+        const command = target.options?.['command'];
+        if (typeof command !== 'string') continue;
+
+        assert.doesNotMatch(command, /\bpnpm exec\b/, name);
+    }
 });
 
 test('the web performance build keeps production renderer behavior with profiling source maps', () => {
@@ -242,7 +255,7 @@ test('the cancellation benchmark command is pinned to its Playwright test file',
 
     assert.equal(
         target.options?.['command'],
-        'pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts'
+        'playwright test --config=playwright.performance.config.ts src/m3u-refresh-cancellation.performance.ts'
     );
 });
 
@@ -283,7 +296,7 @@ test('the initial M3U import benchmark command is pinned to its Playwright test 
 
     assert.equal(
         target.options?.['command'],
-        'pnpm exec playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts'
+        'playwright test --config=playwright.performance.config.ts src/m3u-import.performance.ts'
     );
 });
 
