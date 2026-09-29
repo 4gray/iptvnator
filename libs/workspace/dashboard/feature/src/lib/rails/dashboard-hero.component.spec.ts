@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -261,5 +263,29 @@ describe('DashboardHeroComponent', () => {
         expect(
             host().querySelector('[data-test-id=dashboard-hero]')
         ).toBeNull();
+    });
+});
+
+describe('DashboardHeroComponent rotation animation', () => {
+    const styles = readFileSync(
+        resolve(__dirname, 'dashboard-hero.component.scss'),
+        'utf8'
+    );
+    const keyframes = (name: string) =>
+        new RegExp(`@keyframes ${name}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(
+            styles
+        )?.[1] ?? '';
+
+    // The fill runs for the whole time an idle dashboard is on screen: a
+    // layout property here means style, layout and paint on every frame.
+    it('fills the active dot with a compositor-only animation', () => {
+        const frames = keyframes('hero-dot-fill');
+        const properties = Array.from(
+            frames.matchAll(/^\s*([a-z-]+)\s*:/gm),
+            (match) => match[1]
+        );
+
+        expect(properties.length).toBeGreaterThan(0);
+        expect(new Set(properties)).toEqual(new Set(['transform']));
     });
 });

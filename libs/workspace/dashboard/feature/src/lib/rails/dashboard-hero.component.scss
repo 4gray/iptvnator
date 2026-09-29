@@ -547,28 +547,41 @@
     width: 0;
     height: 6px;
     border-radius: 3px;
-    background: var(--hero-heading);
+    overflow: hidden;
     pointer-events: none;
+
+    // The fill is a full-width bar that slides in from the left under the
+    // pill's rounded clip. Only `transform` animates, so the compositor runs
+    // it: animating `width` meant style, layout and paint on every frame for
+    // as long as an idle dashboard stayed on screen. Its `animationend`
+    // reaches the span (the originating element) and advances the slide.
+    &::before {
+        content: '';
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--hero-heading);
+    }
 
     .hero__dot--active & {
         width: 18px;
     }
 
-    .hero--rotating .hero__dot--active & {
+    .hero--rotating .hero__dot--active &::before {
         animation: hero-dot-fill var(--hero-rotation-ms, 8000ms) linear both;
     }
 
-    .hero--paused .hero__dot--active & {
+    .hero--paused .hero__dot--active &::before {
         animation-play-state: paused;
     }
 }
 
 @keyframes hero-dot-fill {
     from {
-        width: 0;
+        transform: translateX(-100%);
     }
     to {
-        width: 18px;
+        transform: none;
     }
 }
 
