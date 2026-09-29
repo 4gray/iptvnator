@@ -61,6 +61,13 @@ export function orderLongestFirst(projects, weightOf) {
  * How many projects to keep in flight. Defaults to one less than the core
  * count, capped at three: beyond that the per-process start-up cost is paid
  * anyway and the Jest workers of the concurrent runs starve each other.
+ *
+ * Two cores stay serial on purpose. Two in flight there would leave each
+ * project one worker, and Jest then runs in-band: every spec file of a big
+ * project (ui-playback, web) shares one heap. On a 2-core / 7 GB box, where
+ * Node's default heap is 2 GiB, that heap ran out; with a 4 GiB heap it
+ * passed, about 15% faster than serial on a warm cache but with 1.2 GiB more
+ * peak memory. CI runs on 4 cores, so the saving would not reach it.
  */
 export function resolveConcurrency({ requested, cpuCount }) {
     if (Number.isInteger(requested) && requested > 0) return requested;
@@ -70,7 +77,8 @@ export function resolveConcurrency({ requested, cpuCount }) {
 /**
  * Jest workers per project, so that concurrency × workers stays near the core
  * count. Small projects never use them all, which is what leaves room for the
- * other slots.
+ * other slots. The defaults never go below two on a multi-core machine:
+ * `--max-workers=1` runs Jest in-band (see resolveConcurrency).
  */
 export function resolveWorkersPerProject({ requested, concurrency, cpuCount }) {
     if (Number.isInteger(requested) && requested > 0) return requested;

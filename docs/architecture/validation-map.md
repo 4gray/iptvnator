@@ -98,7 +98,10 @@ report, or a runtime-owning production TypeScript file absent from that report.
 It runs projects a few at a time, largest first, with a bounded Jest worker
 count per project (defaults: `min(3, cores - 1)` in flight and
 `ceil(cores / concurrency)` workers each; override with `--concurrency=N`,
-`--max-workers=N` or `TIER_A_CONCURRENCY` / `TIER_A_MAX_WORKERS`). Each
+`--max-workers=N` or `TIER_A_CONCURRENCY` / `TIER_A_MAX_WORKERS`). Two cores
+run one project at a time with two workers. Two in flight would leave each
+project one worker, which runs Jest in-band, and a big project's single heap
+can run out on a small machine; for the same reason avoid `--max-workers=1`. Each
 project's output is printed as one block when it finishes, and the run ends
 with the wall-clock total and the longest projects. Spec `tsconfig`s set
 `isolatedModules: true`, so ts-jest transpiles files one at a time instead of

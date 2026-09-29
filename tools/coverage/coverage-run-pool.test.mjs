@@ -83,6 +83,14 @@ test('derives concurrency and workers from the core count unless overridden', ()
     assert.equal(resolveWorkersPerProject({ requested: 1, concurrency: 3, cpuCount: 16 }), 1);
 });
 
+test('defaults never leave a project one in-band Jest worker on a multi-core machine', () => {
+    for (let cpuCount = 2; cpuCount <= 64; cpuCount += 1) {
+        const concurrency = resolveConcurrency({ requested: undefined, cpuCount });
+        const workers = resolveWorkersPerProject({ requested: undefined, concurrency, cpuCount });
+        assert.ok(workers >= 2, `${cpuCount} cores: ${concurrency} in flight × ${workers} worker`);
+    }
+});
+
 function task(name, { delay = 0, status = 0, log }) {
     return {
         name,
