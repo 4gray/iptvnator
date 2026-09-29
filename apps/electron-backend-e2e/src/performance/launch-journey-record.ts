@@ -45,7 +45,8 @@ export interface LaunchJourneyMeasurement {
     readonly electronVersion: string;
     readonly gate: JourneyRendererGateState;
     readonly ipc: JourneyMainIpcCaptureState;
-    readonly mainCounters: JourneyMainCountersState;
+    /** Null when the launch ran without the main-process counters (J2). */
+    readonly mainCounters: JourneyMainCountersState | null;
     readonly pid: number;
     readonly renderer: JourneyRendererProbeState;
     readonly spawnEpochMs: number;
@@ -61,6 +62,9 @@ export function toLaunchIterationRecord(
     measurement: LaunchJourneyMeasurement
 ): JourneyIterationRecord {
     const { ipc, mainCounters, renderer, spawnEpochMs } = measurement;
+    if (mainCounters === null) {
+        throw new Error('launch-journey-record-main-counters-missing');
+    }
     if (renderer.terminal === null || renderer.navigation === null) {
         throw new Error('launch-journey-record-incomplete-probe');
     }

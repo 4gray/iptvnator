@@ -295,8 +295,9 @@ jobs:
         needs: performance-journeys-scope
         if: needs.performance-journeys-scope.outputs.run == 'true'
         runs-on: ubuntu-latest
-        # The electron-performance build is the bulk of the time; the launch
-        # journey itself is six fresh Electron processes plus one seeding run.
+        # The electron-performance build is the bulk of the time; each journey
+        # (launch, open-source) is six fresh Electron processes plus one
+        # seeding run.
         timeout-minutes: 30
         # Warn-only for the first two weeks of plan item B3: a failure is
         # visible on the run but does not fail the workflow.

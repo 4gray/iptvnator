@@ -23,6 +23,7 @@ function measurement(
             domMutations: 480,
             layoutShiftScore: 0.123456789,
             longTasks: 2,
+            recentInputLayoutShiftScore: 0,
         },
         final: true,
         firstCardPaintEpochMs: 2_650,
@@ -40,24 +41,32 @@ function measurement(
             domContentLoadedEpochMs: 1_300,
             loadEventEndEpochMs: 1_400.26,
         },
+        preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
         sentinel: { epochMs: 2_601, status: 'sent' },
+        start: null,
         terminal: {
+            cardCount: 2,
             cardTag: 'div',
             cardTestId: 'dashboard-recent-sources-rail-card',
+            companionCounts: [],
             epochMs: 2_600.04,
             pathname: '/dist/apps/web/workspace/dashboard',
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
         callsAfterSentinel: 3,
+        callsBeforeStart: 0,
         callsBeforeSentinel: 14,
         callsByMethod: { dbGetAppPlaylists: 1, getSettings: 13 },
+        inFlightByMethod: {},
         installedEpochMs: 1_100,
         malformedEvents: 0,
         processStartEpochMs: 900,
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 2_602 },
+        start: null,
+        unmatchedCompletions: 0,
     };
     return {
         electronVersion: '43.3.0',
@@ -145,6 +154,13 @@ test('rejects measurements whose clocks or probes are inconsistent', () => {
                 renderer: { ...base.renderer, navigation: null },
             }),
         /incomplete-probe/
+    );
+    // A launch that ran without the main-process counters (as J2's do) is
+    // not a J1 measurement.
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(0, false, { ...base, mainCounters: null }),
+        /main-counters-missing/
     );
     assert.throws(
         () =>

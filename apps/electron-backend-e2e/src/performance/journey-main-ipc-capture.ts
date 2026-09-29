@@ -11,6 +11,11 @@ import type { ElectronApplication } from '@playwright/test';
  * until the renderer probe's sentinel call arrives. Renderer-to-main IPC is
  * delivered in order, so every call started before the sentinel is counted
  * and nothing after it is.
+ *
+ * A journey that starts inside a running app (J2 "Open a source") passes
+ * `startSentinelId`: the probe sends that id before the app handles the
+ * start click, calls before it are only tallied in `callsBeforeStart`, and
+ * `callsBeforeSentinel` then counts the calls between the two sentinels.
  */
 
 /** Literal of `DEBUG_TRACE_EVENT_CHANNEL` in `services/debug-trace.ts`. */
@@ -21,21 +26,39 @@ export interface JourneyMainIpcCaptureOptions {
     readonly channel: string;
     readonly sentinelId: string;
     readonly sentinelMethod: string;
+    /** Start marker; absent: counting starts when the capture is installed. */
+    readonly startSentinelId?: string;
     readonly stateKey: string;
+}
+
+export interface JourneyMainIpcSentinelState {
+    readonly occurrences: number;
+    readonly receivedEpochMs: number | null;
 }
 
 export interface JourneyMainIpcCaptureState {
     readonly callsAfterSentinel: number;
+    /** Calls before the start marker; always 0 without one. */
+    readonly callsBeforeStart: number;
+    /** Calls from the start marker (or install) up to the sentinel. */
     readonly callsBeforeSentinel: number;
     readonly callsByMethod: Record<string, number>;
+    /**
+     * Bridge calls started but not yet completed, per method. The preload
+     * follows every `start` with exactly one `success` or `error` (sync and
+     * async results alike), so a capture installed before the document
+     * loads sees every pair.
+     */
+    readonly inFlightByMethod: Record<string, number>;
     readonly installedEpochMs: number;
     readonly malformedEvents: number;
     readonly processStartEpochMs: number;
     readonly senderIds: number[];
-    readonly sentinel: {
-        readonly occurrences: number;
-        readonly receivedEpochMs: number | null;
-    };
+    readonly sentinel: JourneyMainIpcSentinelState;
+    /** Completions without a start seen by this capture (installed late). */
+    readonly unmatchedCompletions: number;
+    /** Null when the capture has no start marker. */
+    readonly start: JourneyMainIpcSentinelState | null;
 }
 
 export async function installJourneyMainIpcCapture(
@@ -47,21 +70,42 @@ export async function installJourneyMainIpcCapture(
         if (target[input.stateKey] !== undefined) {
             throw new Error('journey-main-ipc-capture-already-installed');
         }
+        const startSentinelId = input.startSentinelId ?? null;
         const state = {
             callsAfterSentinel: 0,
+            callsBeforeStart: 0,
             callsBeforeSentinel: 0,
             callsByMethod: {} as Record<string, number>,
             installedEpochMs: Date.now(),
             malformedEvents: 0,
             processStartEpochMs: Date.now() - process.uptime() * 1000,
+            inFlightByMethod: {} as Record<string, number>,
             senderIds: [] as number[],
             sentinel: {
                 occurrences: 0,
                 receivedEpochMs: null as number | null,
             },
+            unmatchedCompletions: 0,
+            start:
+                startSentinelId === null
+                    ? null
+                    : {
+                          occurrences: 0,
+                          receivedEpochMs: null as number | null,
+                      },
+        };
+        const carries = (args: unknown, id: string): boolean => {
+            try {
+                return JSON.stringify(args ?? null).includes(id);
+            } catch {
+                return false;
+            }
         };
         target[input.stateKey] = state;
-        ipcMain.on(input.channel, (event, payload: unknown) => {
+        const listener = (
+            event: { sender: { id: number } },
+            payload: unknown
+        ): void => {
             const record =
                 typeof payload === 'object' && payload !== null
                     ? (payload as Record<string, unknown>)
@@ -70,25 +114,45 @@ export async function installJourneyMainIpcCapture(
                 state.malformedEvents += 1;
                 return;
             }
-            if (record['phase'] !== 'start') {
+            const phase = record['phase'];
+            if (phase === 'success' || phase === 'error') {
+                const pending = state.inFlightByMethod[record['method']] ?? 0;
+                if (pending === 0) {
+                    state.unmatchedCompletions += 1;
+                } else if (pending === 1) {
+                    delete state.inFlightByMethod[record['method']];
+                } else {
+                    state.inFlightByMethod[record['method']] = pending - 1;
+                }
                 return;
             }
+            if (phase !== 'start') {
+                return;
+            }
+            // Sentinels included: their completions arrive like any other.
+            state.inFlightByMethod[record['method']] =
+                (state.inFlightByMethod[record['method']] ?? 0) + 1;
             const senderId = event.sender.id;
             if (!state.senderIds.includes(senderId)) {
                 state.senderIds.push(senderId);
             }
             const method = record['method'];
-            let isSentinel = false;
-            if (method === input.sentinelMethod) {
-                try {
-                    isSentinel = JSON.stringify(
-                        record['args'] ?? null
-                    ).includes(input.sentinelId);
-                } catch {
-                    isSentinel = false;
+            const isMarker = method === input.sentinelMethod;
+            if (
+                isMarker &&
+                state.start !== null &&
+                startSentinelId !== null &&
+                carries(record['args'], startSentinelId)
+            ) {
+                state.start.occurrences += 1;
+                // A start marker after the sentinel stays unstamped, which
+                // the assertion rejects.
+                if (state.sentinel.receivedEpochMs === null) {
+                    state.start.receivedEpochMs ??= Date.now();
                 }
+                return;
             }
-            if (isSentinel) {
+            if (isMarker && carries(record['args'], input.sentinelId)) {
                 state.sentinel.occurrences += 1;
                 state.sentinel.receivedEpochMs ??= Date.now();
                 return;
@@ -97,11 +161,89 @@ export async function installJourneyMainIpcCapture(
                 state.callsAfterSentinel += 1;
                 return;
             }
+            if (state.start !== null && state.start.receivedEpochMs === null) {
+                state.callsBeforeStart += 1;
+                return;
+            }
             state.callsBeforeSentinel += 1;
             state.callsByMethod[method] =
                 (state.callsByMethod[method] ?? 0) + 1;
-        });
+        };
+        ipcMain.on(input.channel, listener);
+        // Kept next to the state (which is read as JSON) so the capture can
+        // be detached from the same main process later.
+        target[`${input.stateKey}:detach`] = () => {
+            ipcMain.removeListener(input.channel, listener);
+        };
     }, options);
+}
+
+/**
+ * Removes a capture's listener. J2 detaches J1's capture once it has used it
+ * to settle, so the launch listener does not run for every bridge call of
+ * the measured click.
+ */
+export async function detachJourneyMainIpcCapture(
+    electronApp: ElectronApplication,
+    stateKey: string
+): Promise<void> {
+    await electronApp.evaluate((_electron, key) => {
+        const target = globalThis as unknown as Record<string, unknown>;
+        const detach = target[`${key}:detach`];
+        if (typeof detach !== 'function') {
+            throw new Error('journey-main-ipc-capture-not-attached');
+        }
+        (detach as () => void)();
+        delete target[`${key}:detach`];
+    }, stateKey);
+}
+
+/** Total of `inFlightByMethod`. */
+export function countJourneyMainIpcInFlight(
+    state: JourneyMainIpcCaptureState
+): number {
+    return Object.values(state.inFlightByMethod).reduce(
+        (total, count) => total + count,
+        0
+    );
+}
+
+/** Raw state without waiting for the sentinel, for settling checks. */
+export async function peekJourneyMainIpcCapture(
+    electronApp: ElectronApplication,
+    stateKey: string
+): Promise<JourneyMainIpcCaptureState> {
+    const [state] = await peekJourneyMainIpcCaptures(electronApp, [stateKey]);
+    return state as JourneyMainIpcCaptureState;
+}
+
+/**
+ * Several captures read in one synchronous pass in the main process. No
+ * `ipcMain` event can be handled in between, so the states are one coherent
+ * snapshot: a call counted by one capture is also pending in the other.
+ */
+export async function peekJourneyMainIpcCaptures(
+    electronApp: ElectronApplication,
+    stateKeys: readonly string[]
+): Promise<JourneyMainIpcCaptureState[]> {
+    const states = (await electronApp.evaluate(
+        (_electron, keys) =>
+            JSON.parse(
+                JSON.stringify(
+                    keys.map(
+                        (key) =>
+                            (globalThis as unknown as Record<string, unknown>)[
+                                key
+                            ] ?? null
+                    )
+                )
+            ) as unknown,
+        [...stateKeys]
+    )) as (JourneyMainIpcCaptureState | null)[];
+    if (states.some((state) => !state)) {
+        throw new Error('journey-main-ipc-capture-missing');
+    }
+    return states as JourneyMainIpcCaptureState[];
 }
 
 export async function readJourneyMainIpcCapture(
@@ -150,6 +292,20 @@ export function assertJourneyMainIpcCapture(
     }
     if (state.malformedEvents > 0) {
         throw new Error('journey-main-ipc-capture-malformed-events');
+    }
+    if (state.start !== null) {
+        if (state.start.occurrences !== 1) {
+            throw new Error(
+                `journey-main-ipc-capture-start-count-${state.start.occurrences}`
+            );
+        }
+        if (
+            state.start.receivedEpochMs === null ||
+            state.sentinel.receivedEpochMs === null ||
+            state.start.receivedEpochMs > state.sentinel.receivedEpochMs
+        ) {
+            throw new Error('journey-main-ipc-capture-sentinel-before-start');
+        }
     }
     return state;
 }

@@ -2,7 +2,11 @@ import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-import { _electron as electron, type Page } from '@playwright/test';
+import {
+    _electron as electron,
+    type ElectronApplication,
+    type Page,
+} from '@playwright/test';
 
 import { captureElectronProcess } from '../electron-process-lifecycle';
 import {
@@ -28,6 +32,10 @@ import {
     assertJourneyMainCounters,
     readJourneyMainCounters,
 } from '../performance/journey-main-counters';
+import {
+    journeyLaunchEnvironment,
+    type JourneyLaunchInstrumentation,
+} from '../performance/journey-launch-environment';
 import {
     createLaunchJourneyProbeOptions,
     installJourneyRendererProbe,
@@ -111,34 +119,54 @@ export function removeLaunchJourneyProfile(directory: string): Promise<void> {
     return removeDirectory(directory);
 }
 
+/** The running app after J1 ended, for journeys that continue from there. */
+export interface LaunchJourneySession {
+    readonly electronApp: ElectronApplication;
+    readonly launch: LaunchJourneyMeasurement;
+    readonly mainWindow: Page;
+}
+
+export async function measureLaunchJourney(
+    templateDirectory: string,
+    timeoutMs: number
+): Promise<LaunchJourneyMeasurement> {
+    const { launch } = await runLaunchJourney(
+        templateDirectory,
+        timeoutMs,
+        { mainCounters: true },
+        async () => undefined
+    );
+    return launch;
+}
+
 /**
  * Spawns a fresh Electron process on a copy of the seeded profile. The gate
  * hook parks the first renderer load on `about:blank`, which gives Playwright
  * a page to attach the renderer probe to; the main-process IPC capture is
  * installed next, and only then is the real load released. Both captures are
  * therefore in place before the renderer runs any script, and the probe,
- * capture and gate records still prove it.
+ * capture and gate records still prove it. `continueJourney` runs in the
+ * same process after J1's counters are final, before the app is closed.
+ * Without `instrumentation.mainCounters` the main-process counters and SQL
+ * counting stay off and `launch.mainCounters` is null.
  */
-export async function measureLaunchJourney(
+export async function runLaunchJourney<T>(
     templateDirectory: string,
-    timeoutMs: number
-): Promise<LaunchJourneyMeasurement> {
+    timeoutMs: number,
+    instrumentation: JourneyLaunchInstrumentation,
+    continueJourney: (session: LaunchJourneySession) => Promise<T>
+): Promise<{
+    readonly continuation: T;
+    readonly launch: LaunchJourneyMeasurement;
+}> {
     const dataDirectory = await mkdtemp(
         join(tmpdir(), 'iptvnator-journey-launch-')
     );
     try {
         await cp(templateDirectory, dataDirectory, { recursive: true });
-        // IPTVNATOR_PERF_CAPTURE turns on the main-process counters and
-        // their read handler, IPTVNATOR_PERF_COUNT_SQL the SQL statement
-        // count behind main.sqlStatementsBeforeReadyToShow; only this journey
-        // sets it. See journey-main-counters.ts.
         const env = buildElectronLaunchEnvironment(
             dataDirectory,
-            launchOptions({
-                IPTVNATOR_PERF_CAPTURE: '1',
-                IPTVNATOR_PERF_COUNT_SQL: '1',
-                IPTVNATOR_TRACE_IPC: '1',
-            })
+            launchOptions(journeyLaunchEnvironment(instrumentation))
         );
         const args = buildElectronLaunchArgs([
             '-r',
@@ -201,20 +229,22 @@ export async function measureLaunchJourney(
                 10_000
             );
             // Read after the probe finished, so both frozen counters exist.
-            const mainCounters = assertJourneyMainCounters(
-                await readJourneyMainCounters(
-                    electronApp,
-                    JOURNEY_RENDERER_GATE_KEY
-                ),
-                gate
-            );
+            const mainCounters = instrumentation.mainCounters
+                ? assertJourneyMainCounters(
+                      await readJourneyMainCounters(
+                          electronApp,
+                          JOURNEY_RENDERER_GATE_KEY
+                      ),
+                      gate
+                  )
+                : null;
             if (ipc.installedEpochMs > renderer.installed.epochMs) {
                 throw new Error('journey-main-ipc-capture-installed-late');
             }
             const electronVersion = await electronApp.evaluate(
                 () => process.versions.electron
             );
-            return {
+            const launch: LaunchJourneyMeasurement = {
                 electronVersion,
                 gate,
                 ipc,
@@ -223,6 +253,12 @@ export async function measureLaunchJourney(
                 renderer,
                 spawnEpochMs,
             };
+            const continuation = await continueJourney({
+                electronApp,
+                launch,
+                mainWindow,
+            });
+            return { continuation, launch };
         } finally {
             await closeElectronApplicationAndConfirmExit(
                 electronApp,
