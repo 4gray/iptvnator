@@ -304,6 +304,48 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         expect(artPlayer.interactionEnabled()).toBe(true);
     });
 
+    describe('catch-up timeline segments', () => {
+        const segments = [
+            { startSeconds: 0, endSeconds: 1800, title: 'News' },
+            { startSeconds: 1800, endSeconds: 5400, title: 'Film' },
+        ];
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('timelineSegments', segments);
+        });
+
+        it.each([
+            ['Video.js', () => renderVjsPlayer({ isLive: false })],
+            ['HTML5', () => renderHtmlPlayer({ isLive: false })],
+            ['ArtPlayer', () => renderArtPlayer({ isLive: false })],
+        ] as const)('hands them to %s', async (_label, render) => {
+            const player = await render();
+
+            expect(player.timelineSegments()).toBe(segments);
+        });
+
+        it('hands them to Embedded MPV', () => {
+            fixture.componentRef.setInput(
+                'playerOverride',
+                VideoPlayer.EmbeddedMpv
+            );
+            fixture.detectChanges();
+
+            const player = fixture.debugElement.query(
+                By.directive(StubEmbeddedMpvPlayerComponent)
+            ).componentInstance as StubEmbeddedMpvPlayerComponent;
+            expect(player.timelineSegments()).toBe(segments);
+        });
+
+        it('hands the engines nothing when the host passes nothing', async () => {
+            fixture.componentRef.setInput('timelineSegments', null);
+
+            const player = await renderVjsPlayer({ isLive: true });
+
+            expect(player.timelineSegments()).toBeNull();
+        });
+    });
+
     it('disables HTML5 surface interaction while a diagnostic is visible', async () => {
         const htmlPlayer = await renderHtmlPlayer();
 

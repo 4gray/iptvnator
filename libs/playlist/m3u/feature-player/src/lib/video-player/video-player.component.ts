@@ -28,6 +28,7 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
+    getM3uCatchupWindowEndSeconds,
     extractDrmFromRaw,
     isDashChannel,
     isDashStreamUrl,
@@ -102,6 +103,7 @@ import {
 } from '@iptvnator/portal/shared/ui';
 import {
     AudioPlayerComponent,
+    buildCatchupTimelineSegments,
     FULLSCREEN_CHANNEL_PANEL,
     type FullscreenChannelPanelContext,
     type FullscreenChannelPanelHost,
@@ -419,6 +421,17 @@ export class VideoPlayerComponent
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
+    });
+    /** Catch-up programmes from `utc` up to `lutc` as seek-bar segments. */
+    readonly catchupTimelineSegments = computed(() => {
+        const playbackUrl = this.activePlaybackUrl();
+        return playbackUrl
+            ? buildCatchupTimelineSegments(
+                  this.epgPrograms(),
+                  this.activeEpgProgramOrNull(),
+                  getM3uCatchupWindowEndSeconds(playbackUrl) ?? undefined
+              )
+            : null;
     });
     // Shared helper skips blank strings (`tvg-rec=""` is a common default that
     // `??` would not fall through), so a channel with only `timeshift`/

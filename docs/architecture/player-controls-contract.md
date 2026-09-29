@@ -359,13 +359,35 @@ collapses instead of pushing its neighbours. The optional `timelineSegments` inp
 them; `normalizeTimelineSegments` (`controls-timeline-segments.ts`) clamps
 to the duration, orders, drops empty and reversed entries, cuts overlaps at
 the previous end and fills every gap with an untitled segment so the row
-always covers `[0, duration]`. Without segments — every host today — the
-row is one untitled segment, which is the plain bar. `ControlsTimeline`
-owns the normalized list and the per-segment fill for the current scrub or
-playback value; the hover label becomes `Chapter 2 · 12:40` over a titled
-segment. Producers (EPG programmes for catch-up and timeshift playback,
-mpv's chapter list) are separate follow-ups; the rendering, model and rules
-are in place for them.
+always covers `[0, duration]`. Without segments — live playback, VOD and
+series — the row is one untitled segment, which is the plain bar.
+`ControlsTimeline` owns the normalized list and the per-segment fill for the
+current scrub or playback value; the hover label becomes `Chapter 2 · 12:40`
+over a titled segment. mpv's chapter list is not a producer yet.
+
+**Catch-up producer.** Archive playback of a live channel passes the EPG
+programmes overlapping its archive window.
+`buildCatchupTimelineSegments(programmes, activeProgramme, windowEnd?)`
+(`catchup-timeline-segments.ts`) clips every programme to the window and
+makes it relative to the window start, which is the activated programme's
+start. Xtream timeshift URLs request exactly `[start, stop]` of that
+programme, so the window ends at its stop. M3U catch-up URLs run from `utc`
+to `lutc`, the moment the URL was resolved, so M3U hosts pass
+`getM3uCatchupWindowEndSeconds(url)` (`@iptvnator/shared/m3u-utils`) and every
+programme up to then is drawn. Programme and window times follow the EPG view
+rule (unix timestamp, else the ISO string), so the display offset cancels.
+The activated programme stands in for itself when the host's list has
+nothing at the window start. Live playback returns `null`. Stalker has no
+archive playback, so it has no producer.
+
+Plumbing mirrors `mediaTitle`: each live host derives
+`catchupTimelineSegments` → `WebPlayerViewComponent.timelineSegments` → the
+four engine hosts → `app-player-controls`. The hosts are the Xtream live
+layout (`controlledEpgPrograms` + `activeCatchupProgram`), the unified live
+tab for Favorites and Recent (`createUnifiedLiveEpgView`, both Xtream and
+M3U), and the M3U playlist player (`epgPrograms` + `activeEpgProgram` while
+`activePlaybackUrl` is set). `PortalInlinePlayerComponent` hosts no catch-up
+and passes nothing.
 
 ### Up next card
 

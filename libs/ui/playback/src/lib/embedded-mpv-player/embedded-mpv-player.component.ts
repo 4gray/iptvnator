@@ -29,6 +29,7 @@ import { PlayerControlsComponent } from '../player-controls/player-controls.comp
 import type {
     PlayerMediaTitle,
     PlayerUpNextItem,
+    PlayerTimelineSegment,
 } from '../player-controls/player-controls.model';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
@@ -87,6 +88,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly upNext = input<PlayerUpNextItem | null>(null);
+    /** Catch-up programmes drawn as track segments; null draws one. */
+    readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
+        null
+    );
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the root. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
