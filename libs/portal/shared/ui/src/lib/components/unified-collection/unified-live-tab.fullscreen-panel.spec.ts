@@ -10,6 +10,7 @@ import {
 import { EpgListViewComponent, EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { EpgProgram, VideoPlayer } from '@iptvnator/shared/interfaces';
 import {
     PORTAL_PLAYER,
@@ -21,6 +22,7 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
+import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 import {
     StubAudioPlayerComponent,
     StubEpgTimelineComponent,
@@ -172,6 +174,105 @@ describe('UnifiedLiveTabComponent fullscreen channel panel', () => {
             expect(player()).toBe(configuredPlayer);
         }
     );
+
+    it('correlates an inline row with its session key, not its stream URL', async () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        const item = buildM3uLiveItem();
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            epgPrograms: [],
+        });
+        recentData.recordLivePlayback.mockResolvedValue(item);
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        const gate = TestBed.inject(PlaybackHistoryGate);
+
+        // The same URL played from another playlist does not confirm it.
+        gate.confirm({
+            sessionKey: 'live:another-playlist:m3u-channel',
+            streamUrls: [item.streamUrl],
+        });
+        await fixture.whenStable();
+        expect(recentData.recordLivePlayback).not.toHaveBeenCalled();
+
+        // The row's own player does, even after switching to catch-up.
+        gate.confirm({
+            sessionKey: component.playbackSessionKey(),
+            streamUrls: ['https://example.com/archive.m3u8'],
+        });
+        await fixture.whenStable();
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
+    });
+
+    it('records a row played in MPV/VLC from the URL its launch confirms', async () => {
+        const item = buildM3uLiveItem();
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: { streamUrl: item.streamUrl, title: item.name },
+            epgPrograms: [],
+        });
+        recentData.recordLivePlayback.mockResolvedValue(item);
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await component.onChannelSelected(component.channelsForList()[0]);
+        expect(portalPlayer.openResolvedPlayback).toHaveBeenCalled();
+
+        // The external session update carries only the launched URL.
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: [item.streamUrl],
+        });
+        await fixture.whenStable();
+
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
+    });
+
+    it('moves a row that played to the top of Recently Viewed after another row was selected', async () => {
+        const first = buildM3uLiveItem();
+        const second: UnifiedCollectionItem = {
+            ...first,
+            uid: 'm3u::pl-1::m3u-channel-2',
+            name: 'M3U Live 2',
+            channelId: 'm3u-channel-2',
+            tvgId: 'm3u-channel-2',
+            streamUrl: 'https://example.com/m3u-2.m3u8',
+        };
+        streamResolver.resolveM3uPlaybackDetail.mockImplementation(
+            async (item: UnifiedCollectionItem) => ({
+                epgMode: 'm3u',
+                playback: { streamUrl: item.streamUrl, title: item.name },
+                epgPrograms: [],
+            })
+        );
+        recentData.recordLivePlayback.mockImplementation(
+            async (item: UnifiedCollectionItem) => item
+        );
+        const played = jest.fn();
+        component.itemPlayed.subscribe(played);
+        fixture.componentRef.setInput('items', [first, second]);
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const row = (name: string) =>
+            component
+                .channelsForList()
+                .find((channel) => channel.name === name)!;
+
+        await component.onChannelSelected(row('M3U Live'));
+        await component.onChannelSelected(row('M3U Live 2'));
+        // The first row's playback is confirmed only now, after the switch.
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            sessionKey: createUnifiedLivePlaybackSessionKey(first),
+            streamUrls: [first.streamUrl],
+        });
+        await fixture.whenStable();
+
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(first);
+        expect(played).toHaveBeenCalledWith(first);
+    });
 
     it('keeps the current detail (and its fullscreen player) mounted while the next selection resolves', async () => {
         const first = buildM3uLiveItem();

@@ -56,7 +56,7 @@ describe('PlayerControlsComponent timeline scrubbing', () => {
     const currentTimeText = () =>
         (
             fixture.nativeElement.querySelector(
-                '.player-controls__time > span:first-child'
+                '.player-controls__time--current'
             ) as HTMLElement
         ).textContent;
 

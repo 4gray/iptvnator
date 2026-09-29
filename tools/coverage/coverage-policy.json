@@ -90,6 +90,13 @@
                 "e2eTags": ["@epg"]
             },
             {
+                "name": "playback-data-access",
+                "root": "libs/playback/data-access",
+                "sourceRoot": "libs/playback/data-access/src",
+                "validationCommand": "pnpm nx test playback-data-access",
+                "e2eTags": ["@persistence"]
+            },
+            {
                 "name": "m3u-state",
                 "root": "libs/m3u-state",
                 "sourceRoot": "libs/m3u-state/src",

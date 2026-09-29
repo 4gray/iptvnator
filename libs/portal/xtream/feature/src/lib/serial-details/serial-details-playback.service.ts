@@ -36,6 +36,7 @@ import {
     resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
+import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 import {
@@ -66,6 +67,7 @@ export class SerialDetailsPlaybackService {
     );
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly recordRecentItem = injectXtreamRecentHistory();
     private readonly resumeTarget = inject(XTREAM_SERIES_RESUME_TARGET);
     private readonly seasonWatch = inject(SerialDetailsSeasonWatchService);
 
@@ -209,9 +211,12 @@ export class SerialDetailsPlaybackService {
             return;
         }
 
-        this.addToRecentlyViewed(this.route.snapshot.params['serialId']);
-
         const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
+        this.recordRecentItem(streamUrl, {
+            xtreamId: this.route.snapshot.params['serialId'],
+            contentType: 'series',
+            backdropUrl: selectedItem.info?.backdrop_path?.[0],
+        });
         const contentInfo: PlayerContentInfo = {
             playlistId: playlist.id,
             contentXtreamId: Number(episode.id),
@@ -402,15 +407,6 @@ export class SerialDetailsPlaybackService {
 
     private selectedItem(): XtreamSerieDetailsView | null {
         return this.bindings()?.selectedItem() ?? null;
-    }
-
-    private addToRecentlyViewed(xtreamId: number): void {
-        this.xtreamStore.addRecentItem({
-            xtreamId,
-            contentType: 'series',
-            playlist: this.xtreamStore.currentPlaylist,
-            backdropUrl: this.selectedItem()?.info?.backdrop_path?.[0],
-        });
     }
 
     private startPlayback(

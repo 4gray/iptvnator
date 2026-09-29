@@ -46,15 +46,27 @@ export default defineConfig({
         /* Video on failure */
         video: 'on-first-retry',
     },
+    /* The mocks run as one node process, not through `nx run …:serve`: Nx
+     * starts its command in a detached process group, so Playwright's
+     * process-group kill missed it and the server kept its port after the run.
+     * See docs/architecture/xtream-mock-server.md#playwright-integration. */
     webServer: [
         {
-            command: 'pnpm nx run stalker-mock-server:serve',
+            command: 'node --import tsx apps/stalker-mock-server/src/main.ts',
+            env: {
+                NODE_ENV: 'development',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
             url: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/health`,
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },
         {
-            command: 'pnpm nx run xtream-mock-server:serve',
+            command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
+            env: {
+                NODE_ENV: 'development',
+                TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+            },
             url: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,

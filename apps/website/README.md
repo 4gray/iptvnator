@@ -163,6 +163,13 @@ Evergreen how-to posts live in the blog collection next to release notes
   channel ids that match no playlist `tvg-id` on purpose) into the isolated
   database through the settings, then right-click a channel of the M3U
   fixture and search the dialog.
+  The 0.23/0.24 feature articles use the separate `feature-guides` capture
+  group (`pnpm release:screenshots --group feature-guides --theme dark`).
+  Playback shots decode the generated local slate documented in
+  `tools/release/fixtures/README.md`; settings and library shots use the same
+  isolated demo profile. The multi-channel EPG image is the original image
+  attached to the v0.24.0 GitHub release, explicitly selected by the maintainer;
+  its provenance is recorded alongside the assets. It is not a mock capture.
 
 `tools/testing/website-guides.test.mjs` (part of `pnpm nx test website`) checks
 each guide for the FAQPage schema, a link to the download hub and the presence

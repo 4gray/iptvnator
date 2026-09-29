@@ -121,6 +121,7 @@ import {
     SettingsStore,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import {
     Channel,
     createDevLogger,
@@ -238,6 +239,7 @@ export class VideoPlayerComponent
     private readonly hostElement = inject(ElementRef<HTMLElement>);
     private readonly dataService = inject(DataService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly historyGate = inject(PlaybackHistoryGate);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
     private readonly runtime = inject(RuntimeCapabilitiesService);
@@ -487,7 +489,17 @@ export class VideoPlayerComponent
             epgParams: '',
         } as Channel;
     });
-    readonly embeddedPlayback = computed<ResolvedPortalPlayback | null>(() => {
+    /**
+     * Compared by value: it also reads the playlist meta, which changes while
+     * a channel plays (the recently viewed write, a favourite toggle). A new
+     * but identical object would hand the player a new source and restart
+     * the stream.
+     */
+    readonly embeddedPlayback = computed<ResolvedPortalPlayback | null>(
+        () => this.resolveEmbeddedPlayback(),
+        { equal: (a, b) => JSON.stringify(a) === JSON.stringify(b) }
+    );
+    private resolveEmbeddedPlayback(): ResolvedPortalPlayback | null {
         const activeChannel = this.activeChannel();
         const playbackTarget = this.playbackChannel();
 
@@ -530,7 +542,7 @@ export class VideoPlayerComponent
             // — extract lazily so they work without a re-import.
             drm: playbackTarget.drm ?? extractDrmFromRaw(playbackTarget.raw),
         };
-    });
+    }
     readonly sidebarStorageKey = computed(() =>
         this.activeView() === 'groups'
             ? M3U_GROUPS_SIDEBAR_STORAGE_KEY
@@ -838,13 +850,17 @@ export class VideoPlayerComponent
                 return;
             }
 
-            const nextKey = `${playlistId}::${activeChannel.url}`;
+            // Channel identity too: two rows of one URL are separate
+            // attempts, confirmed under their own session keys.
+            const nextKey = `${playlistId}::${activeChannel.id}::${activeChannel.url}`;
             if (this.lastRecordedRecentKey === nextKey) {
                 return;
             }
 
             this.lastRecordedRecentKey = nextKey;
-            void this.persistRecentlyViewedChannel(playlistId, activeChannel);
+            untracked(() =>
+                this.recordRecentlyViewedChannel(playlistId, activeChannel)
+            );
         });
 
         effect(() => {
@@ -1197,6 +1213,32 @@ export class VideoPlayerComponent
         return Math.max(
             M3U_SIDEBAR_MIN_WIDTH,
             Math.min(M3U_SIDEBAR_MAX_WIDTH, width)
+        );
+    }
+
+    /**
+     * Inline playback (video, radio, movie detail) records the channel only
+     * once it has really played, so a stream that fails right away never
+     * reaches history or the dashboard hero. MPV/VLC cannot report that for
+     * a live stream, so they keep recording on selection.
+     */
+    private recordRecentlyViewedChannel(
+        playlistId: string,
+        channel: Channel
+    ): void {
+        const record = () =>
+            void this.persistRecentlyViewedChannel(playlistId, channel);
+        if (channel.radio !== 'true' && !this.shouldShowInlinePlayer(channel)) {
+            record();
+            return;
+        }
+
+        this.historyGate.defer(
+            {
+                sessionKey: this.playbackSessionKey(),
+                streamUrls: [channel.url],
+            },
+            record
         );
     }
 

@@ -5,14 +5,23 @@
  * commit, so on its own it cannot tell a genuine payload reduction from a PR
  * that grows the payload and raises the baseline by the same amount. This
  * check closes that gap: given the baselines file of the target branch and
- * the one of the PR, any entry whose enforced limit (`value × toleranceRatio`)
- * went up, whose tolerance widened, or that disappeared, is a failure. New
- * entries and lowered limits pass.
+ * the one of the PR, any entry whose enforced limit (`value × toleranceRatio`
+ * or `value + slack`) went up, whose tolerance or slack widened, or that
+ * disappeared, is a failure. A counter's `value` may not go up either, even
+ * when narrower slack lowers its limit: the value is the measured evidence.
+ * Switching an entry between counter and wall-clock (adding or removing
+ * `toleranceRatio`) is a weakening too, so that rule cannot be sidestepped.
+ * New entries and lowered limits pass.
+ *
+ * `--allow-increase` turns those failures into printed "allowed" lines. CI
+ * passes it only when a maintainer put the perf-baseline-increase label on
+ * the pull request, so a deliberate increase stays visible and needs a
+ * decision instead of being impossible.
  *
  * Usage:
  *   node tools/performance/check-baseline-direction.mjs \
  *       --base <target-branch-journey-baselines.json> \
- *       --head tools/performance/journey-baselines.json
+ *       --head tools/performance/journey-baselines.json [--allow-increase]
  *
  * A missing --base file means the target branch has no baselines yet, so
  * there is nothing that could have been weakened.
@@ -22,7 +31,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { validateBaselines } from './check-journey-ratchet.mjs';
+import {
+    BASELINE_INCREASE_LABEL,
+    enforcedLimit,
+    validateBaselines,
+} from './check-journey-ratchet.mjs';
 
 export const DEFAULT_HEAD_PATH = 'tools/performance/journey-baselines.json';
 
@@ -41,41 +54,65 @@ function formatNumber(value) {
 }
 
 /**
- * What the ratchet actually enforces: `value × toleranceRatio` for a
- * wall-clock entry, the bare value for a counter. Comparing values alone would
- * let a PR lower a value while widening the tolerance.
+ * Pure comparison; `failures` non-empty means the change weakens the ratchet.
+ * With `allowIncrease` every weakening lands in `allowed` instead.
  */
-function effectiveLimit(entry) {
-    return entry.value * (entry.toleranceRatio ?? 1);
-}
-
-/** Pure comparison; `failures` non-empty means the change weakens the ratchet. */
-export function compareBaselineDirection({ base, head }) {
+export function compareBaselineDirection({
+    base,
+    head,
+    allowIncrease = false,
+}) {
     validateBaselines(base);
     validateBaselines(head);
-    const result = { failures: [], lowered: [], unchanged: [], added: [] };
+    const result = {
+        failures: [],
+        allowed: [],
+        lowered: [],
+        unchanged: [],
+        added: [],
+    };
+    const weakened = allowIncrease ? result.allowed : result.failures;
     const headEntries = entries(head);
 
     for (const [label, baseEntry] of entries(base)) {
         const headEntry = headEntries.get(label);
         const unit = baseEntry.unit ? ` ${baseEntry.unit}` : '';
         if (!headEntry) {
-            result.failures.push(
+            weakened.push(
                 `${label}: baseline ${formatNumber(baseEntry.value)}${unit} was removed. Baselines are retired only by a maintainer decision recorded in the PR, not by deleting the entry.`
             );
             continue;
         }
+        const kind = (entry) =>
+            entry.toleranceRatio === undefined ? 'counter' : 'wall-clock';
         const baseTolerance = baseEntry.toleranceRatio ?? 1;
         const headTolerance = headEntry.toleranceRatio ?? 1;
-        const baseLimit = effectiveLimit(baseEntry);
-        const headLimit = effectiveLimit(headEntry);
+        const baseSlack = baseEntry.slack ?? 0;
+        const headSlack = headEntry.slack ?? 0;
+        const baseLimit = enforcedLimit(baseEntry);
+        const headLimit = enforcedLimit(headEntry);
         if (headTolerance > baseTolerance) {
-            result.failures.push(
-                `${label}: toleranceRatio widened from ${baseTolerance} to ${headTolerance}. Tolerances are a maintainer decision; a PR may only narrow them.`
+            weakened.push(
+                `${label}: toleranceRatio widened from ${baseTolerance} to ${headTolerance}. Tolerances are a maintainer decision (the ${BASELINE_INCREASE_LABEL} label); a PR may only narrow them.`
+            );
+        } else if (kind(baseEntry) !== kind(headEntry)) {
+            weakened.push(
+                `${label}: changed from a ${kind(baseEntry)} entry to a ${kind(headEntry)} entry. The two are read from different summary sections and compared differently, so a type change is a maintainer decision (the ${BASELINE_INCREASE_LABEL} label).`
+            );
+        } else if (headSlack > baseSlack) {
+            weakened.push(
+                `${label}: slack widened from ${formatNumber(baseSlack)} to ${formatNumber(headSlack)}${unit}. Slack is a maintainer decision (the ${BASELINE_INCREASE_LABEL} label); a PR may only narrow it.`
             );
         } else if (headLimit > baseLimit) {
-            result.failures.push(
-                `${label}: baseline raised from ${formatNumber(baseLimit)} to ${formatNumber(headLimit)}${unit}. Baselines only move down; bring the measurement back under ${formatNumber(baseLimit)} or make the case for the increase in the PR.`
+            weakened.push(
+                `${label}: baseline raised from ${formatNumber(baseLimit)} to ${formatNumber(headLimit)}${unit}. Baselines only move down; bring the measurement back under ${formatNumber(baseLimit)}, or make the case for the increase in the PR and ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label.`
+            );
+        } else if (
+            headEntry.toleranceRatio === undefined &&
+            headEntry.value > baseEntry.value
+        ) {
+            weakened.push(
+                `${label}: baseline value raised from ${formatNumber(baseEntry.value)} to ${formatNumber(headEntry.value)}${unit} while slack narrowed from ${formatNumber(baseSlack)} to ${formatNumber(headSlack)}. A counter's value only moves down; narrowing its slack does not offset a raise. Ask a maintainer to add the ${BASELINE_INCREASE_LABEL} label if the raise is deliberate.`
             );
         } else if (headLimit < baseLimit) {
             result.lowered.push(
@@ -95,17 +132,26 @@ export function formatDirectionResult(result) {
     const lines = [];
     for (const line of result.lowered) lines.push(`lowered  ${line}`);
     for (const label of result.added) lines.push(`added    ${label}`);
+    for (const line of result.allowed) lines.push(`ALLOWED  ${line}`);
     for (const line of result.failures) lines.push(`FAIL     ${line}`);
+    const allowed =
+        result.allowed.length > 0
+            ? `, ${result.allowed.length} weakened with the ${BASELINE_INCREASE_LABEL} label`
+            : '';
     lines.push(
         result.failures.length > 0
             ? `Baseline direction check failed: ${result.failures.length} entries raised or removed.`
-            : `Baseline direction OK: ${result.unchanged.length} unchanged, ${result.lowered.length} lowered, ${result.added.length} added.`
+            : `Baseline direction OK: ${result.unchanged.length} unchanged, ${result.lowered.length} lowered, ${result.added.length} added${allowed}.`
     );
     return lines.join('\n');
 }
 
 export function parseArgs(argv) {
-    const options = { base: null, head: DEFAULT_HEAD_PATH };
+    const options = {
+        base: null,
+        head: DEFAULT_HEAD_PATH,
+        allowIncrease: false,
+    };
     for (let index = 0; index < argv.length; index += 1) {
         const argument = argv[index];
         if (argument === '--') continue;
@@ -117,6 +163,8 @@ export function parseArgs(argv) {
             options.head = argv[++index];
         } else if (argument.startsWith('--head=')) {
             options.head = argument.slice('--head='.length);
+        } else if (argument === '--allow-increase') {
+            options.allowIncrease = true;
         } else {
             throw new Error(`Unknown argument: ${argument}`);
         }
@@ -160,7 +208,11 @@ if (isMain) {
             );
         }
         const head = await readJson(path.resolve(options.head), 'baselines');
-        const result = compareBaselineDirection({ base, head });
+        const result = compareBaselineDirection({
+            base,
+            head,
+            allowIncrease: options.allowIncrease,
+        });
         const output = formatDirectionResult(result);
         if (result.failures.length > 0) {
             console.error(output);

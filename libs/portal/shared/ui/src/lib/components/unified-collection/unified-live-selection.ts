@@ -8,8 +8,10 @@ import {
     PORTAL_PLAYER,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { ElectronStreamHeadersService } from '@iptvnator/ui/playback';
 import { UnifiedLiveTimeshift } from './unified-live-catchup';
+import { createUnifiedLivePlaybackSessionKey } from './unified-live-playback-session-key';
 import { UnifiedLiveSelectionGeneration } from './unified-live-selection-generation';
 
 export interface UnifiedLiveSelection {
@@ -71,6 +73,7 @@ export function createUnifiedLiveSelection(options: {
     const recentData = inject(UnifiedRecentDataService);
     const streamHeaders = inject(ElectronStreamHeadersService);
     const portalPlayer = inject(PORTAL_PLAYER);
+    const historyGate = inject(PlaybackHistoryGate);
 
     /** Stream URL of the radio playback whose header override this configured. */
     let radioHeaderScopeUrl: string | null = null;
@@ -117,6 +120,27 @@ export function createUnifiedLiveSelection(options: {
 
             return { ...currentDetail, epgPrograms };
         });
+    };
+
+    /** Set by `dispose`: the host is gone and must not be notified. */
+    let disposed = false;
+
+    /**
+     * Runs once the row has really played. That is seconds after selection,
+     * so the user may have moved on — the write still happened, and an open
+     * Recently Viewed list must still move the row to the top.
+     */
+    const recordLivePlayback = async (
+        item: UnifiedCollectionItem
+    ): Promise<void> => {
+        try {
+            const updatedItem = await recentData.recordLivePlayback(item);
+            if (!disposed) {
+                options.onItemPlayed(updatedItem);
+            }
+        } catch {
+            // Keep playback/EPG visible even if history persistence fails.
+        }
     };
 
     const close = (): void => {
@@ -223,14 +247,25 @@ export function createUnifiedLiveSelection(options: {
                 void portalPlayer.openResolvedPlayback(detail.playback);
             }
 
-            try {
-                const updatedItem = await recentData.recordLivePlayback(item);
-                if (generation === options.generation.current()) {
-                    options.onItemPlayed(updatedItem);
-                }
-            } catch {
-                // Keep playback/EPG visible even if history persistence fails.
-            }
+            // Selecting a channel is not watching it: the row moves to the
+            // top of Recently Viewed once its stream has really played. Played
+            // inline, the tab's playlist-scoped session key — the one its
+            // players confirm with — survives a switch to catch-up and does
+            // not match the same URL in another playlist. MPV/VLC can only
+            // confirm the launched URL, so an external row defers by URL.
+            const playsInline = !options.shouldOpenExternalPlayback(
+                detail,
+                true
+            );
+            historyGate.defer(
+                {
+                    sessionKey: playsInline
+                        ? createUnifiedLivePlaybackSessionKey(item)
+                        : null,
+                    streamUrls: [detail.playback.streamUrl],
+                },
+                () => void recordLivePlayback(item)
+            );
 
             if (
                 generation === options.generation.current() &&
@@ -264,6 +299,7 @@ export function createUnifiedLiveSelection(options: {
         activate,
         close,
         dispose(): void {
+            disposed = true;
             // Invalidate a playback continuation still awaiting its header
             // IPC and drop any radio credentials owned by this tab.
             options.generation.next();

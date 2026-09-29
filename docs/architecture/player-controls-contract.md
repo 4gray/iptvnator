@@ -287,8 +287,168 @@ It owns only transient presentation behavior:
   controller state;
 - `ControlsShortcuts` — document keyboard routing;
 - `ControlsSurface` — pointer/click/double-click surface interactions;
-- `ControlsTimeline` — scrub state and timeline projections; and
+- `ControlsTimeline` — scrub state and timeline projections;
+- `ControlsTimelineHover` — the time under the pointer over the timeline;
+- `app-player-timeline` — presentation of the timeline row (current time,
+  segment track, knob, hover label, remaining time / LIVE, recording
+  status); scrub `input`/`change` events go back to the controls component,
+  which owns reveal and seeking;
+- `ControlsLayout` — the compact/wide dock mode from the host's width;
+- `ControlsSettings` — the settings panel's groups, on/modified state and
+  open/close transitions (`controls-settings-groups.ts` holds the pure
+  group-availability rule);
+- `app-player-settings-panel` — the panel / bottom sheet presentation;
+- `ControlsUpNext` and `app-player-up-next-card` — the "Up next" card's
+  gate and presentation; and
 - `controls-view-model.ts` — derived display state.
+
+### The dock
+
+The controls render as a **dock** (`.player-controls__bar`) with no surface
+of its own: a timeline row above a three-column control row, sitting
+directly on the video over the bottom scrim. The palette is a fixed set of
+`--pc-*` custom properties on `:host` — accent blue `#4f8eff` for the
+primary action and progress, cyan `#5cd6ff` for "something is on", violet
+`#b599ff` for "a value was changed", and the `#e7ecf3` / `#9aa3b2` /
+`#6b7384` text ramp. They are literal on purpose: the overlay is
+theme-independent (see the UI guidelines' player theme boundary), and the
+app's `--app-selection-color` is a different blue that would fight the video.
+
+- **Timeline row**: current time (`--pc-font-mono`, tabular) · drawn track
+  (`.player-controls__timeline-track` with one segment and an accent fill,
+  a white knob ringed in translucent blue) · remaining time as `−7:03`
+  (`formatRemainingTime`; the LIVE badge replaces it on live streams and
+  `--:--` stands in while no duration is known) · the recording status.
+  The `<input type="range">` stays as the interaction and accessibility
+  layer, invisible and full-size over the drawn track: dragging, arrow
+  keys, `aria-valuetext` and the focus ring (drawn on the track through
+  `:has(:focus-visible)`) all belong to it, so scrubbing semantics are
+  unchanged. Hovering the bar with a mouse shows a white marker and a
+  `1:40` label above the pointer (`ControlsTimelineHover`); touch never
+  hovers and a non-seekable timeline never labels.
+- **Control row**: `minmax(0,1fr) auto minmax(0,1fr)`. Left: the volume
+  button, with the slider **inline** (72px) in the wide mode and behind
+  the hover/tap popover in the compact mode — inline, the button is a
+  plain mute toggle for every pointer type (`buttonClick(event,
+  { inlineSlider: true })`). Center: previous episode · −10s · **play** ·
+  +10s · next episode. Right: the value chips, the `tune` button,
+  recording, picture-in-picture and fullscreen, end-aligned.
+- **Play button** (`.player-controls__play`, `data-test-id
+  ="player-controls-play"`): a 52px filled accent circle with a white glyph,
+  not a Material icon button. Fills under a white glyph (play, active
+  `tune`) use `--pc-accent-blue-strong` `#3474e8` (4.4:1) rather than the
+  `#4f8eff` accent (3.2:1), and hover darkens to `#2a66d6` (5.3:1) without
+  scaling — `player-theme.e2e.ts` rasterizes the hovered and focused
+  states, and on a 1x Windows display the antialiased or resampled glyph
+  measured below 3:1 against the lighter fills.
+- **Icon buttons** are 40px with a 12px radius (32px / 9px compact) through
+  Material's `--mat-icon-button-*` tokens; their hover is a flat
+  `rgba(255,255,255,.1)` layer.
+
+### Timeline segments
+
+The track is drawn as a row of segments, one flex item per segment with
+`flex-grow` equal to its share of the duration and its own accent fill, so
+a film's chapters or a catch-up recording's programmes read directly off
+the bar. Each segment is placed absolutely at its time position (`left` =
+start percent, `width` = share minus the 3px gap every segment but the
+last keeps), so a drawn boundary sits exactly where the linear seek input
+and the hover label change segment; a segment shorter than the gap
+collapses instead of pushing its neighbours. The optional `timelineSegments` input
+(`PlayerTimelineSegment { startSeconds, endSeconds, title }`) supplies
+them; `normalizeTimelineSegments` (`controls-timeline-segments.ts`) clamps
+to the duration, orders, drops empty and reversed entries, cuts overlaps at
+the previous end and fills every gap with an untitled segment so the row
+always covers `[0, duration]`. Without segments — every host today — the
+row is one untitled segment, which is the plain bar. `ControlsTimeline`
+owns the normalized list and the per-segment fill for the current scrub or
+playback value; the hover label becomes `Chapter 2 · 12:40` over a titled
+segment. Producers (EPG programmes for catch-up and timeshift playback,
+mpv's chapter list) are separate follow-ups; the rendering, model and rules
+are in place for them.
+
+### Up next card
+
+Near the end of a series episode the dock shows an **"Up next" card**
+(`app-player-up-next-card`, `data-test-id="player-controls-up-next"`) in the
+bottom-right corner above the controls: the next episode's still (or its
+`S01E03` label as a tile), a 3px accent progress line when it was partly
+watched, "Up next · in 7 min" and the title. The host supplies the item
+through the optional `upNext` input (`PlayerUpNextItem { label, title,
+thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
+`seriesNavigation` capability, a finite duration with at
+most `UP_NEXT_THRESHOLD_SECONDS` (8 min) left, not live, not `ended` (with
+autoplay off nothing is scheduled, so no countdown), controls shown,
+settings panel closed — and how many minutes remain (never below one). A
+still that fails to load falls back to the label tile. A
+click emits `nextEpisodeRequested` directly — not through the
+transport's `canNextEpisode` guard, which is season-local — so the card
+also works at a season's last episode. `PortalInlinePlayerComponent`
+routes such a request through the Up Next rail selection
+(`upNextEpisodeSelected`) whenever `seriesNavigation.canNext` is false, which
+plays the next season's first episode; either path keeps fullscreen exactly
+like the transport button.
+The card is a glass surface that does not fade with the controls; the
+compact dock uses a smaller variant without the trailing icon.
+
+Plumbing mirrors `mediaTitle`: `PortalInlinePlayerComponent.playerUpNext`
+derives the item after the playing one from its `upNextEpisodes` input
+(episodes only) → `WebPlayerViewComponent.upNext` → the four engine hosts →
+`app-player-controls`. Movie and live hosts pass nothing.
+
+### Settings panel
+
+Every track, quality, speed and aspect choice lives behind one **`tune`**
+button (`data-test-id="player-controls-settings-button"`) in a single
+surface, `app-player-settings-panel` (`player-settings-panel.component.*`),
+instead of five popovers. `ControlsMenuState` knows three menus — `volume`,
+`settings`, `stats` — and `settingsFocus`, the group the panel was opened
+for. `ControlsSettings` derives, from capabilities and state, which groups
+exist (`getSettingsGroupAvailability`: audio needs more than one track,
+subtitles a track or `externalSubtitles`, quality more than one level,
+speed and aspect their capabilities), whether anything is on or changed,
+and owns open/toggle/close; the `tune` button and the panel render only
+while at least one group exists, and the availability reconciliation closes
+the panel the moment the last group disappears.
+
+- **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
+  (`closed_caption` + the selected track's label, or "Off") and speed
+  (`speed` + `1.25×`). Audio and aspect ratio have no chip: they are
+  panel-only. A chip click opens the panel **focused on its group**
+  (`settingsFocus`; the group scrolls into view and wears a brief ring);
+  right-click or long-press on the subtitle chip toggles subtitles without
+  opening anything (`ControlsSettings.toggleSubtitles`: the first embedded
+  track on, `-1` off; with no track to turn on it opens the group so the
+  file loader is reachable). While the panel is open the dock, title and
+  corner shift left by the panel's width (`--panel-open` modifiers,
+  `right: 370px`), the chips and the picture-in-picture / recording buttons
+  fold away, `tune` fills in the accent color, and fullscreen stays.
+- **Compact dock, and wide docks below 960px**: no chips; `tune` carries **state dots** (5px, cyan when
+  subtitles are on or a non-default audio track is selected, violet when
+  speed, aspect or manual quality differ from their default) and the panel
+  opens as a **bottom sheet** (`--sheet` modifier: grip, two-column rows,
+  24px segmented items) that replaces the dock while open. Picture-in-
+  picture and recording stay in the compact dock — the mock shows only
+  `tune` + fullscreen there, but those two are engine features a viewer
+  needs without opening anything.
+- **Inside**: list groups (audio, subtitles, quality) use `menuitemradio`
+  rows with a check mark and a cyan selection; segmented groups (speed,
+  aspect) use `radio` items with a violet selection, and a selected default
+  (`1×`, the first aspect preset) stays neutral. The subtitle group carries
+  the load-file action and the delay / size / color sections that the
+  popover used to hold (same `player-controls-load-subtitle`,
+  `player-controls-subtitle-delay`, `player-controls-subtitle-style` test
+  ids). The panel is a `role="dialog"` with `tabindex="-1"`: opened from
+  the keyboard (the opener is `:focus-visible`) it takes focus, a pointer
+  open leaves focus alone (a focused control would capture Space from the
+  shortcuts), and closing with focus inside returns it to `tune`. While
+  the compact sheet replaces the dock, the dock is `inert`, so hidden
+  controls leave the tab order. A choice applies immediately and **keeps the panel open** —
+  `ControlsMenuSelection` no longer closes anything — so alternatives can be
+  compared against the running video; Escape, the close button, the `tune`
+  button, a click on the video surface or an outside pointerdown close it.
+- **Colors** follow the color-as-state rule of the dock: cyan means "on",
+  violet means "changed", and neutral rows/items read as the default.
 
 ### Stream info popover
 
@@ -360,13 +520,18 @@ Per engine:
   no info affordance, though its backends plumb the properties for parity. See
   [embedded-mpv-native.md](./embedded-mpv-native.md#stream-stats-properties).
 
-### Top scrim
+### Scrims
 
 `.player-controls__top-scrim` is a single pointer-transparent gradient at the
-top of the player, mirroring the bottom bar's stops so both edges read as one
-system. It renders whenever there is top chrome to back — the fullscreen media
-title or the corner buttons — and fades with the controls without sliding (a
-moving scrim edge is visible against video in a way a moving control is not).
+top of the player (`max(28%, 112px)` tall), and
+`.player-controls__bottom-scrim` its mirror behind the dock (55% tall, from
+`rgba(4,7,11,.92)` at the edge through `.55` to transparent). Both read as
+one system. The top one renders whenever there is top chrome to back — the
+fullscreen media title or the corner buttons — the bottom one with the dock;
+both fade with the controls without sliding (a moving scrim edge is visible
+against video in a way a moving control is not). The dock itself has no
+background: the bottom scrim is the only thing between the controls and the
+picture.
 
 One element, not a background per consumer: the title and the corner overlap,
 and two gradients would darken the overlap twice. The title therefore carries
@@ -688,7 +853,8 @@ instance owns shortcuts initially. Pointer, focus, or control interaction
 activates that instance through the normal reveal path. If the active instance
 becomes unavailable, playback shortcuts fall back to the most recently attached
 available instance; detaching the active instance also transfers ownership.
-Escape remains a global dismissal action and closes popovers on every mounted
+Escape remains a global dismissal action and closes popovers and the settings
+panel on every mounted
 controls instance.
 
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
@@ -882,24 +1048,41 @@ the last second (`wasTouchInteraction`). Three behaviors diverge from mouse:
   popover close (outside taps and other menu buttons dismiss it), and neither
   does the `focusout` of a pointer focus release.
 - **Coarse-pointer scrub sizing.** Under `@media (pointer: coarse)` the
-  timeline/volume sliders grow their input hit strip to 28px and the thumb to
-  18px; the 4px visual track is unchanged.
+  timeline bar and the volume slider grow their hit strip to 28px and the
+  volume thumb to 16px; the drawn tracks are unchanged.
 
-### Narrow-player layout
+### Compact and wide layout
 
-The controls host is a size query container (`player-controls`). At container
-widths of 640px and below — phone-sized PWA viewports, but also small inline
-players inside wide desktop windows — the single-row bar reflows to two rows:
-the timeline takes a full-width first row, and the transport and actions
-clusters split the second. The actions cluster's width is content-dependent
-(volume, audio, subtitles, quality, speed, aspect, recording, PiP, and
-fullscreen are all conditional), so in the narrow layout the cluster is
-end-aligned, capped at the row width, and wraps when even a dedicated row cannot
-hold it. Its popover anchors become static at this breakpoint so capability
-panels position against the unclipped actions cluster and remain accessible
-above every wrapped row. Icon buttons compact from 48px to 40px in this layout.
-Between ~640px and the 720px viewport media query, the legacy single-row squeeze
-(timeline absorbs the shrink) still applies.
+The controls host is a size query container (`player-controls`), and the
+dock has two modes split at **720px of container width**: `compact` at
+719px and below — phone-sized PWA viewports, but also small inline players
+inside wide desktop windows — and `wide` above. The split lives in two
+places that must agree: the `@container player-controls (max-width: 719px)`
+block in the stylesheet sizes the compact dock (14px gutters, 32px buttons,
+36px play circle, 5px track), and `ControlsLayout`
+(`COMPACT_LAYOUT_MAX_WIDTH`, a `ResizeObserver` on the host) drives the
+template branches CSS cannot express — the inline volume slider versus
+its popover. Without `ResizeObserver` (unit tests) the mode stays `wide`.
+
+A second threshold, `ROOMY_LAYOUT_MIN_WIDTH` (960px, `ControlsLayout.roomy`),
+gates the wide dock's extras: the subtitle/speed chips and the settings
+panel beside the video. Between 720px and 960px the dock stays wide (full
+button sizes, inline volume) but folds the chips into `tune` with state
+dots and opens settings as the bottom sheet, because the widest action row
+(volume, series transport, two chips, tune/record/PiP/fullscreen) and the
+dock beside a 370px panel do not fit there. The control row's side columns
+are `minmax(min-content, 1fr)`, so if the actions still need more than half
+of what the transport leaves, the transport slides off-centre instead of
+the actions overlapping it or leaving the player.
+Episode navigation stays in the compact transport: the series hosts rely on
+those buttons, and the inline series player is often narrower than 720px.
+
+The actions cluster's width is content-dependent (audio, subtitles, quality,
+speed, aspect, recording, PiP, and fullscreen are all conditional), so in
+the compact layout the cluster is end-aligned, capped at the row width, and
+wraps when the row cannot hold it. Its popover anchors become static at this
+breakpoint so capability panels position against the unclipped actions
+cluster and remain accessible above every wrapped row.
 
 When a volume-capable controller first attaches, an existing `localStorage`
 volume preference is applied before the first controller snapshot can reconcile
@@ -1206,11 +1389,11 @@ regressions:
 
 ## Advanced subtitle support
 
-The subtitle popover carries three capability-gated extensions beyond track
-selection (#1408): loading an external subtitle file, adjusting the subtitle
-timing offset, and styling subtitle text (size + color). Each is honest per
-engine — an engine that cannot support a control simply never advertises the
-capability, and the UI is not rendered.
+The subtitles group of the settings panel carries three capability-gated
+extensions beyond track selection (#1408): loading an external subtitle
+file, adjusting the subtitle timing offset, and styling subtitle text (size
++ color). Each is honest per engine — an engine that cannot support a control
+simply never advertises the capability, and the UI is not rendered.
 
 Contract surface:
 
@@ -1221,11 +1404,12 @@ Contract surface:
   environment's picker), `setSubtitleDelay(seconds)`, and
   `setSubtitleStyle(style)`.
 
-The subtitle menu stays reachable with an empty track list whenever
+The subtitles group stays reachable with an empty track list whenever
 `externalSubtitles` is set — loading a file is what creates the first track.
-Delay and style rows keep the popover open, because these settings are tuned
-iteratively against the running video (`ControlsSubtitleSettings` owns those
-interactions); the load action closes it because a file dialog opens on top.
+Delay and style rows keep the panel open like every other choice, because
+these settings are tuned iteratively against the running video
+(`ControlsSubtitleSettings` owns those interactions); the file dialog the
+load action opens sits on top of the still-open panel.
 
 Persistence: the style (size/color) is a cross-engine preference stored under
 the `subtitleStyle` localStorage key (`subtitle-style.ts`), the same mechanism
@@ -1385,6 +1569,21 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-controls.component.scss
 ├── controls-feedback.ts
 ├── controls-format.utils.ts
+├── controls-layout.ts
+├── controls-timeline-hover.ts
+├── controls-timeline-segments.ts
+├── controls-settings.ts
+├── controls-settings-groups.ts
+├── controls-up-next.ts
+├── player-timeline.component.ts
+├── player-timeline.component.html
+├── player-timeline.component.scss
+├── player-up-next-card.component.ts
+├── player-up-next-card.component.html
+├── player-up-next-card.component.scss
+├── player-settings-panel.component.ts
+├── player-settings-panel.component.html
+├── player-settings-panel.component.scss
 ├── controls-fullscreen.ts
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts

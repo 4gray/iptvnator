@@ -88,7 +88,8 @@ icons. The dock must never pair a dark fallback surface with inherited light
 app text. Loader/stall and transient feedback overlays own a light foreground
 and dark scrim because they cover video. Video viewports remain black in both
 themes and fullscreen; frame-copy and built-in shared controls keep their
-existing light-on-dark overlay palette.
+light-on-dark overlay palette — the fixed `--pc-*` token set of the shared
+dock (accent blue, cyan, violet and a light text ramp), never the app theme.
 
 EPG timeline, list, empty states and programme details use the library-local
 `libs/ui/epg/src/lib/_epg-theme.scss` palette, based on app surfaces, separators,
@@ -541,6 +542,30 @@ Nothing is rendered yet, so the skeleton replaces the whole content area and
 mirrors the row/card geometry it precedes (see Channel List Item and Cover
 Grids). The unified Favorites/Recent page gates this on `isLoading`, set only
 while its item list is empty.
+
+### Pages of independently loading blocks: delayed skeletons
+
+The dashboard renders each rail as soon as its own data arrives, and several
+rails resolve empty on a normal profile. A per-rail skeleton shown
+immediately therefore flashed for a few tens of milliseconds and collapsed,
+pulling every rail below it upwards (a layout shift of about 0.23 on each
+launch with sources). Rail skeletons are gated per rail
+(`createRailSkeletonGates` in
+`libs/workspace/dashboard/feature/src/lib/rails/dashboard-skeleton-grace.ts`):
+
+- a skeleton waits out a grace period (`DASHBOARD_RAIL_SKELETON_GRACE_MS`,
+  300 ms) counted from when *that* rail started loading, since Xtream and
+  TMDB rails start after the local ones;
+- it never appears above a rail that already shows cards: the placeholder
+  would push visible content down, and back up if the rail resolves empty,
+  while the real rail inserts at most once;
+- once shown, it stays until its own rail finishes, so skeletons do not
+  vanish in a cascade when the first real rail arrives.
+
+The top block (the dashboard hero) keeps its immediate skeleton: it reserves
+the space above everything else, where a late insertion would push the whole
+page down. Use the same rules for any page that stacks independently loading
+blocks.
 
 ### Reload with content on screen: non-destructive indicator
 

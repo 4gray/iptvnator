@@ -50,6 +50,7 @@ import {
     resolveSourceExpiryBadge,
     SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
+import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
 import { DashboardRailComponent } from './dashboard-rail.component';
 import type {
     DashboardRailCard,
@@ -295,6 +296,9 @@ export class WorkspaceDashboardRailsComponent {
             expiryBadge: this.buildSourceExpiryBadge(playlist._id),
         }));
     });
+
+    /** Per-rail skeleton gates; see createDashboardRailSkeletons. */
+    readonly railSkeletons = createDashboardRailSkeletons(this);
 
     constructor() {
         // Re-entering the dashboard should pick up any DB-backed recent/favorite

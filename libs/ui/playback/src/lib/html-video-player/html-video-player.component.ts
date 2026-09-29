@@ -29,6 +29,7 @@ import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
+    PlayerUpNextItem,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -53,6 +54,7 @@ import {
     HtmlVideoPlayerControlsBridge,
     type HtmlVideoControlsSource,
 } from './html-video-player-controls.bridge';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
@@ -81,12 +83,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
-    @Output() timeUpdate = new EventEmitter<{
-        currentTime: number;
-        duration: number;
-    }>();
+    @Output() timeUpdate = new EventEmitter<PlayerTimeUpdate>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
     @Output() playbackEnded = new EventEmitter<void>();
     @Output() playbackStarted = new EventEmitter<void>();

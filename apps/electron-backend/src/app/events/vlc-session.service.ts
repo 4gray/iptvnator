@@ -54,6 +54,9 @@ export interface OpenVlcPlayerRequest {
 
 const reusableVlcProcess = new VlcReusableProcess();
 let vlcPollingInterval: NodeJS.Timeout | null = null;
+// Kept so a player that exits before the first poll cannot leave an orphaned
+// interval behind.
+let vlcPollingDelay: NodeJS.Timeout | null = null;
 
 function getVlcPath(options: PlayerPathOptions = {}): string {
     return (
@@ -63,6 +66,10 @@ function getVlcPath(options: PlayerPathOptions = {}): string {
 }
 
 function stopVlcPositionPolling(): void {
+    if (vlcPollingDelay) {
+        clearTimeout(vlcPollingDelay);
+        vlcPollingDelay = null;
+    }
     if (vlcPollingInterval) {
         clearInterval(vlcPollingInterval);
         vlcPollingInterval = null;
@@ -78,7 +85,8 @@ function startVlcPositionPolling(
 ): void {
     stopVlcPositionPolling();
 
-    setTimeout(() => {
+    vlcPollingDelay = setTimeout(() => {
+        vlcPollingDelay = null;
         vlcPollingInterval = setInterval(async () => {
             try {
                 const snapshot = await getVlcPlaybackSnapshot(port);

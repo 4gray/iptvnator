@@ -6,9 +6,11 @@ import { defineConfig } from '@playwright/test';
  * worker, no retries: every journey spawns its own Electron processes and
  * writes one summary per run. The Xtream mock serves both the M3U playlist
  * and the portal on a dedicated loopback port so a normal E2E server on
- * 3211 cannot be reused by accident. Locally a server left behind by an
- * earlier run on that port is reused (its fixtures are deterministic); CI
- * always starts its own.
+ * 3211 cannot be reused by accident. The mock runs as one node process
+ * rather than through `nx run …:serve`, whose detached process group outlived
+ * the run and kept the port. Locally a server already on the port (e.g. one
+ * started by hand) is reused, since its fixtures are deterministic; CI always
+ * starts its own.
  */
 const xtreamMockPort =
     process.env['IPTVNATOR_JOURNEY_XTREAM_MOCK_PORT'] ?? '3231';
@@ -24,11 +26,13 @@ export default defineConfig({
         testIdAttribute: 'data-test-id',
     },
     webServer: {
-        command: 'pnpm nx run xtream-mock-server:serve',
+        command: 'node --import tsx apps/xtream-mock-server/src/main.ts',
         cwd: workspaceRoot,
         env: {
             HOST: '127.0.0.1',
+            NODE_ENV: 'development',
             PORT: xtreamMockPort,
+            TSX_TSCONFIG_PATH: 'tsconfig.base.json',
         },
         reuseExistingServer: !process.env['CI'],
         url: `http://127.0.0.1:${xtreamMockPort}/health`,

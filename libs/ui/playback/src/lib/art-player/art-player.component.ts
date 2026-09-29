@@ -20,6 +20,7 @@ import {
     type LegacyPlayerShortcuts,
     PlayerControlsComponent,
     type PlayerMediaTitle,
+    PlayerUpNextItem,
     WEB_PLAYER_SHARED_CONTROLS,
     WebVideoControlsAdapter,
 } from '../player-controls';
@@ -34,6 +35,7 @@ import {
 } from './art-player-setup';
 import { ArtPlayerSourceSession } from './art-player-source-session';
 import { ArtPlayerVideoSession } from './art-player-video-session';
+import type { PlayerTimeUpdate } from '../playback-history/player-time-update';
 
 const debugArtPlayer = createDevLogger('ArtPlayer');
 
@@ -59,13 +61,11 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
+    readonly upNext = input<PlayerUpNextItem | null>(null);
     /** See `PlayerControlsComponent.fullscreenTarget`; null keeps the shell. */
     readonly fullscreenTarget = input<HTMLElement | null>(null);
 
-    readonly timeUpdate = output<{
-        currentTime: number;
-        duration: number;
-    }>();
+    readonly timeUpdate = output<PlayerTimeUpdate>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
     readonly playbackEnded = output<void>();
     readonly playbackStarted = output<void>();

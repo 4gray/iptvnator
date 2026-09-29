@@ -364,7 +364,11 @@ form is the one specs should use.
 webServer: [
   { command: webServerCommand /* web:serve */, url: baseURL },
   {
-    command: 'pnpm nx run stalker-mock-server:serve',
+    command: 'node --import tsx apps/stalker-mock-server/src/main.ts',
+    env: {
+      NODE_ENV: 'development',
+      TSX_TSCONFIG_PATH: 'tsconfig.base.json',
+    },
     url: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/health`,
     reuseExistingServer: !process.env['CI'],
   },
@@ -374,12 +378,20 @@ webServer: [
 
 Playwright waits for every server to be healthy before starting tests. If one is already running (e.g. in local dev), it reuses the existing instance.
 
+The mock runs as a single `node` process instead of `pnpm nx run
+stalker-mock-server:serve`, because Nx starts its command in a detached
+process group that Playwright's process-group kill never reached, so the server
+outlived the run. The
+[Xtream mock's Playwright section](xtream-mock-server.md#playwright-integration)
+has the details.
+
 **`MOCK_PORT` relocates the whole run.** Playwright's health-check URL and the
 `MOCK_SERVER` constants in the specs read it, and `main.ts` resolves the
 server's port as `PORT`, then `MOCK_PORT`, then `3210` — so
-`MOCK_PORT=3310 pnpm exec playwright test …` starts the Nx-managed mock on
+`MOCK_PORT=3310 pnpm exec playwright test …` starts the mock on
 3310 and points every spec at it, which is how two worktrees run E2E side by
-side when one already holds 3210. This only works because the `serve` and
+side when one already holds 3210. A hand-started Nx mock honours the same
+knobs because the `serve` and
 `serve-with-watch` targets no longer pin `PORT` in `project.json`: an `env`
 entry in `nx:run-commands` overrides the shell (`{...process.env, ...env}`),
 so a pinned value silently discarded every override. `PORT=3310 pnpm nx run

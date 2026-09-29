@@ -22,6 +22,8 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ChannelActions } from '@iptvnator/m3u-state';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
+import { PlaybackHistoryConfirmation } from '../playback-history/playback-history-confirmation';
 
 @Component({
     selector: 'app-audio-player',
@@ -156,7 +158,12 @@ import { ChannelActions } from '@iptvnator/m3u-state';
                 </div>
             </div>
 
-            <audio preload="metadata" autoplay #audio></audio>
+            <audio
+                preload="metadata"
+                autoplay
+                #audio
+                (timeupdate)="onTimeUpdate()"
+            ></audio>
         </div>
     `,
     styleUrls: ['./audio-player.component.scss'],
@@ -176,6 +183,8 @@ export class AudioPlayerComponent {
     readonly channelName = input<string>('');
     readonly externalVolume = input<number | null>(null, { alias: 'volume' });
     readonly dispatchAdjacentChannelAction = input(true);
+    /** The host's playback session key, for the history confirmation. */
+    readonly playbackSessionKey = input<string | null>(null);
     readonly channelSwitchRequested = output<'next' | 'previous'>();
     readonly volumeChange = output<number>();
 
@@ -198,6 +207,14 @@ export class AudioPlayerComponent {
     private destroyRef = inject(DestroyRef);
     private hostEl = inject(ElementRef);
     private fallbackVolume = 1;
+    /** Commits the deferred "recently viewed" write once the station plays. */
+    private readonly historyConfirmation = new PlaybackHistoryConfirmation({
+        gate: inject(PlaybackHistoryGate),
+        target: () => ({
+            sessionKey: this.playbackSessionKey(),
+            streamUrls: [this.url()],
+        }),
+    });
 
     constructor() {
         const saved = parseFloat(localStorage.getItem('volume') ?? '1');
@@ -265,6 +282,16 @@ export class AudioPlayerComponent {
         } else if (event.key === 'm' || event.key === 'M') {
             event.preventDefault();
             this.mute();
+        }
+    }
+
+    onTimeUpdate(): void {
+        const audio = this.audioRef()?.nativeElement;
+        if (audio) {
+            this.historyConfirmation.record(
+                audio.currentTime,
+                !audio.paused && !audio.seeking
+            );
         }
     }
 

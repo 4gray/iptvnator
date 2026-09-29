@@ -58,6 +58,7 @@
                             activeDetail()?.playback?.title ||
                             ''
                         "
+                        [playbackSessionKey]="playbackSessionKey()"
                     />
                 } @else {
                     <app-web-player-view

@@ -5,6 +5,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
 import { DataService, PlaylistsService } from '@iptvnator/services';
+import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
 import { of } from 'rxjs';
 import {
     PlaylistMeta,
@@ -12,6 +13,13 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerPlayer } from './with-stalker-player.feature';
+
+/** What the player does once the resolved stream has really played. */
+function confirmPlayback(playback: { streamUrl: string }): void {
+    TestBed.inject(PlaybackHistoryGate).confirm({
+        streamUrls: [playback.streamUrl],
+    });
+}
 
 jest.mock('@iptvnator/portal/shared/util', () => ({
     ...jest.requireActual('@iptvnator/portal/shared/util'),
@@ -160,6 +168,7 @@ describe('withStalkerPlayer', () => {
             'Movie Title',
             'thumb.jpg'
         );
+        confirmPlayback(playback);
 
         expect(dataService.sendIpcEvent).toHaveBeenNthCalledWith(
             1,
@@ -225,6 +234,7 @@ describe('withStalkerPlayer', () => {
             1,
             3000001
         );
+        confirmPlayback(playback);
 
         expect(playlistService.addPortalRecentlyViewed).toHaveBeenCalledWith(
             PLAYLIST._id,
@@ -266,6 +276,7 @@ describe('withStalkerPlayer', () => {
             logo: 'jazz.png',
             category_id: '4001',
         });
+        confirmPlayback(playback);
 
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
         expect(playlistService.addPortalRecentlyViewed).toHaveBeenCalledWith(
@@ -371,6 +382,42 @@ describe('withStalkerPlayer', () => {
             logo: 'static-tv.png',
             category_id: '1001',
         };
+
+        it('records a resolved channel only once its stream has played', async () => {
+            store.setSelectedContentType('itv');
+            dataService.sendIpcEvent.mockResolvedValueOnce({
+                js: { cmd: 'http://cdn.example/tmp/10001.m3u8?tok=first' },
+            });
+            const failed = await store.resolveItvPlayback({
+                ...CHANNEL,
+                use_http_tmp_link: '1',
+            });
+
+            // A link that never plays (dead stream, player error) is not a view.
+            expect(
+                playlistService.addPortalRecentlyViewed
+            ).not.toHaveBeenCalled();
+
+            dataService.sendIpcEvent.mockResolvedValueOnce({
+                js: { cmd: 'http://cdn.example/tmp/10001.m3u8?tok=second' },
+            });
+            const played = await store.resolveItvPlayback({
+                ...CHANNEL,
+                use_http_tmp_link: '1',
+            });
+            confirmPlayback(played);
+
+            expect(failed.streamUrl).not.toBe(played.streamUrl);
+            expect(
+                playlistService.addPortalRecentlyViewed
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                playlistService.addPortalRecentlyViewed
+            ).toHaveBeenCalledWith(
+                PLAYLIST._id,
+                expect.objectContaining({ id: '10001', cmd: CHANNEL.cmd })
+            );
+        });
 
         it('plays an unflagged ITV channel straight from its static cmd', async () => {
             store.setSelectedContentType('itv');
@@ -520,7 +567,9 @@ describe('withStalkerPlayer', () => {
                     dataService.sendIpcEvent.mockResolvedValueOnce(response);
                 }
 
-                await store.resolveItvPlayback({ ...CHANNEL, ...flags });
+                confirmPlayback(
+                    await store.resolveItvPlayback({ ...CHANNEL, ...flags })
+                );
 
                 expect(
                     playlistService.addPortalRecentlyViewed
