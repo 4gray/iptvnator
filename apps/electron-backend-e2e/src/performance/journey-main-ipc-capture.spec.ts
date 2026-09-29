@@ -13,6 +13,7 @@ import {
     installJourneyMainIpcCapture,
     JOURNEY_RENDERER_API_TRACE_CHANNEL,
     peekJourneyMainIpcCapture,
+    peekJourneyMainIpcCaptures,
     type JourneyMainIpcCaptureOptions,
     type JourneyMainIpcCaptureState,
 } from './journey-main-ipc-capture';
@@ -371,4 +372,40 @@ test('a detached capture stops listening and keeps its last state', async () => 
             /not-attached/
         );
     });
+});
+
+test('reads several captures in one main-process pass', async () => {
+    const fake = createFakeElectronApp();
+    let evaluations = 0;
+    const counting = {
+        evaluate: (...args: Parameters<ElectronApplication['evaluate']>) => {
+            evaluations += 1;
+            return fake.app.evaluate(...args);
+        },
+    } as unknown as ElectronApplication;
+    const target = globalThis as unknown as Record<string, unknown>;
+    const [first, second] = ['__journeyPeekA', '__journeyPeekB'];
+    target[first] = { callsBeforeStart: 1 };
+    target[second] = { callsBeforeStart: 2 };
+    try {
+        const states = await peekJourneyMainIpcCaptures(counting, [
+            first,
+            second,
+        ]);
+        assert.equal(evaluations, 1);
+        assert.deepEqual(
+            states.map((state) => state.callsBeforeStart),
+            [1, 2]
+        );
+        await assert.rejects(
+            peekJourneyMainIpcCaptures(counting, [
+                first,
+                '__journeyPeekMissing',
+            ]),
+            /capture-missing/
+        );
+    } finally {
+        delete target[first];
+        delete target[second];
+    }
 });

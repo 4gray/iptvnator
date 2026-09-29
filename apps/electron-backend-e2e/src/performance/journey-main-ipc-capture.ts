@@ -213,20 +213,37 @@ export async function peekJourneyMainIpcCapture(
     electronApp: ElectronApplication,
     stateKey: string
 ): Promise<JourneyMainIpcCaptureState> {
-    const state = (await electronApp.evaluate(
-        (_electron, key) =>
+    const [state] = await peekJourneyMainIpcCaptures(electronApp, [stateKey]);
+    return state as JourneyMainIpcCaptureState;
+}
+
+/**
+ * Several captures read in one synchronous pass in the main process. No
+ * `ipcMain` event can be handled in between, so the states are one coherent
+ * snapshot: a call counted by one capture is also pending in the other.
+ */
+export async function peekJourneyMainIpcCaptures(
+    electronApp: ElectronApplication,
+    stateKeys: readonly string[]
+): Promise<JourneyMainIpcCaptureState[]> {
+    const states = (await electronApp.evaluate(
+        (_electron, keys) =>
             JSON.parse(
                 JSON.stringify(
-                    (globalThis as unknown as Record<string, unknown>)[key] ??
-                        null
+                    keys.map(
+                        (key) =>
+                            (globalThis as unknown as Record<string, unknown>)[
+                                key
+                            ] ?? null
+                    )
                 )
             ) as unknown,
-        stateKey
-    )) as JourneyMainIpcCaptureState | null;
-    if (!state) {
+        [...stateKeys]
+    )) as (JourneyMainIpcCaptureState | null)[];
+    if (states.some((state) => !state)) {
         throw new Error('journey-main-ipc-capture-missing');
     }
-    return state;
+    return states as JourneyMainIpcCaptureState[];
 }
 
 export async function readJourneyMainIpcCapture(

@@ -7,7 +7,7 @@ import {
     installJourneyMainIpcCapture,
     JOURNEY_MAIN_IPC_STATE_KEY,
     JOURNEY_RENDERER_API_TRACE_CHANNEL,
-    peekJourneyMainIpcCapture,
+    peekJourneyMainIpcCaptures,
     readJourneyMainIpcCapture,
 } from '../performance/journey-main-ipc-capture';
 import type { JourneyMockRequestLedger } from '../performance/journey-mock-request-ledger';
@@ -90,10 +90,13 @@ async function waitForQuiet(
 }> {
     const armMark = ledger.mark();
     const sample = async (): Promise<ActivitySample> => {
-        const launchCapture = await peekJourneyMainIpcCapture(
-            electronApp,
-            JOURNEY_MAIN_IPC_STATE_KEY
-        );
+        // Both captures in one snapshot: a call counted by J2's capture is
+        // then also pending in J1's, never counted with a stale in-flight 0.
+        const [launchCapture, openSourceCapture] =
+            await peekJourneyMainIpcCaptures(electronApp, [
+                JOURNEY_MAIN_IPC_STATE_KEY,
+                OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY,
+            ]);
         if (launchCapture.unmatchedCompletions > 0) {
             throw new Error('open-source-journey-bridge-completions-unmatched');
         }
@@ -101,12 +104,7 @@ async function waitForQuiet(
             domMutations: await readPreStartMutations(page, probeStateKey),
             httpInFlight: ledger.inFlight(),
             httpRequests: ledger.mark(),
-            ipcCalls: (
-                await peekJourneyMainIpcCapture(
-                    electronApp,
-                    OPEN_SOURCE_JOURNEY_MAIN_IPC_STATE_KEY
-                )
-            ).callsBeforeStart,
+            ipcCalls: openSourceCapture.callsBeforeStart,
             ipcInFlight: countJourneyMainIpcInFlight(launchCapture),
         };
     };
