@@ -25,6 +25,7 @@ import {
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { sameTimelineSegments } from '../player-controls/chapter-timeline-segments';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type {
     PlayerMediaTitle,
@@ -32,6 +33,7 @@ import type {
     PlayerTimelineSegment,
 } from '../player-controls/player-controls.model';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { embeddedMpvTimelineSegments } from './embedded-mpv-chapter-segments';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvDockPanelComponent } from './embedded-mpv-dock-panel.component';
 import { EmbeddedMpvDockPanelState } from './embedded-mpv-dock-panels';
@@ -88,7 +90,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly mediaTitle = input<PlayerMediaTitle | null>(null);
     readonly upNext = input<PlayerUpNextItem | null>(null);
-    /** Catch-up programmes drawn as track segments; null draws one. */
+    /** Catch-up programmes drawn as track segments; they outrank chapters. */
     readonly timelineSegments = input<readonly PlayerTimelineSegment[] | null>(
         null
     );
@@ -143,6 +145,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     readonly support = this.controller.support;
     readonly session = this.controller.session;
+    /** Catch-up programmes first, else the file's chapters; see the helper. */
+    readonly controlsTimelineSegments = computed(
+        () =>
+            embeddedMpvTimelineSegments(this.timelineSegments(), this.session()),
+        { equal: sameTimelineSegments }
+    );
     readonly stalled = this.controller.stalled;
 
     readonly volume = signal(readStoredVolume());

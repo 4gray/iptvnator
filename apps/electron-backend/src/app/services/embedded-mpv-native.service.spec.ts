@@ -83,6 +83,7 @@ interface MockSnapshot {
     streamUrl: string;
     audioTracks?: never[];
     selectedAudioTrackId?: number | null;
+    chapters?: Array<{ timeSeconds: number; title?: string }>;
     stats?: {
         fps?: number;
         videoBitrateBps?: number;
@@ -578,6 +579,24 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             videoCodec: 'h264',
             droppedFrames: 0,
         });
+    });
+
+    it('passes validated file chapters through to the renderer session', () => {
+        startSession('s1', snapshot('playing'));
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', {
+                chapters: [
+                    { timeSeconds: 0, title: 'Intro' },
+                    { timeSeconds: Number.NaN, title: 'Broken' },
+                    { timeSeconds: 1320, title: 'Credits' },
+                ],
+            })
+        );
+
+        expect(service.setVolume('s1', 1)?.chapters).toEqual([
+            { timeSeconds: 0, title: 'Intro' },
+            { timeSeconds: 1320, title: 'Credits' },
+        ]);
     });
 
     it('omits the stats key entirely when the engine reports none', () => {
