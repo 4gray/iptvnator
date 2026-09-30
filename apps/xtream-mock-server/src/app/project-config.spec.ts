@@ -87,3 +87,43 @@ describe('Playwright mock-server launch', () => {
         }
     );
 });
+
+describe('Nx E2E target defaults', () => {
+    type DependsOn = Array<string | { projects?: string[]; target?: string }>;
+    const nxJson = JSON.parse(
+        readFileSync(join(process.cwd(), 'nx.json'), 'utf8')
+    ) as {
+        targetDefaults: Record<string, { dependsOn?: DependsOn }>;
+    };
+
+    // The Playwright configs start the mocks themselves, so @nx/playwright
+    // infers the atomized e2e-ci targets as non-parallel, and Nx refuses to
+    // run a non-parallel task that depends on a continuous `serve` task.
+    it('never makes an E2E target depend on a mock-server task', () => {
+        const mockDependencies = Object.entries(nxJson.targetDefaults)
+            .flatMap(([targetName, config]) =>
+                (config.dependsOn ?? []).map((dependency) => ({
+                    targetName,
+                    dependency,
+                }))
+            )
+            .filter(({ dependency }) =>
+                typeof dependency === 'string'
+                    ? dependency.includes('-mock-server:')
+                    : (dependency.projects ?? []).some((project) =>
+                          project.endsWith('-mock-server')
+                      )
+            );
+
+        expect(mockDependencies).toEqual([]);
+    });
+
+    it('still builds the Electron app before each per-file E2E target', () => {
+        expect(
+            nxJson.targetDefaults['e2e-ci--src/*.e2e.ts']?.dependsOn
+        ).toContainEqual({
+            projects: ['electron-backend'],
+            target: 'build-e2e',
+        });
+    });
+});

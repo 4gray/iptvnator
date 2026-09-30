@@ -73,10 +73,6 @@
                 {
                     "projects": ["electron-backend"],
                     "target": "build-e2e"
-                },
-                {
-                    "projects": ["stalker-mock-server", "xtream-mock-server"],
-                    "target": "serve"
                 }
             ]
         }
