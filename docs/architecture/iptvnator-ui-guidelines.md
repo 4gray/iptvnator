@@ -652,6 +652,34 @@ Settings use the same system but are flatter than content-heavy views.
 - Neutral rows can use low-opacity dark overlays
 - Keep strong blue tint reserved for active sections and selected items
 
+## Dialogs
+
+- **Name.** Every dialog has a `mat-dialog-title`; Material points the
+  container's `aria-labelledby` at it. A custom-styled title keeps the
+  directive and overrides Material's headline padding and 40px `::before`
+  strut, as the programme dialog does.
+- **Order.** Dismiss first, primary last. With end alignment the primary sits
+  on the inline end: the right in LTR, the left in RTL.
+- **One dismiss.** Offer one visible dismiss: a footer "Cancel"/"Close" or a
+  header close icon, not both. Escape and the backdrop still close.
+- **One row.** Action labels are short verbs ("Cancel", "Discard", "Save"),
+  not phrases, so the row fits one line in every locale at the dialog width.
+  Secondary actions tied to one part of the content stay with that content
+  (the programme dialog's archive tools sit under their notice), so the
+  footer is only the dismiss and the primary.
+- **Phone.** At the phone breakpoint an action row may stack: one full-width
+  button per row, in DOM order (dismiss on top, primary at the bottom). The
+  settings unsaved-changes dialog is the reference;
+  `settings-unsaved-dialog-layout.e2e.ts` in `web-e2e` measures it in six
+  locales. The programme dialog stacks its archive tools and footer the same
+  way, letting a long label wrap inside its button; the Electron
+  `epg-timeline-interaction.e2e.ts` measures it in French at 360px.
+- **Width.** A dialog with several openers is opened through one helper that
+  owns its `MatDialogConfig`, so its width never depends on the entry point.
+  `EpgProgrammeDialogService` opens the programme dialog at 540px from the
+  timeline, list, guide and channel rows, with a panel class that scopes its
+  surface overrides.
+
 ## Phone Layout
 
 `640px` is the phone breakpoint. Use `@media (max-width: 640px)` rather than
