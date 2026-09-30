@@ -40,7 +40,7 @@ import { UpdateChannelOption } from './settings.models';
         '.app-update-channel { margin-top: 12px; }',
         '.app-update-channel mat-form-field { width: 100%; max-width: 320px; }',
         '.app-update-channel__note { display: block; margin-top: 4px; opacity: 0.75; font-size: 0.85em; }',
-        '.app-update-status__channel { align-self: flex-start; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.05em; text-transform: uppercase; color: var(--mat-sys-on-surface-variant); background: color-mix(in srgb, var(--mat-sys-on-surface) 9%, transparent); }',
+        '.app-update-status__channel { align-self: flex-start; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--mat-sys-on-surface-variant); background: color-mix(in srgb, var(--mat-sys-on-surface) 9%, transparent); }',
         '.app-update-status--stale strong, .app-update-status--stale .app-update-status__channel { opacity: 0.55; }',
     ],
 })

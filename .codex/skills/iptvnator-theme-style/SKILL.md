@@ -46,6 +46,12 @@ consumers currently use relative `@use` paths to the needed partial.
 - A shared change must be checked across M3U, Xtream, Stalker, workspace,
   portal catalog/shared UI, and unified collections where relevant.
 
+## Typography
+
+- Font weights are 400, 500, 600 or 700 only, and JetBrains Mono stays at 500
+  or lighter; `pnpm run styles:font-weights:validate` enforces the scale. Read
+  the guidelines' Typography section before changing bundled fonts.
+
 ## Validation
 
 Run the affected consumer's Nx lint/test/build target. Inspect light and dark

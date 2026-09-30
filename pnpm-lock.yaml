@@ -254,9 +254,6 @@ importers:
       '@fontsource-variable/bricolage-grotesque':
         specifier: 5.3.0
         version: 5.3.0
-      '@fontsource/crimson-pro':
-        specifier: 5.3.0
-        version: 5.3.0
       '@fontsource/dm-sans':
         specifier: 5.3.0
         version: 5.3.0
@@ -2102,9 +2099,6 @@ packages:
 
   '@fontsource-variable/bricolage-grotesque@5.3.0':
     resolution: {integrity: sha512-TLi9Q4hJjS2UvoTMRSS2nHu6c4R56lAw60NR9QYtVRCHn0XtsFpiEhNffZ8Glsoxu6wEEwLKBP8lb94J52PNBA==}
-
-  '@fontsource/crimson-pro@5.3.0':
-    resolution: {integrity: sha512-PXQH0NGma2wwskZAySBH+s/ezAYBwyDH0I4oRURBu9u81nNUCm5DcNCJaUS9H0UR1y8qlslLfVRU6mnDBpffrA==}
 
   '@fontsource/dm-sans@5.3.0':
     resolution: {integrity: sha512-lYJtMXXO28q1z+yz+z8XKd0s4hXaa9QdkETzkyD760sidCv5heI86weYA0sx0Nc4pAMAQTUuyf4gO44cYKKS9g==}
@@ -11775,8 +11769,6 @@ snapshots:
   '@faker-js/faker@10.6.0': {}
 
   '@fontsource-variable/bricolage-grotesque@5.3.0': {}
-
-  '@fontsource/crimson-pro@5.3.0': {}
 
   '@fontsource/dm-sans@5.3.0': {}
 

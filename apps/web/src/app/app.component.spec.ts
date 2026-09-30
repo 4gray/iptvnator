@@ -1,9 +1,10 @@
+import { EventEmitter } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { TranslateService } from '@ngx-translate/core';
+import { LangChangeEvent, TranslateService } from '@ngx-translate/core';
 import {
     EpgRuntimeBridgeService,
     EpgService,
@@ -150,7 +151,9 @@ describe('AppComponent', () => {
                 MockProvider(TranslateService, {
                     instant: jest.fn((key: string) => key),
                     setDefaultLang: jest.fn(),
+                    getDefaultLang: jest.fn(() => 'en'),
                     use: jest.fn(),
+                    onLangChange: new EventEmitter<LangChangeEvent>(),
                 }),
                 // The real service imports locale chunks; the language switch
                 // is gated on it, so it must resolve deterministically here.

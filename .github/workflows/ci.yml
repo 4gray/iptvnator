@@ -372,6 +372,9 @@ jobs:
             - name: Validate electron-builder keychain password patch
               run: pnpm run deps:electron-builder:test
 
+            - name: Validate the font weight scale
+              run: pnpm run styles:font-weights:validate
+
             - name: Validate stylesheet Nx inputs
               run: pnpm run styles:inputs:validate
 

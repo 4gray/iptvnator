@@ -53,7 +53,7 @@
     h1 {
         margin: 0;
         font-size: clamp(1.25rem, 1.8vw, 1.6rem);
-        font-weight: 680;
+        font-weight: 600;
         line-height: 1.15;
         letter-spacing: -0.035em;
     }
@@ -86,7 +86,7 @@
             'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono',
             monospace;
         font-variant-numeric: tabular-nums;
-        font-weight: 650;
+        font-weight: 500;
     }
 }
 
@@ -188,7 +188,7 @@
     background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
     font: inherit;
     font-size: 0.79rem;
-    font-weight: 620;
+    font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
     transition:
@@ -271,7 +271,7 @@
         margin: 0;
         color: var(--app-heading-color, var(--mat-sys-on-surface));
         font-size: 1rem;
-        font-weight: 670;
+        font-weight: 600;
         letter-spacing: -0.015em;
     }
 
