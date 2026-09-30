@@ -477,8 +477,9 @@ the panel the moment the last group disappears.
   reports it, else the first — and arrows, Home and End move focus with a
   CDK `FocusKeyManager` (wrapping; the horizontal arrows follow `direction`)
   and check the option they reach, as a native radio group does: the
-  directive clicks it, so the template's handler applies the choice. An
-  option the engine already reports as checked is not applied again. Focus
+  directive clicks it, so the template's handler applies the choice, even
+  onto an option the engine still reports as checked: returning to it must
+  cancel a switch that is still pending. Focus
   changes also write the roving `tabindex` immediately, because a quick
   Shift+Tab, Tab can arrive before change detection updates the bindings. The dialog is named by its `h2` title (`aria-labelledby`), each
   radio group by its `h3` group heading or `h4` subheading, and the delay

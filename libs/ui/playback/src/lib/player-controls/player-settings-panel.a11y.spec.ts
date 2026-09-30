@@ -257,11 +257,11 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
             '2×',
             '0.5×',
         ]);
-        // Every move applies its option — except onto 1×, which the (fake)
-        // engine still reports as checked, so it is not applied again.
+        // Every move applies its option, 1× included: the (fake) engine
+        // still reports 1× checked, but 1.25× is the pending request.
         expect(
             fake.commands.setPlaybackSpeed.mock.calls.map(([speed]) => speed)
-        ).toEqual([1.25, 1.5, 1.25, 2, 0.5, 2, 0.5]);
+        ).toEqual([1.25, 1.5, 1.25, 1, 2, 0.5, 2, 0.5]);
     });
 
     it('keeps arrow keys inside their own group', () => {
@@ -272,7 +272,9 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
         expect(document.activeElement).toBe(german);
         press(german, 'ArrowDown');
         expect(document.activeElement).toBe(english);
-        expect(fake.commands.setAudioTrack.mock.calls).toEqual([[2]]);
+        // Returning before the engine confirms the first switch applies
+        // English again; otherwise the pending switch would win.
+        expect(fake.commands.setAudioTrack.mock.calls).toEqual([[2], [1]]);
         expect(fake.commands.setPlaybackSpeed).not.toHaveBeenCalled();
     });
 

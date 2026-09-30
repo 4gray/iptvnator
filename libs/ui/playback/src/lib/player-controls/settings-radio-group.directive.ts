@@ -42,11 +42,14 @@ export class SettingsRadioDirective implements FocusableOption {
         this.group.onOptionFocus(this);
     }
 
-    /** Checks the option through its own click handler, as a press would. */
+    /**
+     * Checks the option through its own click handler, as a press would.
+     * Unconditionally: the engine may still report this option checked
+     * while a switch away from it is pending, and returning to it must
+     * cancel that switch.
+     */
     check(): void {
-        if (!this.checked()) {
-            this.element.click();
-        }
+        this.element.click();
     }
 
     /** Immediate write of what the `tabindex` binding renders next. */
