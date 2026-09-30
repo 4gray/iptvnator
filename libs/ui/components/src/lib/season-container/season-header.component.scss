@@ -4,6 +4,10 @@
 
 .section-header {
     display: flex;
+    // The actions move onto their own row before the title has to wrap. The
+    // pane is narrower than the window (context panel, Back lane), so a
+    // viewport breakpoint cannot tell when the two stop fitting side by side.
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 20px;
@@ -14,14 +18,16 @@
         display: flex;
         align-items: center;
         gap: 16px;
-        flex: 1;
+        flex: 1 1 auto;
     }
 
+    // Beside the title the header's space-between keeps the actions at the
+    // end; once they move to their own row they start under the title.
     &__actions {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: flex-start;
         gap: 8px;
     }
 
@@ -117,7 +123,6 @@
 @media (max-width: 560px) {
     .section-header {
         align-items: flex-start;
-        flex-wrap: wrap;
 
         &__actions {
             width: 100%;

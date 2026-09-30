@@ -416,6 +416,13 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
     await expect(shell.locator('.shell__back-button')).toHaveCount(0);
+    // Without the arrow there is no lane to reserve: the hero keeps its own
+    // inset instead of the 72px column portal details give the Back control.
+    expect(
+        await shell
+            .locator('.hero__content')
+            .evaluate((el) => getComputedStyle(el).paddingInlineStart)
+    ).toBe('40px');
     await shell.focus();
     await page.keyboard.press('Escape');
     await expect(playButton).toBeVisible();

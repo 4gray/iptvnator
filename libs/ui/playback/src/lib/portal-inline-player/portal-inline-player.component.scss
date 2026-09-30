@@ -203,6 +203,9 @@
 
     .player-shell__title-row {
         flex-direction: column;
+        // Centered, the nowrap heading took its full text width and spilled
+        // past both card edges; stretched, the title ellipsizes in the card.
+        align-items: stretch;
     }
 
     .player-shell__actions {
