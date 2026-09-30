@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Аудиодорожки",
             "SUBTITLES": "Субтитры",
             "SUBTITLES_OFF": "Выкл.",
+            "SUBTITLES_ON": "Вкл.",
             "QUALITY": "Качество",
             "QUALITY_AUTO": "Авто",
             "TRACK_DEFAULT": "По умолчанию",

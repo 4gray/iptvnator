@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "音声トラック",
             "SUBTITLES": "字幕",
             "SUBTITLES_OFF": "オフ",
+            "SUBTITLES_ON": "オン",
             "QUALITY": "画質",
             "QUALITY_AUTO": "自動",
             "TRACK_DEFAULT": "デフォルト",

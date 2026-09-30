@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Ścieżki audio",
             "SUBTITLES": "Napisy",
             "SUBTITLES_OFF": "Wyłączone",
+            "SUBTITLES_ON": "Włączone",
             "QUALITY": "Jakość",
             "QUALITY_AUTO": "Automatycznie",
             "TRACK_DEFAULT": "Domyślna",

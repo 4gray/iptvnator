@@ -473,20 +473,23 @@ the panel the moment the last group disappears.
   (audio, subtitles, quality) are rows with a check mark and a cyan
   selection; segmented groups (speed, aspect, subtitle size) have a violet
   selection, and a selected default (`1×`, the first aspect preset) stays
-  neutral. Each group is one Tab stop — the checked option, else the first —
-  and arrows, Home and End move focus with a CDK `FocusKeyManager`
-  (wrapping; the horizontal arrows follow `direction`). Moving focus does not
-  apply: a choice is applied to the playing stream at once and a track or
-  quality switch rebuffers, so Space / Enter checks, as in a toolbar radio
-  group. Focus changes also write the roving `tabindex` immediately, because
-  a quick Shift+Tab, Tab can arrive before change detection updates the
-  bindings. The dialog is named by its `h2` title (`aria-labelledby`), each
+  neutral. Each group is one Tab stop — the checked option as the engine
+  reports it, else the first — and arrows, Home and End move focus with a
+  CDK `FocusKeyManager` (wrapping; the horizontal arrows follow `direction`)
+  and check the option they reach, as a native radio group does: the
+  directive clicks it, so the template's handler applies the choice. An
+  option the engine already reports as checked is not applied again. Focus
+  changes also write the roving `tabindex` immediately, because a quick
+  Shift+Tab, Tab can arrive before change detection updates the bindings. The dialog is named by its `h2` title (`aria-labelledby`), each
   radio group by its `h3` group heading or `h4` subheading, and the delay
   buttons form a labelled `group`. Headings read `--pc-text-secondary` on
   `--pc-glass-bg-dense` (`rgba(12,16,23,.86)`), 4.5:1 or more even over a
   white frame. They wrap with `overflow-wrap: anywhere` and `hyphens: auto`,
   so one long word (German "Wiedergabegeschwindigkeit") breaks inside the
   sheet's 84px heading column. Hyphenation needs a `lang` on `<html>`.
+  With subtitles on but no track marked selected yet (the engine can report
+  the switch before the track list), the subtitle chip reads "On"
+  (`SUBTITLES_ON`), never "Off".
   Every focused option shows the `--pc-text` ring; a selected swatch has a
   white border with a dark inner gap, and focus adds an outer ring. The
   subtitle group carries the load-file action (a plain button outside the

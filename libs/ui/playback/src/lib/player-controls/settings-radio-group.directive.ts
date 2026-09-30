@@ -42,6 +42,13 @@ export class SettingsRadioDirective implements FocusableOption {
         this.group.onOptionFocus(this);
     }
 
+    /** Checks the option through its own click handler, as a press would. */
+    check(): void {
+        if (!this.checked()) {
+            this.element.click();
+        }
+    }
+
     /** Immediate write of what the `tabindex` binding renders next. */
     setTabStop(isTabStop: boolean): void {
         this.element.tabIndex = isTabStop ? 0 : -1;
@@ -52,11 +59,9 @@ export class SettingsRadioDirective implements FocusableOption {
  * A radio group in the settings panel (audio, subtitles, quality, speed,
  * aspect, subtitle size and colour). One option is a Tab stop — the checked
  * one, or the first when none is — and the arrow keys, Home and End move
- * focus between the options with a CDK `FocusKeyManager`. Moving focus does
- * not check: every choice is applied to the playing stream at once, and a
- * track or quality switch rebuffers, so arrowing through five levels must
- * not switch five times. Space or Enter checks the focused option, as in a
- * toolbar radio group.
+ * focus between the options with a CDK `FocusKeyManager` and check the
+ * option they reach, as a native radio group does. Checking clicks the
+ * option, so the template's handler applies the choice to the player.
  */
 @Directive({
     selector: '[appSettingsRadioGroup]',
@@ -104,7 +109,12 @@ export class SettingsRadioGroupDirective {
     onKeydown(event: KeyboardEvent): void {
         const rtl = getComputedStyle(this.host).direction === 'rtl';
         this.keyManager.withHorizontalOrientation(rtl ? 'rtl' : 'ltr');
+        const previous = this.keyManager.activeItem;
         this.keyManager.onKeydown(event);
+        const next = this.keyManager.activeItem;
+        if (next && next !== previous) {
+            next.check();
+        }
     }
 
     /** Leaving the group hands the Tab stop back to the checked option. */

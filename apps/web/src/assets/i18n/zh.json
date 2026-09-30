@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "音轨",
             "SUBTITLES": "字幕",
             "SUBTITLES_OFF": "关闭",
+            "SUBTITLES_ON": "开启",
             "QUALITY": "画质",
             "QUALITY_AUTO": "自动",
             "TRACK_DEFAULT": "默认",

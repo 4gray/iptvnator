@@ -127,6 +127,7 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
                     AUDIO_TRACKS: 'Audio tracks',
                     SUBTITLES: 'Subtitles',
                     SUBTITLES_OFF: 'Off',
+                    SUBTITLES_ON: 'On',
                     SUBTITLES_TOOLTIP: 'Subtitles: {{subtitles}}',
                     SUBTITLE_DELAY: 'Subtitle delay',
                     SUBTITLE_SIZE: 'Subtitle size',
@@ -221,10 +222,9 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
         expect(tabStops('aspect')).toEqual(['Default']);
     });
 
-    it('moves focus with the arrow keys, Home and End without applying a choice', () => {
+    it('moves focus with the arrow keys, Home and End and checks the option reached', () => {
         openPanel();
-        const speed = radios('speed');
-        const checked = speed.find(
+        const checked = radios('speed').find(
             (radio) => radio.getAttribute('aria-checked') === 'true'
         ) as HTMLButtonElement;
         checked.focus();
@@ -235,24 +235,33 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
         expect(document.activeElement?.textContent?.trim()).toBe('1.25×');
         expect(tabStops('speed')).toEqual(['1.25×']);
 
-        press(document.activeElement as HTMLElement, 'ArrowDown');
-        expect(document.activeElement?.textContent?.trim()).toBe('1.5×');
-        press(document.activeElement as HTMLElement, 'ArrowUp');
-        press(document.activeElement as HTMLElement, 'ArrowLeft');
-        expect(document.activeElement?.textContent?.trim()).toBe('1×');
-        press(document.activeElement as HTMLElement, 'End');
-        expect(document.activeElement?.textContent?.trim()).toBe('2×');
         // The ends wrap, as in a native radio group.
-        press(document.activeElement as HTMLElement, 'ArrowRight');
-        expect(document.activeElement?.textContent?.trim()).toBe('0.5×');
-        press(document.activeElement as HTMLElement, 'ArrowLeft');
-        expect(document.activeElement?.textContent?.trim()).toBe('2×');
-        press(document.activeElement as HTMLElement, 'Home');
-        expect(document.activeElement?.textContent?.trim()).toBe('0.5×');
-
-        expect(fake.commands.setPlaybackSpeed).not.toHaveBeenCalled();
-        (document.activeElement as HTMLButtonElement).click();
-        expect(fake.commands.setPlaybackSpeed).toHaveBeenCalledWith(0.5);
+        const reached = [
+            'ArrowDown',
+            'ArrowUp',
+            'ArrowLeft',
+            'End',
+            'ArrowRight',
+            'ArrowLeft',
+            'Home',
+        ].map((key) => {
+            press(document.activeElement as HTMLElement, key);
+            return document.activeElement?.textContent?.trim();
+        });
+        expect(reached).toEqual([
+            '1.5×',
+            '1.25×',
+            '1×',
+            '2×',
+            '0.5×',
+            '2×',
+            '0.5×',
+        ]);
+        // Every move applies its option — except onto 1×, which the (fake)
+        // engine still reports as checked, so it is not applied again.
+        expect(
+            fake.commands.setPlaybackSpeed.mock.calls.map(([speed]) => speed)
+        ).toEqual([1.25, 1.5, 1.25, 2, 0.5, 2, 0.5]);
     });
 
     it('keeps arrow keys inside their own group', () => {
@@ -263,10 +272,13 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
         expect(document.activeElement).toBe(german);
         press(german, 'ArrowDown');
         expect(document.activeElement).toBe(english);
-        expect(fake.commands.setAudioTrack).not.toHaveBeenCalled();
+        expect(fake.commands.setAudioTrack.mock.calls).toEqual([[2]]);
+        expect(fake.commands.setPlaybackSpeed).not.toHaveBeenCalled();
     });
 
-    it('hands the Tab stop back to the checked option when focus leaves', () => {
+    it('hands the Tab stop back to the reported checked option when focus leaves', () => {
+        // The fake engine never confirms the switch the arrow key requested,
+        // so English stays the checked track.
         openPanel();
         const [english, german] = radios('audio');
         english.focus();
@@ -314,6 +326,23 @@ describe('PlayerSettingsPanelComponent accessibility', () => {
             'Subtitles: Russian'
         );
         expect(speedChip()?.getAttribute('aria-label')).toBe('Speed: 1.25×');
+    });
+
+    it('names the subtitle chip "On" while no enabled track is marked selected', () => {
+        // The engine can report subtitles on before the track list marks the
+        // selected track; the chip must not claim they are off.
+        fake.state.update((state) => ({
+            ...state,
+            subtitleTracks: [{ id: 5, label: 'Russian', selected: false }],
+            subtitlesEnabled: true,
+        }));
+        fixture.detectChanges();
+
+        const chip = query('[data-test-id="player-controls-subtitle-chip"]');
+        expect(chip?.getAttribute('aria-label')).toBe('Subtitles: On');
+        expect(
+            chip?.querySelector('.player-controls__chip-label')?.textContent
+        ).toContain('On');
     });
 
     it('announces that the tune button opens a dialog', () => {

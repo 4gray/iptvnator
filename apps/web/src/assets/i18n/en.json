@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Audio tracks",
             "SUBTITLES": "Subtitles",
             "SUBTITLES_OFF": "Off",
+            "SUBTITLES_ON": "On",
             "QUALITY": "Quality",
             "QUALITY_AUTO": "Auto",
             "TRACK_DEFAULT": "Default",

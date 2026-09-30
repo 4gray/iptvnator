@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Κομμάτια ήχου",
             "SUBTITLES": "Υπότιτλοι",
             "SUBTITLES_OFF": "Ανενεργοί",
+            "SUBTITLES_ON": "Ενεργοί",
             "QUALITY": "Ποιότητα",
             "QUALITY_AUTO": "Αυτόματη",
             "TRACK_DEFAULT": "Προεπιλογή",

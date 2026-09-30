@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Pistes audio",
             "SUBTITLES": "Sous-titres",
             "SUBTITLES_OFF": "Désactivés",
+            "SUBTITLES_ON": "Activés",
             "QUALITY": "Qualité",
             "QUALITY_AUTO": "Auto",
             "TRACK_DEFAULT": "Par défaut",

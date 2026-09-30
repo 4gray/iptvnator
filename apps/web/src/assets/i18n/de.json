@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Tonspuren",
             "SUBTITLES": "Untertitel",
             "SUBTITLES_OFF": "Aus",
+            "SUBTITLES_ON": "An",
             "QUALITY": "Qualität",
             "QUALITY_AUTO": "Automatisch",
             "TRACK_DEFAULT": "Standard",

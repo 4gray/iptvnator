@@ -247,38 +247,38 @@ test('@web @playback keyboard reaches the dock and the settings radios with a vi
         ]);
         expect(new Set(radioStops.map((stop) => stop.group)).size).toBe(3);
 
-        // --- Arrows move focus without applying; Space applies. -----------
+        // --- Arrows move focus and apply the option they reach. ----------
         const speedGroup = panel.locator(
             '[data-test-id="player-settings-speed"] [role="radiogroup"]'
         );
-        const rateBefore = await video.evaluate(
-            (el: HTMLVideoElement) => el.playbackRate
-        );
+        const rate = () =>
+            video.evaluate((el: HTMLVideoElement) => el.playbackRate);
         await page.keyboard.press('ArrowRight');
         const moved = await focusStop(page);
         expect(moved?.role).toBe('radio');
-        expect(moved?.checked).toBe('false');
-        expect(
-            await video.evaluate((el: HTMLVideoElement) => el.playbackRate)
-        ).toBe(rateBefore);
-        await page.keyboard.press('Space');
-        await expect
-            .poll(() =>
-                video.evaluate((el: HTMLVideoElement) => el.playbackRate)
-            )
-            .toBe(Number.parseFloat(moved?.label ?? ''));
+        await expect.poll(rate).toBe(Number.parseFloat(moved?.label ?? ''));
         await expect(
             speedGroup.locator('[role="radio"][aria-checked="true"]')
         ).toHaveText(moved?.label ?? '');
         await page.keyboard.press('Home');
         expect((await focusStop(page))?.label).toBe('0.5×');
+        await expect.poll(rate).toBe(0.5);
+        await expect(
+            speedGroup.locator('[role="radio"][aria-checked="true"]')
+        ).toHaveText('0.5×');
+        // The ends wrap, as in a native radio group.
         await page.keyboard.press('ArrowLeft');
         expect((await focusStop(page))?.label).toBe('2×');
+        await expect.poll(rate).toBe(2);
         await expect(speedGroup.locator('[tabindex="0"]')).toHaveText('2×');
-        // Leaving and re-entering lands on the checked option again.
+        // Leaving and re-entering lands on the checked option — the one the
+        // engine reports, so wait for it to confirm the switch first.
+        await expect(
+            speedGroup.locator('[role="radio"][aria-checked="true"]')
+        ).toHaveText('2×');
         await pressTab(page, browserName, 'backward');
         await pressTab(page, browserName);
-        expect((await focusStop(page))?.label).toBe(moved?.label);
+        expect((await focusStop(page))?.label).toBe('2×');
 
         // --- A focused selected swatch differs from a selected one. -------
         await tabUntil(page, browserName, {
@@ -286,14 +286,24 @@ test('@web @playback keyboard reaches the dock and the settings radios with a vi
             direction: 'backward',
             max: 5,
         });
-        const focusedSelected = panel.locator('.player-settings__swatch:focus');
-        await expect(focusedSelected).toHaveAttribute('aria-checked', 'true');
-        await expect(focusedSelected).toHaveCSS('outline-style', 'solid');
+        const focusedSwatch = panel.locator('.player-settings__swatch:focus');
+        await expect(focusedSwatch).toHaveAttribute('aria-checked', 'true');
+        await expect(focusedSwatch).toHaveCSS('outline-style', 'solid');
+        // The arrow checks the next swatch, which takes focus and the ring.
         await page.keyboard.press('ArrowRight');
+        await expect(focusedSwatch).toHaveAttribute('aria-checked', 'true');
+        await expect(focusedSwatch).toHaveCSS('outline-style', 'solid');
+        // Tab moves on to the speed group: the checked swatch keeps its
+        // selected border but loses the ring.
+        await pressTab(page, browserName);
+        expect(
+            await focusIsInside(page, '[data-test-id="player-settings-speed"]')
+        ).toBe(true);
         const selectedOnly = panel.locator(
-            '.player-settings__swatch[aria-checked="true"]:not(:focus)'
+            '.player-settings__swatch[aria-checked="true"]'
         );
         await expect(selectedOnly).toHaveCount(1);
+        await expect(selectedOnly).not.toBeFocused();
         await expect(selectedOnly).toHaveCSS('outline-style', 'none');
         await expect(selectedOnly).toHaveCSS(
             'border-top-color',
@@ -313,13 +323,9 @@ test('@web @playback keyboard reaches the dock and the settings radios with a vi
             path: test.info().outputPath(`${theme}-panel-focus.png`),
         });
 
-        // A keyboard-focused swatch shows its tooltip, and Material spends
-        // the next Escape on a visible tooltip: close from a speed radio,
-        // which has none, once the swatch's tooltip has gone.
-        await pressTab(page, browserName);
-        expect(
-            await focusIsInside(page, '[data-test-id="player-settings-speed"]')
-        ).toBe(true);
+        // Focus is on a speed radio, which has no tooltip. Material spends
+        // an Escape on any tooltip still showing (the swatch's fades out),
+        // so wait for it to go before closing.
         await expect(page.locator('.mat-mdc-tooltip')).toHaveCount(0);
         await page.keyboard.press('Escape');
         await expect(panel).toHaveCount(0);

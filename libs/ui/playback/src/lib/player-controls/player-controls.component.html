@@ -366,11 +366,16 @@
                     settings.available() && layout.roomy() && !settings.isOpen()
                 ) {
                     @if (settings.groups().subtitles) {
+                        <!-- On with no track marked selected yet (the engine
+                             can report the id before the list) reads "On",
+                             never "Off". The name carries the value
+                             ("Subtitles: English"); the label is the value. -->
                         @let subtitleValue =
                             settings.subtitleLabel() ??
-                            ('EMBEDDED_MPV.PLAYER.SUBTITLES_OFF' | translate);
-                        <!-- The name carries the value ("Subtitles: English"):
-                             the label alone is only the value. -->
+                            ((settings.subtitlesOn()
+                                ? 'EMBEDDED_MPV.PLAYER.SUBTITLES_ON'
+                                : 'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
+                            ) | translate);
                         <button
                             type="button"
                             class="player-controls__chip"

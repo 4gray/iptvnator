@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Ses parçaları",
             "SUBTITLES": "Altyazılar",
             "SUBTITLES_OFF": "Kapalı",
+            "SUBTITLES_ON": "Açık",
             "QUALITY": "Kalite",
             "QUALITY_AUTO": "Otomatik",
             "TRACK_DEFAULT": "Varsayılan",

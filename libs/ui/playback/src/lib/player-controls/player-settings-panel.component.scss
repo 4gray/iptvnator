@@ -349,7 +349,9 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    padding: 2px 4px 4px;
+    // Room on every side for the focus ring (2px offset + 2px): the body
+    // scrolls and would clip it at its edge.
+    padding: 4px;
 }
 
 .player-settings__swatch {

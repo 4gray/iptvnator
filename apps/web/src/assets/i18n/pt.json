@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "Faixas de áudio",
             "SUBTITLES": "Legendas",
             "SUBTITLES_OFF": "Desativadas",
+            "SUBTITLES_ON": "Ativadas",
             "QUALITY": "Qualidade",
             "QUALITY_AUTO": "Automática",
             "TRACK_DEFAULT": "Padrão",

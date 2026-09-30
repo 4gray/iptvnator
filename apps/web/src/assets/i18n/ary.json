@@ -619,6 +619,7 @@
             "AUDIO_TRACKS": "مسارات الصوت",
             "SUBTITLES": "الترجمة",
             "SUBTITLES_OFF": "معطلة",
+            "SUBTITLES_ON": "مفعلة",
             "QUALITY": "الجودة",
             "QUALITY_AUTO": "تلقائي",
             "TRACK_DEFAULT": "افتراضي",
