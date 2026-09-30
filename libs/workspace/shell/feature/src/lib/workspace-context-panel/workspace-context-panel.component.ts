@@ -567,6 +567,7 @@ export class WorkspaceContextPanelComponent {
         this.dialog.open(dialogComponent, {
             data: { playlistId: context.playlistId, contentType, categories },
             width: '500px',
+            maxWidth: 'calc(100vw - 32px)',
             maxHeight: '90vh',
         });
     }
@@ -620,6 +621,7 @@ export class WorkspaceContextPanelComponent {
                 itemCounts: this.xtreamStore.getCategoryItemCounts(),
             },
             width: '500px',
+            maxWidth: 'calc(100vw - 32px)',
             maxHeight: '90vh',
         });
         dialogRef

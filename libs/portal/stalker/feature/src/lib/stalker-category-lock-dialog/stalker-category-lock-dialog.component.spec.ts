@@ -65,4 +65,16 @@ describe('StalkerCategoryLockDialogComponent', () => {
         expect(dialogRef.close).toHaveBeenCalledWith(false);
         expect(parentalLock.setStalkerLocks).not.toHaveBeenCalled();
     });
+
+    it('labels the clear-search button', () => {
+        component.searchTerm.set('new');
+        fixture.detectChanges();
+
+        const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '.search-inline__clear'
+        );
+        expect(clear.getAttribute('aria-label')).toBe(
+            'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH'
+        );
+    });
 });

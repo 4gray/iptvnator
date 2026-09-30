@@ -1,3 +1,13 @@
+// App tokens only: the theme declares no Material system colours. The
+// adult-chip red is local, with a value per theme (>= 4.5:1 on its tint).
+:host {
+    --lock-dialog-error-color: #b3261e;
+}
+
+:host-context(.dark-theme) {
+    --lock-dialog-error-color: #ffb4ab;
+}
+
 .mat-mdc-dialog-content {
     display: flex;
     flex-direction: column;
@@ -7,7 +17,7 @@
 .lock-dialog__description {
     margin: 0;
     font-size: 0.8125rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 }
 
 .header-actions {
@@ -20,15 +30,16 @@
 
 .selection-info {
     font-size: 0.8125rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 
     strong {
-        color: var(--mat-sys-primary);
+        color: var(--app-heading-color);
     }
 }
 
 .bulk-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 
     button {
@@ -43,19 +54,19 @@
     padding: 0 10px;
     min-height: 36px;
     border-radius: 10px;
-    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
-    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-search-border);
+    background: var(--app-search-bg);
     cursor: text;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-selection-color);
     }
 
     &__icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-eyebrow-color);
     }
 
     input {
@@ -63,7 +74,7 @@
         border: none;
         outline: none;
         background: transparent;
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
         font: inherit;
         font-size: 0.84rem;
         min-width: 0;
@@ -92,7 +103,7 @@
     min-height: 200px;
     max-height: 50vh;
     overflow-y: auto;
-    border: 1px solid var(--mat-sys-outline-variant);
+    border: 1px solid var(--app-separator);
     border-radius: 8px;
 }
 
@@ -105,29 +116,36 @@
     min-height: 32px;
     border: none;
     background: transparent;
-    color: var(--mat-sys-on-surface);
+    color: var(--app-heading-color);
     font: inherit;
     font-size: 0.8125rem;
     text-align: left;
     cursor: pointer;
 
     &:hover {
-        background-color: var(--mat-sys-surface-container);
+        background-color: var(--app-card-hover-bg);
+    }
+
+    // The global reset strips every button outline; an inset ring keeps
+    // the focused row visible inside the list's clipped scroll box.
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color);
+        outline-offset: -2px;
     }
 
     &:not(:last-child) {
-        border-bottom: 1px solid var(--mat-sys-surface-container);
+        border-bottom: 1px solid var(--app-widget-header-border);
     }
 
     &__icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-eyebrow-color);
     }
 
     &--locked .category-item__icon {
-        color: var(--mat-sys-primary);
+        color: var(--app-selection-color);
     }
 }
 
@@ -144,18 +162,22 @@
     font-weight: 600;
     padding: 1px 6px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--mat-sys-error) 16%, transparent);
-    color: var(--mat-sys-error);
+    background: color-mix(
+        in srgb,
+        var(--lock-dialog-error-color) 16%,
+        transparent
+    );
+    color: var(--lock-dialog-error-color);
 }
 
 .empty-message {
     padding: 24px;
     text-align: center;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     font-size: 0.8125rem;
 }
 
+// No min-width: the opener caps the panel at the viewport on a phone.
 :host ::ng-deep .mat-mdc-dialog-content {
-    min-width: 440px;
     max-width: 600px;
 }
