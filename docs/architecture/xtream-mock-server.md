@@ -582,7 +582,8 @@ without being listed there. The `serve` targets remain the entry point
 for starting a mock by hand, and no E2E target may depend on them: with no
 Nx-launched server, `@nx/playwright` infers the atomized `e2e-ci--*` targets
 as non-parallel, and Nx refuses to run a non-parallel task that depends on a
-continuous `serve` task. The same spec guards `nx.json` `targetDefaults`. The web-e2e `web-backend` entry uses the same
+continuous `serve` task. The same spec guards the `e2e*` entries of `nx.json`
+`targetDefaults` and every target in the `apps/*-e2e` `project.json` files. The web-e2e `web-backend` entry uses the same
 launch form; see [PWA web backend](pwa-self-hosted.md#web-backend).
 
 ### Request Interception

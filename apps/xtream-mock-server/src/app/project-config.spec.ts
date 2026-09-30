@@ -88,39 +88,65 @@ describe('Playwright mock-server launch', () => {
     );
 });
 
-describe('Nx E2E target defaults', () => {
-    type DependsOn = Array<string | { projects?: string[]; target?: string }>;
-    const nxJson = JSON.parse(
-        readFileSync(join(process.cwd(), 'nx.json'), 'utf8')
-    ) as {
-        targetDefaults: Record<string, { dependsOn?: DependsOn }>;
-    };
+describe('Nx E2E task dependencies', () => {
+    type Dependency = string | { projects?: string | string[] };
+    type TargetConfig = { dependsOn?: Dependency[] };
+    const readJson = <T>(path: string) =>
+        JSON.parse(readFileSync(join(process.cwd(), path), 'utf8')) as T;
+    const nxJson = readJson<{
+        targetDefaults: Record<string, TargetConfig | TargetConfig[]>;
+    }>('nx.json');
+    const e2eProjectFiles = readdirSync(join(process.cwd(), 'apps'))
+        .filter((name) => name.endsWith('-e2e'))
+        .map((name) => `apps/${name}/project.json`);
+    const dependsOnMock = (dependency: Dependency) =>
+        typeof dependency === 'string'
+            ? dependency.includes('-mock-server:')
+            : [dependency.projects ?? []]
+                  .flat()
+                  .some((project) => project.includes('-mock-server'));
 
     // The Playwright configs start the mocks themselves, so @nx/playwright
-    // infers the atomized e2e-ci targets as non-parallel, and Nx refuses to
-    // run a non-parallel task that depends on a continuous `serve` task.
+    // infers their E2E targets as non-parallel, and Nx refuses to run a
+    // non-parallel task that depends on a continuous `serve` task.
     it('never makes an E2E target depend on a mock-server task', () => {
-        const mockDependencies = Object.entries(nxJson.targetDefaults)
+        const e2eDefaults = Object.entries(nxJson.targetDefaults)
+            .filter(([targetName]) => targetName.startsWith('e2e'))
             .flatMap(([targetName, config]) =>
-                (config.dependsOn ?? []).map((dependency) => ({
-                    targetName,
-                    dependency,
+                [config].flat().map((entry) => ({
+                    source: `nx.json ${targetName}`,
+                    config: entry,
                 }))
-            )
-            .filter(({ dependency }) =>
-                typeof dependency === 'string'
-                    ? dependency.includes('-mock-server:')
-                    : (dependency.projects ?? []).some((project) =>
-                          project.endsWith('-mock-server')
-                      )
             );
+        const e2eProjectTargets = e2eProjectFiles.flatMap((path) =>
+            Object.entries(
+                readJson<{ targets: Record<string, TargetConfig> }>(path)
+                    .targets
+            ).map(([targetName, config]) => ({
+                source: `${path} ${targetName}`,
+                config,
+            }))
+        );
+        const mockDependencies = [...e2eDefaults, ...e2eProjectTargets]
+            .map(({ source, config }) => ({
+                source,
+                dependencies: (config.dependsOn ?? []).filter(dependsOnMock),
+            }))
+            .filter(({ dependencies }) => dependencies.length > 0);
 
+        expect(e2eProjectFiles).toEqual(
+            expect.arrayContaining([
+                'apps/electron-backend-e2e/project.json',
+                'apps/web-e2e/project.json',
+            ])
+        );
         expect(mockDependencies).toEqual([]);
     });
 
     it('still builds the Electron app before each per-file E2E target', () => {
         expect(
-            nxJson.targetDefaults['e2e-ci--src/*.e2e.ts']?.dependsOn
+            (nxJson.targetDefaults['e2e-ci--src/*.e2e.ts'] as TargetConfig)
+                .dependsOn
         ).toContainEqual({
             projects: ['electron-backend'],
             target: 'build-e2e',
