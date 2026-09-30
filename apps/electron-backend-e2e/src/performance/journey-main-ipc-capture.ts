@@ -1,5 +1,7 @@
 import type { ElectronApplication } from '@playwright/test';
 
+import type { JourneyIpcTimelineEvent } from './journey-ipc-serial-depth';
+
 /**
  * Main-process side of the journey IPC counter.
  *
@@ -59,6 +61,12 @@ export interface JourneyMainIpcCaptureState {
     readonly unmatchedCompletions: number;
     /** Null when the capture has no start marker. */
     readonly start: JourneyMainIpcSentinelState | null;
+    /**
+     * Bridge starts and completions in arrival order, from the start marker
+     * (or install) until the sentinel, sentinels excluded. Input of
+     * `computeJourneyIpcSerialDepth`.
+     */
+    readonly timeline: JourneyIpcTimelineEvent[];
 }
 
 export async function installJourneyMainIpcCapture(
@@ -81,6 +89,7 @@ export async function installJourneyMainIpcCapture(
             processStartEpochMs: Date.now() - process.uptime() * 1000,
             inFlightByMethod: {} as Record<string, number>,
             senderIds: [] as number[],
+            timeline: [] as { method: string; phase: 'end' | 'start' }[],
             sentinel: {
                 occurrences: 0,
                 receivedEpochMs: null as number | null,
@@ -102,6 +111,7 @@ export async function installJourneyMainIpcCapture(
             }
         };
         target[input.stateKey] = state;
+        let markerCompletionsToSkip = 0;
         const listener = (
             event: { sender: { id: number } },
             payload: unknown
@@ -115,7 +125,22 @@ export async function installJourneyMainIpcCapture(
                 return;
             }
             const phase = record['phase'];
+            const counting =
+                state.sentinel.receivedEpochMs === null &&
+                (state.start === null || state.start.receivedEpochMs !== null);
             if (phase === 'success' || phase === 'error') {
+                if (
+                    record['method'] === input.sentinelMethod &&
+                    markerCompletionsToSkip > 0
+                ) {
+                    // The start marker's own completion.
+                    markerCompletionsToSkip -= 1;
+                } else if (counting) {
+                    state.timeline.push({
+                        method: record['method'],
+                        phase: 'end',
+                    });
+                }
                 const pending = state.inFlightByMethod[record['method']] ?? 0;
                 if (pending === 0) {
                     state.unmatchedCompletions += 1;
@@ -145,6 +170,7 @@ export async function installJourneyMainIpcCapture(
                 carries(record['args'], startSentinelId)
             ) {
                 state.start.occurrences += 1;
+                markerCompletionsToSkip += 1;
                 // A start marker after the sentinel stays unstamped, which
                 // the assertion rejects.
                 if (state.sentinel.receivedEpochMs === null) {
@@ -166,6 +192,7 @@ export async function installJourneyMainIpcCapture(
                 return;
             }
             state.callsBeforeSentinel += 1;
+            state.timeline.push({ method, phase: 'start' });
             state.callsByMethod[method] =
                 (state.callsByMethod[method] ?? 0) + 1;
         };

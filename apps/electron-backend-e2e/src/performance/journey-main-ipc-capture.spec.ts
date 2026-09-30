@@ -42,6 +42,7 @@ function validCapture(
         processStartEpochMs: 0,
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 2 },
+        timeline: [],
         unmatchedCompletions: 0,
         start: null,
         ...overrides,
@@ -319,6 +320,37 @@ test('rejects a start marker that is missing, repeated or after the sentinel', a
             validCapture({ start: { occurrences: 1, receivedEpochMs: 1 } })
         ).callsBeforeSentinel,
         7
+    );
+});
+
+test('records starts and completions in order between the markers', async () => {
+    await withCapture(
+        { startSentinelId: JOURNEY_OPEN_SOURCE_START_SENTINEL_ID },
+        async (fake, read) => {
+            fake.send(1, 'getSettings', []);
+            fake.send(1, 'getSettings', [], 'success');
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+                JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
+            ]);
+            fake.send(1, 'dbGetAppPlaylist', ['playlist-1']);
+            // The start marker's own completion is not part of the journey.
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [], 'success');
+            fake.send(1, 'dbGetAppPlaylist', [], 'success');
+            fake.send(1, 'xtreamRequest', [{ action: 'get_account_info' }]);
+            fake.send(1, 'xtreamRequest', [], 'error');
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+                JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+            ]);
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [], 'success');
+            fake.send(1, 'getSettings', []);
+            const state = assertJourneyMainIpcCapture(await read());
+            assert.deepEqual(state.timeline, [
+                { method: 'dbGetAppPlaylist', phase: 'start' },
+                { method: 'dbGetAppPlaylist', phase: 'end' },
+                { method: 'xtreamRequest', phase: 'start' },
+                { method: 'xtreamRequest', phase: 'end' },
+            ]);
+        }
     );
 });
 

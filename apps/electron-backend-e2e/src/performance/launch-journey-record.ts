@@ -3,6 +3,7 @@ import {
     JOURNEY_MAIN_COUNTER,
     type JourneyMainCountersState,
 } from './journey-main-counters';
+import { computeJourneyIpcSerialDepth } from './journey-ipc-serial-depth';
 import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
 import type { JourneyRendererProbeState } from './journey-renderer-probe';
 import type { JourneyIterationRecord } from './journey-summary';
@@ -21,6 +22,7 @@ export const LAUNCH_JOURNEY_COUNTER = {
         JOURNEY_MAIN_COUNTER.SQL_STATEMENTS_BEFORE_READY_TO_SHOW,
     DOM_MUTATIONS: 'renderer.domMutationsToFirstCard',
     IPC_CALLS: 'renderer.ipcCallsToFirstCard',
+    IPC_SERIAL_DEPTH: 'renderer.ipcSerialDepthToFirstCard',
     LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
     LAYOUT_SHIFT_SCORE_SETTLED: 'renderer.layoutShiftScoreSettled',
     LONG_TASKS: 'renderer.longTasks',
@@ -83,6 +85,7 @@ export function toLaunchIterationRecord(
     ) {
         throw new Error('launch-journey-record-clock-order');
     }
+    const serialDepth = computeJourneyIpcSerialDepth(ipc.timeline);
     const { settle } = renderer;
     if (
         (settle.status !== 'quiet' && settle.status !== 'cap') ||
@@ -113,6 +116,7 @@ export function toLaunchIterationRecord(
             [LAUNCH_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [LAUNCH_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
+            [LAUNCH_JOURNEY_COUNTER.IPC_SERIAL_DEPTH]: serialDepth.depth,
             [LAUNCH_JOURNEY_COUNTER.LAYOUT_SHIFT_SCORE]: roundThousandth(
                 renderer.counters.layoutShiftScore
             ),
@@ -155,6 +159,12 @@ export function toLaunchIterationRecord(
             rendererGateReadyToShowHeldOnBlank:
                 measurement.gate.readyToShowHeldOnBlank,
             ipcCallsByMethod: ipc.callsByMethod,
+            ipcSerialDepth: serialDepth,
+            // `+method` for a start, `-method` for a completion.
+            ipcTimeline: ipc.timeline.map(
+                ({ method, phase }) =>
+                    `${phase === 'start' ? '+' : '-'}${method}`
+            ),
             longTaskDurationsMs: renderer.longTaskDurationsMs.map(roundTenth),
             observedTarget: renderer.capabilities.observedTarget,
             settle: Object.freeze({
