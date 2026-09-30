@@ -1934,7 +1934,7 @@
             "CONFIRM_TITLE": "Επιβεβαίωση γονικού PIN",
             "CONFIRM_DESCRIPTION": "Εισαγάγετε το τρέχον PIN για να αλλάξετε αυτή τη ρύθμιση."
         },
-        "LOCKED_COUNT": "Κλειδωμένα",
+        "LOCKED_COUNT": "Κλειδωμένες",
         "LOCK_CATEGORY": "Κλείδωμα κατηγορίας",
         "UNLOCK_CATEGORY": "Ξεκλείδωμα κατηγορίας",
         "LOCK_GROUP": "Κλείδωμα ομάδας",
@@ -1945,7 +1945,7 @@
         "UNLOCK_ALL": "Ξεκλείδωμα όλων",
         "CENSORED_HINT": "Η πύλη επισημαίνει αυτή την κατηγορία ως περιεχόμενο ενηλίκων",
         "SAVE_FAILED": "Η αποθήκευση των κλειδωμάτων κατηγοριών απέτυχε",
-        "LOCKED_CATEGORIES_ROW": "Κλειδωμένα: {{count}}",
+        "LOCKED_CATEGORIES_ROW": "Κλειδωμένες: {{count}}",
         "UNLOCK_TO_SHOW": "Εισαγάγετε PIN για εμφάνιση",
         "HEADER_LOCK": "Κλείδωμα τώρα (γονικός έλεγχος)",
         "HEADER_UNLOCK": "Εισαγωγή γονικού PIN"

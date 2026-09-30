@@ -1934,7 +1934,7 @@
             "CONFIRM_TITLE": "Confirmer le code PIN parental",
             "CONFIRM_DESCRIPTION": "Saisissez le code PIN actuel pour modifier ce réglage."
         },
-        "LOCKED_COUNT": "Verrouillés",
+        "LOCKED_COUNT": "Verrous",
         "LOCK_CATEGORY": "Verrouiller la catégorie",
         "UNLOCK_CATEGORY": "Déverrouiller la catégorie",
         "LOCK_GROUP": "Verrouiller le groupe",
@@ -1945,7 +1945,7 @@
         "UNLOCK_ALL": "Tout déverrouiller",
         "CENSORED_HINT": "Le portail signale cette catégorie comme contenu pour adultes",
         "SAVE_FAILED": "Échec de l'enregistrement des verrouillages de catégories",
-        "LOCKED_CATEGORIES_ROW": "Verrouillés : {{count}}",
+        "LOCKED_CATEGORIES_ROW": "Verrous : {{count}}",
         "UNLOCK_TO_SHOW": "Saisir le code PIN pour afficher",
         "HEADER_LOCK": "Verrouiller maintenant (contrôle parental)",
         "HEADER_UNLOCK": "Saisir le code PIN parental"

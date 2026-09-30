@@ -1934,7 +1934,7 @@
             "CONFIRM_TITLE": "Conferma il PIN parentale",
             "CONFIRM_DESCRIPTION": "Inserisci il PIN attuale per modificare questa impostazione."
         },
-        "LOCKED_COUNT": "Bloccati",
+        "LOCKED_COUNT": "Blocchi",
         "LOCK_CATEGORY": "Blocca categoria",
         "UNLOCK_CATEGORY": "Sblocca categoria",
         "LOCK_GROUP": "Blocca gruppo",
@@ -1945,7 +1945,7 @@
         "UNLOCK_ALL": "Sblocca tutto",
         "CENSORED_HINT": "Il portale segnala questa categoria come contenuto per adulti",
         "SAVE_FAILED": "Impossibile salvare i blocchi delle categorie",
-        "LOCKED_CATEGORIES_ROW": "Bloccati: {{count}}",
+        "LOCKED_CATEGORIES_ROW": "Blocchi: {{count}}",
         "UNLOCK_TO_SHOW": "Inserisci il PIN per mostrare",
         "HEADER_LOCK": "Blocca ora (controllo parentale)",
         "HEADER_UNLOCK": "Inserisci il PIN parentale"
