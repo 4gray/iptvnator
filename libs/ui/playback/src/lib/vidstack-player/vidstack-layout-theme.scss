@@ -16,4 +16,10 @@
     [data-live]:not([data-can-seek]) .vds-time-slider {
         display: none;
     }
+
+    // Casting needs Google's Cast SDK, which the renderer CSP
+    // (`script-src 'self'`) blocks, so the button could never connect.
+    .vds-google-cast-button {
+        display: none;
+    }
 }
