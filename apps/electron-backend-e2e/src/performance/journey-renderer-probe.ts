@@ -15,6 +15,9 @@ import type { Page } from '@playwright/test';
  * then emits one JSON blob under `options.stateKey`. With `options.settle`
  * (J1) it keeps summing layout shifts after the first card until the page
  * has settled, for shifts such as collapsing skeletons that land later.
+ * With `options.media` (J3 "Playback") the terminal condition is a media
+ * event (`playing`) on an element matching `cardSelector` instead of that
+ * element becoming visible.
  *
  * IPC invocations are not counted here: the bridge object exposed by
  * `contextBridge` is frozen, so the probe cannot wrap it. Instead the probe
@@ -33,6 +36,17 @@ export const JOURNEY_OPEN_SOURCE_START_SENTINEL_ID =
     '__iptvnator-journey-open-source-start__';
 export const JOURNEY_OPEN_SOURCE_END_SENTINEL_ID =
     '__iptvnator-journey-open-source-end__';
+export const JOURNEY_PLAYBACK_PROBE_STATE_KEY =
+    '__iptvnatorJourneyPlaybackProbe';
+export const JOURNEY_PLAYBACK_START_SENTINEL_ID =
+    '__iptvnator-journey-playback-start__';
+export const JOURNEY_PLAYBACK_END_SENTINEL_ID =
+    '__iptvnator-journey-playback-end__';
+/** A live channel row in the Xtream live layout. */
+export const JOURNEY_PLAYBACK_START_SELECTOR =
+    'app-live-stream-layout [data-test-id="channel-item"]';
+/** The HTML5 player's video element inside the web player view. */
+export const JOURNEY_PLAYBACK_VIDEO_SELECTOR = 'app-web-player-view video';
 /** The Xtream portal card on the dashboard or its row on /workspace/sources. */
 export const JOURNEY_OPEN_SOURCE_START_SELECTOR =
     '[data-test-id="dashboard-recent-sources-rail-card"], app-playlist-item';
@@ -64,6 +78,17 @@ export interface JourneyRendererProbeSettleOptions {
     readonly rootSelector: string;
 }
 
+/**
+ * A journey that ends on a media event rather than on visibility (J3). The
+ * first `endEvent` after the start on an element matching `cardSelector`
+ * is the terminal moment; the first of each `phaseEvents` after the start
+ * is recorded under `media.phases`.
+ */
+export interface JourneyRendererProbeMediaOptions {
+    readonly endEvent: string;
+    readonly phaseEvents: readonly string[];
+}
+
 export const JOURNEY_SETTLE_QUIET_MS = 500;
 export const JOURNEY_SETTLE_CAP_MS = 3_000;
 /** The workspace shell's content pane; the rail and header stay outside. */
@@ -75,6 +100,8 @@ export interface JourneyRendererProbeOptions {
     /** Further selectors that must each match a visible element as well. */
     readonly companionSelectors?: readonly string[];
     readonly journey: string;
+    /** Absent: the journey ends when `cardSelector` becomes visible. */
+    readonly media?: JourneyRendererProbeMediaOptions;
     /** Pathname fragment the terminal route must contain. */
     readonly routeFragment: string;
     readonly sentinelId: string;
@@ -137,6 +164,20 @@ export interface JourneyRendererProbeState {
     readonly invalidReasons: string[];
     readonly journey: string;
     readonly longTaskDurationsMs: number[];
+    /** Media-terminated journeys only; null otherwise. */
+    readonly media: {
+        /** At the terminal event, the element it fired on. */
+        element: {
+            readonly currentSrcScheme: string;
+            readonly currentTime: number;
+            readonly paused: boolean;
+            readonly readyState: number;
+            readonly videoHeight: number;
+            readonly videoWidth: number;
+        } | null;
+        /** Event type → epoch of its first occurrence after the start. */
+        readonly phases: Record<string, number>;
+    } | null;
     navigation: {
         readonly domContentLoadedEpochMs: number;
         readonly loadEventEndEpochMs: number;
@@ -197,6 +238,7 @@ export function journeyRendererProbeScript(
     }
     const epoch = (): number => performance.timeOrigin + performance.now();
     const startClick = options.startClick ?? null;
+    const mediaOptions = options.media ?? null;
     const settleOptions = options.settle ?? null;
     const companionSelectors = options.companionSelectors ?? [];
     const bridge = target['electron'] as Record<string, unknown> | undefined;
@@ -228,6 +270,7 @@ export function journeyRendererProbeScript(
         invalidReasons: [],
         journey: options.journey,
         longTaskDurationsMs: [],
+        media: mediaOptions === null ? null : { element: null, phases: {} },
         navigation: null,
         preStart: { domMutations: 0, lastMutationEpochMs: null },
         schemaVersion: 1,
@@ -250,6 +293,9 @@ export function journeyRendererProbeScript(
             state.installed.readyState !== 'loading')
     ) {
         state.invalidReasons.push('probe-installed-after-document-start');
+    }
+    if (mediaOptions !== null && startClick === null) {
+        state.invalidReasons.push('media-terminal-needs-start-click');
     }
     // Performance entries before the journey's start belong to an earlier
     // journey (buffered entries included) and are dropped.
@@ -463,20 +509,27 @@ export function journeyRendererProbeScript(
         armQuiet();
     };
 
+    // A media journey's counters stop at the terminal event itself (the
+    // task that dispatched it still overlaps and counts); the others count
+    // until the post-paint cutoff.
     const finalize = (untilEpochMs: number): void => {
+        const countUntilEpochMs =
+            mediaOptions !== null && state.terminal !== null
+                ? state.terminal.epochMs
+                : untilEpochMs;
         if (layoutShiftObserver) {
             const records = layoutShiftObserver.takeRecords();
             collectSettleShifts(records);
             acceptLayoutShift(
                 [...pendingLayoutShifts, ...records],
-                untilEpochMs
+                countUntilEpochMs
             );
             if (settleOptions === null) layoutShiftObserver.disconnect();
         }
         if (longTaskObserver) {
             acceptLongTasks(
                 [...pendingLongTasks, ...longTaskObserver.takeRecords()],
-                untilEpochMs
+                countUntilEpochMs
             );
             longTaskObserver.disconnect();
         }
@@ -535,6 +588,7 @@ export function journeyRendererProbeScript(
         }
         state.counters.domMutations += records.length;
         if (
+            mediaOptions !== null ||
             !location.pathname.includes(options.routeFragment) ||
             document.getElementById(options.splashId) !== null
         ) {
@@ -547,12 +601,19 @@ export function journeyRendererProbeScript(
             if (!isVisible(document.querySelector(selector))) return;
             companionCounts.push(document.querySelectorAll(selector).length);
         }
+        end(card, companionCounts, epoch());
+    });
+    const end = (
+        card: Element,
+        companionCounts: number[],
+        epochMs: number
+    ): void => {
         state.terminal = {
             cardCount: document.querySelectorAll(options.cardSelector).length,
             cardTag: card.tagName.toLowerCase(),
             cardTestId: card.getAttribute('data-test-id'),
             companionCounts,
-            epochMs: epoch(),
+            epochMs,
             pathname: location.pathname,
         };
         mutationObserver.disconnect();
@@ -577,7 +638,7 @@ export function journeyRendererProbeScript(
         requestAnimationFrame(() => {
             setTimeout(() => finalize(epoch()), 0);
         });
-    });
+    };
     mutationObserver.observe(document.documentElement ?? document, {
         attributes: true,
         characterData: true,
@@ -615,6 +676,43 @@ export function journeyRendererProbeScript(
         window.removeEventListener('click', onClick, true);
     };
     window.addEventListener('click', onClick, true);
+    if (mediaOptions === null) return;
+
+    // Media events do not bubble, but a capture listener on window still
+    // sees them before any listener of the app. Mutations up to the event
+    // are taken synchronously, so the count ends exactly at the event.
+    const onMediaEvent = (event: Event): void => {
+        const element = event.target;
+        if (
+            state.start === null ||
+            state.terminal !== null ||
+            state.media === null ||
+            !(element instanceof HTMLMediaElement) ||
+            !element.matches(options.cardSelector)
+        ) {
+            return;
+        }
+        const at = epoch();
+        state.media.phases[event.type] ??= at;
+        if (event.type !== mediaOptions.endEvent) return;
+        state.counters.domMutations += mutationObserver.takeRecords().length;
+        const video = element as HTMLMediaElement & {
+            videoHeight?: number;
+            videoWidth?: number;
+        };
+        state.media.element = {
+            currentSrcScheme: element.currentSrc.split(':')[0] ?? '',
+            currentTime: element.currentTime,
+            paused: element.paused,
+            readyState: element.readyState,
+            videoHeight: video.videoHeight ?? 0,
+            videoWidth: video.videoWidth ?? 0,
+        };
+        end(element, [], at);
+    };
+    for (const type of [mediaOptions.endEvent, ...mediaOptions.phaseEvents]) {
+        window.addEventListener(type, onMediaEvent, true);
+    }
 }
 
 export function createLaunchJourneyProbeOptions(): JourneyRendererProbeOptions {
@@ -657,6 +755,28 @@ export function createOpenSourceJourneyProbeOptions(): JourneyRendererProbeOptio
             sentinelId: JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
         },
         stateKey: JOURNEY_OPEN_SOURCE_PROBE_STATE_KEY,
+    };
+}
+
+/**
+ * Options for J3 "Playback": the click on a live channel row starts the
+ * journey; it ends at the first `playing` event of the HTML5 player's video
+ * element, with `loadedmetadata` recorded as an intermediate phase.
+ */
+export function createPlaybackJourneyProbeOptions(): JourneyRendererProbeOptions {
+    return {
+        cardSelector: JOURNEY_PLAYBACK_VIDEO_SELECTOR,
+        journey: 'playback',
+        media: { endEvent: 'playing', phaseEvents: ['loadedmetadata'] },
+        routeFragment: '/workspace/xtreams/',
+        sentinelId: JOURNEY_PLAYBACK_END_SENTINEL_ID,
+        sentinelMethod: JOURNEY_IPC_SENTINEL_METHOD,
+        splashId: 'initial-splash',
+        startClick: {
+            selector: JOURNEY_PLAYBACK_START_SELECTOR,
+            sentinelId: JOURNEY_PLAYBACK_START_SENTINEL_ID,
+        },
+        stateKey: JOURNEY_PLAYBACK_PROBE_STATE_KEY,
     };
 }
 
