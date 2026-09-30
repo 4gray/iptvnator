@@ -22,6 +22,7 @@ export const LAUNCH_JOURNEY_COUNTER = {
     DOM_MUTATIONS: 'renderer.domMutationsToFirstCard',
     IPC_CALLS: 'renderer.ipcCallsToFirstCard',
     LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
+    LAYOUT_SHIFT_SCORE_SETTLED: 'renderer.layoutShiftScoreSettled',
     LONG_TASKS: 'renderer.longTasks',
 } as const;
 
@@ -56,6 +57,11 @@ function roundTenth(value: number): number {
     return Math.round(value * 10) / 10;
 }
 
+/** Layout-shift scores keep three decimals; see performance-journeys.md. */
+function roundThousandth(value: number): number {
+    return Math.round(value * 1_000) / 1_000;
+}
+
 export function toLaunchIterationRecord(
     index: number,
     warmup: boolean,
@@ -76,6 +82,15 @@ export function toLaunchIterationRecord(
         spawnToFirstCardMs <= spawnToDidFinishLoadMs
     ) {
         throw new Error('launch-journey-record-clock-order');
+    }
+    const { settle } = renderer;
+    if (
+        (settle.status !== 'quiet' && settle.status !== 'cap') ||
+        settle.epochMs === null ||
+        renderer.firstCardPaintEpochMs === null ||
+        settle.epochMs < renderer.firstCardPaintEpochMs
+    ) {
+        throw new Error(`launch-journey-record-settle-${settle.status}`);
     }
     if (
         renderer.capabilities.changeDetectionTicks !==
@@ -98,8 +113,11 @@ export function toLaunchIterationRecord(
             [LAUNCH_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [LAUNCH_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
-            [LAUNCH_JOURNEY_COUNTER.LAYOUT_SHIFT_SCORE]:
-                Math.round(renderer.counters.layoutShiftScore * 1_000) / 1_000,
+            [LAUNCH_JOURNEY_COUNTER.LAYOUT_SHIFT_SCORE]: roundThousandth(
+                renderer.counters.layoutShiftScore
+            ),
+            [LAUNCH_JOURNEY_COUNTER.LAYOUT_SHIFT_SCORE_SETTLED]:
+                roundThousandth(renderer.counters.layoutShiftScoreSettled),
             [LAUNCH_JOURNEY_COUNTER.LONG_TASKS]: renderer.counters.longTasks,
         }),
         evidence: Object.freeze({
@@ -123,6 +141,7 @@ export function toLaunchIterationRecord(
                 rendererGateBlankLoaded: measurement.gate.blankLoadedEpochMs,
                 rendererGateReleased: measurement.gate.releasedEpochMs,
                 rendererProbeInstalled: renderer.installed.epochMs,
+                settled: settle.epochMs,
                 spawn: spawnEpochMs,
             }),
             firstCard: Object.freeze({
@@ -138,6 +157,21 @@ export function toLaunchIterationRecord(
             ipcCallsByMethod: ipc.callsByMethod,
             longTaskDurationsMs: renderer.longTaskDurationsMs.map(roundTenth),
             observedTarget: renderer.capabilities.observedTarget,
+            settle: Object.freeze({
+                domMutations: settle.domMutations,
+                firstCardToSettledMs: roundTenth(
+                    settle.epochMs - renderer.terminal.epochMs
+                ),
+                lateShifts: settle.lateShifts.map((shift) =>
+                    Object.freeze({
+                        afterFirstCardMs: roundTenth(shift.afterFirstCardMs),
+                        sources: shift.sources,
+                        value: Math.round(shift.value * 10_000) / 10_000,
+                    })
+                ),
+                observedTarget: settle.observedTarget,
+                reason: settle.status,
+            }),
         }),
         index,
         pid: measurement.pid,

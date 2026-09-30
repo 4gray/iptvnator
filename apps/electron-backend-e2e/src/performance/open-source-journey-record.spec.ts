@@ -30,6 +30,7 @@ function measurement(
         counters: {
             domMutations: 1_596,
             layoutShiftScore: 0.0004,
+            layoutShiftScoreSettled: 0,
             longTasks: 1,
             recentInputLayoutShiftScore: 0.22061,
         },
@@ -49,6 +50,14 @@ function measurement(
         preStart: { domMutations: 4, lastMutationEpochMs: 9_100 },
         schemaVersion: 1,
         sentinel: { epochMs: 10_080.5, status: 'sent' },
+        settle: {
+            domMutations: 0,
+            epochMs: null,
+            lastMutationEpochMs: null,
+            lateShifts: [],
+            observedTarget: null,
+            status: 'disabled',
+        },
         start: {
             epochMs: 10_000.2,
             listenerEpochMs: 10_001,
