@@ -26,7 +26,7 @@
                         ' ' +
                         item.url
                     "
-                    >cloud</mat-icon
+                    >{{ sourceIcons['m3u-url'] }}</mat-icon
                 >
                 @if (item.autoRefresh) {
                     <mat-icon
@@ -44,7 +44,7 @@
                 <mat-icon
                     class="upload-type-icon"
                     [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
-                    >folder</mat-icon
+                    >{{ sourceIcons['m3u-local'] }}</mat-icon
                 >
                 @if (item.autoRefresh) {
                     <mat-icon
@@ -62,7 +62,7 @@
                 <mat-icon
                     class="upload-type-icon"
                     [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
-                    >public</mat-icon
+                    >{{ sourceIcons.xtream }}</mat-icon
                 >
                 @if (!runtime.supportsSourceHealth) {
                     <span
@@ -78,7 +78,7 @@
             <mat-icon
                 class="upload-type-icon"
                 [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
-                >dashboard</mat-icon
+                >{{ sourceIcons.stalker }}</mat-icon
             >
         }
     </div>
@@ -180,8 +180,7 @@
             @if (canCancelBusyAction()) {
                 <button
                     mat-icon-button
-                    color="warn"
-                    class="cancel-btn"
+                    class="cancel-btn app-destructive-button"
                     (click)="
                         $event.stopPropagation(); cancelBusyActionClicked.emit()
                     "

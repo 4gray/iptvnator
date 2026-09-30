@@ -292,7 +292,7 @@ test.describe('Electron Xtream Responsiveness', () => {
             );
             await expect(confirmDialog).toBeVisible();
             await confirmDialog
-                .getByRole('button', { name: 'Yes', exact: true })
+                .getByRole('button', { name: 'Remove playlist', exact: true })
                 .click();
 
             await waitForDbOperationEvent(app.mainWindow, {

@@ -67,6 +67,8 @@ export function createClearCollectionAction(options: {
             dialogService.openConfirmDialog({
                 title: translate.instant(titleKey, { type }),
                 message: translate.instant(messageKey, { type }),
+                confirmLabel: translate.instant('CLEAR'),
+                tone: 'destructive',
                 onConfirm: async () => {
                     if (isFavorites) {
                         await clearFavorites(itemsToRemove);

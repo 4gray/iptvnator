@@ -89,6 +89,8 @@ export class SettingsEpgFacade {
             message: this.translate.instant(
                 'SETTINGS.CLEAR_EPG_DIALOG.MESSAGE'
             ),
+            confirmLabel: this.translate.instant('SETTINGS.CLEAR_EPG_DATA'),
+            tone: 'destructive',
             onConfirm: async (): Promise<void> => {
                 if (
                     !this.epgBridge.supportsDataManagement ||

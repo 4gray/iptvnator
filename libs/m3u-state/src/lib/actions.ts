@@ -15,7 +15,6 @@ export const PlaylistActions = createActionGroup({
         'Load Playlists Failure': emptyProps(),
         'Add Playlist': props<{ playlist: Playlist }>(),
         'Add Many Playlists': props<{ playlists: Playlist[] }>(),
-        'Remove Playlist': props<{ playlistId: string }>(),
         'Playlist Removal Committed': props<{ playlistId: string }>(),
         'Update Playlist Meta': props<{
             playlist: PlaylistMetaUpdate;

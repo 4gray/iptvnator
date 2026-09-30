@@ -70,6 +70,7 @@ export class RecordingManagerActionsService {
             confirmLabel: this.translate.instant(
                 'DOWNLOADS.REMOVE_FROM_MANAGER'
             ),
+            tone: 'destructive',
             onConfirm: () =>
                 this.withPending(item.id, () =>
                     this.recordings.removeRecording(item.id)
