@@ -1,0 +1,246 @@
+name: Performance ratchet
+
+# Weekly tightening of tools/performance/journey-baselines.json (plan item B4;
+# contract in the Ratchet section of docs/architecture/performance-journeys.md).
+# Three runners measure the same master commit independently; a pull request
+# lowers every baseline that all three beat. Nothing is ever raised, and slack
+# and tolerances are left alone. A manual dispatch on another branch measures
+# and reports but never opens a pull request.
+
+on:
+    schedule:
+        - cron: '41 4 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: performance-ratchet-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    measure:
+        name: Measure (run ${{ matrix.run }})
+        if: github.repository == '4gray/iptvnator'
+        runs-on: ubuntu-latest
+        # Production web build plus the journeys (their electron-performance
+        # build and seven Electron processes per journey).
+        timeout-minutes: 60
+        strategy:
+            # Separate runners, so one machine's noise cannot pass for a
+            # reduction. The tightener needs all three runs.
+            fail-fast: true
+            matrix:
+                run: [1, 2, 3]
+        env:
+            NX_SKIP_NX_CACHE: true
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+              with:
+                  persist-credentials: false
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v6.0.10
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version-file: '.nvmrc'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            # Same build as the Initial bytes ratchet job in ci.yml. Measured
+            # before the journeys, whose build also writes to dist/.
+            - name: Build web app (production)
+              run: pnpm nx build web --skip-nx-cache
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            - name: Measure renderer.initialBytes
+              run: node tools/performance/measure-initial-bytes.mjs --summary dist/performance/ratchet/initial-bytes.summary.json
+
+            # A failed journey run must not block tightening the initial bytes:
+            # its entries are then missing from this run's summary, and the
+            # tightener keeps any baseline that a run did not measure.
+            - name: Run the performance journeys
+              id: journeys
+              continue-on-error: true
+              uses: ./.github/actions/performance-journeys
+
+            - name: Keep the journey summary
+              if: steps.journeys.outputs.summary != ''
+              env:
+                  SUMMARY: ${{ steps.journeys.outputs.summary }}
+              run: cp "$SUMMARY" dist/performance/ratchet/journeys.summary.json
+
+            - name: Upload run summaries
+              uses: actions/upload-artifact@v7
+              with:
+                  name: performance-ratchet-run-${{ matrix.run }}
+                  path: dist/performance/ratchet/
+                  if-no-files-found: error
+                  retention-days: 30
+
+    tighten:
+        name: Tighten baselines
+        needs: measure
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+
+        steps:
+            # This job later receives secrets.PAT, so its actions are pinned
+            # to reviewed commits, as in refresh-windows-embedded-mpv-runtime.
+            - name: Checkout code
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            # The ratchet scripts are dependency-free Node; no pnpm install.
+            - name: Setup Node.js
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Download run summaries
+              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+              with:
+                  pattern: performance-ratchet-run-*
+                  path: ${{ runner.temp }}/runs
+
+            # Each run directory holds that runner's initial-bytes and journeys
+            # summaries. The direction check is the same one ci.yml runs on the
+            # PR, without --allow-increase: a tightening can only lower limits.
+            - name: Lower baselines every run beat
+              id: tighten
+              env:
+                  RUNS_DIR: ${{ runner.temp }}/runs
+                  REPORT: ${{ runner.temp }}/tighten-report.md
+                  BASE_BASELINES: ${{ runner.temp }}/base-journey-baselines.json
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  set -euo pipefail
+                  baselines=tools/performance/journey-baselines.json
+                  cp "$baselines" "$BASE_BASELINES"
+                  runs=()
+                  for dir in "$RUNS_DIR"/performance-ratchet-run-*; do
+                      runs+=(--run "$dir")
+                  done
+                  node tools/performance/tighten-baselines.mjs \
+                      "${runs[@]}" \
+                      --evidence-run "$RUN_URL" \
+                      --report "$REPORT"
+                  {
+                      echo "## Performance ratchet"
+                      echo
+                      cat "$REPORT"
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  node tools/performance/check-baseline-direction.mjs \
+                      --base "$BASE_BASELINES" \
+                      --head "$baselines"
+                  if git diff --quiet -- "$baselines"; then
+                      echo "changed=false" >> "$GITHUB_OUTPUT"
+                  else
+                      git diff -- "$baselines"
+                      echo "changed=true" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Report a dispatch outside master
+              if: steps.tighten.outputs.changed == 'true' && github.ref != 'refs/heads/master'
+              env:
+                  REF_NAME: ${{ github.ref_name }}
+              run: echo "Dispatched on $REF_NAME, not master; the diff above is not proposed as a pull request."
+
+            # PAT, not GITHUB_TOKEN: a pull request pushed with GITHUB_TOKEN
+            # triggers no workflows, and this one needs ci.yml's Initial bytes
+            # ratchet run. Same secret as refresh-windows-embedded-mpv-runtime.
+            # The PR number is only known once the PR exists, so evidencePr is
+            # filled in afterwards and the single commit amended. Each run
+            # replaces the branch with one fresh commit, but never over an open
+            # tightening PR that someone else committed to (review edits, an
+            # "Update branch" merge); explicit leases also refuse a push that
+            # lands between that check and ours.
+            - name: Create or update the tightening pull request
+              if: steps.tighten.outputs.changed == 'true' && github.ref == 'refs/heads/master'
+              env:
+                  GH_TOKEN: ${{ secrets.PAT }}
+                  REPOSITORY: ${{ github.repository }}
+                  BRANCH_NAME: automation/performance-ratchet
+                  TITLE: 'ci(perf): tighten journey baselines'
+                  LABEL: no-release-note
+                  REPORT: ${{ runner.temp }}/tighten-report.md
+                  BODY: ${{ runner.temp }}/pr-body.md
+                  HEAD_SHA: ${{ github.sha }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  set -euo pipefail
+                  if [ -z "${GH_TOKEN}" ]; then
+                      echo "::error::The PAT secret is required so the bot-created PR triggers normal CI."
+                      exit 1
+                  fi
+                  baselines=tools/performance/journey-baselines.json
+
+                  bot_email="41898282+github-actions[bot]@users.noreply.github.com"
+
+                  gh auth setup-git
+                  git config user.name "github-actions[bot]"
+                  git config user.email "$bot_email"
+
+                  pr="$(gh api "repos/$REPOSITORY/pulls?base=master&head=${REPOSITORY%%/*}:$BRANCH_NAME&state=open" --jq '.[0].number // empty')"
+                  remote_tip="$(git ls-remote --heads origin "refs/heads/$BRANCH_NAME" | cut -f1)"
+                  if [ -n "$pr" ] && [ -n "$remote_tip" ]; then
+                      foreign="$(gh api "repos/$REPOSITORY/compare/master...$remote_tip" |
+                          jq -r --arg bot "$bot_email" '.commits[] | select(.commit.author.email != $bot) | "\(.sha[0:9]) \(.commit.author.name)"')"
+                      if [ -n "$foreign" ]; then
+                          echo "::warning::Pull request #$pr has commits this workflow did not make; its branch is left as is. Merge or close it so the next run can refresh it. This run's numbers are in the job summary."
+                          echo "$foreign"
+                          exit 0
+                      fi
+                  fi
+                  if [ -n "$remote_tip" ]; then
+                      git fetch --no-tags --depth=1 origin "$remote_tip"
+                  fi
+
+                  git switch -C "$BRANCH_NAME"
+                  git add -- "$baselines"
+                  git commit -m "$TITLE" -m "Measured by $RUN_URL"
+                  git push --force-with-lease="refs/heads/$BRANCH_NAME:$remote_tip" origin "HEAD:refs/heads/$BRANCH_NAME"
+                  pushed="$(git rev-parse HEAD)"
+
+                  if [ -z "$pr" ]; then
+                      pr="$(gh api -X POST "repos/$REPOSITORY/pulls" \
+                          -f title="$TITLE" -f head="$BRANCH_NAME" -f base=master \
+                          -f body="Measurements follow." --jq '.number')"
+                  fi
+                  gh api -X POST "repos/$REPOSITORY/issues/$pr/labels" -f "labels[]=$LABEL" --silent
+
+                  node tools/performance/tighten-baselines.mjs \
+                      --fill-evidence-pr "$pr" --evidence-run "$RUN_URL"
+                  git add -- "$baselines"
+                  git commit --amend --no-edit
+                  git push --force-with-lease="refs/heads/$BRANCH_NAME:$pushed" origin "HEAD:refs/heads/$BRANCH_NAME"
+
+                  {
+                      echo "Automated weekly tightening of \`$baselines\` from [three runner measurements]($RUN_URL) of \`$HEAD_SHA\`."
+                      echo
+                      echo "Each lowered baseline was strictly below its value in all three runs and now holds the largest of the three. Slack and tolerances are unchanged; \`check-baseline-direction.mjs\` accepted the file without \`--allow-increase\`."
+                      echo
+                      echo "## Per-run measurements"
+                      echo
+                      cat "$REPORT"
+                      echo
+                      echo "## Diff"
+                      echo
+                      echo '```diff'
+                      git diff "$HEAD_SHA" HEAD -- "$baselines"
+                      echo '```'
+                      echo
+                      echo "If \`master\` moved since \`$HEAD_SHA\`, make sure the Initial bytes ratchet job passes on this PR before merging."
+                  } > "$BODY"
+                  gh api -X PATCH "repos/$REPOSITORY/pulls/$pr" -F "body=@$BODY" --silent
+                  echo "Pull request: ${GITHUB_SERVER_URL}/$REPOSITORY/pull/$pr"
