@@ -127,13 +127,19 @@ extras (backdrop, rating, genres, overview, year) come from
 `DashboardHeroTmdbService` per featured title and vanish when TMDB is off.
 
 Rotation is the active dot's CSS fill animation (8 s); its `animationend`
-advances. Hover, focus inside the hero and the pause button pause it; an
+advances. The fill animates `transform` only (a bar sliding in under the
+pill's rounded clip), so it runs on the compositor; animating `width` there
+cost a style, layout and paint pass on every frame of an idle dashboard.
+Hover, focus inside the hero and the pause button pause it; an
 explicit Play clears the hover/focus pause until they re-arm; under
 `prefers-reduced-motion` nothing auto-advances. The active slide is tracked
 by id, so a late live slide never moves the user off the current one. Test
 hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
 `dashboard-hero-dot`, `dashboard-hero-pause`,
 `dashboard-hero-primary-action`, `dashboard-hero-secondary-action`.
+`dashboard-hero-rotation.e2e.ts` drives the real fill animation (with a
+shortened `--hero-rotation-ms`) to prove its `animationend` still advances
+and that pause holds the slide.
 
 ## Rail Contract
 
