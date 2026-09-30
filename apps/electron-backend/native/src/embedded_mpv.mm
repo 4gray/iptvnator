@@ -1094,6 +1094,26 @@ void updateAudioTracksFromNode(SessionSnapshot& snapshot, const mpv_node& node)
     );
 }
 
+// Snapshots repeat the chapter list on every emit, so a file with thousands
+// of chapters or a huge title must not inflate every snapshot. Beyond these
+// bounds a timeline cannot draw anything useful anyway.
+constexpr size_t kMaxChapters = 256;
+constexpr size_t kMaxChapterTitleBytes = 256;
+
+// Cut to at most `maxBytes` without splitting a UTF-8 sequence.
+std::string truncateUtf8(const std::string& value, size_t maxBytes)
+{
+    std::string text = value;
+    if (text.size() <= maxBytes) return text;
+    size_t end = maxBytes;
+    while (end > 0 &&
+           (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80) {
+        end--;
+    }
+    text.resize(end);
+    return text;
+}
+
 // mpv `chapter-list`: an array of { time, title? } maps in file order.
 void updateChaptersFromNode(SessionSnapshot& snapshot, const mpv_node& node)
 {
@@ -1104,7 +1124,9 @@ void updateChaptersFromNode(SessionSnapshot& snapshot, const mpv_node& node)
         return;
     }
 
-    for (int index = 0; index < node.u.list->num; index += 1) {
+    for (int index = 0;
+         index < node.u.list->num && snapshot.chapters.size() < kMaxChapters;
+         index += 1) {
         const mpv_node& chapterNode = node.u.list->values[index];
         if (chapterNode.format != MPV_FORMAT_NODE_MAP) {
             continue;
@@ -1126,7 +1148,8 @@ void updateChaptersFromNode(SessionSnapshot& snapshot, const mpv_node& node)
             continue;
         }
         if (const mpv_node* titleNode = getNodeMapValue(chapterNode, "title")) {
-            chapter.title = readNodeString(*titleNode);
+            chapter.title =
+                truncateUtf8(readNodeString(*titleNode), kMaxChapterTitleBytes);
         }
         snapshot.chapters.push_back(chapter);
     }

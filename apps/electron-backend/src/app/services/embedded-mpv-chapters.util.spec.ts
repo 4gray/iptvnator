@@ -1,4 +1,8 @@
-import { normalizeEmbeddedMpvChapters } from './embedded-mpv-chapters.util';
+import {
+    MAX_EMBEDDED_MPV_CHAPTERS,
+    MAX_EMBEDDED_MPV_CHAPTER_TITLE_LENGTH,
+    normalizeEmbeddedMpvChapters,
+} from './embedded-mpv-chapters.util';
 
 describe('normalizeEmbeddedMpvChapters', () => {
     it('keeps valid chapters and trims titles', () => {
@@ -27,6 +31,27 @@ describe('normalizeEmbeddedMpvChapters', () => {
                 { timeSeconds: 5, title: 7 },
             ])
         ).toEqual([{ timeSeconds: 5 }]);
+    });
+
+    it('bounds the chapter count and title length', () => {
+        const chapters = normalizeEmbeddedMpvChapters(
+            Array.from({ length: MAX_EMBEDDED_MPV_CHAPTERS + 50 }, (_, i) => ({
+                timeSeconds: i,
+                title: '😀'.repeat(MAX_EMBEDDED_MPV_CHAPTER_TITLE_LENGTH + 5),
+            }))
+        );
+
+        expect(chapters).toHaveLength(MAX_EMBEDDED_MPV_CHAPTERS);
+        expect(chapters.at(-1)?.timeSeconds).toBe(
+            MAX_EMBEDDED_MPV_CHAPTERS - 1
+        );
+        // Cut by code point, so no surrogate pair is split.
+        expect(Array.from(chapters[0].title ?? '')).toHaveLength(
+            MAX_EMBEDDED_MPV_CHAPTER_TITLE_LENGTH
+        );
+        expect(chapters[0].title).toBe(
+            '😀'.repeat(MAX_EMBEDDED_MPV_CHAPTER_TITLE_LENGTH)
+        );
     });
 
     it('treats a missing field from an older binary as no chapters', () => {

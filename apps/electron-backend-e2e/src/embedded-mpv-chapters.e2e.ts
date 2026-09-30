@@ -12,6 +12,7 @@ import {
     saveSettings,
     test,
     workspaceRoot,
+    type LaunchedElectronApp,
 } from './electron-test-fixtures';
 import {
     createLocalMediaServer,
@@ -37,74 +38,68 @@ test('@playback @electron @embedded-mpv frame-copy draws file chapters on the ti
         resourcePath: '/episode-chapters.webm',
         contentType: 'video/webm',
     });
-    const app = await launchElectronApp(dataDir, {
-        env: {
-            IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT: '1',
-            IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY: '1',
-            IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW: '1',
-        },
-    });
+    // The launch sits inside the cleanup scope: a failed launch must still
+    // close the media server.
+    let app: LaunchedElectronApp | undefined;
     try {
-        const support = await app.mainWindow.evaluate(() =>
+        const launched = await launchElectronApp(dataDir, {
+            env: {
+                IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT: '1',
+                IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY: '1',
+                IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW: '1',
+            },
+        });
+        app = launched;
+        const support = await launched.mainWindow.evaluate(() =>
             window.electron.getEmbeddedMpvSupport()
         );
         test.skip(
             !support.supported || support.engine !== 'frame-copy',
             `Frame-copy runtime unavailable: ${JSON.stringify(support)}`
         );
-        await openSettings(app.mainWindow);
-        await openSettingsSection(app.mainWindow, 'playback');
-        await app.mainWindow.getByTestId('select-video-player').click();
-        await app.mainWindow.getByTestId('embedded-mpv').click();
-        await saveSettings(app.mainWindow);
-        await goToDashboard(app.mainWindow);
+        await openSettings(launched.mainWindow);
+        await openSettingsSection(launched.mainWindow, 'playback');
+        await launched.mainWindow.getByTestId('select-video-player').click();
+        await launched.mainWindow.getByTestId('embedded-mpv').click();
+        await saveSettings(launched.mainWindow);
+        await goToDashboard(launched.mainWindow);
 
         const playlist = join(dataDir, 'chapters.m3u');
         writeFileSync(
             playlist,
             `#EXTM3U\n#EXTINF:-1,Chaptered fixture\n${media.url}\n`
         );
-        await installEmbeddedMpvSessionCapture(app);
-        await importM3uPlaylistFromNativeDialog(app, playlist);
-        await channelItemByTitle(app.mainWindow, 'Chaptered fixture')
+        await installEmbeddedMpvSessionCapture(launched);
+        await importM3uPlaylistFromNativeDialog(launched, playlist);
+        await channelItemByTitle(launched.mainWindow, 'Chaptered fixture')
             .first()
             .click();
 
-        // The local frame-copy runtime can fail its first frame-view
-        // initialization; one user Retry recovers it (see player-theme).
-        await expect
-            .poll(() =>
-                app.mainWindow.evaluate(
+        // The local frame-copy runtime can fail a frame-view initialization,
+        // and the failure can surface at any point while the session starts;
+        // a user Retry recovers it (see player-theme). Retry whenever the
+        // stalled state shows until mpv's chapters arrive.
+        const stalled = launched.mainWindow.locator(
+            '.embedded-mpv-player__stalled'
+        );
+        await expect(async () => {
+            if (await stalled.isVisible()) {
+                await stalled.getByRole('button', { name: 'Retry' }).click();
+            }
+            expect(
+                await launched.mainWindow.evaluate(
                     () =>
-                        (window.__packagedEmbeddedMpvSessions?.at(-1)?.chapters
-                            ?.length ?? 0) > 0 ||
-                        !!document.querySelector('.embedded-mpv-player__stalled')
-                ),
-                { timeout: 20000 }
-            )
-            .toBe(true);
-        const stalled = app.mainWindow.locator('.embedded-mpv-player__stalled');
-        if (await stalled.isVisible()) {
-            await stalled.getByRole('button', { name: 'Retry' }).click();
-        }
-
-        await expect
-            .poll(
-                () =>
-                    app.mainWindow.evaluate(
-                        () =>
-                            window.__packagedEmbeddedMpvSessions?.at(-1)
-                                ?.chapters ?? []
-                    ),
-                { timeout: 20000 }
-            )
-            .toEqual([
+                        window.__packagedEmbeddedMpvSessions?.at(-1)
+                            ?.chapters ?? []
+                )
+            ).toEqual([
                 { timeSeconds: 0, title: 'Intro' },
                 { timeSeconds: 5, title: 'Episode' },
                 { timeSeconds: 24, title: 'Credits' },
             ]);
+        }).toPass({ timeout: 30000 });
 
-        const segments = app.mainWindow.locator(
+        const segments = launched.mainWindow.locator(
             'app-player-controls .player-controls__timeline-segment'
         );
         await expect(segments).toHaveCount(3);
@@ -123,7 +118,12 @@ test('@playback @electron @embedded-mpv frame-copy draws file chapters on the ti
                 { title: 'Credits', left: 80 },
             ]);
     } finally {
-        await closeElectronApp(app);
-        await media.close();
+        try {
+            if (app) {
+                await closeElectronApp(app);
+            }
+        } finally {
+            await media.close();
+        }
     }
 });

@@ -408,12 +408,33 @@ void updateTracksFromNode(const mpv_node& trackListNode) {
     g_state.snapshot.subtitleTracks = std::move(subs);
 }
 
+/* Snapshots repeat the chapter list on every emit, so a file with thousands
+ * of chapters or a huge title must not inflate every snapshot. Beyond these
+ * bounds a timeline cannot draw anything useful anyway. */
+constexpr size_t kMaxChapters = 256;
+constexpr size_t kMaxChapterTitleBytes = 256;
+
+/* Cut to at most `maxBytes` without splitting a UTF-8 sequence. */
+std::string truncateUtf8(const char* value, size_t maxBytes) {
+    std::string text = value ? value : "";
+    if (text.size() <= maxBytes) return text;
+    size_t end = maxBytes;
+    while (end > 0 &&
+           (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80) {
+        end--;
+    }
+    text.resize(end);
+    return text;
+}
+
 /* mpv `chapter-list`: an array of { time, title? } maps in file order. */
 void updateChaptersFromNode(const mpv_node& chapterListNode) {
     std::vector<ChapterInfo> chapters;
     if (chapterListNode.format == MPV_FORMAT_NODE_ARRAY &&
         chapterListNode.u.list) {
-        for (int i = 0; i < chapterListNode.u.list->num; i++) {
+        for (int i = 0; i < chapterListNode.u.list->num &&
+                        chapters.size() < kMaxChapters;
+             i++) {
             const mpv_node& entry = chapterListNode.u.list->values[i];
             if (entry.format != MPV_FORMAT_NODE_MAP || !entry.u.list) continue;
             ChapterInfo chapter;
@@ -434,7 +455,8 @@ void updateChaptersFromNode(const mpv_node& chapterListNode) {
                 } else if (std::strcmp(key, "title") == 0 &&
                            value.format == MPV_FORMAT_STRING &&
                            value.u.string) {
-                    chapter.title = value.u.string;
+                    chapter.title =
+                        truncateUtf8(value.u.string, kMaxChapterTitleBytes);
                 }
             }
             if (hasTime) chapters.push_back(std::move(chapter));
