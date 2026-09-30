@@ -20,6 +20,7 @@ import {
     fetchStalkerCategoryFixture,
 } from './portal-mock-fixtures';
 
+import type { Locator, Page } from '@playwright/test';
 import {
     applyTheme,
     expectTextContrast,
@@ -31,6 +32,42 @@ const epgCredentials = {
     username: 'epg',
     password: 'epg',
 };
+
+/**
+ * Every opener shares one dialog config: the programme dialog is named by its
+ * `mat-dialog-title` and opens in the same 540px pane wherever it starts.
+ */
+async function expectProgrammeDialog(
+    page: Page,
+    title?: string
+): Promise<Locator> {
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    const heading = dialog.locator('.epg-dialog__title');
+    if (title) {
+        await expect(heading).toHaveText(title);
+    }
+    await expect(dialog).toHaveAccessibleName(
+        (await heading.innerText()).trim()
+    );
+    await expect
+        .poll(() =>
+            dialog.evaluate(
+                (element) =>
+                    element.closest<HTMLElement>('.cdk-overlay-pane')
+                        ?.offsetWidth
+            )
+        )
+        .toBe(540);
+    return dialog;
+}
+
+async function closeProgrammeDialog(page: Page, dialog: Locator) {
+    // The footer Close is the dialog's only visible dismiss.
+    await expect(dialog.getByRole('button', { name: 'Close' })).toHaveCount(1);
+    await dialog.locator('.epg-dialog__close').click();
+    await page.waitForSelector('.epg-dialog', { state: 'detached' });
+}
 
 test('@epg @xtream @electron opens the programme dialog from a timeline block and reacts to zoom', async ({
     dataDir,
@@ -172,17 +209,30 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
         // programme-details dialog with the programme metadata.
         await nowBlock.locator('.epg-timeline__info').click();
 
-        const dialog = app.mainWindow.locator('.epg-dialog');
-        await expect(dialog).toBeVisible();
-        await expect(dialog.locator('.epg-dialog__title')).toHaveText(
+        const dialog = await expectProgrammeDialog(
+            app.mainWindow,
             currentProgram.title
         );
-        // An on-air programme offers "watch live" as the primary action.
-        await expect(dialog.locator('.epg-dialog__btn--primary')).toBeVisible();
+        // An on-air programme offers "watch live" as the primary action, last
+        // in the footer and to the right of the dismiss.
+        const footer = dialog.locator('.epg-dialog__actions button');
+        await expect(footer).toHaveCount(2);
+        await expect(footer.first()).toHaveClass(/epg-dialog__close/);
+        await expect(footer.last()).toHaveClass(/epg-dialog__btn--primary/);
+        // Layout offsets, not bounding boxes: the dialog may still be scaling
+        // in, which transforms client rects.
+        const [closeBox, primaryBox] = await footer.evaluateAll((buttons) =>
+            buttons.map((button) => ({
+                left: (button as HTMLElement).offsetLeft,
+                top: (button as HTMLElement).offsetTop,
+            }))
+        );
+        expect(primaryBox.left).toBeGreaterThan(closeBox.left);
+        expect(primaryBox.top).toBe(closeBox.top);
 
         for (const theme of ['light', 'dark', 'light'] as const) {
             await applyTheme(app.mainWindow, theme);
-            await expectThemeSurface(dialog, theme);
+            await expectThemeSurface(dialog.locator('.epg-dialog'), theme);
             await expectTextContrast(dialog.locator('.epg-dialog__title'));
             await expectTextContrast(dialog.locator('.epg-dialog__desc'));
             await expectTextContrast(dialog.locator('.epg-dialog__close'), 3);
@@ -190,10 +240,15 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
         await app.mainWindow.screenshot({
             path: test.info().outputPath('epg-light.png'),
         });
-        await dialog.locator('.epg-dialog__close').click();
-        await app.mainWindow.waitForSelector('.epg-dialog', {
-            state: 'detached',
-        });
+        await closeProgrammeDialog(app.mainWindow, dialog);
+
+        // The channel row's info button opens the same dialog.
+        await channelRow.locator('.program-info-button').click();
+        await closeProgrammeDialog(
+            app.mainWindow,
+            await expectProgrammeDialog(app.mainWindow)
+        );
+
         await openSettings(app.mainWindow);
         await openSettingsSection(app.mainWindow, 'epg');
         await app.mainWindow.getByTestId('epg-view-mode-list').click();
@@ -218,6 +273,17 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
                 guide.locator('[data-when="now"] .desc').first()
             );
         }
+        // The list view's info button opens the same dialog.
+        await guide
+            .locator('[data-when="now"]')
+            .first()
+            .getByRole('button', { name: 'Show details about this program' })
+            .click();
+        await closeProgrammeDialog(
+            app.mainWindow,
+            await expectProgrammeDialog(app.mainWindow)
+        );
+
         // Keep a fresh channel's EPG IPC pending so the real list loading
         // template stays mounted through both theme changes.
         await app.electronApp.evaluate(({ ipcMain }) => {

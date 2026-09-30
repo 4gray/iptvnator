@@ -6,15 +6,6 @@
                 <span class="epg-dialog__chan-name">{{ channelName }}</span>
             </span>
         }
-        <button
-            type="button"
-            class="epg-dialog__close"
-            mat-dialog-close
-            [attr.aria-label]="'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate"
-        >
-            <mat-icon>close</mat-icon>
-        </button>
-
         @if (channelLogo && !logoFailed) {
             <img
                 class="epg-dialog__logo"
@@ -47,7 +38,9 @@
             }
         </div>
 
-        <h3 class="epg-dialog__title">{{ epgProgram.title }}</h3>
+        <h2 mat-dialog-title class="epg-dialog__title">
+            {{ epgProgram.title }}
+        </h2>
 
         @if (epgProgram.desc) {
             <p class="epg-dialog__desc">{{ epgProgram.desc }}</p>
@@ -75,12 +68,66 @@
             </div>
         }
 
-        @if (dialogData.archiveUrlAvailable) {
+        @if (
+            dialogData.archiveUrlAvailable ||
+            dialogData.archiveDownloadAvailable
+        ) {
+            <!-- Archive tools sit with their notice, so the footer below keeps
+                 one row: the dismiss first, the primary action last. -->
+            <div class="epg-dialog__archive">
+                @if (dialogData.archiveUrlAvailable) {
+                    <p class="epg-dialog__note">
+                        {{
+                            'EPG.PROGRAM_DIALOG.ARCHIVE_URL_NOTICE' | translate
+                        }}
+                    </p>
+                }
+                <div class="epg-dialog__tools">
+                    @if (dialogData.archiveUrlAvailable) {
+                        <button
+                            type="button"
+                            class="epg-dialog__btn epg-dialog__btn--ghost"
+                            data-testid="copy-catchup-url"
+                            [mat-dialog-close]="'copy-catchup-url'"
+                        >
+                            <mat-icon>content_copy</mat-icon>
+                            {{
+                                'EPG.PROGRAM_DIALOG.COPY_ARCHIVE_URL'
+                                    | translate
+                            }}
+                        </button>
+                    }
+                    @if (dialogData.archiveDownloadAvailable) {
+                        <button
+                            type="button"
+                            class="epg-dialog__btn epg-dialog__btn--ghost"
+                            data-testid="download-catchup"
+                            [mat-dialog-close]="'download-catchup'"
+                        >
+                            <mat-icon>download</mat-icon>
+                            {{
+                                'EPG.PROGRAM_DIALOG.DOWNLOAD_ARCHIVE'
+                                    | translate
+                            }}
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+        @if (archiveUnavailableNote) {
             <p class="epg-dialog__note">
-                {{ 'EPG.PROGRAM_DIALOG.ARCHIVE_URL_NOTICE' | translate }}
+                {{ 'EPG.TIMELINE.ARCHIVE_UNAVAILABLE_NOTE' | translate }}
             </p>
         }
         <div class="epg-dialog__actions">
+            <button
+                type="button"
+                class="epg-dialog__btn epg-dialog__btn--ghost epg-dialog__close"
+                mat-dialog-close
+                cdkFocusInitial
+            >
+                {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
+            </button>
             @if (primaryAction === 'live') {
                 <button
                     type="button"
@@ -100,41 +147,6 @@
                     {{ 'EPG.TIMELINE.WATCH_FROM_START' | translate }}
                 </button>
             }
-            @if (dialogData.archiveUrlAvailable) {
-                <button
-                    type="button"
-                    class="epg-dialog__btn epg-dialog__btn--ghost"
-                    data-testid="copy-catchup-url"
-                    [mat-dialog-close]="'copy-catchup-url'"
-                >
-                    <mat-icon>content_copy</mat-icon>
-                    {{ 'EPG.PROGRAM_DIALOG.COPY_ARCHIVE_URL' | translate }}
-                </button>
-            }
-            @if (dialogData.archiveDownloadAvailable) {
-                <button
-                    type="button"
-                    class="epg-dialog__btn epg-dialog__btn--ghost"
-                    data-testid="download-catchup"
-                    [mat-dialog-close]="'download-catchup'"
-                >
-                    <mat-icon>download</mat-icon>
-                    {{ 'EPG.PROGRAM_DIALOG.DOWNLOAD_ARCHIVE' | translate }}
-                </button>
-            }
-            @if (archiveUnavailableNote) {
-                <span class="epg-dialog__note">{{
-                    'EPG.TIMELINE.ARCHIVE_UNAVAILABLE_NOTE' | translate
-                }}</span>
-            }
-            <span class="epg-dialog__spacer"></span>
-            <button
-                type="button"
-                class="epg-dialog__btn epg-dialog__btn--ghost"
-                mat-dialog-close
-            >
-                {{ 'HOME.PLAYLISTS.INFO_DIALOG.CLOSE' | translate }}
-            </button>
         </div>
     </div>
 </div>
