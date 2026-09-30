@@ -218,10 +218,10 @@ function keepFactual(field?: VodSourceField): VodSourceField | undefined {
  * `Intl.Locale` does the canonicalizing: 639-2 collapses to 639-1 where one
  * exists, both German forms land on `de`, and regions drop away. `und` —
  * ffprobe's marker for undetermined — is declined explicitly: it means the
- * provider does not know either. Older ICU builds canonicalized it to an
- * empty subtag, but ICU 78 (Electron 43, Node 26) keeps `und`, and a kept
- * `und` would read as a stated language and turn "unknown vs. English" into
- * a dub change.
+ * provider does not know either. Some runtimes return no language for this
+ * tag; others (including Electron 43 and Node 26) preserve `und`. Declining
+ * it in either case prevents "unknown vs. English" from becoming a dub
+ * change, independently of the runtime's Intl implementation.
  *
  * Anything that survives with more than three characters is not a language
  * code (`Russian` parses as the subtag `russian`), so the comparison is

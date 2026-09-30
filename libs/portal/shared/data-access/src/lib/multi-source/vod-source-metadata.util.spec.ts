@@ -180,8 +180,8 @@ describe('applyApiMetadata', () => {
     });
 
     it.each([
-        // ffprobe's marker for "we do not know". ICU 78 (Electron 43)
-        // keeps it as the subtag instead of emptying it.
+        // ffprobe's marker for "we do not know", regardless of whether
+        // this runtime's Intl.Locale preserves the language subtag.
         ['und'],
         ['und-US'],
         ['Russian'],
@@ -374,6 +374,32 @@ describe('audioDiffersFactually', () => {
 
         expect(audioDiffersFactually(from, to)).toBe(false);
     });
+
+    it.each(['und', 'und-US', 'UND'])(
+        'stays silent for %s when Intl.Locale preserves und',
+        (raw) => {
+            const known = applyApiMetadata(candidate(), {
+                audioLanguage: 'eng',
+            });
+            // Exercise the newer runtime behavior even on Node 22. The
+            // captured Locale constructor still reads this prototype getter.
+            const language = jest
+                .spyOn(Intl.Locale.prototype, 'language', 'get')
+                .mockReturnValue('und');
+
+            try {
+                const unknown = applyApiMetadata(candidate(), {
+                    audioLanguage: raw,
+                });
+
+                expect(unknown.audioLanguage).toBeUndefined();
+                expect(audioDiffersFactually(unknown, known)).toBe(false);
+                expect(audioDiffersFactually(known, unknown)).toBe(false);
+            } finally {
+                language.mockRestore();
+            }
+        }
+    );
 
     it('stays silent when both sides state the same track', () => {
         const from = candidate({
