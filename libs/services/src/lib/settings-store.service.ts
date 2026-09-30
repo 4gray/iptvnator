@@ -201,6 +201,9 @@ export const SettingsStore = signalStore(
                     playerUpNextRail:
                         store.playerUpNextRail?.() ??
                         DEFAULT_SETTINGS.playerUpNextRail,
+                    playerUpNextCard:
+                        store.playerUpNextCard?.() ??
+                        DEFAULT_SETTINGS.playerUpNextCard,
                     fullscreenChannelPanel:
                         store.fullscreenChannelPanel?.() ??
                         DEFAULT_SETTINGS.fullscreenChannelPanel,

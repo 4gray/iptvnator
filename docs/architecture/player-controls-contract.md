@@ -405,10 +405,17 @@ bottom-right corner above the controls: the next episode's still (or its
 watched, "Up next · in 7 min" and the title. The host supplies the item
 through the optional `upNext` input (`PlayerUpNextItem { label, title,
 thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
-`seriesNavigation` capability, a finite duration with at
-most `UP_NEXT_THRESHOLD_SECONDS` (8 min) left, not live, not `ended` (with
-autoplay off nothing is scheduled, so no countdown), controls shown,
-settings panel closed — and how many minutes remain (never below one). A
+`seriesNavigation` capability, a finite duration, not live, not `ended`
+(with autoplay off nothing is scheduled, so no countdown), controls shown,
+settings panel closed, not dismissed — and when. The lead adapts to the
+episode: `upNextThresholdSeconds` is 4% of the duration clamped to
+40 s … 3 min (about 50 s for a 22-minute episode, 2.4 min for an hour). When
+`timelineSegments` carry a closing-credits chapter in the last third
+(`creditsStartSeconds`: "Credits", "Outro", "Ending", an anime `ED`, and a
+few localized names), the card appears when it starts instead, at most
+5 min before the end. No engine reports file chapters today, so in practice
+the adaptive lead applies. The countdown shows whole minutes, and seconds
+in the last minute. A
 still that fails to load falls back to the label tile. A
 click emits `nextEpisodeRequested` directly — not through the
 transport's `canNextEpisode` guard, which is season-local — so the card
@@ -417,12 +424,21 @@ routes such a request through the Up Next rail selection
 (`upNextEpisodeSelected`) whenever `seriesNavigation.canNext` is false, which
 plays the next season's first episode; either path keeps fullscreen exactly
 like the transport button.
-The card is a glass surface that does not fade with the controls; the
-compact dock uses a smaller variant without the trailing icon.
+The card is a glass surface that stays visible when the controls auto-hide
+(`showControls` is the host's input, not the idle state); the compact dock
+uses a smaller variant without the trailing icon. After
+`UP_NEXT_COLLAPSE_DELAY_MS` (10 s, paused while hovered) the card asks to
+collapse and `ControlsUpNext.collapse()` turns it into a one-line pill
+(label and countdown) for the rest of the episode. A corner close button
+(`player-controls-up-next-close`) or Escape on the focused card calls
+`dismiss()`, which hides it until the item it points to changes; Escape is
+stopped at the card so it does not reach the player's own Escape handling.
+The `playerUpNextCard` setting (default on) turns the card off: the
+producer below then passes `null`.
 
 Plumbing mirrors `mediaTitle`: `PortalInlinePlayerComponent.playerUpNext`
 derives the item after the playing one from its `upNextEpisodes` input
-(episodes only) → `WebPlayerViewComponent.upNext` → the four engine hosts →
+(episodes only, and only while `playerUpNextCard` is not `false`) → `WebPlayerViewComponent.upNext` → the four engine hosts →
 `app-player-controls`. Movie and live hosts pass nothing.
 
 ### Settings panel

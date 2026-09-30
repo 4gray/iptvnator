@@ -236,7 +236,7 @@ export class PortalInlinePlayerComponent {
     /** The episode after the playing one, for the controls' "Up next" card. */
     readonly playerUpNext = computed<PlayerUpNextItem | null>(() => {
         const next = this.upNextRailNext();
-        if (!next) {
+        if (!next || this.settingsStore.playerUpNextCard?.() === false) {
             return null;
         }
         return {

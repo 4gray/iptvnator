@@ -411,6 +411,20 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).not.toBeNull();
     });
 
+    it('offers the up next card toggle for Embedded MPV only under the frame-copy engine', () => {
+        // The native-view engine never mounts the shared controls.
+        fixture.componentRef.setInput(
+            'form',
+            createForm(VideoPlayer.EmbeddedMpv)
+        );
+        fixture.detectChanges();
+        expect(queryByTestId('player-up-next-card-setting')).toBeNull();
+
+        fixture.componentRef.setInput('frameCopyActive', true);
+        fixture.detectChanges();
+        expect(queryByTestId('player-up-next-card-setting')).not.toBeNull();
+    });
+
     it('hides the fullscreen channel panel toggle for a web player on the legacy vendor chrome', () => {
         // The vendor chrome fullscreens the engine's own element, outside
         // which the panel cannot render, so the toggle would do nothing.
@@ -420,6 +434,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.detectChanges();
 
         expect(queryByTestId('fullscreen-channel-panel-setting')).toBeNull();
+        expect(queryByTestId('player-up-next-card-setting')).toBeNull();
     });
 
     it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
@@ -443,6 +458,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
         playerUpNextRail: new FormControl(true),
+        playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),

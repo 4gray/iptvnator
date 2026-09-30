@@ -143,8 +143,8 @@ test.describe('@xtream inline series fullscreen', () => {
             )
             .toBeGreaterThanOrEqual(1);
 
-        // The 30 s fixture clip is inside the card's threshold from its
-        // first frame, so the card is up as soon as the duration is known.
+        // The 30 s fixture clip is shorter than the card's 40 s minimum
+        // lead, so the card is up as soon as the duration is known.
         const card = playerView.locator(
             '[data-test-id="player-controls-up-next"]'
         );
@@ -169,6 +169,18 @@ test.describe('@xtream inline series fullscreen', () => {
         await expect(card).toHaveAttribute('aria-label', /S01E03/, {
             timeout: 15_000,
         });
+
+        // The corner button hides the card for this episode; bringing the
+        // controls back does not bring it back.
+        await playerView
+            .locator('[data-test-id="player-controls-up-next-close"]')
+            .click();
+        await expect(card).toHaveCount(0);
+        await playerView.hover({ position: { x: 40, y: 40 } });
+        await expect(
+            playerView.locator('[data-test-id="player-controls-next-episode"]')
+        ).toBeVisible();
+        await expect(card).toHaveCount(0);
     });
 
     test('switches episodes from the fullscreen episode panel without leaving fullscreen', async ({

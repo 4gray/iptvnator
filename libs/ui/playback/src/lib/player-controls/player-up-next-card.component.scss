@@ -1,6 +1,7 @@
 // Glass card, bottom-right above the dock, inside the controls host (the
 // `player-controls` container) whose `--pc-*` palette it reads. It does not
-// fade with the controls: near the end of an episode it is worth seeing.
+// fade with idle controls; instead it collapses to a pill once seen, and the
+// corner close button dismisses it for the episode.
 :host {
     position: absolute;
     right: 32px;
@@ -158,4 +159,47 @@
 
 :host(.player-up-next--compact) .player-up-next__title {
     font-size: 11.5px;
+}
+
+// Collapsed: a single-line pill with the label and countdown; the thumbnail
+// and title are gone, so it no longer covers the picture.
+:host(.player-up-next--collapsed) .player-up-next__button {
+    gap: 8px;
+    padding: 7px 12px;
+    border-radius: 999px;
+}
+
+.player-up-next__close {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    color: var(--pc-text, #e7ecf3);
+    background: var(--pc-glass-bg, rgba(12, 16, 23, 0.72));
+    border: 1px solid var(--pc-glass-border, rgba(255, 255, 255, 0.09));
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(18px) saturate(1.3);
+    cursor: pointer;
+    transition: background 120ms ease-out;
+
+    mat-icon {
+        width: 14px;
+        height: 14px;
+        font-size: 14px;
+    }
+}
+
+.player-up-next__close:hover {
+    background: rgba(12, 16, 23, 0.9);
+}
+
+.player-up-next__close:focus-visible {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: 2px;
 }

@@ -53,6 +53,14 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             fallbackId: 'video-player',
         },
         {
+            id: 'player-up-next-card',
+            section: 'playback',
+            labelKey: 'SETTINGS.PLAYER_UP_NEXT_CARD',
+            descriptionKey: 'SETTINGS.PLAYER_UP_NEXT_CARD_DESCRIPTION',
+            keywords: ['up next', 'next episode', 'popup'],
+            fallbackId: 'video-player',
+        },
+        {
             id: 'fullscreen-channel-panel',
             section: 'playback',
             labelKey: 'SETTINGS.FULLSCREEN_CHANNEL_PANEL',

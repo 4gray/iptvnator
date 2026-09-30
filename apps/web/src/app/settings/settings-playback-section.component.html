@@ -137,6 +137,30 @@
         </div>
     }
 
+    @if (supportsUpNextCard()) {
+        <div
+            class="setting-item"
+            data-setting-id="player-up-next-card"
+            data-test-id="player-up-next-card-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>
+                    {{ 'SETTINGS.PLAYER_UP_NEXT_CARD' | translate }}
+                </h4>
+                <p>
+                    {{ 'SETTINGS.PLAYER_UP_NEXT_CARD_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    [aria-label]="'SETTINGS.PLAYER_UP_NEXT_CARD' | translate"
+                    formControlName="playerUpNextCard"
+                    data-test-id="player-up-next-card-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
+    }
+
     @if (supportsFullscreenChannelPanel()) {
         <div
             class="setting-item"
