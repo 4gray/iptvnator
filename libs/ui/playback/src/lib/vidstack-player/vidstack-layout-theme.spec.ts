@@ -42,4 +42,20 @@ describe('loadVidstackLayoutTheme', () => {
 
         await expect(pending).resolves.toBeUndefined();
     });
+
+    it('retries a failed stylesheet on the next load', async () => {
+        const doc = document.implementation.createHTMLDocument('player');
+        const failed = loadVidstackLayoutTheme(doc);
+        themeLinks(doc)[0].dispatchEvent(new Event('error'));
+        await failed;
+        expect(themeLinks(doc)).toHaveLength(0);
+
+        const retry = loadVidstackLayoutTheme(doc);
+
+        expect(retry).not.toBe(failed);
+        expect(themeLinks(doc)).toHaveLength(1);
+        themeLinks(doc)[0].dispatchEvent(new Event('load'));
+        await expect(retry).resolves.toBeUndefined();
+        expect(loadVidstackLayoutTheme(doc)).toBe(retry);
+    });
 });
