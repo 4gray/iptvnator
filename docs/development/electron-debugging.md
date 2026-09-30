@@ -143,3 +143,22 @@ from `app.asar`. The preload is
 [workspace shell](../architecture/workspace-shell.md) for window behavior,
 [DB worker](../architecture/sqlite-db-worker.md) for worker ownership and
 [Electron security](../architecture/electron-security.md) for bridge boundaries.
+
+`apps/electron-backend/tsconfig.app.json` sets `"target": "ES2022"` for the
+main-process bundles (`main.js`, `main.app.js`, `deferred-events.js`) and the
+preloads; `tsconfig.base.json` stays at `es2015` because other projects
+inherit it. The Jest specs (`tsconfig.spec.json`) keep the base target on
+purpose: Istanbul counts the statements of the emitted code, so an ES2022 spec
+build drops the downleveled helpers from the counts (for example
+`downloads.events.ts` from 126 to 111 statements) and would trip the absolute
+`minimumCovered` ratchets in `tools/coverage/coverage-policy.json` without any
+coverage being lost. Electron 43 (Node 24 and Chromium's V8) runs
+ES2022 natively in the main process and in the sandboxed preload, so
+async/await, optional chaining and `??` are no longer downleveled.
+`"useDefineForClassFields": false` keeps the class-field semantics of the old
+target (constructor assignment, not `[[Define]]`), so only syntax changed. The
+workers built by `build-worker.js` (esbuild, `node18`) were already native. On
+2026-09-29 the four bundles shrank from 2,008,115 to 1,853,599 bytes (every
+inlined `__awaiter` gone); neither main-process CPU time to `did-finish-load`
+nor the J1 launch journey's wall-clock changed measurably in an interleaved
+A/B, and J1's counters were identical.
