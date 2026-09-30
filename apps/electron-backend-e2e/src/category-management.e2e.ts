@@ -448,11 +448,16 @@ test.describe('Electron Xtream Category Management', () => {
                 state: 'detached',
             });
 
-            await expect
-                .poll(() => readVisibleSidebarCategoryNames(app.mainWindow), {
-                    timeout: 15000,
-                })
-                .toEqual([]);
+            await expect(
+                app.mainWindow.locator(
+                    'app-workspace-context-panel .category-item:visible'
+                )
+            ).toHaveCount(0, { timeout: 15000 });
+            await expect(
+                app.mainWindow.locator(
+                    'app-workspace-context-panel .category-empty-state'
+                )
+            ).toContainText('No categories available');
 
             await expect(
                 app.mainWindow.getByRole('button', {
