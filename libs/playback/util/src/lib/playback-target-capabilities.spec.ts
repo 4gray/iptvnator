@@ -46,6 +46,11 @@ describe('playback target capabilities', () => {
             PlaybackEngineFamily.HlsJs,
         ],
         [
+            PlaybackSourceKind.Hls,
+            InlinePlaybackPlayer.Vidstack,
+            PlaybackEngineFamily.HlsJs,
+        ],
+        [
             PlaybackSourceKind.MpegTs,
             InlinePlaybackPlayer.VideoJs,
             PlaybackEngineFamily.MpegTsJs,
@@ -58,6 +63,11 @@ describe('playback target capabilities', () => {
         [
             PlaybackSourceKind.MpegTs,
             InlinePlaybackPlayer.ArtPlayer,
+            PlaybackEngineFamily.MpegTsJs,
+        ],
+        [
+            PlaybackSourceKind.MpegTs,
+            InlinePlaybackPlayer.Vidstack,
             PlaybackEngineFamily.MpegTsJs,
         ],
         [PlaybackSourceKind.Dash, InlinePlaybackPlayer.VideoJs, null],
@@ -72,6 +82,11 @@ describe('playback target capabilities', () => {
             PlaybackEngineFamily.Shaka,
         ],
         [
+            PlaybackSourceKind.Dash,
+            InlinePlaybackPlayer.Vidstack,
+            PlaybackEngineFamily.Shaka,
+        ],
+        [
             PlaybackSourceKind.Native,
             InlinePlaybackPlayer.VideoJs,
             PlaybackEngineFamily.NativeMedia,
@@ -84,6 +99,11 @@ describe('playback target capabilities', () => {
         [
             PlaybackSourceKind.Native,
             InlinePlaybackPlayer.ArtPlayer,
+            PlaybackEngineFamily.NativeMedia,
+        ],
+        [
+            PlaybackSourceKind.Native,
+            InlinePlaybackPlayer.Vidstack,
             PlaybackEngineFamily.NativeMedia,
         ],
     ] as const)('maps %s on %s to %s', (sourceKind, target, expectedFamily) => {
@@ -236,6 +256,12 @@ describe('playback target capabilities', () => {
                 available: true,
                 engineFamily: PlaybackEngineFamily.HlsJs,
             },
+            {
+                kind: 'inline',
+                target: InlinePlaybackPlayer.Vidstack,
+                available: true,
+                engineFamily: PlaybackEngineFamily.HlsJs,
+            },
             { kind: 'external', target: 'mpv', available: true },
             { kind: 'external', target: 'vlc', available: true },
         ]);
@@ -266,6 +292,12 @@ describe('playback target capabilities', () => {
                 available: true,
                 engineFamily: PlaybackEngineFamily.Shaka,
             },
+            {
+                kind: 'inline',
+                target: InlinePlaybackPlayer.Vidstack,
+                available: true,
+                engineFamily: PlaybackEngineFamily.Shaka,
+            },
             { kind: 'external', target: 'mpv', available: false },
             { kind: 'external', target: 'vlc', available: false },
         ]);
@@ -293,6 +325,12 @@ describe('playback target capabilities', () => {
             {
                 kind: 'inline',
                 target: InlinePlaybackPlayer.ArtPlayer,
+                available: false,
+                engineFamily: null,
+            },
+            {
+                kind: 'inline',
+                target: InlinePlaybackPlayer.Vidstack,
                 available: false,
                 engineFamily: null,
             },

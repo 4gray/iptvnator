@@ -92,6 +92,37 @@
                     aria-hidden="true"
                 ></div>
             }
+        } @else if (binding.target === 'vidstack') {
+            @defer (on immediate) {
+                @if (channel(); as channel) {
+                    <app-vidstack-player
+                        [channel]="$any(channel)"
+                        [fullscreenTarget]="fullscreenSurface"
+                        [mediaTitle]="resolvedMediaTitle()"
+                        [upNext]="upNext()"
+                        [timelineSegments]="timelineSegments()"
+                        [volume]="volume()"
+                        [showCaptions]="showCaptions()"
+                        [isLive]="resolvedIsLive()"
+                        [interactionEnabled]="playbackInteractionEnabled()"
+                        [startTime]="effectiveStartTime()"
+                        [seriesNavigation]="seriesNavigation()"
+                        (timeUpdate)="handleTimeUpdate($event, application)"
+                        (playbackIssue)="handlePlaybackIssue($event, binding)"
+                        (playbackStarted)="handlePlaybackStarted(binding)"
+                        (playbackEnded)="playbackEnded.emit()"
+                        (previousEpisodeRequested)="
+                            previousEpisodeRequested.emit()
+                        "
+                        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+                    />
+                }
+            } @placeholder {
+                <div
+                    class="web-player-defer-placeholder"
+                    aria-hidden="true"
+                ></div>
+            }
         }
     } @else if (application.embeddedMpv) {
         <app-embedded-mpv-player

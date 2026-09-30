@@ -1,0 +1,13 @@
+@use 'sass:meta';
+
+// Vidstack default video layout theme, built as the non-injected
+// `vidstack-theme` stylesheet bundle (apps/web/project.json) and loaded by
+// `loadVidstackLayoutTheme()` the first time the layout is shown.
+//
+// The vendor CSS ships document-wide selectors (every bare `<video>` gets a
+// 16:9 aspect ratio). Loading it under the player shell keeps it off the other
+// players; the layout mounts its menus inside the shell as well.
+.vidstack-player-shell {
+    @include meta.load-css('vidstack/player/styles/default/theme.css');
+    @include meta.load-css('vidstack/player/styles/default/layouts/video.css');
+}

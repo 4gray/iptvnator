@@ -14,6 +14,39 @@ export enum VideoPlayer {
     MPV = 'mpv',
     VLC = 'vlc',
     ArtPlayer = 'artplayer',
+    Vidstack = 'vidstack',
+}
+
+/**
+ * Whether the player renders inside the app as a web `<video>` engine
+ * (HTML5, Video.js, ArtPlayer, Vidstack). Those are the players that share
+ * the web-player features: shared controls, ambient mode, Up Next.
+ */
+export function isWebVideoPlayer(
+    player: VideoPlayer | null | undefined
+): boolean {
+    return (
+        player === VideoPlayer.VideoJs ||
+        player === VideoPlayer.Html5Player ||
+        player === VideoPlayer.ArtPlayer ||
+        player === VideoPlayer.Vidstack
+    );
+}
+
+/**
+ * Whether the player plays DASH (including ClearKey) itself through the
+ * shared Shaka engine. DASH channels selected on any other player fall back to
+ * the HTML5 player: Video.js has no DASH bridge, and embedded/external MPV and
+ * VLC have no KODIPROP ClearKey support.
+ */
+export function playsDashInline(
+    player: VideoPlayer | null | undefined
+): boolean {
+    return (
+        player === VideoPlayer.Html5Player ||
+        player === VideoPlayer.ArtPlayer ||
+        player === VideoPlayer.Vidstack
+    );
 }
 
 /**
@@ -28,11 +61,7 @@ export enum VideoPlayer {
 export function reportsPlaybackFailures(
     player: VideoPlayer | null | undefined
 ): boolean {
-    return (
-        player === VideoPlayer.VideoJs ||
-        player === VideoPlayer.Html5Player ||
-        player === VideoPlayer.ArtPlayer
-    );
+    return isWebVideoPlayer(player);
 }
 
 export enum StartupBehavior {
@@ -133,7 +162,8 @@ export function normalizeDashboardRailsSettings(
 export interface Settings {
     player: VideoPlayer;
     /**
-     * Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.
+     * Use IPTVnator's shared controls in HTML5, Video.js, ArtPlayer, and
+     * Vidstack.
      * Default ON: a missing value means the user never chose, and gets the
      * shared controls; only an explicit false keeps the legacy vendor chrome.
      */
@@ -156,7 +186,8 @@ export interface Settings {
      * mouse on the left edge, tapping that edge on touch, or pressing `C` —
      * so a channel can be switched without leaving fullscreen. On by
      * default; missing values mean enabled. Applies to the shared player
-     * controls (HTML5, Video.js, ArtPlayer, Embedded MPV frame-copy).
+     * controls (HTML5, Video.js, ArtPlayer, Vidstack, Embedded MPV
+     * frame-copy).
      */
     fullscreenChannelPanel?: boolean;
     /**

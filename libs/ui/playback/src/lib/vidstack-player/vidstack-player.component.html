@@ -1,0 +1,31 @@
+<div
+    #playerRoot
+    class="vidstack-player-shell"
+    [class.vidstack-player-shell--shared-controls]="sharedControls"
+    [class.vidstack-player-shell--theme-pending]="
+        !sharedControls && !layoutThemeReady()
+    "
+>
+    <div #vidstack class="vidstack-player-container"></div>
+
+    @if (sharedControls) {
+        <app-player-controls
+            [controller]="controlsAdapter"
+            [playerSurface]="playerRoot"
+            [fullscreenTarget]="fullscreenTarget()"
+            [mediaTitle]="mediaTitle()"
+            [upNext]="upNext()"
+            [timelineSegments]="timelineSegments()"
+            [showControls]="interactionEnabled()"
+            [shortcutsEnabled]="interactionEnabled()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    } @else {
+        <app-series-playback-navigation-controls
+            [navigation]="seriesNavigation()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    }
+</div>

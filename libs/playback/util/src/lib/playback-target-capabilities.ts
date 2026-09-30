@@ -69,6 +69,7 @@ export function createPlaybackTargetCapabilities(options: {
         InlinePlaybackPlayer.VideoJs,
         InlinePlaybackPlayer.Html5,
         InlinePlaybackPlayer.ArtPlayer,
+        InlinePlaybackPlayer.Vidstack,
     ] as const;
     const inlineCapabilities = inlineTargets.map((target) => {
         const engineFamily = getInlinePlaybackEngineFamily(

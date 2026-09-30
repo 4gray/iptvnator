@@ -8,6 +8,7 @@ import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
     VideoPlayer,
+    isWebVideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from './settings-store.service';
@@ -23,12 +24,7 @@ export class PlayerService {
     isEmbeddedPlayer(
         player = this.settingsStore.player() ?? VideoPlayer.VideoJs
     ): boolean {
-        return (
-            player === VideoPlayer.VideoJs ||
-            player === VideoPlayer.Html5Player ||
-            player === VideoPlayer.ArtPlayer ||
-            player === VideoPlayer.EmbeddedMpv
-        );
+        return isWebVideoPlayer(player) || player === VideoPlayer.EmbeddedMpv;
     }
 
     openPlayer(
