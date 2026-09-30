@@ -424,8 +424,9 @@ routes such a request through the Up Next rail selection
 (`upNextEpisodeSelected`) whenever `seriesNavigation.canNext` is false, which
 plays the next season's first episode; either path keeps fullscreen exactly
 like the transport button.
-The card is a glass surface that shows and hides with the controls; the
-compact dock uses a smaller variant without the trailing icon. After
+The card is a glass surface that stays visible when the controls auto-hide
+(`showControls` is the host's input, not the idle state); the compact dock
+uses a smaller variant without the trailing icon. After
 `UP_NEXT_COLLAPSE_DELAY_MS` (10 s, paused while hovered) the card asks to
 collapse and `ControlsUpNext.collapse()` turns it into a one-line pill
 (label and countdown) for the rest of the episode. A corner close button

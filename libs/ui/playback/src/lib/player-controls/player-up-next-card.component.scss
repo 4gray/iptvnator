@@ -1,7 +1,7 @@
 // Glass card, bottom-right above the dock, inside the controls host (the
-// `player-controls` container) whose `--pc-*` palette it reads. It shows and
-// hides with the controls, collapses to a pill once seen, and the corner
-// close button dismisses it for the episode.
+// `player-controls` container) whose `--pc-*` palette it reads. It does not
+// fade with idle controls; instead it collapses to a pill once seen, and the
+// corner close button dismisses it for the episode.
 :host {
     position: absolute;
     right: 32px;

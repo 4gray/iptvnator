@@ -409,6 +409,19 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(
             queryByTestId('fullscreen-channel-panel-setting')
         ).not.toBeNull();
+    });
+
+    it('offers the up next card toggle for Embedded MPV only under the frame-copy engine', () => {
+        // The native-view engine never mounts the shared controls.
+        fixture.componentRef.setInput(
+            'form',
+            createForm(VideoPlayer.EmbeddedMpv)
+        );
+        fixture.detectChanges();
+        expect(queryByTestId('player-up-next-card-setting')).toBeNull();
+
+        fixture.componentRef.setInput('frameCopyActive', true);
+        fixture.detectChanges();
         expect(queryByTestId('player-up-next-card-setting')).not.toBeNull();
     });
 

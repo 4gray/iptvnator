@@ -137,7 +137,7 @@
         </div>
     }
 
-    @if (supportsFullscreenChannelPanel()) {
+    @if (supportsUpNextCard()) {
         <div
             class="setting-item"
             data-setting-id="player-up-next-card"
@@ -159,7 +159,9 @@
                 ></mat-checkbox>
             </div>
         </div>
+    }
 
+    @if (supportsFullscreenChannelPanel()) {
         <div
             class="setting-item"
             data-setting-id="fullscreen-channel-panel"

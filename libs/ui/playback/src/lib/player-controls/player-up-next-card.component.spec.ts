@@ -152,7 +152,7 @@ describe('PlayerUpNextCardComponent', () => {
         expect(documentListener).not.toHaveBeenCalled();
     });
 
-    it('asks to collapse after a while, but not while hovered', () => {
+    it('asks to collapse after a while, pausing the count while hovered', () => {
         jest.useFakeTimers();
         fixture.destroy();
         fixture = TestBed.createComponent(PlayerUpNextCardComponent);
@@ -167,14 +167,16 @@ describe('PlayerUpNextCardComponent', () => {
         const collapse = jest.fn();
         fixture.componentInstance.collapseRequested.subscribe(collapse);
 
+        jest.advanceTimersByTime(UP_NEXT_COLLAPSE_DELAY_MS - 1000);
         fixture.nativeElement.dispatchEvent(new MouseEvent('mouseenter'));
         fixture.detectChanges();
         jest.advanceTimersByTime(UP_NEXT_COLLAPSE_DELAY_MS * 2);
         expect(collapse).not.toHaveBeenCalled();
 
+        // Leaving resumes the remaining second instead of a fresh delay.
         fixture.nativeElement.dispatchEvent(new MouseEvent('mouseleave'));
         fixture.detectChanges();
-        jest.advanceTimersByTime(UP_NEXT_COLLAPSE_DELAY_MS - 1);
+        jest.advanceTimersByTime(999);
         expect(collapse).not.toHaveBeenCalled();
         jest.advanceTimersByTime(1);
         expect(collapse).toHaveBeenCalledTimes(1);

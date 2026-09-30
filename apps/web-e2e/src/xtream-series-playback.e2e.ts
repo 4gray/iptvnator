@@ -171,10 +171,7 @@ test.describe('@xtream inline series fullscreen', () => {
         });
 
         // The corner button hides the card for this episode; bringing the
-        // controls back does not bring it back. The card hides with idle
-        // controls, so wake them first.
-        await playerView.hover();
-        await expect(card).toBeVisible();
+        // controls back does not bring it back.
         await playerView
             .locator('[data-test-id="player-controls-up-next-close"]')
             .click();

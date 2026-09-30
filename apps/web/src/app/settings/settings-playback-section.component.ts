@@ -89,6 +89,20 @@ export class SettingsPlaybackSectionComponent {
         );
     }
 
+    /**
+     * The Up next card is part of the shared controls. Embedded MPV mounts
+     * them only under the frame-copy engine; the native-view engine keeps
+     * its own dock, where the toggle would control nothing.
+     */
+    supportsUpNextCard(): boolean {
+        const value = this.form().value;
+        return (
+            (this.isWebPlayerSelected() &&
+                value.webPlayerSharedControls !== false) ||
+            (value.player === VideoPlayer.EmbeddedMpv && this.frameCopyActive())
+        );
+    }
+
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;
         return player === VideoPlayer.MPV || player === VideoPlayer.VLC;

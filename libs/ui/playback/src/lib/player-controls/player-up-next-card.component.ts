@@ -18,8 +18,8 @@ export const UP_NEXT_COLLAPSE_DELAY_MS = 10_000;
  * The "Up next" card in the player's bottom-right corner: thumbnail, the
  * time left, the next episode's label and title. One click plays it through
  * the host's ordinary next-episode path, so fullscreen survives. After a few
- * seconds it asks to collapse into a pill (never while hovered), and the
- * close button or Escape dismisses it for this episode.
+ * seconds of being seen (hovering pauses the count) it asks to collapse into
+ * a pill, and the close button or Escape dismisses it for this episode.
  */
 @Component({
     selector: 'app-player-up-next-card',
@@ -46,6 +46,8 @@ export class PlayerUpNextCardComponent {
     readonly collapseRequested = output<void>();
 
     readonly hovered = signal(false);
+    /** Collapse delay still owed; hovering pauses it rather than resetting. */
+    private collapseRemainingMs = UP_NEXT_COLLAPSE_DELAY_MS;
 
     /** Whole seconds under a minute, otherwise whole minutes (at least 1). */
     readonly countdown = computed(() => {
@@ -73,11 +75,18 @@ export class PlayerUpNextCardComponent {
             if (this.collapsed() || this.hovered()) {
                 return;
             }
+            const startedAt = Date.now();
             const timer = setTimeout(
                 () => this.collapseRequested.emit(),
-                UP_NEXT_COLLAPSE_DELAY_MS
+                this.collapseRemainingMs
             );
-            onCleanup(() => clearTimeout(timer));
+            onCleanup(() => {
+                clearTimeout(timer);
+                this.collapseRemainingMs = Math.max(
+                    0,
+                    this.collapseRemainingMs - (Date.now() - startedAt)
+                );
+            });
         });
     }
 
