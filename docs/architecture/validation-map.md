@@ -263,7 +263,9 @@ target `master` and for `master` pushes (dispatch it with
 `gh workflow run ci.yml --ref <branch>` for a stacked branch). The weekly
 `performance-ratchet.yml` workflow lowers baselines through a bot PR; validate
 a change to it with `gh workflow run performance-ratchet.yml --ref <branch>`,
-which measures but opens no PR off `master`. `perf:journeys` builds the `electron-performance` configuration and runs every
+which measures but opens no PR off `master`. Dispatch needs the workflow file
+on `master`; before that, see the temporary-trigger note under Weekly
+tightening in the performance journeys document. `perf:journeys` builds the `electron-performance` configuration and runs every
 journey spec against the Xtream mock: J1 launch, then J2 open-source (a
 second set of launches, each followed by the click on the portal card), both
 written to the same summary file; its probe specs run with

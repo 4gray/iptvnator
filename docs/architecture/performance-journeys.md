@@ -585,11 +585,18 @@ When the file changed and the run is on `master`, the job pushes
 `automation/performance-ratchet` and opens (or updates) a pull request with
 the per-run table, the diff and the run URL, labelled `no-release-note`. It
 pushes with the existing `PAT` secret, as the Windows MPV pin refresh does,
-because a pull request pushed with `GITHUB_TOKEN` starts no CI. When no
+because a pull request pushed with `GITHUB_TOKEN` starts no CI. Each run
+replaces the branch with one fresh commit, except when the open tightening
+pull request carries a commit the workflow did not make (a review edit, an
+"Update branch" merge): then it leaves the branch alone with a warning, and
+the numbers stay in the job summary. When no
 baseline was below its value in all three runs, the workflow ends without a
 pull request. A dispatch on another branch measures and prints the diff but
-never opens one; use `gh workflow run performance-ratchet.yml --ref <branch>`
-to validate a change to the workflow. Review the pull request like a manual
+never opens one, so `gh workflow run performance-ratchet.yml --ref <branch>`
+validates a change to the workflow once the file is on `master`. GitHub only
+dispatches workflows that exist on the default branch, so before the first
+merge of a new or renamed workflow add a temporary `push` trigger for the
+branch and drop it before review, as #1760 did. Review the pull request like a manual
 tightening: if `master` moved since the measured commit, the
 `Initial bytes ratchet` job on the pull request is what shows that the new
 value still holds (the concurrent-merge effect above).
