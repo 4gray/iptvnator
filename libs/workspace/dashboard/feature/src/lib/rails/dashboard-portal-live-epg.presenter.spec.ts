@@ -9,6 +9,7 @@ import {
     DashboardPortalLiveEpgService,
     type DashboardPortalLiveEpgEntry,
 } from '@iptvnator/workspace/dashboard/data-access';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 
 const xtreamLive = (id: number, playlist = 'p'): PortalActivityItem =>
@@ -44,6 +45,7 @@ describe('DashboardPortalLiveEpgPresenter', () => {
         offsetMinutes = signal(0);
         TestBed.configureTestingModule({
             providers: [
+                DashboardLiveEpgClock,
                 DashboardPortalLiveEpgPresenter,
                 {
                     provide: DashboardPortalLiveEpgService,
@@ -99,6 +101,23 @@ describe('DashboardPortalLiveEpgPresenter', () => {
         presenter.setVisibleCards('recent', []);
         TestBed.tick();
         expect(wantedKeys().at(-1)).toEqual(['xtream::p::1', 'xtream::p::3']);
+    });
+
+    it('keeps the live-EPG clock stopped while no portal card is wanted', () => {
+        jest.useFakeTimers();
+        try {
+            presenter.connect(signal([xtreamLive(1)]));
+            TestBed.tick();
+            expect(jest.getTimerCount()).toBe(0);
+
+            presenter.setVisibleCards('recent', [
+                { id: 'r1', liveEpgSourceKey: 'xtream::p::1' },
+            ] as never);
+            TestBed.tick();
+            expect(jest.getTimerCount()).toBe(1);
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('ignores visible keys whose item is no longer on the dashboard', () => {

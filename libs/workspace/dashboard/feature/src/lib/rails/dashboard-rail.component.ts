@@ -2,6 +2,7 @@ import {
     AfterViewInit,
     ChangeDetectionStrategy,
     Component,
+    computed,
     ElementRef,
     OnDestroy,
     effect,
@@ -172,18 +173,28 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     private resetFrameId: number | null = null;
     private settleFrameId: number | null = null;
 
+    /**
+     * Which cards the rail shows, in order. Hosts rebuild their card objects
+     * on every clock tick (live progress, expiry badges); only a change of
+     * this identity is a new rail worth scrolling back to the start for or
+     * re-observing.
+     */
+    private readonly cardIds = computed(() =>
+        JSON.stringify(this.items().map((card) => card.id))
+    );
+
     constructor() {
         effect(() => {
-            this.items();
+            this.cardIds();
             if (!this.viewReady()) return;
             this.scheduleResetToStart();
         });
-        // The rendered card set changed: watch the new elements. Reading
-        // `items()` too keeps an id-only change (same elements, new cards)
-        // from leaving a stale visible set behind.
+        // The rendered card set changed: watch the new elements. Reading the
+        // ids too keeps an id-only change (same elements, new cards) from
+        // leaving a stale visible set behind.
         effect(() => {
             const elements = this.cardElements();
-            this.items();
+            this.cardIds();
             untracked(() => this.observeCards(elements));
         });
     }

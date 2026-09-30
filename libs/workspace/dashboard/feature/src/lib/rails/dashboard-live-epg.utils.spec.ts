@@ -3,6 +3,7 @@ import {
     buildDashboardLiveEpgDetails,
     calcEpgProgress,
     formatEpgTimeRange,
+    sameLiveEpgAnswers,
 } from './dashboard-live-epg.utils';
 
 // Local-time wall clock so the formatted range is stable in every timezone
@@ -141,6 +142,37 @@ describe('dashboard-live-epg.utils', () => {
             const row = program({ title: '   ', start: '', stop: '' });
 
             expect(buildDashboardLiveEpgDetails(row, MIDPOINT_MS)).toBeNull();
+        });
+    });
+
+    describe('sameLiveEpgAnswers', () => {
+        const answers = (row: EpgProgram | null) =>
+            new Map<string, EpgProgram | null>([['key', row]]);
+
+        it('treats fresh objects with the same rendered fields as unchanged', () => {
+            expect(
+                sameLiveEpgAnswers(answers(program()), answers(program()))
+            ).toBe(true);
+        });
+
+        it.each([
+            ['title', { title: 'Late News' }],
+            ['description', { desc: 'Corrected summary' }],
+            ['category', { category: 'Sport' }],
+            ['stop', { stop: new Date(2026, 0, 15, 21, 30).toISOString() }],
+        ])('sees a guide correction to the %s', (_, change) => {
+            expect(
+                sameLiveEpgAnswers(
+                    answers(program()),
+                    answers(program(change as Partial<EpgProgram>))
+                )
+            ).toBe(false);
+        });
+
+        it('sees a programme appear or disappear', () => {
+            expect(sameLiveEpgAnswers(answers(null), answers(program()))).toBe(
+                false
+            );
         });
     });
 });

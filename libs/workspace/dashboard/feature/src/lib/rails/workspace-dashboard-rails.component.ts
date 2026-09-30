@@ -7,7 +7,7 @@ import {
     untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { interval, map, startWith } from 'rxjs';
+import { startWith } from 'rxjs';
 import {
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
@@ -48,7 +48,6 @@ import {
     DashboardTrendingService,
     GlobalRecentItem,
     resolveSourceExpiryBadge,
-    SOURCE_EXPIRY_TICK_MS,
 } from '@iptvnator/workspace/dashboard/data-access';
 import { createDashboardRailSkeletons } from './dashboard-rail-skeletons';
 import { DashboardRailComponent } from './dashboard-rail.component';
@@ -61,6 +60,8 @@ import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.pre
 import { DashboardHeroComponent } from './dashboard-hero.component';
 import { buildLiveEpgCardsForEnabledRails } from './dashboard-live-epg.utils';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
+import { createSourceExpiryClock } from './dashboard-source-expiry-clock';
 import {
     buildDashboardEpisodeBadge,
     buildPlaybackPositionReloadKey,
@@ -99,7 +100,11 @@ import type {
     host: {
         '[class.rails-page-host--empty]': 'ready() && !hasPlaylists()',
     },
-    providers: [DashboardLiveEpgPresenter, DashboardPortalLiveEpgPresenter],
+    providers: [
+        DashboardLiveEpgClock,
+        DashboardLiveEpgPresenter,
+        DashboardPortalLiveEpgPresenter,
+    ],
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
@@ -260,14 +265,12 @@ export class WorkspaceDashboardRailsComponent {
             : this.t('WORKSPACE.DASHBOARD.TMDB_RECOMMENDED');
     });
 
-    // Minute heartbeat for the expiry badges: resolveSourceExpiryBadge reads
-    // the wall clock, so without a reactive tick a dashboard left open would
-    // never cross a day-countdown or expiration boundary. interval() emits
-    // 0 first — shifted by one so it differs from initialValue, otherwise
-    // the signal's equality check would swallow the first tick.
-    private readonly sourceExpiryTick = toSignal(
-        interval(SOURCE_EXPIRY_TICK_MS).pipe(map((tick) => tick + 1)),
-        { initialValue: 0 }
+    // resolveSourceExpiryBadge reads the wall clock, so a dashboard left
+    // open needs a reactive clock to cross a day-countdown or expiration
+    // boundary. It moves only at those boundaries, not on a polling tick.
+    private readonly sourceExpiryNow = createSourceExpiryClock(
+        this.sourceExpiry.facts,
+        computed(() => this.dashboardRails().recentSources)
     );
 
     readonly sourceCards = computed<DashboardRailCard[]>(() => {
@@ -611,12 +614,12 @@ export class WorkspaceDashboardRailsComponent {
     private buildSourceExpiryBadge(
         playlistId: string
     ): DashboardRailCard['expiryBadge'] {
-        // Reactive read: ties the wall-clock evaluation below to the minute
-        // tick (this method only runs inside the sourceCards computed).
-        this.sourceExpiryTick();
+        // Reactive read: ties the evaluation below to the expiry clock (this
+        // method only runs inside the sourceCards computed). Date.now() keeps
+        // a recompute for any other reason on the real time.
         const badge = resolveSourceExpiryBadge(
             this.sourceExpiry.facts().get(playlistId),
-            Date.now()
+            Math.max(this.sourceExpiryNow(), Date.now())
         );
         if (!badge) {
             return null;

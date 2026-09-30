@@ -10,16 +10,21 @@ import {
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import {
     catchError,
+    combineLatest,
     defaultIfEmpty,
+    distinctUntilChanged,
+    filter,
     forkJoin,
-    interval,
     map,
+    merge,
     of,
-    startWith,
+    skip,
     switchMap,
+    tap,
 } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
+    epgProviderClockMs,
     normalizeDashboardRailsSettings,
     type EpgProgram,
     type PortalActivityItem,
@@ -31,15 +36,18 @@ import {
     DashboardDataService,
 } from '@iptvnator/workspace/dashboard/data-access';
 import type { DashboardRailCard } from './dashboard-rail.component';
+import { DashboardLiveEpgClock } from './dashboard-live-epg-clock';
 import { DashboardPortalLiveEpgPresenter } from './dashboard-portal-live-epg.presenter';
 import {
     buildDashboardLiveEpgDetails,
     buildLiveEpgLookupGroups,
     getLiveEpgProgramForCard,
     liveEpgAllowsAnySource,
+    liveEpgAnswersNeedRefresh,
     liveEpgProgramKey,
     liveEpgScopeKey,
-    LIVE_EPG_TICK_MS,
+    LIVE_EPG_MAX_ANSWER_AGE_MS,
+    sameLiveEpgAnswers,
     type DashboardLiveEpgDetails,
     type DashboardLiveEpgLookupGroup,
 } from './dashboard-live-epg.utils';
@@ -88,6 +96,7 @@ export class DashboardLiveEpgPresenter {
     private readonly settingsStore = inject(SettingsStore);
     /** Xtream/Stalker cards are answered by their portal, not by XMLTV. */
     private readonly portal = inject(DashboardPortalLiveEpgPresenter);
+    private readonly clock = inject(DashboardLiveEpgClock);
 
     private readonly cards = signal<Signal<
         readonly DashboardRailCard[]
@@ -140,22 +149,61 @@ export class DashboardLiveEpgPresenter {
         )
     );
 
-    // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
-    // catches the boundary between programs without a full page revisit.
+    private readonly offsetMinutes = computed(() =>
+        this.settingsStore.resolvedEpgOffsetMinutes()
+    );
+    /** Created once: `toObservable` owns an effect for the injector's life. */
+    private readonly now$ = toObservable(this.clock.now);
+
+    /** A guide import or source change can replace a programme on air. */
+    private readonly guideChanged$ = this.epgService.epgAvailable$.pipe(
+        skip(1),
+        filter(Boolean),
+        map(() => Date.now())
+    );
+
+    // Asked on rail or offset change and whenever the guide changes. On
+    // clock ticks it is asked again only once an answer can be stale: a
+    // programme ended, a key is still without one, or the answer is older
+    // than LIVE_EPG_MAX_ANSWER_AGE_MS. An unchanged answer is not
+    // re-emitted, so the rails rebuild on a tick only for the progress bars.
     private readonly programs = toSignal(
-        toObservable(this.lookupGroups).pipe(
-            switchMap((groups) =>
-                groups.length === 0
-                    ? of(new Map<string, EpgProgram | null>())
-                    : interval(LIVE_EPG_TICK_MS).pipe(
-                          startWith(0),
-                          switchMap(() =>
-                              forkJoin(
-                                  groups.map((group) => this.askScope(group))
-                              ).pipe(map((answers) => mergeAnswers(answers)))
-                          )
-                      )
-            )
+        combineLatest([
+            toObservable(this.lookupGroups),
+            toObservable(this.offsetMinutes),
+        ]).pipe(
+            switchMap(([groups, offsetMinutes]) => {
+                if (groups.length === 0) {
+                    return of(new Map<string, EpgProgram | null>());
+                }
+                let answers: ReadonlyMap<string, EpgProgram | null> | null =
+                    null;
+                let answeredAt = 0;
+                return merge(
+                    this.now$,
+                    this.guideChanged$.pipe(tap(() => (answers = null)))
+                ).pipe(
+                    filter(
+                        (nowMs) =>
+                            nowMs - answeredAt >= LIVE_EPG_MAX_ANSWER_AGE_MS ||
+                            liveEpgAnswersNeedRefresh(
+                                answers,
+                                groups,
+                                epgProviderClockMs(nowMs, offsetMinutes)
+                            )
+                    ),
+                    switchMap(() =>
+                        forkJoin(
+                            groups.map((group) => this.askScope(group))
+                        ).pipe(map((scopes) => mergeAnswers(scopes)))
+                    ),
+                    tap((merged) => {
+                        answers = merged;
+                        answeredAt = Date.now();
+                    }),
+                    distinctUntilChanged(sameLiveEpgAnswers)
+                );
+            })
         ),
         { initialValue: new Map<string, EpgProgram | null>() }
     );
@@ -183,6 +231,7 @@ export class DashboardLiveEpgPresenter {
     );
 
     constructor() {
+        this.clock.demand(computed(() => this.lookupGroups().length > 0));
         this.portal.connect(this.portalItems);
         // The hero sits at the top of the page and is never scrolled into
         // view, so its candidates are wanted regardless of what the rails
@@ -246,8 +295,9 @@ export class DashboardLiveEpgPresenter {
                     liveEpgAllowsAnySource(card)
                 )
             );
-        // Recompute the now-window each tick so progress moves between
-        // 30s ticks even if the program identity is unchanged.
+        // Read the clock so progress moves on every tick even while the
+        // programme itself is unchanged.
+        this.clock.now();
         return buildDashboardLiveEpgDetails(
             program,
             Date.now(),

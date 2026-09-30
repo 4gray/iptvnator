@@ -11,6 +11,11 @@ import type { DashboardRailCard } from './dashboard-rail.component';
 // the SQLite backend with a batched IPC every animation frame.
 export const LIVE_EPG_TICK_MS = 30_000;
 
+// A programme still on air is asked for again at least this often: a guide
+// refreshed outside this page's view can correct or replace it, and nothing
+// else tells the dashboard.
+export const LIVE_EPG_MAX_ANSWER_AGE_MS = 5 * 60_000;
+
 // Reads either an ISO `start`/`stop` or the pre-computed `startTimestamp`
 // when present. The parsed XMLTV pipeline populates both, but legacy rows
 // only carry the strings. `startTimestamp`/`stopTimestamp` are unix SECONDS
@@ -249,4 +254,61 @@ export function getLiveEpgProgramForCard(
     return key !== titleKey
         ? (epgMap.get(liveEpgProgramKey(scopeKey, titleKey)) ?? null)
         : null;
+}
+
+/**
+ * Whether the XMLTV answers for these groups can have gone stale by
+ * `providerClockMs` (the raw EPG clock, see `epgProviderClockMs`). A known
+ * programme stays correct until it ends, so a lookup is only repeated once
+ * one of them has ended, or while a key is still unanswered or answered
+ * with nothing on air: a guide imported meanwhile may know it now.
+ */
+export function liveEpgAnswersNeedRefresh(
+    answers: ReadonlyMap<string, EpgProgram | null> | null,
+    groups: readonly DashboardLiveEpgLookupGroup[],
+    providerClockMs: number
+): boolean {
+    if (!answers) return true;
+    for (const group of groups) {
+        for (const lookupKey of group.lookupKeys) {
+            const program = answers.get(
+                liveEpgProgramKey(group.scopeKey, lookupKey)
+            );
+            if (!program) return true;
+            const stop = epgTimestampMs(program, 'stop');
+            if (stop === null || stop <= providerClockMs) return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Same keys answered with the same programmes: everything the dashboard
+ * renders from one (title, times, description, category) must match, or a
+ * guide correction to any of them would be dropped as "unchanged".
+ */
+export function sameLiveEpgAnswers(
+    a: ReadonlyMap<string, EpgProgram | null>,
+    b: ReadonlyMap<string, EpgProgram | null>
+): boolean {
+    if (a === b) return true;
+    if (a.size !== b.size) return false;
+    for (const [key, program] of a) {
+        if (!b.has(key)) return false;
+        const other = b.get(key) ?? null;
+        if (program === other) continue;
+        if (
+            !program ||
+            !other ||
+            program.title !== other.title ||
+            program.desc !== other.desc ||
+            program.category !== other.category ||
+            epgTimestampMs(program, 'start') !==
+                epgTimestampMs(other, 'start') ||
+            epgTimestampMs(program, 'stop') !== epgTimestampMs(other, 'stop')
+        ) {
+            return false;
+        }
+    }
+    return true;
 }
