@@ -10,4 +10,10 @@
 .vidstack-player-shell {
     @include meta.load-css('vidstack/player/styles/default/theme.css');
     @include meta.load-css('vidstack/player/styles/default/layouts/video.css');
+
+    // A live stream without DVR cannot seek, so Vidstack's time slider is
+    // only a permanently full red bar. Live DVR streams keep it.
+    [data-live]:not([data-can-seek]) .vds-time-slider {
+        display: none;
+    }
 }
