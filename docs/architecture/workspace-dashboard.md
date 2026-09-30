@@ -137,6 +137,9 @@ by id, so a late live slide never moves the user off the current one. Test
 hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
 `dashboard-hero-dot`, `dashboard-hero-pause`,
 `dashboard-hero-primary-action`, `dashboard-hero-secondary-action`.
+`dashboard-hero-rotation.e2e.ts` drives the real fill animation (with a
+shortened `--hero-rotation-ms`) to prove its `animationend` still advances
+and that pause holds the slide.
 
 ## Rail Contract
 
