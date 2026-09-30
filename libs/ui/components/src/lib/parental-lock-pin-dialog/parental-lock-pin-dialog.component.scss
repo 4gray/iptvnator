@@ -1,3 +1,13 @@
+// The theme declares no Material system colours, so the error colour is a
+// local token with a value per theme (>= 6:1 on the dialog surface in both).
+:host {
+    --pin-dialog-error-color: #b3261e;
+}
+
+:host-context(.dark-theme) {
+    --pin-dialog-error-color: #ffb4ab;
+}
+
 .pin-dialog__title {
     display: flex;
     align-items: center;
@@ -12,7 +22,7 @@
 
 .pin-dialog__description {
     margin: 0;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     font-size: 0.875rem;
 }
 
@@ -31,14 +41,14 @@
 
 .pin-dialog__error {
     margin: 0;
-    color: var(--mat-sys-error);
+    color: var(--pin-dialog-error-color);
     font-size: 0.8125rem;
 }
 
 .pin-dialog__note {
     margin: 0;
     font-size: 0.75rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 }
 
 @keyframes pin-dialog-shake {

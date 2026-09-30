@@ -1,6 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateModule } from '@ngx-translate/core';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -37,6 +38,7 @@ describe('CategoryManagementDialogComponent', () => {
         getAllCategories: jest.fn(),
     };
     const dialogRef = { close: jest.fn() };
+    const snackBar = { open: jest.fn() };
     const parentalLock = {
         enabled: signal(false),
         active: signal(false),
@@ -50,13 +52,8 @@ describe('CategoryManagementDialogComponent', () => {
         itemCounts: new Map(),
     };
 
-    beforeEach(async () => {
-        jest.clearAllMocks();
-        dataSource.getAllCategories.mockResolvedValue(categories);
-        db.updateCategoryVisibility.mockResolvedValue(undefined);
-        parentalLock.enabled.set(false);
-        parentalLock.active.set(false);
-        data.contentType = 'live';
+    /** `supportsVisibility` false is the PWA: no SQLite hide/show. */
+    async function createDialog(supportsVisibility: boolean): Promise<void> {
         await TestBed.configureTestingModule({
             imports: [
                 CategoryManagementDialogComponent,
@@ -67,11 +64,14 @@ describe('CategoryManagementDialogComponent', () => {
                 { provide: XTREAM_DATA_SOURCE, useValue: dataSource },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: { supportsXtreamSqliteDataSource: true },
+                    useValue: {
+                        supportsXtreamSqliteDataSource: supportsVisibility,
+                    },
                 },
                 { provide: MatDialogRef, useValue: dialogRef },
                 { provide: MAT_DIALOG_DATA, useValue: data },
                 { provide: ParentalLockService, useValue: parentalLock },
+                { provide: MatSnackBar, useValue: snackBar },
             ],
         }).compileComponents();
         fixture = TestBed.createComponent(CategoryManagementDialogComponent);
@@ -79,6 +79,17 @@ describe('CategoryManagementDialogComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
         fixture.detectChanges();
+    }
+
+    beforeEach(async () => {
+        jest.clearAllMocks();
+        dataSource.getAllCategories.mockResolvedValue(categories);
+        db.updateCategoryVisibility.mockResolvedValue(undefined);
+        parentalLock.enabled.set(false);
+        parentalLock.active.set(false);
+        parentalLock.setXtreamLocks.mockResolvedValue(true);
+        data.contentType = 'live';
+        await createDialog(true);
     });
 
     function selectedIds() {
@@ -251,6 +262,119 @@ describe('CategoryManagementDialogComponent', () => {
             false,
             true,
         ]);
+    });
+
+    it('reports a failed lock write with the translated lock message', async () => {
+        parentalLock.enabled.set(true);
+        component.showLocks.set(true);
+        parentalLock.setXtreamLocks.mockResolvedValueOnce(false);
+
+        await component.save();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'PARENTAL_LOCK.SAVE_FAILED',
+            'CLOSE',
+            { duration: 3000 }
+        );
+        expect(dialogRef.close).not.toHaveBeenCalled();
+        expect(component.isSaving()).toBe(false);
+    });
+
+    it('does not blame the locks when the visibility write fails', async () => {
+        parentalLock.enabled.set(true);
+        component.showLocks.set(true);
+        db.updateCategoryVisibility.mockRejectedValueOnce(new Error('db'));
+
+        await component.save();
+
+        expect(parentalLock.setXtreamLocks).not.toHaveBeenCalled();
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'Failed to save category visibility',
+            'CLOSE',
+            { duration: 3000 }
+        );
+        expect(dialogRef.close).not.toHaveBeenCalled();
+    });
+
+    it('labels the clear-search button', () => {
+        component.searchTerm.set('fr');
+        fixture.detectChanges();
+
+        const clear: HTMLButtonElement = fixture.nativeElement.querySelector(
+            '.search-inline__clear'
+        );
+        expect(clear.getAttribute('aria-label')).toBe(
+            'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH'
+        );
+    });
+
+    describe('in the PWA, where hide/show is unavailable', () => {
+        beforeEach(async () => {
+            TestBed.resetTestingModule();
+            parentalLock.enabled.set(true);
+            await createDialog(false);
+        });
+
+        function text(): string {
+            fixture.detectChanges();
+            return fixture.nativeElement.textContent;
+        }
+
+        it('shows only the lock controls, not the selection count or bulk actions', () => {
+            expect(component.showLocks()).toBe(true);
+            expect(bulkButtons()).toEqual([]);
+            expect(text()).not.toContain('XTREAM.CATEGORY_MANAGEMENT.SELECTED');
+            expect(
+                fixture.nativeElement.querySelector('mat-checkbox')
+            ).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="category-locked-count"]'
+                ).textContent
+            ).toContain('PARENTAL_LOCK.LOCKED_COUNT');
+            expect(
+                fixture.nativeElement.querySelectorAll('.lock-toggle')
+            ).toHaveLength(categories.length);
+        });
+
+        it('shows no header at all while the lock feature is off', async () => {
+            TestBed.resetTestingModule();
+            parentalLock.enabled.set(false);
+            await createDialog(false);
+
+            expect(
+                fixture.nativeElement.querySelector('.header-actions')
+            ).toBeNull();
+        });
+
+        it('saves the lock draft and never writes visibility', async () => {
+            component.toggleLock(component.categories()[1]);
+
+            await component.save();
+
+            expect(db.updateCategoryVisibility).not.toHaveBeenCalled();
+            expect(parentalLock.setXtreamLocks).toHaveBeenCalledWith(
+                'mock-playlist',
+                'live',
+                [102]
+            );
+            expect(dialogRef.close).toHaveBeenCalledWith(true);
+        });
+
+        it('reports a failed lock write with the translated lock message', async () => {
+            parentalLock.setXtreamLocks.mockRejectedValueOnce(
+                new Error('store')
+            );
+
+            await component.save();
+
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'PARENTAL_LOCK.SAVE_FAILED',
+                'CLOSE',
+                { duration: 3000 }
+            );
+            expect(dialogRef.close).not.toHaveBeenCalled();
+        });
     });
 
     it.each([

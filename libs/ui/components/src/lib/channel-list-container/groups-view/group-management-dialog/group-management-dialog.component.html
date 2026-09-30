@@ -48,6 +48,9 @@
                 type="button"
                 mat-icon-button
                 class="search-inline__clear"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.CLEAR_SEARCH' | translate
+                "
                 (click)="clearSearch()"
             >
                 <mat-icon>close</mat-icon>

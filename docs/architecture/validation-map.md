@@ -264,7 +264,12 @@ target `master` and for `master` pushes (dispatch it with
 journey spec against the Xtream mock: J1 launch, then J2 open-source (a
 second set of launches, each followed by the click on the portal card), both
 written to the same summary file; its probe specs run with
-`pnpm nx run electron-backend-e2e:test-performance-harness`. The contract, what
+`pnpm nx run electron-backend-e2e:test-performance-harness`, which CI runs in
+the `Unit Tests and Typechecks` job of `ci.yml` on every run. The
+`electron-backend-e2e` command targets call `tsx` and `playwright` directly,
+not through `pnpm exec`: under `pnpm nx`, a nested `pnpm exec` can run from the
+workspace root instead of the target `cwd` and miss cwd-relative specs, globs
+and configs. The contract, what
 counts and how to add a counter or a journey are in the
 [performance journeys](performance-journeys.md) document.
 

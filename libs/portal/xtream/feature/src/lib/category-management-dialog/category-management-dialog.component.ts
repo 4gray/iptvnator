@@ -18,7 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import {
     DatabaseService,
@@ -67,6 +67,7 @@ export class CategoryManagementDialogComponent implements OnInit {
      */
     readonly supportsVisibility = this.runtime.supportsXtreamSqliteDataSource;
     private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
     private readonly dialogRef = inject(
         MatDialogRef<CategoryManagementDialogComponent>
     );
@@ -235,45 +236,72 @@ export class CategoryManagementDialogComponent implements OnInit {
         this.isSaving.set(true);
         try {
             const categories = this.categories();
-            const toHide = categories
-                .filter((c) => !c.selected)
-                .map((c) => c.id);
-            const toShow = categories
-                .filter((c) => c.selected)
-                .map((c) => c.id);
-
-            if (this.supportsVisibility && toHide.length > 0) {
-                await this.dbService.updateCategoryVisibility(toHide, true);
+            try {
+                await this.saveVisibility(categories);
+            } catch (error) {
+                this.logger.error('Error saving category visibility', error);
+                // No translation key exists for this message yet.
+                this.showSaveFailure('Failed to save category visibility');
+                return;
             }
-            if (this.supportsVisibility && toShow.length > 0) {
-                await this.dbService.updateCategoryVisibility(toShow, false);
-            }
-
-            // A relock while the visibility writes ran closed the dialog:
-            // its lock draft is dropped. The lock store refuses a removal
-            // that still commits after a relock (it checks at commit time).
-            if (this.showLocks() && !this.parentalLock.active()) {
-                const saved = await this.parentalLock.setXtreamLocks(
-                    this.data.playlistId,
-                    this.getDbType(),
-                    categories
-                        .filter((c) => c.lockedDraft)
-                        .map((c) => c.xtream_id)
+            if (!(await this.saveLocks(categories))) {
+                this.showSaveFailure(
+                    this.translate.instant('PARENTAL_LOCK.SAVE_FAILED')
                 );
-                if (!saved) {
-                    throw new Error('Saving category locks failed');
-                }
+                return;
             }
-
             this.dialogRef.close(true);
-        } catch (error) {
-            this.logger.error('Error saving category visibility', error);
-            this.snackBar.open('Failed to save category visibility', 'Close', {
-                duration: 3000,
-            });
         } finally {
             this.isSaving.set(false);
         }
+    }
+
+    private async saveVisibility(
+        categories: CategoryWithSelection[]
+    ): Promise<void> {
+        if (!this.supportsVisibility) {
+            return;
+        }
+        const toHide = categories.filter((c) => !c.selected).map((c) => c.id);
+        const toShow = categories.filter((c) => c.selected).map((c) => c.id);
+        if (toHide.length > 0) {
+            await this.dbService.updateCategoryVisibility(toHide, true);
+        }
+        if (toShow.length > 0) {
+            await this.dbService.updateCategoryVisibility(toShow, false);
+        }
+    }
+
+    /** False only when a lock write was attempted and did not persist. */
+    private async saveLocks(
+        categories: CategoryWithSelection[]
+    ): Promise<boolean> {
+        // A relock while the visibility writes ran closed the dialog: its
+        // lock draft is dropped. The lock store refuses a removal that
+        // still commits after a relock (it checks at commit time).
+        if (!this.showLocks() || this.parentalLock.active()) {
+            return true;
+        }
+        try {
+            const saved = await this.parentalLock.setXtreamLocks(
+                this.data.playlistId,
+                this.getDbType(),
+                categories.filter((c) => c.lockedDraft).map((c) => c.xtream_id)
+            );
+            if (!saved) {
+                this.logger.error('Category locks were not saved');
+            }
+            return saved;
+        } catch (error) {
+            this.logger.error('Error saving category locks', error);
+            return false;
+        }
+    }
+
+    private showSaveFailure(message: string): void {
+        this.snackBar.open(message, this.translate.instant('CLOSE'), {
+            duration: 3000,
+        });
     }
 
     cancel(): void {

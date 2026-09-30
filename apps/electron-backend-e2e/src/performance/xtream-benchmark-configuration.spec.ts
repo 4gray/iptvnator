@@ -346,7 +346,7 @@ describe('Xtream Playwright and Nx plumbing', () => {
         assert.equal(target?.['parallelism'], false);
         assert.equal(
             (target?.['options'] as Record<string, unknown>)?.['command'],
-            'pnpm exec playwright test --config=playwright.xtream-performance.config.ts src/xtream.performance.ts'
+            'playwright test --config=playwright.xtream-performance.config.ts src/xtream.performance.ts'
         );
         assert.equal(
             (entrypoint.match(/runXtreamBenchmark\(\)/g) ?? []).length,

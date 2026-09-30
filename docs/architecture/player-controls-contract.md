@@ -309,8 +309,11 @@ of its own: a timeline row above a three-column control row, sitting
 directly on the video over the bottom scrim. The palette is a fixed set of
 `--pc-*` custom properties on `:host` — accent blue `#4f8eff` for the
 primary action and progress, cyan `#5cd6ff` for "something is on", violet
-`#b599ff` for "a value was changed", and the `#e7ecf3` / `#9aa3b2` /
-`#6b7384` text ramp. They are literal on purpose: the overlay is
+`#b599ff` for "a value was changed", the `#e7ecf3` / `#9aa3b2` /
+`#6b7384` text ramp, and two reds: `--pc-live` `#d32f2f` fills the LIVE
+badge (white label 5.0:1), and `--pc-danger` `#ff5252` colours the active
+record glyph and the recording status (6.2:1 on the glass over a black
+frame). They are literal on purpose: the overlay is
 theme-independent (see the UI guidelines' player theme boundary), and the
 app's `--app-selection-color` is a different blue that would fight the video.
 
@@ -1783,6 +1786,9 @@ capture listeners because media events do not bubble. Release listeners also
 attach to the tracked element: Chromium's pause after DOM removal never reaches
 the document. A playing video holds a display-sleep lock only while the document
 is visible or that video is in picture-in-picture, which survives minimization.
+In Electron this relies on the main window keeping Chromium background
+throttling on: with `backgroundThrottling: false` a minimized window keeps
+reporting `visible`, so the gate would never release the display.
 
 Electron uses main-process `powerSaveBlocker` through
 `window.electron.setPlaybackKeepAwake`. The renderer vote clears on reload,

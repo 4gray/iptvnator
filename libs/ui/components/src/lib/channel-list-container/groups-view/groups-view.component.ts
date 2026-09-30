@@ -579,6 +579,7 @@ export class GroupsViewComponent {
                 ...(lockedGroupTitles ? { lockedGroupTitles } : {}),
             },
             width: '500px',
+            maxWidth: 'calc(100vw - 32px)',
             maxHeight: '90vh',
         });
 

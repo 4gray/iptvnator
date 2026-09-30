@@ -374,7 +374,8 @@ so a cancelled or refused PIN leaves it showing the real state.
   the PIN. The Xtream dialog loads its candidates through the
   capability-selected data source (`IXtreamDataSource.getAllCategories`,
   which the PWA source answers from its session cache or the API), so PWA
-  users can set locks too; the hide/show checkboxes remain Electron-only.
+  users can set locks too; the hide/show checkboxes, the selection count
+  and the Select/Deselect-all actions remain Electron-only.
   A deliberate non-choice: no dedicated lock button in the rail header
   (the header already carries search, sort and manage, and the lock is a
   category-management concern) and no keyword-based "adult" recognition
@@ -415,6 +416,12 @@ so a cancelled or refused PIN leaves it showing the real state.
   so a child cannot switch the idle relock off for the next unlock.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
+- Styling uses app tokens only (the theme declares no `--mat-sys-*`); the
+  PIN error and the Stalker adult chip use a local red per theme. Keyboard
+  focus on a lock row is a 2px inset `--app-selection-color` ring, and the
+  lock dialogs open with `maxWidth: 'calc(100vw - 32px)'` and no content
+  min-width, so they fit a 375px phone. `apps/web-e2e/src/parental-lock-ui.e2e.ts`
+  checks rings, borders, the PIN error and phone width in both themes.
 
 ## Startup footprint
 
