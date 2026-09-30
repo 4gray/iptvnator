@@ -1092,6 +1092,9 @@ export class PlaylistsService {
 
         return from(
             (async () => {
+                // A favorite toggled just before this read may still be queued;
+                // the queue tail never rejects.
+                await this.playlistWriteQueues.get(playlistId);
                 const alreadyMigrated = await electron.dbGetAppState(
                     SQLITE_PLAYLIST_MIGRATION_FLAG
                 );
