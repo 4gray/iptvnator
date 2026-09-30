@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import {
     afterNextRender,
     Component,
+    DestroyRef,
     ElementRef,
     Injector,
     computed,
@@ -22,6 +23,14 @@ import {
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
 } from './detail-template.directives';
+
+/**
+ * Below this pane width the Back lane (16 + 40 + 16px) would leave the player
+ * card under ~316px, where its control row clips, so the control takes a
+ * sticky bar instead. The pane decides, not the viewport: beside the context
+ * panel a desktop pane can be narrower than a phone.
+ */
+const COMPACT_SHELL_WIDTH = 400;
 
 /**
  * Two-state layout shell for portal VOD/series detail pages.
@@ -69,6 +78,7 @@ import {
 export class PortalDetailShellComponent {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly injector = inject(Injector);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly backButton =
         viewChild<ElementRef<HTMLButtonElement>>('backButton');
 
@@ -110,6 +120,7 @@ export class PortalDetailShellComponent {
                 element.focus({ preventScroll: true });
             }
         });
+        this.observeCompactWidth();
         let wasWatch = false;
         effect(() => {
             const watch = this.isWatch();
@@ -242,5 +253,25 @@ export class PortalDetailShellComponent {
             return;
         }
         element.scrollTo({ top: 0, behavior: 'auto' });
+    }
+
+    /**
+     * Toggles `shell-host--compact` straight on the host, so the class lands
+     * in the same frame as the resize instead of after a change-detection
+     * pass. The border box keeps the threshold independent of scrollbar width.
+     */
+    private observeCompactWidth(): void {
+        if (typeof ResizeObserver === 'undefined') return;
+        const element = this.host.nativeElement;
+        const observer = new ResizeObserver(([entry]) => {
+            const width =
+                entry?.borderBoxSize?.[0]?.inlineSize ?? element.offsetWidth;
+            element.classList.toggle(
+                'shell-host--compact',
+                width < COMPACT_SHELL_WIDTH
+            );
+        });
+        observer.observe(element);
+        this.destroyRef.onDestroy(() => observer.disconnect());
     }
 }

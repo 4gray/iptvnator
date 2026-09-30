@@ -189,13 +189,12 @@
     }
 }
 
-// A phone cannot spare a 72px column: the player's controls would clip and
-// the hero actions would wrap. There the control takes a row instead — an
-// opaque sticky bar in flow that content scrolls beneath, never alongside.
-@media (max-width: 640px) {
-    :host(.shell-host--back) {
-        --detail-back-lane: 0px;
-    }
+// A pane too narrow to spare a 72px column (a phone, or a desktop pane beside
+// the context panel; the component sets the class from the pane's width)
+// would clip the player's controls. There the control takes a row instead —
+// an opaque sticky bar in flow that content scrolls beneath, never alongside.
+:host(.shell-host--compact) {
+    --detail-back-lane: 0px;
 
     .shell__navigation {
         top: 0;

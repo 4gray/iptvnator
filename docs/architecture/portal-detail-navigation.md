@@ -37,10 +37,14 @@ position puts the arrow over a heading or the player. The shell derives the lane
 from the button's geometry and publishes it as `--detail-back-lane`, which
 `content-hero` and `content-about` read too; hosts with `backAvailable=false`
 keep their own inset. The lane is horizontal because watch state is short of
-height, not width. The phone breakpoint (640 px) is the exception: a 72 px column
-would clip the player's controls, so there the wrapper becomes an in-flow 56 px
-sticky bar on `--app-header-bg` that content scrolls beneath. Electron E2E
-(`detail-back-lane.e2e.ts`) sweeps both states at 1280 and 780 px.
+height, not width. A pane narrower than 400 px is the exception — a phone, or a
+desktop pane beside the context panel — because a 72 px column there would clip
+the player's controls. The pane decides, not the viewport: a `ResizeObserver`
+on the shell's border box (scrollbar-independent) sets `shell-host--compact`,
+and the wrapper becomes an in-flow 56 px sticky bar on `--app-header-bg` that
+content scrolls beneath and that takes the taps over it. Electron E2E
+(`detail-back-lane.e2e.ts`) sweeps both states with the lane at 1280 and
+780 px and with the bar at 700 and 375 px.
 
 The sticky control is route-level Back in both states: it emits `backClicked`
 whether or not inline playback is active, so the arrow keeps one meaning and
