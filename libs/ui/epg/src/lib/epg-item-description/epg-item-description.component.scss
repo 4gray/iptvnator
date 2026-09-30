@@ -174,9 +174,11 @@
     color: $text-tertiary;
 }
 
-/* Dismiss first, primary last, both on the inline end. */
+/* Dismiss first, primary last, both on the inline end. Wrapping is only a
+   last resort; both buttons fit one row at the 540px width. */
 .epg-dialog__actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
     gap: 10px;
@@ -219,6 +221,25 @@
         &:hover {
             background: $surface-2;
         }
+    }
+}
+
+/* Phone breakpoint: the viewport caps the dialog, so actions stack one per
+   row at full width, in DOM order (dismiss above the primary). A long
+   translated label wraps inside its button instead of being clipped. */
+@media (max-width: 640px) {
+    .epg-dialog__tools,
+    .epg-dialog__actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .epg-dialog__btn {
+        justify-content: center;
+        height: auto;
+        min-height: 40px;
+        padding-block: 8px;
+        text-align: center;
     }
 }
 

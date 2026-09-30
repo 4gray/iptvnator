@@ -21,6 +21,8 @@ import {
 } from './portal-mock-fixtures';
 
 import type { Locator, Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
     applyTheme,
     expectTextContrast,
@@ -309,6 +311,112 @@ test('@epg @xtream @electron opens the programme dialog from a timeline block an
                 guide.locator('.sk-title').first(),
                 guide
             );
+        }
+    } finally {
+        await closeElectronApp(app);
+    }
+});
+
+test('@epg @xtream @electron stacks the programme dialog actions on a phone', async ({
+    dataDir,
+    request,
+}) => {
+    // French carries the longest primary label ("watch from start").
+    const fr = JSON.parse(
+        readFileSync(
+            join(__dirname, '../../web/src/assets/i18n/fr.json'),
+            'utf8'
+        )
+    ) as {
+        WORKSPACE: { SHELL: { RAIL_LIVE: string } };
+        EPG: {
+            PROGRAM_DIALOG: { SHOW_PROGRAM_DETAILS: string };
+            TIMELINE: { WATCH_FROM_START: string };
+        };
+    };
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, epgCredentials);
+    const app = await launchElectronApp(dataDir, { env: { TZ: 'UTC' } });
+
+    try {
+        await app.mainWindow.route('https://test-streams.mux.dev/**', () => {
+            // Keep the external demo request pending; guide data is local.
+        });
+        await addXtreamPortal(app.mainWindow, {
+            name: 'Xtream Phone Dialog',
+            username: epgCredentials.username,
+            password: epgCredentials.password,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openSettings(app.mainWindow);
+        await app.mainWindow.getByTestId('select-language').click();
+        await app.mainWindow.locator('mat-option[data-test-id="fr"]').click();
+        await openSettingsSection(app.mainWindow, 'epg');
+        await app.mainWindow.getByTestId('epg-view-mode-list').click();
+        await saveSettings(app.mainWindow);
+
+        await openWorkspaceSection(
+            app.mainWindow,
+            fr.WORKSPACE.SHELL.RAIL_LIVE
+        );
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        await channelItemByTitle(app.mainWindow, fixture.stream.name ?? '')
+            .first()
+            .click();
+        const guide = app.mainWindow.locator('app-epg-list-view');
+        await expect(guide.locator('[data-when="past"]').first()).toBeVisible();
+
+        // The window cannot shrink below its desktop minimum, so emulate a
+        // phone viewport below the 640px breakpoint.
+        await app.mainWindow.setViewportSize({ width: 360, height: 800 });
+        await guide
+            .locator('[data-when="past"]')
+            .first()
+            .getByRole('button', {
+                name: fr.EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS,
+            })
+            .click();
+        const dialog = app.mainWindow.getByRole('dialog');
+        await expect(dialog).toBeVisible();
+        await expect(dialog.locator('.epg-dialog__btn--primary')).toContainText(
+            fr.EPG.TIMELINE.WATCH_FROM_START
+        );
+
+        // Every action row stacks one full-width button per row in DOM
+        // order, and no label spills out of its button.
+        const rows = await dialog
+            .locator('.epg-dialog__tools, .epg-dialog__actions')
+            .evaluateAll((containers) =>
+                containers.map((container) => {
+                    const buttons = Array.from(
+                        container.querySelectorAll<HTMLElement>('button')
+                    );
+                    return {
+                        width: (container as HTMLElement).clientWidth,
+                        buttons: buttons.map((button) => ({
+                            top: button.offsetTop,
+                            bottom: button.offsetTop + button.offsetHeight,
+                            width: button.offsetWidth,
+                            overflows:
+                                button.scrollWidth > button.clientWidth + 1,
+                        })),
+                    };
+                })
+            );
+        expect(rows).toHaveLength(2);
+        for (const row of rows) {
+            expect(row.buttons.length).toBeGreaterThan(1);
+            row.buttons.forEach((button, index) => {
+                expect(Math.abs(button.width - row.width)).toBeLessThanOrEqual(
+                    1
+                );
+                expect(button.overflows).toBe(false);
+                if (index > 0) {
+                    expect(button.top).toBeGreaterThanOrEqual(
+                        row.buttons[index - 1].bottom
+                    );
+                }
+            });
         }
     } finally {
         await closeElectronApp(app);

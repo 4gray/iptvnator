@@ -671,7 +671,9 @@ Settings use the same system but are flatter than content-heavy views.
   button per row, in DOM order (dismiss on top, primary at the bottom). The
   settings unsaved-changes dialog is the reference;
   `settings-unsaved-dialog-layout.e2e.ts` in `web-e2e` measures it in six
-  locales.
+  locales. The programme dialog stacks its archive tools and footer the same
+  way, letting a long label wrap inside its button; the Electron
+  `epg-timeline-interaction.e2e.ts` measures it in French at 360px.
 - **Width.** A dialog with several openers is opened through one helper that
   owns its `MatDialogConfig`, so its width never depends on the entry point.
   `EpgProgrammeDialogService` opens the programme dialog at 540px from the
