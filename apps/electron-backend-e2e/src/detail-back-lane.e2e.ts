@@ -1,11 +1,15 @@
 import type { Locator, Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
     addXtreamPortal,
     clickFirstGridListCard,
     closeElectronApp,
     expect,
     launchElectronApp,
+    openSettings,
     resetMockServers,
+    saveSettings,
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
@@ -28,6 +32,16 @@ import {
 const widths = [1280, 780];
 const compactWidths = [700, 375];
 const playerCorner = 56;
+/** The widest translation of the heading; it must fit wherever English does. */
+const widestLocale = 'nl';
+const widestHeading = (
+    JSON.parse(
+        readFileSync(
+            join(__dirname, `../../web/src/assets/i18n/${widestLocale}.json`),
+            'utf8'
+        )
+    ) as { PORTALS: { SEASONS_AND_EPISODES: string } }
+).PORTALS.SEASONS_AND_EPISODES;
 
 type Sweep = {
     overlaps: string[];
@@ -233,6 +247,35 @@ async function expectBackClearOfContent(
 }
 
 /**
+ * Re-checks the heading in the widest translation at the lane and bar widths.
+ * Below them (a ~220px header beside the category panel) a translation wider
+ * than the pane itself wraps by design rather than losing words to an
+ * ellipsis.
+ */
+async function expectWidestHeadingOnOneLine(
+    page: Page,
+    detailUrl: string
+): Promise<void> {
+    await page.setViewportSize({ width: widths[0], height: 800 });
+    await openSettings(page);
+    await page.getByTestId('select-language').click();
+    await page.getByTestId(widestLocale).click();
+    await saveSettings(page);
+    await page.goBack();
+    await page.waitForURL(detailUrl);
+    await expect(page.locator('.section-title')).toHaveText(widestHeading, {
+        timeout: 20_000,
+    });
+    for (const width of [...widths, ...compactWidths]) {
+        await page.setViewportSize({ width, height: 800 });
+        expect(
+            await headingLineCount(page),
+            `${widestLocale} at ${width}px`
+        ).toBe(1);
+    }
+}
+
+/**
  * The actions move onto their own row before the heading wraps, at every
  * pane width that can hold the heading at all — including the widths where
  * the lane gives way to the bar.
@@ -266,6 +309,7 @@ test.describe('Portal detail Back lane', () => {
                 /\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/
             );
 
+            const detailUrl = page.url();
             const shell = page.locator('app-portal-detail-shell');
             const episodes = page.locator('.episode-card');
             await expect(page.locator('.section-title')).toBeVisible({
@@ -284,6 +328,7 @@ test.describe('Portal detail Back lane', () => {
             ).toBeVisible({ timeout: 20_000 });
 
             await expectBackClearOfContent(page, 'watch');
+            await expectWidestHeadingOnOneLine(page, detailUrl);
         } finally {
             await closeElectronApp(app);
         }

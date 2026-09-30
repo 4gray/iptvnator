@@ -630,7 +630,9 @@ partial so Xtream and Stalker share the same behavior.
 The season header's actions wrap onto their own row, starting under the
 "Seasons and Episodes" heading, before the heading itself would wrap. The
 detail pane is narrower than the window (context panel, the sticky Back lane),
-so the header's own width decides, not a viewport breakpoint.
+so the header's own width decides, not a viewport breakpoint. A translation
+wider than the pane itself wraps rather than ellipsizing: unlike a fixed-height
+panel title, a content heading has room to wrap and should not lose words.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.
