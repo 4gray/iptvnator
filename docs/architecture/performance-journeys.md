@@ -129,9 +129,11 @@ The settle window opens at the first-card cutoff. A second
 content pane (the document element if it is missing, reported in
 `evidence.settle.observedTarget`). The window closes when nothing in that
 subtree has mutated for 500 ms, or 3 s after the cutoff, whichever comes
-first. The settle point is sampled when the timer fires, and every entry
-that starts before it counts, including entries still queued in the
-observer. Why this point:
+first. The settle point is the deadline the firing timer was scheduled for
+(the last mutation plus 500 ms, or the cutoff plus 3 s), or the moment it
+ran if that is earlier, so a timer delayed by a busy main thread does not
+let later shifts in. Every entry that starts at or before the settle point
+counts, including entries still queued in the observer. Why this point:
 
 - A DOM change in the content pane is what causes the shifts this counter
   is after (data resolving, skeletons swapped for content), so quiet in that

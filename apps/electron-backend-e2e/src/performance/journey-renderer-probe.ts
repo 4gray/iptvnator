@@ -421,12 +421,17 @@ export function journeyRendererProbeScript(
         };
     };
     // Starts at the first-card cutoff. Every mutation record under the root
-    // restarts the quiet timer; the cap timer never moves.
+    // restarts the quiet timer; the cap timer never moves. A timer can run
+    // late on a busy main thread, so the settle point is the deadline it was
+    // scheduled for, never the moment it ran: a late timer must not let
+    // shifts after the deadline into the counter.
     const startSettle = (settle: JourneyRendererProbeSettleOptions) => {
         const root = document.querySelector(settle.rootSelector);
         state.settle.observedTarget =
             root === null ? 'documentElement' : 'root';
         let quietTimer: ReturnType<typeof setTimeout> | undefined;
+        let quietDeadlineEpochMs = Number.POSITIVE_INFINITY;
+        const capDeadlineEpochMs = epoch() + settle.capMs;
         const capTimer = setTimeout(() => end('cap'), settle.capMs);
         const settleObserver = new MutationObserver((records) => {
             if (state.settle.status !== 'pending') return;
@@ -440,10 +445,13 @@ export function journeyRendererProbeScript(
             clearTimeout(capTimer);
             state.settle.domMutations += settleObserver.takeRecords().length;
             settleObserver.disconnect();
-            endSettle(status, epoch());
+            const deadline =
+                status === 'cap' ? capDeadlineEpochMs : quietDeadlineEpochMs;
+            endSettle(status, Math.min(epoch(), deadline));
         };
         const armQuiet = (): void => {
             clearTimeout(quietTimer);
+            quietDeadlineEpochMs = epoch() + settle.quietMs;
             quietTimer = setTimeout(() => end('quiet'), settle.quietMs);
         };
         settleObserver.observe(root ?? document.documentElement ?? document, {

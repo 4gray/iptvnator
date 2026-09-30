@@ -526,6 +526,37 @@ test('the cap ends the settle window while the workspace content keeps mutating'
     assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
 });
 
+test('a late cap timer ends the window at its scheduled deadline', async () => {
+    const fixture = createFixture({
+        settle: { ...FAST_SETTLE, capMs: 100, quietMs: 60_000 },
+    });
+    const [observer] = fixture.observers as [FakeObserver];
+    const now = () => fixture.window.performance.now();
+    renderFirstCard(fixture);
+    await waitFor(() => fixture.rawState().final);
+    const cutoffMs =
+        (fixture.rawState().firstCardPaintEpochMs ?? 0) -
+        fixture.window.performance.timeOrigin;
+    observer.emit([layoutShift(now(), 0.25)]);
+    // Hold the main thread past the cap so its timer runs late, and shift
+    // the layout after the deadline while it is held.
+    while (now() < cutoffMs + 250) {
+        // busy
+    }
+    observer.emit([layoutShift(now(), 0.5)]);
+    observer.queue.push(layoutShift(now(), 1));
+    await waitFor(() => fixture.rawState().settle.status !== 'pending');
+    const state = fixture.state();
+    assert.equal(state.settle.status, 'cap');
+    const settledAfterCutoff =
+        (state.settle.epochMs ?? 0) - (state.firstCardPaintEpochMs ?? 0);
+    assert.ok(
+        settledAfterCutoff >= 100 && settledAfterCutoff < 150,
+        `settle point at the deadline, not when the timer ran (${settledAfterCutoff} ms)`
+    );
+    assert.equal(state.counters.layoutShiftScoreSettled, 0.25);
+});
+
 test('watches the document element when the settle root is missing', async () => {
     const fixture = createFixture({
         settle: { ...FAST_SETTLE, rootSelector: 'app-missing-root' },
