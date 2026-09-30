@@ -732,7 +732,10 @@ neither opens nor arms the hint: the zone re-arms on the next real
 scrim and below the panel while open, preserving the pointer target until
 the opening animation covers it. A delayed fullscreen paint therefore cannot
 turn a stationary edge hover into a synthetic mouse-leave that closes the
-panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
+panel. The open card is inset from the edge, so the zone's left strip stays
+exposed beside it: hovering there still counts as inside (a hover-opened
+panel leaves the pointer resting in that strip), but a completed primary
+press there closes the panel as the scrim would. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
 the leftmost transport button never loses a click or tap to it. The `C` key
 opens it too and focuses the search field — or, for a host without one, the
 panel itself (`tabindex="-1"`), so the next Tab reaches its first control
@@ -767,9 +770,16 @@ ends. The panel carries the `dark-theme` context class, so app and Material
 tokens inside it resolve to the dark palette whatever the app theme is — and
 because the app's global `.dark-theme { background: … !important }` rule
 (`apps/web/src/styles.scss`) claims the background of every element wearing
-that class, the panel's translucent gradient is declared on the compound
+that class, the panel's glass fill is declared on the compound
 `.fullscreen-channel-panel.dark-theme` selector with `!important`; without
-that the panel painted no background at all.
+that the panel painted no background at all. The panel wears the same surface
+as the controls' settings panel — a card inset 16px from the player's top,
+bottom and left edges (8px in a player narrower than 560px), 20px corners,
+the `--pc-glass-bg` fill, hairline `--pc-glass-border`, the same blur and
+shadow, and a 32px square close button — with the values written literally,
+because the panel is a sibling of the controls host, outside the scope that
+declares the `--pc-*` palette. Its episode list marks the playing row with the
+settings panel's selected-option cyan tint.
 Keyboard: `C` is ignored while any editable element has focus and while the
 player sits inside an `inert` region; the search field is an ordinary input,
 so the controls' Space/K/F/M shortcuts stay out of it. That is also why `C` is
