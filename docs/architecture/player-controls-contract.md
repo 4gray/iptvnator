@@ -1786,6 +1786,9 @@ capture listeners because media events do not bubble. Release listeners also
 attach to the tracked element: Chromium's pause after DOM removal never reaches
 the document. A playing video holds a display-sleep lock only while the document
 is visible or that video is in picture-in-picture, which survives minimization.
+In Electron this relies on the main window keeping Chromium background
+throttling on: with `backgroundThrottling: false` a minimized window keeps
+reporting `visible`, so the gate would never release the display.
 
 Electron uses main-process `powerSaveBlocker` through
 `window.electron.setPlaybackKeepAwake`. The renderer vote clears on reload,
