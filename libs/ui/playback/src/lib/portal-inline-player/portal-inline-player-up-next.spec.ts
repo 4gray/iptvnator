@@ -55,7 +55,11 @@ describe('PortalInlinePlayerComponent up next rail', () => {
         fixture?.destroy();
     });
 
-    async function setup(railEnabled: boolean, player = 'videojs') {
+    async function setup(
+        railEnabled: boolean,
+        player = 'videojs',
+        cardEnabled = true
+    ) {
         TestBed.resetTestingModule();
         await TestBed.configureTestingModule({
             imports: [PortalInlinePlayerComponent, TranslateModule.forRoot()],
@@ -66,6 +70,7 @@ describe('PortalInlinePlayerComponent up next rail', () => {
                         player: signal(player),
                         playerAmbientMode: signal(false),
                         playerUpNextRail: signal(railEnabled),
+                        playerUpNextCard: signal(cardEnabled),
                         stripCountryPrefix: signal(false),
                     },
                 },
@@ -146,6 +151,15 @@ describe('PortalInlinePlayerComponent up next rail', () => {
             },
         });
         fixture.detectChanges();
+        expect(component.playerUpNext()).toBeNull();
+    });
+
+    it('hands no "up next" card to the player when the setting is off', async () => {
+        await setup(true, 'videojs', false);
+        fixture.componentRef.setInput('playback', seriesPlayback);
+        fixture.componentRef.setInput('upNextEpisodes', upNextItems);
+        fixture.detectChanges();
+
         expect(component.playerUpNext()).toBeNull();
     });
 

@@ -1,6 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { PlayerUpNextCardComponent } from './player-up-next-card.component';
+import {
+    PlayerUpNextCardComponent,
+    UP_NEXT_COLLAPSE_DELAY_MS,
+} from './player-up-next-card.component';
 
 describe('PlayerUpNextCardComponent', () => {
     let fixture: ComponentFixture<PlayerUpNextCardComponent>;
@@ -18,6 +21,8 @@ describe('PlayerUpNextCardComponent', () => {
                 PLAYER: {
                     UP_NEXT: 'Up next',
                     UP_NEXT_IN: 'in {{minutes}} min',
+                    UP_NEXT_IN_SECONDS: 'in {{seconds}} s',
+                    UP_NEXT_DISMISS: 'Hide up next',
                 },
             },
         });
@@ -29,11 +34,14 @@ describe('PlayerUpNextCardComponent', () => {
             thumbnailUrl: 'https://img.example/still.jpg',
             progressPercent: 40,
         });
-        fixture.componentRef.setInput('minutesLeft', 7);
+        fixture.componentRef.setInput('remainingSeconds', 6 * 60 + 40);
         fixture.detectChanges();
     });
 
-    afterEach(() => fixture.destroy());
+    afterEach(() => {
+        fixture.destroy();
+        jest.useRealTimers();
+    });
 
     it('renders the still, progress, countdown and title, and names itself', () => {
         expect(query('.player-up-next__image')?.getAttribute('src')).toBe(
@@ -105,5 +113,84 @@ describe('PlayerUpNextCardComponent', () => {
         query('[data-test-id="player-controls-up-next"]')?.click();
 
         expect(selected).toHaveBeenCalledTimes(1);
+    });
+
+    it('counts whole seconds in the last minute', () => {
+        fixture.componentRef.setInput('remainingSeconds', 44.2);
+        fixture.detectChanges();
+
+        expect(
+            query('.player-up-next__eyebrow')?.textContent?.replace(/\s+/g, ' ')
+        ).toContain('Up next · in 45 s');
+    });
+
+    it('dismisses from the close button and from Escape without reaching the player', () => {
+        const dismissed = jest.fn();
+        const selected = jest.fn();
+        fixture.componentInstance.dismissed.subscribe(dismissed);
+        fixture.componentInstance.selected.subscribe(selected);
+
+        const close = query('[data-test-id="player-controls-up-next-close"]');
+        expect(close?.getAttribute('aria-label')).toBe('Hide up next');
+        close?.click();
+        expect(dismissed).toHaveBeenCalledTimes(1);
+        expect(selected).not.toHaveBeenCalled();
+
+        const documentListener = jest.fn();
+        document.addEventListener('keydown', documentListener);
+        const escape = new KeyboardEvent('keydown', {
+            key: 'Escape',
+            bubbles: true,
+            cancelable: true,
+        });
+        query('[data-test-id="player-controls-up-next"]')?.dispatchEvent(
+            escape
+        );
+        document.removeEventListener('keydown', documentListener);
+
+        expect(dismissed).toHaveBeenCalledTimes(2);
+        expect(documentListener).not.toHaveBeenCalled();
+    });
+
+    it('asks to collapse after a while, but not while hovered', () => {
+        jest.useFakeTimers();
+        fixture.destroy();
+        fixture = TestBed.createComponent(PlayerUpNextCardComponent);
+        fixture.componentRef.setInput('item', {
+            label: 'S01E03',
+            title: 'The Third One',
+            thumbnailUrl: null,
+            progressPercent: null,
+        });
+        fixture.componentRef.setInput('remainingSeconds', 100);
+        fixture.detectChanges();
+        const collapse = jest.fn();
+        fixture.componentInstance.collapseRequested.subscribe(collapse);
+
+        fixture.nativeElement.dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        jest.advanceTimersByTime(UP_NEXT_COLLAPSE_DELAY_MS * 2);
+        expect(collapse).not.toHaveBeenCalled();
+
+        fixture.nativeElement.dispatchEvent(new MouseEvent('mouseleave'));
+        fixture.detectChanges();
+        jest.advanceTimersByTime(UP_NEXT_COLLAPSE_DELAY_MS - 1);
+        expect(collapse).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(1);
+        expect(collapse).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders the collapsed pill with the label and without the still or title', () => {
+        fixture.componentRef.setInput('collapsed', true);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.classList).toContain(
+            'player-up-next--collapsed'
+        );
+        expect(query('.player-up-next__thumb')).toBeNull();
+        expect(query('.player-up-next__title')).toBeNull();
+        expect(
+            query('.player-up-next__eyebrow')?.textContent?.replace(/\s+/g, ' ')
+        ).toContain('Up next · S01E03 · in 7 min');
     });
 });

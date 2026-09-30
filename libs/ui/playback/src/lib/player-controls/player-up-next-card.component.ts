@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     input,
     output,
     signal,
@@ -10,10 +11,15 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import type { PlayerUpNextItem } from './player-controls.model';
 
+/** How long the full card shows before it shrinks to a pill. */
+export const UP_NEXT_COLLAPSE_DELAY_MS = 10_000;
+
 /**
  * The "Up next" card in the player's bottom-right corner: thumbnail, the
- * minutes left, the next episode's label and title. One click plays it
- * through the host's ordinary next-episode path, so fullscreen survives.
+ * time left, the next episode's label and title. One click plays it through
+ * the host's ordinary next-episode path, so fullscreen survives. After a few
+ * seconds it asks to collapse into a pill (never while hovered), and the
+ * close button or Escape dismisses it for this episode.
  */
 @Component({
     selector: 'app-player-up-next-card',
@@ -24,13 +30,36 @@ import type { PlayerUpNextItem } from './player-controls.model';
     host: {
         class: 'player-up-next',
         '[class.player-up-next--compact]': 'compact()',
+        '[class.player-up-next--collapsed]': 'collapsed()',
+        '(mouseenter)': 'hovered.set(true)',
+        '(mouseleave)': 'hovered.set(false)',
+        '(keydown.escape)': 'onEscape($event)',
     },
 })
 export class PlayerUpNextCardComponent {
     readonly item = input.required<PlayerUpNextItem>();
-    readonly minutesLeft = input.required<number>();
+    readonly remainingSeconds = input.required<number>();
     readonly compact = input(false);
+    readonly collapsed = input(false);
     readonly selected = output<void>();
+    readonly dismissed = output<void>();
+    readonly collapseRequested = output<void>();
+
+    readonly hovered = signal(false);
+
+    /** Whole seconds under a minute, otherwise whole minutes (at least 1). */
+    readonly countdown = computed(() => {
+        const seconds = Math.max(0, Math.ceil(this.remainingSeconds()));
+        return seconds < 60
+            ? {
+                  key: 'EMBEDDED_MPV.PLAYER.UP_NEXT_IN_SECONDS',
+                  params: { seconds },
+              }
+            : {
+                  key: 'EMBEDDED_MPV.PLAYER.UP_NEXT_IN',
+                  params: { minutes: Math.ceil(seconds / 60) },
+              };
+    });
 
     /** The still that failed to load; a new URL gets its own attempt. */
     private readonly failedThumbnail = signal<string | null>(null);
@@ -39,7 +68,27 @@ export class PlayerUpNextCardComponent {
         return url && url !== this.failedThumbnail() ? url : null;
     });
 
+    constructor() {
+        effect((onCleanup) => {
+            if (this.collapsed() || this.hovered()) {
+                return;
+            }
+            const timer = setTimeout(
+                () => this.collapseRequested.emit(),
+                UP_NEXT_COLLAPSE_DELAY_MS
+            );
+            onCleanup(() => clearTimeout(timer));
+        });
+    }
+
     onThumbnailError(): void {
         this.failedThumbnail.set(this.item().thumbnailUrl);
+    }
+
+    /** Escape on the card closes it rather than reaching the player. */
+    onEscape(event: Event): void {
+        event.preventDefault();
+        event.stopPropagation();
+        this.dismissed.emit();
     }
 }

@@ -401,7 +401,7 @@ describe('PlayerControlsComponent dock', () => {
                 canSeek: true,
                 canNextEpisode: true,
                 durationSeconds: 1200,
-                positionSeconds: 1200 - 5 * 60,
+                positionSeconds: 1200 - 30,
             });
 
         beforeEach(() => {
@@ -423,8 +423,10 @@ describe('PlayerControlsComponent dock', () => {
             setState({
                 canSeek: true,
                 canNextEpisode: true,
+                // Five minutes left of a 20-minute episode: still too early
+                // for its 48 s adaptive lead.
                 durationSeconds: 1200,
-                positionSeconds: 60,
+                positionSeconds: 1200 - 5 * 60,
             });
             fixture.detectChanges();
             expect(
@@ -448,7 +450,7 @@ describe('PlayerControlsComponent dock', () => {
                 canSeek: true,
                 canNextEpisode: false,
                 durationSeconds: 1200,
-                positionSeconds: 1200 - 5 * 60,
+                positionSeconds: 1200 - 30,
             });
             fixture.detectChanges();
             const card = query('[data-test-id="player-controls-up-next"]');
@@ -487,6 +489,27 @@ describe('PlayerControlsComponent dock', () => {
             ).not.toBeNull();
 
             fixture.componentRef.setInput('upNext', null);
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).toBeNull();
+        });
+
+        it('stays closed for this episode once dismissed', () => {
+            nearTheEnd();
+            fixture.detectChanges();
+            query('[data-test-id="player-controls-up-next-close"]')?.click();
+            fixture.detectChanges();
+            expect(
+                query('[data-test-id="player-controls-up-next"]')
+            ).toBeNull();
+
+            setState({
+                canSeek: true,
+                canNextEpisode: true,
+                durationSeconds: 1200,
+                positionSeconds: 1200 - 10,
+            });
             fixture.detectChanges();
             expect(
                 query('[data-test-id="player-controls-up-next"]')

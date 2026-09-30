@@ -160,6 +160,7 @@ export class PlayerControlsComponent implements OnDestroy {
         capabilities: this.capabilities,
         showControls: this.showControls,
         settingsOpen: this.settings.isOpen,
+        segments: this.timelineSegments,
     });
     private readonly controllerVolume = computed(() => this.state().volume);
     readonly timeline = new ControlsTimeline(this.state, this.timelineSegments);

@@ -152,6 +152,11 @@ export interface Settings {
      */
     playerUpNextRail?: boolean;
     /**
+     * Show the "Up next" card in the shared player controls shortly before a
+     * series episode ends. On by default; missing values mean enabled.
+     */
+    playerUpNextCard?: boolean;
+    /**
      * Slide the live channel list over the video in fullscreen — resting the
      * mouse on the left edge, tapping that edge on touch, or pressing `C` —
      * so a channel can be switched without leaving fullscreen. On by

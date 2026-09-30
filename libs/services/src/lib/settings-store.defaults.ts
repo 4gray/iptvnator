@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS: Settings = {
     webPlayerSharedControls: true,
     playerAmbientMode: false,
     playerUpNextRail: true,
+    playerUpNextCard: true,
     fullscreenChannelPanel: true,
     vodAutoFailover: false,
     m3uVodDetails: true,
