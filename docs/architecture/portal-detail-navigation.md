@@ -30,6 +30,18 @@ The button has an opaque app-themed surface, visible keyboard focus, an Escape
 shortcut hint via native `title` and Electron `no-drag` hit testing. The hint
 does not create an overlay that could consume the first Escape press.
 
+The control floats, so the content makes room for it: while it is shown, every
+content column (hero content, watch-state player, episodes, About and extras)
+starts after a 72 px lane — 16 px inset, 40 px button, 16 px gap — and no scroll
+position puts the arrow over a heading or the player. The shell derives the lane
+from the button's geometry and publishes it as `--detail-back-lane`, which
+`content-hero` and `content-about` read too; hosts with `backAvailable=false`
+keep their own inset. The lane is horizontal because watch state is short of
+height, not width. The phone breakpoint (640 px) is the exception: a 72 px column
+would clip the player's controls, so there the wrapper becomes an in-flow 56 px
+sticky bar on `--app-header-bg` that content scrolls beneath. Electron E2E
+(`detail-back-lane.e2e.ts`) sweeps both states at 1280 and 780 px.
+
 The sticky control is route-level Back in both states: it emits `backClicked`
 whether or not inline playback is active, so the arrow keeps one meaning and
 the list is one click away while watching. Only Escape unwinds one level: watch

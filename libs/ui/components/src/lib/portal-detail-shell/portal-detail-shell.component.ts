@@ -61,6 +61,8 @@ import {
         // on body, while preserving already-handled events and overlay guards.
         '(keydown.escape)': 'onEscape($event)',
         '[class.shell-host--watch]': 'isWatch()',
+        // Content columns reserve the sticky Back control's lane.
+        '[class.shell-host--back]': 'backAvailable()',
         '(document:keydown.escape)': 'onEscape($event)',
     },
 })
