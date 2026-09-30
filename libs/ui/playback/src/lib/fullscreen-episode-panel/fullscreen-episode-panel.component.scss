@@ -121,6 +121,11 @@
         background: rgba(255, 255, 255, 0.1);
     }
 
+    &:focus-visible {
+        outline: 2px solid #e7ecf3;
+        outline-offset: -2px;
+    }
+
     mat-icon {
         width: 16px;
         height: 16px;
@@ -152,13 +157,15 @@
     }
 
     &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
+        outline: 2px solid #e7ecf3;
         outline-offset: -2px;
     }
 }
 
+// The playing row wears the settings panel's selected-option tint: cyan means
+// "this is on" across the player chrome.
 .episode-panel__item--playing {
-    background: rgba(255, 255, 255, 0.14);
+    background: rgba(92, 214, 255, 0.14);
     cursor: default;
 }
 
@@ -266,7 +273,7 @@
     font-size: 0.62rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: #7dd87d;
+    color: #5cd6ff;
 }
 
 .episode-panel__title {
