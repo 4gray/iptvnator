@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "Non è possibile recuperare un PIN dimenticato: si rimuove solo reimpostando i dati dell'app.",
             "SAVE": "Salva PIN",
             "UNLOCK": "Sblocca",
+            "CONFIRM": "Conferma",
+            "TURN_OFF": "Disattiva",
             "CONFIRM_TITLE": "Conferma il PIN parentale",
             "CONFIRM_DESCRIPTION": "Inserisci il PIN attuale per modificare questa impostazione."
         },

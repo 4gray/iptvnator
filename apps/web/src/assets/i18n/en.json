@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "There is no way to recover a forgotten PIN — only resetting the app data removes it.",
             "SAVE": "Save PIN",
             "UNLOCK": "Unlock",
+            "CONFIRM": "Confirm",
+            "TURN_OFF": "Turn off",
             "CONFIRM_TITLE": "Confirm parental PIN",
             "CONFIRM_DESCRIPTION": "Enter the current PIN to change this setting."
         },

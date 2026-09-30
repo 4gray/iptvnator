@@ -13,7 +13,6 @@ import {
     ParentalLockPlaylistLocks,
     ParentalLockStalkerCategoryType,
     ParentalLockXtreamCategoryType,
-    verifyParentalLockPin,
 } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '../runtime-capabilities.service';
 import { SettingsStore } from '../settings-store.service';
@@ -35,6 +34,12 @@ import {
     persistParentalLockEnabled,
     persistParentalLockRelockMinutes,
 } from './parental-lock-settings-writer';
+import {
+    confirmPinRequest,
+    NEW_PIN_REQUEST,
+    PARENTAL_LOCK_SUBMIT_KEYS,
+    unlockPinRequest,
+} from './parental-lock-prompt-requests';
 import { ParentalLockStorageService } from './parental-lock-storage';
 
 /**
@@ -242,12 +247,9 @@ export class ParentalLockService {
         if (!this.prompt || !hash) {
             return false;
         }
-        const pin = await this.prompt.requestPin({
-            mode: 'unlock',
-            verify: (candidate) => verifyParentalLockPin(candidate, hash),
-            throttle: this.pinThrottle,
-            ...options,
-        });
+        const pin = await this.prompt.requestPin(
+            unlockPinRequest(hash, this.pinThrottle, options)
+        );
         if (pin === null) {
             return false;
         }
@@ -276,7 +278,7 @@ export class ParentalLockService {
         // depends on.
         const needsPersist =
             this.settingsStore.parentalLockEnabled?.() !== true;
-        const pin = await this.prompt.requestPin({ mode: 'set' });
+        const pin = await this.prompt.requestPin(NEW_PIN_REQUEST);
         if (pin === null) {
             return false;
         }
@@ -306,10 +308,10 @@ export class ParentalLockService {
         if (!this.prompt || !this.hasPin()) {
             return false;
         }
-        if (!(await this.verifyCurrentPin())) {
+        if (!(await this.verifyCurrentPin(PARENTAL_LOCK_SUBMIT_KEYS.confirm))) {
             return false;
         }
-        const pin = await this.prompt.requestPin({ mode: 'set' });
+        const pin = await this.prompt.requestPin(NEW_PIN_REQUEST);
         if (pin === null) {
             return false;
         }
@@ -321,7 +323,7 @@ export class ParentalLockService {
         if (!this.enabled()) {
             return true;
         }
-        if (!(await this.verifyCurrentPin())) {
+        if (!(await this.verifyCurrentPin(PARENTAL_LOCK_SUBMIT_KEYS.turnOff))) {
             return false;
         }
         if (!(await this.persistEnabled(false))) {
@@ -335,22 +337,18 @@ export class ParentalLockService {
      * Always asks for the PIN, unlocked session or not: changing the PIN or
      * switching the feature off must not be possible just because a parent
      * left the app unlocked. Unlike `requestUnlock()` this never short-cuts
-     * on `active`.
+     * on `active`. `submitKey` names the step the PIN confirms.
      */
-    private async verifyCurrentPin(): Promise<boolean> {
+    private async verifyCurrentPin(submitKey: string): Promise<boolean> {
         await this.initialize();
         await this.ensurePin();
         const hash = this.pinHash();
         if (!this.prompt || !hash) {
             return false;
         }
-        const pin = await this.prompt.requestPin({
-            mode: 'unlock',
-            verify: (candidate) => verifyParentalLockPin(candidate, hash),
-            throttle: this.pinThrottle,
-            titleKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_TITLE',
-            descriptionKey: 'PARENTAL_LOCK.PIN_DIALOG.CONFIRM_DESCRIPTION',
-        });
+        const pin = await this.prompt.requestPin(
+            confirmPinRequest(hash, this.pinThrottle, submitKey)
+        );
         return pin !== null;
     }
 

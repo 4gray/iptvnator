@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "Een vergeten pincode kan niet worden hersteld — alleen het resetten van de app-gegevens verwijdert hem.",
             "SAVE": "Pincode opslaan",
             "UNLOCK": "Ontgrendelen",
+            "CONFIRM": "Bevestigen",
+            "TURN_OFF": "Uitschakelen",
             "CONFIRM_TITLE": "Ouderpincode bevestigen",
             "CONFIRM_DESCRIPTION": "Voer de huidige pincode in om deze instelling te wijzigen."
         },

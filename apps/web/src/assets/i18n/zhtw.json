@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "忘記的 PIN 碼無法復原——只有重設應用程式資料才能將其移除。",
             "SAVE": "儲存 PIN 碼",
             "UNLOCK": "解鎖",
+            "CONFIRM": "確認",
+            "TURN_OFF": "關閉",
             "CONFIRM_TITLE": "確認家長 PIN 碼",
             "CONFIRM_DESCRIPTION": "請輸入目前的 PIN 碼以變更此設定。"
         },

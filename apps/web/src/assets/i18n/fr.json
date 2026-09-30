@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "Il est impossible de récupérer un code PIN oublié — seule la réinitialisation des données de l'application le supprime.",
             "SAVE": "Enregistrer le code PIN",
             "UNLOCK": "Déverrouiller",
+            "CONFIRM": "Confirmer",
+            "TURN_OFF": "Désactiver",
             "CONFIRM_TITLE": "Confirmer le code PIN parental",
             "CONFIRM_DESCRIPTION": "Saisissez le code PIN actuel pour modifier ce réglage."
         },

@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "잊어버린 PIN은 복구할 수 없습니다. 앱 데이터를 초기화해야만 PIN이 삭제됩니다.",
             "SAVE": "PIN 저장",
             "UNLOCK": "잠금 해제",
+            "CONFIRM": "확인",
+            "TURN_OFF": "끄기",
             "CONFIRM_TITLE": "보호자 PIN 확인",
             "CONFIRM_DESCRIPTION": "이 설정을 변경하려면 현재 PIN을 입력하세요."
         },

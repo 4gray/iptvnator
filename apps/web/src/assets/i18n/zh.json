@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "忘记的 PIN 码无法找回——只有重置应用数据才能将其移除。",
             "SAVE": "保存 PIN 码",
             "UNLOCK": "解锁",
+            "CONFIRM": "确认",
+            "TURN_OFF": "关闭",
             "CONFIRM_TITLE": "确认家长 PIN 码",
             "CONFIRM_DESCRIPTION": "请输入当前 PIN 码以更改此设置。"
         },

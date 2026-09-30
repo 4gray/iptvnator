@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "Eine vergessene PIN kann nicht wiederhergestellt werden – nur das Zurücksetzen der App-Daten entfernt sie.",
             "SAVE": "PIN speichern",
             "UNLOCK": "Entsperren",
+            "CONFIRM": "Bestätigen",
+            "TURN_OFF": "Deaktivieren",
             "CONFIRM_TITLE": "Kindersicherungs-PIN bestätigen",
             "CONFIRM_DESCRIPTION": "Gib die aktuelle PIN ein, um diese Einstellung zu ändern."
         },

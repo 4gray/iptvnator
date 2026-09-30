@@ -416,8 +416,26 @@ so a cancelled or refused PIN leaves it showing the real state.
   so a child cannot switch the idle relock off for the next unlock.
 - Header lock/unlock button and the `parental-lock-now` /
   `parental-unlock` palette commands.
+- The PIN dialog's submit button names the flow: the service passes a
+  `submitKey` with every prompt — Unlock (`requestUnlock`), Save PIN (a new
+  PIN in `setupPin` and `changePin`), Confirm (the current PIN before a
+  change), Turn off (`disable`). The dismiss button is the shared Cancel.
+  Errors sit on their field as `mat-error` (an `errorStateMatcher` drives
+  it, so the input gets `aria-invalid` and the message lands in the field's
+  live region): a wrong PIN, the cooldown or a too-short PIN on the PIN
+  field; a mismatch on the repeat field, shown while typing once the repeat
+  is as long as the PIN. Submit is disabled only while busy or cooling
+  down, never for incomplete input, because Enter does nothing on a
+  disabled default button; `submit()` refuses instead, shakes the field
+  (no shake under `prefers-reduced-motion: reduce`) and focuses it — except
+  that Enter in the PIN field with the repeat still empty only moves focus
+  to the repeat. Set
+  mode marks both inputs `autocomplete="new-password"`. The Electron
+  `parental-lock-pin-dialog.e2e.ts` covers the labels and the
+  mismatch → fix → save flow.
 - Styling uses app tokens only (the theme declares no `--mat-sys-*`); the
-  PIN error and the Stalker adult chip use a local red per theme. Keyboard
+  PIN errors, the fields' error outline and the Stalker adult chip use a
+  local red per theme. Keyboard
   focus on a lock row is a 2px inset `--app-selection-color` ring, and the
   lock dialogs open with `maxWidth: 'calc(100vw - 32px)'` and no content
   min-width, so they fit a 375px phone. `apps/web-e2e/src/parental-lock-ui.e2e.ts`

@@ -1934,6 +1934,8 @@
             "NO_RECOVERY": "Zapomnianego kodu PIN nie da się odzyskać — usuwa go tylko zresetowanie danych aplikacji.",
             "SAVE": "Zapisz kod PIN",
             "UNLOCK": "Odblokuj",
+            "CONFIRM": "Potwierdź",
+            "TURN_OFF": "Wyłącz",
             "CONFIRM_TITLE": "Potwierdź rodzicielski kod PIN",
             "CONFIRM_DESCRIPTION": "Wpisz obecny kod PIN, aby zmienić to ustawienie."
         },
