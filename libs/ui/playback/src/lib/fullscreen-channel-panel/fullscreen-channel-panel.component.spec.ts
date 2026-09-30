@@ -558,6 +558,21 @@ describe('FullscreenChannelPanelComponent', () => {
         expect(query('host-list')).not.toBeNull();
     });
 
+    it('keeps the panel open when the hover dwell opens it during a held press', () => {
+        setFullscreen(stage);
+        stage.dispatchEvent(pointerEvent('pointermove'));
+        hotZone()?.dispatchEvent(pointerEvent('pointerenter'));
+        hotZone()?.dispatchEvent(pointerEvent('pointerdown'));
+        jest.advanceTimersByTime(CHANNEL_PANEL_OPEN_DWELL_MS);
+        fixture.detectChanges();
+        expect(isOpen()).toBe(true);
+
+        hotZone()?.dispatchEvent(pointerEvent('pointerup'));
+        fixture.detectChanges();
+
+        expect(isOpen()).toBe(true);
+    });
+
     it('closes on the scrim but keeps the list mounted for the next opening', () => {
         setFullscreen(stage);
         openByHover();
