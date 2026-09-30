@@ -4,9 +4,7 @@
         "types": ["node"],
         "moduleResolution": "nodenext",
         "module": "NodeNext",
-        "ignoreDeprecations": "6.0",
-        "target": "ES2022",
-        "useDefineForClassFields": false
+        "ignoreDeprecations": "6.0"
     },
     "include": ["**/*.ts"]
 }
