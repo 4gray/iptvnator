@@ -167,6 +167,12 @@
 .episode-panel__item--playing {
     background: rgba(92, 214, 255, 0.14);
     cursor: default;
+
+    // Keep the cue while the row is hovered or focused.
+    &:hover,
+    &:focus-visible {
+        background: rgba(92, 214, 255, 0.2);
+    }
 }
 
 // Watched rows step back so the unwatched ones read as "what's left".

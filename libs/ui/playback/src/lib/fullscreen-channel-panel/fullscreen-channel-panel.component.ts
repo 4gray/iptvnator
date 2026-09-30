@@ -230,6 +230,8 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
      * pointerup, not pointerdown: the hot zone must still be the click
      * target when the press completes, so the click that follows dies on it
      * instead of reaching the video's click-to-pause.
+     * While the panel is open the zone is still exposed in the card's left
+     * inset, above the scrim, so a click there dismisses like the scrim does.
      */
     onHotZonePointerDown(event: PointerEvent): void {
         this.hotZonePressPointerId =
@@ -240,6 +242,10 @@ export class FullscreenChannelPanelComponent implements OnDestroy {
         const pressed = this.hotZonePressPointerId;
         this.hotZonePressPointerId = null;
         if (pressed === null || pressed !== event.pointerId) {
+            return;
+        }
+        if (this.state.open()) {
+            this.state.hide();
             return;
         }
         this.state.show('pointer');

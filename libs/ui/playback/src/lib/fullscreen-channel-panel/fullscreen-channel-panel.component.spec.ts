@@ -547,6 +547,17 @@ describe('FullscreenChannelPanelComponent', () => {
         expect(query('host-list')?.textContent?.trim()).toBe('');
     });
 
+    it('closes on a click in the edge gutter the inset card leaves exposed', () => {
+        setFullscreen(stage);
+        openByHover();
+        hotZone()?.dispatchEvent(pointerEvent('pointerdown'));
+        hotZone()?.dispatchEvent(pointerEvent('pointerup'));
+        fixture.detectChanges();
+
+        expect(isOpen()).toBe(false);
+        expect(query('host-list')).not.toBeNull();
+    });
+
     it('closes on the scrim but keeps the list mounted for the next opening', () => {
         setFullscreen(stage);
         openByHover();

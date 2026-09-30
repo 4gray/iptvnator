@@ -732,7 +732,10 @@ neither opens nor arms the hint: the zone re-arms on the next real
 scrim and below the panel while open, preserving the pointer target until
 the opening animation covers it. A delayed fullscreen paint therefore cannot
 turn a stationary edge hover into a synthetic mouse-leave that closes the
-panel. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
+panel. The open card is inset from the edge, so the zone's left strip stays
+exposed beside it: hovering there still counts as inside (a hover-opened
+panel leaves the pointer resting in that strip), but a completed primary
+press there closes the panel as the scrim would. The zone stops above the controls bar (`bottom: max(25%, 140px)`) so
 the leftmost transport button never loses a click or tap to it. The `C` key
 opens it too and focuses the search field — or, for a host without one, the
 panel itself (`tabindex="-1"`), so the next Tab reaches its first control
