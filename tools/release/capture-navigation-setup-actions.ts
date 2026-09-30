@@ -164,6 +164,36 @@ async function openSettingsEpg(page: Page): Promise<void> {
     await page.waitForTimeout(500);
 }
 
+/**
+ * Settings with a term typed into the header search, so the page shows the
+ * ranked results list and the per-section match counts instead of a section.
+ * The term lives only in the `q` query param: the next action's navigation
+ * clears it, and nothing is staged in the settings form.
+ */
+async function openSettingsSearch(
+    page: Page,
+    term: string | null
+): Promise<void> {
+    if (!term) {
+        throw new Error('open-settings-search needs a term: open-settings-search=<term>');
+    }
+
+    await openSettings(page);
+    await page
+        .locator('app-workspace-shell-header input[type="search"]')
+        .fill(term, { timeout: 10_000 });
+    await page.waitForURL(/\/workspace\/settings\/general\?q=/, {
+        timeout: 15_000,
+    });
+    const results = page.locator('[data-test-id="settings-search-results"]');
+    await results.waitFor({ state: 'visible', timeout: 15_000 });
+    await results
+        .locator('[data-test-id^="settings-search-result-"]')
+        .first()
+        .waitFor({ state: 'visible', timeout: 10_000 });
+    await settleUi(page);
+}
+
 /* ------------------------------------------------------------------ */
 /* Remote control (guide shots)                                        */
 /* ------------------------------------------------------------------ */
@@ -301,6 +331,7 @@ export const SETUP_ACTIONS: Readonly<Record<string, CaptureAction>> = {
     'open-add-playlist-stalker': openAddPlaylistStalker,
     'open-add-playlist-m3u-url': openAddPlaylistM3uUrl,
     'open-settings-epg': openSettingsEpg,
+    'open-settings-search': openSettingsSearch,
     'open-settings-tmdb': openSettingsTmdb,
     'open-settings-remote-control': openSettingsRemoteControl,
     'enable-remote-control': enableRemoteControl,

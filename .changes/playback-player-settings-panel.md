@@ -1,7 +1,6 @@
 ---
 type: feature
 area: playback
-highlight: Player settings panel
 ---
 
 Audio, subtitles, quality, speed and aspect ratio now live in one settings
