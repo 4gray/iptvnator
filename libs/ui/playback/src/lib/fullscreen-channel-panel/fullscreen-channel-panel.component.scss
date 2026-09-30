@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 // Global styles on purpose (ViewEncapsulation.None): the host page's list is
 // stamped into the panel body through an ng-template, so its nodes carry the
 // host's scoping attribute and an emulated `.body > *` rule could never reach
@@ -253,12 +254,15 @@
     padding: 4px;
     border-radius: 10px;
     color: #e7ecf3;
-    --mdc-icon-button-icon-color: currentColor;
-    --mat-icon-button-icon-color: currentColor;
-    --mat-icon-button-state-layer-size: 32px;
-    --mat-icon-button-container-shape: 10px;
-    --mat-icon-button-icon-size: 20px;
-    --mat-icon-button-hover-state-layer-opacity: 0;
+    @include mat.icon-button-overrides(
+        (
+            icon-color: currentColor,
+            state-layer-size: 32px,
+            container-shape: 10px,
+            icon-size: 20px,
+            hover-state-layer-opacity: 0,
+        )
+    );
 }
 
 .fullscreen-channel-panel__close mat-icon {

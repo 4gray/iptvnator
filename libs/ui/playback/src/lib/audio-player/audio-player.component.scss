@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 // ─── Radio Player — cinematic hero layout ────────────────────────────────────
 // Mirrors the content-hero/vod-details pattern: blurred backdrop, vignette,
 // floating artwork + controls centred in the available space.
@@ -15,7 +16,7 @@
     width: 100%;
     height: 100%;
     overflow: hidden;
-    background: var(--mat-sys-surface);
+    background: var(--app-content-bg);
 }
 
 // ─── Blurred backdrop (station logo, blown up) ──────────────────────────────
@@ -205,13 +206,13 @@
 // Play / Pause uses the unified app primary, not the station's dominant color
 // — same blue as every other CTA so radio doesn't feel like a different app.
 .play-btn {
-    --mdc-fab-container-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mat-fab-container-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mdc-fab-icon-color: #fff;
-    --mat-fab-foreground-color: #fff;
-    --mat-fab-icon-color: #fff;
-    --mat-fab-container-shape: 50%;
-    --mdc-fab-container-shape: 50%;
+    @include mat.fab-overrides(
+        (
+            container-color: var(--app-selection-color, var(--mat-sys-primary)),
+            foreground-color: #fff,
+            container-shape: 50%,
+        )
+    );
     box-shadow: none !important;
     transition: transform 0.2s ease;
 
@@ -243,13 +244,16 @@
 
 .vol-slider {
     flex: 1;
-    --mdc-slider-active-track-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mdc-slider-handle-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mat-slider-active-track-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mat-slider-handle-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mdc-slider-inactive-track-color: var(--mat-sys-outline-variant);
-    --mdc-slider-handle-width: 12px;
-    --mdc-slider-handle-height: 12px;
+    @include mat.slider-overrides(
+        (
+            active-track-color:
+                var(--app-selection-color, var(--mat-sys-primary)),
+            handle-color: var(--app-selection-color, var(--mat-sys-primary)),
+            inactive-track-color: var(--mat-sys-outline-variant),
+            handle-width: 12px,
+            handle-height: 12px,
+        )
+    );
 }
 
 // ─── Entrance ────────────────────────────────────────────────────────────────

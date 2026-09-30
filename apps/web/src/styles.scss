@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../libs/ui/components/src/lib/resizable/resizable.scss';
 @use './settings-theme';
 @use './cover-size';
@@ -236,9 +237,13 @@ textarea,
 // Failures (settings could not be saved/loaded) must not read as the usual
 // neutral confirmation toast.
 .mat-mdc-snack-bar-container.settings-snackbar--error {
-    --mdc-snackbar-container-color: var(--mat-sys-error-container);
-    --mdc-snackbar-supporting-text-color: var(--mat-sys-on-error-container);
-    --mat-snack-bar-button-color: var(--mat-sys-on-error-container);
+    @include mat.snack-bar-overrides(
+        (
+            container-color: var(--mat-sys-error-container),
+            supporting-text-color: var(--mat-sys-on-error-container),
+            button-color: var(--mat-sys-on-error-container),
+        )
+    );
 }
 
 // WCAG-friendly visually-hidden helper — content stays in the

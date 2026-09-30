@@ -247,8 +247,6 @@
    panel class from EPG_PROGRAMME_DIALOG_CONFIG so no other dialog loses its
    surface while this one is open. */
 ::ng-deep .epg-programme-dialog-panel .mat-mdc-dialog-container {
-    --mdc-dialog-container-color: transparent;
-
     .mat-mdc-dialog-surface,
     .mdc-dialog__surface {
         background: transparent !important;
