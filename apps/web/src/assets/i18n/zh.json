@@ -379,7 +379,7 @@
         "PLAYER_UP_NEXT_RAIL": "「接下来播放」剧集栏",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "在宽窗口下，将剧集播放器停靠在左侧，并在旁边显示后续剧集。",
         "PLAYER_UP_NEXT_CARD": "「接下来播放」卡片",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "在剧集即将结束或片尾字幕开始时，在播放器角落显示下一集。",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "在剧集即将结束时，在播放器角落显示下一集。",
         "FULLSCREEN_CHANNEL_PANEL": "全屏时的频道和剧集列表",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "全屏时将鼠标停在左边缘、点击它或按 C 键，即可滑出直播的频道列表或剧集的分集列表，无需退出全屏即可切换。",
         "STREAM_FORMAT_DESCRIPTION": "选择默认的流格式（xtream）",

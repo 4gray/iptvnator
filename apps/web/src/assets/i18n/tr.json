@@ -379,7 +379,7 @@
         "PLAYER_UP_NEXT_RAIL": "Sıradaki bölümler paneli",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Geniş pencerelerde dizi oynatıcısını sola yaslar ve sıradaki bölümleri yanında gösterir.",
         "PLAYER_UP_NEXT_CARD": "\"Sıradaki\" kartı",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Bölüm bitmeden kısa süre önce veya jenerik başladığında sıradaki bölümü oynatıcının köşesinde göster.",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Bölüm bitmeden kısa süre önce sıradaki bölümü oynatıcının köşesinde göster.",
         "FULLSCREEN_CHANNEL_PANEL": "Tam ekranda kanal ve bölüm listesi",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Tam ekrandayken fareyi sol kenara getirin, tıklayın veya C tuşuna basın; canlı yayının kanal listesi ya da dizinin bölüm listesi açılır ve tam ekrandan çıkmadan geçiş yapabilirsiniz.",
         "STREAM_FORMAT_DESCRIPTION": "Varsayılan yayın formatını seçin (xtream)",

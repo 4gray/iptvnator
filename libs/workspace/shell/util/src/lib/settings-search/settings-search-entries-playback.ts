@@ -57,7 +57,7 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             section: 'playback',
             labelKey: 'SETTINGS.PLAYER_UP_NEXT_CARD',
             descriptionKey: 'SETTINGS.PLAYER_UP_NEXT_CARD_DESCRIPTION',
-            keywords: ['up next', 'next episode', 'credits', 'popup'],
+            keywords: ['up next', 'next episode', 'popup'],
             fallbackId: 'video-player',
         },
         {

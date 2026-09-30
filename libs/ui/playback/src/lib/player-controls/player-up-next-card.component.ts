@@ -48,6 +48,8 @@ export class PlayerUpNextCardComponent {
     readonly hovered = signal(false);
     /** Collapse delay still owed; hovering pauses it rather than resetting. */
     private collapseRemainingMs = UP_NEXT_COLLAPSE_DELAY_MS;
+    /** The episode the owed delay belongs to; a new one starts afresh. */
+    private collapseLabel: string | null = null;
 
     /** Whole seconds under a minute, otherwise whole minutes (at least 1). */
     readonly countdown = computed(() => {
@@ -72,6 +74,11 @@ export class PlayerUpNextCardComponent {
 
     constructor() {
         effect((onCleanup) => {
+            const label = this.item().label;
+            if (label !== this.collapseLabel) {
+                this.collapseLabel = label;
+                this.collapseRemainingMs = UP_NEXT_COLLAPSE_DELAY_MS;
+            }
             if (this.collapsed() || this.hovered()) {
                 return;
             }

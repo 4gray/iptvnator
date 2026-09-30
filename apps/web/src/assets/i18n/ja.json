@@ -379,7 +379,7 @@
         "PLAYER_UP_NEXT_RAIL": "「次に再生」エピソードレール",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "ウィンドウ幅が広い場合、シリーズのプレーヤーを左側に配置し、その横に次のエピソードの一覧を表示します。",
         "PLAYER_UP_NEXT_CARD": "「次に再生」カード",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "エピソードの終了直前、またはエンドクレジットの開始時に、プレーヤーの隅に次のエピソードを表示します。",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "エピソードの終了直前に、プレーヤーの隅に次のエピソードを表示します。",
         "FULLSCREEN_CHANNEL_PANEL": "全画面表示でのチャンネル・エピソードリスト",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "全画面表示中に左端にマウスを置く、クリックする、または C キーを押すと、ライブ配信のチャンネルリストやシリーズのエピソードリストが表示され、全画面表示のまま切り替えられます。",
         "STREAM_FORMAT_DESCRIPTION": "デフォルトのストリーム形式を選択（Xtream）",

@@ -195,4 +195,35 @@ describe('PlayerUpNextCardComponent', () => {
             query('.player-up-next__eyebrow')?.textContent?.replace(/\s+/g, ' ')
         ).toContain('Up next · S01E03 · in 7 min');
     });
+
+    it('gives a new next episode the full collapse delay', () => {
+        jest.useFakeTimers();
+        fixture.destroy();
+        fixture = TestBed.createComponent(PlayerUpNextCardComponent);
+        const item = {
+            label: 'S01E03',
+            title: 'Three',
+            thumbnailUrl: null,
+            progressPercent: null,
+        };
+        fixture.componentRef.setInput('item', item);
+        fixture.componentRef.setInput('remainingSeconds', 100);
+        fixture.detectChanges();
+        const collapse = jest.fn();
+        fixture.componentInstance.collapseRequested.subscribe(collapse);
+
+        jest.advanceTimersByTime(UP_NEXT_COLLAPSE_DELAY_MS);
+        expect(collapse).toHaveBeenCalledTimes(1);
+        fixture.componentRef.setInput('collapsed', true);
+        fixture.detectChanges();
+
+        // The mounted card now points at the following episode.
+        fixture.componentRef.setInput('item', { ...item, label: 'S01E04' });
+        fixture.componentRef.setInput('collapsed', false);
+        fixture.detectChanges();
+        jest.advanceTimersByTime(UP_NEXT_COLLAPSE_DELAY_MS - 1);
+        expect(collapse).toHaveBeenCalledTimes(1);
+        jest.advanceTimersByTime(1);
+        expect(collapse).toHaveBeenCalledTimes(2);
+    });
 });

@@ -379,7 +379,7 @@
         "PLAYER_UP_NEXT_RAIL": "Painel de próximos episódios",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Em janelas largas, ancora o reprodutor de séries à esquerda e mostra os próximos episódios ao lado.",
         "PLAYER_UP_NEXT_CARD": "Cartão \"A seguir\"",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Mostrar o próximo episódio no canto do player pouco antes de o episódio terminar ou quando começam os créditos finais.",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Mostrar o próximo episódio no canto do player pouco antes de o episódio terminar.",
         "FULLSCREEN_CHANNEL_PANEL": "Lista de canais e episódios em tela cheia",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Deixe o mouse na borda esquerda, clique nela ou pressione C em tela cheia para mostrar a lista de canais de uma transmissão ao vivo ou a lista de episódios de uma série e trocar sem sair da tela cheia.",
         "STREAM_FORMAT_DESCRIPTION": "Selecionar formato de stream padrão (xtream)",

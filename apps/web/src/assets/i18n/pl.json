@@ -379,7 +379,7 @@
         "PLAYER_UP_NEXT_RAIL": "Panel następnych odcinków",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "W szerokich oknach zadokuj odtwarzacz serialu po lewej stronie i pokaż obok kolejne odcinki.",
         "PLAYER_UP_NEXT_CARD": "Karta „Następny”",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Pokazuj następny odcinek w rogu odtwarzacza krótko przed końcem odcinka lub na początku napisów końcowych.",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Pokazuj następny odcinek w rogu odtwarzacza krótko przed końcem odcinka.",
         "FULLSCREEN_CHANNEL_PANEL": "Lista kanałów i odcinków w trybie pełnoekranowym",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "W trybie pełnoekranowym przytrzymaj mysz przy lewej krawędzi, kliknij ją lub naciśnij C, aby wysunąć listę kanałów transmisji na żywo lub listę odcinków serialu i przełączać bez wychodzenia z pełnego ekranu.",
         "STREAM_FORMAT_DESCRIPTION": "Wybierz domyślny format strumienia (xtream)",

@@ -379,7 +379,7 @@
         "PLAYER_UP_NEXT_RAIL": "Rail d'épisodes « À suivre »",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Sur les fenêtres larges, ancre le lecteur de séries à gauche et affiche les épisodes à venir à côté.",
         "PLAYER_UP_NEXT_CARD": "Carte « À suivre »",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Afficher l'épisode suivant dans le coin du lecteur peu avant la fin d'un épisode ou au début du générique de fin.",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "Afficher l'épisode suivant dans le coin du lecteur peu avant la fin d'un épisode.",
         "FULLSCREEN_CHANNEL_PANEL": "Liste des chaînes et des épisodes en plein écran",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Laissez la souris sur le bord gauche, cliquez dessus ou appuyez sur C en plein écran pour afficher la liste des chaînes d'un direct ou la liste des épisodes d'une série et changer sans quitter le plein écran.",
         "STREAM_FORMAT_DESCRIPTION": "Sélectionnez le format de flux par défaut (xtream)",

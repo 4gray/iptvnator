@@ -379,7 +379,7 @@
         "PLAYER_UP_NEXT_RAIL": "„Következik” epizódsáv",
         "PLAYER_UP_NEXT_RAIL_DESCRIPTION": "Széles ablakban a sorozatlejátszó balra kerül, mellette pedig megjelennek a következő epizódok.",
         "PLAYER_UP_NEXT_CARD": "„Következik” kártya",
-        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "A következő epizód megjelenítése a lejátszó sarkában röviddel az epizód vége előtt, vagy a stáblista kezdetekor.",
+        "PLAYER_UP_NEXT_CARD_DESCRIPTION": "A következő epizód megjelenítése a lejátszó sarkában röviddel az epizód vége előtt.",
         "FULLSCREEN_CHANNEL_PANEL": "Csatorna- és epizódlista teljes képernyőn",
         "FULLSCREEN_CHANNEL_PANEL_DESCRIPTION": "Teljes képernyőn vidd az egeret a bal szélre, kattints rá, vagy nyomd meg a C billentyűt az élő adás csatornalistájának vagy a sorozat epizódlistájának megjelenítéséhez, és válts a teljes képernyő elhagyása nélkül.",
         "STREAM_FORMAT_DESCRIPTION": "Az alapértelmezett adatfolyam-formátum kiválasztása (Xtream)",
