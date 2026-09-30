@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "{{index}}. feliratsáv",
             "PLAYBACK_SPEED": "Lejátszási sebesség",
             "SPEED_TOOLTIP": "Sebesség: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Feliratok: {{subtitles}}",
             "ASPECT_RATIO": "Képarány",
             "ASPECT_TOOLTIP": "Képarány: {{aspect}}",
             "ASPECT_DEFAULT": "Alapértelmezett",

@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "Legenda {{index}}",
             "PLAYBACK_SPEED": "Velocidade de reprodução",
             "SPEED_TOOLTIP": "Velocidade: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Legendas: {{subtitles}}",
             "ASPECT_RATIO": "Proporção da imagem",
             "ASPECT_TOOLTIP": "Proporção: {{aspect}}",
             "ASPECT_DEFAULT": "Padrão",

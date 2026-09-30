@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "Ondertitel {{index}}",
             "PLAYBACK_SPEED": "Afspeelsnelheid",
             "SPEED_TOOLTIP": "Snelheid: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Ondertiteling: {{subtitles}}",
             "ASPECT_RATIO": "Beeldverhouding",
             "ASPECT_TOOLTIP": "Beeldverhouding: {{aspect}}",
             "ASPECT_DEFAULT": "Standaard",

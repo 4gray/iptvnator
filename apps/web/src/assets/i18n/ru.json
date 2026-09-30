@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "Субтитры {{index}}",
             "PLAYBACK_SPEED": "Скорость воспроизведения",
             "SPEED_TOOLTIP": "Скорость: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Субтитры: {{subtitles}}",
             "ASPECT_RATIO": "Соотношение сторон",
             "ASPECT_TOOLTIP": "Соотношение: {{aspect}}",
             "ASPECT_DEFAULT": "По умолчанию",

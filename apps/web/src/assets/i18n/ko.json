@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "자막 {{index}}",
             "PLAYBACK_SPEED": "재생 속도",
             "SPEED_TOOLTIP": "속도: {{speed}}",
+            "SUBTITLES_TOOLTIP": "자막: {{subtitles}}",
             "ASPECT_RATIO": "화면 비율",
             "ASPECT_TOOLTIP": "비율: {{aspect}}",
             "ASPECT_DEFAULT": "기본",

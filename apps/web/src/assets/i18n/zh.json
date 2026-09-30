@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "字幕 {{index}}",
             "PLAYBACK_SPEED": "播放速度",
             "SPEED_TOOLTIP": "速度：{{speed}}",
+            "SUBTITLES_TOOLTIP": "字幕：{{subtitles}}",
             "ASPECT_RATIO": "宽高比",
             "ASPECT_TOOLTIP": "宽高比：{{aspect}}",
             "ASPECT_DEFAULT": "默认",

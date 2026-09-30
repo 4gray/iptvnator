@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "Sottotitoli {{index}}",
             "PLAYBACK_SPEED": "Velocità di riproduzione",
             "SPEED_TOOLTIP": "Velocità: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Sottotitoli: {{subtitles}}",
             "ASPECT_RATIO": "Proporzioni",
             "ASPECT_TOOLTIP": "Proporzioni: {{aspect}}",
             "ASPECT_DEFAULT": "Predefinite",

@@ -27,6 +27,9 @@
     --pc-track: rgba(255, 255, 255, 0.18);
     --pc-hover: rgba(255, 255, 255, 0.1);
     --pc-glass-bg: rgba(12, 16, 23, 0.72);
+    // The settings panel carries small secondary text over whatever frame is
+    // playing: denser glass keeps it at 4.5:1 even over a white frame.
+    --pc-glass-bg-dense: rgba(12, 16, 23, 0.86);
     --pc-glass-border: rgba(255, 255, 255, 0.09);
     --pc-font-mono:
         ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
@@ -493,8 +496,18 @@
     --mat-icon-button-state-layer-size: 40px;
     --mat-icon-button-container-shape: 12px;
     --mat-icon-button-hover-state-layer-opacity: 0;
+    // The ring below is the focus indicator; Material's focus layer would
+    // take its colour from the app theme.
+    --mat-icon-button-focus-state-layer-opacity: 0;
     border-radius: 12px;
     transition: background 120ms ease-out;
+}
+
+// Keyboard focus in the overlay's own text colour, so it shows on video in
+// both app themes. The active `tune` button keeps its accent fill under it.
+:host :is(button[mat-icon-button]:focus-visible) {
+    outline: 2px solid var(--pc-text);
+    outline-offset: 2px;
 }
 
 :host :is(button[mat-icon-button]) mat-icon {

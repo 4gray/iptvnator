@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "Субтытры {{index}}",
             "PLAYBACK_SPEED": "Хуткасць прайгравання",
             "SPEED_TOOLTIP": "Хуткасць: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Субтытры: {{subtitles}}",
             "ASPECT_RATIO": "Суадносіны бакоў",
             "ASPECT_TOOLTIP": "Суадносіны: {{aspect}}",
             "ASPECT_DEFAULT": "Па змаўчанні",

@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "Napisy {{index}}",
             "PLAYBACK_SPEED": "Prędkość odtwarzania",
             "SPEED_TOOLTIP": "Prędkość: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Napisy: {{subtitles}}",
             "ASPECT_RATIO": "Proporcje obrazu",
             "ASPECT_TOOLTIP": "Proporcje: {{aspect}}",
             "ASPECT_DEFAULT": "Domyślne",

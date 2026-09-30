@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "ترجمة {{index}}",
             "PLAYBACK_SPEED": "سرعة التشغيل",
             "SPEED_TOOLTIP": "السرعة: {{speed}}",
+            "SUBTITLES_TOOLTIP": "الترجمة: {{subtitles}}",
             "ASPECT_RATIO": "نسبة الأبعاد",
             "ASPECT_TOOLTIP": "الأبعاد: {{aspect}}",
             "ASPECT_DEFAULT": "افتراضي",

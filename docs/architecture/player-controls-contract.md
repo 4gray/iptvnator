@@ -297,7 +297,8 @@ It owns only transient presentation behavior:
 - `ControlsSettings` — the settings panel's groups, on/modified state and
   open/close transitions (`controls-settings-groups.ts` holds the pure
   group-availability rule);
-- `app-player-settings-panel` — the panel / bottom sheet presentation;
+- `app-player-settings-panel` — the panel / bottom sheet presentation,
+  whose radio groups use `settings-radio-group.directive.ts`;
 - `ControlsUpNext` and `app-player-up-next-card` — the "Up next" card's
   gate and presentation; and
 - `controls-view-model.ts` — derived display state.
@@ -346,7 +347,11 @@ app's `--app-selection-color` is a different blue that would fight the video.
   measured below 3:1 against the lighter fills.
 - **Icon buttons** are 40px with a 12px radius (32px / 9px compact) through
   Material's `--mat-icon-button-*` tokens; their hover is a flat
-  `rgba(255,255,255,.1)` layer.
+  `rgba(255,255,255,.1)` layer. Keyboard focus draws a 2px `--pc-text`
+  outline (`:focus-visible`), and Material's focus state layer is switched
+  off: its colour comes from the app theme, and the light theme's dark layer
+  left no visible focus on video. The settings panel's icon buttons use the
+  same ring, inset by 2px because the panel body clips at its edge.
 
 ### Timeline segments
 
@@ -442,7 +447,10 @@ the panel the moment the last group disappears.
 
 - **Roomy wide dock** (≥ 960px): two **value chips** precede `tune` — subtitles
   (`closed_caption` + the selected track's label, or "Off") and speed
-  (`speed` + `1.25×`). Audio and aspect ratio have no chip: they are
+  (`speed` + `1.25×`). A chip's accessible name and tooltip carry its
+  value (`SUBTITLES_TOOLTIP` "Subtitles: English", `SPEED_TOOLTIP`
+  "Speed: 1.25×"); `tune` has `aria-haspopup="dialog"` and
+  `aria-expanded`. Audio and aspect ratio have no chip: they are
   panel-only. A chip click opens the panel **focused on its group**
   (`settingsFocus`; the group scrolls into view and wears a brief ring);
   right-click or long-press on the subtitle chip toggles subtitles without
@@ -460,12 +468,30 @@ the panel the moment the last group disappears.
   picture and recording stay in the compact dock — the mock shows only
   `tune` + fullscreen there, but those two are engine features a viewer
   needs without opening anything.
-- **Inside**: list groups (audio, subtitles, quality) use `menuitemradio`
-  rows with a check mark and a cyan selection; segmented groups (speed,
-  aspect) use `radio` items with a violet selection, and a selected default
-  (`1×`, the first aspect preset) stays neutral. The subtitle group carries
-  the load-file action and the delay / size / color sections that the
-  popover used to hold (same `player-controls-load-subtitle`,
+- **Inside**: every choice is a `radio` in a `radiogroup`
+  (`SettingsRadioGroupDirective` / `SettingsRadioDirective`). List groups
+  (audio, subtitles, quality) are rows with a check mark and a cyan
+  selection; segmented groups (speed, aspect, subtitle size) have a violet
+  selection, and a selected default (`1×`, the first aspect preset) stays
+  neutral. Each group is one Tab stop — the checked option, else the first —
+  and arrows, Home and End move focus with a CDK `FocusKeyManager`
+  (wrapping; the horizontal arrows follow `direction`). Moving focus does not
+  apply: a choice is applied to the playing stream at once and a track or
+  quality switch rebuffers, so Space / Enter checks, as in a toolbar radio
+  group. Focus changes also write the roving `tabindex` immediately, because
+  a quick Shift+Tab, Tab can arrive before change detection updates the
+  bindings. The dialog is named by its `h2` title (`aria-labelledby`), each
+  radio group by its `h3` group heading or `h4` subheading, and the delay
+  buttons form a labelled `group`. Headings read `--pc-text-secondary` on
+  `--pc-glass-bg-dense` (`rgba(12,16,23,.86)`), 4.5:1 or more even over a
+  white frame. They wrap with `overflow-wrap: anywhere` and `hyphens: auto`,
+  so one long word (German "Wiedergabegeschwindigkeit") breaks inside the
+  sheet's 84px heading column. Hyphenation needs a `lang` on `<html>`.
+  Every focused option shows the `--pc-text` ring; a selected swatch has a
+  white border with a dark inner gap, and focus adds an outer ring. The
+  subtitle group carries the load-file action (a plain button outside the
+  radio group) and the delay / size / color sections that the popover used
+  to hold (same `player-controls-load-subtitle`,
   `player-controls-subtitle-delay`, `player-controls-subtitle-style` test
   ids). The panel is a `role="dialog"` with `tabindex="-1"`: opened from
   the keyboard (the opener is `:focus-visible`) it takes focus, a pointer
@@ -1613,6 +1639,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-settings-panel.component.ts
 ├── player-settings-panel.component.html
 ├── player-settings-panel.component.scss
+├── settings-radio-group.directive.ts
 ├── controls-fullscreen.ts
 ├── controls-menu-selection.ts
 ├── controls-menu-state.ts

@@ -17,7 +17,7 @@
     box-sizing: border-box;
     padding: 18px 16px;
     color: var(--pc-text, #e7ecf3);
-    background: var(--pc-glass-bg, rgba(12, 16, 23, 0.72));
+    background: var(--pc-glass-bg-dense, rgba(12, 16, 23, 0.86));
     border: 1px solid var(--pc-glass-border, rgba(255, 255, 255, 0.09));
     border-radius: 20px;
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
@@ -69,7 +69,10 @@
 }
 
 .player-settings__title {
+    margin: 0;
     overflow: hidden;
+    color: inherit;
+    font: inherit;
     font-size: 16px;
     font-weight: 600;
     text-overflow: ellipsis;
@@ -90,6 +93,9 @@
     --mat-icon-button-container-shape: 10px;
     --mat-icon-button-icon-size: 20px;
     --mat-icon-button-hover-state-layer-opacity: 0;
+    // The ring below is the focus indicator; Material's focus layer would
+    // take its colour from the app theme.
+    --mat-icon-button-focus-state-layer-opacity: 0;
     border-radius: 10px;
 }
 
@@ -102,6 +108,13 @@
 
 :host :is(button[mat-icon-button]:hover:not([disabled])) {
     background: var(--pc-hover, rgba(255, 255, 255, 0.1));
+}
+
+// Inset like the option rows: the body is the scroll owner and would clip
+// an outer ring on its edge.
+:host :is(button[mat-icon-button]:focus-visible) {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: -2px;
 }
 
 :host :is(button[mat-icon-button][disabled]),
@@ -147,17 +160,33 @@
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
 }
 
+// Small caps text on glass over video: the secondary ramp step keeps it at
+// 4.5:1 or more over a mid-grey frame (the tertiary step measured 4.1:1 over
+// black). One long word ("Wiedergabegeschwindigkeit") breaks instead of
+// running out of the narrow sheet column; `hyphens` needs `<html lang>`.
+.player-settings__heading,
+.player-settings__subheading {
+    margin: 0;
+    color: var(--pc-text-secondary, #9aa3b2);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+
 .player-settings__heading {
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 0 4px 4px;
-    color: var(--pc-text-tertiary, #6b7384);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
+}
+
+.player-settings__heading .player-settings__dot {
+    flex: 0 0 auto;
 }
 
 .player-settings__dot {
@@ -300,12 +329,6 @@
 
 .player-settings__subheading {
     padding: 0 4px;
-    color: var(--pc-text-tertiary, #6b7384);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
 }
 
 .player-settings__delay-row {
@@ -352,10 +375,22 @@
         rgba(255, 255, 255, 0.08);
 }
 
-.player-settings__swatch:hover,
-.player-settings__swatch:focus-visible,
+.player-settings__swatch:hover {
+    border-color: #ffffff;
+}
+
+// Selected: a white ring with a dark gap inside it, which reads on every
+// swatch colour, the white one included.
 .player-settings__swatch--selected {
     border-color: #ffffff;
+    box-shadow: inset 0 0 0 2px rgba(12, 16, 23, 0.9);
+}
+
+// Keyboard focus adds a ring outside the border, so a focused selected
+// swatch looks different from one that is only selected.
+.player-settings__swatch:focus-visible {
+    outline: 2px solid var(--pc-text, #e7ecf3);
+    outline-offset: 2px;
 }
 
 // Sheet density: two-column rows (heading | control) so five groups fit a
@@ -367,15 +402,15 @@
     align-items: start;
 }
 
-// The heading column is narrow: let "Playback speed" wrap onto two lines
-// instead of running under the control.
+// The heading column is narrow: "Playback speed" wraps onto two lines, and a
+// single long word breaks (see the heading rule), instead of running under
+// the control.
 :host(.player-settings--sheet) .player-settings__heading {
     align-items: flex-start;
     min-width: 0;
     padding: 6px 0 0;
     font-size: 10px;
     line-height: 1.25;
-    white-space: normal;
 }
 
 :host(.player-settings--sheet) .player-settings__heading .player-settings__dot {
@@ -408,6 +443,13 @@
 
 :host(.player-settings--sheet) .player-settings__option mat-icon {
     display: none;
+}
+
+// The load-file action sits outside the radio group: keep it in the control
+// column, on the same pill background.
+:host(.player-settings--sheet) .player-settings__option--action {
+    grid-column: 2;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 :host(.player-settings--sheet) .player-settings__seg-item {

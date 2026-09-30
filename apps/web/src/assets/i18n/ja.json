@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "字幕 {{index}}",
             "PLAYBACK_SPEED": "再生速度",
             "SPEED_TOOLTIP": "速度：{{speed}}",
+            "SUBTITLES_TOOLTIP": "字幕：{{subtitles}}",
             "ASPECT_RATIO": "アスペクト比",
             "ASPECT_TOOLTIP": "アスペクト比：{{aspect}}",
             "ASPECT_DEFAULT": "デフォルト",

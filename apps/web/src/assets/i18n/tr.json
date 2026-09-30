@@ -626,6 +626,7 @@
             "SUBTITLE_TRACK_FALLBACK": "Altyazı {{index}}",
             "PLAYBACK_SPEED": "Oynatma hızı",
             "SPEED_TOOLTIP": "Hız: {{speed}}",
+            "SUBTITLES_TOOLTIP": "Altyazılar: {{subtitles}}",
             "ASPECT_RATIO": "En boy oranı",
             "ASPECT_TOOLTIP": "En boy oranı: {{aspect}}",
             "ASPECT_DEFAULT": "Varsayılan",
