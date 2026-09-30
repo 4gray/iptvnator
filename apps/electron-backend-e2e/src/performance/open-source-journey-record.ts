@@ -14,6 +14,7 @@ import type { JourneyIterationRecord } from './journey-summary';
 export const OPEN_SOURCE_JOURNEY_ID = 'open-source';
 
 export const OPEN_SOURCE_JOURNEY_COUNTER = {
+    CD_TICKS: 'renderer.cdTicksToFirstPage',
     DOM_MUTATIONS: 'renderer.domMutationsToFirstPage',
     IPC_CALLS: 'renderer.ipcCallsToFirstPage',
     LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
@@ -33,8 +34,6 @@ export const OPEN_SOURCE_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
 > = Object.freeze({
     'main.sqlStatementsToFirstPage':
         'The main.sqlStatements running total is read from the test process through the journey gate, so it cannot be sampled at the click or at the first-page batch, and the worker count is ordered against worker responses rather than the renderer. A click-to-settled count is a follow-up.',
-    'renderer.cdTicksToFirstPage':
-        'The electron-performance build optimizes scripts (ngDevMode=false), so Angular does not publish window.ng and ɵsetProfiler is unavailable.',
 });
 
 /** How long the app was left alone before the click, and what it did. */
@@ -121,12 +120,13 @@ export function toOpenSourceIterationRecord(
             `open-source-journey-record-activity-before-click-${lateActivity.join('-')}`
         );
     }
+    const cdTicks = renderer.counters.changeDetectionTicks;
     if (
-        renderer.capabilities.changeDetectionTicks !==
-        'unavailable-ng-global-not-published'
+        renderer.capabilities.changeDetectionTicks !== 'counted' ||
+        cdTicks === null
     ) {
         throw new Error(
-            `open-source-journey-record-cd-hook-${renderer.capabilities.changeDetectionTicks}`
+            `open-source-journey-record-cd-ticks-${renderer.capabilities.changeDetectionTicks}`
         );
     }
     // The ledger's clock is the test process's, the terminal's the
@@ -141,6 +141,7 @@ export function toOpenSourceIterationRecord(
         .split('/')[1];
     return Object.freeze({
         counters: Object.freeze({
+            [OPEN_SOURCE_JOURNEY_COUNTER.CD_TICKS]: cdTicks,
             [OPEN_SOURCE_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [OPEN_SOURCE_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,

@@ -14,12 +14,13 @@ function measurement(
 ): LaunchJourneyMeasurement {
     const renderer: JourneyRendererProbeState = {
         capabilities: {
-            changeDetectionTicks: 'unavailable-ng-global-not-published',
+            changeDetectionTicks: 'counted',
             layoutShift: true,
             longTask: true,
             observedTarget: 'document',
         },
         counters: {
+            changeDetectionTicks: 23,
             domMutations: 480,
             layoutShiftScore: 0.123456789,
             layoutShiftScoreSettled: 0.2304999,
@@ -28,6 +29,13 @@ function measurement(
         },
         final: true,
         firstCardPaintEpochMs: 2_650,
+        idle: {
+            domMutations: 12,
+            endEpochMs: 36_000.04,
+            startEpochMs: 6_000,
+            status: 'done',
+            ticks: 31,
+        },
         installed: {
             bridgePresent: true,
             documentElementPresent: false,
@@ -129,6 +137,8 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
     assert.deepEqual(record.counters, {
         'main.modulesRegisteredBeforeWindow': 2,
         'main.sqlStatementsBeforeReadyToShow': 9,
+        'renderer.cdTicksIdle30s': 31,
+        'renderer.cdTicksToFirstCard': 23,
         'renderer.domMutationsToFirstCard': 480,
         'renderer.ipcCallsToFirstCard': 14,
         'renderer.layoutShiftScore': 0.123,
@@ -185,6 +195,11 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         observedTarget: 'root',
         reason: 'quiet',
     });
+    assert.deepEqual(record.evidence['idle'], {
+        domMutations: 12,
+        durationMs: 30_000,
+        settledToIdleStartMs: 2_819.9,
+    });
 });
 
 test('rejects measurements whose clocks or probes are inconsistent', () => {
@@ -217,11 +232,67 @@ test('rejects measurements whose clocks or probes are inconsistent', () => {
                     ...base.renderer,
                     capabilities: {
                         ...base.renderer.capabilities,
-                        changeDetectionTicks: 'hook-present-not-counted',
+                        changeDetectionTicks: 'unavailable-counter-missing',
+                    },
+                    counters: {
+                        ...base.renderer.counters,
+                        changeDetectionTicks: null,
                     },
                 },
             }),
-        /cd-hook-hook-present-not-counted/
+        /cd-ticks-unavailable-counter-missing/
+    );
+});
+
+test('refuses a launch without a complete, on-time idle window after the settle point', () => {
+    const base = measurement();
+    const withIdle = (
+        idle: Partial<LaunchJourneyMeasurement['renderer']['idle']>
+    ): LaunchJourneyMeasurement => ({
+        ...base,
+        renderer: {
+            ...base.renderer,
+            idle: { ...base.renderer.idle, ...idle },
+        },
+    });
+    // J2's launches skip the window; such a launch is not a J1 measurement.
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(
+                0,
+                false,
+                withIdle({ status: 'disabled', ticks: null })
+            ),
+        /idle-disabled/
+    );
+    assert.throws(
+        () => toLaunchIterationRecord(0, false, withIdle({ ticks: null })),
+        /idle-done/
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(
+                0,
+                false,
+                withIdle({ endEpochMs: 33_000, startEpochMs: 3_000 })
+            ),
+        /idle-before-settle/
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 35_000 })),
+        /idle-window-short/
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 37_500 })),
+        /idle-window-late/
+    );
+    assert.equal(
+        toLaunchIterationRecord(0, false, withIdle({ ticks: 0 })).counters[
+            'renderer.cdTicksIdle30s'
+        ],
+        0
     );
 });
 
@@ -269,10 +340,8 @@ test('refuses a launch whose settle window did not end after the first-card cuto
     );
 });
 
-test('names the counters the harness cannot measure yet', () => {
-    assert.deepEqual(Object.keys(LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS), [
-        'renderer.cdTicksToFirstCard',
-    ]);
+test('measures every counter the plan lists for J1', () => {
+    assert.deepEqual(Object.keys(LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS), []);
 });
 
 test('never reports a measured counter as unavailable', () => {

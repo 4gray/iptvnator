@@ -4,7 +4,10 @@ import {
     type JourneyMainCountersState,
 } from './journey-main-counters';
 import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
-import type { JourneyRendererProbeState } from './journey-renderer-probe';
+import {
+    JOURNEY_IDLE_WINDOW_MS,
+    type JourneyRendererProbeState,
+} from './journey-renderer-probe';
 import type { JourneyIterationRecord } from './journey-summary';
 
 /**
@@ -19,6 +22,8 @@ export const LAUNCH_JOURNEY_COUNTER = {
         JOURNEY_MAIN_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW,
     SQL_STATEMENTS_BEFORE_READY_TO_SHOW:
         JOURNEY_MAIN_COUNTER.SQL_STATEMENTS_BEFORE_READY_TO_SHOW,
+    CD_TICKS: 'renderer.cdTicksToFirstCard',
+    CD_TICKS_IDLE: 'renderer.cdTicksIdle30s',
     DOM_MUTATIONS: 'renderer.domMutationsToFirstCard',
     IPC_CALLS: 'renderer.ipcCallsToFirstCard',
     LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
@@ -32,15 +37,18 @@ export const LAUNCH_JOURNEY_WALL_CLOCK = {
 } as const;
 
 /**
- * Counters the plan lists for J1 that this harness cannot measure without
- * production changes. They are reported instead of faked.
+ * Counters the plan lists for J1 that this harness cannot measure. Every one
+ * is measured now; the list stays so a future gap is reported, not faked.
  */
 export const LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
     Record<string, string>
-> = Object.freeze({
-    'renderer.cdTicksToFirstCard':
-        'The electron-performance build optimizes scripts (ngDevMode=false), so Angular does not publish window.ng and ɵsetProfiler is unavailable.',
-});
+> = Object.freeze({});
+
+/**
+ * A timer on an idle page runs within milliseconds of its deadline; a window
+ * that closed later than this measured a busy page, not an idle one.
+ */
+export const LAUNCH_JOURNEY_IDLE_LATE_TOLERANCE_MS = 1_000;
 
 export interface LaunchJourneyMeasurement {
     readonly electronVersion: string;
@@ -92,14 +100,16 @@ export function toLaunchIterationRecord(
     ) {
         throw new Error(`launch-journey-record-settle-${settle.status}`);
     }
+    const cdTicks = renderer.counters.changeDetectionTicks;
     if (
-        renderer.capabilities.changeDetectionTicks !==
-        'unavailable-ng-global-not-published'
+        renderer.capabilities.changeDetectionTicks !== 'counted' ||
+        cdTicks === null
     ) {
         throw new Error(
-            `launch-journey-record-cd-hook-${renderer.capabilities.changeDetectionTicks}`
+            `launch-journey-record-cd-ticks-${renderer.capabilities.changeDetectionTicks}`
         );
     }
+    const idle = assertLaunchIdleWindow(renderer, settle.epochMs);
     return Object.freeze({
         counters: Object.freeze({
             [LAUNCH_JOURNEY_COUNTER.MODULES_REGISTERED_BEFORE_WINDOW]:
@@ -110,6 +120,8 @@ export function toLaunchIterationRecord(
                 mainCounters.counters[
                     LAUNCH_JOURNEY_COUNTER.SQL_STATEMENTS_BEFORE_READY_TO_SHOW
                 ],
+            [LAUNCH_JOURNEY_COUNTER.CD_TICKS]: cdTicks,
+            [LAUNCH_JOURNEY_COUNTER.CD_TICKS_IDLE]: idle.ticks,
             [LAUNCH_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [LAUNCH_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
@@ -149,6 +161,13 @@ export function toLaunchIterationRecord(
                 cardTestId: renderer.terminal.cardTestId,
                 pathname: renderer.terminal.pathname,
             }),
+            idle: Object.freeze({
+                domMutations: idle.domMutations,
+                durationMs: roundTenth(idle.durationMs),
+                settledToIdleStartMs: roundTenth(
+                    idle.startEpochMs - settle.epochMs
+                ),
+            }),
             ipcCallsAfterFirstCard: ipc.callsAfterSentinel,
             // Running totals when the counters were read, after the first card.
             mainCountersAtRead: mainCounters.counters,
@@ -184,4 +203,48 @@ export function toLaunchIterationRecord(
         }),
         warmup,
     });
+}
+
+/**
+ * The idle window must have opened at or after the settle point and closed
+ * on time; see performance-journeys.md.
+ */
+function assertLaunchIdleWindow(
+    renderer: JourneyRendererProbeState,
+    settledEpochMs: number
+): {
+    readonly domMutations: number;
+    readonly durationMs: number;
+    readonly startEpochMs: number;
+    readonly ticks: number;
+} {
+    const { idle } = renderer;
+    if (
+        idle.status !== 'done' ||
+        idle.ticks === null ||
+        idle.startEpochMs === null ||
+        idle.endEpochMs === null
+    ) {
+        throw new Error(`launch-journey-record-idle-${idle.status}`);
+    }
+    if (idle.startEpochMs < settledEpochMs) {
+        throw new Error('launch-journey-record-idle-before-settle');
+    }
+    const durationMs = idle.endEpochMs - idle.startEpochMs;
+    // Timers may fire up to a millisecond early after clamping.
+    if (durationMs < JOURNEY_IDLE_WINDOW_MS - 1) {
+        throw new Error('launch-journey-record-idle-window-short');
+    }
+    if (
+        durationMs >
+        JOURNEY_IDLE_WINDOW_MS + LAUNCH_JOURNEY_IDLE_LATE_TOLERANCE_MS
+    ) {
+        throw new Error('launch-journey-record-idle-window-late');
+    }
+    return {
+        domMutations: idle.domMutations,
+        durationMs,
+        startEpochMs: idle.startEpochMs,
+        ticks: idle.ticks,
+    };
 }

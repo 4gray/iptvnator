@@ -253,6 +253,10 @@ this in the same thread as the first worst offender.
   network, layout and DOM-mutation counts carry over; the Angular
   change-detection and template-update counts do not (production skips
   `checkNoChanges`), and per-firing milliseconds are upper bounds.
+  The tick count in the optimized build is now measured by J1's idle window:
+  `renderer.cdTicksIdle30s` read 3 ticks per 30 s on the journey's dashboard
+  (one M3U source, one Xtream portal), the baseline for plan item C6. See
+  [performance journeys](performance-journeys.md#idle-window).
 - Windows and Linux. Throttling and occlusion behavior differ per platform.
 - Idle during playback, and on routes other than the dashboard. The
   conditional table above is from code reading only.

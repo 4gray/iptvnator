@@ -39,6 +39,7 @@ import {
 import {
     createLaunchJourneyProbeOptions,
     installJourneyRendererProbe,
+    JOURNEY_IDLE_WINDOW_MS,
     waitForJourneyRendererProbe,
 } from '../performance/journey-renderer-probe';
 import {
@@ -119,6 +120,15 @@ export function removeLaunchJourneyProfile(directory: string): Promise<void> {
     return removeDirectory(directory);
 }
 
+/**
+ * How a journey launch is instrumented: the process flags, plus J1's idle
+ * window after the settle point (null skips it, so a journey that continues
+ * from the launch does not wait 30 s before its own start).
+ */
+export interface LaunchJourneyOptions extends JourneyLaunchInstrumentation {
+    readonly idleWindowMs: number | null;
+}
+
 /** The running app after J1 ended, for journeys that continue from there. */
 export interface LaunchJourneySession {
     readonly electronApp: ElectronApplication;
@@ -133,7 +143,7 @@ export async function measureLaunchJourney(
     const { launch } = await runLaunchJourney(
         templateDirectory,
         timeoutMs,
-        { mainCounters: true },
+        { idleWindowMs: JOURNEY_IDLE_WINDOW_MS, mainCounters: true },
         async () => undefined
     );
     return launch;
@@ -146,14 +156,15 @@ export async function measureLaunchJourney(
  * installed next, and only then is the real load released. Both captures are
  * therefore in place before the renderer runs any script, and the probe,
  * capture and gate records still prove it. `continueJourney` runs in the
- * same process after J1's counters are final, before the app is closed.
+ * same process after J1's counters are final (and after its idle window,
+ * when one is requested), before the app is closed.
  * Without `instrumentation.mainCounters` the main-process counters and SQL
  * counting stay off and `launch.mainCounters` is null.
  */
 export async function runLaunchJourney<T>(
     templateDirectory: string,
     timeoutMs: number,
-    instrumentation: JourneyLaunchInstrumentation,
+    instrumentation: LaunchJourneyOptions,
     continueJourney: (session: LaunchJourneySession) => Promise<T>
 ): Promise<{
     readonly continuation: T;
@@ -176,7 +187,9 @@ export async function runLaunchJourney<T>(
         const electronApp = await electron.launch({ args, env });
         captureElectronProcess(electronApp);
         try {
-            const probeOptions = createLaunchJourneyProbeOptions();
+            const probeOptions = createLaunchJourneyProbeOptions(
+                instrumentation.idleWindowMs
+            );
             // The gate parks the window on about:blank, so this resolves
             // before the real document exists.
             const mainWindow = await electronApp.firstWindow();
