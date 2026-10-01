@@ -535,6 +535,22 @@ export function familiesOf(
         rulesOf(scope)
             .filter((rule) => rule.endsWith(' | ') && !rule.includes(' < '))
             .flatMap((rule) => extenders.get(rule.slice(0, -3)) ?? []);
+    // Where a declaration in `scope` at `at` applies: its own rules, and
+    // through each `@include` of a mixin (one included in another mixin
+    // goes on to that one's includes) or `@extend` of a rule, theirs.
+    const landingsOf = (scope, at, seen = new Set()) => {
+        if (seen.has(scope)) return [];
+        seen.add(scope);
+        return [
+            { at, rules: rulesOf(scope) },
+            ...sitesOf(scope).flatMap((site) =>
+                landingsOf(placeOf(blocks, site).scope, site, seen)
+            ),
+            ...extendersOf(scope).flatMap((extender) =>
+                landingsOf(extender.scope, at, seen)
+            ),
+        ];
+    };
     // Each declaration, where it applies, in source order.
     const applied = [];
     for (const match of lexed.text.matchAll(FONT_FAMILY)) {
@@ -564,15 +580,11 @@ export function familiesOf(
             text: value,
             at: { index: match.index, ...place },
         };
-        const scope = namespace ?? place.scope;
-        applied.push({ at: match.index, rules: rulesOf(scope), entry });
-        for (const site of sitesOf(scope)) {
-            const rules = rulesOf(placeOf(blocks, site).scope);
-            applied.push({ at: site, rules, entry });
-        }
-        for (const extender of extendersOf(scope)) {
-            const rules = rulesOf(extender.scope);
-            applied.push({ at: match.index, rules, entry });
+        for (const landing of landingsOf(
+            namespace ?? place.scope,
+            match.index
+        )) {
+            applied.push({ ...landing, entry });
         }
     }
     // Keyed by rule, so a later block with one of its selectors wins.
@@ -613,6 +625,11 @@ export function familiesOf(
         if (named) return named;
         return found.every((list) => list.length) ? entries[0] : null;
     };
+    // A top-level rule's family, unless it inherits (`* | ` is `*`'s).
+    const rooted = (selector) => {
+        const entry = family.get(`${selector} | `);
+        return entry && !entry.inherit ? entry : null;
+    };
     const fromAncestors = (prelude) => {
         const found = selectorsOf(prelude).flatMap((selector) => {
             for (const ancestor of ancestorsOf(selector)) {
@@ -650,26 +667,50 @@ export function familiesOf(
                 ? null
                 : fromBases(block.prelude);
             if (base) return base;
+            // `*` sets the element itself, ahead of anything it inherits.
+            const star = rooted('*');
+            if (star) return star;
             if (!inherits(block.prelude)) return NONE;
         }
         // A flat descendant selector (`.parent .child`) inherits from the
-        // nearest top-level rule that names one of its ancestors.
+        // nearest top-level rule that names one of its ancestors, else from
+        // the document's root: a plain `:host`, `body`, `html` or `:root`.
         const outer = around.filter((b) => !b.prelude.startsWith('@')).at(-1);
-        return outer ? fromAncestors(outer.prelude) : NONE;
+        const ancestor = outer ? fromAncestors(outer.prelude) : NONE;
+        if (ancestor !== NONE) return ancestor;
+        for (const root of [':host', 'body', 'html', ':root']) {
+            const entry = rooted(root);
+            if (entry) return entry;
+        }
+        return NONE;
     };
-    // A weight in a mixin's body, or in a rule others extend, meets its own
-    // family, else the family of each rule that includes or extends it.
-    return (index) => {
-        const own = lookup(index);
-        if (own !== NONE) return own;
+    // A weight in a mixin's body, or in a rule others extend, meets the
+    // family where it lands: each rule that includes or extends it (whose
+    // own later family wins). A mixin's body, or a placeholder (`%x`),
+    // styles nothing where it is written.
+    const familyAt = (index, seen = new Set()) => {
         const { scope } = placeOf(blocks, index);
-        const sites = [
-            ...sitesOf(scope),
-            ...extendersOf(scope).map((extender) => extender.index),
-        ].map(lookup);
+        if (seen.has(scope)) return [];
+        seen.add(scope);
+        const block = blocks.find((b) => b.start === scope);
+        const includes = sitesOf(scope);
+        const extended = extendersOf(scope).map((extender) => extender.index);
+        const silent =
+            includes.length > 0 ||
+            (extended.length > 0 && /^%/.test(block?.prelude ?? ''));
+        return [
+            ...(silent ? [] : [lookup(index)]),
+            ...[...includes, ...extended].flatMap((site) =>
+                familyAt(site, seen)
+            ),
+        ];
+    };
+    return (index) => {
+        const found = familyAt(index).filter((entry) => entry !== NONE);
         return (
-            sites.find((site) => site.mono) ??
-            sites.find((site) => site.refs.length > 0) ??
+            found.find((entry) => entry.mono) ??
+            found.find((entry) => entry.refs.length > 0) ??
+            found[0] ??
             NONE
         );
     };

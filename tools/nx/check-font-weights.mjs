@@ -91,9 +91,11 @@ import {
  * `@extend`s whole applies to its extenders. A top-level rule on a single
  * compound also sets the family of compounds that contain it (`.x` for
  * `.x:hover`); rules are not ranked by specificity, so any that renders Mono
- * counts. A weight it inherits from
+ * counts. Without a family of its own, a rule takes one from `*`, an
+ * ancestor, or the document root (`:host`, `body`, `html`, `:root`) in its
+ * file. Not traced: global styles in another file, a weight inherited from
  * another rule, a mixin from another module, and a family set on an
- * element from code, are not traced.
+ * element from code.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 

@@ -3741,6 +3741,131 @@ test('reads quoted family text as a name', () => {
     }
 });
 
+test('reads mixin weights where they land, through nested includes', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s10/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // A mixin's weight meets the including rule's family, a later one
+        // of its own included.
+        [
+            `@mixin m { font-family: ${mono}; font-weight: 700; } .x { @include m; font-family: Roboto; }`,
+            [],
+        ],
+        [
+            `@mixin m { font-family: Roboto; font-weight: 700; } .x { @include m; font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin m { font-family: ${mono}; font-weight: 700; } .x { @include m; }`,
+            ['font-weight: 700'],
+        ],
+        // Not included here: it is read where it is written.
+        [
+            `@mixin m { font-family: ${mono}; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // A mixin included in another goes on to that one's includes.
+        [
+            `@mixin inner { font-family: ${mono}; } @mixin outer { @include inner; } .x { @include outer; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin inner { font-weight: 700; } @mixin outer { @include inner; } .x { font-family: ${mono}; @include outer; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin a { @include b; } @mixin b { @include a; font-weight: 700; } .x { font-family: ${mono}; @include a; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin a { @include b; } @mixin b { @include a; font-family: ${mono}; } .x { @include a; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // Included in several rules: any whose family renders Mono counts.
+        [
+            `@mixin h { font-weight: 700; } .a { font-family: Roboto; @include h; } .b { font-family: ${mono}; @include h; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --f: ${mono}; } @mixin h { font-weight: 700; } .a { font-family: Roboto; @include h; } .b { font-family: var(--f); @include h; }`,
+            ['font-weight: 700'],
+        ],
+        // A placeholder styles nothing where it is written; a class still does.
+        [
+            `%h { font-family: ${mono}; font-weight: 700; } .x { @extend %h; font-family: Roboto; }`,
+            [],
+        ],
+        [
+            `.m { font-family: ${mono}; font-weight: 700; } .x { @extend .m; font-family: Roboto; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test("inherits the document root's family", () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s10/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        [
+            `html { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `body { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:host { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // `*` sets each element itself, over what it inherits.
+        [
+            `* { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `* { font-family: ${mono}; } .p { font-family: Roboto; .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `* { font-family: Roboto; } html { font-family: ${mono}; } .x { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `body { font-family: inherit; } html { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // A nearer family wins, and `:host(.dark)` is no plain host.
+        [
+            `html { font-family: ${mono}; } body { font-family: Roboto; } .x { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `html { font-family: ${mono}; } .x { font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `body { font-family: ${mono}; } .p { font-family: Roboto; .x { font-weight: 700; } }`,
+            [],
+        ],
+        [`:host(.dark) { font-family: ${mono}; } .x { font-weight: 700; }`, []],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",
