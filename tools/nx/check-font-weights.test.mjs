@@ -390,6 +390,112 @@ test('reads escaped names as Sass and the browser do', () => {
         decodeEscapes('a.ts', 'font-w\\65 ight').text,
         'font-w\\65 ight'
     );
+    // A comment is no CSS, so an escape there cannot take the line break.
+    assert.deepEqual(
+        offScale('libs/m6/note.scss', '// note \\65\n.a { font-weight: 650; }'),
+        ['2 font-weight: 650']
+    );
+});
+
+test('reads markup character references as the browser does', () => {
+    const template = [
+        '<p style="font-weight: &#x36;50"></p>',
+        '<p style="font-weight&colon; 650"></p>',
+        '<p style="font-weight: 750&#x3b font-weight: 400"></p>',
+        '<p style="font-w&#x65;ight: 650"></p>',
+        '<p style="font-family: &quot;JetBrains Mono&quot;; font-weight: 700"></p>',
+        "<p style='font-family: &quot;JetBrains Mono&quot;; font-weight: 700'></p>",
+        // A decoded line break keeps later lines in place.
+        '<p style="&#10;font-weight: 650"></p>',
+        // Not decoded: `<style>` text, a reference to `&`, and comments.
+        '<style>.a { font-weight: &#54;50; }</style>',
+        '<p style="font-weight: &amp;#54;50"></p>',
+        '<!-- <p style="font-weight: &#54;50"></p> -->',
+        '<!-- &#45;&#45;> <p style="font-weight: 650"> -->',
+        // `<` and `>` stay text: no tag opens or closes.
+        '<p>&#60;i style="font-weight: 650"&#62;</p>',
+        '<p title=a&#62;b style="font-weight: 750"></p>',
+        // Past the last code point is U+FFFD.
+        '<p title="&#99999999;" style="font-weight: 650"></p>',
+    ].join('\n');
+    const svg = [
+        '<svg><text font-weight="&#54;50">x</text>',
+        '<style>.a { font-weight: &#55;50; }</style>',
+        '<style><![CDATA[.b { font-weight: &#54;50; }]]></style></svg>',
+    ].join('\n');
+
+    assert.deepEqual(
+        offScale('apps/web/src/a.component.html', template).sort(),
+        [
+            '1 font-weight: 650',
+            '13 font-weight: 750',
+            '14 font-weight: 650',
+            '2 font-weight: 650',
+            '3 font-weight: 750',
+            '4 font-weight: 650',
+            '5 font-weight: 700',
+            '6 font-weight: 700',
+            '7 font-weight: 650',
+        ]
+    );
+    // Lines hold through references that decode to two UTF-16 units, and
+    // through references and escapes decoded together.
+    const emoji = '&#x1F600;'.repeat(30);
+    assert.deepEqual(
+        offScale(
+            'apps/web/src/a.component.html',
+            `<p title="${emoji}"></p>\n<i style="font-weight: 650"></i>\n<b></b>`
+        ),
+        ['2 font-weight: 650']
+    );
+    assert.deepEqual(
+        offScale(
+            'apps/web/src/a.component.html',
+            '<p title="&#10;&#10;&#10;"></p>\n<i style="font-w\\65 ight: 650"></i>'
+        ),
+        ['2 font-weight: 650']
+    );
+    assert.deepEqual(offScale('apps/web/src/assets/icon.svg', svg).sort(), [
+        '1 font-weight: 650',
+        '2 font-weight: 750',
+    ]);
+});
+
+test('reads CSS text a string leaves to code', () => {
+    const template = [
+        `<div [style]="'font-weight:' + 650"></div>`,
+        `<div [attr.style]="'font-weight: ' + (wide ? 750 : 600)"></div>`,
+        `<div [style]='"font: " + 650 + " 12px Roboto"'></div>`,
+        `<div [style]="'font-family: JetBrains Mono; font-weight:' + 600"></div>`,
+        // An escaped quote stays in the string.
+        `<div [style]="'a: it\\'s; font-weight:' + 650"></div>`,
+        // The rest of the expression is not part of the value.
+        `<div [style]="'font-weight:' + 600 + ';'"></div>`,
+        `<div [style]="'font: ' + 14 + 'px Roboto'"></div>`,
+        `<div [style]="'color: red; font-weight:' + w + ';'"></div>`,
+        // Only a `+` concatenates.
+        `<div [style]="'font-weight:' || 650"></div>`,
+    ].join('\n');
+    const component = [
+        "el.style.cssText = 'font-weight:' + 650;",
+        "el.style.cssText = 'font-weight: ' + (wide ? 750 : 600) + '; x: y';",
+        "el.style.cssText = 'font-weight:' + w;",
+    ].join('\n');
+
+    assert.deepEqual(
+        offScale('apps/web/src/a.component.html', template).sort(),
+        [
+            '1 font-weight: 650',
+            '2 font-weight: 750',
+            '3 font: 650',
+            '4 font-weight: 600',
+            '5 font-weight: 650',
+        ]
+    );
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 font-weight: 650',
+        '2 font-weight: 750',
+    ]);
 });
 
 test('reads Sass nested font properties', () => {
@@ -486,6 +592,26 @@ test('reads @property initial values', () => {
     assert.deepEqual(
         report(
             "@property --w { syntax: '<integer>'; inherits: false; initial-value: 6.5e2; } .y { font-weight: var(--w, 600); }"
+        ),
+        []
+    );
+    // A math function of plain numbers is a valid initial value, and a
+    // computed weight; one with a unit is not valid.
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<number>'; inherits: false; initial-value: calc(600 + 50); } .y { font-weight: var(--w); }"
+        ),
+        ['--w: calc(600 + 50)']
+    );
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<number>'; inherits: false; initial-value: calc(1px + 2px); } .y { font-weight: var(--w, 600); }"
+        ),
+        []
+    );
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<number>'; inherits: false; initial-value: calc(50% + 600); } .y { font-weight: var(--w, 600); }"
         ),
         []
     );

@@ -125,20 +125,33 @@ export function inMarkupCss({ text, quoteAt }, index) {
     );
 }
 
+const BINDING_VALUE = /\[[^\]\s="'<>]+\]\s*=\s*(?:"([^"]*)|'([^']*))$/;
+
+/**
+ * Where `index` sits in an Angular binding's value: `quote` is the string
+ * literal open there (`''` in code), `attribute` the quote that ends the
+ * value; `null` outside a binding. An escaped quote (`'it\'s'`) is text.
+ */
+function bindingAt(text, index) {
+    const before = text.slice(Math.max(0, index - 4096), index);
+    const binding = BINDING_VALUE.exec(before);
+    if (!binding) return null;
+    const value = binding[1] ?? binding[2];
+    let quote = '';
+    for (let i = 0; i < value.length; i += 1) {
+        if (quote && value[i] === '\\') i += 1;
+        else if (quote) quote = value[i] === quote ? '' : quote;
+        else if (QUOTES.has(value[i])) quote = value[i];
+    }
+    return { quote, attribute: binding[1] === undefined ? "'" : '"' };
+}
+
 /**
  * Whether `index` sits in an Angular binding's value (`[ngStyle]="{…}"`),
  * which is code, and not in a string literal inside it, which is CSS text.
  */
 export function inBinding(text, index) {
-    const before = text.slice(Math.max(0, index - 4096), index);
-    const binding = /\[[^\]\s="'<>]+\]\s*=\s*(?:"([^"]*)|'([^']*))$/.exec(
-        before
-    );
-    if (!binding) return false;
-    const value = binding[1] ?? binding[2];
-    const inner = binding[1] === undefined ? '"' : "'";
-    const count = (quote) => value.split(quote).length - 1;
-    return count(inner) % 2 === 0 && count('`') % 2 === 0;
+    return bindingAt(text, index)?.quote === '';
 }
 
 /**
@@ -297,6 +310,42 @@ export function codeExpression(text, start, { argument = false } = {}) {
         }
     }
     return text.slice(start, end);
+}
+
+/**
+ * The string literal of code that encloses `index` (a TypeScript string, or
+ * one inside an Angular binding's value): its closing quote's position
+ * (`close`) and where the code around it ends (`limit`: the file's end, or
+ * the binding attribute's closing quote). `null` outside one.
+ */
+export function codeStringAt({ text, quoteAt }, file, index) {
+    if (file.endsWith('.ts')) {
+        const quote = quoteAt[index];
+        let close = index;
+        while (close + 1 < text.length && quoteAt[close + 1] === quote) {
+            close += 1;
+        }
+        return quote ? { close, limit: text.length } : null;
+    }
+    const binding = bindingAt(text, index);
+    if (!binding?.quote) return null;
+    const close = text.indexOf(binding.quote, index);
+    const limit = text.indexOf(binding.attribute, close + 1);
+    return close !== -1 && limit !== -1 ? { close, limit } : null;
+}
+
+/**
+ * The code a string's CSS text continues with: the operand after a `+`
+ * right after the string (`'font-weight:' + 650 + ';'` gives `650`), or
+ * `null` when no `+` follows.
+ */
+export function concatenatedAfter(text, { close, limit }) {
+    const code = text.slice(0, limit);
+    const plus = /^\s*\+\s*/.exec(code.slice(close + 1));
+    if (!plus) return null;
+    const start = close + 1 + plus[0].length;
+    const expression = codeExpression(code, start, { argument: true });
+    return splitAt(expression, ['+'])[0];
 }
 
 /** The bracket depth at each position of code, or -1 inside a string. */
@@ -635,17 +684,20 @@ function escapedName(escape, name) {
  * character would change the token, as Sass leaves it: a digit or `-`
  * starting a name (`\36 50` is a name, not 650), anything after a number
  * (`6\35 0`, `6\65 2`), and a character no name has (`\:`, `\20`, `\'`).
- * TypeScript is left as written: its strings use JavaScript escapes.
+ * Comments and TypeScript are left as written (TypeScript strings use
+ * JavaScript escapes).
  */
 export function decodeEscapes(file, source) {
     if (file.endsWith('.ts') || !source.includes('\\')) {
         return { text: source, origin: null };
     }
+    // A comment is no CSS: `// note \65` must not take the next line.
+    const plain = lex(file, source).text;
     let text = '';
     const origin = [];
     for (let i = 0; i < source.length; i += 1) {
         ESCAPE.lastIndex = i;
-        const escape = source[i] === '\\' ? ESCAPE.exec(source) : null;
+        const escape = plain[i] === '\\' ? ESCAPE.exec(source) : null;
         const length = escape ? escape[0].length : 1;
         const char = escape ? escapedName(escape, trailingName(text)) : '';
         if (char) {
@@ -659,6 +711,100 @@ export function decodeEscapes(file, source) {
     }
     origin.push(source.length);
     return { text, origin };
+}
+
+/**
+ * A character reference markup decodes: numeric (`&#54;`, `&#x36;`, the `;`
+ * optional) or named, and the named ones CSS text can use.
+ */
+const REFERENCE = /&(?:#(\d+);?|#x([\da-f]+);?|([a-z]+);)/iy;
+const NAMED = Object.freeze({
+    ...{ quot: '"', QUOT: '"', apos: "'", colon: ':', semi: ';', excl: '!' },
+    ...{ lpar: '(', rpar: ')', comma: ',', period: '.', plus: '+', sol: '/' },
+    ...{ bsol: '\\', percnt: '%', lowbar: '_', num: '#', Tab: '\t' },
+    ...{ NewLine: '\n', nbsp: '\u00a0' },
+});
+
+/**
+ * The text a reference stands for inside `quote` (the quoted attribute
+ * value's quote, or `''`), or `''` where it stays as written: `<` and `>`
+ * would change the markup, so they never decode, and the value's own quote
+ * decodes as the other one (CSS reads both alike).
+ */
+function referenced(reference, quote) {
+    const [, decimal, hex, name] = reference;
+    const code = decimal ?? hex;
+    let char = Object.hasOwn(NAMED, name ?? '') ? NAMED[name] : '';
+    if (code !== undefined) {
+        // Past the last code point it is U+FFFD (`fromCodePoint` throws).
+        const point = Number.parseInt(code, decimal ? 10 : 16);
+        char = point > 0x10ffff ? '\uFFFD' : String.fromCodePoint(point);
+    }
+    if ('<>'.includes(char)) return '';
+    if (char !== quote) return char;
+    return quote === '"' ? "'" : '"';
+}
+
+/**
+ * Where markup keeps its references as written: HTML's `<style>` and
+ * `<script>` text, and an SVG's CDATA sections.
+ */
+function rawRanges(file, source) {
+    const raw = file.endsWith('.svg')
+        ? /<!\[CDATA\[[\s\S]*?(?:\]\]>|$)/g
+        : /<(style|script)\b[^>]*>[\s\S]*?(?:<\/\1|$)/gi;
+    return [...source.matchAll(raw)].map((m) => [
+        m.index,
+        m.index + m[0].length,
+    ]);
+}
+
+/**
+ * Markup with its character references decoded as the browser decodes them
+ * (`style="font-weight: &#x36;50"` is 650), outside comments and raw text,
+ * and `origin` as in `decodeEscapes`.
+ */
+export function decodeReferences(file, source) {
+    if (!/\.(?:html|svg)$/.test(file) || !source.includes('&')) {
+        return { text: source, origin: null };
+    }
+    const { text: plain, quoteAt } = lex(file, source);
+    const raw = rawRanges(file, source);
+    let text = '';
+    const origin = [];
+    for (let i = 0; i < source.length; i += 1) {
+        REFERENCE.lastIndex = i;
+        const kept = plain[i] !== '&' || raw.some(([a, b]) => a <= i && i < b);
+        const reference = kept ? null : REFERENCE.exec(source);
+        const length = reference ? reference[0].length : 1;
+        const char = reference ? referenced(reference, quoteAt[i]) : '';
+        if (char) {
+            text += char;
+            for (let k = 0; k < char.length; k += 1) origin.push(i);
+        } else {
+            text += source.slice(i, i + length);
+            for (let k = i; k < i + length; k += 1) origin.push(k);
+        }
+        i += length - 1;
+    }
+    origin.push(source.length);
+    return { text, origin };
+}
+
+/**
+ * A file as the browser reads it: markup references, then CSS escapes,
+ * decoded; `origin` maps each position back to `written` (`null` when
+ * nothing changed).
+ */
+export function decodeSource(file, written) {
+    const references = decodeReferences(file, written);
+    const escapes = decodeEscapes(file, references.text);
+    if (!escapes.origin) return references;
+    const { origin } = references;
+    return {
+        text: escapes.text,
+        origin: origin ? escapes.origin.map((i) => origin[i]) : escapes.origin,
+    };
 }
 
 /** 1-based line of every index, computed once per file. */

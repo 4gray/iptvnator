@@ -9,7 +9,9 @@ import {
     calleeOf,
     closingBrace,
     codeExpression,
-    decodeEscapes,
+    codeStringAt,
+    concatenatedAfter,
+    decodeSource,
     inBinding,
     inConditionPrelude,
     inMarkupCss,
@@ -61,9 +63,12 @@ import {
  * alike), through `@forward … as prefix-*` and its `show`/`hide` lists too.
  * A parameter default counts where a call leaves it out, or when no call is
  * in sight. A weight set from code is read per value it can take, so a
- * condition's numbers are not weights. A partial's `!default` gives way
- * where every load of it configures the name. CSS escapes in names read as
- * Sass reads them (`font-w\65 ight` is `font-weight`). Not traced:
+ * condition's numbers are not weights, and CSS text that a string leaves to
+ * code (`'font-weight:' + w`) is read from the operand after the `+`. A
+ * partial's `!default` gives way where every load of it configures the
+ * name. A file is read as the browser reads it: CSS escapes in names
+ * decoded as Sass decodes them (`font-w\65 ight` is `font-weight`), and
+ * markup's character references too (`&#54;50` is 650). Not traced:
  * JavaScript escapes in TypeScript (`fontW\u0065ight`), positional mixin
  * or function arguments, calls through `meta.apply`, `meta.load-css` and
  * `@function` return values, so pass weights as named `$…weight` arguments;
@@ -180,17 +185,34 @@ const NUMBER_TOKEN = /^[+-]?(?:\d*\.\d+|\d+)(?:e[+-]?\d+)?$/i;
 /** An integer token: no fraction and no exponent (`6e2` is a number). */
 const INTEGER_TOKEN = /^[+-]?\d+$/;
 
+/** The math functions and constants CSS computes plain numbers with. */
+const MATH_NAME =
+    /^(?:calc|min|max|clamp|round|mod|rem|abs|sign|pow|sqrt|hypot|log|exp|e|pi|infinity|nan|nearest|up|down|to-zero)$/i;
+
+/**
+ * Whether `value` is a math function of plain numbers (`calc(600 + 50)`,
+ * `max(600, 650)`): computationally independent, so a valid `<number>` or
+ * `<integer>` initial value. A unit, `%` or `var()` makes it invalid there.
+ */
+function numericMath(value) {
+    if (!/^[a-z-]+\(.*\)$/is.test(value)) return false;
+    const rest = value.replace(/(?:\d*\.\d+|\d+)(?:e[+-]?\d+)?/gi, ' ');
+    if (!/^[\s\w()+\-*/,]*$/.test(rest)) return false;
+    return (rest.match(/[a-z][\w-]*/gi) ?? []).every((n) => MATH_NAME.test(n));
+}
+
 /**
  * Whether a `@property` body is a valid registration of `value`: it has a
  * `syntax` and `inherits`, and the syntax accepts the value (`*` anything,
- * `<number>` a number, `<integer>` an integer, `<custom-ident>`/`<string>`
- * a name).
+ * `<number>` a number, `<integer>` an integer, either a math function of
+ * numbers, `<custom-ident>`/`<string>` a name).
  */
 function registrationAccepts(body, value) {
     const syntax = /(?<![\w-])syntax\s*:\s*(['"])(.*?)\1/i.exec(body)?.[2];
     const inherits = /(?<![\w-])inherits\s*:\s*(?:true|false)\b/i.test(body);
     if (syntax === undefined || !inherits) return false;
     if (syntax.trim() === '*') return true;
+    if (numericMath(value)) return /<(?:number|integer)>/i.test(syntax);
     if (!NUMBER_TOKEN.test(value)) {
         return /<(?:custom-ident|string)>/i.test(syntax);
     }
@@ -663,8 +685,9 @@ function callSitesOf(text, blocks) {
  * (checked later, once the whole workspace has named what it refers to).
  */
 export function scanWeights(file, written) {
-    // Names read with their CSS escapes decoded; lines are the file's own.
-    const { text: source, origin } = decodeEscapes(file, written);
+    // Read as the browser reads it (markup references and CSS escapes
+    // decoded); lines are the file's own.
+    const { text: source, origin } = decodeSource(file, written);
     const lexed = lex(file, source);
     const { text, quoteAt } = lexed;
     const writtenLine = lineIndex(written);
@@ -836,7 +859,23 @@ export function scanWeights(file, written) {
             const inline =
                 !stylesheet && weightName && monoInString(match.index);
             const cap = family.mono || inline ? MONO_WEIGHT_CAP : null;
-            record(name, match.index, analyse(mode, value, { cap }));
+            // CSS text in a string of code ends with that string; a value
+            // left to code (`'font-weight:' + 650`) is the operand after `+`.
+            const literal = stylesheet ? null : codeStringAt(lexed, file, end);
+            const css = literal ? value.slice(0, literal.close - end) : value;
+            const operand =
+                literal && /^\s*$/.test(css)
+                    ? concatenatedAfter(text, literal)
+                    : null;
+            if (operand !== null) {
+                record(
+                    name,
+                    match.index,
+                    analyseCode(operand, 'weight', 0, cap)
+                );
+                continue;
+            }
+            record(name, match.index, analyse(mode, css, { cap }));
             if (!family.mono && family.refs.length > 0) {
                 const capped = analyse(mode, value, { cap: MONO_WEIGHT_CAP });
                 const place = placeOf(blocks, match.index);
