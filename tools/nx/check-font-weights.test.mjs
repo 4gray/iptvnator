@@ -632,11 +632,14 @@ test('checks font-weight presentation attributes', () => {
         "<svg><text font-weight='600'>b</text></svg>",
         '<svg><text [attr.font-weight]="600 + 50">c</text></svg>',
         '<p [style.font-weight]="650">d</p>',
+        '<svg><text font-weight=750>e</text></svg>',
+        '<svg><text font-weight=600>f</text></svg>',
     ].join('\n');
     const component = `template: '<svg><text font-weight="750">x</text></svg>',`;
 
     assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
         '1 font-weight: 650',
+        '5 font-weight: 750',
         '3 [attr.font-weight]: 600 + 50',
         '4 [style.font-weight]: 650',
     ]);
@@ -656,6 +659,60 @@ test('checks font-weight presentation attributes', () => {
         ),
         false
     );
+});
+
+test('counts a `with (…)` configuration of a namespaced module', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const tokens = scanWeights(
+        'libs/w/_tokens.scss',
+        '$heavy: 500 !default; $heavy-x: 500 !default;'
+    );
+    // Sass names match across `-`/`_`, configuration included.
+    const aliased = scanWeights(
+        'libs/w/k.scss',
+        [
+            "@use './tokens' with ($heavy_x: 750);",
+            '.k { font-weight: tokens.$heavy-x; }',
+        ].join('\n')
+    );
+    const configured = scanWeights(
+        'libs/w/w.scss',
+        [
+            "@use './tokens' with ($heavy: 650);",
+            '.x { font-weight: tokens.$heavy; }',
+        ].join('\n')
+    );
+    // A mixin argument of the same name is not a configuration.
+    const unrelated = scanWeights(
+        'libs/w/u.scss',
+        [
+            "@use './tokens';",
+            '.x { @include m($heavy: 650); font-weight: tokens.$heavy; }',
+        ].join('\n')
+    );
+    // Configured through a forwarding module.
+    const index = scanWeights(
+        'libs/v/_index.scss',
+        "@forward 'tokens' with ($light: 450 !default);"
+    );
+    const forwarded = scanWeights(
+        'libs/v/_tokens.scss',
+        '$light: 400 !default;'
+    );
+    const user = scanWeights(
+        'libs/v/v.scss',
+        "@use '.' as v; .y { font-weight: v.$light; }"
+    );
+
+    assert.deepEqual(report([tokens, configured]), ['libs/w/w.scss:1 650']);
+    assert.deepEqual(report([tokens, unrelated]), []);
+    assert.deepEqual(report([tokens, aliased]), ['libs/w/k.scss:1 750']);
+    assert.deepEqual(report([index, forwarded, user]), [
+        'libs/v/_index.scss:1 450',
+    ]);
 });
 
 test('flags relative keywords, which can land off the scale', () => {

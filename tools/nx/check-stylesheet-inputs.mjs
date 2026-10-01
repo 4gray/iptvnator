@@ -45,21 +45,25 @@ export function stripScssComments(source) {
 }
 
 /**
- * Every `@use`/`@forward`/`@import` target, with the rule that loads it and
- * any `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix).
+ * Every `@use`/`@forward`/`@import` target, with the rule that loads it, any
+ * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix) and the
+ * variable names a `with (…)` configuration sets.
  */
 export function extractStylesheetLoads(source) {
     const loads = [];
     const stripped = stripScssComments(source);
     for (const [, rule, clause] of stripped.matchAll(STYLESHEET_RULE)) {
+        const rest = clause.replace(QUOTED_TARGET, ' ');
         const as =
             rule === 'import'
                 ? null
-                : (/\bas\s+(\*|[\w-]+\*?)/.exec(
-                      clause.replace(QUOTED_TARGET, ' ')
-                  )?.[1] ?? null);
+                : (/\bas\s+(\*|[\w-]+\*?)/.exec(rest)?.[1] ?? null);
+        const configuration = /\bwith\s*\(([\s\S]*)\)/.exec(rest)?.[1] ?? '';
+        const configured = [...configuration.matchAll(/(\$[\w-]+)\s*:/g)].map(
+            (match) => match[1]
+        );
         for (const target of targetsOfRule(rule, clause)) {
-            loads.push({ rule, target, as });
+            loads.push({ rule, target, as, configured });
         }
     }
     return loads;

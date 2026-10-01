@@ -51,8 +51,12 @@ const STYLESHEET_WEIGHT = /(?<![\w$-])((?:\$|--)?[\w-]*weight)\s*:/gi;
 const SOURCE_WEIGHT =
     /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"]?\s*:/gi;
 const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/gi;
-/** A static HTML or SVG presentation attribute: `font-weight="650"`. */
-const ATTRIBUTE_WEIGHT = /(?<![\w$-])(font-weight)\s*=\s*(['"])(.*?)\2/gi;
+/**
+ * A static HTML or SVG presentation attribute, quoted (`font-weight="650"`)
+ * or unquoted (`font-weight=650`).
+ */
+const ATTRIBUTE_WEIGHT =
+    /(?<![\w$-])(font-weight)\s*=\s*(?:(['"])(.*?)\2|([^\s>'"=<`]+))/gi;
 /** A custom property or Sass variable that a weight value may refer to. */
 const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
 /** Angular `[style.font-weight]`/`[attr.font-weight]` bindings (or `host`). */
@@ -251,7 +255,8 @@ export function scanWeights(file, source) {
         // Code expressions carry other numbers too; a weight is 100 or more.
         const code = { minimum: 100, code: true };
         for (const match of text.matchAll(ATTRIBUTE_WEIGHT)) {
-            record(match[1], match.index, analyse('weight', match[3]));
+            const value = match[3] ?? match[4];
+            record(match[1], match.index, analyse('weight', value));
         }
         for (const match of text.matchAll(CODE_BINDING)) {
             record(match[1], match.index, analyse('weight', match[3], code));
@@ -325,11 +330,12 @@ export function findIndirectWeights(scans) {
         const scope = sass && !namespace ? unqualified(file) : null;
         for (const definition of definitions) {
             if (definition.key !== name) continue;
-            if (
-                members &&
-                (definition.argument || !members.has(definition.file))
-            ) {
-                continue;
+            if (members) {
+                const access = members.get(definition.file);
+                const visible = definition.argument
+                    ? access?.configured.has(definition.key)
+                    : access?.declarations;
+                if (!visible) continue;
             }
             if (scope) {
                 const access = scope.get(definition.file);
