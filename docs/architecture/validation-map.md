@@ -197,6 +197,13 @@ and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
 
+After changing a Playwright config's `webServer` list, `nx.json` target
+defaults or an E2E project's `dependsOn`, run
+`pnpm run e2e:task-graphs:validate`. It builds every Playwright target's task
+graph with and without `CI` and fails on the graphs Nx refuses to run; CI runs
+it in the `unit-and-typecheck` job. See
+[Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
+
 Inside `expect.poll`, read a changing list in one DOM snapshot
 (`allTextContents()` or `evaluateAll()`, as in
 `apps/electron-backend-e2e/src/sidebar-categories.e2e-support.ts`), not by
