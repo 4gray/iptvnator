@@ -867,9 +867,11 @@ export function scanWeights(file, written) {
     // variables is resolved once the whole workspace is scanned.
     // The preludes of the blocks around a place, innermost first: two rules
     // with the same chain style the same elements. Spacing outside strings
-    // is the same selector; inside one (`[title="a  b"]`) it is not.
-    const selectorOf = (scopes) =>
-        scopes
+    // is the same selector; inside one (`[title="a  b"]`) it is not. One
+    // Sass interpolates (`.#{$name}`) is known only once compiled, so it is
+    // that block's own.
+    const selectorOf = (scopes) => {
+        const chain = scopes
             .filter((scope) => scope !== null)
             .map((scope) =>
                 blockAt
@@ -877,6 +879,8 @@ export function scanWeights(file, written) {
                     ?.prelude.replace(SPACING, (m) => (/^\s/.test(m) ? ' ' : m))
             )
             .join(' < ');
+        return chain.includes('#{') ? `${chain} @ ${scopes.join(' ')}` : chain;
+    };
     // Blocks with the same selector chain (and the same `@if` or `@each`
     // around them) are one rule to the cascade: its declarations apply in
     // source order, whichever block holds them. Each block maps to the first

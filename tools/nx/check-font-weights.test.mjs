@@ -2891,6 +2891,24 @@ test('treats blocks with the same selector as one rule', () => {
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
+    // A selector Sass interpolates is known only once compiled, so blocks
+    // that spell it alike are separate rules, either way round.
+    for (const [source, expected] of [
+        [
+            `$n: a; .#{$n} { font-family: ${mono}; font-weight: 700; } $n: b; .#{$n} { font-family: Roboto; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `$n: a; .#{$n} { font-family: Roboto; font-weight: 700; } $n: b; .#{$n} { font-family: ${mono}; }`,
+            [],
+        ],
+        [
+            `$n: a; .#{$n} { --face: Roboto; } $n: b; .#{$n} { font-family: var(--face, ${mono}); font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
 });
 
 test('reads template literals set from code', () => {
