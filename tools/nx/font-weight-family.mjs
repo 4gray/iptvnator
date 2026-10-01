@@ -314,8 +314,13 @@ function selectorsOf(prelude) {
  */
 export function reachDepth(prelude, reader = null) {
     if (!prelude) return null;
+    // One that targets the root element (`html.dark`, `:root:not(.x)`).
     const rootReader = reader
-        ? rootSelectors(reader).some((s) => /^(?::root|html)$/i.test(s))
+        ? rootSelectors(reader).some((s) =>
+              /^(?::root|html)(?![\w-])/i.test(
+                  compoundsOf(s).at(-1)?.compound ?? ''
+              )
+          )
         : false;
     const depths = rootSelectors(prelude).map((selector) => {
         if (selector === '*') return 4;
@@ -329,6 +334,72 @@ export function reachDepth(prelude, reader = null) {
 /** Whether a rule's custom properties reach every element (`reachDepth`). */
 export function reachesEverything(prelude, reader = null) {
     return reachDepth(prelude, reader) !== null;
+}
+
+/**
+ * A selector's compounds, each with the combinator before it (`.a .b > .c`
+ * is `.a`, ` ` `.b`, `>` `.c`), split outside brackets, parentheses,
+ * strings and escapes.
+ */
+function compoundsOf(selector) {
+    const parts = [];
+    let compound = '';
+    let combinator = '';
+    let depth = 0;
+    let quote = '';
+    for (let i = 0; i < selector.length; i += 1) {
+        const char = selector[i];
+        if (char === '\\') {
+            compound += selector.slice(i, i + 2);
+            i += 1;
+        } else if (quote || depth > 0 || !/[\s>+~]/.test(char)) {
+            if (quote && char === quote) quote = '';
+            else if (!quote && (char === '"' || char === "'")) quote = char;
+            else if (!quote && '(['.includes(char)) depth += 1;
+            else if (!quote && ')]'.includes(char)) depth -= 1;
+            compound += char;
+        } else {
+            // Whitespace alone is the descendant combinator.
+            if (compound) parts.push({ combinator, compound });
+            if (compound) combinator = ' ';
+            if (!/\s/.test(char)) combinator = char;
+            compound = '';
+        }
+    }
+    if (compound) parts.push({ combinator, compound });
+    return parts;
+}
+
+/** Selector text from its compounds, spaced one way (`.a>.b` is `.a > .b`). */
+function joined(parts) {
+    return parts
+        .map(({ combinator, compound }, k) => {
+            if (combinator === ' ') return ` ${compound}`;
+            if (!combinator) return compound;
+            return `${k ? ' ' : ''}${combinator} ${compound}`;
+        })
+        .join('');
+}
+
+/** A selector spaced one way, so `.a>.b` and `.a > .b` compare equal. */
+export function canonicalSelector(selector) {
+    return joined(compoundsOf(selector));
+}
+
+/**
+ * The ancestors a selector names for the element it targets, nearest
+ * first: `.a .b > .c` has `.a .b` and `.a`. A compound followed by `+` or
+ * `~` is a sibling, so `.a .b + .c` has only `.a`.
+ */
+export function ancestorsOf(selector) {
+    const parts = compoundsOf(selector);
+    const ancestors = [];
+    for (let i = parts.length - 2; i >= 0; i -= 1) {
+        if (/^[ >]$/.test(parts[i + 1].combinator)) {
+            ancestors.push(joined(parts.slice(0, i + 1)));
+        }
+    }
+    return ancestors;
 }
 
 /** A selector list with `:where(…)` and `:is(…)` wrappers opened. */
@@ -447,6 +518,21 @@ export function familiesOf(
             family.set(rule, entry);
         }
     }
+    const fromAncestors = (prelude) => {
+        const found = selectorsOf(prelude).flatMap((selector) => {
+            for (const ancestor of ancestorsOf(selector)) {
+                const entry = family.get(`${ancestor} | `);
+                if (entry && !entry.inherit) return [entry];
+            }
+            return [];
+        });
+        return (
+            found.find((entry) => entry.mono) ??
+            found.find((entry) => entry.refs.length > 0) ??
+            found[0] ??
+            NONE
+        );
+    };
     const lookup = (index) => {
         const around = blocks
             .filter((b) => b.start < index && index < b.end)
@@ -467,7 +553,10 @@ export function familiesOf(
             if (own.length && own.length === rules.length) return own[0];
             if (!inherits(block.prelude)) return NONE;
         }
-        return NONE;
+        // A flat descendant selector (`.parent .child`) inherits from the
+        // nearest top-level rule that names one of its ancestors.
+        const outer = around.filter((b) => !b.prelude.startsWith('@')).at(-1);
+        return outer ? fromAncestors(outer.prelude) : NONE;
     };
     // A weight in a mixin's body meets its own family, else the family of
     // each rule that includes it.

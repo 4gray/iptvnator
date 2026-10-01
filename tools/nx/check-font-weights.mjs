@@ -30,6 +30,7 @@ import {
 import {
     IMPORTANT,
     MONO_WEIGHT_CAP,
+    canonicalSelector,
     declarationText,
     familiesOf,
     entryVerdict,
@@ -84,7 +85,8 @@ import {
  *
  * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
  * written out or through variables, or one a nested rule inherits; see
- * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A mixin's top-level
+ * `familiesOf`) is capped at `MONO_WEIGHT_CAP`, as is a flat descendant
+ * (`.parent .child`) of a top-level rule that sets it. A mixin's top-level
  * declarations land where this file includes it. A weight it inherits from
  * another rule, a mixin from another module, and a family set on an
  * element from code, are not traced.
@@ -945,7 +947,7 @@ export function scanWeights(file, written) {
                 );
             const parts = /^@|#\{/.test(prelude)
                 ? [prelude]
-                : selectorList(prelude);
+                : selectorList(prelude).map(canonicalSelector);
             chains = chains.flatMap((chain) =>
                 parts.map((part) => (chain ? `${chain} < ${part}` : part))
             );
@@ -1300,6 +1302,8 @@ export function scanWeights(file, written) {
             ...{ file, line: lineOf(index), index, name, key: name, value },
             ...{ full: value, argument: false, fallback: false, weighted },
             ...{ important: false, callee: null, registered: true },
+            // `inherits: false` gives each element the initial value.
+            inherits: /(?<![\w-])inherits\s*:\s*true\b/i.test(body),
             ...{ rule: null, guards: guardsAt(match.index), scope: null },
             ...{ conditional: false, scopes: place.scopes },
             ...{ inCallable: place.inCallable, callable: place.callable },
@@ -1795,8 +1799,16 @@ export function findIndirectWeights(scans) {
     };
     // The definitions that can still apply once the nearest one set
     // unconditionally to a value of its own hides the farther ones.
+    // A property registered with `inherits: false` reaches no element from
+    // an ancestor (`:root`, `body`, an enclosing rule): only what the element
+    // sets itself (`*`, code) or the initial value.
     const nearest = (visible, reference) => {
+        const local = visible.some((d) => d.registered && !d.inherits);
         const ranks = visible.map((d) => nearness(d, reference));
+        if (local) {
+            const ancestor = (rank) => rank !== null && rank > 0 && rank < 4;
+            return visible.filter((_, i) => !ancestor(ranks[i]));
+        }
         const settled = visible
             .map((definition, i) => ({ definition, rank: ranks[i] }))
             .filter(({ definition, rank }) => {

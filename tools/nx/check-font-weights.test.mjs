@@ -3370,6 +3370,142 @@ test('reads a self-sibling selector as the parent element', () => {
     }
 });
 
+test('inherits a family from a flat ancestor selector', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s7/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // The nearest top-level rule naming an ancestor of the target gives its
+    // family; a sibling is no ancestor.
+    for (const [source, expected] of [
+        [
+            `.parent { font-family: ${mono}; } .parent .child { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent { font-family: ${mono}; } .parent > .child { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a { font-family: ${mono}; } .a>.b { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a { font-family: ${mono}; } .a .b + .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a { font-family: ${mono}; } @media (min-width: 1px) { .a .b { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a { font-family: Roboto; } .a .b { font-family: ${mono}; } .a .b .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a { font-family: ${mono}; } .a .b { font-family: inherit; } .a .b .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent { font-family: ${mono}; } .parent + .child { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.a { font-family: ${mono}; } .a .b { font-family: Roboto; } .a .b .c { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.a { font-family: ${mono}; } .a .b { font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+        // Spaced one way: `.a>.b` names the same element as `.a > .b`, and
+        // `.a.b` (one element with both classes) is no ancestor of `.a .b`.
+        [
+            `.a>.b { font-family: ${mono}; } .a > .b .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`.a.b { font-family: ${mono}; } .a .b .c { font-weight: 700; }`, []],
+        // In a selector list, any selector whose ancestor renders Mono counts.
+        [
+            `.p { font-family: Roboto; } .q { font-family: ${mono}; } .p .x, .q .y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --f: ${mono}; } .p { font-family: Roboto; } .q { font-family: var(--f); } .p .x, .q .y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test('reads a non-inheriting registered property and a compound root', () => {
+    const mono = "'JetBrains Mono'";
+    const read = 'font-family: var(--face); font-weight: 700;';
+    const registered = (initial, inherits) =>
+        `@property --face { syntax: '*'; inherits: ${inherits}; initial-value: ${initial}; }`;
+    const report = (body) =>
+        findOffScaleWeights('libs/s7/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // `inherits: false`: no ancestor's value reaches the element.
+        [
+            `${registered(mono, 'false')} body { --face: Roboto; } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${registered('Roboto', 'false')} body { --face: ${mono}; } .x { ${read} }`,
+            [],
+        ],
+        [
+            `${registered('Roboto', 'false')} * { --face: ${mono}; } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${registered('Roboto', 'false')} .x { --face: ${mono}; ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${registered(mono, 'true')} body { --face: Roboto; } .x { ${read} }`,
+            [],
+        ],
+        // A compound selector on the root element is beyond `body`'s reach,
+        // past brackets, strings, parentheses and escapes in it.
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } html:not(.a .b) { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } html[data-x="a] b"] { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } html.a\\ b { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } html[data-x="a"] .x { ${read} }`,
+            [],
+        ],
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } html.theme { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } :root:not(.x) { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } html .x { ${read} }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",
