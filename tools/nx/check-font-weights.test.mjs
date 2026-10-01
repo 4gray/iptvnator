@@ -273,12 +273,15 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
         ".m { font: 700 var(--size) 'JetBrains Mono'; }",
         // The name is matched whole.
         ".n { font-family: 'Not JetBrains Mono'; font-weight: 700; }",
+        // `emoji` covers special glyphs only; text falls through to Mono.
+        ".o { font-family: emoji, 'JetBrains Mono'; font-weight: 700; }",
     ].join('\n');
 
     assert.deepEqual(offScale('libs/m6/a.scss', source).sort(), [
         '10 font: 700',
         '12 font: 700',
         '13 font: 700',
+        '15 font-weight: 700',
         '3 font-weight: 700',
         '4 font: 700',
         '5 font: 700',
@@ -315,6 +318,33 @@ test('reads Sass nested font properties', () => {
         '4 weight: 650',
         '8 font-weight: 700',
     ]);
+});
+
+test('reads CSS in markup only where it styles', () => {
+    const template = [
+        '<code>font-weight: 650</code>',
+        '<p title="font-weight: 650">x</p>',
+        '<p style="font-weight: 650">x</p>',
+        '<style>.a { font-weight: 750; }</style>',
+        `<div [ngStyle]="{ 'font-weight': 650 }"></div>`,
+        '<style>/* font-weight: 650; */ .x { font-weight: 600; content: "/* kept"; }</style>',
+        // A CSS string holds no comment; after `</style>` it is markup again.
+        '<style>.y { content: "/* x"; font-weight: 750; }</style>',
+        '<p>/* text</p>',
+        '<p style="font-weight: 650">y</p>',
+        '<code>font-weight: 650</code>',
+    ].join('\n');
+
+    assert.deepEqual(
+        offScale('apps/web/src/a.component.html', template).sort(),
+        [
+            '3 font-weight: 650',
+            '4 font-weight: 750',
+            '5 font-weight: 650',
+            '7 font-weight: 750',
+            '9 font-weight: 650',
+        ]
+    );
 });
 
 test('checks SVG presentation attributes and styles', () => {
@@ -2472,6 +2502,27 @@ test('resolves family variables in their place in the list', () => {
             ":root { --face: Roboto; } .y { font-family: var(--face), 'JetBrains Mono'; font-weight: 700; }"
         ),
         []
+    );
+    // A comma set apart still ends the entry before it.
+    assert.deepEqual(
+        report(
+            ":root { --face: Roboto; --size: 12px; } .x { font: 700 var(--size) var(--face) , 'JetBrains Mono'; }"
+        ),
+        []
+    );
+    // Weight and size from variables: the family follows the size.
+    assert.deepEqual(
+        report(
+            ":root { --weight: 700; --size: 12px; } .x { font: var(--weight) var(--size) 'JetBrains Mono'; }"
+        ),
+        ['--weight: 700']
+    );
+    // A whole shorthand from variables, its family a variable too.
+    assert.deepEqual(
+        report(
+            ":root { --size: 16px; --face: 'JetBrains Mono'; --body: 700 var(--size) var(--face); } .x { font: var(--body); }"
+        ),
+        ['--body: 700']
     );
     // Any branch that can render Mono counts.
     assert.deepEqual(

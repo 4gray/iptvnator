@@ -92,6 +92,25 @@ export function closingBrace({ text, quoteAt }, open) {
 }
 
 /**
+ * Whether `index` sits where markup holds CSS: a `<style>` element, a
+ * `style` attribute, or an Angular `[…]` binding (whose strings are CSS).
+ * Text content and other attributes (`title="font-weight: 650"`) are not.
+ */
+export function inMarkupCss({ text, quoteAt }, index) {
+    const before = text.slice(0, index).toLowerCase();
+    const open = before.lastIndexOf('<style');
+    if (open !== -1 && !before.includes('</style', open)) {
+        if (/^<style[\s>]/.test(before.slice(open, open + 7))) return true;
+    }
+    const quote = quoteAt[index];
+    if (!quote) return false;
+    let start = index;
+    while (start > 0 && quoteAt[start - 1] === quote) start -= 1;
+    const name = /([^\s<>="']+)\s*=\s*$/.exec(text.slice(0, start - 1))?.[1];
+    return /^(?:style|\[[^\]]+\])$/i.test(name ?? '');
+}
+
+/**
  * Whether `index` sits in an Angular binding's value (`[ngStyle]="{…}"`),
  * which is code, and not in a string literal inside it, which is CSS text.
  */
@@ -127,6 +146,9 @@ export function lex(file, source) {
     };
     let quote = '';
     let inTag = false;
+    // Markup `<style>` content is CSS: block comments and strings there.
+    let styleTag = false;
+    let inStyle = false;
     for (let i = 0; i < source.length; i += 1) {
         const char = source[i];
         if (quote) {
@@ -141,10 +163,22 @@ export function lex(file, source) {
             }
         } else if (syntax.html && source.startsWith('<!--', i)) {
             i = blank(i, until('-->', i + 4));
+        } else if (syntax.html && inStyle && source.startsWith('/*', i)) {
+            i = blank(i, until('*/', i + 2));
         } else if (syntax.html) {
-            if (char === '<') inTag = true;
-            if (char === '>') inTag = false;
-            if (inTag && syntax.quotes.includes(char)) quote = char;
+            if (char === '<') {
+                inTag = true;
+                const tag = source.slice(i, i + 8).toLowerCase();
+                if (/^<style[\s>]/.test(tag)) styleTag = true;
+                if (/^<\/style[\s>]/.test(tag)) inStyle = false;
+            }
+            if (char === '>') {
+                inTag = false;
+                if (styleTag) inStyle = true;
+                styleTag = false;
+            }
+            const css = inStyle && !inTag;
+            if ((inTag || css) && syntax.quotes.includes(char)) quote = char;
         } else if (syntax.block && source.startsWith('/*', i)) {
             i = blank(i, until('*/', i + 2));
         } else if (

@@ -11,6 +11,7 @@ import {
     codeExpression,
     inBinding,
     inConditionPrelude,
+    inMarkupCss,
     insideTag,
     invocationsOf,
     lex,
@@ -744,9 +745,12 @@ export function scanWeights(file, source) {
     };
     // A feature query's test is a condition, not a declaration.
     const inPrelude = (index) => stylesheet && inConditionPrelude(lexed, index);
+    // In markup only CSS contexts style anything (see `inMarkupCss`).
+    const markup = /\.(?:html|svg)$/.test(file);
     for (const pattern of patterns) {
         for (const match of text.matchAll(pattern)) {
             if (inString(match.index) || inPrelude(match.index)) continue;
+            if (markup && !inMarkupCss(lexed, match.index)) continue;
             const name = match[1];
             const end = match.index + match[0].length;
             const { value, selector } = valueAfter(lexed, end);

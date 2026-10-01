@@ -67,11 +67,12 @@ export function parsesAsFont(value) {
 
 /**
  * Families that render every glyph the UI shows: Roboto (bundled with
- * Latin, Cyrillic and Greek) and the generics. DM Sans is Latin-only, so
- * Russian or Greek text falls through it to the next family.
+ * Latin, Cyrillic and Greek) and the text generics. DM Sans is Latin-only,
+ * and `emoji`, `math` or `fangsong` cover special scripts, so ordinary
+ * Russian or Greek text falls through them to the next family.
  */
 const ALWAYS_THERE =
-    /^(?:roboto|serif|sans-serif|monospace|cursive|fantasy|system-ui|math|emoji|fangsong)$/i;
+    /^(?:roboto|serif|sans-serif|monospace|cursive|fantasy|system-ui)$/i;
 
 /**
  * Whether a `font` shorthand has a literal size, so a variable after it
@@ -112,14 +113,24 @@ export function familyEntries(list) {
 export function shorthandFamilies(value) {
     const tokens = tokensOf(value.replace(/!important\b/i, ''));
     // A literal size first; `var()` (or its placeholder) only when none.
-    let size = tokens.findIndex(
+    const size = tokens.findIndex(
         (token) => FONT_SIZE.test(token) && !/^var\(/i.test(token)
     );
-    // Without one, the size is the first token after the weight and style
-    // (`700 var(--size) var(--face), …`: `var(--size)`).
+    // Without one, the family starts at the first literal name or entry
+    // that a comma ends, else at the last token, and the size is the token
+    // before it (`var(--weight) var(--size) 'JetBrains Mono'`).
     if (size === -1) {
-        size = tokens.findIndex((token) => !SHORTHAND_PREFIX.test(token));
-        if (size === -1 || size === tokens.length - 1) return null;
+        let start = tokens.findIndex(
+            (token, i) =>
+                i > 0 &&
+                (token.endsWith(',') ||
+                    tokens[i + 1] === ',' ||
+                    (!/^[\d./]/.test(token) &&
+                        !SHORTHAND_PREFIX.test(token) &&
+                        entryVerdict(token) !== null))
+        );
+        if (start === -1) start = tokens.length - 1;
+        return start < 1 ? null : tokens.slice(start).join(' ');
     }
     let rest = tokens.slice(size + 1);
     if (rest[0] === '/') rest = rest.slice(2);
@@ -176,7 +187,7 @@ export function familyParts(value) {
             : null;
         vars.push({ name: open[1], fallback });
         // A placeholder keeps the token's place (a shorthand's size).
-        outside += ' var() ';
+        outside += 'var()';
         i = end;
     }
     return { outside, vars };
