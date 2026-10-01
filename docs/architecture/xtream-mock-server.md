@@ -599,8 +599,7 @@ continuous tasks" and passed only in CI. Therefore:
 - `apps/web-e2e/project.json` sets `e2e.dependsOn` to `[]`, and the filtered
   `e2e-ci--src/*.e2e.ts` target default in `nx.json` does the same for the
   per-file web targets. The per-file Electron targets depend only on
-  `electron-backend:build-e2e`. Do not add the mocks' Nx `serve` targets as
-  dependencies: Playwright already starts the mocks.
+  `electron-backend:build-e2e`.
 - The plugin runs with `waitForWebServer: false`, because no target consumes
   its `e2e--wait-for-webserver` readiness task. Playwright's own URL probe
   covers readiness.
