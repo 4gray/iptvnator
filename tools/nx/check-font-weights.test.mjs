@@ -333,17 +333,57 @@ test('reads CSS in markup only where it styles', () => {
         '<p>/* text</p>',
         '<p style="font-weight: 650">y</p>',
         '<code>font-weight: 650</code>',
+        // An unquoted `style` value runs to a space or `>`.
+        '<div style=font-weight:650>x</div>',
+        '<div title=font-weight:650>y</div>',
+        '<div style=font-weight:600 class=x>z</div>',
     ].join('\n');
 
     assert.deepEqual(
         offScale('apps/web/src/a.component.html', template).sort(),
         [
+            '11 font-weight: 650',
             '3 font-weight: 650',
             '4 font-weight: 750',
             '5 font-weight: 650',
             '7 font-weight: 750',
             '9 font-weight: 650',
         ]
+    );
+});
+
+test('reads @property initial values', () => {
+    const report = (body) =>
+        findOffScaleWeights('libs/p9/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+
+    assert.deepEqual(
+        report(
+            "@property --title-weight { syntax: '<number>'; inherits: false; initial-value: 650; } .x { font-weight: var(--title-weight); }"
+        ),
+        ['--title-weight: 650']
+    );
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<number>'; initial-value: 750; inherits: false; } .y { font-weight: var(--w); }"
+        ),
+        ['--w: 750']
+    );
+    // A registered property always has a value, so a fallback never
+    // applies, wherever it is registered.
+    assert.deepEqual(
+        findIndirectWeights([
+            scanWeights(
+                'libs/p9/_props.scss',
+                "@property --face { syntax: '*'; inherits: true; initial-value: Roboto; }"
+            ),
+            scanWeights(
+                'libs/p9/b.scss',
+                ".b { font-family: var(--face, 'JetBrains Mono'); font-weight: 700; }"
+            ),
+        ]),
+        []
     );
 });
 

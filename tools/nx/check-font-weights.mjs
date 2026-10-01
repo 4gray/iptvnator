@@ -12,6 +12,7 @@ import {
     inBinding,
     inConditionPrelude,
     inMarkupCss,
+    inUnquotedStyle,
     insideTag,
     invocationsOf,
     lex,
@@ -171,6 +172,8 @@ const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font|weight)\s*:/gi;
 const WEIGHT_NAME = /^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i;
 /** A family declaration in CSS text: `font-family`, or the `font` shorthand. */
 const FAMILY_DECLARATION = /(?<![\w-])(font-family|font)\s*:\s*([^;]*)/gi;
+/** A registered custom property: `@property --x { … }`. */
+const PROPERTY_RULE = /@property\s+(--[\w-]+)\s*\{/gi;
 /** Sass loops that bind variables: `@each $a, $b in …`, `@for $i from …`. */
 const EACH_LOOP = /@each\s+((?:\$[\w-]+\s*,\s*)*\$[\w-]+)\s+in\s+([^{]+)\{/gi;
 const FOR_LOOP =
@@ -753,7 +756,14 @@ export function scanWeights(file, source) {
             if (markup && !inMarkupCss(lexed, match.index)) continue;
             const name = match[1];
             const end = match.index + match[0].length;
-            const { value, selector } = valueAfter(lexed, end);
+            const read = valueAfter(lexed, end);
+            const { selector } = read;
+            // An unquoted attribute value ends at a space or `>`.
+            const unquoted =
+                markup &&
+                !quoteAt[match.index] &&
+                inUnquotedStyle(text, match.index);
+            const value = unquoted ? read.value.split(/[\s>]/)[0] : read.value;
             if (selector) continue;
             const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
             // A TypeScript object value (`{ fontWeight: wide ? 700 : 600 }`),
@@ -935,6 +945,29 @@ export function scanWeights(file, source) {
         });
     }
 
+    // `@property --x { initial-value: … }` gives a registered property its
+    // value wherever nothing sets it; a `…weight` name is checked there.
+    for (const match of stylesheet ? text.matchAll(PROPERTY_RULE) : []) {
+        if (inString(match.index)) continue;
+        const brace = match.index + match[0].length - 1;
+        const body = text.slice(brace, blockAt.get(brace)?.end ?? brace);
+        const initial = /(?<![\w-])initial-value\s*:\s*([^;}]*)/i.exec(body);
+        if (!initial) continue;
+        const index = brace + initial.index;
+        const name = match[1];
+        const value = initial[1].trim();
+        const weighted = /weight$/i.test(name);
+        if (weighted) record(name, index, analyse('weight', value));
+        const place = placeOf(blocks, match.index);
+        definitions.push({
+            ...{ file, line: lineOf(index), index, name, key: name, value },
+            ...{ full: value, argument: false, fallback: false, weighted },
+            ...{ important: false, callee: null, registered: true },
+            ...{ rule: null, guards: guardsAt(match.index), scope: null },
+            ...{ conditional: false, scopes: place.scopes },
+            ...{ inCallable: place.inCallable, callable: place.callable },
+        });
+    }
     // Loop variables take every value of their list (or range), and only
     // inside the loop body (`loop`), where they shadow an outer namesake.
     const loopVariable = (name, header, value, range = null) => {
@@ -1316,6 +1349,8 @@ export function findIndirectWeights(scans) {
     // its component's `:host`). A property set by code sits in another file
     // and is set on some element only.
     const setsFor = (definition, reference) => {
+        // A registered property always has a value: its `initial-value`.
+        if (definition.registered) return true;
         const own = definition.file === reference.file;
         // A condition (`@media`, `@if`, …) around the definition that does
         // not also hold around the reading declaration may leave it unset.

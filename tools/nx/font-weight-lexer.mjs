@@ -92,6 +92,14 @@ export function closingBrace({ text, quoteAt }, open) {
 }
 
 /**
+ * Whether `index` sits in an unquoted `style=font-weight:650` attribute
+ * value, which runs to a space or `>`.
+ */
+export function inUnquotedStyle(text, index) {
+    return /(?:^|[\s<])style\s*=\s*[^\s"'=<>`]*$/i.test(text.slice(0, index));
+}
+
+/**
  * Whether `index` sits where markup holds CSS: a `<style>` element, a
  * `style` attribute, or an Angular `[…]` binding (whose strings are CSS).
  * Text content and other attributes (`title="font-weight: 650"`) are not.
@@ -103,7 +111,7 @@ export function inMarkupCss({ text, quoteAt }, index) {
         if (/^<style[\s>]/.test(before.slice(open, open + 7))) return true;
     }
     const quote = quoteAt[index];
-    if (!quote) return false;
+    if (!quote) return inUnquotedStyle(text, index);
     let start = index;
     while (start > 0 && quoteAt[start - 1] === quote) start -= 1;
     const name = /([^\s<>="']+)\s*=\s*$/.exec(text.slice(0, start - 1))?.[1];
