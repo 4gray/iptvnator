@@ -247,15 +247,15 @@ describe('ParentalLockPinDialogComponent', () => {
             const dialog = await openDialog({ mode: 'set' });
             const field = dialog
                 .query('parental-lock-pin')
-                ?.closest('mat-form-field') as HTMLElement & {
-                getAnimations?: () => Partial<CSSAnimation>[];
-            };
+                ?.closest('mat-form-field');
             // jsdom has no Web Animations: stand in for the running shake.
             const shake: Partial<CSSAnimation> = {
                 animationName: '_ngcontent-x_pin-dialog-shake',
                 currentTime: 250,
             };
-            field.getAnimations = () => [shake];
+            Object.defineProperty(field, 'getAnimations', {
+                value: () => [shake],
+            });
 
             await dialog.type('parental-lock-pin', '24');
             await dialog.pressEnter();
