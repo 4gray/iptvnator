@@ -210,6 +210,14 @@ test('keeps comment markers inside strings', () => {
     assert.doesNotMatch(stripped, /note|\/\* a/);
     const [{ configuration }] = extractStylesheetLoads(source);
     assert.equal(source.slice(...configuration), "$asset: '//cdn/x', $w: 600");
+    // A quoted `;` is a value, not the rule's end.
+    const dataUri =
+        "@use 'tokens' with ($asset: 'data:image/svg+xml;utf8,x', $w: 600);";
+    const [{ configuration: range }] = extractStylesheetLoads(dataUri);
+    assert.equal(
+        dataUri.slice(...range),
+        "$asset: 'data:image/svg+xml;utf8,x', $w: 600"
+    );
     // An escaped quote stays inside the string, an unclosed one ends at the
     // line break, and an unquoted URL keeps its slashes.
     for (const [text, kept, dropped] of [

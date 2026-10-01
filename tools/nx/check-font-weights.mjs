@@ -43,7 +43,10 @@ import {
  * check keeps it there.
  *
  * Sass is not compiled, so a weight must be written, not computed: arithmetic
- * and functions other than `var()` are findings in themselves. Variables and
+ * and functions other than `var()` are findings in themselves. Every weight
+ * written in a declaration counts, `var()` fallbacks included: a fallback
+ * renders as soon as its property is unset anywhere. Definitions reached
+ * through variables count only where they can render. Variables and
  * the callables their named arguments go to are followed by name (`-` and `_`
  * alike), through `@forward … as prefix-*` and its `show`/`hide` lists too.
  * A parameter default counts where a call leaves it out, or when no call is
@@ -102,6 +105,15 @@ const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
  */
 const CODE_BINDING =
     /(\[(?:style|attr)\.(font-weight|fontWeight|--[\w-]+)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\3/gi;
+/**
+ * Angular `@HostBinding('style.fontWeight')` (or `style.font-weight`,
+ * `style.--x`, `attr.font-weight`) on a field (`= value`) or a getter
+ * (`return value`).
+ */
+const HOST_BINDING =
+    /@HostBinding\(\s*(['"`])(style|attr)\.(font-weight|fontWeight|--[\w-]+)\1\s*\)/g;
+const HOST_VALUE =
+    /^\s*(?:(?:public|private|protected|readonly|override|static)\s+)*(?:get\s+[\w$]+\s*\(\s*\)\s*(?::[^{]+)?\{\s*return\b|[\w$]+\s*[!?]?\s*(?::[^=;]+)?=(?!=))/;
 /**
  * DOM writes of the weight or the `font` shorthand, dotted or indexed
  * (`style['font-weight']`). `===` compares, so only a lone `=` (or `+=` and
@@ -324,6 +336,7 @@ function familyRefs({ outside, vars }, at) {
     const place = {
         ...{ file: at.file, index: at.index, scopes: at.scopes },
         ...{ inCallable: at.inCallable, callable: at.callable },
+        guards: at.guards ?? [],
     };
     return [
         ...vars.map(({ name, fallback }) => ({
@@ -359,7 +372,8 @@ function capOnly(term) {
 function analyseCode(expression, mode = 'weight', after = 0, cap = null) {
     const results = resultsOf(expression).map((result) => {
         const literal = /^\s*(['"`])([\s\S]*)\1\s*$/.exec(result);
-        if (literal && !literal[2].includes('${')) {
+        // A shorthand template reads as CSS, its `${…}` an opaque token.
+        if (literal && (mode === 'font' || !literal[2].includes('${'))) {
             return analyse(mode, literal[2], { after, cap });
         }
         return analyse('weight', result, { minimum: 100, code: true, cap });
@@ -420,6 +434,17 @@ export function scanWeights(file, source) {
     const definitions = [];
     let declarations = 0;
     const blocks = stylesheet ? blocksOf(lexed) : [];
+    const blockAt = new Map(blocks.map((block) => [block.start, block]));
+    // The flow-control and conditional at-rule blocks around a position.
+    const guardsAt = (index) =>
+        blocks
+            .filter((block) => block.start < index && index < block.end)
+            .filter(
+                (block) =>
+                    block.kind === 'flow' ||
+                    CONDITIONAL_RULE.test(block.prelude)
+            )
+            .map((block) => block.start);
     const record = (name, index, analysis) => {
         declarations += 1;
         for (const term of analysis.terms) {
@@ -437,7 +462,7 @@ export function scanWeights(file, source) {
     // The family each rule renders in (see `familiesOf`); one named through
     // variables is resolved once the whole workspace is scanned.
     const refsIn = (parts, index, place) =>
-        familyRefs(parts, { file, index, ...place });
+        familyRefs(parts, { file, index, ...place, guards: guardsAt(index) });
     const monoAt = stylesheet
         ? familiesOf(lexed, blocks, { inString, placeOf, refsIn })
         : () => ({ mono: false, refs: [] });
@@ -504,7 +529,10 @@ export function scanWeights(file, source) {
                 deferred.push({
                     ...{ file, line: lineOf(match.index), name },
                     family: family.text,
-                    at: { ...family.at, file },
+                    at: {
+                        ...{ ...family.at, file },
+                        guards: guardsAt(family.at.index),
+                    },
                     terms: capped.terms.filter(capOnly),
                     references: capped.references.map((reference) => ({
                         ...{ ...reference, file, index: match.index },
@@ -546,6 +574,15 @@ export function scanWeights(file, source) {
         for (const match of text.matchAll(CODE_BINDING)) {
             setByCode(match[1], match[2], match.index, match[4]);
         }
+        for (const match of text.matchAll(HOST_BINDING)) {
+            const [label, , target, property] = match;
+            if (target === 'attr' && property !== 'font-weight') continue;
+            const end = match.index + label.length;
+            const value = HOST_VALUE.exec(text.slice(end));
+            if (!value) continue;
+            const expression = codeExpression(text, end + value[0].length);
+            setByCode(label, property, match.index, expression);
+        }
         for (const match of text.matchAll(CODE_ASSIGNMENT)) {
             const end = match.index + match[0].length;
             const expression = codeExpression(text, end).trim();
@@ -577,7 +614,6 @@ export function scanWeights(file, source) {
             setByCode(name, quoted[3], match.index, expression);
         }
     }
-    const blockAt = new Map(blocks.map((block) => [block.start, block]));
     for (const match of text.matchAll(DEFINITION)) {
         const name = match[1];
         if (inString(match.index)) continue;
@@ -608,13 +644,7 @@ export function scanWeights(file, source) {
             important: /!important\b/i.test(full),
             // The selector of the rule it sits in, for custom properties.
             rule: blockAt.get(place.scope)?.prelude ?? null,
-            guarded: blocks.some(
-                (block) =>
-                    block.start < index &&
-                    index < block.end &&
-                    (block.kind === 'flow' ||
-                        CONDITIONAL_RULE.test(block.prelude))
-            ),
+            guards: guardsAt(index),
             // Checked against the scale where it is declared (see below).
             weighted: /weight$/i.test(name),
             // An argument reaches only the mixin or function it is passed to.
@@ -915,11 +945,15 @@ export function findIndirectWeights(scans) {
     // and is set on some element only.
     const setsFor = (definition, reference) => {
         const own = definition.file === reference.file;
+        // A condition (`@media`, `@if`, …) around the definition that does
+        // not also hold around the reading declaration may leave it unset.
+        const shared = own ? (reference.guards ?? []) : [];
+        if ((definition.guards ?? []).some((g) => !shared.includes(g))) {
+            return false;
+        }
         if (own && (reference.scopes ?? []).includes(definition.scope)) {
             return true;
         }
-        // Under `@media`, `@supports` or flow control it may not apply.
-        if (definition.guarded) return false;
         if (reachesEverything(definition.rule)) return true;
         return own && plainHost(definition.rule);
     };

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const STYLESHEET_RULE = /@(use|forward|import)\s+([^;{}]*)/g;
+const STYLESHEET_RULE = /@(use|forward|import)\s+/g;
 const OPEN_URL = /url\(\s*[^\s)'"]*$/i;
 
 /** Whether `index` sits in an unquoted `url(…)` on its line. */
@@ -66,6 +66,26 @@ export function stripScssComments(source) {
 }
 
 /**
+ * Where a rule's clause ends: at a `;`, `{` or `}` outside a string, so a
+ * quoted `;` in a configuration (`'data:image/svg+xml;utf8,…'`) is a value.
+ */
+function clauseEnd(text, start) {
+    let quote = '';
+    for (let i = start; i < text.length; i += 1) {
+        const char = text[i];
+        if (quote) {
+            if (char === '\\') i += 1;
+            else if (char === quote || char === '\n') quote = '';
+        } else if (char === '"' || char === "'") {
+            quote = char;
+        } else if (';{}'.includes(char)) {
+            return i;
+        }
+    }
+    return text.length;
+}
+
+/**
  * Every `@use`/`@forward`/`@import` target, with the rule that loads it, any
  * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix), a
  * `@forward`'s `show`/`hide` member list (`filter`, or `null`), where the
@@ -76,8 +96,12 @@ export function extractStylesheetLoads(source) {
     const loads = [];
     const stripped = stripScssComments(source);
     for (const match of stripped.matchAll(STYLESHEET_RULE)) {
-        const [whole, rule, clause] = match;
-        const clauseStart = match.index + whole.length - clause.length;
+        const rule = match[1];
+        const clauseStart = match.index + match[0].length;
+        const clause = stripped.slice(
+            clauseStart,
+            clauseEnd(stripped, clauseStart)
+        );
         const rest = clause.replace(QUOTED_TARGET, (quoted) =>
             ' '.repeat(quoted.length)
         );

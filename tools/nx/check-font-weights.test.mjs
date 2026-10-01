@@ -913,6 +913,8 @@ test('checks indexed style writes', () => {
         "element.style['font'] = '600 12px x';",
         "element.style.fontFamily = 'x 650';",
         "element.style.font = 'italic 12px/200 x';",
+        'element.style.font = `600 ${size}px/200 Roboto`;',
+        'element.style.font = `650 ${size}px Roboto`;',
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
@@ -922,6 +924,24 @@ test('checks indexed style writes', () => {
         '6 .style.fontWeight: 650',
         "7 .style['fontWeight']: 750",
         '9 .style.font: 650',
+        '14 .style.font: 650',
+    ]);
+});
+
+test('checks HostBinding style weights', () => {
+    const component = [
+        "@HostBinding('style.fontWeight') weight = 650;",
+        '@HostBinding("style.font-weight") get heavy(): number { return this.on ? 700 : 750; }',
+        "@HostBinding('style.fontWeight') readonly ok = 600;",
+        "@HostBinding('attr.font-weight') svg = '650';",
+        "@HostBinding('class.bold') bold = 650;",
+        "@HostBinding('attr.--title-weight') odd = '650';",
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        "1 @HostBinding('style.fontWeight'): 650",
+        '2 @HostBinding("style.font-weight"): 750',
+        "4 @HostBinding('attr.font-weight'): 650",
     ]);
 });
 
@@ -2104,8 +2124,14 @@ test('reads custom properties as the cascade applies them', () => {
     ]) {
         assert.deepEqual(report([rule(body)]), []);
     }
-    // A definition under a condition, or a host state, may not apply.
+    // A definition under a condition, or a host state, may not apply; one
+    // the reading declaration shares does.
+    assert.deepEqual(
+        report([rule(`@if $on { .b { --face: Roboto; ${mono} } }`)]),
+        []
+    );
     for (const body of [
+        `.b { @if $on { --face: Roboto; } ${mono} }`,
         `@media (min-width: 600px) { :root { --face: Roboto; } } .b { ${mono} }`,
         `@if $dark { :root { --face: Roboto; } } .b { ${mono} }`,
         `:host(.light) { --face: Roboto; } .b { ${mono} }`,
@@ -2116,6 +2142,18 @@ test('reads custom properties as the cascade applies them', () => {
         report([
             scanWeights('libs/m5/other.scss', ':host { --face: Roboto; }'),
             rule(`.b { ${mono} }`),
+        ]),
+        ['libs/m5/rule.scss:1 700']
+    );
+    // The same condition in another file is another rule's condition.
+    const media = '@media (min-width: 1px) {';
+    assert.deepEqual(
+        report([
+            scanWeights(
+                'libs/m5/other.scss',
+                `${media} :root { --face: Roboto; } }`
+            ),
+            rule(`${media} .b { ${mono} } }`),
         ]),
         ['libs/m5/rule.scss:1 700']
     );
@@ -2255,7 +2293,17 @@ test('lets every configured load replace a partial default', () => {
     const flagged = ['libs/c3/_tokens.scss:1 650'];
 
     assert.deepEqual(report([tokens, configured]), []);
-    // A quoted `//` in the configuration is a value, not a comment.
+    // A quoted `;` or `//` in the configuration is a value.
+    assert.deepEqual(
+        report([
+            tokens,
+            load(
+                'a.scss',
+                "@use 'tokens' with ($asset: 'data:image/svg+xml;utf8,x', $w: 600);"
+            ),
+        ]),
+        []
+    );
     assert.deepEqual(
         report([
             tokens,
