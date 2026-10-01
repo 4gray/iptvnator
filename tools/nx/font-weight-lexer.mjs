@@ -166,6 +166,98 @@ export function codeExpression(text, start, { argument = false } = {}) {
     return text.slice(start, end);
 }
 
+/** The bracket depth at each position of code, or -1 inside a string. */
+function depthsOf(text) {
+    const depths = new Array(text.length).fill(-1);
+    let depth = 0;
+    let quote = '';
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (quote) {
+            if (char === '\\') i += 1;
+            else if (char === quote) quote = '';
+        } else if (QUOTES.has(char)) {
+            quote = char;
+        } else {
+            if (')]}'.includes(char)) depth -= 1;
+            depths[i] = depth;
+            if ('([{'.includes(char)) depth += 1;
+        }
+    }
+    return depths;
+}
+
+/** Where `text` splits at a top-level operator from `operators`. */
+function splitAt(text, operators) {
+    const depths = depthsOf(text);
+    const parts = [];
+    let from = 0;
+    for (let i = 0; i < text.length; i += 1) {
+        if (depths[i] !== 0 || i < from) continue;
+        const operator = operators.find((op) => text.startsWith(op, i));
+        // `||=` and kin assign; `=>` and `<<`/`>>` are not comparisons.
+        if (!operator || /^[=<>]/.test(text[i + operator.length] ?? '')) {
+            continue;
+        }
+        if (/[=<>!]/.test(text[i - 1] ?? '')) continue;
+        parts.push(text.slice(from, i));
+        from = i + operator.length;
+    }
+    return [...parts, text.slice(from)];
+}
+
+/** The branches of a top-level `c ? a : b`, or `null`. */
+function branchesOf(text) {
+    const depths = depthsOf(text);
+    let question = -1;
+    let nested = 0;
+    for (let i = 0; i < text.length; i += 1) {
+        if (depths[i] !== 0) continue;
+        if (text[i] === '?') {
+            // `??` is nullish; `?.` chains, unless a digit follows (`?.5`).
+            const pair = text[i + 1] === '?' || text[i - 1] === '?';
+            const chain = text[i + 1] === '.' && !/\d/.test(text[i + 2] ?? '');
+            if (pair || chain) continue;
+            if (question === -1) question = i;
+            else nested += 1;
+        } else if (text[i] === ':' && question !== -1) {
+            if (nested === 0) {
+                return [text.slice(question + 1, i), text.slice(i + 1)];
+            }
+            nested -= 1;
+        }
+    }
+    return null;
+}
+
+const COMPARISONS = ['===', '!==', '==', '!=', '<=', '>=', '<', '>'];
+
+/**
+ * What a JavaScript expression can evaluate to, as sub-expressions: both
+ * branches of `c ? a : b`, every operand of `||`, `??` and `&&`, and nothing
+ * for a comparison, which is a boolean. A condition never becomes the value,
+ * so `width >= 768 ? 700 : 600` is 700 or 600.
+ */
+export function resultsOf(expression) {
+    let text = expression.trim();
+    // `(…)` around the whole expression.
+    while (
+        text.startsWith('(') &&
+        text.endsWith(')') &&
+        depthsOf(text)
+            .slice(1, -1)
+            .every((depth) => depth !== 0)
+    ) {
+        text = text.slice(1, -1).trim();
+    }
+    const branches = branchesOf(text);
+    if (branches) return branches.flatMap(resultsOf);
+    const operands = splitAt(text, ['||', '??', '&&']);
+    if (operands.length > 1) return operands.flatMap(resultsOf);
+    if (splitAt(text, COMPARISONS).length > 1) return [];
+    return [text];
+}
+
 /**
  * Whitespace-separated tokens, keeping `var(--x, 650)` and a quoted family
  * such as `"DM Sans"` in one piece.
@@ -232,9 +324,12 @@ export function insideTag({ text, quoteAt }, index, { html = false } = {}) {
 const FLOW = /^@(?:if|else|each|for|while)\b/i;
 const CALLABLE = /^@(?:mixin|function)\b/i;
 
+/** Sass reads `-` and `_` in a name alike; callable names keep `-`. */
+const callableName = (name) => name?.replace(/_/g, '-') ?? null;
+
 /**
- * What opens the block at `brace`: flow control, a callable (with its name)
- * or a rule.
+ * What opens the block at `brace`: flow control, a callable (with its name,
+ * `_` read as `-`) or a rule.
  */
 function kindOf(text, brace) {
     let k = brace - 1;
@@ -243,8 +338,8 @@ function kindOf(text, brace) {
     if (FLOW.test(prelude)) return { kind: 'flow' };
     const callable = CALLABLE.exec(prelude);
     if (callable) {
-        const name = /^@\w+\s+([\w-]+)/.exec(prelude)?.[1] ?? null;
-        return { kind: 'callable', name };
+        const name = /^@\w+\s+([\w-]+)/.exec(prelude)?.[1];
+        return { kind: 'callable', name: callableName(name) };
     }
     return { kind: 'rule' };
 }
@@ -295,11 +390,19 @@ export function placeOf(blocks, index) {
     };
 }
 
+/** `ns.name` as `{ name, namespace }`, with `_` read as `-`. */
+function calleeNamed(full) {
+    const parts = full.split('.');
+    const name = parts.pop();
+    return { name: callableName(name), namespace: parts.pop() ?? null };
+}
+
 /**
  * The mixin or function an argument at `index` is passed to, as
- * `{ name, namespace }`: the name before the `(` that encloses it (`ns.name(`
- * gives both; a signature default gives the callable's own name), or `with`
- * for a `@use … with (…)`.
+ * `{ name, namespace, paren, signature }`: the name before the `(` that
+ * encloses it (`ns.name(` gives both; `_` reads as `-`), or `with` for a
+ * `@use … with (…)`. `paren` is where that `(` sits; `signature` says it
+ * opens a `@mixin`/`@function` parameter list, so the argument is a default.
  */
 export function calleeOf(text, index) {
     let depth = 0;
@@ -307,16 +410,45 @@ export function calleeOf(text, index) {
         if (text[k] === ')') depth += 1;
         else if (text[k] === '(') {
             if (depth === 0) {
-                const full = /([\w.-]+)\s*$/.exec(text.slice(0, k))?.[1];
-                if (!full) return null;
-                const parts = full.split('.');
-                const name = parts.pop();
-                return { name, namespace: parts.pop() ?? null };
+                const named = /([\w.-]+)\s*$/.exec(text.slice(0, k));
+                if (!named) return null;
+                const before = text.slice(0, named.index);
+                return {
+                    ...calleeNamed(named[1]),
+                    paren: k,
+                    signature: /@(?:mixin|function)\s+$/i.test(before),
+                };
             }
             depth -= 1;
         }
     }
     return null;
+}
+
+const INVOCATION =
+    /@include\s+([\w.-]+)|(?<![\w$.@#-])([\w-]+(?:\.[\w-]+)?)(?=\s*\()/gi;
+
+/**
+ * Every mixin include and function call in a stylesheet, as
+ * `{ index, paren, callee }`: `paren` is where its argument list opens, or
+ * `null` for an `@include name;` without one. Strings and the names in
+ * `@mixin`/`@function` signatures are skipped.
+ */
+export function invocationsOf({ text, quoteAt }) {
+    const calls = [];
+    for (const match of text.matchAll(INVOCATION)) {
+        if (quoteAt[match.index]) continue;
+        const before = text.slice(Math.max(0, match.index - 12), match.index);
+        if (/@(?:mixin|function)\s+$/i.test(before)) continue;
+        const end = match.index + match[0].length;
+        const open = /^\s*\(/.exec(text.slice(end));
+        calls.push({
+            index: match.index,
+            paren: open ? end + open[0].length - 1 : null,
+            callee: calleeNamed(match[1] ?? match[2]),
+        });
+    }
+    return calls;
 }
 
 /** 1-based line of every index, computed once per file. */

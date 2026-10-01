@@ -778,12 +778,60 @@ test('reports signed and unary arithmetic in code weights', () => {
             '1 .style.fontWeight: 600 - -50',
             '2 [style.font-weight]: 600 - -50',
             '3 .style.fontWeight: -(-650)',
-            '4 .style.fontWeight: active ? -650 : 400',
+            '4 .style.fontWeight: -650',
             '6 .style.fontWeight: 600 + -offset',
             '7 .style.fontWeight: 600 + +50',
             '8 .style.fontWeight: offset + +600',
         ]
     );
+});
+
+test('reads only the values a code weight can take', () => {
+    const component = [
+        'element.style.fontWeight = viewportWidth >= 768 ? 700 : 600;',
+        '[style.font-weight]="wide && width > 1024 ? 700 : 600"',
+        'element.style.fontWeight = compact ? 600 : wide ? 650 : 700;',
+        'element.style.fontWeight = (width >= 768 ? 750 : 600);',
+        'element.style.fontWeight = item?.weight ?? 650;',
+        'element.style.fontWeight = ready && 650;',
+        'element.style.fontWeight = width > 1024;',
+        'element.style.fontWeight = wide ? 600 + 50 : 600;',
+        "element.style.fontWeight = wide ? '650' : '600';",
+        'element.style.fontWeight = 1300 >> 1;',
+        'element.style.fontWeight = (width > 1024 && 650) || 700;',
+        'element.style.fontWeight = a ? w > 768 ? 650 : 700 : 600;',
+        'element.style.fontWeight = item?.width > 768 ? 650 : 600;',
+        'element.style.fontWeight = flags & 1024 ? custom ?? 600 : 700;',
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '3 .style.fontWeight: 650',
+        '4 .style.fontWeight: 750',
+        '5 .style.fontWeight: 650',
+        '6 .style.fontWeight: 650',
+        '8 .style.fontWeight: 600 + 50',
+        '9 .style.fontWeight: 650',
+        '10 .style.fontWeight: 1300',
+        '11 .style.fontWeight: 650',
+        '12 .style.fontWeight: 650',
+        '13 .style.fontWeight: 650',
+    ]);
+});
+
+test('checks indexed style writes', () => {
+    const component = [
+        "element.style['fontWeight'] = 650;",
+        'element.style["font-weight"] = 750;',
+        'element.style[`fontWeight`] += 50;',
+        "if (element.style['fontWeight'] === 650) {}",
+        "element.style['fontWeight'] = 600;",
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        "1 .style['fontWeight']: 650",
+        '2 .style["font-weight"]: 750',
+        '3 .style[`fontWeight`]: += 50',
+    ]);
 });
 
 test('counts only the configuration of the `@use` a member comes from', () => {
@@ -808,6 +856,12 @@ test('counts only the configuration of the `@use` a member comes from', () => {
 
     assert.deepEqual(report([a, b, user('a.$heavy')]), []);
     assert.deepEqual(report([a, b, user('b.$heavy')]), ['libs/q/q.scss:2 650']);
+    // An earlier `@use`'s configuration does not configure a later one.
+    const reversed = scanWeights(
+        'libs/q/r.scss',
+        "@use 'alpha-palette' as a with ($heavy: 650); @use 'beta-palette' as b with ($heavy: 600); .x { font-weight: b.$heavy; }"
+    );
+    assert.deepEqual(report([a, b, reversed]), []);
 });
 
 test('resolves Sass variables within their block', () => {
@@ -1070,6 +1124,15 @@ test('passes an argument to the module that owns the callable', () => {
         ]),
         ['libs/o/o.scss:1 750']
     );
+    // A bare `heading(` also reaches a mixin in an `@import`ed file.
+    assert.deepEqual(
+        report([
+            a,
+            b,
+            loader("@import 'b'; .x { @include heading($w: 750); }"),
+        ]),
+        ['libs/o/o.scss:1 750']
+    );
     // A bare `heading(` resolves to `a` (`as *`), not to the namespaced `b`.
     assert.deepEqual(
         report([
@@ -1209,6 +1272,22 @@ test('follows members forwarded under a prefix', () => {
         ]),
         ['libs/f2/_base.scss:1 650']
     );
+    // One file brought in under two prefixes reads under either.
+    const other = scanWeights(
+        'libs/f2/_other.scss',
+        "@forward 'base' as other-*;"
+    );
+    assert.deepEqual(
+        report([
+            base,
+            bundle,
+            other,
+            user(
+                "@use 'bundle' as *; @use 'other' as *; .x { font-weight: $prefix-heavy; }"
+            ),
+        ]),
+        ['libs/f2/_base.scss:1 650']
+    );
 });
 
 test('renders an imported rule where the @import sits', () => {
@@ -1262,6 +1341,303 @@ test('skips a module default its configuration replaces', () => {
     assert.deepEqual(
         report([tokens, user("@use 'tokens'; .x { font-weight: tokens.$w; }")]),
         ['libs/w2/_tokens.scss:1 650']
+    );
+});
+
+test('reads `-` and `_` in callable names alike', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const own = (body) => report([scanWeights('libs/h2/own.scss', body)]);
+    const base = scanWeights(
+        'libs/h2/_base.scss',
+        '@mixin heading-style($w: 500) { font-weight: $w; }'
+    );
+    const mod = scanWeights('libs/h2/_mod.scss', "@forward 'base' as p-*;");
+    const user = (body) => scanWeights('libs/h2/user.scss', body);
+
+    assert.deepEqual(
+        own(
+            '@mixin heading_style($w: 500) { font-weight: $w; } .x { @include heading-style($w: 650); }'
+        ),
+        ['libs/h2/own.scss:1 650']
+    );
+    // Module variables are read where the mixin is called, by either name.
+    for (const [defined, called] of [
+        ['a-b', 'a_b'],
+        ['a_b', 'a_b'],
+    ]) {
+        assert.deepEqual(
+            own(
+                `$w: 650; @mixin ${defined} { font-weight: $w; } .x { @include ${called}; } $w: 500;`
+            ),
+            ['libs/h2/own.scss:1 650']
+        );
+    }
+    assert.deepEqual(
+        report([
+            base,
+            user("@use 'base'; .x { @include base.heading_style($w: 650); }"),
+        ]),
+        ['libs/h2/user.scss:1 650']
+    );
+    assert.deepEqual(
+        report([
+            base,
+            mod,
+            user("@use 'mod'; .x { @include mod.p_heading-style($w: 650); }"),
+        ]),
+        ['libs/h2/user.scss:1 650']
+    );
+});
+
+test('applies the show and hide lists of a @forward', { timeout: 5000 }, () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const a = scanWeights('libs/k2/_a.scss', '$w: 650;');
+    const b = scanWeights('libs/k2/_b.scss', '$w: 600;');
+    const mod = (body) => scanWeights('libs/k2/_mod.scss', body);
+    const user = (body) => scanWeights('libs/k2/user.scss', body);
+    const reads = user("@use 'mod'; .x { font-weight: mod.$w; }");
+    const readsPrefixed = user("@use 'mod'; .x { font-weight: mod.$p-w; }");
+
+    assert.deepEqual(
+        report([a, b, mod("@forward 'a' hide $w; @forward 'b';"), reads]),
+        []
+    );
+    assert.deepEqual(
+        report([a, b, mod("@forward 'a' show $x; @forward 'b';"), reads]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            a,
+            b,
+            mod("@forward 'a' show $w; @forward 'b' hide $w;"),
+            reads,
+        ]),
+        ['libs/k2/_a.scss:1 650']
+    );
+    // The lists name members as the `@forward` exposes them.
+    assert.deepEqual(
+        report([a, mod("@forward 'a' as p-* hide $p-w;"), readsPrefixed]),
+        []
+    );
+    assert.deepEqual(
+        report([a, mod("@forward 'a' as p-* hide $w;"), readsPrefixed]),
+        ['libs/k2/_a.scss:1 650']
+    );
+    // A list further out names the prefixes added below it.
+    const inner = scanWeights('libs/k2/_inner.scss', "@forward 'a' as p-*;");
+    assert.deepEqual(
+        report([
+            a,
+            inner,
+            mod("@forward 'inner' as o-* hide $o-p-w;"),
+            user("@use 'mod'; .x { font-weight: mod.$o-p-w; }"),
+        ]),
+        []
+    );
+    // A list below a prefix is read under that prefix.
+    const hides = scanWeights(
+        'libs/k2/_hides.scss',
+        "@forward 'a' as p-* hide $p-w;"
+    );
+    assert.deepEqual(
+        report([
+            a,
+            hides,
+            mod("@forward 'hides' as o-*;"),
+            user("@use 'mod'; .x { font-weight: mod.$o-p-w; }"),
+        ]),
+        []
+    );
+    // Forwarding cycles end, with lists and with prefixes.
+    for (const [back, forward, read] of [
+        ["@forward 'mod' hide $x;", "@forward 'loop' show $w;", '$w'],
+        ["@forward 'mod' as l-*;", "@forward 'loop' as m-*;", '$m-w'],
+    ]) {
+        const loop = scanWeights('libs/k2/_loop.scss', `${back} @forward 'a';`);
+        assert.deepEqual(
+            report([
+                a,
+                loop,
+                mod(forward),
+                user(`@use 'mod'; .x { font-weight: mod.${read}; }`),
+            ]),
+            ['libs/k2/_a.scss:1 650']
+        );
+    }
+    // An `@import`ed file brings in what it forwards.
+    assert.deepEqual(
+        report([
+            a,
+            mod("@forward 'a' as p-*;"),
+            user("@import 'mod'; .x { font-weight: $p-w; }"),
+        ]),
+        ['libs/k2/_a.scss:1 650']
+    );
+});
+
+test('reads a prefixed configuration the way Sass names it', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const tokens = scanWeights('libs/q2/_tokens.scss', '$w: 500 !default;');
+    const rule = scanWeights(
+        'libs/q2/_rule.scss',
+        '$w: 500 !default; .r { font-weight: $w; }'
+    );
+    const mod = (body) => scanWeights('libs/q2/_mod.scss', body);
+    const user = (body) => scanWeights('libs/q2/user.scss', body);
+
+    // `with (…)` on a prefixed `@forward` names the member unprefixed.
+    assert.deepEqual(
+        report([
+            tokens,
+            mod("@forward 'tokens' as p-* with ($w: 650);"),
+            user("@use 'mod'; .x { font-weight: mod.$p-w; }"),
+        ]),
+        ['libs/q2/_mod.scss:1 650']
+    );
+    // A loader of the forwarding module configures it under the prefix,
+    // even where the `@forward` hides it.
+    assert.deepEqual(
+        report([
+            rule,
+            mod("@forward 'rule' as p-*;"),
+            user("@use 'mod' with ($p-w: 650);"),
+        ]),
+        ['libs/q2/user.scss:1 650']
+    );
+    assert.deepEqual(
+        report([
+            rule,
+            mod("@forward 'rule' as p-* hide $p-w;"),
+            user("@use 'mod' with ($p-w: 650);"),
+        ]),
+        ['libs/q2/user.scss:1 650']
+    );
+    const outer = scanWeights('libs/q2/_outer.scss', "@forward 'mod' as o-*;");
+    assert.deepEqual(
+        report([
+            rule,
+            mod("@forward 'rule' as p-*;"),
+            outer,
+            user("@use 'outer' with ($o-p-w: 650);"),
+        ]),
+        ['libs/q2/user.scss:1 650']
+    );
+    const heavy = scanWeights('libs/q2/_heavy.scss', '$w: 650 !default;');
+    assert.deepEqual(
+        report([
+            heavy,
+            mod("@forward 'heavy' as p-*;"),
+            user("@use 'mod' with ($p-w: 600); .x { font-weight: mod.$p-w; }"),
+        ]),
+        []
+    );
+});
+
+test('keeps a module default that a `null` configuration leaves unset', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const tokens = scanWeights('libs/n2/_tokens.scss', '$w: 650 !default;');
+    const user = (body) => scanWeights('libs/n2/u.scss', body);
+
+    assert.deepEqual(
+        report([
+            tokens,
+            user(
+                "@use 'tokens' with ($w: null); .x { font-weight: tokens.$w; }"
+            ),
+        ]),
+        ['libs/n2/_tokens.scss:1 650']
+    );
+    assert.deepEqual(
+        report([
+            tokens,
+            user("@use 'tokens' as * with ($w: null); .x { font-weight: $w; }"),
+        ]),
+        ['libs/n2/_tokens.scss:1 650']
+    );
+});
+
+test('counts a parameter default only where a call leaves it out', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const heading = '@mixin heading($w: 650) { font-weight: $w; }';
+    const own = (body) =>
+        report([scanWeights('libs/d2/own.scss', `${heading} ${body}`)]);
+
+    assert.deepEqual(own('.x { @include heading($w: 600); }'), []);
+    assert.deepEqual(
+        own(
+            '.x { @include heading($w: 600); } .y { content: "@include heading;"; }'
+        ),
+        []
+    );
+    for (const omitted of [
+        '@include heading;',
+        '@include heading();',
+        '@include heading { color: red; }',
+    ]) {
+        assert.deepEqual(
+            own(`.x { @include heading($w: 600); } .y { ${omitted} }`),
+            ['libs/d2/own.scss:1 650']
+        );
+    }
+    // Nothing calls it here, so it may be called from elsewhere.
+    assert.deepEqual(own(''), ['libs/d2/own.scss:1 650']);
+    // A module's call reaches its own mixin, not a loader's namesake.
+    const loaded = scanWeights(
+        'libs/d2/_loaded.scss',
+        '@mixin heading($w: 600) { font-weight: $w; } .x { @include heading($w: 600); }'
+    );
+    const loader = scanWeights(
+        'libs/d2/loader.scss',
+        `@use 'loaded'; ${heading}`
+    );
+    assert.deepEqual(report([loaded, loader]), ['libs/d2/loader.scss:1 650']);
+
+    const a = scanWeights('libs/d2/_a.scss', heading);
+    const b = scanWeights(
+        'libs/d2/_b.scss',
+        '@mixin heading($w: 500) { font-weight: $w; }'
+    );
+    const mod = scanWeights('libs/d2/_mod.scss', "@forward 'a' as p-*;");
+    const user = (body) => scanWeights('libs/d2/user.scss', body);
+    // A call that leaves the parameter out of another module's mixin does
+    // not use this one's default.
+    assert.deepEqual(
+        report([
+            a,
+            b,
+            user(
+                "@use 'a'; @use 'b'; .x { @include a.heading($w: 600); @include b.heading; }"
+            ),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([a, user("@use 'a'; .x { @include a.heading; }")]),
+        ['libs/d2/_a.scss:1 650']
+    );
+    assert.deepEqual(
+        report([
+            a,
+            mod,
+            user("@use 'mod'; .x { @include mod.p-heading($w: 600); }"),
+        ]),
+        []
     );
 });
 

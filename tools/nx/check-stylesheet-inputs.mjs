@@ -47,7 +47,8 @@ export function stripScssComments(source) {
 
 /**
  * Every `@use`/`@forward`/`@import` target, with the rule that loads it, any
- * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix), where the
+ * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix), a
+ * `@forward`'s `show`/`hide` member list (`filter`, or `null`), where the
  * rule starts (`index`) and where its `with (…)` configuration sits in
  * `source` (`[start, end)`, or `null`).
  */
@@ -71,8 +72,25 @@ export function extractStylesheetLoads(source) {
                   clauseStart + rest.lastIndexOf(')'),
               ]
             : null;
+        // The list ends where a `with (…)` starts; its values are not names.
+        const listed = /\b(show|hide)\s+([\s\S]*)/.exec(
+            rest.slice(0, opening?.index ?? rest.length)
+        );
+        const filter =
+            rule === 'forward' && listed
+                ? {
+                      kind: listed[1],
+                      names: listed[2]
+                          .split(',')
+                          .map((name) => name.trim())
+                          .filter(Boolean),
+                  }
+                : null;
         for (const target of targetsOfRule(rule, clause)) {
-            loads.push({ rule, target, as, configuration, index: match.index });
+            loads.push({
+                ...{ rule, target, as, configuration, filter },
+                index: match.index,
+            });
         }
     }
     return loads;

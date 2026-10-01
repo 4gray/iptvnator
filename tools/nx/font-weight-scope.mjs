@@ -1,19 +1,74 @@
 import path from 'node:path';
 
+/** How a module reads its own members: unprefixed, nothing hidden. */
+const DIRECT = Object.freeze({ prefix: '', filters: Object.freeze([]) });
+
 const BOTH = Object.freeze({
     declarations: true,
     arguments: true,
     ranges: [],
     before: Infinity,
-    prefixes: [''],
+    exposures: [DIRECT],
 });
-const DECLARATIONS = Object.freeze({
-    declarations: true,
+const DECLARATIONS = Object.freeze({ ...BOTH, arguments: false });
+const NOTHING = Object.freeze({
+    ...BOTH,
+    declarations: false,
     arguments: false,
-    ranges: [],
-    before: Infinity,
-    prefixes: [''],
+    exposures: [],
 });
+
+/** Sass reads `-` and `_` in a name as the same character. */
+export function sassName(name) {
+    return name.replace(/_/g, '-');
+}
+
+/** `$w` (or a mixin or function `m`) with `prefix` after its `$`. */
+function prefixed(prefix, name) {
+    return sassName(
+        name.startsWith('$') ? `$${prefix}${name.slice(1)}` : prefix + name
+    );
+}
+
+/**
+ * The name a loader reads a member `name` by through `exposure`: under its
+ * prefix, or `null` where a `show`/`hide` on the way leaves it out.
+ */
+export function exposedName({ prefix, filters }, name) {
+    const exposed = prefixed(prefix, name);
+    const kept = filters.every(
+        ({ kind, names }) => names.has(exposed) === (kind === 'show')
+    );
+    return kept ? exposed : null;
+}
+
+const keyOf = ({ prefix, filters }) =>
+    [prefix, ...filters.map((filter) => filter.key)].join(' ');
+
+/**
+ * A forwarding cycle with prefixes would grow without end; without them, a
+ * list already on the way is not added again, so the cycle repeats a key.
+ */
+const tooLong = ({ prefix }) => prefix.length > 200;
+
+/**
+ * One more `@forward` below `exposure`: its `as p-*` prefix goes after the
+ * ones above, and its `show`/`hide` names, written as that `@forward`
+ * exposes them, read under the prefixes above.
+ */
+function deeper(exposure, { prefix, filter }) {
+    const filters = [...exposure.filters];
+    if (filter) {
+        const names = new Set(
+            filter.names.map((name) => prefixed(exposure.prefix, name))
+        );
+        const key = `${filter.kind}:${[...names].sort().join(',')}`;
+        if (!filters.some((known) => known.key === key)) {
+            filters.push({ kind: filter.kind, names, key });
+        }
+    }
+    return { prefix: exposure.prefix + prefix, filters };
+}
 
 /**
  * The files a Sass load can name, in Sass's resolution order. Bare targets
@@ -50,21 +105,26 @@ function push(map, key, value) {
 
 function merge(scope, file, access) {
     const known = scope.get(file) ?? {
-        declarations: false,
-        arguments: false,
+        ...NOTHING,
         ranges: [],
         before: -Infinity,
-        prefixes: new Set(),
     };
+    const exposures = new Map(
+        [...known.exposures, ...access.exposures].map((e) => [keyOf(e), e])
+    );
     scope.set(file, {
         declarations: known.declarations || access.declarations,
         arguments: known.arguments || access.arguments,
-        ranges: [...known.ranges, ...(access.ranges ?? [])],
+        ranges: [...known.ranges, ...access.ranges],
         // A file can count only up to a position (an `@import` of it).
-        before: Math.max(known.before, access.before ?? Infinity),
-        prefixes: new Set([...known.prefixes, ...(access.prefixes ?? [''])]),
+        before: Math.max(known.before, access.before),
+        exposures: [...exposures.values()],
     });
 }
+
+/** `with (…)` ranges whose names read as `exposure` turns them. */
+const rangesOf = (ranges, exposure, outward = false) =>
+    ranges.map(([start, end]) => ({ start, end, exposure, outward }));
 
 /**
  * Which definitions a Sass variable can resolve to, following the module
@@ -75,24 +135,28 @@ function merge(scope, file, access) {
  * as `ns` (its declarations and, transitively, what it `@forward`s), plus the
  * arguments written inside that `@use`'s own `with (…)` (or a `@forward …
  * with (…)` in the chain), by position, so a same-named argument elsewhere,
- * or another module's configuration, never counts. Returned per file as
- * `{ declarations, ranges }`.
+ * or another module's configuration, never counts.
  *
  * `unqualified(file)` — `$x`, per file:
  * - the file itself: both;
  * - members of modules it loads `as *`, and files it `@import`s (textual
- *   inclusion, transitively): their declarations;
+ *   inclusion, transitively) with what they `@forward`: their declarations;
  * - files that load it: only what they pass in, since `@use` never injects
  *   the loader's own variables. That is the `with (…)` configuration of the
- *   load (as `ranges`) and arguments, which the caller then matches to the
- *   callable they are passed to. A chain of `@import`s is textual, so there
- *   the loader's declarations count too.
+ *   load and arguments, which the caller then matches to the callable they
+ *   are passed to. A chain of `@import`s is textual, so there the loader's
+ *   declarations count too.
  *
  * A namespaced `@use` adds nothing unqualified, and two files that only share
- * a partial are never connected. Members carry the `prefixes` a
- * `@forward … as prefix-*` chain exposes them under, and a textual importer
- * counts only `before` its `@import`.
- * `scans` carry `file` and `loads` (`{ rule, target, as, configuration }`).
+ * a partial are never connected. Each file carries the `exposures` it is read
+ * through (see `exposedName`): a `@forward … as p-*` chain prefixes members,
+ * and its `show`/`hide` lists leave some out. Each `with (…)` range carries
+ * the exposure that turns the names written in it into the names read
+ * (`outward` when the reader is the configured module, read before the
+ * prefix). Sass lets a loader configure a hidden member, so only prefixes
+ * apply there. A textual importer counts only `before` its `@import`.
+ * `scans` carry `file` and `loads` (`{ rule, target, as, configuration,
+ * filter }`).
  */
 export function sassScopes(scans) {
     const known = new Set(scans.map((scan) => scan.file));
@@ -106,74 +170,79 @@ export function sassScopes(scans) {
             if (!loaded) continue;
             const namespace = load.rule === 'use' ? namespaceOf(load) : null;
             const ranges = load.configuration ? [load.configuration] : [];
+            const forward = load.rule === 'forward';
             // `@forward 'x' as btn-*` exposes `$v` as `$btn-v`.
             const prefix =
-                load.rule === 'forward' && load.as?.endsWith('*')
-                    ? load.as.slice(0, -1)
-                    : '';
+                forward && load.as?.endsWith('*') ? load.as.slice(0, -1) : '';
+            const filter = forward ? load.filter : null;
             push(edges, file, {
                 ...{ rule: load.rule, loaded, namespace, ranges, prefix },
-                index: load.index,
+                ...{ filter, index: load.index },
             });
             push(loadedBy, loaded, {
-                file,
-                textual: load.rule === 'import',
-                ranges,
+                ...{ file, textual: load.rule === 'import', ranges, prefix },
                 index: load.index,
             });
         }
     }
 
-    // A module's members, each with where a forwarding `with (…)` sits.
+    // A module's members: how each file is exposed, and where a forwarding
+    // `with (…)` sits.
     const membersCache = new Map();
-    // Each member also carries the prefixes it is exposed under: a chain
-    // `as p-*` then `as q-*` exposes `$v` as `$p-q-v`.
     const members = (module) => {
         if (membersCache.has(module)) return membersCache.get(module);
-        const found = new Map([
-            [module, { ranges: [], prefixes: new Set(['']) }],
-        ]);
+        const found = new Map();
+        const reach = (file, exposure) => {
+            if (!found.has(file))
+                found.set(file, { ranges: [], exposures: [] });
+            const { exposures } = found.get(file);
+            if (!exposures.some((e) => keyOf(e) === keyOf(exposure))) {
+                exposures.push(exposure);
+            }
+        };
+        reach(module, DIRECT);
         membersCache.set(module, found);
-        const stack = [{ file: module, prefix: '' }];
-        const seen = new Set([`${module} `]);
+        const stack = [{ file: module, exposure: DIRECT }];
+        const seen = new Set([`${module} ${keyOf(DIRECT)}`]);
         while (stack.length > 0) {
-            const { file: current, prefix } = stack.pop();
+            const { file: current, exposure } = stack.pop();
             for (const edge of edges.get(current) ?? []) {
                 if (edge.rule !== 'forward') continue;
-                found.get(current).ranges.push(...edge.ranges);
-                const exposed = prefix + edge.prefix;
-                if (!found.has(edge.loaded)) {
-                    found.set(edge.loaded, { ranges: [], prefixes: new Set() });
-                }
-                found.get(edge.loaded).prefixes.add(exposed);
-                const key = `${edge.loaded} ${exposed}`;
-                // A forwarding cycle with prefixes would grow without end.
-                if (seen.has(key) || exposed.length > 200) continue;
+                const next = deeper(exposure, edge);
+                // Its `with (…)` names the forwarded module's own members,
+                // which a reader of this module sees through `next`.
+                found.get(current).ranges.push(...rangesOf(edge.ranges, next));
+                reach(edge.loaded, next);
+                const key = `${edge.loaded} ${keyOf(next)}`;
+                if (seen.has(key) || tooLong(next)) continue;
                 seen.add(key);
-                stack.push({ file: edge.loaded, prefix: exposed });
+                stack.push({ file: edge.loaded, exposure: next });
             }
         }
         return found;
     };
+    const bringIn = (scope, module) => {
+        for (const [member, { ranges, exposures }] of members(module)) {
+            merge(scope, member, {
+                ...DECLARATIONS,
+                arguments: ranges.length > 0,
+                ...{ ranges, exposures },
+            });
+        }
+    };
 
     const qualified = (file, namespace) => {
         const scope = new Map();
-        const add = (target, declarations, ranges, prefixes = ['']) => {
-            const known = scope.get(target) ?? {
-                declarations: false,
-                ranges: [],
-                prefixes: new Set(),
-            };
-            known.ranges.push(...ranges);
-            for (const prefix of prefixes) known.prefixes.add(prefix);
-            known.declarations ||= declarations;
-            scope.set(target, known);
-        };
         for (const edge of edges.get(file) ?? []) {
             if (edge.rule !== 'use' || edge.namespace !== namespace) continue;
-            add(file, false, edge.ranges);
-            for (const [member, { ranges, prefixes }] of members(edge.loaded)) {
-                add(member, true, ranges, prefixes);
+            merge(scope, file, {
+                ...NOTHING,
+                ranges: rangesOf(edge.ranges, DIRECT),
+            });
+            for (const [member, { ranges, exposures }] of members(
+                edge.loaded
+            )) {
+                merge(scope, member, { ...DECLARATIONS, ranges, exposures });
             }
         }
         return scope;
@@ -190,19 +259,14 @@ export function sassScopes(scans) {
             for (const edge of edges.get(current) ?? []) {
                 if (edge.rule === 'use' && edge.namespace === '*') {
                     // Its `with (…)` configures what the loading file reads.
-                    merge(scope, current, { ...BOTH, ranges: edge.ranges });
-                    for (const [member, { ranges, prefixes }] of members(
-                        edge.loaded
-                    )) {
-                        merge(scope, member, {
-                            ...DECLARATIONS,
-                            arguments: ranges.length > 0,
-                            ranges,
-                            prefixes,
-                        });
-                    }
+                    merge(scope, current, {
+                        ...BOTH,
+                        ranges: rangesOf(edge.ranges, DIRECT),
+                    });
+                    bringIn(scope, edge.loaded);
                 } else if (edge.rule === 'import') {
-                    merge(scope, edge.loaded, DECLARATIONS);
+                    // An imported file's `@forward`s reach the importer too.
+                    bringIn(scope, edge.loaded);
                     if (!imported.has(edge.loaded)) {
                         imported.add(edge.loaded);
                         down.push(edge.loaded);
@@ -210,8 +274,10 @@ export function sassScopes(scans) {
                 }
             }
         }
-        const up = [{ file, textual: true }];
-        const visitedUp = new Set([`${file} true`]);
+        // `exposure` turns this file's names into those the loader writes:
+        // a loader of a `@forward … as p-*` configures `$w` as `$p-w`.
+        const up = [{ file, textual: true, exposure: DIRECT }];
+        const visitedUp = new Set([`${file} true ${keyOf(DIRECT)}`]);
         while (up.length > 0) {
             const current = up.pop();
             for (const loader of loadedBy.get(current.file) ?? []) {
@@ -219,16 +285,19 @@ export function sassScopes(scans) {
                 // A textual importer's code before the `@import` has run when
                 // the imported file's rules render; what follows has not.
                 merge(scope, loader.file, {
-                    declarations: textual,
-                    arguments: true,
-                    ranges: loader.ranges,
+                    ...{ declarations: textual, arguments: true },
+                    ranges: rangesOf(loader.ranges, current.exposure, true),
                     before: textual ? loader.index : Infinity,
+                    exposures: [DIRECT],
                 });
-                const key = `${loader.file} ${textual}`;
-                if (!visitedUp.has(key)) {
-                    visitedUp.add(key);
-                    up.push({ file: loader.file, textual });
-                }
+                const exposure = {
+                    prefix: loader.prefix + current.exposure.prefix,
+                    filters: [],
+                };
+                const key = `${loader.file} ${textual} ${keyOf(exposure)}`;
+                if (visitedUp.has(key) || tooLong(exposure)) continue;
+                visitedUp.add(key);
+                up.push({ file: loader.file, textual, exposure });
             }
         }
         cache.set(file, scope);

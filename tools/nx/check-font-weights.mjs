@@ -9,13 +9,19 @@ import {
     calleeOf,
     codeExpression,
     insideTag,
+    invocationsOf,
     lex,
     lineIndex,
     placeOf,
+    resultsOf,
     tokensOf,
     valueAfter,
 } from './font-weight-lexer.mjs';
-import { effectiveDeclarations, sassScopes } from './font-weight-scope.mjs';
+import {
+    effectiveDeclarations,
+    exposedName,
+    sassScopes,
+} from './font-weight-scope.mjs';
 
 /**
  * The weights `apps/web/src/styles.scss` bundles for DM Sans and its Roboto
@@ -25,10 +31,14 @@ import { effectiveDeclarations, sassScopes } from './font-weight-scope.mjs';
  * check keeps it there.
  *
  * Sass is not compiled, so a weight must be written, not computed: arithmetic
- * and functions other than `var()` are findings in themselves. Variables are
- * followed by name, through `@forward … as prefix-*` too. Not traced:
- * positional mixin or function arguments and `@function` return values, so
- * pass weights as named `$…weight` arguments.
+ * and functions other than `var()` are findings in themselves. Variables and
+ * the callables their named arguments go to are followed by name (`-` and `_`
+ * alike), through `@forward … as prefix-*` and its `show`/`hide` lists too.
+ * A parameter default counts where a call leaves it out, or when no call is
+ * in sight. A weight set from code is read per value it can take, so a
+ * condition's numbers are not weights. Not traced: positional mixin or
+ * function arguments, calls through `meta.apply` and `@function` return
+ * values, so pass weights as named `$…weight` arguments.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
@@ -71,8 +81,12 @@ const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
  */
 const CODE_BINDING =
     /(\[(?:style|attr)\.(font-weight|fontWeight|--[\w-]+)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\3/gi;
-/** DOM writes. `===` compares, so only a lone `=` (or `+=` and kin) assigns. */
-const CODE_ASSIGNMENT = /(\.style\.fontWeight)\s*(\*\*|[-+*/%])?=(?!=)/g;
+/**
+ * DOM writes, dotted or indexed (`style['font-weight']`). `===` compares, so
+ * only a lone `=` (or `+=` and kin) assigns.
+ */
+const CODE_ASSIGNMENT =
+    /(\.style(?:\.fontWeight|\[\s*(['"`])font(?:Weight|-weight)\2\s*\]))\s*(\*\*|[-+*/%])?=(?!=)/g;
 const CODE_SET_PROPERTY =
     /(setProperty\(\s*['"](font-weight|--[\w-]+)['"])\s*,/gi;
 /**
@@ -227,16 +241,23 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
 }
 
 /**
- * A value set from code. A string literal is CSS text and is read as such;
- * anything else is an expression, where other numbers appear too (a weight
- * is 100 or more) and arithmetic computes the value.
+ * A value set from code, read per result it can take (see `resultsOf`), so
+ * a condition's numbers are not weights. A string literal is CSS text and is
+ * read as such; anything else is an expression, where other numbers appear
+ * too (a weight is 100 or more) and arithmetic computes the value.
  */
 function analyseCode(expression, mode = 'weight', after = 0) {
-    const literal = /^\s*(['"`])([\s\S]*)\1\s*$/.exec(expression);
-    if (literal && !literal[2].includes('${')) {
-        return analyse(mode, literal[2], { after });
-    }
-    return analyse('weight', expression, { minimum: 100, code: true });
+    const results = resultsOf(expression).map((result) => {
+        const literal = /^\s*(['"`])([\s\S]*)\1\s*$/.exec(result);
+        if (literal && !literal[2].includes('${')) {
+            return analyse(mode, literal[2], { after });
+        }
+        return analyse('weight', result, { minimum: 100, code: true });
+    });
+    return {
+        terms: results.flatMap((result) => result.terms),
+        references: results.flatMap((result) => result.references),
+    };
 }
 
 /**
@@ -251,7 +272,10 @@ function callSitesOf(text, blocks) {
         .filter((block) => block.kind === 'callable' && block.name)
         .map((block) => block.name);
     for (const name of new Set(names)) {
-        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Sass reads `-` and `_` alike, so `heading_style` calls `heading-style`.
+        const escaped = name
+            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/-/g, '[-_]');
         const call = new RegExp(
             String.raw`@include\s+${escaped}(?![\w-])|(?<![\w$.-])${escaped}\s*\(`,
             'g'
@@ -350,8 +374,8 @@ export function scanWeights(file, source) {
         for (const match of text.matchAll(CODE_ASSIGNMENT)) {
             const end = match.index + match[0].length;
             const expression = codeExpression(text, end).trim();
-            if (match[2]) {
-                const value = `${match[2]}= ${expression}`;
+            if (match[3]) {
+                const value = `${match[3]}= ${expression}`;
                 const terms = [{ value, computed: true }];
                 record(match[1], match.index, { terms, references: [] });
             } else {
@@ -400,9 +424,10 @@ export function scanWeights(file, source) {
 
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
     const calls = callSitesOf(text, blocks);
+    const invocations = stylesheet ? invocationsOf(lexed) : [];
     return {
         ...{ file, loads, declarations, findings, references, definitions },
-        calls,
+        ...{ calls, invocations },
     };
 }
 
@@ -419,28 +444,74 @@ export function findIndirectWeights(scans) {
     const pending = scans.flatMap((scan) => scan.references);
     const { qualified, unqualified, imports } = sassScopes(scans);
     const callsByFile = new Map(scans.map((scan) => [scan.file, scan.calls]));
-    // Whether `definition` is what `name` reads: by its own name, or for a
-    // Sass member forwarded `as prefix-*`, by that prefixed name.
-    const exposedAs = (definition, access, name) => {
-        const prefixes = name.startsWith('$')
-            ? access?.get(definition.file)?.prefixes
-            : null;
-        if (!prefixes) return definition.key === name;
-        return [...prefixes].some(
-            (prefix) =>
-                identity(`$${prefix}${definition.key.slice(1)}`) === name
+    // Whether a declaration is what `name` reads, through one of the ways
+    // `access` exposes its file (a `@forward` prefix, `show`/`hide`).
+    const exposes = (access, definition, name) =>
+        Boolean(
+            access?.exposures.some(
+                (exposure) => exposedName(exposure, definition.key) === name
+            )
+        );
+    // Whether an argument sits in a `with (…)` that `access` counts and sets
+    // `name` there: the names written in it read through the range's
+    // exposure, or, for a loader configuring this module, the other way.
+    const configures = (access, definition, name) =>
+        Boolean(
+            access?.ranges.some(
+                ({ start, end, exposure, outward }) =>
+                    definition.index >= start &&
+                    definition.index < end &&
+                    (outward
+                        ? exposedName(exposure, name) === definition.key
+                        : exposedName(exposure, definition.key) === name)
+            )
+        );
+    // Whether an argument is passed to `callable`, defined in `file`:
+    // `ns.name(` must load `file` (or a module forwarding it) as `ns`, under
+    // the name it exposes `callable` by; a bare `name(` is defined in the
+    // caller itself or in what it brings in.
+    const passedTo = ({ callee, file: caller }, file, callable) => {
+        if (!callee || !callable) return false;
+        if (!callee.namespace && caller === file) {
+            return callee.name === callable;
+        }
+        const scope = callee.namespace
+            ? qualified(caller, callee.namespace)
+            : unqualified(caller);
+        const access = scope.get(file);
+        return (
+            Boolean(access?.declarations) &&
+            access.exposures.some(
+                (exposure) => exposedName(exposure, callable) === callee.name
+            )
         );
     };
-    // Whether the callable an argument is passed to is defined in `file`:
-    // `ns.name(` must load `file` (or a module forwarding it) as `ns`; a bare
-    // `name(` is defined in the caller itself or in what it brings in.
-    const calleeReaches = ({ callee, file: caller }, file) => {
-        if (callee.namespace)
-            return qualified(caller, callee.namespace).has(file);
-        return (
-            caller === file ||
-            Boolean(unqualified(caller).get(file)?.declarations)
+    // A parameter default is the value only at calls that leave it out. A
+    // callable with no call in sight may be called from where the scan
+    // cannot see, so its defaults count.
+    const invocations = scans.flatMap(({ file, invocations: calls = [] }) =>
+        calls.map((call) => ({ ...call, file }))
+    );
+    const defaultUsed = new Map();
+    const usesDefault = (definition) => {
+        if (defaultUsed.has(definition)) return defaultUsed.get(definition);
+        const callable = definition.callee.name;
+        const calls = invocations.filter(
+            (call) =>
+                call.callee.name.endsWith(callable) &&
+                passedTo(call, definition.file, callable)
         );
+        const names = (call) =>
+            definitions.some(
+                (d) =>
+                    d.argument &&
+                    d.file === call.file &&
+                    d.callee?.paren === call.paren &&
+                    d.key === definition.key
+            );
+        const used = calls.length === 0 || calls.some((call) => !names(call));
+        defaultUsed.set(definition, used);
+        return used;
     };
     // `@import` is textual: an imported file's top-level declarations take
     // effect where the `@import` sits, transitively.
@@ -490,14 +561,13 @@ export function findIndirectWeights(scans) {
         const scope = sass && !namespace ? unqualified(file) : null;
         // A `with (…)` of this very lookup sets the name, so the module's
         // `!default` for it never applies here.
+        // `null` counts as unset, so the `!default` still applies.
         const configuredHere = definitions.some(
             (d) =>
                 d.argument &&
-                d.key === name &&
                 d.file === file &&
-                (members ?? scope)
-                    ?.get(file)
-                    ?.ranges.some(([s, e]) => d.index >= s && d.index < e)
+                !/^null\b/i.test(d.value.trim()) &&
+                configures((members ?? scope)?.get(file), d, name)
         );
         // In its own file, only the declarations in effect at the reference
         // count; other files' declarations only when those settle nothing.
@@ -516,7 +586,12 @@ export function findIndirectWeights(scans) {
             : null;
         const picked = new Set(own?.picked.map((d) => d.original ?? d));
         for (const definition of definitions) {
-            if (!exposedAs(definition, members ?? scope, name)) continue;
+            const access = (members ?? scope)?.get(definition.file);
+            if (!sass && definition.key !== name) continue;
+            // An argument's name is matched where it is passed, below.
+            if (sass && !definition.argument) {
+                if (!exposes(access, definition, name)) continue;
+            }
             if (
                 configuredHere &&
                 definition.fallback &&
@@ -531,25 +606,17 @@ export function findIndirectWeights(scans) {
                 if (definition.scope !== null || own?.settled) continue;
             }
             if (members) {
-                const access = members.get(definition.file);
                 const visible = definition.argument
-                    ? access?.ranges.some(
-                          ([start, end]) =>
-                              definition.index >= start &&
-                              definition.index < end
-                      )
+                    ? configures(access, definition, name)
                     : access?.declarations;
                 if (!visible) continue;
             }
             if (scope) {
-                const access = scope.get(definition.file);
                 const passed =
-                    definition.callee?.name === reference.callable &&
-                    calleeReaches(definition, file);
-                const configured = access?.ranges.some(
-                    ([start, end]) =>
-                        definition.index >= start && definition.index < end
-                );
+                    definition.key === name &&
+                    passedTo(definition, file, reference.callable) &&
+                    (!definition.callee.signature || usesDefault(definition));
+                const configured = configures(access, definition, name);
                 // A textual importer's later code has not run when this
                 // file's rules render, unless they sit in a mixin body.
                 const ran =

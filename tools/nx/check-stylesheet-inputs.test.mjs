@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 import {
     extractRelativeImports,
+    extractStylesheetLoads,
     resolveStylesheet,
     stripScssComments,
     validateScanCoverage,
@@ -157,6 +158,30 @@ test('treats a @use configuration value as a value, not a second import', () => 
         '../../styles/theme',
         '../../styles/panel-header',
     ]);
+});
+
+test('reads the show or hide list of a @forward', () => {
+    const source = [
+        "@forward 'a' as p-* hide $p-w, mixin-x;",
+        "@forward 'b' show $w with ($w: 600);",
+        "@forward 'd' with ($mode: hide auto);",
+        "@forward 'show-tokens' as show-*;",
+        "@use 'c' as show;",
+    ].join('\n');
+
+    assert.deepEqual(
+        extractStylesheetLoads(source).map(({ target, filter }) => [
+            target,
+            filter,
+        ]),
+        [
+            ['a', { kind: 'hide', names: ['$p-w', 'mixin-x'] }],
+            ['b', { kind: 'show', names: ['$w'] }],
+            ['d', null],
+            ['show-tokens', null],
+            ['c', null],
+        ]
+    );
 });
 
 test('ignores a url() import the browser resolves at runtime', () => {
