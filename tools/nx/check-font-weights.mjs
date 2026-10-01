@@ -59,15 +59,23 @@ const ATTRIBUTE_WEIGHT =
     /(?<![\w$-])(font-weight)\s*=\s*(?:(['"])(.*?)\2|([^\s>'"=<`]+))/gi;
 /** A custom property or Sass variable that a weight value may refer to. */
 const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
-/** Angular `[style.font-weight]`/`[attr.font-weight]` bindings (or `host`). */
+/**
+ * Angular bindings (or `host`) that set a weight or a custom property:
+ * `[style.font-weight]`, `[attr.font-weight]`, `[style.--title]`.
+ */
 const CODE_BINDING =
-    /(\[(?:style|attr)\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\2/g;
+    /(\[(?:style|attr)\.(font-weight|fontWeight|--[\w-]+)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\3/gi;
 /** DOM writes. `===` compares, so only a lone `=` (or `+=` and kin) assigns. */
 const CODE_ASSIGNMENT = /(\.style\.fontWeight)\s*(\*\*|[-+*/%])?=(?!=)/g;
-const CODE_SET_PROPERTY = /(setProperty\(\s*['"]font-weight['"])\s*,/gi;
-/** Arithmetic next to a number in code: `600 + 50` is 650 at runtime. */
+const CODE_SET_PROPERTY =
+    /(setProperty\(\s*['"](font-weight|--[\w-]+)['"])\s*,/gi;
+/**
+ * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
+ * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
+ * in front of a number: `-(-650)`.
+ */
 const CODE_ARITHMETIC =
-    /\d\s*(?:\*\*|[-+*/%])\s*[\w$(.'"`]|[\w$).'"`]\s*(?:\*\*|[-+*/%])\s*\.?\d/;
+    /\d\s*(?:\*\*|[-+*/%])\s*[-+]*\s*[\w$(.'"`]|[\w$).'"`]\s*(?:\*\*|[-+*/%])\s*[-+]*\s*\.?\d|(?:^|[^\w$).'"`\]\s])\s*(?:-\s*[\d.(]|\+\s*\()/;
 
 /** A CSS <number>: decimals, an exponent and a `+` sign are all valid. */
 const NUMBER_TEXT = String.raw`\+?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?`;
@@ -213,6 +221,19 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
 }
 
 /**
+ * A value set from code. A string literal is CSS text and is read as such;
+ * anything else is an expression, where other numbers appear too (a weight
+ * is 100 or more) and arithmetic computes the value.
+ */
+function analyseCode(expression, mode = 'weight', after = 0) {
+    const literal = /^\s*(['"`])([\s\S]*)\1\s*$/.exec(expression);
+    if (literal && !literal[2].includes('${')) {
+        return analyse(mode, literal[2], { after });
+    }
+    return analyse('weight', expression, { minimum: 100, code: true });
+}
+
+/**
  * One file's weight declarations: off-scale findings, the custom properties
  * and Sass variables its weights refer to, and every such variable it defines
  * (checked later, once the whole workspace has named what it refers to).
@@ -251,37 +272,49 @@ export function scanWeights(file, source) {
             if (!selector) record(name, match.index, analyse(mode, value));
         }
     }
+    // A weight set from code is checked here; any other custom property it
+    // sets is a definition that a stylesheet's `var()` may refer to.
+    const setByCode = (name, property, index, expression) => {
+        if (/^font-?weight$|^--.*weight$/i.test(property)) {
+            record(name, index, analyseCode(expression));
+        } else if (property.startsWith('--')) {
+            const line = lineOf(index);
+            const value = expression;
+            const key = property;
+            definitions.push({
+                file,
+                line,
+                name: property,
+                key,
+                value,
+                code: true,
+            });
+        }
+    };
     if (!stylesheet) {
-        // Code expressions carry other numbers too; a weight is 100 or more.
-        const code = { minimum: 100, code: true };
         for (const match of text.matchAll(ATTRIBUTE_WEIGHT)) {
             const value = match[3] ?? match[4];
             record(match[1], match.index, analyse('weight', value));
         }
         for (const match of text.matchAll(CODE_BINDING)) {
-            record(match[1], match.index, analyse('weight', match[3], code));
+            setByCode(match[1], match[2], match.index, match[4]);
         }
         for (const match of text.matchAll(CODE_ASSIGNMENT)) {
             const end = match.index + match[0].length;
             const expression = codeExpression(text, end).trim();
-            const analysis = match[2]
-                ? {
-                      terms: [
-                          {
-                              value: `${match[2]}= ${expression}`,
-                              computed: true,
-                          },
-                      ],
-                      references: [],
-                  }
-                : analyse('weight', expression, code);
-            record(match[1], match.index, analysis);
+            if (match[2]) {
+                const value = `${match[2]}= ${expression}`;
+                const terms = [{ value, computed: true }];
+                record(match[1], match.index, { terms, references: [] });
+            } else {
+                setByCode(match[1], 'font-weight', match.index, expression);
+            }
         }
         for (const match of text.matchAll(CODE_SET_PROPERTY)) {
             const end = match.index + match[0].length;
             const expression = codeExpression(text, end, { argument: true });
             const name = match[1].replace(/\s+/g, '');
-            record(name, match.index, analyse('weight', expression, code));
+            setByCode(name, match[2], match.index, expression);
         }
     }
     for (const match of text.matchAll(DEFINITION)) {
@@ -344,7 +377,9 @@ export function findIndirectWeights(scans) {
                     : access?.declarations;
                 if (!visible) continue;
             }
-            const analysis = analyse(mode, definition.value, { after });
+            const analysis = definition.code
+                ? analyseCode(definition.value, mode, after)
+                : analyse(mode, definition.value, { after });
             for (const term of analysis.terms) {
                 const { line } = definition;
                 const at = {

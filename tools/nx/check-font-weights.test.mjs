@@ -715,6 +715,67 @@ test('counts a `with (…)` configuration of a namespaced module', () => {
     ]);
 });
 
+test('follows custom properties set from code', () => {
+    const component = [
+        "host: { '[style.--title-weight]': '650' },",
+        "element.style.setProperty('--card-weight', '750');",
+        "element.style.setProperty('--body-font', '520 1rem sans-serif');",
+        '<p [style.--title]="active() ? 450 : 400"></p>',
+        "element.style.setProperty('--gap', '12');",
+        // A string is CSS text: the family's number is not a weight.
+        "element.style.setProperty('--quiet-font', '600 1rem \"Font 900\"');",
+    ].join('\n');
+    const stylesheet = [
+        '.a { font-weight: var(--title); }',
+        '.b { font: var(--body-font); }',
+        '.c { font: var(--quiet-font); }',
+    ].join('\n');
+    const scans = [
+        scanWeights('apps/web/src/a.component.ts', component),
+        scanWeights('libs/a.scss', stylesheet),
+    ];
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 [style.--title-weight]: 650',
+        "2 setProperty('--card-weight': 750",
+    ]);
+    assert.deepEqual(
+        findIndirectWeights(scans)
+            .map(({ file, line, value }) => `${file}:${line} ${value}`)
+            .sort(),
+        [
+            'apps/web/src/a.component.ts:3 520',
+            'apps/web/src/a.component.ts:4 450',
+        ]
+    );
+});
+
+test('reports signed and unary arithmetic in code weights', () => {
+    const component = [
+        'element.style.fontWeight = 600 - -50;',
+        '[style.font-weight]="600 - -50"',
+        'element.style.fontWeight = -(-650);',
+        'element.style.fontWeight = active ? -650 : 400;',
+        'element.style.fontWeight = +700;',
+        'element.style.fontWeight = 600 + -offset;',
+        'element.style.fontWeight = 600 + +50;',
+        'element.style.fontWeight = offset + +600;',
+    ].join('\n');
+
+    assert.deepEqual(
+        offScale('apps/web/src/a.component.ts', component).sort(),
+        [
+            '1 .style.fontWeight: 600 - -50',
+            '2 [style.font-weight]: 600 - -50',
+            '3 .style.fontWeight: -(-650)',
+            '4 .style.fontWeight: active ? -650 : 400',
+            '6 .style.fontWeight: 600 + -offset',
+            '7 .style.fontWeight: 600 + +50',
+            '8 .style.fontWeight: offset + +600',
+        ]
+    );
+});
+
 test('flags relative keywords, which can land off the scale', () => {
     const findings = findOffScaleWeights(
         'libs/a.scss',
