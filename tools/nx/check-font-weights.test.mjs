@@ -208,6 +208,56 @@ test('checks Angular style bindings and literal DOM writes', () => {
     ]);
 });
 
+test('treats comment markers inside strings as text', () => {
+    const stylesheet = [
+        '.x { content: "//"; font-weight: 650; }',
+        '.y { background: url(//cdn.test/a.png); font-weight: 750; }',
+        '.z::after { content: "font-weight: 650"; }',
+    ].join('\n');
+    const component = `styles: ['.x { content: "//"; font-weight: 650; }'],`;
+
+    assert.deepEqual(offScale('libs/a.scss', stylesheet), [
+        '1 font-weight: 650',
+        '2 font-weight: 750',
+    ]);
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 font-weight: 650',
+    ]);
+});
+
+test('keeps a quoted family inside the font shorthand', () => {
+    const stylesheet = ".a { font: 650 12px 'DM Sans', sans-serif; }";
+    const component = `styles: ['.a { font: 650 12px "DM Sans"; }'],`;
+    const template = [
+        "<p>Don't wrap</p>",
+        '<p style="font: 750 12px \'DM Sans\'">x</p>',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', stylesheet), ['1 font: 650']);
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 font: 650',
+    ]);
+    assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
+        '2 font: 750',
+    ]);
+});
+
+test('follows a shorthand that is one variable, fallback included', () => {
+    const source = [
+        ':root { --body-font: 650 1rem sans-serif; }',
+        '$heading-font: 750 1.2rem sans-serif;',
+        '.a { font: var(--body-font); }',
+        '.b { font: var(--caption-font, 520 0.8rem sans-serif); }',
+        '.c { font: $heading-font; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', source), [
+        '4 font: 520',
+        '2 $heading-font: 750',
+        '1 --body-font: 650',
+    ]);
+});
+
 test('flags relative keywords, which can land off the scale', () => {
     const findings = findOffScaleWeights(
         'libs/a.scss',
