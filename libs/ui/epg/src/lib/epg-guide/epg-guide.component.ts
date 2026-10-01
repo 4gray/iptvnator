@@ -257,11 +257,16 @@ export class EpgGuideComponent implements OnDestroy {
      */
     @HostListener('document:keydown', ['$event'])
     onKeydown(event: KeyboardEvent): void {
+        const focusBefore = this.focus();
         if (!this.keyboard.handle(event)) {
             return;
         }
         event.preventDefault();
-        this.viewportController.revealFocus(this.focus());
+        // Only a key that moved the focus scrolls to it: N scrolls to now on
+        // its own, and a reveal of a focus left off-screen would cancel it.
+        if (this.focus() !== focusBefore) {
+            this.viewportController.revealFocus(this.focus());
+        }
         afterNextRender(() => this.viewportController.focusRovingTarget(), {
             injector: this.injector,
         });
