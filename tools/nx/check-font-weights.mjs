@@ -30,6 +30,7 @@ import {
 import {
     ALL_RESET,
     IMPORTANT,
+    startsDeclaration,
     MONO_WEIGHT_CAP,
     canonicalSelector,
     declarationText,
@@ -1000,7 +1001,9 @@ export function scanWeights(file, written) {
         });
     const monoAt = stylesheet
         ? familiesOf(lexed, blocks, { inString, placeOf, refsIn, rulesOf })
-        : () => ({ mono: false, refs: [] });
+        : Object.assign(() => ({ mono: false, refs: [] }), {
+              landings: () => [],
+          });
     // Weights in rules whose family is named through variables: capped once
     // that family resolves to JetBrains Mono.
     const deferred = [];
@@ -1014,10 +1017,21 @@ export function scanWeights(file, written) {
         const place = placeOf(blocks, index);
         return rulesOf(fontNamespaceRule(blocks, place) ?? place.scope);
     };
+    // A weight declaration registers in each rule it lands in (a mixin's
+    // where it is included), at the place it lands.
+    const setAt = (index, important) => {
+        for (const { at, rules } of monoAt.landings(index)) {
+            for (const rule of rules) {
+                if (!setters.has(rule)) setters.set(rule, []);
+                setters.get(rule).push({ at, index, important });
+            }
+        }
+    };
     for (const match of stylesheet ? text.matchAll(WEIGHT_SETTER) : []) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
         }
+        if (!startsDeclaration(text, match.index)) continue;
         const start = match.index + match[0].length;
         const { value, selector } = declarationText(lexed, start);
         if (selector) continue;
@@ -1030,39 +1044,39 @@ export function scanWeights(file, written) {
         if (match[1].toLowerCase() === 'weight' && namespace === undefined) {
             continue;
         }
-        const important = IMPORTANT.test(value);
-        for (const rule of ruleScope(match.index)) {
-            if (!setters.has(rule)) setters.set(rule, []);
-            setters.get(rule).push({ index: match.index, important });
-        }
+        setAt(match.index, IMPORTANT.test(value));
     }
     // An `all` reset replaces an earlier weight too.
     for (const match of stylesheet ? text.matchAll(ALL_RESET) : []) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
         }
-        for (const rule of ruleScope(match.index)) {
-            if (!setters.has(rule)) setters.set(rule, []);
-            setters
-                .get(rule)
-                .push({ index: match.index, important: Boolean(match[2]) });
-        }
+        if (startsDeclaration(text, match.index))
+            setAt(match.index, Boolean(match[2]));
     }
+
     // A shorthand that fails to parse is dropped, so it sets nothing.
     // In a selector list, it is in effect while it is for any selector.
+    // A weight is in effect where, in a rule it lands in, nothing later
+    // replaces it and nothing earlier outranks it (`!important`).
+    const after = (a, b) => a.at > b.at || (a.at === b.at && a.index > b.index);
     const inEffect = (index) =>
-        ruleScope(index).some((id) => {
-            const rule = setters.get(id) ?? [];
-            const own = rule.find((setter) => setter.index === index);
-            return (
-                Boolean(own) &&
-                !rule.some(
-                    (later) =>
-                        later.index > index &&
-                        (later.important || !own.important)
-                )
-            );
-        });
+        monoAt.landings(index).some(({ rules }) =>
+            rules.some((id) => {
+                const rule = setters.get(id) ?? [];
+                const own = rule.find((setter) => setter.index === index);
+                return (
+                    Boolean(own) &&
+                    !rule.some((other) =>
+                        other === own
+                            ? false
+                            : after(other, own)
+                              ? other.important || !own.important
+                              : other.important && !own.important
+                    )
+                );
+            })
+        );
 
     // CSS text in a string (an inline `style="…"`, a component style) meets
     // the Mono cap when the declarations around it set JetBrains Mono.

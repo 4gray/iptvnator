@@ -578,6 +578,17 @@ const EXTEND = /@extend\s+([^;{}!]+?)\s*(?:!\s*optional\s*)?[;}]/gi;
 export const ALL_RESET =
     /(?<![\w$-])all\s*:\s*(initial|inherit|unset|revert|revert-layer)\s*(!\s*important\s*)?(?=[;}])/gi;
 
+/**
+ * Whether a property at `index` starts a declaration: after a `{`, `;` or
+ * `}` (whitespace and blanked comments aside), not inside another value
+ * (`--token: all: unset`) or a Sass map (`(all: unset)`).
+ */
+export function startsDeclaration(text, index) {
+    let k = index - 1;
+    while (k >= 0 && /\s/.test(text[k])) k -= 1;
+    return k < 0 || '{;}'.includes(text[k]);
+}
+
 /** An `@include` of a mixin in this file (`ns.mixin` is another file's). */
 const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
 
@@ -738,6 +749,7 @@ export function familiesOf(
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
         }
+        if (!startsDeclaration(lexed.text, match.index)) continue;
         const start = match.index + match[0].length;
         const { value, selector } = declarationText(lexed, start);
         const place = placeOf(blocks, match.index);
@@ -772,6 +784,7 @@ export function familiesOf(
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
         }
+        if (!startsDeclaration(lexed.text, match.index)) continue;
         const place = placeOf(blocks, match.index);
         if (place.scope === null) continue;
         const entry = {
@@ -856,12 +869,16 @@ export function familiesOf(
     // own rule, the bases it contains and `*`. One whose winner inherits
     // (or with none) takes the family its element inherits.
     const elementFamily = (block) => {
-        const rules = rulesOf(block.start);
-        const winners = rules.map((rule) => {
+        // Each way a rule's target reads (`:is(.x, .y)` is `.x` or `.y`).
+        const targets = rulesOf(block.start).flatMap((rule) => {
             const form = compiled(rule);
-            if (!form) return family.get(rule) ?? null;
+            if (!form) return [{ rule, form }];
             const target = compoundsOf(form.selector).at(-1)?.compound;
             const simples = simplesOf(target ?? '') ?? [];
+            return alternativesOf(simples).map((way) => ({ rule, form, way }));
+        });
+        const winners = targets.map(({ rule, form, way: simples }) => {
+            if (!form) return family.get(rule) ?? null;
             const candidates = bases
                 .filter(
                     (base) =>
@@ -902,7 +919,7 @@ export function familiesOf(
             set.find((entry) => entry.mono) ??
             set.find((entry) => entry.refs.length > 0);
         if (named) return named;
-        return set.length && set.length === rules.length ? set[0] : null;
+        return set.length && set.length === targets.length ? set[0] : null;
     };
     // A top-level rule's family, unless it inherits (`* | ` is `*`'s).
     const rooted = (selector) => {
@@ -977,7 +994,7 @@ export function familiesOf(
             ),
         ];
     };
-    return (index) => {
+    const monoAt = (index) => {
         const found = familyAt(index).filter((entry) => entry !== NONE);
         return (
             found.find((entry) => entry.mono) ??
@@ -986,4 +1003,12 @@ export function familiesOf(
             NONE
         );
     };
+    // Where a declaration at `index` lands (`{ at, rules }`, see
+    // `landingsOf`), for the weights in effect.
+    monoAt.landings = (index) => {
+        const place = placeOf(blocks, index);
+        const scope = fontNamespaceRule(blocks, place) ?? place.scope;
+        return scope === null ? [] : landingsOf(scope, index);
+    };
+    return monoAt;
 }

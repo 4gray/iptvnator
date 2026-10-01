@@ -4052,6 +4052,16 @@ test("picks the cascade's winner among the rules on an element", () => {
             `:is(.a, :where(.x, .y)) { font-family: ${mono}; } .y { font-weight: 700; }`,
             ['font-weight: 700'],
         ],
+        // A reader's own `:where()`/`:is()` opens too.
+        [
+            `.x { font-family: ${mono}; } :where(.x) { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.y { font-family: ${mono}; } :is(.x, .y) { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`.z { font-family: ${mono}; } :is(.x, .y) { font-weight: 700; }`, []],
         // More than 16 ways to read one is left unopened.
         [
             `:is(.a, .b, .c, .d, .e):is(.f, .g, .h, .i) { font-family: ${mono}; } .a.f { font-weight: 700; }`,
@@ -4294,13 +4304,50 @@ test('reads an `all` reset as resetting the family and weight', () => {
             `.a { all: unset; font-family: ${mono}; font-weight: 700; }`,
             ['font-weight: 700'],
         ],
-        // An `!important` reset beats a later family; a weight before it is
-        // gone even where the family is set again after it.
+        // An `!important` reset beats a later family, and a later weight
+        // unless that is `!important` too.
         [
-            `${parent} .parent .a { all: unset !important; font-family: Roboto; font-weight: 700; }`,
+            `${parent} .parent .a { all: unset !important; font-family: Roboto; font-weight: 700 !important; }`,
             ['font-weight: 700'],
         ],
+        [
+            `${parent} .parent .a { all: unset !important; font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+        // A weight before it is gone even where the family is set again
+        // after it, and an earlier `!important` weight outranks a later one.
         [`.a { font-weight: 700; all: unset; font-family: ${mono}; }`, []],
+        [
+            `.a { font-family: ${mono}; font-weight: 500 !important; font-weight: 700; }`,
+            [],
+        ],
+        // Through a mixin, at its `@include`.
+        [
+            `@mixin reset { all: unset; } ${parent} .parent .a { font-family: Roboto; font-weight: 700; @include reset; }`,
+            [],
+        ],
+        [
+            `@mixin reset { all: unset; } ${parent} .parent .a { font-family: Roboto; @include reset; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // Only as a declaration: not in another value or a Sass map.
+        [
+            `${parent} .parent .a { font-family: Roboto; --token: all: unset; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `${parent} .parent .a { font-family: Roboto; $m: (all: unset); font-weight: 700; }`,
+            [],
+        ],
+        [`.a { --face: font-family: ${mono}; font-weight: 700; }`, []],
+        [
+            `.a { font-family: ${mono}; font-weight: 700; --x: font-weight: 400; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a { font-family: ${mono}; font-weight: 700; --t: all: unset; }`,
+            ['font-weight: 700'],
+        ],
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
