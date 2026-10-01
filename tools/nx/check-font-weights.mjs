@@ -172,6 +172,22 @@ const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font|weight)\s*:/gi;
 const WEIGHT_NAME = /^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i;
 /** A family declaration in CSS text: `font-family`, or the `font` shorthand. */
 const FAMILY_DECLARATION = /(?<![\w-])(font-family|font)\s*:\s*([^;]*)/gi;
+/**
+ * Whether a `@property` body is a valid registration of `value`: it has a
+ * `syntax` and `inherits`, and the syntax accepts the value (`*` anything,
+ * `<number>`/`<integer>` a number, `<custom-ident>`/`<string>` a name).
+ */
+function registrationAccepts(body, value) {
+    const syntax = /(?<![\w-])syntax\s*:\s*(['"])(.*?)\1/i.exec(body)?.[2];
+    const inherits = /(?<![\w-])inherits\s*:\s*(?:true|false)\b/i.test(body);
+    if (syntax === undefined || !inherits) return false;
+    if (syntax.trim() === '*') return true;
+    const numeric = /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(value);
+    return numeric
+        ? /<(?:number|integer)>/i.test(syntax)
+        : /<(?:custom-ident|string)>/i.test(syntax);
+}
+
 /** A registered custom property: `@property --x { … }`. */
 const PROPERTY_RULE = /@property\s+(--[\w-]+)\s*\{/gi;
 /** Sass loops that bind variables: `@each $a, $b in …`, `@for $i from …`. */
@@ -762,7 +778,7 @@ export function scanWeights(file, source) {
             const unquoted =
                 markup &&
                 !quoteAt[match.index] &&
-                inUnquotedStyle(text, match.index);
+                inUnquotedStyle(lexed, match.index);
             const value = unquoted ? read.value.split(/[\s>]/)[0] : read.value;
             if (selector) continue;
             const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
@@ -956,6 +972,8 @@ export function scanWeights(file, source) {
         const index = brace + initial.index;
         const name = match[1];
         const value = initial[1].trim();
+        // CSS ignores an invalid registration.
+        if (!registrationAccepts(body, value)) continue;
         const weighted = /weight$/i.test(name);
         if (weighted) record(name, index, analyse('weight', value));
         const place = placeOf(blocks, match.index);

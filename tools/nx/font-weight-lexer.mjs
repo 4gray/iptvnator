@@ -95,14 +95,19 @@ export function closingBrace({ text, quoteAt }, open) {
  * Whether `index` sits in an unquoted `style=font-weight:650` attribute
  * value, which runs to a space or `>`.
  */
-export function inUnquotedStyle(text, index) {
-    return /(?:^|[\s<])style\s*=\s*[^\s"'=<>`]*$/i.test(text.slice(0, index));
+export function inUnquotedStyle(lexed, index) {
+    const attribute = /(?:^|[\s<])style\s*=\s*[^\s"'=<>`]*$/i;
+    return (
+        attribute.test(lexed.text.slice(0, index)) &&
+        insideTag(lexed, index, { html: true })
+    );
 }
 
 /**
  * Whether `index` sits where markup holds CSS: a `<style>` element, a
- * `style` attribute, or an Angular `[…]` binding (whose strings are CSS).
- * Text content and other attributes (`title="font-weight: 650"`) are not.
+ * `style` attribute, or an Angular style binding (`[style]`, `[style.x]`,
+ * `[ngStyle]`, `[attr.style]`, whose strings are CSS). Text content and
+ * other attributes or bindings (`[title]="'font-weight: 650'"`) are not.
  */
 export function inMarkupCss({ text, quoteAt }, index) {
     const before = text.slice(0, index).toLowerCase();
@@ -111,11 +116,13 @@ export function inMarkupCss({ text, quoteAt }, index) {
         if (/^<style[\s>]/.test(before.slice(open, open + 7))) return true;
     }
     const quote = quoteAt[index];
-    if (!quote) return inUnquotedStyle(text, index);
+    if (!quote) return inUnquotedStyle({ text, quoteAt }, index);
     let start = index;
     while (start > 0 && quoteAt[start - 1] === quote) start -= 1;
     const name = /([^\s<>="']+)\s*=\s*$/.exec(text.slice(0, start - 1))?.[1];
-    return /^(?:style|\[[^\]]+\])$/i.test(name ?? '');
+    return /^(?:style|\[(?:style(?:\.[^\]]+)?|ngStyle|attr\.style)\])$/i.test(
+        name ?? ''
+    );
 }
 
 /**

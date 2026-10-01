@@ -337,6 +337,9 @@ test('reads CSS in markup only where it styles', () => {
         '<div style=font-weight:650>x</div>',
         '<div title=font-weight:650>y</div>',
         '<div style=font-weight:600 class=x>z</div>',
+        // Text that reads like an attribute, and a non-style binding.
+        '<p>Set style=font-weight:650 here</p>',
+        `<div [title]="'font-weight: 650'"></div>`,
     ].join('\n');
 
     assert.deepEqual(
@@ -369,6 +372,34 @@ test('reads @property initial values', () => {
             "@property --w { syntax: '<number>'; initial-value: 750; inherits: false; } .y { font-weight: var(--w); }"
         ),
         ['--w: 750']
+    );
+    // CSS ignores an invalid registration: a syntax that rejects the value,
+    // or a missing `inherits`.
+    assert.deepEqual(
+        report(
+            "@property --title-weight { syntax: '<color>'; inherits: false; initial-value: 650; } .x { font-weight: var(--title-weight, 600); }"
+        ),
+        []
+    );
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<number>'; initial-value: 750; } .y { font-weight: var(--w, 600); }"
+        ),
+        []
+    );
+    const reader = scanWeights(
+        'libs/p9/b.scss',
+        ".b { font-family: var(--face, 'JetBrains Mono'); font-weight: 700; }"
+    );
+    assert.deepEqual(
+        findIndirectWeights([
+            scanWeights(
+                'libs/p9/_props.scss',
+                "@property --face { syntax: '<length>'; inherits: true; initial-value: Roboto; }"
+            ),
+            reader,
+        ]).map(({ value }) => value),
+        ['700']
     );
     // A registered property always has a value, so a fallback never
     // applies, wherever it is registered.
