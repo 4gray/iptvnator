@@ -77,8 +77,10 @@ import {
  * code (`'font-weight:' + w`) is read from the operand after the `+`. A
  * partial's `!default` gives way where every load of it configures the
  * name. A file is read as the browser reads it: CSS escapes in names
- * decoded as Sass decodes them (`font-w\65 ight` is `font-weight`), and
- * markup's character references too (`&#54;50` is 650). Not traced:
+ * decoded as Sass decodes them (`font-w\65 ight` is `font-weight`),
+ * markup's character references too (`&#54;50` is 650), and a family's
+ * static interpolation as Sass writes it out (`#{'Jet' + 'Brains'}` is
+ * `JetBrains`). Not traced:
  * JavaScript escapes in TypeScript (`fontW\u0065ight`), positional mixin
  * or function arguments, calls through `meta.apply`, `meta.load-css` and
  * `@function` return values, so pass weights as named `$…weight` arguments;

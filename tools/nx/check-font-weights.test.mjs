@@ -4066,6 +4066,56 @@ test("inherits the document root's family", () => {
     }
 });
 
+test('reads a static Sass interpolation in a family as Sass writes it', () => {
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/c.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        [`.x { font-family: #{'JetBrains'} Mono; font-weight: 700; }`, true],
+        [`.x { font-family: #{"JetBrains Mono"}; font-weight: 700; }`, true],
+        [`.x { font-family: #{JetBrains} Mono; font-weight: 700; }`, true],
+        [`.x { font-family: '#{JetBrains} Mono'; font-weight: 700; }`, true],
+        [`.x { font-family: Jet#{'Brains'} Mono; font-weight: 700; }`, true],
+        [
+            `.x { font-family: #{'Jet' + 'Brains'} Mono; font-weight: 700; }`,
+            true,
+        ],
+        [
+            `.x { font-family: #{null}#{'JetBrains Mono'}; font-weight: 700; }`,
+            true,
+        ],
+        [
+            `.x { font-family: #{'JetBrains'} #{'Mono'}, monospace; font-weight: 700; }`,
+            true,
+        ],
+        [`.x { font: 12px #{'JetBrains'} Mono; font-weight: 700; }`, true],
+        [
+            `$f: #{'JetBrains'} Mono; .x { font-family: $f; font-weight: 700; }`,
+            true,
+        ],
+        // A string it writes out can hold the whole list.
+        [
+            `.x { font-family: #{'JetBrains Mono, monospace'}; font-weight: 700; }`,
+            true,
+        ],
+        // Spaced operands are a list: `Jet Brains` is another face.
+        [`.x { font-family: #{'Jet' 'Brains'}; font-weight: 700; }`, false],
+        [`.x { font-family: #{'Roboto'}; font-weight: 700; }`, false],
+        // One that calls a function is left to its value.
+        [
+            `.x { font-family: #{fn('JetBrains')} Mono; font-weight: 700; }`,
+            false,
+        ],
+    ]) {
+        assert.deepEqual(
+            report(source),
+            expected ? ['font-weight: 700'] : [],
+            source
+        );
+    }
+});
+
 test('reads a lone `:is()` or `:where()` as the selectors it holds', () => {
     const mono = "'JetBrains Mono'";
     const report = (body) =>

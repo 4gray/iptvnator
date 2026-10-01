@@ -158,12 +158,59 @@ export function hasLiteralSize(value) {
 const SHORTHAND_PREFIX =
     /^(?:\d+|normal|italic|oblique|small-caps|bold|bolder|lighter|(?:ultra-|extra-|semi-)?(?:condensed|expanded))$/i;
 
+/** An operand of a static Sass interpolation: a string, word or number. */
+const STATIC_OPERAND = String.raw`(?:'[^'\\]*'|"[^"\\]*"|[a-z_][\w-]*|\d[\w.%]*)`;
+const STATIC_INTERPOLATION = new RegExp(
+    String.raw`#\{\s*(${STATIC_OPERAND}(?:\s*\+?\s*${STATIC_OPERAND})*)\s*\}`,
+    'gi'
+);
+
+/**
+ * Text with each static Sass interpolation written out as Sass does:
+ * strings unquoted, operands spaced or joined by `+`, `null` as nothing
+ * (`#{'Jet' + 'Brains'} Mono` is `JetBrains Mono`). One that reads a
+ * variable or calls a function stays, for its value to decide.
+ */
+export function staticInterpolated(text) {
+    return text.replace(STATIC_INTERPOLATION, (match, expression) => {
+        const values = [];
+        // Operands a `+` joins concatenate; others are spaced, as a list.
+        let joined = false;
+        const operand = new RegExp(STATIC_OPERAND, 'iy');
+        for (let i = 0; i < expression.length;) {
+            if (/\s/.test(expression[i])) {
+                i += 1;
+                continue;
+            }
+            if (expression[i] === '+') {
+                joined = true;
+                i += 1;
+                continue;
+            }
+            operand.lastIndex = i;
+            const [token] = operand.exec(expression);
+            const value = /^['"]/.test(token)
+                ? token.slice(1, -1)
+                : /^null$/i.test(token)
+                  ? ''
+                  : token;
+            if (joined && values.length) values[values.length - 1] += value;
+            else values.push(value);
+            joined = false;
+            i += token.length;
+        }
+        return values.filter(Boolean).join(' ');
+    });
+}
+
 /**
  * One family entry, decided outright: `mono` (JetBrains Mono), `stop` (a
  * family that renders every glyph), `open` (another face), or `null` for a
- * variable (`var(…)`, `$x`, `#{…}`) whose value decides.
+ * variable (`var(…)`, `$x`, `#{…}`) whose value decides. A static `#{…}`
+ * reads as the text it writes out.
  */
-export function entryVerdict(entry) {
+export function entryVerdict(written) {
+    const entry = staticInterpolated(written);
     // In a string, only a Sass `#{…}` is a variable: `"var(--x)"` and
     // `"$x"` are names.
     const quoted = /^\s*['"]/.test(entry);
@@ -222,7 +269,11 @@ export function shorthandFamilies(value) {
  * `'SF Mono'`) leaves it in play. In a `font` shorthand the list follows
  * the size and its `/line-height`.
  */
-export function rendersMono(value, { shorthand = false, defer = false } = {}) {
+export function rendersMono(
+    written,
+    { shorthand = false, defer = false } = {}
+) {
+    const value = staticInterpolated(written);
     const list = shorthand ? shorthandFamilies(value) : value;
     if (list === null) return false;
     for (const entry of familyEntries(list)) {
