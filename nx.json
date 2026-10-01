@@ -88,7 +88,8 @@
         {
             "plugin": "@nx/playwright/plugin",
             "options": {
-                "targetName": "e2e"
+                "targetName": "e2e",
+                "waitForWebServer": false
             }
         },
         {

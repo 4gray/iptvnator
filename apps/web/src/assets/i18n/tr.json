@@ -1936,6 +1936,8 @@
             "NO_RECOVERY": "Unutulan bir PIN'i kurtarmanın yolu yoktur — yalnızca uygulama verilerini sıfırlamak onu kaldırır.",
             "SAVE": "PIN'i kaydet",
             "UNLOCK": "Kilidi aç",
+            "CONFIRM": "Onayla",
+            "TURN_OFF": "Kapat",
             "CONFIRM_TITLE": "Ebeveyn PIN'ini onaylayın",
             "CONFIRM_DESCRIPTION": "Bu ayarı değiştirmek için mevcut PIN'i girin."
         },

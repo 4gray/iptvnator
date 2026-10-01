@@ -586,6 +586,27 @@ continuous `serve` task. The same spec guards the `e2e*` entries of `nx.json`
 `targetDefaults` and every target in the `apps/*-e2e` `project.json` files. The web-e2e `web-backend` entry uses the same
 launch form; see [PWA web backend](pwa-self-hosted.md#web-backend).
 
+Playwright, not Nx, starts every E2E server, including the web dev server.
+`@nx/playwright/plugin` infers a continuous `serve` dependency from a
+`pnpm nx run <project>:serve` webServer only while `reuseExistingServer` is
+true, which the configs set only when `CI` is unset. It also sets
+`parallelism: false` on a target when a webServer has an `env` or a plain
+`node` command, because no Nx task covers that server. Nx refuses to run a
+non-parallel task that depends on a continuous task, so the inferred
+`web-e2e:e2e` failed locally with "do not support parallelism but depend on
+continuous tasks" and passed only in CI. Therefore:
+
+- `apps/web-e2e/project.json` sets `e2e.dependsOn` to `[]`, and the filtered
+  `e2e-ci--src/*.e2e.ts` target default in `nx.json` does the same for the
+  per-file web targets. The per-file Electron targets depend only on
+  `electron-backend:build-e2e`.
+- The plugin runs with `waitForWebServer: false`, because no target consumes
+  its `e2e--wait-for-webserver` readiness task. Playwright's own URL probe
+  covers readiness.
+- `pnpm run e2e:task-graphs:validate` (`tools/nx/check-e2e-task-graphs.mjs`)
+  builds each Playwright target's task graph with Nx's own validation, once
+  with `CI` unset and once with it set.
+
 ### Request Interception
 
 The Angular PWA calls `localhost:3000/xtream?...`. Playwright intercepts these:
