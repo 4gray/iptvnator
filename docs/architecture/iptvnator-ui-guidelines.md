@@ -68,14 +68,26 @@ in `apps/web/src/m3-theme.scss`):
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
-app-owned tokens above. A `--mat-sys-*` reference is acceptable there only
-after the built light and dark theme contexts both prove that it is emitted,
-and it must still have a real app-token or literal fallback, for example:
-`var(--mat-sys-surface-container, var(--app-widget-bg))`.
+app-owned tokens above.
 
-Several existing app surfaces still reference Material system tokens without
-that proof or use hard-coded layout/selection colors. Treat those references
-as migration debt, not patterns to copy.
+Both themes are built with the legacy `mat.define-theme` config, whose
+component mixins never declare the `--mat-sys-*` system variables. The theme
+therefore adds the `mat.system-level-*` mixins for the light (`html`) and dark
+(`.dark-theme`) contexts, and `apps/electron-backend-e2e/src/theme-tokens.e2e.ts`
+asserts they resolve in both. Use a `--mat-sys-*` token for Material-derived
+roles that have no app token (error, outline, surface containers); keep app
+chrome on `--app-*`.
+
+Set Material component tokens through the component's `mat.*-overrides()`
+mixin: it rejects unknown names at build time, where a hand-written `--mat-*`
+declaration with a typo fails silently. Material 22 reads only `--mat-*`
+tokens, so the retired `--mdc-*` names compile but do nothing;
+`pnpm run styles:material-tokens:validate` (CI) rejects them. A stylesheet that
+a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
+token directly and says why.
+
+Existing hard-coded layout and selection colors are migration debt, not
+patterns to copy.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 

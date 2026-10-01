@@ -229,7 +229,9 @@
 }
 
 .web-player-diagnostic__player-card mat-spinner {
-    --mdc-circular-progress-active-indicator-color: currentColor;
+    // Plain token instead of mat.progress-spinner-overrides(): the component
+    // spec loads this file as raw CSS, so it must stay free of Sass modules.
+    --mat-progress-spinner-active-indicator-color: currentColor;
 }
 
 .web-player-diagnostic__player-card:focus-visible,

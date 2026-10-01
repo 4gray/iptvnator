@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 ::ng-deep .mat-mdc-dialog-content {
     overflow: hidden !important;
 }
@@ -134,7 +135,7 @@
     }
 
     mat-checkbox {
-        --mdc-checkbox-state-layer-size: 28px;
+        @include mat.checkbox-overrides((state-layer-size: 28px));
     }
 }
 

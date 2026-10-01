@@ -3,11 +3,11 @@
     "journeys": {
         "launch": {
             "renderer.initialBytes": {
-                "value": 1598232,
+                "value": 1605046,
                 "unit": "bytes",
                 "slack": 4096,
-                "updatedAt": "2026-09-27",
-                "evidencePr": 1734,
+                "updatedAt": "2026-10-01",
+                "evidencePr": 1775,
                 "measuredWith": "pnpm nx build web && pnpm run perf:initial-bytes"
             }
         }

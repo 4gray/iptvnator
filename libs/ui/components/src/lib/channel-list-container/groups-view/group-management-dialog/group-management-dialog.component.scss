@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 .mat-mdc-dialog-content {
     display: flex;
     gap: 10px;
@@ -124,7 +125,7 @@
     }
 
     mat-checkbox {
-        --mdc-checkbox-state-layer-size: 28px;
+        @include mat.checkbox-overrides((state-layer-size: 28px));
     }
 }
 

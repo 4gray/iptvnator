@@ -25,9 +25,12 @@ consumers currently use relative `@use` paths to the needed partial.
 - Use `--app-selection-on-color` for foregrounds placed on the selection
   accent; do not assume white has enough contrast in both themes.
 - Angular Material mixins and Material-component overrides may use Material
-  tokens. Outside Material-owned components, use a `--mat-sys-*` token only
-  after proving it is emitted in both light and dark contexts and supplying a
-  real app-token or literal fallback.
+  tokens. `m3-theme.scss` declares `--mat-sys-*` for both theme contexts; use
+  them outside Material components only for roles without an app token.
+- Set component tokens through `mat.*-overrides()`; retired `--mdc-*` names
+  do nothing and `pnpm run styles:material-tokens:validate` rejects them.
+- Destructive buttons use `.app-destructive-button` (`color="warn"` is a no-op
+  with M3).
 - Local semantic status colors are acceptable. Existing hard-coded layout,
   selection, and EPG surface colors are migration debt, not precedent.
 
