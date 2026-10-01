@@ -4034,6 +4034,24 @@ test("picks the cascade's winner among the rules on an element", () => {
             `:is(.x, #y) { font-family: Roboto; } .x { font-family: ${mono}; } .x:hover { font-weight: 700; }`,
             [],
         ],
+        // `:nth-child(… of S)` counts `S` too, besides itself; nested
+        // `:is()`/`:where()` open.
+        [
+            `:nth-child(1 of #i) { font-family: ${mono}; } #j { font-family: Roboto; } #j:nth-child(1 of #i) { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x:nth-child(1 of #item) { font-family: ${mono}; } .x.y { font-family: Roboto; } .x.y:nth-child(1 of #item):hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:is(:where(.x)) { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:is(.a, :where(.x, .y)) { font-family: ${mono}; } .y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
         // More than 16 ways to read one is left unopened.
         [
             `:is(.a, .b, .c, .d, .e):is(.f, .g, .h, .i) { font-family: ${mono}; } .a.f { font-weight: 700; }`,
@@ -4126,6 +4144,33 @@ test('reads cascade layers as always applying, ranked by layer', () => {
         [
             `@layer base { .x { font-family: ${mono} !important; } } .x { font-family: Roboto !important; } .x:hover { font-weight: 700; }`,
             ['font-weight: 700'],
+        ],
+        // Named layers rank in declared order (`@layer a, b;`, else as they
+        // first appear), later winning; `!important` reverses it.
+        [
+            `@layer theme, base; @layer base { .x { font-family: ${mono}; } } @layer theme { .x { font-family: Roboto; } } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base, theme; @layer base { .x { font-family: ${mono}; } } @layer theme { .x { font-family: Roboto; } } .x { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `@layer theme, base; @layer base { .x { font-family: ${mono} !important; } } @layer theme { .x { font-family: Roboto !important; } } .x { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `@layer one { .x { font-family: Roboto; } } @layer two { .x { font-family: ${mono}; } } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer { .x { font-family: Roboto; } } @layer two { .x { font-family: ${mono}; } } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // A nested layer ranks with its top-level layer.
+        [
+            `@layer a, c; @layer a { @layer b { .x { font-family: ${mono}; } } } @layer c { .x { font-family: Roboto; } } .x { font-weight: 700; }`,
+            [],
         ],
     ]) {
         assert.deepEqual(report(source), expected, source);

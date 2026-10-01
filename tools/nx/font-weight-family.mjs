@@ -437,10 +437,15 @@ export function specificityOf(selector) {
         for (const simple of simplesOf(compound) ?? []) {
             const [, name, argument] = FUNCTIONAL.exec(simple) ?? [];
             let add = [0, 0, 0];
-            if (/^(?:is|not|has|matches)$/i.test(name ?? '')) {
-                add = selectorsOf(argument)
+            const of = /^nth-(?:last-)?child$/i.test(name ?? '')
+                ? /\sof\s+([\s\S]+)$/i.exec(argument)?.[1]
+                : undefined;
+            if (/^(?:is|not|has|matches)$/i.test(name ?? '') || of) {
+                add = selectorsOf(of ?? argument)
                     .map(specificityOf)
-                    .reduce((a, b) => (compare(a, b) >= 0 ? a : b), add);
+                    .reduce((a, b) => (compare(a, b) >= 0 ? a : b), [0, 0, 0]);
+                // `:nth-child(… of S)` is a pseudo-class as well as `S`.
+                if (of) add = [add[0], add[1] + 1, add[2]];
             } else if (/^where$/i.test(name ?? '') || simple === '*') {
                 add = [0, 0, 0];
             } else if (simple.startsWith('#')) add = [1, 0, 0];
@@ -477,8 +482,12 @@ function alternativesOf(simples) {
     let ways = [[]];
     for (const simple of simples) {
         const [, name, argument] = FUNCTIONAL.exec(simple) ?? [];
+        // Each argument opens in turn (`:is(:where(.x))` is `.x`).
         const options = /^(?:is|where|matches)$/i.test(name ?? '')
-            ? selectorsOf(argument).map((s) => simplesOf(s))
+            ? selectorsOf(argument).flatMap((s) => {
+                  const inner = simplesOf(s);
+                  return inner ? alternativesOf(inner) : [null];
+              })
             : [[simple]];
         if (options.some((option) => !option)) return [simples];
         ways = ways.flatMap((way) => options.map((o) => [...way, ...o]));
@@ -583,6 +592,24 @@ export function familiesOf(
             ? (includes.get(block.name) ?? [])
             : [];
     };
+    // Cascade layers in declared order: as `@layer a, b;` names them, or as
+    // a `@layer name { … }` block first appears (unnamed ones rank together,
+    // where the first appears).
+    const layers = new Map();
+    for (const match of lexed.text.matchAll(/@layer\b\s*([^{;]*)([{;])/gi)) {
+        if (inString(match.index)) continue;
+        const names = match[1].trim()
+            ? match[1].split(',').map((name) => name.trim())
+            : ['@layer'];
+        for (const name of names.filter(Boolean)) {
+            if (!layers.has(name)) layers.set(name, layers.size);
+        }
+    }
+    const layerOrder = (layer) => {
+        const top = layer.split('.')[0];
+        if (!layers.has(top)) layers.set(top, layers.size);
+        return layers.get(top);
+    };
     // A rule as compiled: its selector (`.p { &:hover {} }` is `.p:hover`,
     // `.w { .p .c {} }` is `.w .p .c`) and the context it applies in (its
     // at-rule wrappers and `@if`/`@each`); `null` for one without a style
@@ -592,19 +619,21 @@ export function familiesOf(
         const split = rule.lastIndexOf(' | ');
         const chain = rule.slice(0, split);
         let selector = '';
-        let layered = false;
+        let layer = null;
         const wrappers = [];
         for (const part of chain.split(' < ').reverse()) {
             // A cascade layer always applies; it only ranks (see `rankOf`).
-            if (/^@layer\b/i.test(part)) layered = true;
-            else if (part.startsWith('@')) wrappers.push(part);
+            if (/^@layer\b/i.test(part)) {
+                const name = part.replace(/^@layer\s*/i, '').trim() || part;
+                layer = layer ? `${layer}.${name}` : name;
+            } else if (part.startsWith('@')) wrappers.push(part);
             else if (part.includes('&'))
                 selector = part.replaceAll('&', selector);
             else selector = selector ? `${selector} ${part}` : part;
         }
         if (!selector) return null;
         const context = `${wrappers.join(' ; ')} | ${rule.slice(split + 3)}`;
-        return { selector: canonicalSelector(selector), context, layered };
+        return { selector: canonicalSelector(selector), context, layer };
     };
     // This file's `@extend`s, by the selector they extend: that rule's
     // declarations apply to the extending rule too, where they are written.
@@ -728,14 +757,17 @@ export function familiesOf(
         })
         .filter(({ ways }) => ways.length);
     // A declaration's place in the cascade: `!important`, then its layer
-    // (an unlayered one beats a layered one, `!important` the other way),
-    // then specificity, then source order.
-    const rankOf = (entry, { selector, layered }, order = 0) => [
-        entry.important ? 1 : 0,
-        entry.important === Boolean(layered) ? 1 : 0,
-        ...specificityOf(selector),
-        order,
-    ];
+    // (an unlayered one beats every layer, and of layers the later declared;
+    // `!important` turns both round), then specificity, then source order.
+    const rankOf = (entry, { selector, layer }, order = 0) => {
+        const at = layer == null ? layers.size : layerOrder(layer);
+        return [
+            entry.important ? 1 : 0,
+            entry.important ? layers.size - at : at,
+            ...specificityOf(selector),
+            order,
+        ];
+    };
     // The family an at-rule block (`@media` inside a rule) sets itself.
     const ownFamily = (block) => {
         const rules = rulesOf(block.start);
