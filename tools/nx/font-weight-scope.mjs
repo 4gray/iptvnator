@@ -1,5 +1,8 @@
 import path from 'node:path';
 
+const BOTH = { declarations: true, arguments: true };
+const DECLARATIONS = { declarations: true, arguments: false };
+
 /**
  * The files a Sass load can name, in Sass's resolution order. Bare targets
  * (`@use 'tokens'`) resolve next to the loading file first; package and
@@ -19,6 +22,20 @@ function candidates(from, specifier) {
     ];
 }
 
+/** `@use '../x/_tokens'` is namespaced `tokens` unless `as` renames it. */
+function namespaceOf({ target, as }) {
+    if (as) return as;
+    return path.posix
+        .basename(target)
+        .replace(/\.s?css$/, '')
+        .replace(/^_/, '');
+}
+
+function push(map, key, value) {
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(value);
+}
+
 function merge(scope, file, access) {
     const known = scope.get(file) ?? { declarations: false, arguments: false };
     scope.set(file, {
@@ -28,48 +45,84 @@ function merge(scope, file, access) {
 }
 
 /**
- * Which definitions a Sass variable used in a file can see, per file:
- * `declarations` (`$x: 1;` statements) and/or `arguments` (`$x: 1` inside a
- * mixin call or a `with (…)` configuration).
+ * Which definitions a Sass variable can resolve to, following the module
+ * system. `declarations` are `$x: 1;` statements; `arguments` are `$x: 1`
+ * inside a mixin call or a `with (…)` configuration.
  *
- * - The file itself: both.
- * - Files it loads, transitively: their declarations (module members).
- * - Files that load it: only the arguments they pass, since `@use` never
- *   injects the loader's own variables. A chain of legacy `@import`s is
- *   textual inclusion, so there the loader's declarations count too.
+ * `qualified(file, ns)` — `ns.$x`: the members of the module the file loads
+ * as `ns` (its declarations and, transitively, what it `@forward`s).
  *
- * Two files that only share a partial are never connected. `scans` carry
- * `file` and `loads` (`{ rule, target }`).
+ * `unqualified(file)` — `$x`, per file:
+ * - the file itself: both;
+ * - members of modules it loads `as *`, and files it `@import`s (textual
+ *   inclusion, transitively): their declarations;
+ * - files that load it: only the arguments they pass, since `@use` never
+ *   injects the loader's own variables. A chain of `@import`s is textual,
+ *   so there the loader's declarations count too.
+ *
+ * A namespaced `@use` adds nothing unqualified, and two files that only share
+ * a partial are never connected. Not traced: `@forward … as prefix-*`.
+ * `scans` carry `file` and `loads` (`{ rule, target, as }`).
  */
 export function sassScopes(scans) {
     const known = new Set(scans.map((scan) => scan.file));
-    const loads = new Map();
+    const edges = new Map();
     const loadedBy = new Map();
-    for (const { file, loads: targets = [] } of scans) {
-        for (const { rule, target } of targets) {
-            const loaded = candidates(file, target).find((c) => known.has(c));
+    for (const { file, loads = [] } of scans) {
+        for (const load of loads) {
+            const loaded = candidates(file, load.target).find((c) =>
+                known.has(c)
+            );
             if (!loaded) continue;
-            if (!loads.has(file)) loads.set(file, []);
-            loads.get(file).push(loaded);
-            if (!loadedBy.has(loaded)) loadedBy.set(loaded, []);
-            loadedBy.get(loaded).push({ file, textual: rule === 'import' });
+            const namespace = load.rule === 'use' ? namespaceOf(load) : null;
+            push(edges, file, { rule: load.rule, loaded, namespace });
+            push(loadedBy, loaded, { file, textual: load.rule === 'import' });
         }
     }
 
+    const membersCache = new Map();
+    const members = (module) => {
+        if (membersCache.has(module)) return membersCache.get(module);
+        const found = new Set([module]);
+        membersCache.set(module, found);
+        const stack = [module];
+        while (stack.length > 0) {
+            for (const edge of edges.get(stack.pop()) ?? []) {
+                if (edge.rule !== 'forward' || found.has(edge.loaded)) continue;
+                found.add(edge.loaded);
+                stack.push(edge.loaded);
+            }
+        }
+        return found;
+    };
+
+    const qualified = (file, namespace) => {
+        const files = new Set();
+        for (const edge of edges.get(file) ?? []) {
+            if (edge.rule !== 'use' || edge.namespace !== namespace) continue;
+            for (const member of members(edge.loaded)) files.add(member);
+        }
+        return files;
+    };
+
     const cache = new Map();
-    return (file) => {
+    const unqualified = (file) => {
         if (cache.has(file)) return cache.get(file);
-        const scope = new Map([
-            [file, { declarations: true, arguments: true }],
-        ]);
+        const scope = new Map([[file, BOTH]]);
         const down = [file];
-        const visitedDown = new Set(down);
+        const imported = new Set(down);
         while (down.length > 0) {
-            for (const next of loads.get(down.pop()) ?? []) {
-                merge(scope, next, { declarations: true, arguments: false });
-                if (!visitedDown.has(next)) {
-                    visitedDown.add(next);
-                    down.push(next);
+            for (const edge of edges.get(down.pop()) ?? []) {
+                if (edge.rule === 'use' && edge.namespace === '*') {
+                    for (const member of members(edge.loaded)) {
+                        merge(scope, member, DECLARATIONS);
+                    }
+                } else if (edge.rule === 'import') {
+                    merge(scope, edge.loaded, DECLARATIONS);
+                    if (!imported.has(edge.loaded)) {
+                        imported.add(edge.loaded);
+                        down.push(edge.loaded);
+                    }
                 }
             }
         }
@@ -93,4 +146,6 @@ export function sassScopes(scans) {
         cache.set(file, scope);
         return scope;
     };
+
+    return { qualified, unqualified };
 }

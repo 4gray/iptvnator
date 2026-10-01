@@ -44,13 +44,22 @@ export function stripScssComments(source) {
         .join('\n');
 }
 
-/** Every `@use`/`@forward`/`@import` target, with the rule that loads it. */
+/**
+ * Every `@use`/`@forward`/`@import` target, with the rule that loads it and
+ * any `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix).
+ */
 export function extractStylesheetLoads(source) {
     const loads = [];
     const stripped = stripScssComments(source);
     for (const [, rule, clause] of stripped.matchAll(STYLESHEET_RULE)) {
+        const as =
+            rule === 'import'
+                ? null
+                : (/\bas\s+(\*|[\w-]+\*?)/.exec(
+                      clause.replace(QUOTED_TARGET, ' ')
+                  )?.[1] ?? null);
         for (const target of targetsOfRule(rule, clause)) {
-            loads.push({ rule, target });
+            loads.push({ rule, target, as });
         }
     }
     return loads;

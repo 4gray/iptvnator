@@ -588,6 +588,76 @@ test('sees only what a loader passes into a loaded module', () => {
     assert.deepEqual(report([part, importer]), ['libs/g/g.scss:1 750']);
 });
 
+test('resolves a module member only through its namespace', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const a = scanWeights(
+        'libs/n/_a.scss',
+        '$heavy: 600; $font: 600 1rem sans-serif;'
+    );
+    const b = scanWeights(
+        'libs/n/_b.scss',
+        '$heavy: 650; $font: 750 1rem sans-serif;'
+    );
+    const uses = (body) =>
+        scanWeights('libs/n/n.scss', `@use 'a'; @use 'b'; ${body}`);
+
+    assert.deepEqual(report([a, b, uses('.x { font-weight: a.$heavy; }')]), []);
+    assert.deepEqual(report([a, b, uses('.x { font-weight: b.$heavy; }')]), [
+        'libs/n/_b.scss:1 650',
+    ]);
+    assert.deepEqual(report([a, b, uses('.y { font: italic b.$font; }')]), [
+        'libs/n/_b.scss:1 750',
+    ]);
+
+    const tokens = scanWeights('libs/m/_tokens.scss', '$heavy: 750;');
+    const star = scanWeights(
+        'libs/m/star.scss',
+        "@use 'tokens' as *; .x { font-weight: $heavy; }"
+    );
+    // A namespaced `@use` adds nothing unqualified (Sass would not compile).
+    const plain = scanWeights(
+        'libs/m/plain.scss',
+        "@use 'tokens'; .x { font-weight: $heavy; }"
+    );
+    assert.deepEqual(report([tokens, star]), ['libs/m/_tokens.scss:1 750']);
+    assert.deepEqual(report([tokens, plain]), []);
+});
+
+test('checks font-weight presentation attributes', () => {
+    const template = [
+        '<svg><text font-weight="650">a</text></svg>',
+        "<svg><text font-weight='600'>b</text></svg>",
+        '<svg><text [attr.font-weight]="600 + 50">c</text></svg>',
+        '<p [style.font-weight]="650">d</p>',
+    ].join('\n');
+    const component = `template: '<svg><text font-weight="750">x</text></svg>',`;
+
+    assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
+        '1 font-weight: 650',
+        '3 [attr.font-weight]: 600 + 50',
+        '4 [style.font-weight]: 650',
+    ]);
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 font-weight: 750',
+    ]);
+    // Server-side artwork in system Arial is not app UI.
+    assert.equal(
+        isScannedFile(
+            'apps/xtream-mock-server/src/app/generators/marketing.generator.ts'
+        ),
+        false
+    );
+    assert.equal(
+        isScannedFile(
+            'libs/shared/marketing-fixtures/src/lib/marketing-live-fixtures.ts'
+        ),
+        false
+    );
+});
+
 test('flags relative keywords, which can land off the scale', () => {
     const findings = findOffScaleWeights(
         'libs/a.scss',

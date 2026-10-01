@@ -27,8 +27,16 @@ import { sassScopes } from './font-weight-scope.mjs';
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
-/** The landing site ships a variable font, so any weight is a real one there. */
-const EXCLUDED_PREFIXES = ['apps/website/'];
+/**
+ * Not app UI: the landing site ships a variable font, so any weight is a real
+ * one there.
+ */
+const EXCLUDED_PREFIXES = [
+    'apps/website/',
+    // Server-side SVG artwork in system Arial, served as images.
+    'apps/xtream-mock-server/',
+    'libs/shared/marketing-fixtures/',
+];
 const STYLESHEET = /\.(s?css)$/;
 const SOURCE = /\.(ts|html)$/;
 
@@ -43,11 +51,13 @@ const STYLESHEET_WEIGHT = /(?<![\w$-])((?:\$|--)?[\w-]*weight)\s*:/gi;
 const SOURCE_WEIGHT =
     /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"]?\s*:/gi;
 const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/gi;
+/** A static HTML or SVG presentation attribute: `font-weight="650"`. */
+const ATTRIBUTE_WEIGHT = /(?<![\w$-])(font-weight)\s*=\s*(['"])(.*?)\2/gi;
 /** A custom property or Sass variable that a weight value may refer to. */
 const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
-/** Angular `[style.font-weight]` bindings, in a template or `host`. */
+/** Angular `[style.font-weight]`/`[attr.font-weight]` bindings (or `host`). */
 const CODE_BINDING =
-    /(\[style\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\2/g;
+    /(\[(?:style|attr)\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\2/g;
 /** DOM writes. `===` compares, so only a lone `=` (or `+=` and kin) assigns. */
 const CODE_ASSIGNMENT = /(\.style\.fontWeight)\s*(\*\*|[-+*/%])?=(?!=)/g;
 const CODE_SET_PROPERTY = /(setProperty\(\s*['"]font-weight['"])\s*,/gi;
@@ -62,7 +72,8 @@ const NUMBER = new RegExp(
     'gi'
 );
 const RELATIVE_KEYWORD = /\b(bolder|lighter)\b/gi;
-const REFERENCE = /var\(\s*(--[\w-]+)|(\$[\w-]+)/gi;
+/** `var(--x)`, `$x` or a module member `ns.$x`. */
+const REFERENCE = /var\(\s*(--[\w-]+)|(?:([\w-]+)\.)?(\$[\w-]+)/gi;
 /**
  * One token of a weight expression: a number (with any unit), an identifier
  * (opening a call when `(` follows), an operator or a parenthesis.
@@ -74,7 +85,7 @@ const EXPRESSION_TOKEN =
  * fallback), `$x` or an interpolated `#{$x}`.
  */
 const VARIABLE_TOKEN =
-    /^(?:var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)|(\$[\w-]+)|#\{\s*(\$[\w-]+)\s*\})$/i;
+    /^(?:var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)|(?:([\w-]+)\.)?(\$[\w-]+)|#\{\s*(?:([\w-]+)\.)?(\$[\w-]+)\s*\})$/i;
 
 export function isScannedFile(file) {
     const normalized = file.split(path.sep).join('/');
@@ -157,9 +168,11 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
             const tail = Math.min(tokens.length - 1 - index + after, 2);
             const variable = VARIABLE_TOKEN.exec(token);
             if (variable) {
-                const [, custom, fallback, sass, interpolated] = variable;
+                const [, custom, fallback, ns, sass, innerNs, interpolated] =
+                    variable;
                 const name = identity(custom ?? sass ?? interpolated);
-                references.push({ name, mode: 'font', after: tail });
+                const namespace = ns ?? innerNs ?? null;
+                references.push({ name, namespace, mode: 'font', after: tail });
                 const inner = analyse('font', fallback ?? '', { after: tail });
                 terms.push(...inner.terms);
                 references.push(...inner.references);
@@ -188,7 +201,8 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
                   (term) => ({ value: term })
               ),
         references: [...value.matchAll(REFERENCE)].map((match) => ({
-            name: identity(match[1] ?? match[2]),
+            name: identity(match[1] ?? match[3]),
+            namespace: match[2] ?? null,
             mode: 'weight',
         })),
     };
@@ -236,6 +250,9 @@ export function scanWeights(file, source) {
     if (!stylesheet) {
         // Code expressions carry other numbers too; a weight is 100 or more.
         const code = { minimum: 100, code: true };
+        for (const match of text.matchAll(ATTRIBUTE_WEIGHT)) {
+            record(match[1], match.index, analyse('weight', match[3]));
+        }
         for (const match of text.matchAll(CODE_BINDING)) {
             record(match[1], match.index, analyse('weight', match[3], code));
         }
@@ -294,19 +311,28 @@ export function scanWeights(file, source) {
 export function findIndirectWeights(scans) {
     const definitions = scans.flatMap((scan) => scan.definitions);
     const pending = scans.flatMap((scan) => scan.references);
-    const scopeOf = sassScopes(scans);
+    const { qualified, unqualified } = sassScopes(scans);
     const followed = new Set();
     const findings = [];
     while (pending.length > 0) {
-        const { name, mode, after = 0, file } = pending.pop();
+        const { name, mode, after = 0, file, namespace } = pending.pop();
         const sass = name.startsWith('$');
-        const key = `${mode} ${after} ${sass ? file : ''} ${name}`;
+        const origin = sass ? `${file} ${namespace ?? ''}` : '';
+        const key = `${mode} ${after} ${origin} ${name}`;
         if (followed.has(key)) continue;
         followed.add(key);
+        const members = sass && namespace ? qualified(file, namespace) : null;
+        const scope = sass && !namespace ? unqualified(file) : null;
         for (const definition of definitions) {
             if (definition.key !== name) continue;
-            if (sass) {
-                const access = scopeOf(file).get(definition.file);
+            if (
+                members &&
+                (definition.argument || !members.has(definition.file))
+            ) {
+                continue;
+            }
+            if (scope) {
+                const access = scope.get(definition.file);
                 const visible = definition.argument
                     ? access?.arguments
                     : access?.declarations;
