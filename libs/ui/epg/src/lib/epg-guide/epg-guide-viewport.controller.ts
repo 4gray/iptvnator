@@ -2,7 +2,7 @@ import { ListRange } from '@angular/cdk/collections';
 import { DestroyRef } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { first } from 'rxjs';
+import { filter, take } from 'rxjs';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EpgGuideFocus } from './epg-guide-keyboard.controller';
 import { EPG_GUIDE_ROW_BUFFER } from './epg-guide-layout.util';
@@ -115,7 +115,11 @@ export class EpgGuideViewportController {
     ): void {
         viewport.renderedRangeStream
             .pipe(
-                first((range) => range.end > range.start),
+                // Not `first(predicate)`: the CDK completes the stream on
+                // destroy, and a guide closed without ever having rows would
+                // then raise an `EmptyError`.
+                filter((range) => range.end > range.start),
+                take(1),
                 takeUntilDestroyed(destroyRef)
             )
             .subscribe(() => callback());

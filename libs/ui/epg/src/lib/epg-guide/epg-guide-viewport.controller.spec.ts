@@ -1,7 +1,7 @@
 import { ListRange } from '@angular/cdk/collections';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { DestroyRef } from '@angular/core';
-import { Subject } from 'rxjs';
+import { config, Subject } from 'rxjs';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EPG_GUIDE_ROW_BUFFER } from './epg-guide-layout.util';
 import { EpgGuideChannel } from './epg-guide-source';
@@ -218,6 +218,32 @@ describe('EpgGuideViewportController', () => {
         test.renderedRange$.next({ start: 0, end: 12 });
         test.renderedRange$.next({ start: 4, end: 16 });
         expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes cleanly when the viewport completes without ever rendering rows', async () => {
+        const test = harness();
+        const callback = jest.fn();
+        const onUnhandledError = jest.fn();
+        const previous = config.onUnhandledError;
+        config.onUnhandledError = onUnhandledError;
+        try {
+            test.controller.whenRowsRendered(
+                test.viewport,
+                test.destroyRef,
+                callback
+            );
+            // An empty scope: the CDK only ever reports an empty range, then
+            // completes the stream when the guide closes.
+            test.renderedRange$.next({ start: 0, end: 0 });
+            test.renderedRange$.complete();
+            // RxJS reports unhandled errors from a timeout.
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        } finally {
+            config.onUnhandledError = previous;
+        }
+
+        expect(onUnhandledError).not.toHaveBeenCalled();
+        expect(callback).not.toHaveBeenCalled();
     });
 
     it('drops the initial jump when the host is destroyed first', () => {
