@@ -26,9 +26,12 @@ export function declarationText({ text, quoteAt }, start) {
     return { value: text.slice(start, end), selector: text[end] === '{' };
 }
 
-/** A `font` size, alone or with its `/line-height`. */
+/**
+ * A `font` size, alone or with its `/line-height`: a length or percentage
+ * (a unitless number is a weight, `0` aside), a keyword or a function.
+ */
 const FONT_SIZE =
-    /^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[a-z]+|%)?|(?:xx?x?-)?(?:small|large)|medium|smaller|larger|[a-z-]+\(.*\))(?:\/.*)?$/i;
+    /^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[a-z]+|%)|0|(?:xx?x?-)?(?:small|large)|medium|smaller|larger|[a-z-]+\(.*\))(?:\/.*)?$/i;
 /** `font` values that parse without a size and a family. */
 const FONT_KEYWORD =
     /^(?:inherit|initial|unset|revert|revert-layer|caption|icon|menu|message-box|small-caption|status-bar)$/i;
@@ -48,6 +51,39 @@ export function parsesAsFont(value) {
         .slice(size + 1)
         .some((token) => token !== '/' && !/^[\d.]/.test(token));
     return size !== -1 && family;
+}
+
+/** Families that always resolve: the app's bundled faces and generics. */
+const ALWAYS_THERE =
+    /^(?:dm sans|roboto|serif|sans-serif|monospace|cursive|fantasy|system-ui|math|emoji|fangsong)$/i;
+
+/**
+ * Whether JetBrains Mono can render a family list: it is named before any
+ * family that always resolves (a bundled face such as Roboto, or a generic
+ * such as `monospace`). A face only some systems have (`ui-monospace`,
+ * `'SF Mono'`) leaves it in play. In a `font` shorthand the list follows
+ * the size and its `/line-height`.
+ */
+export function rendersMono(value, { shorthand = false } = {}) {
+    let list = value.replace(/!important\b/i, '');
+    if (shorthand) {
+        const tokens = tokensOf(list);
+        const size = tokens.findIndex((token) => FONT_SIZE.test(token));
+        if (size === -1) return false;
+        let rest = tokens.slice(size + 1);
+        if (rest[0] === '/') rest = rest.slice(2);
+        else if (rest[0]?.startsWith('/')) rest = rest.slice(1);
+        list = rest.join(' ');
+    }
+    for (const family of list.split(',')) {
+        const name = family
+            .trim()
+            .replace(/^(['"])(.*)\1$/, '$2')
+            .replace(/\s+/g, ' ');
+        if (MONO_FAMILY.test(name)) return true;
+        if (ALWAYS_THERE.test(name)) return false;
+    }
+    return false;
 }
 
 /**
@@ -163,10 +199,12 @@ export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
         const important = /!important\b/i.test(value);
         if (family.get(place.scope)?.important && !important) continue;
         const parts = familyParts(value);
+        const shorthand = match[1].toLowerCase() === 'font';
         family.set(place.scope, {
             important,
             inherit: /^\s*(?:inherit|unset)\b/i.test(value),
-            mono: MONO_FAMILY.test(parts.outside),
+            mono: rendersMono(parts.outside, { shorthand }),
+            shorthand,
             refs: refsIn(parts, match.index, place),
             // The whole family and where it sits, to resolve it later.
             text: value,

@@ -254,6 +254,32 @@ test('reads a TypeScript style object value as code', () => {
     );
 });
 
+test('treats JetBrains Mono after an always-available family as a fallback', () => {
+    const source = [
+        ".a { font: 700 16px Roboto, 'JetBrains Mono'; }",
+        ".b { font-family: monospace, 'JetBrains Mono'; font-weight: 700; }",
+        ".c { font-family: 'SF Mono', 'JetBrains Mono'; font-weight: 700; }",
+        ".d { font: 700 12px/1.4 'JetBrains Mono'; }",
+        ".e { font: 700 12px / 1.4 'JetBrains Mono'; }",
+        ".f { font: 700 12px / 1.4 Roboto, 'JetBrains Mono'; }",
+        ".g { font: 700 12px /1.4 Roboto, 'JetBrains Mono'; }",
+        ".h { font-family: 'Roboto', 'JetBrains Mono'; font-weight: 700; }",
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/m6/a.scss', source).sort(), [
+        '3 font-weight: 700',
+        '4 font: 700',
+        '5 font: 700',
+    ]);
+    assert.deepEqual(
+        offScale(
+            'apps/web/src/a.component.html',
+            `<div style="font: 700 16px Roboto, 'JetBrains Mono'"></div>`
+        ),
+        []
+    );
+});
+
 test('caps inline JetBrains Mono declarations', () => {
     const template = [
         `<div style="font: 700 16px 'JetBrains Mono'"></div>`,
@@ -316,6 +342,16 @@ test('reads a feature query test as a condition, not a declaration', () => {
     assert.deepEqual(offScale('libs/q3/a.scss', source), [
         '6 $title-weight: 650',
     ]);
+});
+
+test('reads an interpolated name every way it can compose', () => {
+    assert.deepEqual(
+        offScale(
+            'libs/q3/c.scss',
+            '$prop: font; @if $dark { $prop: font-weight; } .x { #{$prop}: 750; }'
+        ),
+        ['1 #{$prop}: 750']
+    );
 });
 
 test('checks property names Sass builds by interpolation', () => {
@@ -1044,6 +1080,7 @@ test('checks HostBinding style weights', () => {
         "@HostBinding('style.fontWeight') get named() { function pick() { return 900; } return 600; }",
         "@HostBinding('style.font') f = '650 12px x';",
         "@HostBinding('style.fontWeight') get inIf() { if (this.on) { return 750; } return 600; }",
+        "@HostBinding('style.fontWeight') get typed() { function pick(): number { return 900; } return 600; }",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [

@@ -22,7 +22,6 @@ import {
     valueAfter,
 } from './font-weight-lexer.mjs';
 import {
-    MONO_FAMILY,
     MONO_WEIGHT_CAP,
     declarationText,
     familiesOf,
@@ -30,6 +29,7 @@ import {
     parsesAsFont,
     plainHost,
     reachesEverything,
+    rendersMono,
 } from './font-weight-family.mjs';
 import {
     effectiveDeclarations,
@@ -398,8 +398,11 @@ function composedNames(name, valuesOf) {
  * parameter list that no `if`/`for`/`while`/`switch`/`catch` owns.
  */
 function opensFunction(text, brace) {
-    const before = text.slice(0, brace).trimEnd();
+    let before = text.slice(0, brace).trimEnd();
     if (before.endsWith('=>')) return true;
+    // A TypeScript return type sits between the parameters and the body.
+    const typed = /\)\s*:\s*[\w$.<>[\]|&,\s]+$/.exec(before);
+    if (typed) before = before.slice(0, typed.index + 1);
     if (!before.endsWith(')')) return false;
     let depth = 0;
     let k = before.length - 1;
@@ -428,7 +431,8 @@ function familyInCss(css) {
         if (property.toLowerCase() === 'font' && !parsesAsFont(value)) continue;
         const important = /!important\b/i.test(value);
         if (effective?.important && !important) continue;
-        effective = { important, mono: MONO_FAMILY.test(value) };
+        const shorthand = property.toLowerCase() === 'font';
+        effective = { important, mono: rendersMono(value, { shorthand }) };
     }
     return effective?.mono ?? false;
 }
@@ -471,7 +475,8 @@ function analyseCode(expression, mode = 'weight', after = 0, cap = null) {
         // A shorthand template reads as CSS, its `${…}` an opaque token.
         if (literal && (mode === 'font' || !literal[2].includes('${'))) {
             // A shorthand that names JetBrains Mono meets its cap.
-            const mono = mode === 'font' && MONO_FAMILY.test(literal[2]);
+            const mono =
+                mode === 'font' && rendersMono(literal[2], { shorthand: true });
             const capHere = mono ? MONO_WEIGHT_CAP : cap;
             return analyse(mode, literal[2], { after, cap: capHere });
         }
@@ -666,6 +671,7 @@ export function scanWeights(file, source) {
                 deferred.push({
                     ...{ file, line: lineOf(match.index), name },
                     family: family.text,
+                    shorthand: family.shorthand,
                     at: {
                         ...{ ...family.at, file },
                         guards: guardsAt(family.at.index),
@@ -875,15 +881,31 @@ export function scanWeights(file, source) {
     for (const match of stylesheet ? text.matchAll(INTERPOLATED_NAME) : []) {
         if (inString(match.index) || inPrelude(match.index)) continue;
         if (/weight$/i.test(match[1])) continue;
-        const name = composedNames(match[1], (variable) =>
-            valuesAt(variable, match.index)
-        ).find((candidate) => WEIGHT_NAME.test(candidate));
-        if (!name) continue;
+        // A name that can compose to several (`font` or `font-weight`) is
+        // read every way it can.
+        const modes = new Set(
+            composedNames(match[1], (variable) =>
+                valuesAt(variable, match.index)
+            )
+                .filter((candidate) => WEIGHT_NAME.test(candidate))
+                .map((candidate) =>
+                    candidate.toLowerCase() === 'font' ? 'font' : 'weight'
+                )
+        );
+        if (modes.size === 0) continue;
         const end = match.index + match[0].length;
         const { value, selector } = valueAfter(lexed, end);
         if (selector) continue;
-        const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
-        record(match[1], match.index, analyse(mode, value));
+        const analyses = [...modes].map((mode) => analyse(mode, value));
+        const terms = new Map(
+            analyses
+                .flatMap((analysis) => analysis.terms)
+                .map((term) => [JSON.stringify(term), term])
+        );
+        record(match[1], match.index, {
+            terms: [...terms.values()],
+            references: analyses.flatMap((analysis) => analysis.references),
+        });
     }
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
     const calls = callSitesOf(text, blocks);
@@ -1237,13 +1259,10 @@ export function findIndirectWeights(scans) {
             familyIsMono(definition.full ?? definition.value, definition, seen)
         );
     };
-    const familyIsMono = (text, at, seen) => {
+    const familyIsMono = (text, at, seen, shorthand = false) => {
         const parts = familyParts(text);
-        if (MONO_FAMILY.test(parts.outside)) return true;
-        const whole = composedFamilies(text, at);
-        if (whole.some((t) => MONO_FAMILY.test(familyParts(t).outside))) {
-            return true;
-        }
+        const mono = (t) => rendersMono(familyParts(t).outside, { shorthand });
+        if (mono(text) || composedFamilies(text, at).some(mono)) return true;
         return familyRefs(parts, at).some((ref) => namesMono(ref, seen));
     };
     // A family Sass assembles from variables (`'#{$prefix} Mono'`, `$a $b`),
@@ -1283,7 +1302,8 @@ export function findIndirectWeights(scans) {
     const followed = new Set();
     const findings = [];
     for (const candidate of scans.flatMap((scan) => scan.deferred ?? [])) {
-        if (!familyIsMono(candidate.family, candidate.at, new Set())) continue;
+        const { family, at, shorthand } = candidate;
+        if (!familyIsMono(family, at, new Set(), shorthand)) continue;
         const { file, line, name } = candidate;
         findings.push(
             ...candidate.terms.map((term) => ({ file, line, name, ...term }))
