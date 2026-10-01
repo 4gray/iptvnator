@@ -1153,6 +1153,82 @@ test('runs a call inside a mixin body where that mixin runs', () => {
     ]);
 });
 
+test('follows members forwarded under a prefix', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const base = scanWeights('libs/f2/_base.scss', '$heavy: 650;');
+    const bundle = scanWeights(
+        'libs/f2/_bundle.scss',
+        "@forward 'base' as prefix-*;"
+    );
+    const outer = scanWeights(
+        'libs/f2/_outer.scss',
+        "@forward 'bundle' as o-*;"
+    );
+    const user = (body) => scanWeights('libs/f2/user.scss', body);
+
+    assert.deepEqual(
+        report([
+            base,
+            bundle,
+            user("@use 'bundle'; .x { font-weight: bundle.$prefix-heavy; }"),
+        ]),
+        ['libs/f2/_base.scss:1 650']
+    );
+    assert.deepEqual(
+        report([
+            base,
+            bundle,
+            outer,
+            user("@use 'outer'; .x { font-weight: outer.$o-prefix-heavy; }"),
+        ]),
+        ['libs/f2/_base.scss:1 650']
+    );
+    // The forward exposes only the prefixed name.
+    assert.deepEqual(
+        report([
+            base,
+            bundle,
+            user("@use 'bundle'; .x { font-weight: bundle.$heavy; }"),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            base,
+            bundle,
+            user("@use 'bundle' as *; .x { font-weight: $prefix-heavy; }"),
+        ]),
+        ['libs/f2/_base.scss:1 650']
+    );
+});
+
+test('renders an imported rule where the @import sits', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const part = scanWeights(
+        'libs/g2/_part.scss',
+        '$w: 600 !default; .g { font-weight: $w; }'
+    );
+    const importer = scanWeights('libs/g2/i.scss', "@import 'part'; $w: 650;");
+    // A partial's mixin runs when called, after the importer's assignment.
+    const mixin = scanWeights(
+        'libs/g2/_mix.scss',
+        '@mixin m { font-weight: $w; }'
+    );
+    const caller = scanWeights(
+        'libs/g2/c.scss',
+        "@import 'mix'; $w: 650; .x { @include m; }"
+    );
+
+    assert.deepEqual(report([part, importer]), []);
+    assert.deepEqual(report([mixin, caller]), ['libs/g2/c.scss:1 650']);
+});
+
 test('blanks every `//` comment in TypeScript', () => {
     const component = [
         'call(// font-weight: 650 was removed',

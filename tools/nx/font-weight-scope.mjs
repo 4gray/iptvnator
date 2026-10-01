@@ -1,10 +1,18 @@
 import path from 'node:path';
 
-const BOTH = Object.freeze({ declarations: true, arguments: true, ranges: [] });
+const BOTH = Object.freeze({
+    declarations: true,
+    arguments: true,
+    ranges: [],
+    before: Infinity,
+    prefixes: [''],
+});
 const DECLARATIONS = Object.freeze({
     declarations: true,
     arguments: false,
     ranges: [],
+    before: Infinity,
+    prefixes: [''],
 });
 
 /**
@@ -45,11 +53,16 @@ function merge(scope, file, access) {
         declarations: false,
         arguments: false,
         ranges: [],
+        before: -Infinity,
+        prefixes: new Set(),
     };
     scope.set(file, {
         declarations: known.declarations || access.declarations,
         arguments: known.arguments || access.arguments,
         ranges: [...known.ranges, ...(access.ranges ?? [])],
+        // A file can count only up to a position (an `@import` of it).
+        before: Math.max(known.before, access.before ?? Infinity),
+        prefixes: new Set([...known.prefixes, ...(access.prefixes ?? [''])]),
     });
 }
 
@@ -76,7 +89,9 @@ function merge(scope, file, access) {
  *   the loader's declarations count too.
  *
  * A namespaced `@use` adds nothing unqualified, and two files that only share
- * a partial are never connected. Not traced: `@forward … as prefix-*`.
+ * a partial are never connected. Members carry the `prefixes` a
+ * `@forward … as prefix-*` chain exposes them under, and a textual importer
+ * counts only `before` its `@import`.
  * `scans` carry `file` and `loads` (`{ rule, target, as, configuration }`).
  */
 export function sassScopes(scans) {
@@ -91,33 +106,51 @@ export function sassScopes(scans) {
             if (!loaded) continue;
             const namespace = load.rule === 'use' ? namespaceOf(load) : null;
             const ranges = load.configuration ? [load.configuration] : [];
+            // `@forward 'x' as btn-*` exposes `$v` as `$btn-v`.
+            const prefix =
+                load.rule === 'forward' && load.as?.endsWith('*')
+                    ? load.as.slice(0, -1)
+                    : '';
             push(edges, file, {
-                ...{ rule: load.rule, loaded, namespace, ranges },
+                ...{ rule: load.rule, loaded, namespace, ranges, prefix },
                 index: load.index,
             });
             push(loadedBy, loaded, {
                 file,
                 textual: load.rule === 'import',
                 ranges,
+                index: load.index,
             });
         }
     }
 
     // A module's members, each with where a forwarding `with (…)` sits.
     const membersCache = new Map();
+    // Each member also carries the prefixes it is exposed under: a chain
+    // `as p-*` then `as q-*` exposes `$v` as `$p-q-v`.
     const members = (module) => {
         if (membersCache.has(module)) return membersCache.get(module);
-        const found = new Map([[module, []]]);
+        const found = new Map([
+            [module, { ranges: [], prefixes: new Set(['']) }],
+        ]);
         membersCache.set(module, found);
-        const stack = [module];
+        const stack = [{ file: module, prefix: '' }];
+        const seen = new Set([`${module} `]);
         while (stack.length > 0) {
-            const current = stack.pop();
+            const { file: current, prefix } = stack.pop();
             for (const edge of edges.get(current) ?? []) {
                 if (edge.rule !== 'forward') continue;
-                found.get(current).push(...edge.ranges);
-                if (found.has(edge.loaded)) continue;
-                found.set(edge.loaded, []);
-                stack.push(edge.loaded);
+                found.get(current).ranges.push(...edge.ranges);
+                const exposed = prefix + edge.prefix;
+                if (!found.has(edge.loaded)) {
+                    found.set(edge.loaded, { ranges: [], prefixes: new Set() });
+                }
+                found.get(edge.loaded).prefixes.add(exposed);
+                const key = `${edge.loaded} ${exposed}`;
+                // A forwarding cycle with prefixes would grow without end.
+                if (seen.has(key) || exposed.length > 200) continue;
+                seen.add(key);
+                stack.push({ file: edge.loaded, prefix: exposed });
             }
         }
         return found;
@@ -125,20 +158,22 @@ export function sassScopes(scans) {
 
     const qualified = (file, namespace) => {
         const scope = new Map();
-        const add = (target, declarations, ranges) => {
+        const add = (target, declarations, ranges, prefixes = ['']) => {
             const known = scope.get(target) ?? {
                 declarations: false,
                 ranges: [],
+                prefixes: new Set(),
             };
             known.ranges.push(...ranges);
+            for (const prefix of prefixes) known.prefixes.add(prefix);
             known.declarations ||= declarations;
             scope.set(target, known);
         };
         for (const edge of edges.get(file) ?? []) {
             if (edge.rule !== 'use' || edge.namespace !== namespace) continue;
             add(file, false, edge.ranges);
-            for (const [member, ranges] of members(edge.loaded)) {
-                add(member, true, ranges);
+            for (const [member, { ranges, prefixes }] of members(edge.loaded)) {
+                add(member, true, ranges, prefixes);
             }
         }
         return scope;
@@ -156,11 +191,14 @@ export function sassScopes(scans) {
                 if (edge.rule === 'use' && edge.namespace === '*') {
                     // Its `with (…)` configures what the loading file reads.
                     merge(scope, current, { ...BOTH, ranges: edge.ranges });
-                    for (const [member, ranges] of members(edge.loaded)) {
+                    for (const [member, { ranges, prefixes }] of members(
+                        edge.loaded
+                    )) {
                         merge(scope, member, {
                             ...DECLARATIONS,
                             arguments: ranges.length > 0,
                             ranges,
+                            prefixes,
                         });
                     }
                 } else if (edge.rule === 'import') {
@@ -178,10 +216,13 @@ export function sassScopes(scans) {
             const current = up.pop();
             for (const loader of loadedBy.get(current.file) ?? []) {
                 const textual = current.textual && loader.textual;
+                // A textual importer's code before the `@import` has run when
+                // the imported file's rules render; what follows has not.
                 merge(scope, loader.file, {
                     declarations: textual,
                     arguments: true,
                     ranges: loader.ranges,
+                    before: textual ? loader.index : Infinity,
                 });
                 const key = `${loader.file} ${textual}`;
                 if (!visitedUp.has(key)) {

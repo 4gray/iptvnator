@@ -26,8 +26,9 @@ import { effectiveDeclarations, sassScopes } from './font-weight-scope.mjs';
  *
  * Sass is not compiled, so a weight must be written, not computed: arithmetic
  * and functions other than `var()` are findings in themselves. Variables are
- * followed by name. Not traced: positional mixin or function arguments and
- * `@function` return values, so pass weights as named `$…weight` arguments.
+ * followed by name, through `@forward … as prefix-*` too. Not traced:
+ * positional mixin or function arguments and `@function` return values, so
+ * pass weights as named `$…weight` arguments.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
@@ -418,6 +419,18 @@ export function findIndirectWeights(scans) {
     const pending = scans.flatMap((scan) => scan.references);
     const { qualified, unqualified, imports } = sassScopes(scans);
     const callsByFile = new Map(scans.map((scan) => [scan.file, scan.calls]));
+    // Whether `definition` is what `name` reads: by its own name, or for a
+    // Sass member forwarded `as prefix-*`, by that prefixed name.
+    const exposedAs = (definition, access, name) => {
+        const prefixes = name.startsWith('$')
+            ? access?.get(definition.file)?.prefixes
+            : null;
+        if (!prefixes) return definition.key === name;
+        return [...prefixes].some(
+            (prefix) =>
+                identity(`$${prefix}${definition.key.slice(1)}`) === name
+        );
+    };
     // Whether the callable an argument is passed to is defined in `file`:
     // `ns.name(` must load `file` (or a module forwarding it) as `ns`; a bare
     // `name(` is defined in the caller itself or in what it brings in.
@@ -492,7 +505,7 @@ export function findIndirectWeights(scans) {
             : null;
         const picked = new Set(own?.picked.map((d) => d.original ?? d));
         for (const definition of definitions) {
-            if (definition.key !== name) continue;
+            if (!exposedAs(definition, members ?? scope, name)) continue;
             if (sass && !definition.argument && !picked.has(definition)) {
                 if (definition.file === file && !members) continue;
                 // Other modules see only top-level (or `!global`) members.
@@ -518,9 +531,14 @@ export function findIndirectWeights(scans) {
                     ([start, end]) =>
                         definition.index >= start && definition.index < end
                 );
+                // A textual importer's later code has not run when this
+                // file's rules render, unless they sit in a mixin body.
+                const ran =
+                    reference.inCallable ||
+                    definition.index < (access?.before ?? Infinity);
                 const visible = definition.argument
                     ? access?.arguments && (passed || configured)
-                    : access?.declarations;
+                    : access?.declarations && ran;
                 if (!visible) continue;
             }
             const analysis = definition.code
