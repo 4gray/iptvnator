@@ -117,13 +117,10 @@
         visibility 0s linear 220ms;
 }
 
-// The controls' glass fill over the video. The panel carries `dark-theme` for its tokens, and the app's global
-// `.dark-theme { background: var(--mat-sys-surface) !important }`
-// (apps/web/src/styles.scss) would replace this gradient with the flat
-// surface — or with no background at all where that token is not defined —
-// so the compound selector and `!important` are required to out-rank it.
+// The controls' glass fill over the video. The panel carries `dark-theme` for
+// its tokens only; the app's dark surface is scoped to body.dark-theme.
 .fullscreen-channel-panel.dark-theme {
-    background: rgba(12, 16, 23, 0.72) !important;
+    background: rgba(12, 16, 23, 0.72);
 }
 
 .fullscreen-channel-panel--open {

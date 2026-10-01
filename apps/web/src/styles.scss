@@ -164,8 +164,14 @@ textarea,
 }
 
 // ─── Dark Theme ───────────────────────────────────────────────────────────────
-.dark-theme {
+// Only the app host takes the dark surface: components such as the fullscreen
+// channel panel and the playback diagnostic's alternative sources carry
+// `dark-theme` for its tokens while painting their own surfaces.
+body.dark-theme {
     background: var(--mat-sys-surface) !important;
+}
+
+.dark-theme {
     color-scheme: dark;
 
     // Refined scrollbar for dark mode

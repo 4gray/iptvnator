@@ -46,6 +46,18 @@ async function outlineContrast(
     }, fillSelector);
 }
 
+/** Resolves a CSS color (including var() and color-mix()) to rgb()/rgba(). */
+async function resolveColor(page: Page, value: string): Promise<string> {
+    return page.evaluate((css) => {
+        const probe = document.createElement('div');
+        probe.style.color = css;
+        document.body.appendChild(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+    }, value);
+}
+
 async function systemVariable(page: Page, name: string): Promise<string> {
     return page.evaluate(
         (variable) =>
@@ -86,6 +98,30 @@ test.describe('Theme tokens', () => {
                     page,
                     '--mat-sys-surface'
                 );
+
+                // The dark surface belongs to the app host. Components that
+                // carry `dark-theme` for its tokens (the fullscreen channel
+                // panel, the diagnostic's alternative sources) keep their own.
+                const backgrounds = await page.evaluate(() => {
+                    const nested = document.createElement('div');
+                    nested.className = 'dark-theme';
+                    nested.style.background = 'rgb(22, 27, 36)';
+                    document.body.appendChild(nested);
+                    const result = {
+                        nested: getComputedStyle(nested).backgroundColor,
+                        body: getComputedStyle(document.body).backgroundColor,
+                    };
+                    nested.remove();
+                    return result;
+                });
+                expect(backgrounds.nested, `nested in ${theme} theme`).toBe(
+                    'rgb(22, 27, 36)'
+                );
+                if (theme === 'dark') {
+                    expect(backgrounds.body).toBe(
+                        await resolveColor(page, 'var(--mat-sys-surface)')
+                    );
+                }
 
                 // Form-field overrides must reach Material's --mat-* tokens
                 // (the retired --mdc-* names were ignored): the outline takes
