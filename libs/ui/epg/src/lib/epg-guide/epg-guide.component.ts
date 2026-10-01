@@ -229,11 +229,18 @@ export class EpgGuideComponent implements OnDestroy {
             if (!viewport) {
                 return;
             }
-            untracked(() =>
-                this.viewportController.watch(viewport, this.destroyRef)
-            );
+            untracked(() => {
+                this.viewportController.watch(viewport, this.destroyRef);
+                this.viewportController.whenRowsRendered(
+                    viewport,
+                    this.destroyRef,
+                    () =>
+                        afterNextRender(() => this.jumpNow(false), {
+                            injector: this.injector,
+                        })
+                );
+            });
         });
-        afterNextRender(() => this.jumpNow(false));
     }
 
     ngOnDestroy(): void {

@@ -2,6 +2,7 @@ import { ListRange } from '@angular/cdk/collections';
 import { DestroyRef } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { first } from 'rxjs';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EpgGuideFocus } from './epg-guide-keyboard.controller';
 import { EPG_GUIDE_ROW_BUFFER } from './epg-guide-layout.util';
@@ -9,7 +10,7 @@ import {
     guideBlockRevealScrollLeft,
     guideNowScrollLeft,
     guideRowNeedsReveal,
-    scrollElementLeft,
+    scrollElementTo,
 } from './epg-guide-scroll.util';
 import { EpgGuideChannel } from './epg-guide-source';
 
@@ -99,6 +100,27 @@ export class EpgGuideViewportController {
         this.host.ensureLoaded(rows.slice(start, end));
     }
 
+    /**
+     * Call `callback` once, when the viewport first reports rows to render.
+     * The CDK attaches its scroll strategy a microtask after init and renders
+     * rows in a later pass, so a scroll issued on the guide's first render
+     * finds neither content width nor height and is clamped to the top-left —
+     * the guide then opened at midnight. The callback still has to wait for
+     * that render (`afterNextRender`) before it scrolls.
+     */
+    whenRowsRendered(
+        viewport: CdkVirtualScrollViewport,
+        destroyRef: DestroyRef,
+        callback: () => void
+    ): void {
+        viewport.renderedRangeStream
+            .pipe(
+                first((range) => range.end > range.start),
+                takeUntilDestroyed(destroyRef)
+            )
+            .subscribe(() => callback());
+    }
+
     /** Put the now-line into view, and the playing channel's row with it. */
     scrollToNow(nowLeftPx: number | null, animate: boolean): void {
         const viewport = this.host.viewport();
@@ -106,22 +128,25 @@ export class EpgGuideViewportController {
             return;
         }
         const element = viewport.elementRef.nativeElement;
-        scrollElementLeft(
+        const activeRow = this.host.activeRow();
+        scrollElementTo(
             element,
-            guideNowScrollLeft(
-                element.clientWidth,
-                nowLeftPx,
-                this.host.channelColumnPx()
-            ),
+            {
+                left: guideNowScrollLeft(
+                    element.clientWidth,
+                    nowLeftPx,
+                    this.host.channelColumnPx()
+                ),
+                // The fixed-size strategy's `scrollToIndex` offset, applied in
+                // the same call as the horizontal one (see `scrollElementTo`).
+                top:
+                    activeRow >= 0
+                        ? Math.max(0, activeRow - ACTIVE_ROW_MARGIN) *
+                          this.host.rowHeightPx()
+                        : undefined,
+            },
             animate
         );
-        const activeRow = this.host.activeRow();
-        if (activeRow >= 0) {
-            viewport.scrollToIndex(
-                Math.max(0, activeRow - ACTIVE_ROW_MARGIN),
-                animate ? 'smooth' : 'auto'
-            );
-        }
     }
 
     /**
@@ -170,7 +195,7 @@ export class EpgGuideViewportController {
                 this.host.channelColumnPx()
             );
         if (typeof left === 'number') {
-            scrollElementLeft(element, left, true);
+            scrollElementTo(element, { left }, true);
         }
     }
 }

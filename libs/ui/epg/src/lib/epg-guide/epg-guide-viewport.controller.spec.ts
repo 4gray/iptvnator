@@ -173,21 +173,65 @@ describe('EpgGuideViewportController', () => {
         expect(test.ensureLoaded).not.toHaveBeenCalled();
     });
 
-    it('scrolls the lane and the playing row to now, and does nothing off-day', () => {
+    it('scrolls the lane and the playing row to now in one call, and does nothing off-day', () => {
         const test = harness();
+        test.controller.scrollToNow(900, true);
+        // 1000 - 200 visible, a third of it kept to the left of the line; the
+        // playing row 40 keeps three rows above it. A second, vertical smooth
+        // scroll would cancel the horizontal one in Chromium (#1733).
+        expect(test.scrollTo).toHaveBeenCalledTimes(1);
+        expect(test.scrollTo).toHaveBeenCalledWith({
+            left: 900 - 800 / 3,
+            top: 37 * 60,
+            behavior: 'smooth',
+        });
+        expect(test.scrollToIndex).not.toHaveBeenCalled();
+
+        test.scrollTo.mockClear();
+        test.controller.scrollToNow(null, false);
+        expect(test.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('scrolls only the lane to now when no channel is playing', () => {
+        const test = harness();
+        test.host.activeRow = () => -1;
         test.controller.scrollToNow(900, false);
-        // 1000 - 200 visible, a third of it kept to the left of the line.
         expect(test.scrollTo).toHaveBeenCalledWith({
             left: 900 - 800 / 3,
             behavior: 'auto',
         });
-        expect(test.scrollToIndex).toHaveBeenCalledWith(37, 'auto');
+    });
 
-        test.scrollTo.mockClear();
-        test.scrollToIndex.mockClear();
-        test.controller.scrollToNow(null, false);
-        expect(test.scrollTo).not.toHaveBeenCalled();
-        expect(test.scrollToIndex).not.toHaveBeenCalled();
+    it('waits for the first rendered rows before the initial jump, once', () => {
+        const test = harness();
+        const callback = jest.fn();
+        test.controller.whenRowsRendered(
+            test.viewport,
+            test.destroyRef,
+            callback
+        );
+
+        // The CDK reports an empty range before it has measured itself.
+        test.renderedRange$.next({ start: 0, end: 0 });
+        expect(callback).not.toHaveBeenCalled();
+
+        test.renderedRange$.next({ start: 0, end: 12 });
+        test.renderedRange$.next({ start: 4, end: 16 });
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops the initial jump when the host is destroyed first', () => {
+        const test = harness();
+        const callback = jest.fn();
+        test.controller.whenRowsRendered(
+            test.viewport,
+            test.destroyRef,
+            callback
+        );
+        test.destroy();
+
+        test.renderedRange$.next({ start: 0, end: 12 });
+        expect(callback).not.toHaveBeenCalled();
     });
 
     it('gives the DOM focus to the cell holding the roving tabindex', () => {
