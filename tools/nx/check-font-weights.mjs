@@ -19,6 +19,12 @@ import {
     valueAfter,
 } from './font-weight-lexer.mjs';
 import {
+    MONO_FAMILY,
+    MONO_WEIGHT_CAP,
+    declarationText,
+    familiesOf,
+} from './font-weight-family.mjs';
+import {
     effectiveDeclarations,
     exposedName,
     sassScopes,
@@ -43,15 +49,13 @@ import {
  * `@function` return values, so pass weights as named `$…weight` arguments.
  *
  * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
- * or one a nested rule inherits) is capped at `MONO_WEIGHT_CAP`. A weight it
- * inherits from another rule, and a family set from code, are not traced.
+ * written out or through variables, or one a nested rule inherits; see
+ * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A weight it inherits from
+ * another rule, and a family set on an element from code, are not traced.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
-/** JetBrains Mono is bundled at 400 and 500 only (see `styles.scss`). */
-export const MONO_WEIGHT_CAP = 500;
-const FONT_FAMILY = /(?<![\w$-])(font-family|font)\s*:/gi;
-const MONO_FAMILY = /jetbrains\s+mono/i;
+export { MONO_WEIGHT_CAP };
 const BOLD = /\bbold\b/gi;
 
 /**
@@ -268,6 +272,17 @@ function analyse(mode, value, options = {}) {
 }
 
 /**
+ * A term that only the JetBrains Mono cap makes a finding: a scale weight
+ * (or `bold`) above it. An off-scale one is reported as such already.
+ */
+function capOnly(term) {
+    const offScale =
+        /^[+\d.]/.test(term.value) &&
+        !WEIGHT_SCALE.includes(Number(term.value));
+    return Boolean(term.cap) && !offScale;
+}
+
+/**
  * A value set from code, read per result it can take (see `resultsOf`), so
  * a condition's numbers are not weights. A string literal is CSS text and is
  * read as such; anything else is an expression, where other numbers appear
@@ -351,49 +366,22 @@ export function scanWeights(file, source) {
         );
     };
 
-    // Which rules set their own family, and whether it is JetBrains Mono;
-    // the last declaration in a rule wins. A family list is comma-separated,
-    // so it runs to the `;` (a `{` first means a selector).
-    const family = new Map();
-    for (const match of stylesheet ? text.matchAll(FONT_FAMILY) : []) {
-        if (inString(match.index)) continue;
-        const start = match.index + match[0].length;
-        let end = start;
-        while (
-            end < text.length &&
-            (quoteAt[end] || !';{}'.includes(text[end]))
-        ) {
-            end += 1;
-        }
-        const { scope } = placeOf(blocks, match.index);
-        if (text[end] !== '{' && scope !== null) {
-            family.set(scope, MONO_FAMILY.test(text.slice(start, end)));
-        }
-    }
-    // A rule without a family of its own inherits its parent's when it is
-    // nested on the same element or a descendant (`&:hover`, `.child`,
-    // `@media`, an `@include` content block). A `&-suffix` rule is another
-    // element, a mixin body (or any other at-rule) is set where it is
-    // included, and `@font-face` describes a face.
-    const monoAt = (index) => {
-        const around = blocks
-            .filter((b) => b.start < index && index < b.end)
-            .filter((b) => b.kind !== 'flow')
-            .reverse();
-        for (const block of around) {
-            if (/^@font-face\b/i.test(block.prelude)) return false;
-            if (family.has(block.start)) return family.get(block.start);
-            if (/^&[\w-]/.test(block.prelude)) return false;
-            if (
-                /^@(?!media|supports|container|layer|include)/i.test(
-                    block.prelude
-                )
-            ) {
-                return false;
-            }
-        }
-        return false;
-    };
+    // The family each rule renders in (see `familiesOf`); one named through
+    // variables is resolved once the whole workspace is scanned.
+    const refsIn = (value, index, place) =>
+        [...value.matchAll(REFERENCE)].map((match) => ({
+            name: identity(match[1] ?? match[3]),
+            namespace: match[2] ?? null,
+            mode: 'family',
+            ...{ file, index, scopes: place.scopes },
+            ...{ inCallable: place.inCallable, callable: place.callable },
+        }));
+    const monoAt = stylesheet
+        ? familiesOf(lexed, blocks, { inString, placeOf, refsIn })
+        : () => ({ mono: false, refs: [] });
+    // Weights in rules whose family is named through variables: capped once
+    // that family resolves to JetBrains Mono.
+    const deferred = [];
 
     for (const pattern of patterns) {
         for (const match of text.matchAll(pattern)) {
@@ -403,12 +391,25 @@ export function scanWeights(file, source) {
             const { value, selector } = valueAfter(lexed, end);
             if (selector) continue;
             const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
-            const capped =
-                stylesheet &&
-                /^font(?:-weight)?$/i.test(name) &&
-                monoAt(match.index);
-            const cap = capped ? MONO_WEIGHT_CAP : null;
+            const family = /^font(?:-weight)?$/i.test(name)
+                ? monoAt(match.index)
+                : { mono: false, refs: [] };
+            const cap = family.mono ? MONO_WEIGHT_CAP : null;
             record(name, match.index, analyse(mode, value, { cap }));
+            if (!family.mono && family.refs.length > 0) {
+                const capped = analyse(mode, value, { cap: MONO_WEIGHT_CAP });
+                const place = placeOf(blocks, match.index);
+                deferred.push({
+                    ...{ file, line: lineOf(match.index), name },
+                    refs: family.refs,
+                    terms: capped.terms.filter(capOnly),
+                    references: capped.references.map((reference) => ({
+                        ...{ ...reference, file, index: match.index },
+                        ...{ scopes: place.scopes, callable: place.callable },
+                        inCallable: place.inCallable,
+                    })),
+                });
+            }
         }
     }
     // A weight set from code is checked here; any other custom property it
@@ -484,6 +485,8 @@ export function scanWeights(file, source) {
         const fallback = /!default\b/i.test(value);
         definitions.push({
             ...{ file, line, index, name, key, value, argument, fallback },
+            // The whole declaration, for a family list (`a, b`).
+            full: argument ? value : declarationText(lexed, end).value,
             // Checked against the scale where it is declared (see below).
             weighted: /weight$/i.test(name),
             // An argument reaches only the mixin or function it is passed to.
@@ -500,7 +503,7 @@ export function scanWeights(file, source) {
     const invocations = stylesheet ? invocationsOf(lexed) : [];
     return {
         ...{ file, loads, declarations, findings, references, definitions },
-        ...{ calls, invocations },
+        ...{ calls, invocations, deferred },
     };
 }
 
@@ -662,18 +665,11 @@ export function findIndirectWeights(scans) {
                 within ? runsAt(file, within, seen) : [index]
         );
     };
-    const followed = new Set();
-    const findings = [];
-    while (pending.length > 0) {
-        const reference = pending.pop();
-        const { name, mode, after = 0, file, namespace, index } = reference;
-        const { cap = null } = reference;
+    // The definitions a reference can resolve to, as Sass and the cascade
+    // read them (see `sassScopes` and `effectiveDeclarations`).
+    const visibleDefinitions = (reference) => {
+        const { name, file, namespace } = reference;
         const sass = name.startsWith('$');
-        // What a Sass name resolves to depends on where it is read.
-        const origin = sass ? `${file} ${namespace ?? ''} ${index}` : '';
-        const key = `${mode} ${after} ${cap} ${origin} ${name}`;
-        if (followed.has(key)) continue;
-        followed.add(key);
         const members = sass && namespace ? qualified(file, namespace) : null;
         const scope = sass && !namespace ? unqualified(file) : null;
         // A `with (…)` of this very lookup sets the name, so the module's
@@ -702,12 +698,12 @@ export function findIndirectWeights(scans) {
               )
             : null;
         const picked = new Set(own?.picked.map((d) => d.original ?? d));
-        for (const definition of definitions) {
+        return definitions.filter((definition) => {
             const access = (members ?? scope)?.get(definition.file);
-            if (!sass && definition.key !== name) continue;
+            if (!sass && definition.key !== name) return false;
             // An argument's name is matched where it is passed, below.
             if (sass && !definition.argument) {
-                if (!exposes(access, definition, name)) continue;
+                if (!exposes(access, definition, name)) return false;
             }
             if (
                 configuredHere &&
@@ -715,7 +711,7 @@ export function findIndirectWeights(scans) {
                 !definition.argument &&
                 definition.file !== file
             ) {
-                continue;
+                return false;
             }
             if (
                 sass &&
@@ -724,18 +720,18 @@ export function findIndirectWeights(scans) {
                 definition.scope === null &&
                 alwaysConfigured(definition.file, definition.key)
             ) {
-                continue;
+                return false;
             }
             if (sass && !definition.argument && !picked.has(definition)) {
-                if (definition.file === file && !members) continue;
+                if (definition.file === file && !members) return false;
                 // Other modules see only top-level (or `!global`) members.
-                if (definition.scope !== null || own?.settled) continue;
+                if (definition.scope !== null || own?.settled) return false;
             }
             if (members) {
                 const visible = definition.argument
                     ? configures(access, definition, name)
                     : access?.declarations;
-                if (!visible) continue;
+                if (!visible) return false;
             }
             if (scope) {
                 const passed =
@@ -751,16 +747,62 @@ export function findIndirectWeights(scans) {
                 const visible = definition.argument
                     ? access?.arguments && (passed || configured)
                     : access?.declarations && ran;
-                if (!visible) continue;
+                if (!visible) return false;
             }
+            return true;
+        });
+    };
+    // Whether a family reference names JetBrains Mono, through chains.
+    const namesMono = (reference, seen = new Set()) => {
+        const { name, file, namespace, index } = reference;
+        const key = `${file} ${namespace ?? ''} ${index} ${name}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return visibleDefinitions(reference).some((definition) => {
+            const text = definition.full ?? definition.value;
+            if (MONO_FAMILY.test(text)) return true;
+            return [...text.matchAll(REFERENCE)].some((match) =>
+                namesMono(
+                    {
+                        name: identity(match[1] ?? match[3]),
+                        namespace: match[2] ?? null,
+                        file: definition.file,
+                        index: definition.index,
+                        scopes: definition.scopes,
+                        inCallable: definition.inCallable,
+                        callable: definition.callable,
+                    },
+                    seen
+                )
+            );
+        });
+    };
+    const followed = new Set();
+    const findings = [];
+    for (const candidate of scans.flatMap((scan) => scan.deferred ?? [])) {
+        if (!candidate.refs.some((reference) => namesMono(reference))) continue;
+        const { file, line, name } = candidate;
+        findings.push(
+            ...candidate.terms.map((term) => ({ file, line, name, ...term }))
+        );
+        pending.push(...candidate.references);
+    }
+    while (pending.length > 0) {
+        const reference = pending.pop();
+        const { name, mode, after = 0, file, namespace, index } = reference;
+        const { cap = null } = reference;
+        const sass = name.startsWith('$');
+        // What a Sass name resolves to depends on where it is read.
+        const origin = sass ? `${file} ${namespace ?? ''} ${index}` : '';
+        const key = `${mode} ${after} ${cap} ${origin} ${name}`;
+        if (followed.has(key)) continue;
+        followed.add(key);
+        for (const definition of visibleDefinitions(reference)) {
             const analysis = definition.code
                 ? analyseCode(definition.value, mode, after, cap)
                 : analyse(mode, definition.value, { after, cap });
-            const offScale = (term) =>
-                /^[+\d.]/.test(term.value) &&
-                !WEIGHT_SCALE.includes(Number(term.value));
             const terms = definition.weighted
-                ? analysis.terms.filter((term) => term.cap && !offScale(term))
+                ? analysis.terms.filter(capOnly)
                 : analysis.terms;
             for (const term of terms) {
                 const { line } = definition;

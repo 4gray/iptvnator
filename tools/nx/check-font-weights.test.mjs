@@ -1733,6 +1733,98 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
     }
 });
 
+test('follows the JetBrains Mono family only where it is inherited', () => {
+    const mono = "font-family: 'JetBrains Mono'";
+    const source = [
+        `.a { ${mono}; + .item { font-weight: 700; } }`,
+        `.b { ${mono}; & ~ .item { font-weight: 700; } }`,
+        `.c { ${mono}; &--wide, &:hover { font-weight: 700; } }`,
+        `.d { ${mono}; :is(.x, .y) { font-weight: 700; } }`,
+        `.e { ${mono}; .f { font-family: inherit; font-weight: 700; } }`,
+        `.g { ${mono}; + .h { font-family: inherit; font-weight: 700; } }`,
+        `.i { ${mono}; .n { font-family: Roboto; font-family: unset; font-weight: 700; } }`,
+        `.j { ${mono}; .k { font-family: Roboto; font-family: inherit; font-weight: 700; } }`,
+        `.l { ${mono}; &--wide:is(.x, .y) { font-weight: 700; } }`,
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/m4/a.scss', source), [
+        '3 font-weight: 700',
+        '4 font-weight: 700',
+        '5 font-weight: 700',
+        '7 font-weight: 700',
+        '8 font-weight: 700',
+    ]);
+});
+
+test('resolves a JetBrains Mono family named through variables', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const rule = (body) => scanWeights('libs/m4/rule.scss', body);
+    const theme = (body) => scanWeights('libs/m4/theme.scss', body);
+
+    assert.deepEqual(
+        report([
+            theme(
+                ':root { --face: ui-monospace, "JetBrains Mono", monospace; }'
+            ),
+            rule('.a { font-family: var(--face); font-weight: 600; }'),
+        ]),
+        ['libs/m4/rule.scss:1 600']
+    );
+    assert.deepEqual(
+        report([
+            theme(":root { --face: var(--brand); --brand: 'JetBrains Mono'; }"),
+            rule('.a { font: 700 12px var(--face); }'),
+        ]),
+        ['libs/m4/rule.scss:1 700']
+    );
+    assert.deepEqual(
+        report([
+            theme(':root { --face: Roboto, sans-serif; }'),
+            rule('.a { font-family: var(--face); font-weight: 700; }'),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            rule(
+                "$mono: 'JetBrains Mono', monospace; .a { font-family: $mono; font-weight: 600; }"
+            ),
+        ]),
+        ['libs/m4/rule.scss:1 600']
+    );
+    assert.deepEqual(
+        report([
+            scanWeights('libs/m4/_type.scss', "$mono: 'JetBrains Mono';"),
+            rule("@use 'type'; .a { font: 600 12px type.$mono; }"),
+        ]),
+        ['libs/m4/rule.scss:1 600']
+    );
+    // Its weights through variables are capped too, an off-scale one is
+    // reported once, and a family set from code counts.
+    assert.deepEqual(
+        report([
+            theme(":root { --face: 'JetBrains Mono'; }"),
+            rule(
+                '$w: 600; .a { font-family: var(--face); font-weight: $w; } .b { font-family: var(--face); font-weight: 650; }'
+            ),
+        ]),
+        ['libs/m4/rule.scss:1 600']
+    );
+    assert.deepEqual(
+        report([
+            scanWeights(
+                'libs/m4/x.component.ts',
+                "el.style.setProperty('--face', \"'JetBrains Mono'\");"
+            ),
+            rule('.a { font-family: var(--face); font-weight: 700; }'),
+        ]),
+        ['libs/m4/rule.scss:1 700']
+    );
+});
+
 test('caps the weights a JetBrains Mono rule reads through variables', () => {
     const mono = "font-family: 'JetBrains Mono'";
     assert.deepEqual(
