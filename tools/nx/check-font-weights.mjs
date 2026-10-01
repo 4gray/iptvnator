@@ -490,6 +490,17 @@ function rangeAnalysis({ range, value }) {
     };
 }
 
+/** Where a list item's `:` sits outside parentheses, or -1. */
+function topLevelColon(item) {
+    let depth = 0;
+    for (let i = 0; i < item.length; i += 1) {
+        if (item[i] === '(') depth += 1;
+        else if (item[i] === ')') depth -= 1;
+        else if (item[i] === ':' && depth === 0) return i;
+    }
+    return -1;
+}
+
 /** A Sass list split at its top-level commas, outer parentheses dropped. */
 function listItems(list) {
     const inner = /^\((.*)\)$/s.exec(list.trim())?.[1] ?? list;
@@ -517,13 +528,12 @@ function listItems(list) {
 function loopColumns(list, count) {
     if (count === 1) return [list];
     const items = listItems(list);
-    const map = items.every((item) => /^[^():]+:/.test(item));
-    const rows = items.map((item) =>
+    // A map entry has its `:` outside parentheses (`(a b): 650` too).
+    const colons = items.map(topLevelColon);
+    const map = colons.every((colon) => colon !== -1);
+    const rows = items.map((item, i) =>
         map
-            ? [
-                  item.slice(0, item.indexOf(':')),
-                  item.slice(item.indexOf(':') + 1),
-              ]
+            ? [item.slice(0, colons[i]), item.slice(colons[i] + 1)]
             : item.replace(/^\((.*)\)$/s, '$1').split(/\s+/)
     );
     return Array.from({ length: count }, (_, i) =>

@@ -456,6 +456,8 @@ test('follows Sass loop variables', () => {
         '@each $name, $w in (650: 400, 750: 600) { .k-#{$name} { font-weight: $w; } }',
         '@each $a, $w in (x 400, y 650) { .p { font-weight: $w; } }',
         '@each $prop, $value in (font-weight: 750, color: red) { .q { #{$prop}: $value; } }',
+        '@each $key, $w in ((a b): 400, (c d): 650) { .pk { font-weight: $w; } }',
+        '@each $k, $w in ((x: 650): 400, (y: 1): 600) { .nk { font-weight: $w; } }',
         // `to` stops before its end, so this loop never runs.
         '@for $w from 650 to 650 { .e { font-weight: $w; } }',
         // A space-separated list is one variable's list too.
@@ -468,7 +470,8 @@ test('follows Sass loop variables', () => {
         '15 $w: 650',
         '16 $value: 750',
         '16 font-weight: 750',
-        '18 $w: 650',
+        '17 $w: 650',
+        '20 $w: 650',
         '3 $w: 650',
         '4 $weights: 750',
         '6 $w: from 400 through 402',
