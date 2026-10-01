@@ -87,8 +87,10 @@ launches the backend through Nx or its `env` drifts from the `serve` target.
 `self-hosted.e2e.ts` URLs, like `MOCK_PORT` does for the mocks. Use it when
 another worktree holds 3333. The `web:serve` entry can stay on Nx:
 `@angular/build:dev-server` runs inside the Nx process, so the group kill
-stops it. The mock servers follow the same
-rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
+stops it. Playwright launches that command itself even outside CI: the
+web-e2e targets carry no Nx `serve` dependency, because Nx refuses a
+non-parallel task with a continuous dependency. The mock servers follow the
+same rule; see [Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
 
 The PWA continues to use `PwaService`; only the backend base URL is resolved at
 runtime. Electron routes remain owned by the Electron backend and preload
