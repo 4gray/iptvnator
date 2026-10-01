@@ -57,9 +57,6 @@ function handleEmbeddedMpv<Args extends unknown[]>(
 ): void {
     ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
         try {
-            // Linux support checks run `mpv --version` by bare name and
-            // cache the result, so they must see the login shell PATH.
-            await waitForLoginShellPath();
             return await handler(...(args as Args));
         } catch (error) {
             console.error(`[Embedded MPV] ${channel} handler failed:`, error);
@@ -68,9 +65,25 @@ function handleEmbeddedMpv<Args extends unknown[]>(
     });
 }
 
-handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () => getService().getSupport());
+/**
+ * On Linux, support (and prepare, which checks support first) runs
+ * `mpv --version` by bare name and caches the result, so it must see the
+ * login shell PATH. Nothing else here spawns by name.
+ */
+async function afterLinuxLoginShellPath<T>(check: () => T): Promise<T> {
+    if (process.platform === 'linux') {
+        await waitForLoginShellPath();
+    }
+    return check();
+}
 
-handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () => getService().prepareAddon());
+handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () =>
+    afterLinuxLoginShellPath(() => getService().getSupport())
+);
+
+handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () =>
+    afterLinuxLoginShellPath(() => getService().prepareAddon())
+);
 
 handleEmbeddedMpv(
     EMBEDDED_MPV_CREATE_SESSION,

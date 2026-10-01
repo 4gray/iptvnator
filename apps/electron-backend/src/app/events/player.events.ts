@@ -11,7 +11,12 @@ import {
     store,
     VLC_PLAYER_PATH,
 } from '../services/store.service';
-import { normalizePlayerPathForStore } from './external-player-launch-context';
+import {
+    getDefaultMpvPath,
+    getDefaultVlcPath,
+    normalizeCustomPlayerPath,
+    normalizePlayerPathForStore,
+} from './external-player-launch-context';
 import {
     externalPlayerSessions,
     traceExternalPlayer,
@@ -35,6 +40,17 @@ export {
     parseVlcRcPlaybackState,
 } from './vlc-session.service';
 
+/**
+ * A player resolved to a bare name (no configured path, no well-known
+ * install found) is looked up through PATH, so it waits for the login shell
+ * PATH; a path to an executable starts right away.
+ */
+async function waitForPathIfBareName(playerPath: string): Promise<void> {
+    if (!/[\\/]/.test(playerPath)) {
+        await waitForLoginShellPath();
+    }
+}
+
 export default class PlayerEvents {
     static bootstrapPlayerEvents(): Electron.IpcMain {
         return ipcMain;
@@ -55,8 +71,10 @@ ipcMain.handle(
         startTime?: number,
         headers?: Record<string, string>
     ) => {
-        // A bare player name resolves through the login shell PATH.
-        await waitForLoginShellPath();
+        await waitForPathIfBareName(
+            normalizeCustomPlayerPath(store.get(MPV_PLAYER_PATH)) ??
+                getDefaultMpvPath()
+        );
         return openMpvPlayer({
             url,
             title,
@@ -100,8 +118,10 @@ ipcMain.handle(
         startTime?: number,
         headers?: Record<string, string>
     ) => {
-        // A bare player name resolves through the login shell PATH.
-        await waitForLoginShellPath();
+        await waitForPathIfBareName(
+            normalizeCustomPlayerPath(store.get(VLC_PLAYER_PATH)) ??
+                getDefaultVlcPath()
+        );
         return openVlcPlayer({
             url,
             title,

@@ -467,46 +467,79 @@ describe('openVlcPlayer', () => {
 });
 
 describe('external player launch handlers', () => {
+    const pathKeys: Record<string, string> = {
+        OPEN_MPV_PLAYER: MPV_PLAYER_PATH,
+        OPEN_VLC_PLAYER: VLC_PLAYER_PATH,
+    };
+
+    function configurePlayerPath(channel: string, playerPath: string): void {
+        (store.get as unknown as jest.Mock).mockImplementation(
+            (key: string, fallback?: unknown) =>
+                key === pathKeys[channel] ? playerPath : fallback
+        );
+    }
+
+    async function launchUntilSpawn(
+        channel: string,
+        wait: Promise<void>,
+        afterLaunch: () => Promise<void>
+    ): Promise<void> {
+        (waitForLoginShellPath as jest.Mock).mockReturnValueOnce(wait);
+        const proc = createMockChildProcess();
+        (spawn as unknown as jest.Mock).mockReturnValue(proc);
+        const consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            const launch = Promise.resolve(
+                getIpcMainHandler(channel)(
+                    {},
+                    'https://example.com/live.m3u8',
+                    'Live'
+                )
+            ).catch(() => undefined);
+            await afterLaunch();
+            proc.emit('error', new Error('spawn ENOENT'));
+            await launch;
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    }
+
     beforeEach(() => {
         (spawn as unknown as jest.Mock).mockReset();
-        (store.get as unknown as jest.Mock).mockImplementation(
-            (_key: string, fallback?: unknown) => fallback
-        );
+        (waitForLoginShellPath as jest.Mock).mockClear();
     });
 
     it.each(['OPEN_MPV_PLAYER', 'OPEN_VLC_PLAYER'])(
-        '%s spawns only after the login shell PATH lookup settled',
+        '%s spawns a bare player name only after the login shell PATH lookup settled',
         async (channel) => {
+            configurePlayerPath(channel, 'player-on-shell-path');
             let settle: () => void = () => undefined;
-            (waitForLoginShellPath as jest.Mock).mockReturnValueOnce(
-                new Promise<void>((resolve) => {
-                    settle = resolve;
-                })
-            );
-            const proc = createMockChildProcess();
-            (spawn as unknown as jest.Mock).mockReturnValue(proc);
-            const consoleErrorSpy = jest
-                .spyOn(console, 'error')
-                .mockImplementation(() => undefined);
-
-            try {
-                const launch = Promise.resolve(
-                    getIpcMainHandler(channel)(
-                        {},
-                        'https://example.com/live.m3u8',
-                        'Live'
-                    )
-                ).catch(() => undefined);
+            const wait = new Promise<void>((resolve) => {
+                settle = resolve;
+            });
+            await launchUntilSpawn(channel, wait, async () => {
                 await new Promise<void>((resolve) => setImmediate(resolve));
                 expect(spawn).not.toHaveBeenCalled();
-
                 settle();
                 await waitForSpawnCallCount(1);
-                proc.emit('error', new Error('spawn ENOENT'));
-                await launch;
-            } finally {
-                consoleErrorSpy.mockRestore();
-            }
+            });
+        }
+    );
+
+    it.each(['OPEN_MPV_PLAYER', 'OPEN_VLC_PLAYER'])(
+        '%s starts a configured executable path without waiting',
+        async (channel) => {
+            configurePlayerPath(channel, '/opt/players/bin/player');
+            await launchUntilSpawn(
+                channel,
+                new Promise<void>(() => undefined),
+                async () => {
+                    await waitForSpawnCallCount(1);
+                    expect(waitForLoginShellPath).not.toHaveBeenCalled();
+                }
+            );
         }
     );
 });

@@ -59,22 +59,53 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
         mockEmbeddedMpvService.setPaused.mockReset();
     });
 
-    it('checks support only after the login shell PATH lookup settled', async () => {
-        let settle: () => void = () => undefined;
-        mockWaitForLoginShellPath.mockReturnValueOnce(
-            new Promise<void>((resolve) => {
-                settle = resolve;
-            })
-        );
-        mockEmbeddedMpvService.getSupport.mockReturnValue({ supported: true });
+    describe('support checks and the login shell PATH', () => {
+        const originalPlatform = process.platform;
 
-        const support = getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({});
-        await new Promise<void>((resolve) => setImmediate(resolve));
-        // Linux caches the result of a bare-name `mpv --version`.
-        expect(mockEmbeddedMpvService.getSupport).not.toHaveBeenCalled();
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', {
+                value: originalPlatform,
+            });
+            mockWaitForLoginShellPath.mockClear();
+        });
 
-        settle();
-        await expect(support).resolves.toEqual({ supported: true });
+        it('on Linux, checks support only after the lookup settled', async () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            let settle: () => void = () => undefined;
+            mockWaitForLoginShellPath.mockReturnValueOnce(
+                new Promise<void>((resolve) => {
+                    settle = resolve;
+                })
+            );
+            mockEmbeddedMpvService.getSupport.mockReturnValue({
+                supported: true,
+            });
+
+            const support = getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({});
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            // Linux caches the result of a bare-name `mpv --version`.
+            expect(mockEmbeddedMpvService.getSupport).not.toHaveBeenCalled();
+
+            settle();
+            await expect(support).resolves.toEqual({ supported: true });
+        });
+
+        it('elsewhere, and for session calls, never waits', async () => {
+            Object.defineProperty(process, 'platform', { value: 'darwin' });
+            mockEmbeddedMpvService.getSupport.mockReturnValue({
+                supported: true,
+            });
+            mockEmbeddedMpvService.createSession.mockReturnValue({ id: 's' });
+
+            await getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({});
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            await getIpcMainHandler(EMBEDDED_MPV_CREATE_SESSION)(
+                {},
+                { x: 0, y: 0, width: 1, height: 1 }
+            );
+
+            expect(mockWaitForLoginShellPath).not.toHaveBeenCalled();
+        });
     });
 
     it('creates a session with the options read from the settings mirror', async () => {
