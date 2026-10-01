@@ -176,14 +176,24 @@ stable in the other two). Every iteration shows the same two shifts of 0.118:
 about 12 ms after the first card the `dashboard-recent-sources-rail`, which
 holds the first card, moves up by 316 px, and 12-65 ms later it moves back
 down. Something 316 px tall above it is removed and inserted again during
-startup, a flicker #1738 did not cover. The counter is working as intended;
-the flicker is a separate fix.
+startup, a flicker #1738 did not cover.
 
 On the Linux CI runner (`Performance journeys` job of #1756, run
 36618062068) the same flicker is a race: the measured iterations read
 `[0, 0, 0.235, 0, 0]` (`stable: false`, every window `quiet` about 540 ms
 after the first card), and the one hit shows the same two 316 px moves of
 the recent-sources rail.
+
+The 316 px element was the dashboard hero. The J1 profile has no history
+and no favorites; its only slide is an Xtream recently-added title, and that
+query waits for the favorites. The hero dropped its skeleton as soon as the
+history resolved empty and came back with that slide moments later. It now
+keeps the skeleton until every source that can feature a title has loaded
+(`DashboardHeroSlidesPresenter.loading`), and
+`DashboardDataService.xtreamRecentlyAddedLoading` no longer settles before
+the playlist inventory has loaded. After the fix (macOS, 2026-09-30): both
+counters were 0 in all 12 iterations of two runs, every window closed on
+`quiet` and `lateShifts` was empty.
 
 #### Main-process counters
 
@@ -658,10 +668,10 @@ in all eighteen runner iterations; the `spawnToFirstCardMs` P50 ranged from
 1,401 to 1,674 ms. All four stay evidence for now. Runner counters also
 differ from a Mac (12 and 571 there, the fast path without the Linux-only
 `getWindowState` call), so take J1 baseline values from the runner only.
-`renderer.layoutShiftScoreSettled` has no baseline either: the runner reads
-it as `stable: false` because the dashboard flicker it reports is a race
-there (see [Settle window](#settle-window)). Add the runner's number once
-that flicker is fixed and the counter is deterministic.
+`renderer.layoutShiftScoreSettled` has no baseline either: the runner read
+it as `stable: false` because the dashboard hero flicker it reported was a
+race there (see [Settle window](#settle-window)). That flicker is fixed; add
+the runner's number once runner runs read it as `stable` too.
 
 ### Weekly tightening
 

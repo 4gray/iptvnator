@@ -80,9 +80,19 @@ export class DashboardHeroSlidesPresenter {
     >(new Map());
     private readonly requestedTmdbKeys = new Set<string>();
 
-    /** First history load still running and nothing to feature yet. */
+    /**
+     * Nothing to feature yet and a source that can feature a title is still
+     * on its first load. Every such source counts, not only the history:
+     * the Xtream recently-added query waits for the favorites, so dropping
+     * the skeleton when the history resolved empty removed the hero and
+     * inserted it again moments later, moving every rail below twice.
+     */
     readonly loading = computed(
-        () => this.data.globalRecentLoading() && this.slides().length === 0
+        () =>
+            this.slides().length === 0 &&
+            (this.data.globalRecentLoading() ||
+                this.data.globalFavoritesLoading() ||
+                this.data.xtreamRecentlyAddedLoading())
     );
 
     /** The first candidate channel with a programme on air right now. */

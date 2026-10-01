@@ -92,6 +92,9 @@ describe('DashboardHeroSlidesPresenter', () => {
     let tmdbEnabled: ReturnType<typeof signal<boolean>>;
     let tmdbLanguage: ReturnType<typeof signal<string>>;
     let getExtras: jest.Mock;
+    let recentLoading: ReturnType<typeof signal<boolean>>;
+    let favoritesLoading: ReturnType<typeof signal<boolean>>;
+    let addedLoading: ReturnType<typeof signal<boolean>>;
     const positions = new Map<string | number, PlaybackPositionData>([
         [
             1,
@@ -123,7 +126,9 @@ describe('DashboardHeroSlidesPresenter', () => {
                 {
                     provide: DashboardDataService,
                     useValue: {
-                        globalRecentLoading: signal(false),
+                        globalRecentLoading: () => recentLoading(),
+                        globalFavoritesLoading: () => favoritesLoading(),
+                        xtreamRecentlyAddedLoading: () => addedLoading(),
                         globalRecentItems: recentItems,
                         globalRecentVodItems: () =>
                             recentItems().filter((i) => i.type !== 'live'),
@@ -195,6 +200,9 @@ describe('DashboardHeroSlidesPresenter', () => {
         tmdbEnabled = signal(false);
         tmdbLanguage = signal('en-US');
         getExtras = jest.fn().mockResolvedValue(null);
+        recentLoading = signal(false);
+        favoritesLoading = signal(false);
+        addedLoading = signal(false);
     });
 
     it('builds the rotation from resume, live, favourite and import slides', () => {
@@ -379,5 +387,53 @@ describe('DashboardHeroSlidesPresenter', () => {
             backdropUrl: undefined,
             backdropSource: 'fallback',
         });
+    });
+
+    it('keeps the skeleton until every source that can feature a title has loaded', () => {
+        // J1 profile: no history, no favourites; the Xtream recently-added
+        // query runs after the favourites and features the only slide.
+        recentItems.set([]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        recentLoading.set(true);
+        favoritesLoading.set(true);
+        addedLoading.set(true);
+        const presenter = create();
+        expect(presenter.loading()).toBe(true);
+
+        recentLoading.set(false);
+        expect(presenter.loading()).toBe(true);
+
+        favoritesLoading.set(false);
+        expect(presenter.loading()).toBe(true);
+
+        addedItems.set([import1]);
+        addedLoading.set(false);
+        expect(presenter.slides().map((slide) => slide.kind)).toEqual([
+            'added',
+        ]);
+        expect(presenter.loading()).toBe(false);
+    });
+
+    it('drops the skeleton once every source has loaded with nothing to feature', () => {
+        recentItems.set([]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        addedLoading.set(true);
+        const presenter = create();
+        expect(presenter.loading()).toBe(true);
+
+        addedLoading.set(false);
+        expect(presenter.loading()).toBe(false);
+        expect(presenter.slides()).toEqual([]);
+    });
+
+    it('shows a slide without waiting for the slower sources', () => {
+        favoritesLoading.set(true);
+        addedLoading.set(true);
+
+        expect(create().loading()).toBe(false);
     });
 });
