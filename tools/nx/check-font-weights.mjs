@@ -54,20 +54,31 @@ export function blankComments(source) {
         });
 }
 
+const VALUE_END = new Set([';', '{', '}', "'", '"', '`', ']']);
+const VALUE_LIMIT = 400;
+
 /**
- * Everything up to `;`, `{` or `}` on the line (or the next, when empty). A
- * `{` first means the match was a selector such as `.x-weight:hover`.
+ * The declaration's value, across line breaks, so a wrapped
+ * `var(--x,\n    650)` keeps its fallback. It ends at `;`, a brace, a quote
+ * (the end of an inline style string), or, outside parentheses, at a comma or
+ * the `)` that closes a Sass map or argument list. A `{` first means the match
+ * was a selector such as `.x-weight:hover`.
  */
 function valueAfter(source, start) {
-    const lineEnd = source.indexOf('\n', start);
-    let value = source.slice(start, lineEnd === -1 ? undefined : lineEnd);
-    if (value.trim() === '' && lineEnd !== -1) {
-        const nextEnd = source.indexOf('\n', lineEnd + 1);
-        value = source.slice(lineEnd + 1, nextEnd === -1 ? undefined : nextEnd);
+    let depth = 0;
+    let end = start;
+    for (; end < source.length && end - start < VALUE_LIMIT; end += 1) {
+        const char = source[end];
+        if (char === '(') {
+            depth += 1;
+        } else if (char === ')') {
+            if (depth === 0) break;
+            depth -= 1;
+        } else if (VALUE_END.has(char) || (char === ',' && depth === 0)) {
+            break;
+        }
     }
-    const end = value.search(/[;{}]/);
-    if (end === -1) return { value, selector: false };
-    return { value: value.slice(0, end), selector: value[end] === '{' };
+    return { value: source.slice(start, end), selector: source[end] === '{' };
 }
 
 function lineOf(source, index) {
@@ -84,12 +95,28 @@ export function nearestScaleWeight(weight) {
     return 700;
 }
 
+/**
+ * In the `font` shorthand a weight can only come before the size, so an
+ * integer counts when a token follows it and it is not the line height after
+ * `/`. A TypeScript `font: 12` property is therefore not read as a weight.
+ */
+function shorthandWeights(value) {
+    const tokens = value.trim().split(/\s+/);
+    return tokens
+        .filter((token, index) => {
+            const previous = tokens[index - 1] ?? '';
+            return (
+                /^\d+$/.test(token) &&
+                index < tokens.length - 1 &&
+                !previous.endsWith('/')
+            );
+        })
+        .map(Number);
+}
+
 function weightsIn(name, value) {
-    const integers = [...value.matchAll(BARE_INTEGER)].filter((match) => {
-        // `font: 500 12px/1 …`: the integer after the slash is a line height.
-        return name !== 'font' || value[match.index - 1] !== '/';
-    });
-    return integers.map((match) => Number(match[1]));
+    if (name === 'font') return shorthandWeights(value);
+    return [...value.matchAll(BARE_INTEGER)].map((match) => Number(match[1]));
 }
 
 /** Every weight declaration in one file that is off the scale. */
@@ -97,7 +124,7 @@ export function findOffScaleWeights(file, source) {
     const stripped = blankComments(source);
     const patterns = STYLESHEET.test(file)
         ? [STYLESHEET_WEIGHT, FONT_SHORTHAND]
-        : [SOURCE_WEIGHT];
+        : [SOURCE_WEIGHT, FONT_SHORTHAND];
     const findings = [];
     let declarations = 0;
 

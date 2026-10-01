@@ -49,6 +49,9 @@ test('flags weights fed through custom properties, Sass and token maps', () => {
         '    $season-title-font-weight: 650,',
         ');',
         '@include mat.button-overrides((label-text-weight: 530));',
+        '@include heading($title-weight: 650) {',
+        '    color: red;',
+        '}',
     ].join('\n');
 
     assert.deepEqual(offScale('libs/a.scss', source), [
@@ -56,6 +59,7 @@ test('flags weights fed through custom properties, Sass and token maps', () => {
         '3 --error-view-title-weight: 640',
         '6 $season-title-font-weight: 650',
         '8 label-text-weight: 530',
+        '9 $title-weight: 650',
     ]);
 });
 
@@ -67,6 +71,60 @@ test('reads the weight of a font shorthand but not its line height', () => {
     ].join('\n');
 
     assert.deepEqual(offScale('libs/a.scss', source), ['2 font: 800']);
+});
+
+test('reads a value wrapped over several lines to its end', () => {
+    const source = [
+        '.a {',
+        '    font-weight: var(--title-weight,',
+        '        650);',
+        '}',
+        '.b {',
+        '    font-weight:',
+        '        var(',
+        '            --title-weight,',
+        '            750',
+        '        );',
+        '}',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', source), [
+        '2 font-weight: 650',
+        '6 font-weight: 750',
+    ]);
+});
+
+test('stops a value at the end of its map entry or style string', () => {
+    const map = [
+        '@include mat.button-overrides(',
+        '    (',
+        '        label-text-weight: 600,',
+        '        label-text-line-height: 1,',
+        '    )',
+        ');',
+    ].join('\n');
+    const component = [
+        "const style = 'font-weight: 600';",
+        'const timeout = 300;',
+    ].join('\n');
+
+    const template = '<p style="font-weight: 600">Top 100 channels</p>';
+
+    assert.deepEqual(offScale('libs/a.scss', map), []);
+    assert.deepEqual(offScale('apps/web/src/a.ts', component), []);
+    assert.deepEqual(offScale('apps/web/src/a.html', template), []);
+});
+
+test('checks the font shorthand in TypeScript, not a font property', () => {
+    const component = [
+        "styles: ['.chip { font: 650 12px sans-serif; }'],",
+        'const chart = { font: 12, legend: { font: { size: 12 } } };',
+        "const inherit = { font: 'inherit' };",
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 font: 650',
+    ]);
 });
 
 test('flags relative keywords, which can land off the scale', () => {
