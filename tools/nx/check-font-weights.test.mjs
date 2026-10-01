@@ -475,6 +475,9 @@ test('reads CSS text a string leaves to code', () => {
         `<div [style]="'color: red; font-weight:' + w + ';'"></div>`,
         // Only a `+` concatenates.
         `<div [style]="'font-weight:' || 650"></div>`,
+        // A blank string adds nothing.
+        `<div [style]="'font-weight:' + ' ' + 650"></div>`,
+        `<div [style]="'font-weight:' + '' + 750 + ';'"></div>`,
     ].join('\n');
     const component = [
         "el.style.cssText = 'font-weight:' + 650;",
@@ -486,6 +489,8 @@ test('reads CSS text a string leaves to code', () => {
         offScale('apps/web/src/a.component.html', template).sort(),
         [
             '1 font-weight: 650',
+            '10 font-weight: 650',
+            '11 font-weight: 750',
             '2 font-weight: 750',
             '3 font: 650',
             '4 font-weight: 600',
@@ -615,6 +620,33 @@ test('reads @property initial values', () => {
         ),
         []
     );
+    // It parses as CSS does: arguments per function, and spaces around a
+    // `+` or `-`. Each value's validity is what Chromium makes of it.
+    const math = {
+        valid: [
+            ...['calc(600 - -50)', 'calc(600 * 1.08)', 'calc((600 + 50))'],
+            ...['round(up, 649.2)', 'round(649.6, 10)', 'log(e)', 'max(650)'],
+            ...['calc(pi * 207)', 'MAX(600, 650)', 'calc(1300 / 2)'],
+            ...['hypot(650)', 'calc(1e3 - 350)', 'clamp(600, 650, 700)'],
+        ],
+        invalid: [
+            ...['min()', 'calc()', 'calc(600+50)', 'calc(600 +50)'],
+            ...['calc(600+ 50)', 'calc(600 +(50))', 'clamp(600, 650)'],
+            ...['clamp(600, 650, 700, 800)', 'max(600, )', 'calc(600 650)'],
+            ...['calc(650)%', 'calc(600 + 50))', 'round(up 649)', 'foo(650)'],
+            ...['calc(600 $ 50)', 'round(up / 1, 649)'],
+        ],
+    };
+    const registered = (value) =>
+        report(
+            `@property --w { syntax: '<number>'; inherits: false; initial-value: ${value}; } .y { font-weight: var(--w, 600); }`
+        );
+    for (const value of math.valid) {
+        assert.deepEqual(registered(value), [`--w: ${value}`], value);
+    }
+    for (const value of math.invalid) {
+        assert.deepEqual(registered(value), [], value);
+    }
     // CSS ignores an invalid registration: a syntax that rejects the value,
     // or a missing `inherits`.
     assert.deepEqual(
@@ -2662,6 +2694,71 @@ test('resolves a JetBrains Mono family named through variables', () => {
             rule('.a { font-family: var(--face); font-weight: 700; }'),
         ]),
         ['libs/m4/rule.scss:1 700']
+    );
+    // A property in a cycle is invalid, so its readers take the fallback;
+    // one read twice in a value is no cycle.
+    const mono = rule(
+        ".a { font-family: var(--face, 'JetBrains Mono'); font-weight: 700; }"
+    );
+    for (const cycle of [
+        ':root { --face: var(--face); }',
+        ':root { --face: var(--other); --other: var(--face); }',
+    ]) {
+        assert.deepEqual(
+            report([theme(cycle), mono]),
+            ['libs/m4/rule.scss:1 700'],
+            cycle
+        );
+    }
+    assert.deepEqual(
+        report([
+            theme(
+                ':root { --base: Roboto; --face: var(--base), var(--base); }'
+            ),
+            mono,
+        ]),
+        []
+    );
+});
+
+test('reads template literals set from code', () => {
+    const component = [
+        "renderer.setStyle(el, 'font-weight', `65${0}`);",
+        'el.style.fontWeight = `${wide ? 750 : 600}`;',
+        "el.style.fontWeight = `${'6'}${'50'}`;",
+        // An unknown value alone is that value; text around it computes one.
+        'el.style.fontWeight = `${weight}`;',
+        'el.style.fontWeight = `6${w}`;',
+        // A shorthand's other tokens still read as CSS.
+        'el.style.font = `${650} 12px Roboto`;',
+        'el.style.font = `${w} 12px Roboto`;',
+        // So does CSS text in a template.
+        'el.style.cssText = `font-weight: 65${0}`;',
+        'el.style.fontWeight = `600`;',
+        // A number as JavaScript writes it into a string.
+        'el.style.fontWeight = `${0x28a}`;',
+        // A nested template, or more than 16 texts, is not expanded.
+        'el.style.fontWeight = `${`6${5}`}0`;',
+        'el.style.fontWeight = `${a ? 6 : 6}${b ? 5 : 5}${c ? 0 : 0}${d ? 0 : 0}${e ? 0 : 0}`;',
+    ].join('\n');
+
+    assert.deepEqual(
+        findOffScaleWeights('apps/web/src/a.component.ts', component)
+            .findings.map(({ line, value, computed }) =>
+                computed ? `${line} ${value} (computed)` : `${line} ${value}`
+            )
+            .sort(),
+        [
+            '1 650',
+            '10 650',
+            '11 `${`6${5}`}0` (computed)',
+            '12 `${a ? 6 : 6}${b ? 5 : 5}${c ? 0 : 0}${d ? 0 : 0}${e ? 0 : 0}` (computed)',
+            '2 750',
+            '3 650',
+            '5 `6${w}` (computed)',
+            '6 650',
+            '8 650',
+        ]
     );
 });
 

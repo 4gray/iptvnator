@@ -23,6 +23,7 @@ import {
     namesCallable,
     placeOf,
     resultsOf,
+    templateParts,
     tokensOf,
     valueAfter,
 } from './font-weight-lexer.mjs';
@@ -63,7 +64,9 @@ import {
  * alike), through `@forward … as prefix-*` and its `show`/`hide` lists too.
  * A parameter default counts where a call leaves it out, or when no call is
  * in sight. A weight set from code is read per value it can take, so a
- * condition's numbers are not weights, and CSS text that a string leaves to
+ * condition's numbers are not weights, a template literal as each text its
+ * literal `${…}` parts produce (`` `65${0}` `` is 650; a weight it builds
+ * around another value is computed), and CSS text that a string leaves to
  * code (`'font-weight:' + w`) is read from the operand after the `+`. A
  * partial's `!default` gives way where every load of it configures the
  * name. A file is read as the browser reads it: CSS escapes in names
@@ -185,20 +188,83 @@ const NUMBER_TOKEN = /^[+-]?(?:\d*\.\d+|\d+)(?:e[+-]?\d+)?$/i;
 /** An integer token: no fraction and no exponent (`6e2` is a number). */
 const INTEGER_TOKEN = /^[+-]?\d+$/;
 
-/** The math functions and constants CSS computes plain numbers with. */
-const MATH_NAME =
-    /^(?:calc|min|max|clamp|round|mod|rem|abs|sign|pow|sqrt|hypot|log|exp|e|pi|infinity|nan|nearest|up|down|to-zero)$/i;
+/** The math functions of plain numbers, with how many arguments each takes. */
+const MATH_ARITY = Object.freeze({
+    ...{ calc: [1, 1], min: [1, Infinity], max: [1, Infinity], clamp: [3, 3] },
+    ...{ round: [1, 2], mod: [2, 2], rem: [2, 2], abs: [1, 1], sign: [1, 1] },
+    ...{ pow: [2, 2], sqrt: [1, 1], hypot: [1, Infinity], log: [1, 2] },
+    exp: [1, 1],
+});
+const MATH_CONSTANT = /^(?:e|pi|-?infinity|nan)$/i;
+const ROUNDING = /^(?:nearest|up|down|to-zero)$/i;
+/** One token of a math value: whitespace, a number, a name or function, a sign. */
+const MATH_TOKEN =
+    /\s+|[+-]?(?:\d*\.\d+|\d+)(?:e[+-]?\d+)?(?![\w%.])|-?[a-z][\w-]*\(?|[()+\-*/,]/iy;
+
+/** A math value's tokens, each with whether whitespace precedes it. */
+function mathTokens(value) {
+    const tokens = [];
+    let space = false;
+    MATH_TOKEN.lastIndex = 0;
+    while (MATH_TOKEN.lastIndex < value.length) {
+        const token = MATH_TOKEN.exec(value)?.[0];
+        if (token === undefined) return null;
+        if (/^\s/.test(token)) space = true;
+        else tokens.push({ text: token, space });
+        if (!/^\s/.test(token)) space = false;
+    }
+    return tokens;
+}
 
 /**
  * Whether `value` is a math function of plain numbers (`calc(600 + 50)`,
  * `max(600, 650)`): computationally independent, so a valid `<number>` or
- * `<integer>` initial value. A unit, `%` or `var()` makes it invalid there.
+ * `<integer>` initial value. It parses as CSS does: each function takes its
+ * number of arguments, `+` and `-` need whitespace on both sides, and a unit,
+ * `%` or `var()` makes it invalid there.
  */
 function numericMath(value) {
-    if (!/^[a-z-]+\(.*\)$/is.test(value)) return false;
-    const rest = value.replace(/(?:\d*\.\d+|\d+)(?:e[+-]?\d+)?/gi, ' ');
-    if (!/^[\s\w()+\-*/,]*$/.test(rest)) return false;
-    return (rest.match(/[a-z][\w-]*/gi) ?? []).every((n) => MATH_NAME.test(n));
+    const tokens = mathTokens(value.trim());
+    if (!tokens || !/\($/.test(tokens[0]?.text ?? '')) return false;
+    let i = 0;
+    const next = () => tokens[i]?.text;
+    const sum = () => {
+        if (!product()) return false;
+        while (next() === '+' || next() === '-') {
+            if (!tokens[i].space || !tokens[i + 1]?.space) return false;
+            i += 1;
+            if (!product()) return false;
+        }
+        return true;
+    };
+    const product = () => {
+        if (!operand()) return false;
+        while (next() === '*' || next() === '/') {
+            i += 1;
+            if (!operand()) return false;
+        }
+        return true;
+    };
+    const operand = () => {
+        const token = next() ?? '';
+        i += 1;
+        if (/^[+-]?[\d.]/.test(token) || MATH_CONSTANT.test(token)) return true;
+        if (token === '(') return sum() && tokens[i++]?.text === ')';
+        const name = /^([a-z][\w-]*)\($/i.exec(token)?.[1].toLowerCase();
+        if (!name || !Object.hasOwn(MATH_ARITY, name)) return false;
+        if (name === 'round' && ROUNDING.test(next() ?? '')) {
+            if (tokens[i + 1]?.text !== ',') return false;
+            i += 2;
+        }
+        let count = 0;
+        do {
+            if (!sum()) return false;
+            count += 1;
+        } while (next() === ',' && ++i);
+        const [fewest, most] = MATH_ARITY[name];
+        return tokens[i++]?.text === ')' && count >= fewest && count <= most;
+    };
+    return operand() && i === tokens.length;
 }
 
 /**
@@ -624,29 +690,85 @@ function cssOfCode(expression) {
     );
 }
 
+/** A literal's text as JavaScript puts it in a string, or `null`. */
+function literalText(result) {
+    const string = STRING_LITERAL.exec(result);
+    if (string) return string[2].includes('${') ? null : string[2];
+    const number = Number(result.trim());
+    return Number.isFinite(number) ? String(number) : null;
+}
+
+/**
+ * The texts a template literal's body can produce when every `${…}` in it
+ * gives literals (`65${0}` is `650`, `${wide ? 650 : 600}` is `650` or
+ * `600`), up to 16 of them; `null` when one gives anything else.
+ */
+export function templateTexts(body) {
+    let texts = [''];
+    for (const part of templateParts(body)) {
+        const values =
+            part.code === undefined
+                ? [part.text]
+                : resultsOf(part.code).map(literalText);
+        if (values.includes(null)) return null;
+        texts = texts.flatMap((text) => values.map((value) => text + value));
+        if (texts.length > 16) return null;
+    }
+    return texts;
+}
+
+/** Analyses merged into one. */
+function merged(analyses) {
+    return {
+        terms: analyses.flatMap((analysis) => analysis.terms),
+        references: analyses.flatMap((analysis) => analysis.references),
+    };
+}
+
 /**
  * A value set from code, read per result it can take (see `resultsOf`), so
  * a condition's numbers are not weights. A string literal is CSS text and is
- * read as such; anything else is an expression, where other numbers appear
- * too (a weight is 100 or more) and arithmetic computes the value.
+ * read as such, a template as each text it can produce; anything else is an
+ * expression, where other numbers appear too (a weight is 100 or more) and
+ * arithmetic computes the value.
  */
 function analyseCode(expression, mode = 'weight', after = 0, cap = null) {
-    const results = resultsOf(expression).map((result) => {
-        const literal = STRING_LITERAL.exec(result);
-        // A shorthand template reads as CSS, its `${…}` an opaque token.
-        if (literal && (mode === 'font' || !literal[2].includes('${'))) {
-            // A shorthand that names JetBrains Mono meets its cap.
-            const mono =
-                mode === 'font' && rendersMono(literal[2], { shorthand: true });
-            const capHere = mono ? MONO_WEIGHT_CAP : cap;
-            return analyse(mode, literal[2], { after, cap: capHere });
-        }
-        return analyse('weight', result, { minimum: 100, code: true, cap });
-    });
-    return {
-        terms: results.flatMap((result) => result.terms),
-        references: results.flatMap((result) => result.references),
+    // A shorthand that names JetBrains Mono meets its cap.
+    const css = (text) => {
+        const mono = mode === 'font' && rendersMono(text, { shorthand: true });
+        return analyse(mode, text, {
+            after,
+            cap: mono ? MONO_WEIGHT_CAP : cap,
+        });
     };
+    return merged(
+        resultsOf(expression).map((result) => {
+            const literal = STRING_LITERAL.exec(result);
+            if (!literal) {
+                return analyse('weight', result, {
+                    minimum: 100,
+                    code: true,
+                    cap,
+                });
+            }
+            const texts = literal[2].includes('${')
+                ? templateTexts(literal[2])
+                : [literal[2]];
+            if (texts) return merged(texts.map(css));
+            // `${w}` alone is `w`. Around a value the scan cannot know, a
+            // shorthand's other tokens still read as CSS, while a weight is
+            // computed from it (`6${w}`).
+            const parts = templateParts(literal[2]);
+            if (parts.length === 1 && parts[0].code !== undefined) {
+                return analyseCode(parts[0].code, mode, after, cap);
+            }
+            if (mode === 'font') return css(literal[2]);
+            return {
+                terms: [{ value: result.trim(), computed: true }],
+                references: [],
+            };
+        })
+    );
 }
 
 /**
@@ -875,7 +997,11 @@ export function scanWeights(file, written) {
                 );
                 continue;
             }
-            record(name, match.index, analyse(mode, css, { cap }));
+            // A template's CSS reads as each text it can produce.
+            const template = !stylesheet && css.includes('${');
+            const texts = template ? templateTexts(css) : null;
+            const cssOf = (text) => analyse(mode, text, { cap });
+            record(name, match.index, merged((texts ?? [css]).map(cssOf)));
             if (!family.mono && family.refs.length > 0) {
                 const capped = analyse(mode, value, { cap: MONO_WEIGHT_CAP });
                 const place = placeOf(blocks, match.index);
@@ -1454,31 +1580,34 @@ export function findIndirectWeights(scans) {
     // Whether a custom property can be unset where it is read, so a `var()`
     // fallback applies: no rule sets it (one that inherits sets nothing of
     // its own), one resets it, or one sets it to a value that can be invalid.
-    const mayBeUnset = (reference, seen = new Set()) => {
+    // A property that reads itself, directly or through others
+    // (`--face: var(--face)`), is in a cycle, which CSS makes invalid.
+    const mayBeUnset = (reference, path = new Set()) => {
         const key = `${reference.file} ${reference.index} ${reference.name}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
+        if (path.has(key)) return true;
+        path.add(key);
         const own = visibleDefinitions(reference)
             .map((definition) => ({
                 definition,
                 text: (definition.full ?? definition.value).trim(),
             }))
             .filter(({ text }) => !INHERITING.test(text));
-        return (
+        const unset =
             !own.some(({ definition }) => setsFor(definition, reference)) ||
             own.some(
                 ({ definition, text }) =>
-                    RESETTING.test(text) || mayBeInvalid(text, definition, seen)
-            )
-        );
+                    RESETTING.test(text) || mayBeInvalid(text, definition, path)
+            );
+        path.delete(key);
+        return unset;
     };
     // A value is invalid when a `var()` in it reads a property that can be
     // unset and its own fallback (if any) can be invalid too.
-    const mayBeInvalid = (text, at, seen) =>
+    const mayBeInvalid = (text, at, path) =>
         familyRefs(familyParts(text), at).some(
             (ref) =>
-                mayBeUnset(ref, seen) &&
-                (ref.fallback === null || mayBeInvalid(ref.fallback, at, seen))
+                mayBeUnset(ref, path) &&
+                (ref.fallback === null || mayBeInvalid(ref.fallback, at, path))
         );
     // How a family list (or one variable's lists) decides JetBrains Mono,
     // entry by entry in its order: `mono`, `stop` (a family that renders

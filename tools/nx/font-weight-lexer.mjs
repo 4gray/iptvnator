@@ -335,9 +335,10 @@ export function codeStringAt({ text, quoteAt }, file, index) {
 }
 
 /**
- * The code a string's CSS text continues with: the operand after a `+`
- * right after the string (`'font-weight:' + 650 + ';'` gives `650`), or
- * `null` when no `+` follows.
+ * The code a string's CSS text continues with: the first operand after a
+ * `+` right after the string that adds more than whitespace
+ * (`'font-weight:' + ' ' + 650 + ';'` gives `650`), or `null` when no `+`
+ * follows.
  */
 export function concatenatedAfter(text, { close, limit }) {
     const code = text.slice(0, limit);
@@ -345,7 +346,39 @@ export function concatenatedAfter(text, { close, limit }) {
     if (!plus) return null;
     const start = close + 1 + plus[0].length;
     const expression = codeExpression(code, start, { argument: true });
-    return splitAt(expression, ['+'])[0];
+    const operands = splitAt(expression, ['+']);
+    const blank = /^\s*(['"`])\s*\1\s*$/;
+    return operands.find((operand) => !blank.test(operand)) ?? '';
+}
+
+/**
+ * A template literal's body split into text and `${…}` code, in order
+ * (`65${0}` is `[{ text: '65' }, { code: '0' }]`). An escaped character is
+ * text.
+ */
+export function templateParts(body) {
+    const parts = [];
+    let text = '';
+    for (let i = 0; i < body.length; i += 1) {
+        if (body[i] === '\\') {
+            text += body[i + 1] ?? '';
+            i += 1;
+            continue;
+        }
+        const code = body.startsWith('${', i)
+            ? codeExpression(body, i + 2)
+            : null;
+        if (code === null) {
+            text += body[i];
+            continue;
+        }
+        if (text) parts.push({ text });
+        text = '';
+        parts.push({ code });
+        i += 2 + code.length;
+    }
+    if (text) parts.push({ text });
+    return parts;
 }
 
 /** The bracket depth at each position of code, or -1 inside a string. */
