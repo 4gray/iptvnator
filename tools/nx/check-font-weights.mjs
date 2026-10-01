@@ -3,8 +3,14 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { extractRelativeImports } from './check-stylesheet-inputs.mjs';
-import { lex, lineIndex, tokensOf, valueAfter } from './font-weight-lexer.mjs';
+import { extractStylesheetLoads } from './check-stylesheet-inputs.mjs';
+import {
+    codeExpression,
+    lex,
+    lineIndex,
+    tokensOf,
+    valueAfter,
+} from './font-weight-lexer.mjs';
 import { sassScopes } from './font-weight-scope.mjs';
 
 /**
@@ -39,18 +45,15 @@ const SOURCE_WEIGHT =
 const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/gi;
 /** A custom property or Sass variable that a weight value may refer to. */
 const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
-/**
- * Weights set from code: Angular `[style.font-weight]` bindings (template or
- * `host`) and literal DOM writes. The expression is the third capture.
- */
-const CODE_WEIGHT = [
-    /(\[style\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])(.*?)\2/g,
-    /(\.style\.fontWeight)\s*=\s*()([^;\n]*)/g,
-    /(setProperty\(\s*['"]font-weight['"])\s*,\s*()([^;\n]*)/gi,
-];
+/** Angular `[style.font-weight]` bindings, in a template or `host`. */
+const CODE_BINDING =
+    /(\[style\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\2/g;
+/** DOM writes. `===` compares, so only a lone `=` (or `+=` and kin) assigns. */
+const CODE_ASSIGNMENT = /(\.style\.fontWeight)\s*(\*\*|[-+*/%])?=(?!=)/g;
+const CODE_SET_PROPERTY = /(setProperty\(\s*['"]font-weight['"])\s*,/gi;
 /** Arithmetic next to a number in code: `600 + 50` is 650 at runtime. */
 const CODE_ARITHMETIC =
-    /\d\s*[-+*/%]\s*[\w$(.'"`]|[\w$).'"`]\s*[-+*/%]\s*\.?\d/;
+    /\d\s*(?:\*\*|[-+*/%])\s*[\w$(.'"`]|[\w$).'"`]\s*(?:\*\*|[-+*/%])\s*\.?\d/;
 
 /** A CSS <number>: decimals, an exponent and a `+` sign are all valid. */
 const NUMBER_TEXT = String.raw`\+?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?`;
@@ -232,14 +235,31 @@ export function scanWeights(file, source) {
     }
     if (!stylesheet) {
         // Code expressions carry other numbers too; a weight is 100 or more.
-        for (const pattern of CODE_WEIGHT) {
-            for (const match of text.matchAll(pattern)) {
-                const analysis = analyse('weight', match[3], {
-                    minimum: 100,
-                    code: true,
-                });
-                record(match[1], match.index, analysis);
-            }
+        const code = { minimum: 100, code: true };
+        for (const match of text.matchAll(CODE_BINDING)) {
+            record(match[1], match.index, analyse('weight', match[3], code));
+        }
+        for (const match of text.matchAll(CODE_ASSIGNMENT)) {
+            const end = match.index + match[0].length;
+            const expression = codeExpression(text, end).trim();
+            const analysis = match[2]
+                ? {
+                      terms: [
+                          {
+                              value: `${match[2]}= ${expression}`,
+                              computed: true,
+                          },
+                      ],
+                      references: [],
+                  }
+                : analyse('weight', expression, code);
+            record(match[1], match.index, analysis);
+        }
+        for (const match of text.matchAll(CODE_SET_PROPERTY)) {
+            const end = match.index + match[0].length;
+            const expression = codeExpression(text, end, { argument: true });
+            const name = match[1].replace(/\s+/g, '');
+            record(name, match.index, analyse('weight', expression, code));
         }
     }
     for (const match of text.matchAll(DEFINITION)) {
@@ -249,12 +269,18 @@ export function scanWeights(file, source) {
         const end = match.index + match[0].length;
         const { value, selector } = valueAfter(lexed, end);
         if (selector) continue;
+        // `$x: 1` right after `(` or `,` is an argument (a mixin call, a
+        // `with (…)` configuration); otherwise it declares the variable.
+        let before = match.index - 1;
+        while (before >= 0 && /\s/.test(text[before])) before -= 1;
+        const argument = text[before] === '(' || text[before] === ',';
         const line = lineOf(match.index);
-        definitions.push({ file, line, name, key: identity(name), value });
+        const key = identity(name);
+        definitions.push({ file, line, name, key, value, argument });
     }
 
-    const imports = stylesheet ? extractRelativeImports(source) : [];
-    return { file, imports, declarations, findings, references, definitions };
+    const loads = stylesheet ? extractStylesheetLoads(source) : [];
+    return { file, loads, declarations, findings, references, definitions };
 }
 
 /**
@@ -262,7 +288,8 @@ export function scanWeights(file, source) {
  * way they are used (a weight or a whole `font` shorthand) and followed
  * through chains (`--a: var(--b)`). A name ending in `weight` is already
  * checked where it is declared. Custom properties cascade across the app, so
- * any definition counts; a Sass variable only within its module scope.
+ * any definition counts; a Sass variable only what its module scope sees
+ * (see `sassScopes`).
  */
 export function findIndirectWeights(scans) {
     const definitions = scans.flatMap((scan) => scan.definitions);
@@ -278,7 +305,13 @@ export function findIndirectWeights(scans) {
         followed.add(key);
         for (const definition of definitions) {
             if (definition.key !== name) continue;
-            if (sass && !scopeOf(file).has(definition.file)) continue;
+            if (sass) {
+                const access = scopeOf(file).get(definition.file);
+                const visible = definition.argument
+                    ? access?.arguments
+                    : access?.declarations;
+                if (!visible) continue;
+            }
             const analysis = analyse(mode, definition.value, { after });
             for (const term of analysis.terms) {
                 const { line } = definition;

@@ -1,6 +1,11 @@
 import path from 'node:path';
 
-/** The files a relative Sass load can name, in Sass's resolution order. */
+/**
+ * The files a Sass load can name, in Sass's resolution order. Bare targets
+ * (`@use 'tokens'`) resolve next to the loading file first; package and
+ * built-in modules (`@angular/material`, `sass:math`) are not workspace files
+ * and simply match nothing.
+ */
 function candidates(from, specifier) {
     const target = path.posix.join(path.posix.dirname(from), specifier);
     const dir = path.posix.dirname(target);
@@ -14,53 +19,78 @@ function candidates(from, specifier) {
     ];
 }
 
-function reach(start, edges) {
-    const seen = new Set([start]);
-    const stack = [start];
-    while (stack.length > 0) {
-        for (const next of edges.get(stack.pop()) ?? []) {
-            if (seen.has(next)) continue;
-            seen.add(next);
-            stack.push(next);
-        }
-    }
-    return seen;
+function merge(scope, file, access) {
+    const known = scope.get(file) ?? { declarations: false, arguments: false };
+    scope.set(file, {
+        declarations: known.declarations || access.declarations,
+        arguments: known.arguments || access.arguments,
+    });
 }
 
 /**
- * Where a Sass variable used in a file can be defined. Sass modules are
- * scoped, so a use sees its own file, the files it loads (`@use`, `@forward`,
- * `@import`, transitively) and the files that load it, which pass mixin
- * arguments and `with (…)` configuration. Two files that only share a partial
- * are not connected, so a `$local` in one never stands for the other's.
+ * Which definitions a Sass variable used in a file can see, per file:
+ * `declarations` (`$x: 1;` statements) and/or `arguments` (`$x: 1` inside a
+ * mixin call or a `with (…)` configuration).
  *
- * `scans` carry `file` and `imports` (relative load specifiers).
+ * - The file itself: both.
+ * - Files it loads, transitively: their declarations (module members).
+ * - Files that load it: only the arguments they pass, since `@use` never
+ *   injects the loader's own variables. A chain of legacy `@import`s is
+ *   textual inclusion, so there the loader's declarations count too.
+ *
+ * Two files that only share a partial are never connected. `scans` carry
+ * `file` and `loads` (`{ rule, target }`).
  */
 export function sassScopes(scans) {
     const known = new Set(scans.map((scan) => scan.file));
     const loads = new Map();
     const loadedBy = new Map();
-    for (const { file, imports = [] } of scans) {
-        const targets = imports
-            .map((specifier) =>
-                candidates(file, specifier).find((c) => known.has(c))
-            )
-            .filter(Boolean);
-        loads.set(file, targets);
-        for (const target of targets) {
-            if (!loadedBy.has(target)) loadedBy.set(target, []);
-            loadedBy.get(target).push(file);
+    for (const { file, loads: targets = [] } of scans) {
+        for (const { rule, target } of targets) {
+            const loaded = candidates(file, target).find((c) => known.has(c));
+            if (!loaded) continue;
+            if (!loads.has(file)) loads.set(file, []);
+            loads.get(file).push(loaded);
+            if (!loadedBy.has(loaded)) loadedBy.set(loaded, []);
+            loadedBy.get(loaded).push({ file, textual: rule === 'import' });
         }
     }
+
     const cache = new Map();
     return (file) => {
-        if (!cache.has(file)) {
-            const scope = new Set([
-                ...reach(file, loads),
-                ...reach(file, loadedBy),
-            ]);
-            cache.set(file, scope);
+        if (cache.has(file)) return cache.get(file);
+        const scope = new Map([
+            [file, { declarations: true, arguments: true }],
+        ]);
+        const down = [file];
+        const visitedDown = new Set(down);
+        while (down.length > 0) {
+            for (const next of loads.get(down.pop()) ?? []) {
+                merge(scope, next, { declarations: true, arguments: false });
+                if (!visitedDown.has(next)) {
+                    visitedDown.add(next);
+                    down.push(next);
+                }
+            }
         }
-        return cache.get(file);
+        const up = [{ file, textual: true }];
+        const visitedUp = new Set([`${file} true`]);
+        while (up.length > 0) {
+            const current = up.pop();
+            for (const loader of loadedBy.get(current.file) ?? []) {
+                const textual = current.textual && loader.textual;
+                merge(scope, loader.file, {
+                    declarations: textual,
+                    arguments: true,
+                });
+                const key = `${loader.file} ${textual}`;
+                if (!visitedUp.has(key)) {
+                    visitedUp.add(key);
+                    up.push({ file: loader.file, textual });
+                }
+            }
+        }
+        cache.set(file, scope);
+        return scope;
     };
 }

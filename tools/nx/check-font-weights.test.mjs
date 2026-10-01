@@ -451,7 +451,7 @@ test('reports arithmetic in code weights, not calls or conditions', () => {
     ]);
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
         '1 .style.fontWeight: 600 + 50',
-        "2 setProperty('font-weight': String(base + 100))",
+        "2 setProperty('font-weight': String(base + 100)",
     ]);
 });
 
@@ -500,6 +500,92 @@ test('resolves Sass variables within their module scope', () => {
         "@use './shared'; $v: 650; .y { margin: $v; }"
     );
     assert.deepEqual(report([shared, reader, sibling]), []);
+});
+
+test('reads runtime writes to the end of the statement', () => {
+    const component = [
+        'element.style.fontWeight =',
+        '    650;',
+        'element.style.fontWeight = 600 +',
+        '    50;',
+        'element.style.fontWeight = 600',
+        '    + 50;',
+        'element.style.setProperty(',
+        "    'font-weight',",
+        '    750',
+        ');',
+        'element.style.fontWeight += 50;',
+        "if (element.style.fontWeight === '650') {}",
+        "if (element.style.fontWeight !== '650') {}",
+        '[style.font-weight]="25 ** 2"',
+    ].join('\n');
+
+    assert.deepEqual(
+        offScale('apps/web/src/a.component.ts', component).sort(),
+        [
+            '1 .style.fontWeight: 650',
+            '11 .style.fontWeight: += 50',
+            '14 [style.font-weight]: 25 ** 2',
+            '3 .style.fontWeight: 600 +\n    50',
+            '5 .style.fontWeight: 600\n    + 50',
+            "7 setProperty('font-weight': 750",
+        ]
+    );
+});
+
+test('follows bare Sass loads and forwards', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const tokens = scanWeights('libs/c/_tokens.scss', '$heavy: 650;');
+    const user = scanWeights(
+        'libs/c/c.scss',
+        "@use 'tokens' as t; .c { font-weight: t.$heavy; }"
+    );
+    const index = scanWeights('libs/s/_index.scss', "@forward 'panel-header';");
+    const header = scanWeights('libs/s/_panel-header.scss', '$title: 750;');
+    const consumer = scanWeights(
+        'libs/x/x.scss',
+        "@use '../s' as s; .x { font-weight: s.$title; }"
+    );
+
+    assert.deepEqual(report([tokens, user]), ['libs/c/_tokens.scss:1 650']);
+    assert.deepEqual(report([index, header, consumer]), [
+        'libs/s/_panel-header.scss:1 750',
+    ]);
+});
+
+test('sees only what a loader passes into a loaded module', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    // `@use` never injects the loader's own variables.
+    const heading = scanWeights(
+        'libs/h/_heading.scss',
+        '$local: 500; .h { font-weight: $local; }'
+    );
+    const caller = scanWeights(
+        'libs/h/h.scss',
+        "@use './heading'; $local: 650; .x { margin: $local; }"
+    );
+    // A `with (…)` configuration does pass one in.
+    const config = scanWeights(
+        'libs/f/_config.scss',
+        '$w: 500 !default; .f { font-weight: $w; }'
+    );
+    const configured = scanWeights(
+        'libs/f/f.scss',
+        "@use './config' with ($w: 650);"
+    );
+    // Legacy `@import` is textual, so the importer's declarations count.
+    const part = scanWeights('libs/g/_part.scss', '.g { font-weight: $v; }');
+    const importer = scanWeights('libs/g/g.scss', "$v: 750; @import 'part';");
+
+    assert.deepEqual(report([heading, caller]), []);
+    assert.deepEqual(report([config, configured]), ['libs/f/f.scss:1 650']);
+    assert.deepEqual(report([part, importer]), ['libs/g/g.scss:1 750']);
 });
 
 test('flags relative keywords, which can land off the scale', () => {

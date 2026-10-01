@@ -117,6 +117,48 @@ export function valueAfter({ text, quoteAt }, start) {
     return { value: text.slice(start, end), selector: text[end] === '{' };
 }
 
+/** A binary operator (or a member access) that carries an expression on. */
+const CONTINUES = /[-+*/%=(,?:&|!<>.]$/;
+const CONTINUED = /^[-+*/%?:.,&|]/;
+
+/**
+ * A JavaScript expression from `start` to its end, across line breaks: a
+ * `;`, a closing bracket it did not open, or (with `argument`) a top-level
+ * comma. A line break ends it only where the statement is complete, so
+ * `600 +\n50` and `600\n+ 50` both read as one expression.
+ */
+export function codeExpression(text, start, { argument = false } = {}) {
+    let depth = 0;
+    let quote = '';
+    let end = start;
+    for (; end < text.length; end += 1) {
+        const char = text[end];
+        if (quote) {
+            if (char === '\\') end += 1;
+            else if (char === quote) quote = '';
+        } else if (QUOTES.has(char)) {
+            quote = char;
+        } else if ('([{'.includes(char)) {
+            depth += 1;
+        } else if (')]}'.includes(char)) {
+            if (depth === 0) break;
+            depth -= 1;
+        } else if (
+            depth === 0 &&
+            (char === ';' || (argument && char === ','))
+        ) {
+            break;
+        } else if (depth === 0 && char === '\n') {
+            const before = text.slice(start, end).trim();
+            const after = text.slice(end + 1).trimStart();
+            if (before && !CONTINUES.test(before) && !CONTINUED.test(after)) {
+                break;
+            }
+        }
+    }
+    return text.slice(start, end);
+}
+
 /**
  * Whitespace-separated tokens, keeping `var(--x, 650)` and a quoted family
  * such as `"DM Sans"` in one piece.

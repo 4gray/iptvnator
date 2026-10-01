@@ -44,15 +44,22 @@ export function stripScssComments(source) {
         .join('\n');
 }
 
-export function extractRelativeImports(source) {
-    const specifiers = [];
+/** Every `@use`/`@forward`/`@import` target, with the rule that loads it. */
+export function extractStylesheetLoads(source) {
+    const loads = [];
     const stripped = stripScssComments(source);
     for (const [, rule, clause] of stripped.matchAll(STYLESHEET_RULE)) {
         for (const target of targetsOfRule(rule, clause)) {
-            if (target.startsWith('.')) specifiers.push(target);
+            loads.push({ rule, target });
         }
     }
-    return specifiers;
+    return loads;
+}
+
+export function extractRelativeImports(source) {
+    return extractStylesheetLoads(source)
+        .map(({ target }) => target)
+        .filter((target) => target.startsWith('.'));
 }
 
 /** Mirrors Sass partial resolution for a relative specifier. */
