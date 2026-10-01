@@ -1,7 +1,10 @@
-import type { Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { expect, test } from './fixtures';
+import {
+    importPlaylist,
+    selectPlayer,
+    serveClip,
+    startClip,
+} from './player-settings-panel.fixture';
 
 /**
  * The shared controls' settings panel: on a wide player the speed chip opens
@@ -11,99 +14,7 @@ import { expect, test } from './fixtures';
  * remote media is involved.
  */
 
-const FIXTURE_HOST = 'https://player-settings-fixture.local';
-const PLAYLIST = [
-    '#EXTM3U',
-    '#EXTINF:-1 group-title="Movies",Settings Clip',
-    `${FIXTURE_HOST}/clip.mp4`,
-].join('\n');
-
 test.use({ serviceWorkers: 'block' });
-
-async function serveClip(page: Page): Promise<void> {
-    const clip = readFileSync(
-        join(__dirname, 'fixtures/playback/episode.webm')
-    );
-    await page.route(`${FIXTURE_HOST}/**`, async (route) => {
-        const range = /^bytes=(\d*)-(\d*)$/.exec(
-            route.request().headers()['range'] ?? ''
-        );
-        const last = clip.length - 1;
-        const start = range?.[1]
-            ? Number(range[1])
-            : range?.[2]
-              ? Math.max(0, clip.length - Number(range[2]))
-              : 0;
-        const end =
-            range?.[1] && range[2] ? Math.min(Number(range[2]), last) : last;
-        await route.fulfill({
-            status: range ? 206 : 200,
-            headers: {
-                'content-type': 'video/webm',
-                'accept-ranges': 'bytes',
-                'content-length': String(end - start + 1),
-                ...(range
-                    ? {
-                          'content-range': `bytes ${start}-${end}/${clip.length}`,
-                      }
-                    : {}),
-            },
-            body: clip.subarray(start, end + 1),
-        });
-    });
-}
-
-async function selectHtml5Player(page: Page): Promise<void> {
-    await page.goto('/workspace/settings/playback');
-    const select = page.locator('[data-test-id="select-video-player"]');
-    await expect(select).toBeVisible();
-    const previous = await select.innerText();
-    await select.click();
-    await page
-        .getByRole('option', { name: 'HTML5 video player', exact: true })
-        .click();
-    if (!previous.includes('HTML5 video player')) {
-        const saveButton = page.getByRole('button', { name: 'Save changes' });
-        await saveButton.click();
-        await expect(saveButton).toBeHidden();
-    }
-}
-
-async function importPlaylist(page: Page): Promise<void> {
-    await page.goto('/');
-    await page.getByRole('button', { name: 'Add playlist' }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
-    await dialog.getByLabel('Insert m3u(8) playlist as text').fill(PLAYLIST);
-    await Promise.all([
-        page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Import', exact: true }).click(),
-    ]);
-    await expect(page.getByText('1 channels')).toBeVisible();
-}
-
-async function startClip(page: Page) {
-    await page
-        .locator('[data-test-id="channel-item"]')
-        .filter({ hasText: 'Settings Clip' })
-        .click();
-    const view = page.locator('app-web-player-view');
-    const video = view.locator('video');
-    await expect
-        .poll(() =>
-            video.evaluate(
-                (el: HTMLVideoElement) =>
-                    Number.isFinite(el.duration) && el.duration > 5
-            )
-        )
-        .toBe(true);
-    // Reveal the dock and keep it revealed for the assertions below.
-    await view.hover();
-    const controls = view.locator('app-player-controls');
-    await controls.getByRole('button', { name: 'Pause', exact: true }).click();
-    return { view, video, controls };
-}
 
 test('@web @playback settings panel opens from the speed chip and applies in place', async ({
     page,
@@ -112,7 +23,7 @@ test('@web @playback settings panel opens from the speed chip and applies in pla
     // Chips and the side panel need a player of at least 960px.
     await page.setViewportSize({ width: 1600, height: 1000 });
     await serveClip(page);
-    await selectHtml5Player(page);
+    await selectPlayer(page);
     await importPlaylist(page);
     const { video, controls } = await startClip(page);
 
@@ -164,7 +75,7 @@ test('@web @playback compact player folds the chips into a tune button with a bo
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 900, height: 700 });
     await serveClip(page);
-    await selectHtml5Player(page);
+    await selectPlayer(page);
     await importPlaylist(page);
     const { view, controls } = await startClip(page);
 

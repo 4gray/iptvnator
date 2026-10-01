@@ -366,6 +366,16 @@
                     settings.available() && layout.roomy() && !settings.isOpen()
                 ) {
                     @if (settings.groups().subtitles) {
+                        <!-- On with no track marked selected yet (the engine
+                             can report the id before the list) reads "On",
+                             never "Off". The name carries the value
+                             ("Subtitles: English"); the label is the value. -->
+                        @let subtitleValue =
+                            settings.subtitleLabel() ??
+                            ((settings.subtitlesOn()
+                                ? 'EMBEDDED_MPV.PLAYER.SUBTITLES_ON'
+                                : 'EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
+                            ) | translate);
                         <button
                             type="button"
                             class="player-controls__chip"
@@ -378,10 +388,12 @@
                                 settings.onSubtitleChipContextMenu($event)
                             "
                             [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
+                                'EMBEDDED_MPV.PLAYER.SUBTITLES_TOOLTIP'
+                                    | translate: { subtitles: subtitleValue }
                             "
                             [matTooltip]="
-                                'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
+                                'EMBEDDED_MPV.PLAYER.SUBTITLES_TOOLTIP'
+                                    | translate: { subtitles: subtitleValue }
                             "
                             matTooltipPosition="above"
                         >
@@ -391,9 +403,7 @@
                                     : 'closed_caption_disabled'
                             }}</mat-icon>
                             <span class="player-controls__chip-label">{{
-                                settings.subtitleLabel() ??
-                                    ('EMBEDDED_MPV.PLAYER.SUBTITLES_OFF'
-                                        | translate)
+                                subtitleValue
                             }}</span>
                         </button>
                     }
@@ -407,7 +417,9 @@
                             data-test-id="player-controls-speed-chip"
                             (click)="settings.open('speed')"
                             [attr.aria-label]="
-                                'EMBEDDED_MPV.PLAYER.PLAYBACK_SPEED' | translate
+                                'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
+                                    | translate
+                                        : { speed: settings.speedLabel() }
                             "
                             [matTooltip]="
                                 'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
@@ -434,6 +446,7 @@
                         "
                         data-test-id="player-controls-settings-button"
                         (click)="settings.toggle()"
+                        aria-haspopup="dialog"
                         [attr.aria-expanded]="settings.isOpen()"
                         [attr.aria-label]="
                             'EMBEDDED_MPV.PLAYER.SETTINGS' | translate

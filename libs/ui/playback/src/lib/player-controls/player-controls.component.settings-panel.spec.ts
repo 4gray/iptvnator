@@ -219,7 +219,9 @@ describe('PlayerControlsComponent settings panel', () => {
                 'player-controls__settings--sheet'
             );
             expect(panel?.getAttribute('role')).toBe('dialog');
-            expect(panel?.getAttribute('aria-label')).toBe('Settings');
+            const title = panel?.querySelector('h2');
+            expect(panel?.getAttribute('aria-labelledby')).toBe(title?.id);
+            expect(title?.textContent?.trim()).toBe('Settings');
             expect(
                 query('[data-test-id="player-settings-speed"]')?.classList
             ).toContain('player-settings__group--focused');

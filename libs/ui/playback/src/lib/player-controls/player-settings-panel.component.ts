@@ -20,6 +20,10 @@ import type { SettingsGroup } from './controls-settings-groups';
 import type { ControlsSubtitleSettings } from './controls-subtitle-settings';
 import type { PlayerController } from './player-controls.model';
 import {
+    SettingsRadioDirective,
+    SettingsRadioGroupDirective,
+} from './settings-radio-group.directive';
+import {
     SUBTITLE_COLOR_PRESETS,
     SUBTITLE_DELAY_STEP_SECONDS,
     SUBTITLE_SIZE_PRESETS,
@@ -27,6 +31,8 @@ import {
 } from './subtitle-style';
 
 export type PlayerSettingsPanelMode = 'panel' | 'sheet';
+
+let nextPanelId = 0;
 
 /**
  * The settings surface behind the dock's `tune` button: audio, subtitles
@@ -39,14 +45,21 @@ export type PlayerSettingsPanelMode = 'panel' | 'sheet';
     selector: 'app-player-settings-panel',
     templateUrl: './player-settings-panel.component.html',
     styleUrl: './player-settings-panel.component.scss',
-    imports: [MatButtonModule, MatIconModule, MatTooltipModule, TranslatePipe],
+    imports: [
+        MatButtonModule,
+        MatIconModule,
+        MatTooltipModule,
+        SettingsRadioDirective,
+        SettingsRadioGroupDirective,
+        TranslatePipe,
+    ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         class: 'player-settings',
         role: 'dialog',
         tabindex: '-1',
         '[class.player-settings--sheet]': 'mode() === "sheet"',
-        '[attr.aria-label]': 'title()',
+        '[attr.aria-labelledby]': 'headingId("title")',
         '(focusin)': 'focusInside = true',
         '(focusout)': 'onFocusOut($event)',
     },
@@ -54,6 +67,8 @@ export type PlayerSettingsPanelMode = 'panel' | 'sheet';
 export class PlayerSettingsPanelComponent implements OnDestroy {
     private readonly host: HTMLElement =
         inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    /** Several players can be mounted at once: heading ids stay unique. */
+    private readonly idPrefix = `player-settings-${nextPanelId++}`;
     readonly controller = input.required<PlayerController>();
     readonly settings = input.required<ControlsSettings>();
     readonly selection = input.required<ControlsMenuSelection>();
@@ -131,6 +146,11 @@ export class PlayerSettingsPanelComponent implements OnDestroy {
 
     isFocused(group: SettingsGroup): boolean {
         return this.focusGroup() === group;
+    }
+
+    /** The id of a heading that names the dialog or one of its groups. */
+    headingId(name: string): string {
+        return `${this.idPrefix}-${name}`;
     }
 
     loadExternalSubtitle(): void {

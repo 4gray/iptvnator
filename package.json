@@ -211,6 +211,7 @@
         "angular-eslint": "22.5.0",
         "astro": "7.2.10",
         "autoprefixer": "10.5.4",
+        "axe-core": "4.13.0",
         "cookie": "2.0.1",
         "cors": "2.8.6",
         "drizzle-kit": "0.31.10",
