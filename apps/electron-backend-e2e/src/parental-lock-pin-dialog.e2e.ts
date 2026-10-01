@@ -161,6 +161,33 @@ test.describe('Electron parental-lock PIN dialog', () => {
             expect(await pressEnterAndCatchShake(confirm)).toContain(
                 'pin-dialog-shake'
             );
+            // Refused again while it still shakes, the field shakes from
+            // the start: its class never comes off, so the animation is
+            // rewound. Held at 300ms, the second refusal must reset it.
+            const replayedAt = await dialog
+                .locator('form')
+                .evaluate(async (form: HTMLFormElement) => {
+                    const nextFrame = () =>
+                        new Promise((resolve) =>
+                            requestAnimationFrame(() =>
+                                requestAnimationFrame(resolve)
+                            )
+                        );
+                    const field = form
+                        .querySelector(
+                            '[data-test-id="parental-lock-pin-confirm"]'
+                        )
+                        ?.closest('mat-form-field') as HTMLElement;
+                    form.requestSubmit();
+                    await nextFrame();
+                    const [shake] = field.getAnimations();
+                    shake.pause();
+                    shake.currentTime = 300;
+                    form.requestSubmit();
+                    await nextFrame();
+                    return shake.currentTime;
+                });
+            expect(replayedAt).toBe(0);
             await expect(dialog).toBeVisible();
             await expect(mismatch).toBeVisible();
             await expect(toggle).toHaveAttribute('aria-checked', 'false');

@@ -252,9 +252,12 @@ export class ParentalLockPinDialogComponent {
     private refuse(field: PinDialogField): void {
         this.refused.set(field);
         this.shakeField(field);
-        const input =
-            field === 'pin' ? this.pinInput() : this.confirmationInput();
-        input?.nativeElement.focus();
+        this.fieldInput(field)?.focus();
+    }
+
+    private fieldInput(field: PinDialogField): HTMLInputElement | undefined {
+        return (field === 'pin' ? this.pinInput() : this.confirmationInput())
+            ?.nativeElement;
     }
 
     private clearRefusal(field: PinDialogField): void {
@@ -268,6 +271,19 @@ export class ParentalLockPinDialogComponent {
         // full time; the earlier timer would otherwise end it early.
         if (this.shakeTimer !== null) {
             window.clearTimeout(this.shakeTimer);
+        }
+        if (this.shake() === field) {
+            // Same field again: its class stays on, so the running shake
+            // would only finish. Rewind it (none under reduced motion).
+            this.fieldInput(field)
+                ?.closest('mat-form-field')
+                ?.getAnimations?.()
+                .filter((animation) =>
+                    (animation as CSSAnimation).animationName?.includes(
+                        'pin-dialog-shake'
+                    )
+                )
+                .forEach((animation) => (animation.currentTime = 0));
         }
         this.shake.set(field);
         this.shakeTimer = window.setTimeout(() => {

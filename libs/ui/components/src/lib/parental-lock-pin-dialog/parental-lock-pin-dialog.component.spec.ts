@@ -243,6 +243,29 @@ describe('ParentalLockPinDialogComponent', () => {
             }
         });
 
+        it('replays the shake when the same field is refused again', async () => {
+            const dialog = await openDialog({ mode: 'set' });
+            const field = dialog
+                .query('parental-lock-pin')
+                ?.closest('mat-form-field') as HTMLElement & {
+                getAnimations?: () => Partial<CSSAnimation>[];
+            };
+            // jsdom has no Web Animations: stand in for the running shake.
+            const shake: Partial<CSSAnimation> = {
+                animationName: '_ngcontent-x_pin-dialog-shake',
+                currentTime: 250,
+            };
+            field.getAnimations = () => [shake];
+
+            await dialog.type('parental-lock-pin', '24');
+            await dialog.pressEnter();
+            expect(shake.currentTime).toBe(250);
+
+            await dialog.pressEnter();
+            expect(dialog.component.shake()).toBe('pin');
+            expect(shake.currentTime).toBe(0);
+        });
+
         it('refuses a too-short PIN on Enter with an error on the PIN field', async () => {
             const dialog = await openDialog({ mode: 'set' });
             const pin = () =>
