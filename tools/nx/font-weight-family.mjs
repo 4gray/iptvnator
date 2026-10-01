@@ -730,16 +730,18 @@ export function familiesOf(
     // Where a declaration in `scope` at `at` applies: its own rules, and
     // through each `@include` of a mixin (one included in another mixin
     // goes on to that one's includes) or `@extend` of a rule, theirs.
-    const landingsOf = (scope, at, seen = new Set()) => {
-        if (seen.has(scope)) return [];
-        seen.add(scope);
+    // A cycle stops on its own path, so each `@include` of a mixin, two in
+    // one rule included, is a landing of its own.
+    const landingsOf = (scope, at, path = []) => {
+        if (path.includes(scope)) return [];
+        const next = [...path, scope];
         return [
-            { at, rules: rulesOf(scope) },
+            { at, scope, rules: rulesOf(scope) },
             ...sitesOf(scope).flatMap((site) =>
-                landingsOf(placeOf(blocks, site).scope, site, seen)
+                landingsOf(placeOf(blocks, site).scope, site, next)
             ),
             ...extendersOf(scope).flatMap((extender) =>
-                landingsOf(extender.scope, at, seen)
+                landingsOf(extender.scope, at, next)
             ),
         ];
     };
@@ -885,9 +887,10 @@ export function familiesOf(
                         base.context === form.context ||
                         base.context === UNCONDITIONAL
                 )
+                // `*` matches every element.
                 .filter((base) =>
                     base.ways.some((way) =>
-                        way.every((s) => simples.includes(s))
+                        way.every((s) => s === '*' || simples.includes(s))
                     )
                 )
                 .map((base) => ({
@@ -899,13 +902,6 @@ export function familiesOf(
                 candidates.push({
                     entry: own,
                     rank: rankOf(own, form, orderOf.get(rule)),
-                });
-            }
-            const star = family.get(`* | `);
-            if (star) {
-                candidates.push({
-                    entry: star,
-                    rank: rankOf(star, { selector: '*' }, orderOf.get('* | ')),
                 });
             }
             const best = candidates.reduce(
@@ -920,11 +916,6 @@ export function familiesOf(
             set.find((entry) => entry.refs.length > 0);
         if (named) return named;
         return set.length && set.length === targets.length ? set[0] : null;
-    };
-    // A top-level rule's family, unless it inherits (`* | ` is `*`'s).
-    const rooted = (selector) => {
-        const entry = family.get(`${selector} | `);
-        return entry && !entry.inherit ? entry : null;
     };
     // The nearest ancestor its compiled selector names (`.w .p .c` has
     // `.w .p`, then `.w`) that sets a family, in its context or always: by
@@ -966,19 +957,26 @@ export function familiesOf(
             if (!inherits(block.prelude)) return NONE;
         }
         // Else from the document's root: a plain `:host`, `body`, `html` or
-        // `:root`.
+        // `:root`, in the reader's context (its `@media`) or always.
+        const reader = around.find((b) => !b.prelude.startsWith('@'));
+        const context = reader
+            ? (compiled(rulesOf(reader.start)[0] ?? '')?.context ??
+              UNCONDITIONAL)
+            : UNCONDITIONAL;
         for (const root of [':host', 'body', 'html', ':root']) {
-            const entry = rooted(root);
-            if (entry) return entry;
+            const found = familiesAt(root, context);
+            if (found.length) return chosen(found, true);
         }
         return NONE;
     };
     // A weight in a mixin's body, or in a rule others extend, meets the
     // family where it lands: each rule that includes or extends it (whose
-    // own later family wins). A mixin's body, or a placeholder (`%x`),
-    // styles nothing where it is written.
-    const familyAt = (index, seen = new Set()) => {
-        const { scope } = placeOf(blocks, index);
+    // own later family wins), of those `keep` accepts (where the weight is
+    // in effect). A mixin's body, or a placeholder (`%x`), styles nothing
+    // where it is written.
+    const familyAt = (index, keep, seen = new Set()) => {
+        const place = placeOf(blocks, index);
+        const scope = fontNamespaceRule(blocks, place) ?? place.scope;
         if (seen.has(scope)) return [];
         seen.add(scope);
         const block = blocks.find((b) => b.start === scope);
@@ -988,14 +986,14 @@ export function familiesOf(
             includes.length > 0 ||
             (extended.length > 0 && /^%/.test(block?.prelude ?? ''));
         return [
-            ...(silent ? [] : [lookup(index)]),
+            ...(silent || !keep(scope) ? [] : [lookup(index)]),
             ...[...includes, ...extended].flatMap((site) =>
-                familyAt(site, seen)
+                familyAt(site, keep, seen)
             ),
         ];
     };
-    const monoAt = (index) => {
-        const found = familyAt(index).filter((entry) => entry !== NONE);
+    const monoAt = (index, keep = () => true) => {
+        const found = familyAt(index, keep).filter((entry) => entry !== NONE);
         return (
             found.find((entry) => entry.mono) ??
             found.find((entry) => entry.refs.length > 0) ??
@@ -1003,7 +1001,7 @@ export function familiesOf(
             NONE
         );
     };
-    // Where a declaration at `index` lands (`{ at, rules }`, see
+    // Where a declaration at `index` lands (`{ at, scope, rules }`, see
     // `landingsOf`), for the weights in effect.
     monoAt.landings = (index) => {
         const place = placeOf(blocks, index);

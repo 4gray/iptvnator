@@ -737,6 +737,23 @@ function cssOfCode(expression) {
     );
 }
 
+/** A JavaScript number literal (`0x28a`, `0o1212`, `6_50`, `650n`). */
+const JS_NUMBER =
+    /(?<![\w$.])(?:0[xob][\da-f_]+|\d[\d_]*(?:\.[\d_]*)?(?:e[+-]?\d[\d_]*)?)n?(?![\w$.])/gi;
+
+/**
+ * Code with each number literal spelled other than in decimal written as
+ * the number JavaScript makes of it (`0x28a` is `650`, also in a branch or
+ * an operand), so it reads as the weight a setter receives.
+ */
+function numberText(code) {
+    return code.replace(JS_NUMBER, (literal) => {
+        if (!/^0[xob]|_|n$/i.test(literal)) return literal;
+        const value = Number(literal.replace(/_|n$/gi, ''));
+        return Number.isFinite(value) ? String(value) : literal;
+    });
+}
+
 /** A literal's text as JavaScript puts it in a string, or `null`. */
 function literalText(result) {
     const string = STRING_LITERAL.exec(result);
@@ -792,7 +809,7 @@ function analyseCode(expression, mode = 'weight', after = 0, cap = null) {
         resultsOf(expression).map((result) => {
             const literal = STRING_LITERAL.exec(result);
             if (!literal) {
-                return analyse('weight', result, {
+                return analyse('weight', numberText(result), {
                     minimum: 100,
                     code: true,
                     cap,
@@ -1052,13 +1069,16 @@ export function scanWeights(file, written) {
     // A shorthand that fails to parse is dropped, so it sets nothing.
     // In a selector list, it is in effect while it is for any selector.
     // A weight is in effect where, in a rule it lands in, nothing later
-    // replaces it and nothing earlier outranks it (`!important`).
+    // replaces it and nothing earlier outranks it (`!important`): the
+    // scopes of those landings, the only ones whose family it meets.
     const after = (a, b) => a.at > b.at || (a.at === b.at && a.index > b.index);
-    const inEffect = (index) =>
-        monoAt.landings(index).some(({ rules }) =>
+    const effectiveIn = (index) => {
+        const landings = monoAt.landings(index).filter(({ at, rules }) =>
             rules.some((id) => {
                 const rule = setters.get(id) ?? [];
-                const own = rule.find((setter) => setter.index === index);
+                const own = rule.find(
+                    (setter) => setter.index === index && setter.at === at
+                );
                 return (
                     Boolean(own) &&
                     !rule.some((other) =>
@@ -1071,6 +1091,8 @@ export function scanWeights(file, written) {
                 );
             })
         );
+        return new Set(landings.map(({ scope }) => scope));
+    };
 
     // CSS text in a string (an inline `style="…"`, a component style) meets
     // the Mono cap when the declarations around it set JetBrains Mono.
@@ -1139,9 +1161,10 @@ export function scanWeights(file, written) {
                 fontNamespaceRule(blocks, placeOf(blocks, match.index)) !==
                     undefined;
             const weightName = /^font(?:-weight)?$/i.test(name) || nested;
+            const effective = weightName ? effectiveIn(match.index) : new Set();
             const family =
-                weightName && inEffect(match.index)
-                    ? monoAt(match.index)
+                effective.size > 0
+                    ? monoAt(match.index, (scope) => effective.has(scope))
                     : { mono: false, refs: [] };
             const inline =
                 !stylesheet && weightName && monoInString(match.index);
