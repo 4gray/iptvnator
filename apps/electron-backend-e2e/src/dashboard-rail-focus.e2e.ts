@@ -120,7 +120,9 @@ test.describe('Dashboard rail focus', () => {
             expect(await lastCardLinkFocused(app.mainWindow)).toBe(true);
             await expect.poll(() => lastCardFullyVisible(rail)).toBe(true);
 
-            // `focus()` from script, starting at the rail's start again.
+            // `focus()` from script after a mouse click elsewhere, starting
+            // at the rail's start again.
+            await rail.locator('.rail__label').click();
             await rail.evaluate((section) => {
                 (document.activeElement as HTMLElement | null)?.blur();
                 section

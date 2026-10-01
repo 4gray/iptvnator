@@ -51,6 +51,7 @@
             [attr.data-layout]="layout()"
             (scroll)="onScroll()"
             (focusin)="onTrackFocusIn($event)"
+            (pointerdown)="onTrackPointerDown($event)"
             role="list"
         >
             @for (card of items(); track card.id) {

@@ -592,23 +592,36 @@ describe('DashboardRailComponent', () => {
             });
         });
 
-        it('reveals the card when the focus comes from the keyboard', async () => {
-            const { element, scrollTo, focusLink } = await renderRail({
-                count: 6,
-                width: 172,
-                stride: 186,
-            });
-
-            element.dispatchEvent(
-                new KeyboardEvent('keydown', { bubbles: true, key: 'Tab' })
-            );
-            focusLink(5);
-
-            expect(scrollTo).toHaveBeenCalledWith({
-                left: 102,
-                behavior: 'auto',
-            });
-        });
+        /**
+         * Presses a card link: a pointerdown (jsdom has no PointerEvent),
+         * followed for a mouse by its mousedown. A tap's compatibility
+         * mousedown only comes once the finger lifts.
+         */
+        const pressCard = (
+            element: HTMLElement,
+            index: number,
+            pointerType: 'mouse' | 'touch'
+        ) => {
+            const link = element.querySelectorAll('.rail__card-link')[index];
+            const press = new MouseEvent('pointerdown', { bubbles: true });
+            Object.defineProperty(press, 'pointerType', { value: pointerType });
+            link.dispatchEvent(press);
+            if (pointerType === 'mouse') {
+                link.dispatchEvent(
+                    new MouseEvent('mousedown', {
+                        bubbles: true,
+                        buttons: 1,
+                        detail: 1,
+                    })
+                );
+            }
+        };
+        // Waits out a press's focus window. The rail's first-render reset to
+        // the start lands meanwhile, so its scrollTo call is forgotten.
+        const wait = async (ms: number, scrollTo: jest.Mock) => {
+            await new Promise((resolve) => setTimeout(resolve, ms));
+            scrollTo.mockClear();
+        };
 
         it('keeps the rail still when a mouse press focuses a partly hidden card', async () => {
             // Scrolling on mousedown would move the card from under the
@@ -619,16 +632,41 @@ describe('DashboardRailComponent', () => {
                 stride: 186,
             });
 
-            element.querySelectorAll('.rail__card-link')[5].dispatchEvent(
-                new MouseEvent('mousedown', {
-                    bubbles: true,
-                    buttons: 1,
-                    detail: 1,
-                })
-            );
+            pressCard(element, 5, 'mouse');
             focusLink(5);
 
             expect(scrollTo).not.toHaveBeenCalled();
+        });
+
+        it('keeps the rail still when a tap focuses the card after the finger lifts', async () => {
+            const { element, scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            pressCard(element, 5, 'touch');
+            await wait(150, scrollTo);
+            focusLink(5);
+
+            expect(scrollTo).not.toHaveBeenCalled();
+        });
+
+        it('still reveals a card focused from script after an earlier mouse press', async () => {
+            const { element, scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            pressCard(element, 0, 'mouse');
+            await wait(150, scrollTo);
+            focusLink(5);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 102,
+                behavior: 'auto',
+            });
         });
 
         it('leaves the scroll position alone for a fully visible card', async () => {

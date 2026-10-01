@@ -14,7 +14,6 @@ import {
     viewChild,
     viewChildren,
 } from '@angular/core';
-import { InputModalityDetector } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -135,7 +134,6 @@ export interface DashboardRailActionSelection {
 })
 export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
-    private readonly inputModality = inject(InputModalityDetector);
 
     readonly label = input.required<string>();
     readonly items = input.required<DashboardRailCard[]>();
@@ -175,6 +173,8 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     private readonly visibleCardIds = new Set<string>();
     private lastVisibleSignature: string | null = null;
     private resetFrameId: number | null = null;
+    /** Last mouse, pen or touch press inside the track. */
+    private pointerPress: { timeStamp: number; touch: boolean } | null = null;
     private settleFrameId: number | null = null;
 
     /**
@@ -287,7 +287,7 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
 
     /**
      * Brings a card that receives keyboard or programmatic focus (Tab or
-     * `focus()`) fully into view; focus that follows a mouse or touch press
+     * `focus()`) fully into view; focus caused by a mouse or touch press
      * leaves the rail where it is.
      * Chromium skips its own focus scroll when 32px or more of the element
      * already shows, which left a card partly hidden under the edge fade
@@ -298,12 +298,7 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
      * viewport, not the track, whose padding bleeds under the fades.
      */
     onTrackFocusIn(event: FocusEvent): void {
-        // A mouse or touch press focuses the card it lands on too, but
-        // scrolling then would slide the card from under the pointer and
-        // lose the click. The detector only listens, so nothing in the DOM
-        // changes before the click itself.
-        const modality = this.inputModality.mostRecentModality;
-        if (modality === 'mouse' || modality === 'touch') return;
+        if (this.isFocusFromPointerPress(event)) return;
         const card =
             event.target instanceof Element
                 ? event.target.closest<HTMLElement>('.rail__card')
@@ -339,6 +334,29 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
             left: Math.max(0, Math.min(left, maxLeft)),
             behavior: 'auto',
         });
+    }
+
+    onTrackPointerDown(event: PointerEvent): void {
+        this.pointerPress = {
+            timeStamp: event.timeStamp,
+            touch: event.pointerType === 'touch',
+        };
+    }
+
+    /**
+     * A press focuses the card it lands on too, but scrolling then would
+     * slide the card from under the pointer and lose the click. A mouse or
+     * pen focuses on the mousedown right after the pointerdown; a tap only
+     * with the compatibility mouse events once the finger lifts, so it gets
+     * the CDK FocusMonitor's 650ms touch buffer. Focus later than that, such
+     * as `focus()` after a click elsewhere, is not the press's. Only
+     * timestamps are compared: nothing in the DOM changes before the click.
+     */
+    private isFocusFromPointerPress(event: FocusEvent): boolean {
+        const press = this.pointerPress;
+        if (!press) return false;
+        const elapsed = event.timeStamp - press.timeStamp;
+        return elapsed >= 0 && elapsed <= (press.touch ? 650 : 100);
     }
 
     scrollBy(direction: 1 | -1): void {
