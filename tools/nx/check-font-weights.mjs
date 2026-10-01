@@ -97,17 +97,18 @@ import {
  * them out, a content block's too where the mixin places `@content` at its
  * top level, and a rule this file `@extend`s whole applies to its extenders.
  * An `:is()` or `:where()` reads as the selectors it holds (`:where(.p) .c`
- * is `.p .c`). A rule on a single compound also sets the family of compounds
- * that contain it (`.x` for `.x:hover`, `:is()`/`:where()` opened); of
- * those, the element's own rule and `*`, the cascade winner counts
- * (`!important`, layer, specificity, source order; a `@layer` always
- * applies, and `revert-layer` falls back past its own). Without a family of
- * its own, a rule takes one from an ancestor its compiled selector names (an
- * `@at-root` rule's as Sass writes it out), else from the document root
- * (`:host`, `body`, `html`, `:root`) in its file; a family applies under
- * conditions (`@media`, `@supports`, `@if`) that the reader shares, or
- * always. Sass conditions are not evaluated: each `@if`/`@else` branch
- * counts as one that may run, in a rule, a mixin or a content block alike.
+ * is `.p .c`). A rule also sets the family of the narrower selectors it
+ * reaches (`.x` for `.x:hover`, `.p .x` for `.w .p .x:hover`), compound by
+ * compound across what its combinators allow; of those, the element's own
+ * rule and `*`, the cascade winner counts (`!important`, layer, specificity,
+ * source order; a `@layer` always applies, and `revert-layer` falls back
+ * past its own). Without a family of its own, a rule takes one from an
+ * ancestor its compiled selector names (an `@at-root` rule's as Sass writes
+ * it out), else from the document root (`:host`, `body`, `html`, `:root`) in
+ * its file; a family applies under conditions (`@media`, `@supports`, `@if`)
+ * that the reader shares, or always. Sass conditions are not evaluated: each
+ * `@if`/`@else` branch counts as one that may run, in a rule, a mixin or a
+ * content block alike.
  *
  * Not traced: global styles in another file, a weight inherited from
  * another rule, a mixin from another module, a mixin's nested rules and

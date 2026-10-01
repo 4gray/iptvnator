@@ -4138,6 +4138,74 @@ test('reads a static Sass interpolation in a family as Sass writes it', () => {
     }
 });
 
+test('reads a complex rule as a base of the narrower ones it reaches', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/e.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // Compound by compound, last to last, each contained in the reader's.
+        [
+            `.parent .x { font-family: ${mono}; } .parent .x:hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent .x { font-family: ${mono}; } .w .parent .x:hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent .x { font-family: ${mono}; } .parent.on .x.a { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.p .x { font-family: ${mono}; } .z .x:hover { font-weight: 700; }`,
+            [],
+        ],
+        // A descendant across `>` or ` ` chains, `~` across `+` or `~`.
+        [
+            `.a .b { font-family: ${mono}; } .a > .b.c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.p .x { font-family: ${mono}; } .p .q .x:hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a ~ .b { font-family: ${mono}; } .a + .b.c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`.a > .b { font-family: ${mono}; } .a .b.c { font-weight: 700; }`, []],
+        [
+            `.a + .b { font-family: ${mono}; } .a ~ .b.c { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.a > .b { font-family: ${mono}; } .a > .q > .b { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.a + .b { font-family: ${mono}; } .a + .q + .b { font-weight: 700; }`,
+            [],
+        ],
+        // As an ancestor's rule, and ranked in the cascade.
+        [
+            `.parent .x { font-family: ${mono}; } .parent .x:hover .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; } .x.on .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent .x { font-family: ${mono}; } .parent .x:hover { font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads an `@at-root` rule where Sass writes it out', () => {
     const mono = "'JetBrains Mono'";
     const media = '@media (min-width: 1px)';

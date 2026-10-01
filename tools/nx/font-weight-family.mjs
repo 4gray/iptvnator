@@ -800,6 +800,9 @@ export function startsDeclaration(text, index) {
 const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
 const CONTENT = /@content\b/g;
 
+/** The combinators a selector's one allows across in a narrower one. */
+const ACROSS = { ' ': [' ', '>'], '~': ['~', '+'] };
+
 /**
  * How two landings (see `landingsOf`) compare in the order Sass writes
  * them out: by their place in the rule, then within each mixin and content
@@ -1085,19 +1088,71 @@ export function familiesOf(
         found.find((entry) => entry.refs.length > 0) ??
         (complete ? found[0] : undefined) ??
         null;
-    // The rules on a single compound (`.x`, `a.b`, `:where(.x)`), with the
-    // ways their simple selectors read: an element of `.x:hover` is an `.x`,
-    // so a family `.x` sets reaches it, in the same context or where the
-    // base always applies.
+    // Every rule as the compounds of each selector it reads as, each with
+    // the ways its simple selectors read: an element of `.x:hover` is an
+    // `.x`, and one of `.p .x:hover` (or `.w .p .x:hover`) a `.p .x`, so a
+    // family they set reaches it, in the same context or where the base
+    // always applies.
     const bases = compiledRules
         .map((base) => ({
             ...base,
-            ways: base.alternatives.flatMap((alternative) => {
-                const simples = simplesOf(alternative);
-                return simples ? alternativesOf(simples) : [];
+            chains: base.alternatives.flatMap((alternative) => {
+                const chain = compoundsOf(alternative).map((part) => {
+                    const simples = simplesOf(part.compound);
+                    return (
+                        simples && { ...part, ways: alternativesOf(simples) }
+                    );
+                });
+                return chain.every(Boolean) ? [chain] : [];
             }),
         }))
-        .filter(({ ways }) => ways.length);
+        .filter(({ chains }) => chains.length);
+    // Whether a base reaches every element of a reader's `selector` read
+    // `way` at its target: its compounds, last to last, each contained in
+    // one of the reader's (`*` in any), in order and across what its
+    // combinators allow (a descendant across `>` or ` ` chains, `~` across
+    // `+` or `~` ones, `>` and `+` only their own); what the reader names
+    // besides only narrows it.
+    const covers = (base, selector, way) => {
+        const reader = compoundsOf(selector);
+        const within = (part, k) => {
+            const simples =
+                k === reader.length - 1 ? way : simplesOf(reader[k].compound);
+            return part.ways.some((ways) =>
+                ways.every((s) => s === '*' || simples?.includes(s))
+            );
+        };
+        return base.chains.some((chain) => {
+            let k = reader.length - 1;
+            if (!within(chain.at(-1), k)) return false;
+            for (let i = chain.length - 2; i >= 0; i -= 1) {
+                const combinator = chain[i + 1].combinator;
+                const across = ACROSS[combinator] ?? [combinator];
+                let j = k - 1;
+                for (; j >= 0; j -= 1) {
+                    if (!across.includes(reader[j + 1].combinator))
+                        return false;
+                    if (within(chain[i], j)) break;
+                    if (across.length === 1) return false;
+                }
+                if (j < 0) return false;
+                k = j;
+            }
+            return true;
+        });
+    };
+    // Whether a rule reaches every element of `selector` (see `covers`),
+    // in any way its target reads.
+    const baseOf = new Map(bases.map((base) => [base.rule, base]));
+    const reaches = (form, selector) => {
+        const base = baseOf.get(form.rule);
+        const target = compoundsOf(selector).at(-1)?.compound;
+        const simples = base && target ? simplesOf(target) : null;
+        return Boolean(
+            simples &&
+            alternativesOf(simples).some((way) => covers(base, selector, way))
+        );
+    };
     // A declaration's place in the cascade: `!important`, then its layer
     // (see `layerPlace`; `!important` turns the order round), then
     // specificity, then source order.
@@ -1128,10 +1183,11 @@ export function familiesOf(
     // `null` when none sets one or the winner inherits.
     const winnerAt = (selectors, context) => {
         const ranked = compiledRules
-            .filter((form) =>
-                form.alternatives.some((alternative) =>
-                    selectors.includes(alternative)
-                )
+            .filter(
+                (form) =>
+                    form.alternatives.some((alternative) =>
+                        selectors.includes(alternative)
+                    ) || selectors.some((selector) => reaches(form, selector))
             )
             .filter((form) => encloses(form.context, context))
             .map((form) => ({
@@ -1179,14 +1235,9 @@ export function familiesOf(
             if (!form) return family.get(rule) ?? null;
             const applies = (other) => encloses(other.context, form.context);
             const candidates = [
-                // `*` matches every element.
                 ...bases
                     .filter(applies)
-                    .filter((base) =>
-                        base.ways.some((simples) =>
-                            simples.every((s) => s === '*' || way.includes(s))
-                        )
-                    )
+                    .filter((base) => covers(base, selector, way))
                     .map(ranked),
                 // A rule on the same elements written another way
                 // (`:where(.p .c)` for `.p .c`).
