@@ -579,7 +579,11 @@ for the serve target's `--tsconfig` flag and is required for the `@iptvnator/*`
 path aliases. `project-config.spec.ts` pins which configs start which mock,
 and fails if any of them launches a mock through Nx or a new config starts one
 without being listed there. The `serve` targets remain the entry point
-for starting a mock by hand. The web-e2e `web-backend` entry uses the same
+for starting a mock by hand, and no E2E target may depend on them: with no
+Nx-launched server, `@nx/playwright` infers the atomized `e2e-ci--*` targets
+as non-parallel, and Nx refuses to run a non-parallel task that depends on a
+continuous `serve` task. The same spec guards the `e2e*` entries of `nx.json`
+`targetDefaults` and every target in the `apps/*-e2e` `project.json` files. The web-e2e `web-backend` entry uses the same
 launch form; see [PWA web backend](pwa-self-hosted.md#web-backend).
 
 ### Request Interception
