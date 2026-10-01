@@ -4520,6 +4520,15 @@ test('reads ancestors and bases as compiled, in their context', () => {
             `${media} { .x { font-family: ${mono}; } } @media (min-width: 2px) { .x { font-weight: 700; } }`,
             [],
         ],
+        // Quoted text in a condition is kept as written.
+        [
+            `@container style(--t: "a, b") { .x { font-family: ${mono}; } } @container style(--t: "a,b") { .x { font-weight: 700; } }`,
+            [],
+        ],
+        [
+            `@container style(--t: "a, b") { .x { font-family: ${mono}; } } @container style( --t : "a, b" ) { .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
         // A parent after a prefix (`.x &`) names more ancestors, read once
         // the parent itself (the same element) sets no family.
         [

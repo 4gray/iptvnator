@@ -689,13 +689,18 @@ function splicedWith(simple, simples, combinator) {
  * An at-rule prelude spaced and cased one way, so conditions written
  * differently compare equal (`@MEDIA (min-width:1px)` is `@media
  * (min-width: 1px)`): its name lowercased, no space around `(`, `)`, `:`
- * or `,`, and one space elsewhere.
+ * or `,`, and one space elsewhere; a quoted string kept as written.
  */
 function conditionKey(prelude) {
     return prelude
         .replace(/^@[\w-]+/, (name) => name.toLowerCase())
-        .replace(/\s+/g, ' ')
-        .replace(/\s*([():,])\s*/g, '$1')
+        .split(/("(?:[^"\\]|\\[\s\S])*"|'(?:[^'\\]|\\[\s\S])*')/)
+        .map((part, k) =>
+            k % 2
+                ? part
+                : part.replace(/\s+/g, ' ').replace(/\s*([():,])\s*/g, '$1')
+        )
+        .join('')
         .trim();
 }
 
