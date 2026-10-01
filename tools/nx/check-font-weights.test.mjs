@@ -402,11 +402,23 @@ test('follows Sass loop variables', () => {
         '$v: 600; @each $v in 650 { .in { color: red; } } .after { font-weight: $v; }',
         '$p: margin; @each $p in font-weight, color { .l { #{$p}: 650; } }',
         '$q: margin; @each $q in font-weight { .in { color: red; } } .w { #{$q}: 650; }',
+        // Destructuring: a map's keys and values, a list's positions.
+        '@each $name, $w in (650: 400, 750: 600) { .k-#{$name} { font-weight: $w; } }',
+        '@each $a, $w in (x 400, y 650) { .p { font-weight: $w; } }',
+        '@each $prop, $value in (font-weight: 750, color: red) { .q { #{$prop}: $value; } }',
+        // `to` stops before its end, so this loop never runs.
+        '@for $w from 650 to 650 { .e { font-weight: $w; } }',
+        // A space-separated list is one variable's list too.
+        '@each $w in 400 650 600 { .s { font-weight: $w; } }',
     ].join('\n');
 
     assert.deepEqual(offScale('libs/l3/a.scss', source).sort(), [
         '1 $w: 650',
         '12 #{$p}: 650',
+        '15 $w: 650',
+        '16 $value: 750',
+        '16 font-weight: 750',
+        '18 $w: 650',
         '3 $w: 650',
         '4 $weights: 750',
         '6 $w: from 400 through 402',

@@ -444,12 +444,61 @@ function familyInCss(css) {
  */
 function rangeAnalysis({ range, value }) {
     const [from, to] = [Number(range.from), Number(range.to)];
-    const single = range.through ? from === to : Math.abs(to - from) === 1;
-    const onScale = single && WEIGHT_SCALE.includes(from);
+    const literal = Number.isFinite(from) && Number.isFinite(to);
+    // `through` includes the end, `to` stops before it (`from 6 to 6` runs
+    // no times).
+    const count = Math.abs(to - from) + (range.through ? 1 : 0);
+    const silent =
+        literal &&
+        (count === 0 || (count === 1 && WEIGHT_SCALE.includes(from)));
     return {
-        terms: onScale ? [] : [{ value, computed: true }],
+        terms: silent ? [] : [{ value, computed: true }],
         references: [],
     };
+}
+
+/** A Sass list split at its top-level commas, outer parentheses dropped. */
+function listItems(list) {
+    const inner = /^\((.*)\)$/s.exec(list.trim())?.[1] ?? list;
+    const items = [];
+    let depth = 0;
+    let current = '';
+    for (const char of inner) {
+        if (char === '(') depth += 1;
+        if (char === ')') depth -= 1;
+        if (char === ',' && depth === 0) {
+            items.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    return [...items, current.trim()].filter(Boolean);
+}
+
+/**
+ * What each variable of `@each $a, $b in …` takes, as a list: for a map,
+ * the first the keys and the second the values; for a list of lists, each
+ * its position in every item. One variable takes the whole list.
+ */
+function loopColumns(list, count) {
+    if (count === 1) return [list];
+    const items = listItems(list);
+    const map = items.every((item) => /^[^():]+:/.test(item));
+    const rows = items.map((item) =>
+        map
+            ? [
+                  item.slice(0, item.indexOf(':')),
+                  item.slice(item.indexOf(':') + 1),
+              ]
+            : item.replace(/^\((.*)\)$/s, '$1').split(/\s+/)
+    );
+    return Array.from({ length: count }, (_, i) =>
+        rows
+            .map((row) => (row[i] ?? '').trim())
+            .filter(Boolean)
+            .join(', ')
+    );
 }
 
 /**
@@ -839,9 +888,9 @@ export function scanWeights(file, source) {
     };
     for (const match of stylesheet ? text.matchAll(EACH_LOOP) : []) {
         if (inString(match.index)) continue;
-        for (const name of match[1].split(',')) {
-            loopVariable(name.trim(), match, match[2].trim());
-        }
+        const names = match[1].split(',').map((name) => name.trim());
+        const columns = loopColumns(match[2].trim(), names.length);
+        names.forEach((name, i) => loopVariable(name, match, columns[i]));
     }
     for (const match of stylesheet ? text.matchAll(FOR_LOOP) : []) {
         if (inString(match.index)) continue;
