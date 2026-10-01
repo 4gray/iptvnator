@@ -839,12 +839,31 @@ test('checks indexed style writes', () => {
         'element.style[`fontWeight`] += 50;',
         "if (element.style['fontWeight'] === 650) {}",
         "element.style['fontWeight'] = 600;",
+        "element.style.fontWeight ||= '650';",
+        "element.style['fontWeight'] ??= 750;",
+        "element.style.fontWeight &&= '600';",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
         "1 .style['fontWeight']: 650",
         '2 .style["font-weight"]: 750',
         '3 .style[`fontWeight`]: += 50',
+        '6 .style.fontWeight: 650',
+        "7 .style['fontWeight']: 750",
+    ]);
+});
+
+test('checks font-weight attributes set at runtime', () => {
+    const component = [
+        "node.setAttribute('font-weight', '650');",
+        'node.setAttributeNS(null, "font-weight", 750);',
+        "node.setAttribute('font-weight', '600');",
+        "node.setAttribute('aria-label', '650');",
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        "1 setAttribute('font-weight': 650",
+        '2 setAttributeNS(null,"font-weight": 750',
     ]);
 });
 
@@ -1861,6 +1880,24 @@ test('resolves a JetBrains Mono family named through variables', () => {
             fallback('var(--face)'),
         ]),
         ['libs/m4/rule.scss:1 700']
+    );
+    // A property set to a CSS-wide keyword, or through an unset `var()`
+    // without a fallback, can be unset too.
+    for (const face of ['initial', 'inherit', 'var(--nope)']) {
+        assert.deepEqual(
+            report([
+                theme(`:root { --face: ${face}; }`),
+                fallback("var(--face, 'JetBrains Mono')"),
+            ]),
+            ['libs/m4/rule.scss:1 700']
+        );
+    }
+    assert.deepEqual(
+        report([
+            theme(':root { --face: var(--nope, Roboto); }'),
+            fallback("var(--face, 'JetBrains Mono')"),
+        ]),
+        []
     );
     assert.deepEqual(
         report([

@@ -100,12 +100,19 @@ const CODE_BINDING =
     /(\[(?:style|attr)\.(font-weight|fontWeight|--[\w-]+)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\3/gi;
 /**
  * DOM writes, dotted or indexed (`style['font-weight']`). `===` compares, so
- * only a lone `=` (or `+=` and kin) assigns.
+ * only a lone `=` (or `+=` and kin, or a logical `||=`) assigns.
  */
 const CODE_ASSIGNMENT =
-    /(\.style(?:\.fontWeight|\[\s*(['"`])font(?:Weight|-weight)\2\s*\]))\s*(\*\*|[-+*/%])?=(?!=)/g;
+    /(\.style(?:\.fontWeight|\[\s*(['"`])font(?:Weight|-weight)\2\s*\]))\s*(\*\*|[-+*/%]|\|\||&&|\?\?)?=(?!=)/g;
+/** A logical assignment stores its right-hand side as it is. */
+const LOGICAL_ASSIGNMENT = /^(?:\|\||&&|\?\?)$/;
 const CODE_SET_PROPERTY =
     /(setProperty\(\s*['"`](font-weight|--[\w-]+)['"`])\s*,/gi;
+/** An SVG presentation attribute set at runtime, with or without a namespace. */
+const CODE_SET_ATTRIBUTE =
+    /(setAttribute(?:NS)?\(\s*(?:[^,()'"`]+,\s*)?['"`](font-weight)['"`])\s*,/gi;
+/** A CSS-wide keyword can leave a custom property unset where it is read. */
+const CSS_WIDE = /^(?:initial|inherit|unset|revert|revert-layer)\b/i;
 /**
  * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
  * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
@@ -465,7 +472,7 @@ export function scanWeights(file, source) {
         for (const match of text.matchAll(CODE_ASSIGNMENT)) {
             const end = match.index + match[0].length;
             const expression = codeExpression(text, end).trim();
-            if (match[3]) {
+            if (match[3] && !LOGICAL_ASSIGNMENT.test(match[3])) {
                 const value = `${match[3]}= ${expression}`;
                 const terms = [{ value, computed: true }];
                 record(match[1], match.index, { terms, references: [] });
@@ -473,11 +480,15 @@ export function scanWeights(file, source) {
                 setByCode(match[1], 'font-weight', match.index, expression);
             }
         }
-        for (const match of text.matchAll(CODE_SET_PROPERTY)) {
-            const end = match.index + match[0].length;
-            const expression = codeExpression(text, end, { argument: true });
-            const name = match[1].replace(/\s+/g, '');
-            setByCode(name, match[2], match.index, expression);
+        for (const pattern of [CODE_SET_PROPERTY, CODE_SET_ATTRIBUTE]) {
+            for (const match of text.matchAll(pattern)) {
+                const end = match.index + match[0].length;
+                const expression = codeExpression(text, end, {
+                    argument: true,
+                });
+                const name = match[1].replace(/\s+/g, '');
+                setByCode(name, match[2], match.index, expression);
+            }
         }
     }
     for (const match of text.matchAll(DEFINITION)) {
@@ -775,21 +786,39 @@ export function findIndirectWeights(scans) {
             return true;
         });
     };
-    // Whether a family reference names JetBrains Mono, through chains. A
-    // `var()` fallback applies only where the property is never set.
+    // Whether a custom property can be unset where it is read, so a `var()`
+    // fallback applies: it is never set, set to a CSS-wide keyword, or set
+    // through a `var()` without a fallback to one that can be unset.
+    const mayBeUnset = (reference, seen = new Set()) => {
+        const key = `${reference.file} ${reference.index} ${reference.name}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        const found = visibleDefinitions(reference);
+        return (
+            found.length === 0 ||
+            found.some((definition) => {
+                const text = (definition.full ?? definition.value).trim();
+                if (CSS_WIDE.test(text)) return true;
+                return familyRefs(familyParts(text), definition).some(
+                    (ref) => ref.fallback === null && mayBeUnset(ref, seen)
+                );
+            })
+        );
+    };
+    // Whether a family reference names JetBrains Mono, through chains.
     const namesMono = (reference, seen = new Set()) => {
         const { name, file, namespace, index } = reference;
         const key = `${file} ${namespace ?? ''} ${index} ${name}`;
         if (seen.has(key)) return false;
         seen.add(key);
-        const found = visibleDefinitions(reference);
-        if (found.length === 0) {
-            return (
-                reference.fallback !== null &&
-                familyIsMono(reference.fallback, reference, seen)
-            );
+        if (
+            reference.fallback !== null &&
+            mayBeUnset(reference) &&
+            familyIsMono(reference.fallback, reference, seen)
+        ) {
+            return true;
         }
-        return found.some((definition) =>
+        return visibleDefinitions(reference).some((definition) =>
             familyIsMono(definition.full ?? definition.value, definition, seen)
         );
     };
