@@ -79,9 +79,10 @@ export function nearestScaleWeight(weight) {
  * What a value contributes to a weight: off-scale terms as written, and the
  * variables to follow. `font` reads the value as the shorthand. Its weight
  * comes before the size and the family, so only tokens with two more after
- * them count, never the line height after `/`, and a TypeScript `font: 12`
- * property is not a weight. A shorthand that is one `var()` or Sass variable
- * is followed as a whole shorthand, its fallback included.
+ * them count (a TypeScript `font: 12` property is not a weight), and never
+ * the size token with its `/line-height` or what follows a `/`. A shorthand
+ * that is one `var()` or Sass variable is followed as a whole shorthand, its
+ * fallback included.
  */
 function analyse(mode, value, minimum = 0) {
     if (mode === 'font') {
@@ -97,7 +98,11 @@ function analyse(mode, value, minimum = 0) {
         }
         const position = tokens.filter((token, index) => {
             const previous = tokens[index - 1] ?? '';
-            return index < tokens.length - 2 && !previous.endsWith('/');
+            return (
+                index < tokens.length - 2 &&
+                !token.includes('/') &&
+                !previous.endsWith('/')
+            );
         });
         return analyse('weight', position.join(' '));
     }

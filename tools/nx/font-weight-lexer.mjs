@@ -107,15 +107,26 @@ export function valueAfter({ text, quoteAt }, start) {
     return { value: text.slice(start, end), selector: text[end] === '{' };
 }
 
-/** Whitespace-separated tokens, keeping `var(--x, 650)` in one piece. */
+/**
+ * Whitespace-separated tokens, keeping `var(--x, 650)` and a quoted family
+ * such as `"DM Sans"` in one piece.
+ */
 export function tokensOf(value) {
     const tokens = [];
     let depth = 0;
+    let quote = '';
     let current = '';
     for (const char of value.trim()) {
-        if (char === '(') depth += 1;
-        if (char === ')') depth -= 1;
-        if (depth === 0 && /\s/.test(char)) {
+        if (quote) {
+            if (char === quote) quote = '';
+        } else if (QUOTES.has(char)) {
+            quote = char;
+        } else if (char === '(') {
+            depth += 1;
+        } else if (char === ')') {
+            depth -= 1;
+        }
+        if (!quote && depth === 0 && /\s/.test(char)) {
             if (current) tokens.push(current);
             current = '';
         } else {

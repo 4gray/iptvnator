@@ -242,6 +242,33 @@ test('keeps a quoted family inside the font shorthand', () => {
     ]);
 });
 
+test('reads only the tokens before the shorthand size as its weight', () => {
+    const valid = [
+        '.a { font: 400 16px/1.5 "DM Sans"; }',
+        '.b { font: 400 16px/1.5 Helvetica Neue; }',
+        ".c { font: italic 600 1rem/1.25 'Open Sans', sans-serif; }",
+        '.d { font: 500 small/1.4 Inter; }',
+        '.e { font: 700 calc(1rem + 2px)/1.2 Inter; }',
+        '.f { font: 600 16px / 1.5 Helvetica Neue; }',
+    ].join('\n');
+    const heavy = [
+        '.a { font: 650 16px/1.5 "DM Sans"; }',
+        '.b { font: small-caps 750 12px Helvetica Neue; }',
+        '.c { font: 520 var(--size) / 1.5 "DM Sans"; }',
+    ].join('\n');
+
+    // Split at its space, the family would pass the size as a weight.
+    const zeroSize = ':root { --size: 0; } .z { font: var(--size) "DM Sans"; }';
+
+    assert.deepEqual(offScale('libs/a.scss', valid), []);
+    assert.deepEqual(offScale('libs/z.scss', zeroSize), []);
+    assert.deepEqual(offScale('libs/b.scss', heavy), [
+        '1 font: 650',
+        '2 font: 750',
+        '3 font: 520',
+    ]);
+});
+
 test('follows a shorthand that is one variable, fallback included', () => {
     const source = [
         ':root { --body-font: 650 1rem sans-serif; }',
