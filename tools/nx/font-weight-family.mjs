@@ -7,8 +7,11 @@ import { inConditionPrelude, tokensOf } from './font-weight-lexer.mjs';
 
 /** JetBrains Mono is bundled at 400 and 500 only (see `styles.scss`). */
 export const MONO_WEIGHT_CAP = 500;
-/** The bundled face's name, matched whole (`'Not JetBrains Mono'` is not it). */
-export const MONO_FAMILY = /^jetbrains\s+mono$/i;
+/**
+ * The bundled face's name, matched whole (`'Not JetBrains Mono'` is not
+ * it) after `familyName` reads the entry.
+ */
+export const MONO_FAMILY = /^jetbrains mono$/i;
 
 const FONT_FAMILY = /(?<![\w$-])(font-family|font|family)\s*:/gi;
 
@@ -69,10 +72,62 @@ export function parsesAsFont(value) {
  * Families that render every glyph the UI shows: Roboto (bundled with
  * Latin, Cyrillic and Greek) and the text generics. DM Sans is Latin-only,
  * and `emoji`, `math` or `fangsong` cover special scripts, so ordinary
- * Russian or Greek text falls through them to the next family.
+ * Russian or Greek text falls through them to the next family. A generic
+ * is a keyword: quoted (`'monospace'`), it names a family nobody has.
  */
-const ALWAYS_THERE =
-    /^(?:roboto|serif|sans-serif|monospace|cursive|fantasy|system-ui)$/i;
+const BUNDLED = /^roboto$/i;
+const GENERIC = /^(?:serif|sans-serif|monospace|cursive|fantasy|system-ui)$/i;
+
+/**
+ * A CSS escape at `text[i]` (a `\`): what it stands for and how many
+ * characters it spans. Up to six hex digits (and one whitespace after them)
+ * give a code point; a line break continues a string; any other character
+ * stands for itself. `null` when it cannot appear here (a line break
+ * outside a string).
+ */
+function escapeAt(text, i, quoted) {
+    const hex = /^([\da-f]{1,6})(?:\r\n|[ \t\r\n\f])?/i.exec(text.slice(i + 1));
+    if (hex) {
+        // Past the last code point it is U+FFFD (`fromCodePoint` throws).
+        const code = Number.parseInt(hex[1], 16);
+        const char = code > 0x10ffff ? '\uFFFD' : String.fromCodePoint(code);
+        return [char, hex[0].length + 1];
+    }
+    const lineBreak = /^(?:\r\n|[\n\r\f])/.exec(text.slice(i + 1));
+    if (lineBreak) return quoted ? ['', lineBreak[0].length + 1] : null;
+    return [text[i + 1] ?? '', 2];
+}
+
+/**
+ * The family an entry names, as the browser reads it: a string's text, or
+ * its identifiers joined by single spaces, escapes decoded (`\4a etBrains
+ * Mono`, `JetBrains\ Mono`). `quoted` says it was a string; `null` when
+ * the entry is not one name (`'JetBrains' Mono`, an unclosed string).
+ */
+function familyName(entry) {
+    const text = entry.trim();
+    const quote = /^['"]/.test(text) ? text[0] : '';
+    const words = [];
+    let word = '';
+    for (let i = quote ? 1 : 0; i < text.length; i += 1) {
+        const char = text[i];
+        if (char === '\\') {
+            const escape = escapeAt(text, i, Boolean(quote));
+            if (!escape) return null;
+            word += escape[0];
+            i += escape[1] - 1;
+        } else if (quote && char === quote) {
+            return i === text.length - 1 ? { name: word, quoted: true } : null;
+        } else if (!quote && /\s/.test(char)) {
+            if (word) words.push(word);
+            word = '';
+        } else {
+            word += char;
+        }
+    }
+    if (quote) return null;
+    return { name: [...words, word].filter(Boolean).join(' '), quoted: false };
+}
 
 /**
  * Whether a `font` shorthand has a literal size, so a variable after it
@@ -95,9 +150,11 @@ const SHORTHAND_PREFIX =
  */
 export function entryVerdict(entry) {
     if (/var\(|\$|#\{/i.test(entry)) return null;
-    const name = entry.replace(/^['"\s]+|['"\s]+$/g, '').replace(/\s+/g, ' ');
-    if (MONO_FAMILY.test(name)) return 'mono';
-    if (ALWAYS_THERE.test(name)) return 'stop';
+    const family = familyName(entry);
+    if (!family) return 'open';
+    if (MONO_FAMILY.test(family.name)) return 'mono';
+    if (BUNDLED.test(family.name)) return 'stop';
+    if (!family.quoted && GENERIC.test(family.name)) return 'stop';
     return 'open';
 }
 
@@ -140,8 +197,8 @@ export function shorthandFamilies(value) {
 
 /**
  * Whether JetBrains Mono can render a family list: it is named before any
- * family that always resolves (a bundled face such as Roboto, or a generic
- * such as `monospace`). A face only some systems have (`ui-monospace`,
+ * family that always resolves (a bundled face such as Roboto, or an
+ * unquoted generic such as `monospace`). A face only some systems have (`ui-monospace`,
  * `'SF Mono'`) leaves it in play. In a `font` shorthand the list follows
  * the size and its `/line-height`.
  */
@@ -193,15 +250,33 @@ export function familyParts(value) {
     return { outside, vars };
 }
 
-/** A selector list split at its top-level commas (`:is(a, b)` stays whole). */
+/**
+ * A selector (or family) list split at its top-level commas: `:is(a, b)`,
+ * `'a, b'` and `a\, b` stay whole.
+ */
 function selectorsOf(prelude) {
     const selectors = [];
     let depth = 0;
+    let quote = '';
     let current = '';
-    for (const char of prelude) {
-        if (char === '(') depth += 1;
-        if (char === ')') depth -= 1;
-        if (char === ',' && depth === 0) {
+    for (let i = 0; i < prelude.length; i += 1) {
+        const char = prelude[i];
+        // An escaped character, or one in a string, is text.
+        if (char === '\\') {
+            current += prelude.slice(i, i + 2);
+            i += 1;
+            continue;
+        }
+        if (quote) {
+            if (char === quote) quote = '';
+        } else if (char === '"' || char === "'") {
+            quote = char;
+        } else if (char === '(') {
+            depth += 1;
+        } else if (char === ')') {
+            depth -= 1;
+        }
+        if (char === ',' && depth === 0 && !quote) {
             selectors.push(current.trim());
             current = '';
         } else {

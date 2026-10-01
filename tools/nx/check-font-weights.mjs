@@ -172,20 +172,29 @@ const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font|weight)\s*:/gi;
 const WEIGHT_NAME = /^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i;
 /** A family declaration in CSS text: `font-family`, or the `font` shorthand. */
 const FAMILY_DECLARATION = /(?<![\w-])(font-family|font)\s*:\s*([^;]*)/gi;
+/** A CSS number token, whole: `650`, `.65e3`, `6.5E2` (not `650.`). */
+const NUMBER_TOKEN = /^[+-]?(?:\d*\.\d+|\d+)(?:e[+-]?\d+)?$/i;
+/** An integer token: no fraction and no exponent (`6e2` is a number). */
+const INTEGER_TOKEN = /^[+-]?\d+$/;
+
 /**
  * Whether a `@property` body is a valid registration of `value`: it has a
  * `syntax` and `inherits`, and the syntax accepts the value (`*` anything,
- * `<number>`/`<integer>` a number, `<custom-ident>`/`<string>` a name).
+ * `<number>` a number, `<integer>` an integer, `<custom-ident>`/`<string>`
+ * a name).
  */
 function registrationAccepts(body, value) {
     const syntax = /(?<![\w-])syntax\s*:\s*(['"])(.*?)\1/i.exec(body)?.[2];
     const inherits = /(?<![\w-])inherits\s*:\s*(?:true|false)\b/i.test(body);
     if (syntax === undefined || !inherits) return false;
     if (syntax.trim() === '*') return true;
-    const numeric = /^[+-]?(?:\d+\.?\d*|\.\d+)$/.test(value);
-    return numeric
-        ? /<(?:number|integer)>/i.test(syntax)
-        : /<(?:custom-ident|string)>/i.test(syntax);
+    if (!NUMBER_TOKEN.test(value)) {
+        return /<(?:custom-ident|string)>/i.test(syntax);
+    }
+    return (
+        /<number>/i.test(syntax) ||
+        (INTEGER_TOKEN.test(value) && /<integer>/i.test(syntax))
+    );
 }
 
 /** A registered custom property: `@property --x { … }`. */
@@ -577,6 +586,19 @@ function capOnly(term) {
     return Boolean(term.cap) && !offScale;
 }
 
+/** A string literal in code, whole: its quote and its text. */
+const STRING_LITERAL = /^\s*(['"`])([\s\S]*)\1\s*$/;
+
+/**
+ * The CSS text a value set from code can hold: the text of each string
+ * literal it can give (see `resultsOf`); any other result as written.
+ */
+function cssOfCode(expression) {
+    return resultsOf(expression).map(
+        (result) => STRING_LITERAL.exec(result)?.[2] ?? result
+    );
+}
+
 /**
  * A value set from code, read per result it can take (see `resultsOf`), so
  * a condition's numbers are not weights. A string literal is CSS text and is
@@ -585,7 +607,7 @@ function capOnly(term) {
  */
 function analyseCode(expression, mode = 'weight', after = 0, cap = null) {
     const results = resultsOf(expression).map((result) => {
-        const literal = /^\s*(['"`])([\s\S]*)\1\s*$/.exec(result);
+        const literal = STRING_LITERAL.exec(result);
         // A shorthand template reads as CSS, its `${…}` an opaque token.
         if (literal && (mode === 'font' || !literal[2].includes('${'))) {
             // A shorthand that names JetBrains Mono meets its cap.
@@ -743,6 +765,8 @@ export function scanWeights(file, source) {
         let end = index;
         while (start > 0 && quoteAt[start - 1] === quote) start -= 1;
         while (end < text.length && quoteAt[end] === quote) end += 1;
+        // The closing quote is not CSS.
+        if (text[end - 1] === quote) end -= 1;
         const before = text.slice(start, index);
         const after = text.slice(index, end);
         const rule =
@@ -1426,13 +1450,12 @@ export function findIndirectWeights(scans) {
         const key = `${file} ${namespace ?? ''} ${index} ${name} ${shorthand}`;
         if (seen.has(key)) return 'open';
         seen.add(key);
-        const verdicts = visibleDefinitions(reference).map((definition) =>
-            familyVerdict(
-                definition.full ?? definition.value,
-                definition,
-                seen,
-                shorthand
-            )
+        // A value set from code holds the text of its strings.
+        const verdicts = visibleDefinitions(reference).flatMap((definition) =>
+            (definition.code
+                ? cssOfCode(definition.value)
+                : [definition.full ?? definition.value]
+            ).map((text) => familyVerdict(text, definition, seen, shorthand))
         );
         if (reference.fallback !== null && mayBeUnset(reference)) {
             verdicts.push(

@@ -296,6 +296,46 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
     );
 });
 
+test('reads a family name as the browser does', () => {
+    const source = [
+        // Escapes decode: these all name JetBrains Mono.
+        '.a { font-family: JetBrains\\ Mono; font-weight: 700; }',
+        '.b { font-family: \\4a etBrains Mono; font-weight: 700; }',
+        ".c { font-family: 'JetBrains\\20 Mono'; font-weight: 700; }",
+        '.d { font: 700 12px JetBrains\\ Mono; }',
+        // A quoted generic is a family name nobody has; an escaped one is
+        // still the keyword.
+        ".e { font-family: 'monospace', 'JetBrains Mono'; font-weight: 700; }",
+        ".f { font-family: \\73 erif, 'JetBrains Mono'; font-weight: 700; }",
+        // A string keeps its spaces and commas: neither is JetBrains Mono.
+        ".g { font-family: 'JetBrains  Mono'; font-weight: 700; }",
+        ".h { font-family: 'JetBrains Mono, x'; font-weight: 700; }",
+        // Unquoted words join with one space; an escaped one is kept.
+        '.i { font-family: JetBrains   Mono; font-weight: 700; }',
+        '.j { font: 700 12px JetBrains\\  Mono; }',
+        // Not one name: CSS drops the declaration.
+        ".k { font-family: 'JetBrains Mono' Bold; font-weight: 700; }",
+        '.l { font-family: JetBrains\\\n Mono; font-weight: 700; }',
+        // A string's escaped quote is text; a line break in a string
+        // continues it when escaped and ends it (unclosed) otherwise.
+        ".m { font-family: 'x\\', JetBrains Mono, y'; font-weight: 700; }",
+        ".n { font-family: 'JetBrains\\\n Mono'; font-weight: 700; }",
+        ".o { font-family: 'JetBrains Mono\n; font-weight: 700; }",
+        // An escape past the last code point is U+FFFD.
+        '.p { font-family: \\110000 JetBrains Mono; font-weight: 700; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/m6/escapes.scss', source).sort(), [
+        '1 font-weight: 700',
+        '16 font-weight: 700',
+        '2 font-weight: 700',
+        '3 font-weight: 700',
+        '4 font: 700',
+        '5 font-weight: 700',
+        '9 font-weight: 700',
+    ]);
+});
+
 test('reads Sass nested font properties', () => {
     const source = [
         ".x { font: { family: 'JetBrains Mono'; weight: 700; } }",
@@ -372,6 +412,26 @@ test('reads @property initial values', () => {
             "@property --w { syntax: '<number>'; initial-value: 750; inherits: false; } .y { font-weight: var(--w); }"
         ),
         ['--w: 750']
+    );
+    // A `<number>` takes an exponent; an `<integer>` takes neither an
+    // exponent nor a fraction.
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<number>'; inherits: false; initial-value: 6.5e2; } .y { font-weight: var(--w); }"
+        ),
+        ['--w: 6.5e2']
+    );
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<integer>'; inherits: false; initial-value: 650; } .y { font-weight: var(--w); }"
+        ),
+        ['--w: 650']
+    );
+    assert.deepEqual(
+        report(
+            "@property --w { syntax: '<integer>'; inherits: false; initial-value: 6.5e2; } .y { font-weight: var(--w, 600); }"
+        ),
+        []
     );
     // CSS ignores an invalid registration: a syntax that rejects the value,
     // or a missing `inherits`.
@@ -956,9 +1016,20 @@ test('sees only what a loader passes into a loaded module', () => {
     // Legacy `@import` is textual, so the importer's declarations count.
     const part = scanWeights('libs/g/_part.scss', '.g { font-weight: $v; }');
     const importer = scanWeights('libs/g/g.scss', "$v: 750; @import 'part';");
+    // An interpolated value is still the configuration.
+    const heavy = scanWeights(
+        'libs/f/_heavy.scss',
+        '$w: 650 !default; .f { font-weight: $w; }'
+    );
+    const interpolated = (value) =>
+        scanWeights('libs/f/i.scss', `@use './heavy' with ($w: #{${value}});`);
 
     assert.deepEqual(report([heading, caller]), []);
     assert.deepEqual(report([config, configured]), ['libs/f/f.scss:1 650']);
+    assert.deepEqual(report([heavy, interpolated(600)]), []);
+    assert.deepEqual(report([heavy, interpolated(750)]), [
+        'libs/f/i.scss:1 750',
+    ]);
     assert.deepEqual(report([part, importer]), ['libs/g/g.scss:1 750']);
 });
 

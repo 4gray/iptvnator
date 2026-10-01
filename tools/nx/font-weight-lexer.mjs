@@ -392,15 +392,23 @@ export function resultsOf(expression) {
 }
 
 /**
- * Whitespace-separated tokens, keeping `var(--x, 650)` and a quoted family
- * such as `"DM Sans"` in one piece.
+ * Whitespace-separated tokens, keeping `var(--x, 650)`, a quoted family
+ * such as `"DM Sans"` and an escaped space in one piece.
  */
 export function tokensOf(value) {
     const tokens = [];
     let depth = 0;
     let quote = '';
     let current = '';
-    for (const char of value.trim()) {
+    const text = value.trim();
+    for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        // An escaped character (`JetBrains\ Mono`) is text.
+        if (char === '\\') {
+            current += text.slice(i, i + 2);
+            i += 1;
+            continue;
+        }
         if (quote) {
             if (char === quote) quote = '';
         } else if (QUOTES.has(char)) {

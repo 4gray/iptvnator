@@ -66,11 +66,13 @@ export function stripScssComments(source) {
 }
 
 /**
- * Where a rule's clause ends: at a `;`, `{` or `}` outside a string, so a
- * quoted `;` in a configuration (`'data:image/svg+xml;utf8,…'`) is a value.
+ * Where a rule's clause ends: at a `;`, `{` or `}` outside a string and a
+ * Sass interpolation, so a quoted `;` in a configuration
+ * (`'data:image/svg+xml;utf8,…'`) and `#{600}` are values.
  */
 function clauseEnd(text, start) {
     let quote = '';
+    let interpolation = 0;
     for (let i = start; i < text.length; i += 1) {
         const char = text[i];
         if (quote) {
@@ -78,6 +80,11 @@ function clauseEnd(text, start) {
             else if (char === quote || char === '\n') quote = '';
         } else if (char === '"' || char === "'") {
             quote = char;
+        } else if (text.startsWith('#{', i)) {
+            interpolation += 1;
+            i += 1;
+        } else if (char === '}' && interpolation > 0) {
+            interpolation -= 1;
         } else if (';{}'.includes(char)) {
             return i;
         }

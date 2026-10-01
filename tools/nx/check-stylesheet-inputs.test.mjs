@@ -218,6 +218,10 @@ test('keeps comment markers inside strings', () => {
         dataUri.slice(...range),
         "$asset: 'data:image/svg+xml;utf8,x', $w: 600"
     );
+    // So is a Sass interpolation's `}`.
+    const interpolated = "@use 'tokens' with ($w: #{600}, $h: #{$w});";
+    const [{ configuration: span }] = extractStylesheetLoads(interpolated);
+    assert.equal(interpolated.slice(...span), '$w: #{600}, $h: #{$w}');
     // An escaped quote stays inside the string, an unclosed one ends at the
     // line break, and an unquoted URL keeps its slashes.
     for (const [text, kept, dropped] of [
