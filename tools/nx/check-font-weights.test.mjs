@@ -3889,6 +3889,11 @@ test('reads mixin weights where they land, through nested includes', () => {
             `@mixin w { @content; } .x { font-family: ${mono}; @include w { font-weight: 700; } font-weight: 500; }`,
             [],
         ],
+        // Sass conditions are not evaluated: any branch may run.
+        [
+            `@mixin w { @if false { @content; } } .x { font-weight: 700; @include w { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
         [
             `@mixin w { @if true { @content; } } .x { font-weight: 700; @include w { font-family: ${mono}; } }`,
             ['font-weight: 700'],

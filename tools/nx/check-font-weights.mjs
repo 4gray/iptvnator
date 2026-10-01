@@ -100,7 +100,9 @@ import {
  * rule takes one from an ancestor its compiled selector names, else from the
  * document root (`:host`, `body`, `html`, `:root`) in its file; a family
  * applies under conditions (`@media`, `@supports`, `@if`) that the reader
- * shares, or always.
+ * shares, or always. Sass conditions are not evaluated: each `@if`/`@else`
+ * branch counts as one that may run, in a rule, a mixin or a content block
+ * alike.
  *
  * Not traced: global styles in another file, a weight inherited from
  * another rule, a mixin from another module, a mixin's nested rules and
