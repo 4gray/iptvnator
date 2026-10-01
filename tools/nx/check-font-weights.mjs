@@ -863,12 +863,53 @@ export function scanWeights(file, written) {
         );
     };
 
-    // The family each rule renders in (see `familiesOf`); one named through
-    // variables is resolved once the whole workspace is scanned.
+    // The character before `index`, whitespace skipped.
+    const charBefore = (index) => {
+        let before = index - 1;
+        while (before >= 0 && /\s/.test(text[before])) before -= 1;
+        return text[before] ?? '';
+    };
+    // This file's Sass variable declarations, read for interpolated
+    // selectors (see `selectorOf`), in source order.
+    let assignments = null;
+    const assignmentsOf = () =>
+        (assignments ??= [...text.matchAll(DEFINITION)]
+            .filter(
+                ({ 1: name, index }) => name.startsWith('$') && !inString(index)
+            )
+            // A `$x: 1` right after `(` or `,` is an argument.
+            .filter(({ index }) => !['(', ','].includes(charBefore(index)))
+            .map((match) => ({
+                key: identity(match[1]),
+                index: match.index,
+                value: valueAfter(lexed, match.index + match[0].length).value,
+                place: placeOf(blocks, match.index),
+            })));
+    // The literal a Sass variable holds at `at`: its last declaration there,
+    // when that is a plain name or string set unconditionally in a scope
+    // around `at`; `null` when the scan cannot know (a module member, an
+    // `@if`, or a `!default` / `!global` assignment).
+    const literalAt = (name, at) => {
+        const key = identity(name);
+        const scopes = placeOf(blocks, at).scopes;
+        const before = assignmentsOf().filter(
+            (a) => a.key === key && a.index < at
+        );
+        if (before.some((a) => /!\s*(?:default|global)\b/i.test(a.value))) {
+            return null;
+        }
+        const last = before
+            .filter((a) => scopes.includes(a.place.scope))
+            .at(-1);
+        if (!last || last.place.flow) return null;
+        const value = /^\s*(?:([\w-]+)|(['"])([^'"]*)\2)\s*$/.exec(last.value);
+        return value ? (value[1] ?? value[3]) : null;
+    };
     // The preludes of the blocks around a place, innermost first: two rules
     // with the same chain style the same elements. Spacing outside strings
-    // is the same selector; inside one (`[title="a  b"]`) it is not. One
-    // Sass interpolates (`.#{$name}`) is known only once compiled, so it is
+    // is the same selector; inside one (`[title="a  b"]`) it is not. A
+    // Sass interpolation reads the literal its variable holds there
+    // (`$n: a; .#{$n}` is `.a`); one the scan cannot know makes the chain
     // that block's own.
     const selectorOf = (scopes) => {
         const chain = scopes
@@ -877,6 +918,10 @@ export function scanWeights(file, written) {
                 blockAt
                     .get(scope)
                     ?.prelude.replace(SPACING, (m) => (/^\s/.test(m) ? ' ' : m))
+                    .replace(
+                        /#\{\s*(\$[\w-]+)\s*\}/g,
+                        (m, name) => literalAt(name, scope) ?? m
+                    )
             )
             .join(' < ');
         return chain.includes('#{') ? `${chain} @ ${scopes.join(' ')}` : chain;
@@ -898,6 +943,8 @@ export function scanWeights(file, written) {
         if (!ruleStarts.has(key)) ruleStarts.set(key, start);
         return ruleStarts.get(key);
     };
+    // The family each rule renders in (see `familiesOf`); one named through
+    // variables is resolved once the whole workspace is scanned.
     const refsIn = (parts, index, place) =>
         familyRefs(parts, {
             ...{ file, index, ...place, guards: guardsAt(index) },
@@ -1167,9 +1214,7 @@ export function scanWeights(file, written) {
         if (selector) continue;
         // `$x: 1` right after `(` or `,` is an argument (a mixin call, a
         // `with (…)` configuration); otherwise it declares the variable.
-        let before = match.index - 1;
-        while (before >= 0 && /\s/.test(text[before])) before -= 1;
-        const argument = text[before] === '(' || text[before] === ',';
+        const argument = ['(', ','].includes(charBefore(match.index));
         const line = lineOf(match.index);
         const key = identity(name);
         const index = match.index;

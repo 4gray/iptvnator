@@ -2891,21 +2891,74 @@ test('treats blocks with the same selector as one rule', () => {
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
-    // A selector Sass interpolates is known only once compiled, so blocks
-    // that spell it alike are separate rules, either way round.
+    // An interpolated selector reads the literal its variable holds there,
+    // so it is the same rule where the value is and another where it is not.
+    const weight = `font-weight: 700;`;
     for (const [source, expected] of [
         [
-            `$n: a; .#{$n} { font-family: ${mono}; font-weight: 700; } $n: b; .#{$n} { font-family: Roboto; }`,
+            `$n: a; .#{$n} { font-family: ${mono}; ${weight} } $n: b; .#{$n} { font-family: Roboto; }`,
             ['font-weight: 700'],
         ],
         [
-            `$n: a; .#{$n} { font-family: Roboto; font-weight: 700; } $n: b; .#{$n} { font-family: ${mono}; }`,
+            `$n: a; .#{$n} { font-family: Roboto; ${weight} } $n: b; .#{$n} { font-family: ${mono}; }`,
             [],
         ],
         [
-            `$n: a; .#{$n} { --face: Roboto; } $n: b; .#{$n} { font-family: var(--face, ${mono}); font-weight: 700; }`,
+            `$n: a; .#{$n} { font-family: ${mono}; ${weight} } .#{$n} { font-weight: 500; }`,
+            [],
+        ],
+        [
+            `$n: a; .#{$n} { ${weight} } .#{$n} { font-family: ${mono}; }`,
             ['font-weight: 700'],
         ],
+        [
+            `$n: 'a'; .#{$n} { ${weight} } .a { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.p { $n: a; .#{$n} { ${weight} } .#{$n} { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `$n: a; .#{$n} { ${weight} } @include m($n: b); .#{$n} { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        // A string or a mixin's local assignment is not another value.
+        [
+            `$n: a; .#{$n} { ${weight} } @debug "$n: b"; .#{$n} { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin m { $n: a; .#{$n} { ${weight} } .#{$n} { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `$n: a; .#{$n} { --face: Roboto; } .#{$n} { font-family: var(--face, ${mono}); ${weight} }`,
+            [],
+        ],
+        [
+            `$n: a; .#{$n} { --face: Roboto; } $n: b; .#{$n} { font-family: var(--face, ${mono}); ${weight} }`,
+            ['font-weight: 700'],
+        ],
+        // A value the scan cannot know keeps each block its own rule.
+        [`.#{$n} { ${weight} } .#{$n} { font-family: ${mono}; }`, []],
+        [
+            `$n: a; @if $c { $n: b; } .#{$n} { ${weight} } .#{$n} { font-family: ${mono}; }`,
+            [],
+        ],
+        [
+            `$n: a; .y { $n: b !global; } .#{$n} { ${weight} } .a { font-family: ${mono}; }`,
+            [],
+        ],
+        [
+            `$n: a !default; .#{$n} { ${weight} } .#{$n} { font-family: ${mono}; }`,
+            [],
+        ],
+        [
+            `.x { $n: a; } .#{$n} { ${weight} } .#{$n} { font-family: ${mono}; }`,
+            [],
+        ],
+        [`$n: t.$v; .#{$n} { ${weight} } .#{$n} { font-family: ${mono}; }`, []],
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
