@@ -48,9 +48,9 @@ consumers currently use relative `@use` paths to the needed partial.
 
 ## Typography
 
-- Font weights are 400, 500, 600 or 700 only, and JetBrains Mono stays at 500
-  or lighter; `pnpm run styles:font-weights:validate` enforces the scale. Read
-  the guidelines' Typography section before changing bundled fonts.
+- Font weights are 400, 500, 600 or 700 only; every bundled family has those
+  four faces and `pnpm run styles:font-weights:validate` enforces the scale.
+  Read the guidelines' Typography section before changing bundled fonts.
 
 ## Validation
 

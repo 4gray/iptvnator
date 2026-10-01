@@ -4,11 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The weights `apps/web/src/styles.scss` bundles for DM Sans and its Roboto
- * fallback. Any other value snaps to a neighbouring face: 650 renders as 700
- * once a 700 face is loaded, and a weight above the heaviest face is faked by
- * Chromium's synthetic bold. The workspace is at zero exceptions; this check
- * keeps it there.
+ * The weights `apps/web/src/styles.scss` bundles for DM Sans, its Roboto
+ * fallback and JetBrains Mono. Any other value snaps to a neighbouring face
+ * (650 renders as 700), and a 600 or 700 that finds nothing heavier than 500
+ * gets Chromium's synthetic bold. The workspace is at zero exceptions; this
+ * check keeps it there.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
