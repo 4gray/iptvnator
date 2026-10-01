@@ -61,9 +61,12 @@ const REFERENCE = /var\(\s*(--[\w-]+)|(\$[\w-]+)/gi;
  */
 const EXPRESSION_TOKEN =
     /\s*(?:((?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?[a-z%]*)|([$-]*[a-z_][\w-]*(?:\.[$\w-]+)*)(\()?|([-+*/%])|([()]))/giy;
-/** A value that is nothing but one variable, with an optional fallback. */
-const SOLE_REFERENCE =
-    /^(?:var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)|(\$[\w-]+))$/i;
+/**
+ * A shorthand token that is one variable: `var(--x)` (with an optional
+ * fallback), `$x` or an interpolated `#{$x}`.
+ */
+const VARIABLE_TOKEN =
+    /^(?:var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)|(\$[\w-]+)|#\{\s*(\$[\w-]+)\s*\})$/i;
 
 export function isScannedFile(file) {
     const normalized = file.split(path.sep).join('/');
@@ -121,34 +124,42 @@ function computedIn(value) {
 
 /**
  * What a value contributes to a weight: off-scale terms as written, and the
- * variables to follow. `font` reads the value as the shorthand. Its weight
- * comes before the size and the family, so only tokens with two more after
- * them count (a TypeScript `font: 12` property is not a weight), and never
- * the size token with its `/line-height` or what follows a `/`. A shorthand
- * that is one `var()` or Sass variable is followed as a whole shorthand, its
- * fallback included.
+ * variables to follow. `font` reads the value as the shorthand, whose weight
+ * comes before the size and the family: a token counts only with two more
+ * after it (so a TypeScript `font: 12` property is not a weight), and never
+ * the size with its `/line-height` or what follows a `/`. A variable token
+ * may stand for any stretch of the shorthand (`font: italic $body`), so it is
+ * followed as shorthand, carrying how many tokens come after it (`after`).
+ * A weight is 1 to 1000, so `0`, the one unitless font size, is never one.
  */
-function analyse(mode, value, { minimum = 0, code = false } = {}) {
+function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
     if (mode === 'font') {
         const tokens = tokensOf(value);
-        const sole = tokens.length === 1 && SOLE_REFERENCE.exec(tokens[0]);
-        if (sole) {
-            const fallback = analyse('font', sole[2] ?? '');
-            const name = identity(sole[1] ?? sole[3]);
-            return {
-                terms: fallback.terms,
-                references: [{ name, mode: 'font' }, ...fallback.references],
-            };
-        }
-        const position = tokens.filter((token, index) => {
+        const weight = [];
+        const terms = [];
+        const references = [];
+        tokens.forEach((token, index) => {
+            const tail = tokens.length - 1 - index + after;
+            const variable = VARIABLE_TOKEN.exec(token);
+            if (variable) {
+                const [, custom, fallback, sass, interpolated] = variable;
+                const name = identity(custom ?? sass ?? interpolated);
+                references.push({ name, mode: 'font', after: tail });
+                const inner = analyse('font', fallback ?? '', { after: tail });
+                terms.push(...inner.terms);
+                references.push(...inner.references);
+                return;
+            }
             const previous = tokens[index - 1] ?? '';
-            return (
-                index < tokens.length - 2 &&
-                !token.includes('/') &&
-                !previous.endsWith('/')
-            );
+            if (tail >= 2 && !token.includes('/') && !previous.endsWith('/')) {
+                weight.push(token);
+            }
         });
-        return analyse('weight', position.join(' '));
+        const own = analyse('weight', weight.join(' '));
+        return {
+            terms: [...terms, ...own.terms],
+            references: [...references, ...own.references],
+        };
     }
     const numbers = [...value.matchAll(NUMBER)]
         .map((match) => match[1])
@@ -243,13 +254,14 @@ export function findIndirectWeights(scans) {
     const followed = new Set();
     const findings = [];
     while (pending.length > 0) {
-        const { name, mode } = pending.pop();
-        if (followed.has(`${mode} ${name}`)) continue;
-        followed.add(`${mode} ${name}`);
+        const { name, mode, after = 0 } = pending.pop();
+        const key = `${mode} ${after} ${name}`;
+        if (followed.has(key)) continue;
+        followed.add(key);
         for (const definition of definitions) {
             if (definition.key !== name) continue;
             const { file, line, value } = definition;
-            const analysis = analyse(mode, value);
+            const analysis = analyse(mode, value, { after });
             for (const term of analysis.terms) {
                 findings.push({ file, line, name: definition.name, ...term });
             }

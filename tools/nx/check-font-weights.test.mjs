@@ -389,6 +389,33 @@ test('treats `-` and `_` in Sass names alike, not in custom properties', () => {
     ]);
 });
 
+test('follows a variable for any stretch of the font shorthand', () => {
+    const source = [
+        '$a-font: 650 1rem sans-serif;',
+        ':root { --b-font: 750 1rem sans-serif; }',
+        '$c-font: 520 1rem sans-serif;',
+        '$d-weight-and-size: 450 12px;',
+        '.a { font: italic $a-font; }',
+        '.b { font: italic var(--b-font); }',
+        '.c { font: italic #{$c-font}; }',
+        '.d { font: italic $d-weight-and-size Inter; }',
+    ].join('\n');
+    const sizeAndFamily = [
+        ':root { --size: 0; }',
+        "$family: 'DM Sans';",
+        '.e { font: 600 var(--size) $family; }',
+        '.f { font: italic 600 var(--size) Helvetica Neue; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', source).sort(), [
+        '1 $a-font: 650',
+        '2 --b-font: 750',
+        '3 $c-font: 520',
+        '4 $d-weight-and-size: 450',
+    ]);
+    assert.deepEqual(offScale('libs/b.scss', sizeAndFamily), []);
+});
+
 test('flags relative keywords, which can land off the scale', () => {
     const findings = findOffScaleWeights(
         'libs/a.scss',
