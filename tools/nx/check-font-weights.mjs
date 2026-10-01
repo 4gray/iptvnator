@@ -106,14 +106,14 @@ const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
  * `[style.font-weight]`, `[attr.font-weight]`, `[style.--title]`.
  */
 const CODE_BINDING =
-    /(\[(?:style|attr)\.(font-weight|fontWeight|--[\w-]+)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\3/gi;
+    /(\[(?:style|attr)\.(font-weight|fontWeight|font|--[\w-]+)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\3/gi;
 /**
  * Angular `@HostBinding('style.fontWeight')` (or `style.font-weight`,
  * `style.--x`, `attr.font-weight`) on a field (`= value`) or a getter
  * (`return value`).
  */
 const HOST_BINDING =
-    /@HostBinding\(\s*(['"`])(style|attr)\.(font-weight|fontWeight|--[\w-]+)\1\s*\)/g;
+    /@HostBinding\(\s*(['"`])(style|attr)\.(font-weight|fontWeight|font|--[\w-]+)\1\s*\)/g;
 const HOST_GETTER =
     /^\s*(?:(?:public|private|protected|override|static)\s+)*get\s+[\w$]+\s*\(\s*\)\s*(?::[^{]+)?\{/;
 const HOST_FIELD =
@@ -142,8 +142,8 @@ const LOGICAL_ASSIGNMENT = /^(?:\|\||&&|\?\?)$/;
 const CODE_SETTER =
     /\b(setProperty|setStyle|setAttribute|setAttributeNS)\s*\(/g;
 const SETTERS = {
-    setProperty: { skip: 0, property: /^(?:font-weight|--[\w-]+)$/i },
-    setStyle: { skip: 1, property: /^(?:font-?weight|--[\w-]+)$/i },
+    setProperty: { skip: 0, property: /^(?:font-weight|font|--[\w-]+)$/i },
+    setStyle: { skip: 1, property: /^(?:font-?weight|font|--[\w-]+)$/i },
     setAttribute: { skip: 0, property: /^font-weight$/i },
     setAttributeNS: { skip: 1, property: /^font-weight$/i },
 };
@@ -158,6 +158,10 @@ const RESETTING = /^(?:initial|revert|revert-layer)\b/i;
 const CONDITIONAL_RULE = /^@(?:media|supports|container|document)\b/i;
 const INHERITING = /^(?:inherit|unset)\b/i;
 const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font)\s*:/gi;
+/** A property name that sets or holds a weight. */
+const WEIGHT_NAME = /^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i;
+/** A declaration that sets JetBrains Mono, in CSS text. */
+const MONO_DECLARATION = /(?<![\w-])font(?:-family)?\s*:[^;]*jetbrains\s+mono/i;
 /**
  * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
  * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
@@ -345,7 +349,7 @@ function familyRefs({ outside, vars }, at) {
     const place = {
         ...{ file: at.file, index: at.index, scopes: at.scopes },
         ...{ inCallable: at.inCallable, callable: at.callable },
-        guards: at.guards ?? [],
+        ...{ guards: at.guards ?? [], rule: at.rule ?? null },
     };
     return [
         ...vars.map(({ name, fallback }) => ({
@@ -361,34 +365,46 @@ function familyRefs({ outside, vars }, at) {
     ];
 }
 
-/** The last value the file gives the Sass variable `$name`, or `null`. */
-function lastSassValue(text, name) {
-    const declaration = new RegExp(
-        String.raw`(?<![\w$-])\$` + name + String.raw`\s*:\s*([^;{}]+);`,
-        'g'
-    );
-    const last = [...text.matchAll(declaration)].pop();
-    return last ? sassValue(last[1]) : null;
+/**
+ * The names a Sass property name can compose to: a quoted or bare literal
+ * interpolation stands for itself and a variable for each value
+ * `valuesOf` gives it (none when it cannot be resolved), up to 16.
+ */
+function composedNames(name, valuesOf) {
+    let names = [''];
+    let last = 0;
+    for (const match of name.matchAll(/#\{\s*([^{}]*?)\s*\}/g)) {
+        const inner = match[1];
+        const literal = /^(['"])(.*)\1$/.exec(inner);
+        let values = [];
+        if (literal) values = [literal[2]];
+        else if (/^[\w-]+$/.test(inner)) values = [inner];
+        else if (/^\$[\w-]+$/.test(inner)) values = valuesOf(inner);
+        const between = name.slice(last, match.index);
+        names = names
+            .flatMap((prefix) => values.map((v) => prefix + between + v))
+            .slice(0, 16);
+        last = match.index + match[0].length;
+    }
+    return names.map((prefix) => prefix + name.slice(last));
 }
 
 /**
- * A Sass property name with its interpolations resolved: a quoted or bare
- * literal stands for itself, and a variable for its last value in the file.
- * `null` when one cannot be resolved.
+ * Whether the `{` at `brace` opens a function body: after `=>`, or after a
+ * parameter list that no `if`/`for`/`while`/`switch`/`catch` owns.
  */
-function composedName(name, text) {
-    let resolved = true;
-    const composed = name.replace(/#\{\s*([^{}]*?)\s*\}/g, (_, inner) => {
-        const literal = /^(['"])(.*)\1$/.exec(inner);
-        if (literal) return literal[2];
-        if (/^[\w-]+$/.test(inner)) return inner;
-        const value = /^\$[\w-]+$/.test(inner)
-            ? lastSassValue(text, inner.slice(1))
-            : null;
-        if (value === null) resolved = false;
-        return value ?? '';
-    });
-    return resolved ? composed : null;
+function opensFunction(text, brace) {
+    const before = text.slice(0, brace).trimEnd();
+    if (before.endsWith('=>')) return true;
+    if (!before.endsWith(')')) return false;
+    let depth = 0;
+    let k = before.length - 1;
+    for (; k >= 0; k -= 1) {
+        if (before[k] === ')') depth += 1;
+        else if (before[k] === '(' && (depth -= 1) === 0) break;
+    }
+    const word = /([\w$]+)\s*$/.exec(before.slice(0, k))?.[1] ?? '';
+    return !/^(?:if|for|while|switch|catch|with)$/.test(word);
 }
 
 /**
@@ -413,7 +429,10 @@ function analyseCode(expression, mode = 'weight', after = 0, cap = null) {
         const literal = /^\s*(['"`])([\s\S]*)\1\s*$/.exec(result);
         // A shorthand template reads as CSS, its `${…}` an opaque token.
         if (literal && (mode === 'font' || !literal[2].includes('${'))) {
-            return analyse(mode, literal[2], { after, cap });
+            // A shorthand that names JetBrains Mono meets its cap.
+            const mono = mode === 'font' && MONO_FAMILY.test(literal[2]);
+            const capHere = mono ? MONO_WEIGHT_CAP : cap;
+            return analyse(mode, literal[2], { after, cap: capHere });
         }
         return analyse('weight', result, { minimum: 100, code: true, cap });
     });
@@ -501,7 +520,10 @@ export function scanWeights(file, source) {
     // The family each rule renders in (see `familiesOf`); one named through
     // variables is resolved once the whole workspace is scanned.
     const refsIn = (parts, index, place) =>
-        familyRefs(parts, { file, index, ...place, guards: guardsAt(index) });
+        familyRefs(parts, {
+            ...{ file, index, ...place, guards: guardsAt(index) },
+            rule: blockAt.get(place.scope)?.prelude ?? null,
+        });
     const monoAt = stylesheet
         ? familiesOf(lexed, blocks, { inString, placeOf, refsIn })
         : () => ({ mono: false, refs: [] });
@@ -538,6 +560,34 @@ export function scanWeights(file, source) {
         );
     };
 
+    // CSS text in a string (an inline `style="…"`, a component style) meets
+    // the Mono cap when the declarations around it set JetBrains Mono.
+    const monoInString = (index) => {
+        const quote = quoteAt[index];
+        if (!quote) return false;
+        let start = index;
+        let end = index;
+        while (start > 0 && quoteAt[start - 1] === quote) start -= 1;
+        while (end < text.length && quoteAt[end] === quote) end += 1;
+        const before = text.slice(start, index);
+        const after = text.slice(index, end);
+        const rule =
+            before.slice(
+                Math.max(before.lastIndexOf('{'), before.lastIndexOf('}')) + 1
+            ) + after.slice(0, after.search(/[{}]|$/));
+        return MONO_DECLARATION.test(rule);
+    };
+    // Whether a `return` at `at` belongs to a function nested in the body
+    // opened at `open` (an arrow, `function` or method), not to the body.
+    const inNestedFunction = (open, at) => {
+        const braces = [];
+        for (let i = open + 1; i < at; i += 1) {
+            if (quoteAt[i]) continue;
+            if (text[i] === '{') braces.push(i);
+            else if (text[i] === '}') braces.pop();
+        }
+        return braces.some((brace) => opensFunction(text, brace));
+    };
     // A feature query's test is a condition, not a declaration.
     const inPrelude = (index) => stylesheet && inConditionPrelude(lexed, index);
     for (const pattern of patterns) {
@@ -560,11 +610,14 @@ export function scanWeights(file, source) {
                 record(name, match.index, analyseCode(expression, mode));
                 continue;
             }
+            const weightName = /^font(?:-weight)?$/i.test(name);
             const family =
-                /^font(?:-weight)?$/i.test(name) && inEffect(match.index)
+                weightName && inEffect(match.index)
                     ? monoAt(match.index)
                     : { mono: false, refs: [] };
-            const cap = family.mono ? MONO_WEIGHT_CAP : null;
+            const inline =
+                !stylesheet && weightName && monoInString(match.index);
+            const cap = family.mono || inline ? MONO_WEIGHT_CAP : null;
             record(name, match.index, analyse(mode, value, { cap }));
             if (!family.mono && family.refs.length > 0) {
                 const capped = analyse(mode, value, { cap: MONO_WEIGHT_CAP });
@@ -575,6 +628,7 @@ export function scanWeights(file, source) {
                     at: {
                         ...{ ...family.at, file },
                         guards: guardsAt(family.at.index),
+                        rule: blockAt.get(family.at.scope)?.prelude ?? null,
                     },
                     terms: capped.terms.filter(capOnly),
                     references: capped.references.map((reference) => ({
@@ -591,6 +645,8 @@ export function scanWeights(file, source) {
     const setByCode = (name, property, index, expression) => {
         if (/^font-?weight$|^--.*weight$/i.test(property)) {
             record(name, index, analyseCode(expression));
+        } else if (/^font$/i.test(property)) {
+            record(name, index, analyseCode(expression, 'font'));
         } else if (property.startsWith('--')) {
             const line = lineOf(index);
             const value = expression;
@@ -628,7 +684,7 @@ export function scanWeights(file, source) {
                 const body = text.slice(open, closingBrace(lexed, open));
                 for (const statement of body.matchAll(/\breturn\b/g)) {
                     const at = open + statement.index;
-                    if (quoteAt[at]) continue;
+                    if (quoteAt[at] || inNestedFunction(open, at)) continue;
                     const expression = codeExpression(text, at + 6);
                     setByCode(label, property, match.index, expression);
                 }
@@ -669,25 +725,6 @@ export function scanWeights(file, source) {
                 .replace(/\s+/g, '');
             setByCode(name, quoted[3], match.index, expression);
         }
-    }
-    // Sass can build a property name; one that composes to a weight name
-    // (from literals or this file's variables) is checked like one.
-    // A name whose own tail ends in `weight` is checked as written above.
-    for (const match of stylesheet ? text.matchAll(INTERPOLATED_NAME) : []) {
-        if (inString(match.index) || inPrelude(match.index)) continue;
-        if (/weight$/i.test(match[1])) continue;
-        const name = composedName(match[1], text);
-        if (
-            !name ||
-            !/^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i.test(name)
-        ) {
-            continue;
-        }
-        const end = match.index + match[0].length;
-        const { value, selector } = valueAfter(lexed, end);
-        if (selector) continue;
-        const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
-        record(match[1], match.index, analyse(mode, value));
     }
     for (const match of text.matchAll(DEFINITION)) {
         const name = match[1];
@@ -735,6 +772,34 @@ export function scanWeights(file, source) {
         });
     }
 
+    // Sass can build a property name; one that composes to a weight name
+    // (from literals, or this file's variables as they stand there) is
+    // checked like one.
+    const valuesAt = (variable, index) => {
+        const place = placeOf(blocks, index);
+        const key = identity(variable);
+        const candidates = definitions.filter(
+            (d) => d.key === key && !d.argument
+        );
+        return effectiveDeclarations(
+            { index, ...place },
+            candidates
+        ).picked.map((d) => sassValue(d.value));
+    };
+    // A name whose own tail ends in `weight` is checked as written above.
+    for (const match of stylesheet ? text.matchAll(INTERPOLATED_NAME) : []) {
+        if (inString(match.index) || inPrelude(match.index)) continue;
+        if (/weight$/i.test(match[1])) continue;
+        const name = composedNames(match[1], (variable) =>
+            valuesAt(variable, match.index)
+        ).find((candidate) => WEIGHT_NAME.test(candidate));
+        if (!name) continue;
+        const end = match.index + match[0].length;
+        const { value, selector } = valueAfter(lexed, end);
+        if (selector) continue;
+        const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
+        record(match[1], match.index, analyse(mode, value));
+    }
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
     const calls = callSitesOf(text, blocks);
     const invocations = stylesheet ? invocationsOf(lexed) : [];
@@ -1029,7 +1094,7 @@ export function findIndirectWeights(scans) {
         if (own && (reference.scopes ?? []).includes(definition.scope)) {
             return true;
         }
-        if (reachesEverything(definition.rule)) return true;
+        if (reachesEverything(definition.rule, reference.rule)) return true;
         return own && plainHost(definition.rule);
     };
     // Whether a custom property can be unset where it is read, so a `var()`

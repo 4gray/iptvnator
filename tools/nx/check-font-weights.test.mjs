@@ -254,6 +254,28 @@ test('reads a TypeScript style object value as code', () => {
     );
 });
 
+test('caps inline JetBrains Mono declarations', () => {
+    const template = [
+        `<div style="font: 700 16px 'JetBrains Mono'"></div>`,
+        `<div style="font-family: 'JetBrains Mono'; font-weight: 700"></div>`,
+        '<div style="font-weight: 700"></div>',
+    ].join('\n');
+    const component = [
+        `element.style.font = "700 16px 'JetBrains Mono'";`,
+        "styles: [`.a { font-family: 'JetBrains Mono'; } .b { font-weight: 700; }`],",
+        "styles: [`.c { font-family: 'JetBrains Mono'; font-weight: 600; }`],",
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
+        '2 font-weight: 700',
+        '1 font: 700',
+    ]);
+    assert.deepEqual(
+        offScale('apps/web/src/a.component.ts', component).sort(),
+        ['1 .style.font: 700', '3 font-weight: 600']
+    );
+});
+
 test('reads Angular style bindings as code', () => {
     const template = [
         '<div [ngStyle]="{ fontWeight: viewportWidth >= 768 ? 700 : 600 }"></div>',
@@ -279,6 +301,7 @@ test('reads Angular style bindings as code', () => {
 test('reads a feature query test as a condition, not a declaration', () => {
     const source = [
         '@supports (font-weight: 650) { .x { font-weight: 600; } }',
+        '@supports (min-width: #{10}px) and (font-weight: 650) { .v { font-weight: 600; } }',
         '@supports (font: 650 1px x) { .y { font: 600 12px x; } }',
         '@container style(--w: 650) { .z { font-weight: var(--w); } }',
         '@mixin m($title-weight: 400) { font-weight: $title-weight; }',
@@ -286,7 +309,7 @@ test('reads a feature query test as a condition, not a declaration', () => {
     ].join('\n');
 
     assert.deepEqual(offScale('libs/q3/a.scss', source), [
-        '5 $title-weight: 650',
+        '6 $title-weight: 650',
     ]);
 });
 
@@ -304,10 +327,16 @@ test('checks property names Sass builds by interpolation', () => {
         '.t { font#{$elsewhere}: 650 12px x; }',
         '.s { #{$elsewhere}-weight: 650; }',
         '$pre: title; .r { #{$pre}-weight: 650; }',
+        // A variable is read as it stands where the name is built.
+        '$p: font-weight; .a { #{$p}: 650; } $p: margin-left;',
+        '$q: margin-left; .b { #{$q}: 650; } $q: font-weight;',
+        '$r: font-weight; .c { $r: color; } .d { #{$r}: 650; }',
     ].join('\n');
 
     assert.deepEqual(offScale('libs/q3/b.scss', source).sort(), [
         '10 -weight: 650',
+        '11 #{$p}: 650',
+        '13 #{$r}: 650',
         '2 #{$prop}: 650',
         '3 font-#{weight}: 650',
         '4 #{"font-weight"}: 750',
@@ -977,6 +1006,10 @@ test('checks HostBinding style weights', () => {
         "@HostBinding('attr.--title-weight') odd = '650';",
         "@HostBinding('style.fontWeight') get branchy() { if (this.on) { return 600; } return 650; }",
         "@HostBinding('style.fontWeight') get quoted() { const s = 'return 650'; return 600; }",
+        "@HostBinding('style.fontWeight') get nested() { const f = () => { return 900; }; return 600; }",
+        "@HostBinding('style.fontWeight') get named() { function pick() { return 900; } return 600; }",
+        "@HostBinding('style.font') f = '650 12px x';",
+        "@HostBinding('style.fontWeight') get inIf() { if (this.on) { return 750; } return 600; }",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
@@ -984,6 +1017,8 @@ test('checks HostBinding style weights', () => {
         '2 @HostBinding("style.font-weight"): 750',
         "4 @HostBinding('attr.font-weight'): 650",
         "7 @HostBinding('style.fontWeight'): 650",
+        "11 @HostBinding('style.font'): 650",
+        "12 @HostBinding('style.fontWeight'): 750",
     ]);
 });
 
@@ -998,14 +1033,21 @@ test('checks Renderer2 setStyle weights', () => {
         'renderer.setStyle(el, `font-${kind}`, 650);',
         "node.setAttribute('--title-weight', '650');",
         "node.setAttributeNS('http://www.w3.org/2000/svg', 'font-weight', '650');",
+        "renderer.setStyle(el, 'font', '650 16px sans-serif');",
+        "el.style.setProperty('font', 'italic 12px/200 x');",
+        '[style.font]="\'650 12px x\'"',
+        "el.style.setProperty('font', '750 12px x');",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '12 [style.font]: 650',
         "1 setStyle(this.host.nativeElement,'fontWeight': 650",
         "2 setStyle(el(),'font-weight': 750",
         "5 setStyle(wrap(getEl(a,b)),'fontWeight': 650",
         "6 setAttributeNS(ns(),'font-weight': 650",
         "9 setAttributeNS('http://www.w3.org/2000/svg','font-weight': 650",
+        "10 setStyle(el,'font': 650",
+        "13 setProperty('font': 750",
     ]);
 });
 
@@ -2166,6 +2208,15 @@ test('reads custom properties as the cascade applies them', () => {
     ]) {
         assert.deepEqual(report([rule(body)]), []);
     }
+    // `body` sits below `html`, so it cannot set a property `html` reads.
+    assert.deepEqual(
+        report([rule(`body { --face: Roboto; } html { ${mono} }`)]),
+        ['libs/m5/rule.scss:1 700']
+    );
+    assert.deepEqual(
+        report([rule(`body { --face: Roboto; } .b { ${mono} }`)]),
+        []
+    );
     // A definition under a condition, or a host state, may not apply; one
     // the reading declaration shares does.
     assert.deepEqual(
@@ -2177,6 +2228,7 @@ test('reads custom properties as the cascade applies them', () => {
         `@media (min-width: 600px) { :root { --face: Roboto; } } .b { ${mono} }`,
         `@if $dark { :root { --face: Roboto; } } .b { ${mono} }`,
         `:host(.light) { --face: Roboto; } .b { ${mono} }`,
+        `@media (min-width: #{$bp}) { :root { --face: Roboto; } } .b { ${mono} }`,
     ]) {
         assert.deepEqual(report([rule(body)]), ['libs/m5/rule.scss:1 700']);
     }

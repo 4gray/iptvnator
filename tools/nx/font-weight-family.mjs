@@ -103,10 +103,16 @@ function selectorsOf(prelude) {
  * Whether a rule's custom properties reach every element: `:root`, `html`,
  * `body` or `*` (a component's `:host` reaches only its own view).
  */
-export function reachesEverything(prelude) {
+export function reachesEverything(prelude, reader = null) {
     if (!prelude) return false;
-    return selectorsOf(prelude).some((selector) =>
-        /^(?::root|html|body|\*)$/i.test(selector)
+    // `body` sits below `html`, so it cannot pass a property up to it.
+    const rootReader = reader
+        ? selectorsOf(reader).some((s) => /^(?::root|html)$/i.test(s))
+        : false;
+    return selectorsOf(prelude).some(
+        (selector) =>
+            /^(?::root|html|\*)$/i.test(selector) ||
+            (/^body$/i.test(selector) && !rootReader)
     );
 }
 

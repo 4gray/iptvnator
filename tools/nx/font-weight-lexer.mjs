@@ -41,9 +41,42 @@ const CONDITION_PRELUDE = /^@(?:supports|media|container)\b/i;
  * declaration. A mixin call's arguments (`@include m($w: 650)`) do count.
  */
 export function inConditionPrelude({ text, quoteAt }, index) {
+    const start = preludeStart(text, quoteAt, index);
+    return CONDITION_PRELUDE.test(text.slice(start, index).trimStart());
+}
+
+/**
+ * Where the statement or prelude that `index` sits in starts: just after the
+ * `;`, `{` or `}` before it, skipping strings and Sass interpolations
+ * (`@supports (min-width: #{10}px) and …`).
+ */
+function preludeStart(text, quoteAt, index) {
     let k = index - 1;
-    while (k >= 0 && (quoteAt[k] || !';{}'.includes(text[k]))) k -= 1;
-    return CONDITION_PRELUDE.test(text.slice(k + 1, index).trimStart());
+    while (k >= 0) {
+        if (quoteAt[k]) {
+            k -= 1;
+        } else if (text[k] === '}') {
+            const open = openingBrace(text, quoteAt, k);
+            if (open <= 0 || text[open - 1] !== '#') break;
+            k = open - 2;
+        } else if (text[k] === ';' || text[k] === '{') {
+            break;
+        } else {
+            k -= 1;
+        }
+    }
+    return k + 1;
+}
+
+/** The `{` that the `}` at `close` closes, skipping strings, or -1. */
+function openingBrace(text, quoteAt, close) {
+    let depth = 0;
+    for (let i = close; i >= 0; i -= 1) {
+        if (quoteAt[i]) continue;
+        if (text[i] === '}') depth += 1;
+        else if (text[i] === '{' && (depth -= 1) === 0) return i;
+    }
+    return -1;
 }
 
 /** The `}` that closes the `{` at `open`, skipping strings. */
@@ -394,10 +427,10 @@ export function namesCallable(text, index) {
  * What opens the block at `brace`: flow control, a callable (with its name,
  * `_` read as `-`) or a rule, with its `prelude` (the selector or at-rule).
  */
-function kindOf(text, brace) {
-    let k = brace - 1;
-    while (k >= 0 && !';{}'.includes(text[k])) k -= 1;
-    const prelude = text.slice(k + 1, brace).trim();
+function kindOf(text, quoteAt, brace) {
+    const prelude = text
+        .slice(preludeStart(text, quoteAt, brace), brace)
+        .trim();
     if (FLOW.test(prelude)) return { kind: 'flow', prelude };
     const callable = CALLABLE.exec(prelude);
     if (callable) {
@@ -420,7 +453,7 @@ export function blocksOf({ text, quoteAt }) {
         if (text[i] === '{') open.push(i);
         else if (text[i] === '}' && open.length > 0) {
             const start = open.pop();
-            blocks.push({ start, end: i, ...kindOf(text, start) });
+            blocks.push({ start, end: i, ...kindOf(text, quoteAt, start) });
         }
     }
     return blocks.sort((a, b) => a.start - b.start);
