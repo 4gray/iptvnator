@@ -635,17 +635,24 @@ test('checks font-weight presentation attributes', () => {
         '<svg><text font-weight=750>e</text></svg>',
         '<svg><text font-weight=600>f</text></svg>',
         '<p>font-weight=750 and font-weight="650" as text</p>',
+        '<svg><text aria-label="x > y" font-weight="520">g</text></svg>',
+        '<p title="font-weight=650">a &lt; b</p><p>a < b font-weight=650</p>',
     ].join('\n');
-    const component = `template: '<svg><text font-weight="750">x</text></svg>',`;
+    const component = [
+        `template: '<svg><text font-weight="750">x</text></svg>',`,
+        'template: "<svg><text aria-label=\\"x > y\\" font-weight=\\"450\\">"',
+    ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
         '1 font-weight: 650',
         '5 font-weight: 750',
+        '8 font-weight: 520',
         '3 [attr.font-weight]: 600 + 50',
         '4 [style.font-weight]: 650',
     ]);
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
         '1 font-weight: 750',
+        '2 font-weight: 450',
     ]);
     // Server-side artwork in system Arial is not app UI.
     assert.equal(

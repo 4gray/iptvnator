@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { extractStylesheetLoads } from './check-stylesheet-inputs.mjs';
 import {
     codeExpression,
+    insideTag,
     lex,
     lineIndex,
     tokensOf,
@@ -52,11 +53,12 @@ const SOURCE_WEIGHT =
     /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"]?\s*:/gi;
 const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/gi;
 /**
- * A static HTML or SVG presentation attribute, quoted (`font-weight="650"`)
- * or unquoted (`font-weight=650`).
+ * A static HTML or SVG presentation attribute, quoted (`font-weight="650"`,
+ * also with escaped quotes inside a TypeScript string) or unquoted
+ * (`font-weight=650`).
  */
 const ATTRIBUTE_WEIGHT =
-    /(?<![\w$-])(font-weight)\s*=\s*(?:(['"])(.*?)\2|([^\s>'"=<`]+))/gi;
+    /(?<![\w$-])(font-weight)\s*=\s*(?:\\?(['"])(.*?)\\?\2|([^\s>'"=<`\\]+))/gi;
 /** A custom property or Sass variable that a weight value may refer to. */
 const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
 /**
@@ -295,10 +297,8 @@ export function scanWeights(file, source) {
         for (const match of text.matchAll(ATTRIBUTE_WEIGHT)) {
             // An attribute sits inside a tag; text such as
             // `<p>font-weight=750</p>` sets nothing.
-            const open = text.lastIndexOf('<', match.index);
-            if (open === -1 || text.lastIndexOf('>', match.index) > open) {
-                continue;
-            }
+            const html = file.endsWith('.html');
+            if (!insideTag(lexed, match.index, { html })) continue;
             const value = match[3] ?? match[4];
             record(match[1], match.index, analyse('weight', value));
         }

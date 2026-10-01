@@ -189,6 +189,39 @@ export function tokensOf(value) {
     return tokens;
 }
 
+/**
+ * Whether `index` sits in a tag's attribute list: scanning the markup before
+ * it (the whole file for HTML, the enclosing string for TypeScript), a `<`
+ * followed by a letter, `/` or `!` opens a tag, a `>` outside an attribute
+ * value closes it, and quoted values are skipped (an escaped `\"` is still a
+ * quote to this scan). So
+ * `<text aria-label="x > y" font-weight=…>` is inside a tag, while text such
+ * as `<p>a < b font-weight=…</p>` or a `title="font-weight=…"` value is not.
+ */
+export function insideTag({ text, quoteAt }, index, { html = false } = {}) {
+    let start = 0;
+    if (!html) {
+        start = index;
+        while (start > 0 && quoteAt[start - 1] === quoteAt[index]) start -= 1;
+    }
+    const markup = text.slice(start, index);
+    let inTag = false;
+    let quote = '';
+    for (let i = 0; i < markup.length; i += 1) {
+        const char = markup[i];
+        if (quote) {
+            if (char === quote) quote = '';
+        } else if (char === '<' && /[a-z/!]/i.test(markup[i + 1] ?? '')) {
+            inTag = true;
+        } else if (inTag && char === '>') {
+            inTag = false;
+        } else if (inTag && (char === '"' || char === "'")) {
+            quote = char;
+        }
+    }
+    return inTag && !quote;
+}
+
 /** 1-based line of every index, computed once per file. */
 export function lineIndex(text) {
     const starts = [0];
