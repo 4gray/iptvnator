@@ -226,16 +226,15 @@ describe('PlaylistItemComponent', () => {
         [
             { macAddress: '00:1A:79:00:00:01', url: 'http://portal.test' },
             'cast',
+            true,
         ],
-        [
-            { serverUrl: 'http://xtream.test', url: 'http://xtream.test' },
-            'cloud',
-        ],
-        [{ url: 'http://list.test/playlist.m3u' }, 'link'],
-        [{}, 'description'],
+        [{ macAddress: '00:1A:79:00:00:01' }, 'cast', false],
+        [{ serverUrl: 'http://xtream.test' }, 'cloud', false],
+        [{ url: 'http://list.test/playlist.m3u' }, 'link', true],
+        [{}, 'description', true],
     ])(
-        'shows one provider icon for %o, with the shared precedence',
-        (source, icon) => {
+        'shows one provider icon for %o (%s) and keeps the auto-refresh badge: %s',
+        (source, icon, autoRefreshBadge) => {
             fixture.destroy();
             fixture = TestBed.createComponent(PlaylistItemComponent);
             fixture.componentInstance.item = {
@@ -243,18 +242,20 @@ describe('PlaylistItemComponent', () => {
                 _id: 'source',
                 count: 10,
                 importDate: Date.now().toString(),
-                autoRefresh: false,
+                autoRefresh: true,
                 ...source,
             };
             fixture.detectChanges();
 
+            const row = fixture.nativeElement as HTMLElement;
             const icons = Array.from(
-                (fixture.nativeElement as HTMLElement).querySelectorAll(
-                    '.upload-type-icon'
-                ),
+                row.querySelectorAll('.upload-type-icon'),
                 (element) => element.textContent?.trim()
             );
             expect(icons).toEqual([icon]);
+            expect(row.querySelector('.auto-refresh-indicator') !== null).toBe(
+                autoRefreshBadge
+            );
         }
     );
 });

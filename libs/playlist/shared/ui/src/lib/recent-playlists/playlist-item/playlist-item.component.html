@@ -19,16 +19,18 @@
         }
         <!-- One provider icon per row, by the shared precedence: a restored
              Stalker or Xtream playlist can also carry a URL. -->
-        @switch (sourceIconKey) {
-            @case ('stalker') {
-                <mat-icon
-                    class="upload-type-icon"
-                    [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
-                    >{{ sourceIcons.stalker }}</mat-icon
-                >
-            }
-            @case ('xtream') {
-                <div class="icon-container">
+        <div class="icon-container">
+            @switch (sourceIconKey) {
+                @case ('stalker') {
+                    <mat-icon
+                        class="upload-type-icon"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.STALKER_PORTAL' | translate
+                        "
+                        >{{ sourceIcons.stalker }}</mat-icon
+                    >
+                }
+                @case ('xtream') {
                     <mat-icon
                         class="upload-type-icon"
                         [matTooltip]="
@@ -36,50 +38,45 @@
                         "
                         >{{ sourceIcons.xtream }}</mat-icon
                     >
-                    @if (!runtime.supportsSourceHealth) {
-                        <span
-                            class="status-dot"
-                            [class]="getStatusClass()"
-                            [matTooltip]="'Portal status: ' + portalStatus"
-                            [attr.aria-label]="'Portal status: ' + portalStatus"
-                        ></span>
-                    }
-                </div>
+                }
+                @case ('m3u-url') {
+                    <mat-icon
+                        class="upload-type-icon"
+                        [matTooltip]="
+                            ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) +
+                            ' ' +
+                            item.url
+                        "
+                        >{{ sourceIcons['m3u-url'] }}</mat-icon
+                    >
+                }
+                @default {
+                    <mat-icon
+                        class="upload-type-icon"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate
+                        "
+                        >{{ sourceIcons['m3u-local'] }}</mat-icon
+                    >
+                }
             }
-            @default {
-                <div class="icon-container">
-                    @if (sourceIconKey === 'm3u-url') {
-                        <mat-icon
-                            class="upload-type-icon"
-                            [matTooltip]="
-                                ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) +
-                                ' ' +
-                                item.url
-                            "
-                            >{{ sourceIcons['m3u-url'] }}</mat-icon
-                        >
-                    } @else {
-                        <mat-icon
-                            class="upload-type-icon"
-                            [matTooltip]="
-                                'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate
-                            "
-                            >{{ sourceIcons['m3u-local'] }}</mat-icon
-                        >
-                    }
-                    @if (item.autoRefresh) {
-                        <mat-icon
-                            class="auto-refresh-indicator"
-                            [matTooltip]="
-                                'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED'
-                                    | translate
-                            "
-                            >autorenew</mat-icon
-                        >
-                    }
-                </div>
+            @if (showsPortalStatusDot) {
+                <span
+                    class="status-dot"
+                    [class]="getStatusClass()"
+                    [matTooltip]="'Portal status: ' + portalStatus"
+                    [attr.aria-label]="'Portal status: ' + portalStatus"
+                ></span>
+            } @else if (showsAutoRefresh) {
+                <mat-icon
+                    class="auto-refresh-indicator"
+                    [matTooltip]="
+                        'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
+                    "
+                    >autorenew</mat-icon
+                >
             }
-        }
+        </div>
     </div>
     <div class="playlist-content">
         <div class="playlist-title">
