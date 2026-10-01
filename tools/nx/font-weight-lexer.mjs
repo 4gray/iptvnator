@@ -328,24 +328,37 @@ const CALLABLE = /^@(?:mixin|function)\b/i;
 const callableName = (name) => name?.replace(/_/g, '-') ?? null;
 
 /**
+ * Whether `index` follows `@mixin` or `@function` and whitespace (blanked
+ * comments included), so the name there opens a signature, not a call.
+ */
+export function namesCallable(text, index) {
+    let k = index;
+    while (k > 0 && /\s/.test(text[k - 1])) k -= 1;
+    return (
+        k < index &&
+        /@(?:mixin|function)$/i.test(text.slice(Math.max(0, k - 9), k))
+    );
+}
+
+/**
  * What opens the block at `brace`: flow control, a callable (with its name,
- * `_` read as `-`) or a rule.
+ * `_` read as `-`) or a rule, with its `prelude` (the selector or at-rule).
  */
 function kindOf(text, brace) {
     let k = brace - 1;
     while (k >= 0 && !';{}'.includes(text[k])) k -= 1;
     const prelude = text.slice(k + 1, brace).trim();
-    if (FLOW.test(prelude)) return { kind: 'flow' };
+    if (FLOW.test(prelude)) return { kind: 'flow', prelude };
     const callable = CALLABLE.exec(prelude);
     if (callable) {
         const name = /^@\w+\s+([\w-]+)/.exec(prelude)?.[1];
-        return { kind: 'callable', name: callableName(name) };
+        return { kind: 'callable', name: callableName(name), prelude };
     }
-    return { kind: 'rule' };
+    return { kind: 'rule', prelude };
 }
 
 /**
- * The `{…}` blocks of a stylesheet as `{ start, end, kind }` (offsets of the
+ * The `{…}` blocks of a stylesheet as `{ start, end, kind, prelude }` (offsets of the
  * braces), skipping braces inside strings. An interpolation `#{…}` is a block
  * too, which is harmless: no declaration sits inside one.
  */
@@ -412,11 +425,10 @@ export function calleeOf(text, index) {
             if (depth === 0) {
                 const named = /([\w.-]+)\s*$/.exec(text.slice(0, k));
                 if (!named) return null;
-                const before = text.slice(0, named.index);
                 return {
                     ...calleeNamed(named[1]),
                     paren: k,
-                    signature: /@(?:mixin|function)\s+$/i.test(before),
+                    signature: namesCallable(text, named.index),
                 };
             }
             depth -= 1;
@@ -437,9 +449,7 @@ const INVOCATION =
 export function invocationsOf({ text, quoteAt }) {
     const calls = [];
     for (const match of text.matchAll(INVOCATION)) {
-        if (quoteAt[match.index]) continue;
-        const before = text.slice(Math.max(0, match.index - 12), match.index);
-        if (/@(?:mixin|function)\s+$/i.test(before)) continue;
+        if (quoteAt[match.index] || namesCallable(text, match.index)) continue;
         const end = match.index + match[0].length;
         const open = /^\s*\(/.exec(text.slice(end));
         calls.push({

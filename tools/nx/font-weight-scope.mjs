@@ -181,6 +181,7 @@ export function sassScopes(scans) {
             });
             push(loadedBy, loaded, {
                 ...{ file, textual: load.rule === 'import', ranges, prefix },
+                forward,
                 index: load.index,
             });
         }
@@ -304,13 +305,19 @@ export function sassScopes(scans) {
         return scope;
     };
 
+    /**
+     * The loads of `file`: who loads it, the `with (…)` ranges (`[start,
+     * end)`) on each, and for a `@forward`, the prefix it adds.
+     */
+    const loadsOf = (file) => loadedBy.get(file) ?? [];
+
     /** Files `@import`ed by `file`, with where each `@import` sits. */
     const imports = (file) =>
         (edges.get(file) ?? [])
             .filter((edge) => edge.rule === 'import')
             .map(({ loaded, index }) => ({ loaded, index }));
 
-    return { qualified, unqualified, imports };
+    return { qualified, unqualified, imports, loadsOf };
 }
 
 /**

@@ -698,7 +698,9 @@
         monospace
     );
     font-size: 0.6rem;
-    font-weight: 700;
+    // Off macOS this renders in JetBrains Mono, bundled up to 500; 700 would
+    // be faked.
+    font-weight: 500;
     letter-spacing: 0.08em;
     color: var(--app-live-color, #ff8f8f);
     text-transform: uppercase;

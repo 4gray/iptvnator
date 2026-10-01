@@ -12,6 +12,7 @@ import {
     invocationsOf,
     lex,
     lineIndex,
+    namesCallable,
     placeOf,
     resultsOf,
     tokensOf,
@@ -36,11 +37,22 @@ import {
  * alike), through `@forward … as prefix-*` and its `show`/`hide` lists too.
  * A parameter default counts where a call leaves it out, or when no call is
  * in sight. A weight set from code is read per value it can take, so a
- * condition's numbers are not weights. Not traced: positional mixin or
- * function arguments, calls through `meta.apply` and `@function` return
- * values, so pass weights as named `$…weight` arguments.
+ * condition's numbers are not weights. A partial's `!default` gives way
+ * where every load of it configures the name. Not traced: positional mixin
+ * or function arguments, calls through `meta.apply`, `meta.load-css` and
+ * `@function` return values, so pass weights as named `$…weight` arguments.
+ *
+ * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
+ * or one a nested rule inherits) is capped at `MONO_WEIGHT_CAP`. A weight it
+ * inherits from another rule, and a family set from code, are not traced.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
+
+/** JetBrains Mono is bundled at 400 and 500 only (see `styles.scss`). */
+export const MONO_WEIGHT_CAP = 500;
+const FONT_FAMILY = /(?<![\w$-])(font-family|font)\s*:/gi;
+const MONO_FAMILY = /jetbrains\s+mono/i;
+const BOLD = /\bbold\b/gi;
 
 /**
  * Not app UI: the landing site ships a variable font, so any weight is a real
@@ -88,7 +100,7 @@ const CODE_BINDING =
 const CODE_ASSIGNMENT =
     /(\.style(?:\.fontWeight|\[\s*(['"`])font(?:Weight|-weight)\2\s*\]))\s*(\*\*|[-+*/%])?=(?!=)/g;
 const CODE_SET_PROPERTY =
-    /(setProperty\(\s*['"](font-weight|--[\w-]+)['"])\s*,/gi;
+    /(setProperty\(\s*['"`](font-weight|--[\w-]+)['"`])\s*,/gi;
 /**
  * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
  * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
@@ -189,7 +201,8 @@ function computedIn(value) {
  * followed as shorthand, carrying how many tokens come after it (`after`).
  * A weight is 1 to 1000, so `0`, the one unitless font size, is never one.
  */
-function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
+function analyse(mode, value, options = {}) {
+    const { minimum = 1, code = false, after = 0, cap = null } = options;
     if (mode === 'font') {
         const tokens = tokensOf(value);
         const weight = [];
@@ -204,8 +217,14 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
                     variable;
                 const name = identity(custom ?? sass ?? interpolated);
                 const namespace = ns ?? innerNs ?? null;
-                references.push({ name, namespace, mode: 'font', after: tail });
-                const inner = analyse('font', fallback ?? '', { after: tail });
+                references.push({
+                    ...{ name, namespace, mode: 'font', after: tail },
+                    cap,
+                });
+                const inner = analyse('font', fallback ?? '', {
+                    after: tail,
+                    cap,
+                });
                 terms.push(...inner.terms);
                 references.push(...inner.references);
                 return;
@@ -215,27 +234,35 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
                 weight.push(token);
             }
         });
-        const own = analyse('weight', weight.join(' '));
+        const own = analyse('weight', weight.join(' '), { cap });
         return {
             terms: [...terms, ...own.terms],
             references: [...references, ...own.references],
         };
     }
+    // Above `cap`, a scale weight (or `bold`, 700) gets a synthetic bold.
+    const heavy = (term) =>
+        cap !== null && Number(/^bold$/i.test(term) ? 700 : term) > cap;
     const numbers = [...value.matchAll(NUMBER)]
         .map((match) => match[1])
         .filter((term) => Number(term) >= minimum)
-        .filter((term) => !WEIGHT_SCALE.includes(Number(term)));
+        .filter((term) => !WEIGHT_SCALE.includes(Number(term)) || heavy(term));
+    const keywords = [
+        ...(value.match(RELATIVE_KEYWORD) ?? []),
+        ...(value.match(BOLD) ?? []).filter(heavy),
+    ];
     const computed = code ? CODE_ARITHMETIC.test(value) : computedIn(value);
     return {
         terms: computed
             ? [{ value: value.trim(), computed: true }]
-            : [...numbers, ...(value.match(RELATIVE_KEYWORD) ?? [])].map(
-                  (term) => ({ value: term })
+            : [...numbers, ...keywords].map((term) =>
+                  heavy(term) ? { value: term, cap } : { value: term }
               ),
         references: [...value.matchAll(REFERENCE)].map((match) => ({
             name: identity(match[1] ?? match[3]),
             namespace: match[2] ?? null,
             mode: 'weight',
+            cap,
         })),
     };
 }
@@ -246,13 +273,13 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
  * read as such; anything else is an expression, where other numbers appear
  * too (a weight is 100 or more) and arithmetic computes the value.
  */
-function analyseCode(expression, mode = 'weight', after = 0) {
+function analyseCode(expression, mode = 'weight', after = 0, cap = null) {
     const results = resultsOf(expression).map((result) => {
         const literal = /^\s*(['"`])([\s\S]*)\1\s*$/.exec(result);
         if (literal && !literal[2].includes('${')) {
-            return analyse(mode, literal[2], { after });
+            return analyse(mode, literal[2], { after, cap });
         }
-        return analyse('weight', result, { minimum: 100, code: true });
+        return analyse('weight', result, { minimum: 100, code: true, cap });
     });
     return {
         terms: results.flatMap((result) => result.terms),
@@ -281,13 +308,7 @@ function callSitesOf(text, blocks) {
             'g'
         );
         calls[name] = [...text.matchAll(call)]
-            .filter((match) => {
-                const before = text.slice(
-                    Math.max(0, match.index - 12),
-                    match.index
-                );
-                return !/@(?:mixin|function)\s+$/.test(before);
-            })
+            .filter((match) => !namesCallable(text, match.index))
             .map(({ index }) => ({
                 index,
                 within: placeOf(blocks, index).callable,
@@ -330,14 +351,64 @@ export function scanWeights(file, source) {
         );
     };
 
+    // Which rules set their own family, and whether it is JetBrains Mono;
+    // the last declaration in a rule wins. A family list is comma-separated,
+    // so it runs to the `;` (a `{` first means a selector).
+    const family = new Map();
+    for (const match of stylesheet ? text.matchAll(FONT_FAMILY) : []) {
+        if (inString(match.index)) continue;
+        const start = match.index + match[0].length;
+        let end = start;
+        while (
+            end < text.length &&
+            (quoteAt[end] || !';{}'.includes(text[end]))
+        ) {
+            end += 1;
+        }
+        const { scope } = placeOf(blocks, match.index);
+        if (text[end] !== '{' && scope !== null) {
+            family.set(scope, MONO_FAMILY.test(text.slice(start, end)));
+        }
+    }
+    // A rule without a family of its own inherits its parent's when it is
+    // nested on the same element or a descendant (`&:hover`, `.child`,
+    // `@media`, an `@include` content block). A `&-suffix` rule is another
+    // element, a mixin body (or any other at-rule) is set where it is
+    // included, and `@font-face` describes a face.
+    const monoAt = (index) => {
+        const around = blocks
+            .filter((b) => b.start < index && index < b.end)
+            .filter((b) => b.kind !== 'flow')
+            .reverse();
+        for (const block of around) {
+            if (/^@font-face\b/i.test(block.prelude)) return false;
+            if (family.has(block.start)) return family.get(block.start);
+            if (/^&[\w-]/.test(block.prelude)) return false;
+            if (
+                /^@(?!media|supports|container|layer|include)/i.test(
+                    block.prelude
+                )
+            ) {
+                return false;
+            }
+        }
+        return false;
+    };
+
     for (const pattern of patterns) {
         for (const match of text.matchAll(pattern)) {
             if (inString(match.index)) continue;
             const name = match[1];
             const end = match.index + match[0].length;
             const { value, selector } = valueAfter(lexed, end);
+            if (selector) continue;
             const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
-            if (!selector) record(name, match.index, analyse(mode, value));
+            const capped =
+                stylesheet &&
+                /^font(?:-weight)?$/i.test(name) &&
+                monoAt(match.index);
+            const cap = capped ? MONO_WEIGHT_CAP : null;
+            record(name, match.index, analyse(mode, value, { cap }));
         }
     }
     // A weight set from code is checked here; any other custom property it
@@ -391,7 +462,7 @@ export function scanWeights(file, source) {
     }
     for (const match of text.matchAll(DEFINITION)) {
         const name = match[1];
-        if (inString(match.index) || /weight$/i.test(name)) continue;
+        if (inString(match.index)) continue;
         if (!stylesheet && name.startsWith('$')) continue;
         const end = match.index + match[0].length;
         const { value, selector } = valueAfter(lexed, end);
@@ -413,6 +484,8 @@ export function scanWeights(file, source) {
         const fallback = /!default\b/i.test(value);
         definitions.push({
             ...{ file, line, index, name, key, value, argument, fallback },
+            // Checked against the scale where it is declared (see below).
+            weighted: /weight$/i.test(name),
             // An argument reaches only the mixin or function it is passed to.
             callee: argument ? calleeOf(text, index) : null,
             scope: global ? null : place.scope,
@@ -435,14 +508,15 @@ export function scanWeights(file, source) {
  * Definitions of the variables that weight declarations refer to, read the
  * way they are used (a weight or a whole `font` shorthand) and followed
  * through chains (`--a: var(--b)`). A name ending in `weight` is already
- * checked where it is declared. Custom properties cascade across the app, so
+ * checked against the scale where it is declared, so only a JetBrains Mono
+ * rule's cap is new there. Custom properties cascade across the app, so
  * any definition counts; a Sass variable only what its module scope sees
  * (see `sassScopes`).
  */
 export function findIndirectWeights(scans) {
     const definitions = scans.flatMap((scan) => scan.definitions);
     const pending = scans.flatMap((scan) => scan.references);
-    const { qualified, unqualified, imports } = sassScopes(scans);
+    const { qualified, unqualified, imports, loadsOf } = sassScopes(scans);
     const callsByFile = new Map(scans.map((scan) => [scan.file, scan.calls]));
     // Whether a declaration is what `name` reads, through one of the ways
     // `access` exposes its file (a `@forward` prefix, `show`/`hide`).
@@ -513,6 +587,48 @@ export function findIndirectWeights(scans) {
         defaultUsed.set(definition, used);
         return used;
     };
+    // A partial runs only where it is loaded, so its `!default` for a name
+    // never applies when every load sets that name (not to `null`), in its
+    // own `with (…)` or, through a `@forward`, in the forwarding module's
+    // loads under the prefix. A file that is not a partial may be compiled
+    // on its own, unconfigured.
+    const configuredCache = new Map();
+    const alwaysConfigured = (file, name, chain = new Set()) => {
+        const cacheKey = `${file} ${name}`;
+        if (chain.size === 0 && configuredCache.has(cacheKey)) {
+            return configuredCache.get(cacheKey);
+        }
+        const partial = /^_/.test(path.posix.basename(file));
+        if (!partial || chain.has(file)) return false;
+        const loads = loadsOf(file);
+        const deeper = new Set([...chain, file]);
+        const sets = (load) =>
+            definitions.some(
+                (d) =>
+                    d.argument &&
+                    d.file === load.file &&
+                    d.key === name &&
+                    !/^null\b/i.test(d.value.trim()) &&
+                    load.ranges.some(([s, e]) => d.index >= s && d.index < e)
+            );
+        const configured =
+            loads.length > 0 &&
+            loads.every(
+                (load) =>
+                    sets(load) ||
+                    (load.forward &&
+                        alwaysConfigured(
+                            load.file,
+                            exposedName(
+                                { prefix: load.prefix, filters: [] },
+                                name
+                            ),
+                            deeper
+                        ))
+            );
+        if (chain.size === 0) configuredCache.set(cacheKey, configured);
+        return configured;
+    };
     // `@import` is textual: an imported file's top-level declarations take
     // effect where the `@import` sits, transitively.
     // Each `@import` runs its file again, so only the current path guards
@@ -551,10 +667,11 @@ export function findIndirectWeights(scans) {
     while (pending.length > 0) {
         const reference = pending.pop();
         const { name, mode, after = 0, file, namespace, index } = reference;
+        const { cap = null } = reference;
         const sass = name.startsWith('$');
         // What a Sass name resolves to depends on where it is read.
         const origin = sass ? `${file} ${namespace ?? ''} ${index}` : '';
-        const key = `${mode} ${after} ${origin} ${name}`;
+        const key = `${mode} ${after} ${cap} ${origin} ${name}`;
         if (followed.has(key)) continue;
         followed.add(key);
         const members = sass && namespace ? qualified(file, namespace) : null;
@@ -600,6 +717,15 @@ export function findIndirectWeights(scans) {
             ) {
                 continue;
             }
+            if (
+                sass &&
+                definition.fallback &&
+                !definition.argument &&
+                definition.scope === null &&
+                alwaysConfigured(definition.file, definition.key)
+            ) {
+                continue;
+            }
             if (sass && !definition.argument && !picked.has(definition)) {
                 if (definition.file === file && !members) continue;
                 // Other modules see only top-level (or `!global`) members.
@@ -628,9 +754,15 @@ export function findIndirectWeights(scans) {
                 if (!visible) continue;
             }
             const analysis = definition.code
-                ? analyseCode(definition.value, mode, after)
-                : analyse(mode, definition.value, { after });
-            for (const term of analysis.terms) {
+                ? analyseCode(definition.value, mode, after, cap)
+                : analyse(mode, definition.value, { after, cap });
+            const offScale = (term) =>
+                /^[+\d.]/.test(term.value) &&
+                !WEIGHT_SCALE.includes(Number(term.value));
+            const terms = definition.weighted
+                ? analysis.terms.filter((term) => term.cap && !offScale(term))
+                : analysis.terms;
+            for (const term of terms) {
                 const { line } = definition;
                 const at = {
                     file: definition.file,
@@ -663,8 +795,12 @@ export function findOffScaleWeights(file, source) {
     };
 }
 
-export function describeFinding({ file, line, name, value, computed }) {
+export function describeFinding(finding) {
+    const { file, line, name, value, computed, cap } = finding;
     const scale = WEIGHT_SCALE.join('/');
+    if (cap && !computed) {
+        return `${file}:${line} ${name}: ${value} is heavier than ${cap}, the heaviest JetBrains Mono face bundled, and a JetBrains Mono rule uses it, so Chromium fakes the bold. Use ${cap}.`;
+    }
     if (computed) {
         return `${file}:${line} ${name}: ${value} is computed, and the compiled value is what renders (Sass turns \`400 + 500\` into 900). Write a ${scale} weight.`;
     }
@@ -726,7 +862,7 @@ if (isMain) {
         process.exitCode = 1;
     } else {
         console.log(
-            `Checked ${declarations} weight declarations across ${files.length} files; every weight is on the ${WEIGHT_SCALE.join('/')} scale.`
+            `Checked ${declarations} weight declarations across ${files.length} files; every weight is on the ${WEIGHT_SCALE.join('/')} scale and JetBrains Mono rules stay at ${MONO_WEIGHT_CAP} or lighter.`
         );
     }
 }

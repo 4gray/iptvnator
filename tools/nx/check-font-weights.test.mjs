@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+    MONO_WEIGHT_CAP,
     blankComments,
     describeFinding,
     findIndirectWeights,
@@ -818,6 +819,19 @@ test('reads only the values a code weight can take', () => {
     ]);
 });
 
+test('checks setProperty with a template-literal name', () => {
+    const component = [
+        "element.style.setProperty(`font-weight`, '650');",
+        "element.style.setProperty(`--title-weight`, '750');",
+        "element.style.setProperty(`font-weight`, '600');",
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 setProperty(`font-weight`: 650',
+        '2 setProperty(`--title-weight`: 750',
+    ]);
+});
+
 test('checks indexed style writes', () => {
     const component = [
         "element.style['fontWeight'] = 650;",
@@ -1342,6 +1356,18 @@ test('skips a module default its configuration replaces', () => {
         report([tokens, user("@use 'tokens'; .x { font-weight: tokens.$w; }")]),
         ['libs/w2/_tokens.scss:1 650']
     );
+    // Another compilation loading it unconfigured does not change what
+    // this one reads.
+    assert.deepEqual(
+        report([
+            tokens,
+            user(
+                "@use 'tokens' with ($w: 600); .x { font-weight: tokens.$w; }"
+            ),
+            scanWeights('libs/w2/other.scss', "@use 'tokens';"),
+        ]),
+        []
+    );
 });
 
 test('reads `-` and `_` in callable names alike', () => {
@@ -1597,6 +1623,34 @@ test('counts a parameter default only where a call leaves it out', () => {
     }
     // Nothing calls it here, so it may be called from elsewhere.
     assert.deepEqual(own(''), ['libs/d2/own.scss:1 650']);
+    // A comment between `@mixin` and the name is still a signature.
+    assert.deepEqual(
+        report([
+            scanWeights(
+                'libs/d2/note.scss',
+                '@mixin /* a long note on the heading */ heading($w: 650) { font-weight: $w; } .x { @include heading($w: 600); }'
+            ),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            scanWeights(
+                'libs/d2/note.scss',
+                '@mixin /* a long note on the heading */ heading($w: 650) { font-weight: $w; }'
+            ),
+        ]),
+        ['libs/d2/note.scss:1 650']
+    );
+    assert.deepEqual(
+        report([
+            scanWeights(
+                'libs/d2/note.scss',
+                '$w: 650; @mixin /* a long note on the heading */ a-b() { font-weight: $w; } $w: 500; .x { @include a-b; }'
+            ),
+        ]),
+        []
+    );
     // A module's call reaches its own mixin, not a loader's namesake.
     const loaded = scanWeights(
         'libs/d2/_loaded.scss',
@@ -1638,6 +1692,200 @@ test('counts a parameter default only where a call leaves it out', () => {
             user("@use 'mod'; .x { @include mod.p-heading($w: 600); }"),
         ]),
         []
+    );
+});
+
+test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
+    const source = [
+        ".a { font-family: 'JetBrains Mono', monospace; font-weight: 700; }",
+        '.b { font: 600 12px/1 "JetBrains Mono", monospace; }',
+        ".c { font-family: ui-monospace, 'JetBrains Mono'; font-weight: bold; }",
+        ".d { font-weight: 500; font-family: 'JetBrains Mono'; }",
+        '.e { font-weight: 700; }',
+        ".f { font-family: 'JetBrains Mono'; &:hover, .child { font-weight: 600; } }",
+        ".g { font-family: 'JetBrains Mono'; &--wide { font-weight: 700; } }",
+        ".h { font-family: 'JetBrains Mono'; .x { font-family: Roboto; font-weight: 700; } }",
+        ".i { font-family: 'JetBrains Mono'; @media (min-width: 1px) { font-weight: 600; } }",
+        "@font-face { font-family: 'JetBrains Mono'; font-weight: 700; }",
+        ".j { font-family: 'JetBrains Mono'; font-weight: 650; }",
+        ".k { font-family: 'JetBrains Mono'; --title-weight: 600; }",
+        ".l { font-family: 'JetBrains Mono'; font-family: Roboto; font-weight: 700; }",
+        "@mixin m { font-weight: 700; } .n { font-family: 'JetBrains Mono'; @include m; }",
+        ".o { font-family: 'JetBrains Mono'; @include up { font-weight: 700; } }",
+        ".p { font-family: 'JetBrains Mono'; @mixin local { font-weight: 700; } }",
+    ].join('\n');
+
+    assert.equal(MONO_WEIGHT_CAP, 500);
+    assert.deepEqual(offScale('libs/m3/a.component.scss', source).sort(), [
+        '1 font-weight: 700',
+        '11 font-weight: 650',
+        '15 font-weight: 700',
+        '2 font: 600',
+        '3 font-weight: bold',
+        '6 font-weight: 600',
+        '9 font-weight: 600',
+    ]);
+    for (const finding of findOffScaleWeights(
+        'libs/m3/a.component.scss',
+        source
+    ).findings) {
+        assert.match(describeFinding(finding), /JetBrains Mono.*Use 500\.$/);
+    }
+});
+
+test('caps the weights a JetBrains Mono rule reads through variables', () => {
+    const mono = "font-family: 'JetBrains Mono'";
+    assert.deepEqual(
+        offScale(
+            'libs/m3/b.scss',
+            `$mono-w: 600; .a { ${mono}; font-weight: $mono-w; } .b { font-weight: $mono-w; }`
+        ),
+        ['1 $mono-w: 600']
+    );
+    // A `…weight` name is checked where it is declared; the cap adds one
+    // finding, and an off-scale value is not reported twice.
+    assert.deepEqual(
+        offScale(
+            'libs/m3/c.scss',
+            `$title-weight: 600; .a { ${mono}; font-weight: $title-weight; }`
+        ),
+        ['1 $title-weight: 600']
+    );
+    assert.deepEqual(
+        offScale(
+            'libs/m3/d.scss',
+            `$title-weight: 650; .a { ${mono}; font-weight: $title-weight; }`
+        ),
+        ['1 $title-weight: 650']
+    );
+    assert.deepEqual(
+        offScale(
+            'libs/m3/e.scss',
+            ".x { --w: 700; } .a { font: var(--w) 12px 'JetBrains Mono'; }"
+        ),
+        ['1 --w: 700']
+    );
+    // A `…weight` keyword is not reported again.
+    assert.deepEqual(
+        offScale(
+            'libs/m3/f.scss',
+            `$title-weight: bolder; .a { ${mono}; font-weight: $title-weight; }`
+        ),
+        ['1 $title-weight: bolder']
+    );
+    // A chain read from both kinds of rule keeps the cap, in either order.
+    for (const rules of [
+        `.n { font-weight: $a; } .m { ${mono}; font-weight: $a; }`,
+        `.m { ${mono}; font-weight: $a; } .n { font-weight: $a; }`,
+    ]) {
+        assert.deepEqual(
+            offScale('libs/m3/g.scss', `$b: 600; $a: $b; ${rules}`),
+            ['1 $b: 600']
+        );
+    }
+    // Custom properties set from code, as CSS text or as an expression.
+    const host = scanWeights(
+        'libs/m3/x.component.ts',
+        [
+            "host: { '[style.--mono-w]': \"'700'\",",
+            "  '[style.--mono-v]': 'wide ? 700 : 500' }",
+        ].join('\n')
+    );
+    const rule = scanWeights(
+        'libs/m3/x.component.scss',
+        `.a { ${mono}; font-weight: var(--mono-w); } .b { ${mono}; font-weight: var(--mono-v); }`
+    );
+    assert.deepEqual(
+        findIndirectWeights([host, rule])
+            .map(({ line, value }) => `${line} ${value}`)
+            .sort(),
+        ['1 700', '2 700']
+    );
+});
+
+test('lets every configured load replace a partial default', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const rule = '$w: 650 !default; .t { font-weight: $w; }';
+    const tokens = scanWeights('libs/c3/_tokens.scss', rule);
+    const load = (file, body) => scanWeights(`libs/c3/${file}`, body);
+    const configured = load('a.scss', "@use 'tokens' with ($w: 600);");
+    const flagged = ['libs/c3/_tokens.scss:1 650'];
+
+    assert.deepEqual(report([tokens, configured]), []);
+    assert.deepEqual(
+        report([tokens, configured, load('b.scss', "@use 'tokens';")]),
+        flagged
+    );
+    assert.deepEqual(report([tokens]), flagged);
+    // Only a `with (…)` setting that name counts.
+    assert.deepEqual(
+        report([tokens, load('a.scss', "@use 'tokens' with ($other: 600);")]),
+        flagged
+    );
+    assert.deepEqual(
+        report([
+            tokens,
+            configured,
+            load('b.scss', "@use 'tokens'; .x { @include m($w: 600); }"),
+        ]),
+        flagged
+    );
+    // A block's own `!default` is not a module setting.
+    assert.deepEqual(
+        report([
+            scanWeights(
+                'libs/c3/_local.scss',
+                '.t { $w: 650 !default; font-weight: $w; }'
+            ),
+            load('a.scss', "@use 'local' with ($w: 600);"),
+        ]),
+        ['libs/c3/_local.scss:1 650']
+    );
+    // Forwarding cycles end.
+    assert.deepEqual(
+        report([
+            scanWeights('libs/c3/_x.scss', `@forward 'y'; ${rule}`),
+            load('_y.scss', "@forward 'x';"),
+        ]),
+        ['libs/c3/_x.scss:1 650']
+    );
+    assert.deepEqual(
+        report([tokens, load('a.scss', "@use 'tokens' with ($w: null);")]),
+        flagged
+    );
+    // A file that is not a partial may also be compiled on its own.
+    assert.deepEqual(
+        report([
+            scanWeights('libs/c3/entry.scss', rule),
+            load('a.scss', "@use 'entry' with ($w: 600);"),
+        ]),
+        ['libs/c3/entry.scss:1 650']
+    );
+    // Through a `@forward`, its own `with (…)` or its loads, under the prefix.
+    assert.deepEqual(
+        report([
+            tokens,
+            load('_mod.scss', "@forward 'tokens' with ($w: 600);"),
+            load('u.scss', "@use 'mod';"),
+        ]),
+        []
+    );
+    const mod = load('_mod.scss', "@forward 'tokens' as p-*;");
+    assert.deepEqual(
+        report([tokens, mod, load('u.scss', "@use 'mod' with ($p-w: 600);")]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            tokens,
+            mod,
+            load('u.scss', "@use 'mod' with ($p-w: 600);"),
+            load('v.scss', "@use 'mod';"),
+        ]),
+        flagged
     );
 });
 

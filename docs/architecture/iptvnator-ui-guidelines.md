@@ -792,7 +792,9 @@ heavier faces would exceed the initial-bytes ratchet).
   between faces snaps to a neighbour (650 renders as 700), and 600 or more with
   no face of at least 600 gets Chromium's synthetic bold. CI runs
   `pnpm run styles:font-weights:validate`, which rejects any other value.
-- JetBrains Mono text stays at 500 or lighter, including what a mono
+- JetBrains Mono text stays at 500 or lighter, also where it is a fallback
+  behind `ui-monospace` (only macOS resolves that). The check enforces this in
+  any rule that sets the family or nests under one. It cannot see what a mono
   modifier class inherits from its base rule; set `font-weight: 500` there.
 - Import whole `@fontsource/<family>/<weight>.css` files. The single-script
   files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
