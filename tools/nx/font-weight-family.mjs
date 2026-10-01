@@ -352,15 +352,24 @@ export function plainHost(prelude) {
  * Whether a nested rule styles its parent's element or a descendant, which
  * inherit the parent's family: `&:hover`, `.child`, `> .child`, or a
  * `@media` or `@include` body. A `&-suffix` class and a `+`/`~` sibling are
- * other elements; any other at-rule (a mixin body included elsewhere) is
- * set where it runs.
+ * other elements, unless the sibling is the parent's own kind again (`& + &`
+ * targets `.x + .x`, an `.x`); any other at-rule (a mixin body included
+ * elsewhere) is set where it runs.
  */
 function inherits(prelude) {
     if (prelude.startsWith('@')) return SAME_ELEMENT.test(prelude);
-    return selectorsOf(prelude).some(
-        (selector) => !/^&[\w-]/.test(selector) && !/^&?\s*[+~]/.test(selector)
-    );
+    return selectorsOf(prelude).some((selector) => {
+        const target = selector
+            .split(/\s*[>+~]\s*|\s+/)
+            .filter(Boolean)
+            .at(-1);
+        if (/^&(?![\w-])/.test(target ?? '')) return true;
+        return !/^&[\w-]/.test(selector) && !/^&?\s*[+~]/.test(selector);
+    });
 }
+
+/** An `@include` of a mixin in this file (`ns.mixin` is another file's). */
+const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
 
 /**
  * The family each rule sets (every block with one of its selector chains,
@@ -378,6 +387,24 @@ export function familiesOf(
     { inString, placeOf, refsIn, rulesOf }
 ) {
     const family = new Map();
+    // This file's `@include` sites, by mixin: a declaration in a mixin's
+    // body lands in the rule that includes it, at the `@include`.
+    const includes = new Map();
+    for (const match of lexed.text.matchAll(INCLUDE)) {
+        if (inString(match.index)) continue;
+        const name = match[1].replace(/_/g, '-');
+        if (!includes.has(name)) includes.set(name, []);
+        includes.get(name).push(match.index);
+    }
+    const sitesOf = (scope) => {
+        const block = blocks.find((b) => b.start === scope);
+        // Only a mixin is included (a function's body sets nothing).
+        return block?.kind === 'callable'
+            ? (includes.get(block.name) ?? [])
+            : [];
+    };
+    // Each declaration, where it applies, in source order.
+    const applied = [];
     for (const match of lexed.text.matchAll(FONT_FAMILY)) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
@@ -405,13 +432,22 @@ export function familiesOf(
             text: value,
             at: { index: match.index, ...place },
         };
-        // Keyed by rule, so a later block with one of its selectors wins.
-        for (const rule of rulesOf(namespace ?? place.scope)) {
-            if (family.get(rule)?.important && !important) continue;
+        const scope = namespace ?? place.scope;
+        applied.push({ at: match.index, rules: rulesOf(scope), entry });
+        for (const site of sitesOf(scope)) {
+            const rules = rulesOf(placeOf(blocks, site).scope);
+            applied.push({ at: site, rules, entry });
+        }
+    }
+    // Keyed by rule, so a later block with one of its selectors wins.
+    applied.sort((a, b) => a.at - b.at);
+    for (const { rules, entry } of applied) {
+        for (const rule of rules) {
+            if (family.get(rule)?.important && !entry.important) continue;
             family.set(rule, entry);
         }
     }
-    return (index) => {
+    const lookup = (index) => {
         const around = blocks
             .filter((b) => b.start < index && index < b.end)
             .filter((b) => b.kind !== 'flow')
@@ -432,5 +468,17 @@ export function familiesOf(
             if (!inherits(block.prelude)) return NONE;
         }
         return NONE;
+    };
+    // A weight in a mixin's body meets its own family, else the family of
+    // each rule that includes it.
+    return (index) => {
+        const own = lookup(index);
+        if (own !== NONE) return own;
+        const sites = sitesOf(placeOf(blocks, index).scope).map(lookup);
+        return (
+            sites.find((site) => site.mono) ??
+            sites.find((site) => site.refs.length > 0) ??
+            NONE
+        );
     };
 }

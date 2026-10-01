@@ -84,8 +84,10 @@ import {
  *
  * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
  * written out or through variables, or one a nested rule inherits; see
- * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A weight it inherits from
- * another rule, and a family set on an element from code, are not traced.
+ * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A mixin's top-level
+ * declarations land where this file includes it. A weight it inherits from
+ * another rule, a mixin from another module, and a family set on an
+ * element from code, are not traced.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
@@ -899,7 +901,8 @@ export function scanWeights(file, written) {
     // The literal a Sass variable holds at `at`: its last declaration there,
     // when that is a plain name or string set unconditionally in a scope
     // around `at`; `null` when the scan cannot know (a module member, an
-    // `@if`, or a `!default` / `!global` assignment).
+    // `@if`, a `!default` / `!global` assignment, or one outside the mixin
+    // that `at` is in).
     const literalAt = (name, at) => {
         const key = identity(name);
         const scopes = placeOf(blocks, at).scopes;
@@ -913,6 +916,12 @@ export function scanWeights(file, written) {
             .filter((a) => scopes.includes(a.place.scope))
             .at(-1);
         if (!last || last.place.flow) return null;
+        // In a mixin, only its own assignments are known where it is
+        // included; one outside may change before the `@include`.
+        const inside = placeOf(blocks, at);
+        if (inside.inCallable && last.place.callable !== inside.callable) {
+            return null;
+        }
         const value = /^\s*(?:([\w-]+)|(['"])([^'"]*)\2)\s*$/.exec(last.value);
         return value ? (value[1] ?? value[3]) : null;
     };

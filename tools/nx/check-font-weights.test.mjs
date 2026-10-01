@@ -2513,6 +2513,8 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
     assert.deepEqual(offScale('libs/m3/a.component.scss', source).sort(), [
         '1 font-weight: 700',
         '11 font-weight: 650',
+        // A mixin's weight lands where it is included.
+        '14 font-weight: 700',
         '15 font-weight: 700',
         '18 font-weight: 700',
         '19 font-weight: 700',
@@ -3278,6 +3280,94 @@ test('reads `revert` on a custom property as inheriting', () => {
         ),
         ['font-weight: 700']
     );
+});
+
+test("reads a mixin's declarations where it is included", () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s6/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // Its family, at the `@include`, in source order with the rule's own.
+        [
+            `@mixin mono { font-family: ${mono}; } .x { @include mono; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin mono { font-family: ${mono}; } .x { @include mono; font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `@mixin mono { font-family: ${mono}; } .x { font-family: Roboto; @include mono; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin mono { font-family: ${mono}; } .x { @include mono; .y { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin m-o { font-family: ${mono}; } .x { @include m_o; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`@mixin mono { font-family: ${mono}; } .x { font-weight: 700; }`, []],
+        // Its weight, against the including rule's family unless it sets one.
+        [
+            `@mixin heavy { font-weight: 700; } .x { font-family: Roboto; @include heavy; }`,
+            [],
+        ],
+        [
+            `@mixin heavy { font-family: Roboto; font-weight: 700; } .x { font-family: ${mono}; @include heavy; }`,
+            [],
+        ],
+        // A family named through a variable, resolved later.
+        [
+            `@mixin heavy { font-weight: 700; } :root { --f: ${mono}; } .x { font-family: var(--f); @include heavy; }`,
+            ['font-weight: 700'],
+        ],
+        // Another module's mixin, or the text in a string, is not this one.
+        [
+            `@mixin t { font-family: ${mono}; } .x { @include t.other; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `@mixin mono { font-family: ${mono}; } .x { content: "@include mono"; font-weight: 700; }`,
+            [],
+        ],
+        // A variable from outside may change before the `@include`.
+        [
+            `$n: a; @mixin m { .#{$n} { font-family: ${mono}; font-weight: 700; } .a { font-weight: 500; } } $n: b; .x { @include m; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `$n: a; @mixin m { .#{$n} { font-family: ${mono}; font-weight: 700; } } $n: b; .a { font-weight: 500; } .b { @include m; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test('reads a self-sibling selector as the parent element', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s6/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        [
+            `.x { font-family: ${mono}; & + & { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; & ~ &.on { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [`.x { font-family: ${mono}; & + .y { font-weight: 700; } }`, []],
+        [`.x { font-family: ${mono}; &-y { font-weight: 700; } }`, []],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
 });
 
 test('reads template literals set from code', () => {
