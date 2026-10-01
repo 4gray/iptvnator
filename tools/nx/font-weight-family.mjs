@@ -565,20 +565,36 @@ function alternativesOf(simples) {
 }
 
 /**
- * The complex selectors a selector reads as when it is one `:is()` or
- * `:where()` alone (`:where(.p .c)` is `.p .c`), opened in turn; itself
- * otherwise, or past 16.
+ * The complex selectors a selector reads as with its `:is()`/`:where()`
+ * opened, in turn and up to 16: in any compound when they hold compounds
+ * (`.x :where(.p) .c` is `.x .p .c`), and alone as a first compound or
+ * after a descendant combinator also when they hold whole selectors
+ * (`.x :is(.a .b)` reads as `.x .a .b`, elements it matches all); after
+ * `>`, `+` or `~` a whole selector would name others, so it stays.
  */
 function complexOf(selector) {
-    const parts = compoundsOf(selector);
-    const simples = parts.length === 1 ? simplesOf(parts[0].compound) : null;
-    const [, name, argument] =
-        simples?.length === 1 ? (FUNCTIONAL.exec(simples[0]) ?? []) : [];
-    if (!/^(?:is|where|matches)$/i.test(name ?? '')) {
-        return [canonicalSelector(selector)];
+    let ways = [[]];
+    for (const [k, part] of compoundsOf(selector).entries()) {
+        const simples = simplesOf(part.compound);
+        const [, name, argument] =
+            simples?.length === 1 ? (FUNCTIONAL.exec(simples[0]) ?? []) : [];
+        const options =
+            (k === 0 || part.combinator === ' ') &&
+            /^(?:is|where|matches)$/i.test(name ?? '')
+                ? selectorsOf(argument)
+                      .flatMap(complexOf)
+                      .map((inner) =>
+                          compoundsOf(inner).map((c, i) =>
+                              i ? c : { ...c, combinator: part.combinator }
+                          )
+                      )
+                : (simples ? alternativesOf(simples) : [[part.compound]]).map(
+                      (way) => [{ ...part, compound: way.join('') }]
+                  );
+        ways = ways.flatMap((way) => options.map((o) => [...way, ...o]));
+        if (ways.length > 16) return [canonicalSelector(selector)];
     }
-    const all = selectorsOf(argument).flatMap(complexOf);
-    return all.length <= 16 ? all : [canonicalSelector(selector)];
+    return ways.map(joined);
 }
 
 /**
@@ -652,6 +668,32 @@ function inherits(prelude) {
         if (/^&(?![\w-])/.test(target ?? '')) return true;
         return !/^&[\w-]/.test(selector) && !/^&?\s*[+~]/.test(selector);
     });
+}
+
+/**
+ * What an `@at-root` block leaves out of the blocks around it, by kind
+ * (`rule` for a style rule, else the at-rule's name): style rules by
+ * default and for a selector without `&`, nothing for one with `&`,
+ * those `(without: …)` names (`all` for every block), or all but those
+ * `(with: …)` names; `null` for another block.
+ */
+export function atRootExcludes(prelude) {
+    const atRoot = /^@at-root\b\s*([\s\S]*)$/i.exec(prelude);
+    if (!atRoot) return null;
+    const rest = atRoot[1].trim();
+    const query = /^\(\s*(with|without)\s*:\s*([^)]*)\)/i.exec(rest);
+    if (!query)
+        return rest.includes('&') ? () => false : (kind) => kind === 'rule';
+    const names = query[2].trim().toLowerCase().split(/\s+/);
+    const listed = (kind) => names.includes('all') || names.includes(kind);
+    return query[1].toLowerCase() === 'without'
+        ? listed
+        : (kind) => !listed(kind);
+}
+
+/** A block's kind for `atRootExcludes`: `rule`, or its at-rule's name. */
+export function blockKind(prelude) {
+    return /^@([\w-]+)/.exec(prelude)?.[1].toLowerCase() ?? 'rule';
 }
 
 /**
@@ -1132,7 +1174,8 @@ export function familiesOf(
         // A rule that puts its parent after a prefix (`.x &`) names more
         // ancestors than its parents do: they are read from its compiled
         // selector, once its parents (the same element) set no family, at
-        // the first parent without `&` (a top-level rule has none).
+        // the first parent without `&` (a top-level rule has none) or past
+        // the walk.
         let deeper = null;
         for (const block of around) {
             if (/^@font-face\b/i.test(block.prelude)) return NONE;
@@ -1151,12 +1194,25 @@ export function familiesOf(
                 if (ancestor !== NONE) return ancestor;
                 deeper = null;
             }
-            // Sass writes an `@at-root` rule out at the root, so the rules
-            // around it are not its ancestors.
-            if (/^@at-root\b/i.test(block.prelude)) {
-                if (!(selector ?? '').includes('&')) break;
+            // An `@at-root` that leaves out a block around it (see
+            // `atRootExcludes`) is written out away from it: what is
+            // around it counts only as its compiled selector and context
+            // name it. One that leaves none out is the same element.
+            const excludes = atRootExcludes(block.prelude);
+            if (excludes) {
+                const leaves = around.some(
+                    (b) =>
+                        b.start < block.start && excludes(blockKind(b.prelude))
+                );
+                if (leaves) break;
+                if (selector === null) continue;
             }
             if (!inherits(selector ?? block.prelude)) return NONE;
+        }
+        // Past such an `@at-root`, a `.x &` reads its ancestors here.
+        if (deeper) {
+            const ancestor = fromAncestors(deeper);
+            if (ancestor !== NONE) return ancestor;
         }
         // Else from the document's root: a plain `:host`, `body`, then the
         // root element (`html` and `:root`), in the reader's context (its

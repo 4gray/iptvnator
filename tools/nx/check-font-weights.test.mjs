@@ -4172,6 +4172,47 @@ test('reads an `@at-root` rule where Sass writes it out', () => {
             `.w { @at-root .p { font-family: ${mono}; } } .p .x { font-weight: 700; }`,
             ['font-weight: 700'],
         ],
+        // A query leaves out the blocks it names, and only those.
+        [
+            `.x { font-family: ${mono}; @at-root (without: media) { .c { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; ${media} { @at-root (without: media) { .c { font-weight: 700; } } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { .x { font-family: ${mono}; @at-root (without: media) { .c { font-weight: 700; } } } }`,
+            [],
+        ],
+        [
+            `${media} { .x { font-family: ${mono}; } } ${media} { .p { @at-root (without: media) { .x { font-weight: 700; } } } }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; @at-root (without: rule) { .c { font-weight: 700; } } }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; @at-root (with: rule) { .c { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; ${media} { @at-root (without: all) { .c { font-weight: 700; } } } }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; @at-root (without: media) { .y & { font-weight: 700; } } } .y { font-family: Roboto; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.p { font-family: ${mono}; .x { @at-root (without: media) { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { .x { @at-root (without: media) { .y & { font-weight: 700; } } } } .y { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
         // Its `@media` stays, and a parent it names (`&`) is still one.
         [
             `${media} { .x { font-family: ${mono}; @at-root .x { font-weight: 700; } } }`,
@@ -4190,7 +4231,7 @@ test('reads an `@at-root` rule where Sass writes it out', () => {
     }
 });
 
-test('reads a lone `:is()` or `:where()` as the selectors it holds', () => {
+test('reads `:is()` and `:where()` as the selectors they hold', () => {
     const mono = "'JetBrains Mono'";
     const report = (body) =>
         findOffScaleWeights('libs/s11/b.scss', body).findings.map(
@@ -4216,6 +4257,28 @@ test('reads a lone `:is()` or `:where()` as the selectors it holds', () => {
         ],
         [
             `:where(.a .b) { font-family: ${mono}; } .z .b { font-weight: 700; }`,
+            [],
+        ],
+        // In any compound; whole selectors first or after a descendant
+        // combinator, where they read as elements it matches.
+        [
+            `:where(.parent) .child { font-family: ${mono}; } .parent .child { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x :where(.p, .q) .c { font-family: ${mono}; } .x .q .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x :is(.a .b) { font-family: ${mono}; } .x .a .b { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x .a .b { font-family: ${mono}; } .x :is(.a .b) { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x > :is(.a .b) { font-family: ${mono}; } .x > .a .b { font-weight: 700; }`,
             [],
         ],
         // Ranked with its own specificity: `:where()` counts nothing.

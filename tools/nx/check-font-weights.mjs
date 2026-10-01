@@ -34,6 +34,8 @@ import {
     MONO_WEIGHT_CAP,
     canonicalSelector,
     declarationText,
+    atRootExcludes,
+    blockKind,
     familiesOf,
     entryVerdict,
     familyEntries,
@@ -94,11 +96,11 @@ import {
  * declarations land where this file includes it, in the order Sass writes
  * them out, a content block's too where the mixin places `@content` at its
  * top level, and a rule this file `@extend`s whole applies to its extenders.
- * A lone `:is()` or `:where()` reads as the selectors it holds (`:where(.p
- * .c)` is `.p .c`). A rule on a single compound also sets the family of
- * compounds that contain it (`.x` for `.x:hover`, `:is()`/`:where()`
- * opened); of those, the element's own rule and `*`, the cascade winner
- * counts (`!important`, layer, specificity, source order; a `@layer` always
+ * An `:is()` or `:where()` reads as the selectors it holds (`:where(.p) .c`
+ * is `.p .c`). A rule on a single compound also sets the family of compounds
+ * that contain it (`.x` for `.x:hover`, `:is()`/`:where()` opened); of
+ * those, the element's own rule and `*`, the cascade winner counts
+ * (`!important`, layer, specificity, source order; a `@layer` always
  * applies, and `revert-layer` falls back past its own). Without a family of
  * its own, a rule takes one from an ancestor its compiled selector names (an
  * `@at-root` rule's as Sass writes it out), else from the document root
@@ -982,9 +984,9 @@ export function scanWeights(file, written) {
     // know, or more than 16 chains, makes the block's chain its own.
     const selectorsOf = (scopes) => {
         let chains = [''];
-        // Past an `@at-root`, outer rules' selectors are not written out
-        // (their at-rules still are), unless it names its parent (`&`).
-        let rooted = false;
+        // Past an `@at-root`, the blocks it leaves out (see
+        // `atRootExcludes`) are not written out around it.
+        let excluded = () => false;
         for (const scope of scopes) {
             if (scope === null) continue;
             const written = blockAt
@@ -994,11 +996,15 @@ export function scanWeights(file, written) {
                     /#\{\s*(\$[\w-]+)\s*\}/g,
                     (m, name) => literalAt(name, scope) ?? m
                 );
-            const atRoot = /^@at-root\b\s*([\s\S]*)$/i.exec(written);
-            const prelude = atRoot ? atRoot[1].trim() : written;
-            if (atRoot && !prelude.includes('&')) rooted = true;
-            if (atRoot && (!prelude || prelude.startsWith('('))) continue;
-            if (rooted && !atRoot && !prelude.startsWith('@')) continue;
+            const excludes = atRootExcludes(written);
+            const prelude = excludes
+                ? written.replace(/^@at-root\b\s*/i, '')
+                : written;
+            if (excludes) {
+                const outer = excluded;
+                excluded = (kind) => outer(kind) || excludes(kind);
+                if (!prelude || prelude.startsWith('(')) continue;
+            } else if (excluded(blockKind(prelude))) continue;
             // Each unnamed `@layer { … }` is a layer of its own.
             const parts = /^@layer\s*$/i.test(prelude)
                 ? [`@layer @${scope}`]
