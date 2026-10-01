@@ -514,18 +514,19 @@ fires after the early show (on the runner 10-190 ms after load), so
 `main.sqlStatementsBeforeReadyToShow` keeps its meaning.
 
 Validation (Principle 3, the same journey on the same runner): three
-dispatched runs of the fix (36928706097, 36928716010, 36928725392) took the
-fast path in all 18 iterations, with 15 calls and 559 mutations each.
+dispatched runs of the fix (36928706097, 36928716010, 36928725392) and the
+run of the commit that added the baselines (36930457538) took the fast path
+in all 24 iterations, with 15 calls and 559 mutations each.
 
-| Runs                                                       | Slow iterations | `spawnToFirstCardMs.p50` | load → card     |
-| ---------------------------------------------------------- | --------------- | ------------------------ | --------------- |
-| `master` and #1782, 2026-09-30 to 10-01 (8 runs, see above) | 29 of 40        | 1,478-1,613 ms (one 760) | ~940 ms slow    |
-| this fix (3 runs)                                          | 0 of 15         | 988, 1,139, 923 ms       | 360-500 ms      |
+| Runs                                                        | Slow iterations | `spawnToFirstCardMs.p50`  | load → card                   |
+| ----------------------------------------------------------- | --------------- | ------------------------- | ----------------------------- |
+| `master` and #1782, 2026-09-30 to 10-01 (8 runs, see above) | 29 of 40        | 1,478-1,613 ms (one 760)  | ~940 ms slow, 280-500 ms fast |
+| this fix (4 runs)                                           | 0 of 20         | 988, 1,139, 923, 1,205 ms | 360-515 ms                    |
 
 The eight earlier runs are `master` 36768881838, 36814964563, 36842198653,
 36861129953, 36861409057 and 36915979562, and #1782's 36816552353 and
 36917107231. The runner's own speed moves `spawnToDidFinishLoadMs.p50` between 430 and
-675 ms from run to run, so compare load → card rather than absolute numbers.
+710 ms from run to run, so compare load → card rather than absolute numbers.
 The one fast master run (36915979562, P50 760 ms) had a fast runner and four
 fast iterations.
 
@@ -1038,16 +1039,16 @@ and 36271884616) already showed both paths (16 calls / 939 mutations against
 
 The other J1 counters in the same three runs:
 
-| Counter                               | Value | `stable` in all three runs              |
-| ------------------------------------- | ----- | --------------------------------------- |
-| `main.modulesRegisteredBeforeWindow`  | 2     | yes                                     |
-| `renderer.ipcSerialDepthToFirstCard`  | 6     | yes (was unstable through the race)     |
-| `renderer.cdTicksIdle30s`             | 4     | yes (was unstable through the race)     |
-| `renderer.layoutShiftScore`           | 0     | yes                                     |
-| `renderer.layoutShiftScoreSettled`    | 0     | yes (#1782's hero fix plus this one)    |
-| `renderer.longTasks`                  | 2     | yes                                     |
-| `renderer.cdTicksToFirstCard`         | 21    | no: one iteration of 36928725392 read 22 |
-| `main.sqlStatementsBeforeReadyToShow` | 95    | no: 93 or 95 in every run               |
+| Counter                               | Value | `stable` in all three runs                                                |
+| ------------------------------------- | ----- | ------------------------------------------------------------------------- |
+| `main.modulesRegisteredBeforeWindow`  | 2     | yes                                                                       |
+| `renderer.ipcSerialDepthToFirstCard`  | 6     | yes (was unstable through the race)                                       |
+| `renderer.cdTicksIdle30s`             | 4     | yes (was unstable through the race)                                       |
+| `renderer.layoutShiftScore`           | 0     | yes                                                                       |
+| `renderer.layoutShiftScoreSettled`    | 0     | yes (#1782's hero fix plus this one)                                      |
+| `renderer.longTasks`                  | 2     | yes                                                                       |
+| `renderer.cdTicksToFirstCard`         | 21    | no: one iteration of 36928725392 read 22 (and one of 36930457538 read 20) |
+| `main.sqlStatementsBeforeReadyToShow` | 95    | no: 93 or 95 in every run                                                 |
 
 `renderer.cdTicksToFirstCard` keeps the one-tick race described under
 [change detection](#change-detection-ticks), which the Mac shows too (20 or
