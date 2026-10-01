@@ -654,6 +654,19 @@ function inherits(prelude) {
     });
 }
 
+/**
+ * The selector a block styles: its prelude, or an `@at-root`'s own
+ * (`@at-root .x`); `null` for any other at-rule.
+ */
+function styleSelector(block) {
+    const atRoot = /^@at-root\b\s*([\s\S]*)$/i.exec(block.prelude);
+    if (atRoot) {
+        const selector = atRoot[1].trim();
+        return selector && !selector.startsWith('(') ? selector : null;
+    }
+    return block.prelude.startsWith('@') ? null : block.prelude;
+}
+
 /** An `@extend` of whole selectors (`%mono`, `.a, .b`), `!optional` aside. */
 const EXTEND = /@extend\s+([^;{}!]+?)\s*(?:!\s*optional\s*)?[;}]/gi;
 
@@ -1116,25 +1129,39 @@ export function familiesOf(
             .filter((b) => b.start < index && index < b.end)
             .filter((b) => b.kind !== 'flow')
             .reverse();
+        // A rule that puts its parent after a prefix (`.x &`) names more
+        // ancestors than its parents do: they are read from its compiled
+        // selector, once its parents (the same element) set no family, at
+        // the first parent without `&` (a top-level rule has none).
+        let deeper = null;
         for (const block of around) {
             if (/^@font-face\b/i.test(block.prelude)) return NONE;
             // A selector list meets the cap when one of its selectors
             // renders Mono; one without a family of its own inherits it.
-            const style = !block.prelude.startsWith('@');
-            const own = style ? elementFamily(block) : ownFamily(block);
+            const selector = styleSelector(block);
+            const own =
+                selector !== null ? elementFamily(block) : ownFamily(block);
             if (own) return own;
             // A rule on another element (not `&…`) inherits from the
             // nearest ancestor its selector names.
-            if (style && !block.prelude.includes('&')) {
-                const ancestor = fromAncestors(block);
+            if (selector?.includes('&')) {
+                if (!selector.startsWith('&')) deeper ??= block;
+            } else if (selector !== null) {
+                const ancestor = fromAncestors(deeper ?? block);
                 if (ancestor !== NONE) return ancestor;
+                deeper = null;
             }
-            if (!inherits(block.prelude)) return NONE;
+            // Sass writes an `@at-root` rule out at the root, so the rules
+            // around it are not its ancestors.
+            if (/^@at-root\b/i.test(block.prelude)) {
+                if (!(selector ?? '').includes('&')) break;
+            }
+            if (!inherits(selector ?? block.prelude)) return NONE;
         }
         // Else from the document's root: a plain `:host`, `body`, then the
         // root element (`html` and `:root`), in the reader's context (its
         // `@media`) or always.
-        const reader = around.find((b) => !b.prelude.startsWith('@'));
+        const reader = around.find((b) => styleSelector(b) !== null);
         const context = reader
             ? (compiled(rulesOf(reader.start)[0] ?? '')?.context ??
               UNCONDITIONAL)

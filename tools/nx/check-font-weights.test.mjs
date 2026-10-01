@@ -4138,6 +4138,58 @@ test('reads a static Sass interpolation in a family as Sass writes it', () => {
     }
 });
 
+test('reads an `@at-root` rule where Sass writes it out', () => {
+    const mono = "'JetBrains Mono'";
+    const media = '@media (min-width: 1px)';
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/d.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // At the root, by its own selector: its source parent is no ancestor.
+        [
+            `.x { font-family: ${mono}; @at-root .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [`.x { font-family: ${mono}; @at-root .y { font-weight: 700; } }`, []],
+        [
+            `.x { font-family: ${mono}; @at-root { .y { font-weight: 700; } } }`,
+            [],
+        ],
+        [
+            `.p { .x { font-family: ${mono}; } @at-root .x { font-weight: 700; } }`,
+            [],
+        ],
+        [
+            `.p { font-family: ${mono}; .q { @at-root .x { font-weight: 700; } } }`,
+            [],
+        ],
+        [
+            `.x { @at-root .x { font-family: ${mono}; } font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.w { @at-root .p { font-family: ${mono}; } } .p .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // Its `@media` stays, and a parent it names (`&`) is still one.
+        [
+            `${media} { .x { font-family: ${mono}; @at-root .x { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; @at-root &.y { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; @at-root .y { .x & { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads a lone `:is()` or `:where()` as the selectors it holds', () => {
     const mono = "'JetBrains Mono'";
     const report = (body) =>
@@ -4235,6 +4287,20 @@ test('reads ancestors and bases as compiled, in their context', () => {
         [
             `${media} { @supports (display: grid) { .x { font-family: ${mono}; } } .x { font-weight: 700; } }`,
             [],
+        ],
+        // A parent after a prefix (`.x &`) names more ancestors, read once
+        // the parent itself (the same element) sets no family.
+        [
+            `.y { .x & { font-weight: 700; } } .x { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.y { font-family: Roboto; .x & { font-weight: 700; } } .x { font-family: ${mono}; }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; } .w .y { .x & { font-weight: 700; } }`,
+            ['font-weight: 700'],
         ],
         // The ancestor's family is the cascade's winner there.
         [

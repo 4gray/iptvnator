@@ -100,12 +100,12 @@ import {
  * opened); of those, the element's own rule and `*`, the cascade winner
  * counts (`!important`, layer, specificity, source order; a `@layer` always
  * applies, and `revert-layer` falls back past its own). Without a family of
- * its own, a rule takes one from an ancestor its compiled selector names,
- * else from the document root (`:host`, `body`, `html`, `:root`) in its
- * file; a family applies under conditions (`@media`, `@supports`, `@if`)
- * that the reader shares, or always. Sass conditions are not evaluated: each
- * `@if`/`@else` branch counts as one that may run, in a rule, a mixin or a
- * content block alike.
+ * its own, a rule takes one from an ancestor its compiled selector names (an
+ * `@at-root` rule's as Sass writes it out), else from the document root
+ * (`:host`, `body`, `html`, `:root`) in its file; a family applies under
+ * conditions (`@media`, `@supports`, `@if`) that the reader shares, or
+ * always. Sass conditions are not evaluated: each `@if`/`@else` branch
+ * counts as one that may run, in a rule, a mixin or a content block alike.
  *
  * Not traced: global styles in another file, a weight inherited from
  * another rule, a mixin from another module, a mixin's nested rules and
@@ -982,15 +982,23 @@ export function scanWeights(file, written) {
     // know, or more than 16 chains, makes the block's chain its own.
     const selectorsOf = (scopes) => {
         let chains = [''];
+        // Past an `@at-root`, outer rules' selectors are not written out
+        // (their at-rules still are), unless it names its parent (`&`).
+        let rooted = false;
         for (const scope of scopes) {
             if (scope === null) continue;
-            const prelude = blockAt
+            const written = blockAt
                 .get(scope)
                 .prelude.replace(SPACING, (m) => (/^\s/.test(m) ? ' ' : m))
                 .replace(
                     /#\{\s*(\$[\w-]+)\s*\}/g,
                     (m, name) => literalAt(name, scope) ?? m
                 );
+            const atRoot = /^@at-root\b\s*([\s\S]*)$/i.exec(written);
+            const prelude = atRoot ? atRoot[1].trim() : written;
+            if (atRoot && !prelude.includes('&')) rooted = true;
+            if (atRoot && (!prelude || prelude.startsWith('('))) continue;
+            if (rooted && !atRoot && !prelude.startsWith('@')) continue;
             // Each unnamed `@layer { … }` is a layer of its own.
             const parts = /^@layer\s*$/i.test(prelude)
                 ? [`@layer @${scope}`]
