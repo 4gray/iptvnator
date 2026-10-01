@@ -867,26 +867,12 @@ export function familiesOf(
             orderOf.set(rule, at);
         }
     }
-    // Every rule's family by its compiled selector and context.
-    const byCompiled = new Map();
+    // Every rule's family with its compiled selector and context.
     const compiledRules = [];
     for (const [rule, entry] of family) {
         const form = compiled(rule);
-        if (!form) continue;
-        compiledRules.push({ rule, entry, ...form });
-        if (entry.inherit) continue;
-        const key = `${form.selector} # ${form.context}`;
-        if (!byCompiled.has(key)) byCompiled.set(key, []);
-        byCompiled.get(key).push(entry);
+        if (form) compiledRules.push({ rule, entry, ...form });
     }
-    // The families a compiled selector has in a context: there, or in a
-    // rule that always applies.
-    const familiesAt = (selector, context) => [
-        ...(byCompiled.get(`${selector} # ${context}`) ?? []),
-        ...(context === UNCONDITIONAL
-            ? []
-            : (byCompiled.get(`${selector} # ${UNCONDITIONAL}`) ?? [])),
-    ];
     const chosen = (found, complete) =>
         found.find((entry) => entry.mono) ??
         found.find((entry) => entry.refs.length > 0) ??
@@ -911,6 +897,23 @@ export function familiesOf(
         specificity: specificityOf(selector),
         order,
     });
+    // The family the cascade gives an element of `selectors` (the rules
+    // on one element, as `html` and `:root` are), in `context` or always:
+    // `null` when none sets one or the winner inherits.
+    const winnerAt = (selectors, context) => {
+        const best = compiledRules
+            .filter((form) => selectors.includes(form.selector))
+            .filter(
+                (form) =>
+                    form.context === context || form.context === UNCONDITIONAL
+            )
+            .map((form) => ({
+                entry: form.entry,
+                rank: rankOf(form.entry, form, orderOf.get(form.rule)),
+            }))
+            .reduce((a, b) => (a && rankAbove(a.rank, b.rank) ? a : b), null);
+        return best && !best.entry.inherit ? best.entry : null;
+    };
     // The family an at-rule block (`@media` inside a rule) sets itself.
     const ownFamily = (block) => {
         const rules = rulesOf(block.start);
@@ -983,11 +986,8 @@ export function familiesOf(
             const form = compiled(rule);
             for (const ancestor of form ? ancestorsOf(form.selector) : []) {
                 const own = compoundsOf(ancestor).at(-1).compound;
-                const entries = [
-                    ...familiesAt(ancestor, form.context),
-                    ...(own === ancestor ? [] : familiesAt(own, form.context)),
-                ];
-                if (entries.length) return entries;
+                const entry = winnerAt([ancestor, own], form.context);
+                if (entry) return [entry];
             }
             return [];
         });
@@ -1013,16 +1013,17 @@ export function familiesOf(
             }
             if (!inherits(block.prelude)) return NONE;
         }
-        // Else from the document's root: a plain `:host`, `body`, `html` or
-        // `:root`, in the reader's context (its `@media`) or always.
+        // Else from the document's root: a plain `:host`, `body`, then the
+        // root element (`html` and `:root`), in the reader's context (its
+        // `@media`) or always.
         const reader = around.find((b) => !b.prelude.startsWith('@'));
         const context = reader
             ? (compiled(rulesOf(reader.start)[0] ?? '')?.context ??
               UNCONDITIONAL)
             : UNCONDITIONAL;
-        for (const root of [':host', 'body', 'html', ':root']) {
-            const found = familiesAt(root, context);
-            if (found.length) return chosen(found, true);
+        for (const element of [[':host'], ['body'], ['html', ':root']]) {
+            const entry = winnerAt(element, context);
+            if (entry) return entry;
         }
         return NONE;
     };

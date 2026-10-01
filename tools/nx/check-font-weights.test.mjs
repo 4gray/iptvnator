@@ -4001,6 +4001,32 @@ test("inherits the document root's family", () => {
             `${media} { html { font-family: ${mono}; } } .x { font-weight: 700; }`,
             [],
         ],
+        // There, the cascade picks the root's family: a later rule, or a
+        // `:root` over `html` on the one root element, unless `!important`.
+        [
+            `:root { font-family: ${mono}; } ${media} { :root { font-family: Roboto; } .x { font-weight: 700; } }`,
+            [],
+        ],
+        [
+            `${media} { :root { font-family: Roboto; } } :root { font-family: ${mono}; } ${media} { .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `html { font-family: ${mono}; } ${media} { :root { font-family: Roboto; } .x { font-weight: 700; } }`,
+            [],
+        ],
+        [
+            `:root { font-family: Roboto; } html { font-family: ${mono}; } .x { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `:root { font-family: ${mono} !important; } ${media} { :root { font-family: Roboto; } .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `html { font-family: ${mono}; } ${media} { html { font-family: inherit; } .x { font-weight: 700; } }`,
+            [],
+        ],
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
@@ -4025,6 +4051,19 @@ test('reads ancestors and bases as compiled, in their context', () => {
         ],
         [
             `${media} { .parent { font-family: ${mono}; } } .parent .child { font-weight: 700; }`,
+            [],
+        ],
+        // The ancestor's family is the cascade's winner there.
+        [
+            `.parent { font-family: ${mono}; } ${media} { .parent { font-family: Roboto; } .parent .child { font-weight: 700; } }`,
+            [],
+        ],
+        [
+            `${media} { .parent { font-family: Roboto; } } .parent { font-family: ${mono}; } ${media} { .parent .child { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.w .parent { font-family: Roboto; } .parent { font-family: ${mono}; } .w .parent .child { font-weight: 700; }`,
             [],
         ],
         // A nested selector's ancestors, as compiled, by whole selector or by
