@@ -451,3 +451,67 @@ describe('PortalDetailShellComponent', () => {
         expect(host.closeRequests).toBe(0);
     });
 });
+
+describe('PortalDetailShellComponent pane width', () => {
+    const original = globalThis.ResizeObserver;
+    const disconnect = jest.fn();
+    // The hero observes itself too, so keep each callback with its target.
+    let observers: { callback: ResizeObserverCallback; target?: Element }[];
+
+    beforeEach(() => {
+        observers = [];
+        disconnect.mockClear();
+        globalThis.ResizeObserver = class {
+            private readonly entry: (typeof observers)[number];
+            constructor(callback: ResizeObserverCallback) {
+                this.entry = { callback };
+                observers.push(this.entry);
+            }
+            observe(target: Element): void {
+                this.entry.target = target;
+            }
+            unobserve = jest.fn();
+            disconnect = disconnect;
+        } as unknown as typeof ResizeObserver;
+        TestBed.configureTestingModule({
+            imports: [HostComponent, TranslateModule.forRoot()],
+        });
+    });
+
+    afterEach(() => {
+        globalThis.ResizeObserver = original;
+    });
+
+    const resize = (shell: HTMLElement, inlineSize: number): void => {
+        const observer = observers.find(({ target }) => target === shell);
+        if (!observer) throw new Error('The shell does not observe itself.');
+        observer.callback(
+            [
+                {
+                    borderBoxSize: [{ inlineSize, blockSize: 800 }],
+                } as unknown as ResizeObserverEntry,
+            ],
+            {} as ResizeObserver
+        );
+    };
+
+    it('trades the Back lane for a bar when the pane itself is narrow', () => {
+        const fixture = TestBed.createComponent(HostComponent);
+        fixture.detectChanges();
+        const shell = (fixture.nativeElement as HTMLElement).querySelector(
+            'app-portal-detail-shell'
+        ) as HTMLElement;
+
+        // A 780px window leaves the pane ~402px beside the context panel.
+        resize(shell, 402);
+        expect(shell.classList).not.toContain('shell-host--compact');
+        // A 641px window leaves it ~260px: too narrow for the lane.
+        resize(shell, 260);
+        expect(shell.classList).toContain('shell-host--compact');
+        resize(shell, 1280);
+        expect(shell.classList).not.toContain('shell-host--compact');
+
+        fixture.destroy();
+        expect(disconnect).toHaveBeenCalled();
+    });
+});

@@ -6,6 +6,8 @@
     max-width: var(--content-max-width, 1400px);
     margin: 0 auto;
     padding: 24px 40px 40px;
+    // The detail shell's sticky Back lane (0 when there is no Back).
+    padding-inline-start: max(40px, var(--detail-back-lane, 0px));
     border-top: 1px solid var(--tag-border, rgba(255, 255, 255, 0.12));
 
     &__heading {
@@ -127,6 +129,7 @@
 @media (max-width: 800px) {
     .about {
         padding: 20px 20px 32px;
+        padding-inline-start: max(20px, var(--detail-back-lane, 0px));
 
         &__poster {
             width: 92px;
