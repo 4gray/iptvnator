@@ -4094,6 +4094,65 @@ test('follows `@extend` through extenders and inside `@media`', () => {
     }
 });
 
+test('reads cascade layers as always applying, ranked by layer', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s13/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // A layer is no condition. An unlayered declaration beats a layered one
+    // whatever its specificity or place; `!important` turns that round.
+    for (const [source, expected] of [
+        [
+            `@layer base { .x { font-family: ${mono}; } } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base { .x { font-family: ${mono}; } } .x:hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base { .p { font-family: ${mono}; } } .p .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: Roboto; } @layer base { .x { font-family: ${mono}; } } .x:hover { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `@layer base { .d.e { font-family: ${mono}; } } .d { font-family: Roboto; } .d.e:hover { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `@layer base { .x { font-family: ${mono} !important; } } .x { font-family: Roboto !important; } .x:hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test('compiles a nested `&` after its parent', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s13/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // `.x { & .child {} }` is `.x .child`, not `.child .x`.
+    for (const [source, expected] of [
+        [
+            `.x { & .child { font-family: ${mono}; } } .x .child .item { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { & .child { font-family: ${mono}; } } .child .x .item { font-weight: 700; }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",

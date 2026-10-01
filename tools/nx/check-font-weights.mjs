@@ -90,7 +90,8 @@ import {
  * `@extend`s whole applies to its extenders. A rule on a single compound
  * also sets the family of compounds that contain it (`.x` for `.x:hover`,
  * `:is()`/`:where()` opened); of those, the element's own rule and `*`, the
- * cascade winner counts (`!important`, specificity, source order). Without
+ * cascade winner counts (`!important`, layer, specificity, source order;
+ * a `@layer` always applies). Without
  * a family of its own, a rule takes one from an ancestor its compiled
  * selector names (in its `@media`, or always), else from the document root
  * (`:host`, `body`, `html`, `:root`) in its file.

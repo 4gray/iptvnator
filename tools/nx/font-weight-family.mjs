@@ -592,16 +592,19 @@ export function familiesOf(
         const split = rule.lastIndexOf(' | ');
         const chain = rule.slice(0, split);
         let selector = '';
+        let layered = false;
         const wrappers = [];
         for (const part of chain.split(' < ').reverse()) {
-            if (part.startsWith('@')) wrappers.push(part);
+            // A cascade layer always applies; it only ranks (see `rankOf`).
+            if (/^@layer\b/i.test(part)) layered = true;
+            else if (part.startsWith('@')) wrappers.push(part);
             else if (part.includes('&'))
                 selector = part.replaceAll('&', selector);
             else selector = selector ? `${selector} ${part}` : part;
         }
         if (!selector) return null;
         const context = `${wrappers.join(' ; ')} | ${rule.slice(split + 3)}`;
-        return { selector: canonicalSelector(selector), context };
+        return { selector: canonicalSelector(selector), context, layered };
     };
     // This file's `@extend`s, by the selector they extend: that rule's
     // declarations apply to the extending rule too, where they are written.
@@ -724,6 +727,15 @@ export function familiesOf(
             return { ...base, ways: simples ? alternativesOf(simples) : [] };
         })
         .filter(({ ways }) => ways.length);
+    // A declaration's place in the cascade: `!important`, then its layer
+    // (an unlayered one beats a layered one, `!important` the other way),
+    // then specificity, then source order.
+    const rankOf = (entry, { selector, layered }, order = 0) => [
+        entry.important ? 1 : 0,
+        entry.important === Boolean(layered) ? 1 : 0,
+        ...specificityOf(selector),
+        order,
+    ];
     // The family an at-rule block (`@media` inside a rule) sets itself.
     const ownFamily = (block) => {
         const rules = rulesOf(block.start);
@@ -760,34 +772,20 @@ export function familiesOf(
                 )
                 .map((base) => ({
                     entry: base.entry,
-                    rank: [
-                        base.entry.important ? 1 : 0,
-                        ...specificityOf(base.selector),
-                        orderOf.get(base.rule) ?? 0,
-                    ],
+                    rank: rankOf(base.entry, base, orderOf.get(base.rule)),
                 }));
             const own = family.get(rule);
             if (own && !candidates.some(({ entry }) => entry === own)) {
                 candidates.push({
                     entry: own,
-                    rank: [
-                        own.important ? 1 : 0,
-                        ...specificityOf(form.selector),
-                        orderOf.get(rule) ?? 0,
-                    ],
+                    rank: rankOf(own, form, orderOf.get(rule)),
                 });
             }
             const star = family.get(`* | `);
             if (star) {
                 candidates.push({
                     entry: star,
-                    rank: [
-                        star.important ? 1 : 0,
-                        0,
-                        0,
-                        0,
-                        orderOf.get('* | ') ?? 0,
-                    ],
+                    rank: rankOf(star, { selector: '*' }, orderOf.get('* | ')),
                 });
             }
             const best = candidates.reduce(
