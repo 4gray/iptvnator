@@ -930,6 +930,58 @@ test('passes an argument only to the callable it is given to', () => {
     assert.deepEqual(offScale('libs/same.scss', sameFile), []);
 });
 
+test('places imported declarations where the @import sits', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const part = scanWeights('libs/i/_part.scss', '$v: 950;');
+    const after = scanWeights(
+        'libs/i/after.scss',
+        "$v: 600; @import 'part'; .a { font-weight: $v; }"
+    );
+    const before = scanWeights(
+        'libs/i/before.scss',
+        "@import 'part'; $v: 600; .a { font-weight: $v; }"
+    );
+
+    assert.deepEqual(report([part, after]), ['libs/i/_part.scss:1 950']);
+    assert.deepEqual(report([part, before]), []);
+
+    // A nested import takes effect where the outer `@import` sits.
+    const outer = scanWeights('libs/j/_outer.scss', "@import 'inner';");
+    const inner = scanWeights('libs/j/_inner.scss', '$v: 950;');
+    const main = scanWeights(
+        'libs/j/main.scss',
+        "/* main */ $v: 600; @import 'outer'; .a { font-weight: $v; }"
+    );
+    assert.deepEqual(report([outer, inner, main]), [
+        'libs/j/_inner.scss:1 950',
+    ]);
+});
+
+test('reads module variables where a mixin is called', () => {
+    // No caller in the file: the module's final value is what callers see.
+    const superseded = '$w: 650; $w: 600; @mixin m { font-weight: $w; }';
+    // A call between the two assignments reads the first one.
+    const calledEarly = [
+        '$w: 650; .x { @include m; } $w: 600;',
+        '@mixin m { font-weight: $w; }',
+    ].join('\n');
+
+    // Callers elsewhere see the module's final value.
+    const noCaller = '$w: 650; @mixin m { font-weight: $w; }';
+    // A mixin's own signature is not a call.
+    const signature = '$w: 650; @mixin m($x: 1) { font-weight: $w; } $w: 600;';
+
+    assert.deepEqual(offScale('libs/m/superseded.scss', superseded), []);
+    assert.deepEqual(offScale('libs/m/no-caller.scss', noCaller), [
+        '1 $w: 650',
+    ]);
+    assert.deepEqual(offScale('libs/m/signature.scss', signature), []);
+    assert.deepEqual(offScale('libs/m/early.scss', calledEarly), ['1 $w: 650']);
+});
+
 test('blanks every `//` comment in TypeScript', () => {
     const component = [
         'call(// font-weight: 650 was removed',

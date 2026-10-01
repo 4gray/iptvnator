@@ -91,7 +91,10 @@ export function sassScopes(scans) {
             if (!loaded) continue;
             const namespace = load.rule === 'use' ? namespaceOf(load) : null;
             const ranges = load.configuration ? [load.configuration] : [];
-            push(edges, file, { rule: load.rule, loaded, namespace, ranges });
+            push(edges, file, {
+                ...{ rule: load.rule, loaded, namespace, ranges },
+                index: load.index,
+            });
             push(loadedBy, loaded, {
                 file,
                 textual: load.rule === 'import',
@@ -184,7 +187,13 @@ export function sassScopes(scans) {
         return scope;
     };
 
-    return { qualified, unqualified };
+    /** Files `@import`ed by `file`, with where each `@import` sits. */
+    const imports = (file) =>
+        (edges.get(file) ?? [])
+            .filter((edge) => edge.rule === 'import')
+            .map(({ loaded, index }) => ({ loaded, index }));
+
+    return { qualified, unqualified, imports };
 }
 
 /**
@@ -194,26 +203,34 @@ export function sassScopes(scans) {
  * unconditional assignment counts, plus any conditional (flow-control) ones
  * after it, and an inner declaration shadows outer ones. A scope with only
  * conditional assignments falls through to the next. Inside a `@mixin` or
- * `@function` body, module variables are read at call time, so declaration
- * order does not apply at the top level. `settled` means some unconditional
+ * `@function` body, module variables are read at call time: the top level is
+ * resolved at each call site in the file (`callSites`) and at the end of the
+ * module, for callers elsewhere. `settled` means an unconditional
  * declaration decided the value.
  */
-export function effectiveDeclarations(reference, candidates) {
-    const picked = [];
-    for (const scope of reference.scopes) {
-        const anyOrder = scope === null && reference.inCallable;
-        const here = candidates
-            .filter((d) => d.scope === scope)
-            .filter((d) => anyOrder || d.index < reference.index)
-            .sort((a, b) => a.index - b.index);
-        if (here.length === 0) continue;
+export function effectiveDeclarations(reference, candidates, callSites = []) {
+    const picked = new Set();
+    const inEffect = (here) => {
         const firm = here.map((d) => !d.conditional).lastIndexOf(true);
-        if (firm === -1) {
-            picked.push(...here);
-            continue;
+        for (const d of firm === -1 ? here : here.slice(firm)) picked.add(d);
+        return firm !== -1;
+    };
+    const at = (scope, position) =>
+        candidates
+            .filter((d) => d.scope === scope && d.index < position)
+            .sort((a, b) => a.index - b.index);
+    for (const scope of reference.scopes) {
+        if (scope === null && reference.inCallable) {
+            const positions = [...callSites, Infinity];
+            const settled = positions
+                .map((position) => inEffect(at(null, position)))
+                .every(Boolean);
+            return { picked: [...picked], settled };
         }
-        picked.push(...(anyOrder ? here : here.slice(firm)));
-        return { picked, settled: true };
+        const here = at(scope, reference.index);
+        if (here.length > 0 && inEffect(here)) {
+            return { picked: [...picked], settled: true };
+        }
     }
-    return { picked, settled: false };
+    return { picked: [...picked], settled: false };
 }

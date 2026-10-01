@@ -239,6 +239,34 @@ function analyseCode(expression, mode = 'weight', after = 0) {
 }
 
 /**
+ * Where each mixin or function a stylesheet defines is called in it
+ * (`@include name`, `name(`), skipping the definition itself.
+ */
+function callSitesOf(text, blocks) {
+    const calls = {};
+    const names = blocks
+        .filter((block) => block.kind === 'callable' && block.name)
+        .map((block) => block.name);
+    for (const name of new Set(names)) {
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const call = new RegExp(
+            String.raw`@include\s+${escaped}(?![\w-])|(?<![\w$.-])${escaped}\s*\(`,
+            'g'
+        );
+        calls[name] = [...text.matchAll(call)]
+            .filter((match) => {
+                const before = text.slice(
+                    Math.max(0, match.index - 12),
+                    match.index
+                );
+                return !/@(?:mixin|function)\s+$/.test(before);
+            })
+            .map((match) => match.index);
+    }
+    return calls;
+}
+
+/**
  * One file's weight declarations: off-scale findings, the custom properties
  * and Sass variables its weights refer to, and every such variable it defines
  * (checked later, once the whole workspace has named what it refers to).
@@ -362,7 +390,11 @@ export function scanWeights(file, source) {
     }
 
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
-    return { file, loads, declarations, findings, references, definitions };
+    const calls = callSitesOf(text, blocks);
+    return {
+        ...{ file, loads, declarations, findings, references, definitions },
+        calls,
+    };
 }
 
 /**
@@ -376,7 +408,21 @@ export function scanWeights(file, source) {
 export function findIndirectWeights(scans) {
     const definitions = scans.flatMap((scan) => scan.definitions);
     const pending = scans.flatMap((scan) => scan.references);
-    const { qualified, unqualified } = sassScopes(scans);
+    const { qualified, unqualified, imports } = sassScopes(scans);
+    const callsByFile = new Map(scans.map((scan) => [scan.file, scan.calls]));
+    // `@import` is textual: an imported file's top-level declarations take
+    // effect where the `@import` sits, transitively.
+    const imported = (file, name, at = null, seen = new Set([file])) =>
+        imports(file).flatMap(({ loaded, index }) => {
+            if (seen.has(loaded)) return [];
+            seen.add(loaded);
+            const position = at ?? index;
+            const own = definitions
+                .filter((d) => d.file === loaded && d.key === name)
+                .filter((d) => !d.argument && d.scope === null)
+                .map((d) => ({ ...d, index: position, original: d }));
+            return [...own, ...imported(loaded, name, position, seen)];
+        });
     const followed = new Set();
     const findings = [];
     while (pending.length > 0) {
@@ -395,20 +441,23 @@ export function findIndirectWeights(scans) {
         const own = scope
             ? effectiveDeclarations(
                   reference,
-                  definitions.filter(
-                      (d) => d.key === name && d.file === file && !d.argument
-                  )
+                  [
+                      ...definitions.filter(
+                          (d) =>
+                              d.key === name && d.file === file && !d.argument
+                      ),
+                      ...imported(file, name),
+                  ],
+                  callsByFile.get(file)?.[reference.callable] ?? []
               )
             : null;
+        const picked = new Set(own?.picked.map((d) => d.original ?? d));
         for (const definition of definitions) {
             if (definition.key !== name) continue;
-            if (sass && !definition.argument) {
-                const local = definition.file === file && !members;
-                if (local && !own.picked.includes(definition)) continue;
+            if (sass && !definition.argument && !picked.has(definition)) {
+                if (definition.file === file && !members) continue;
                 // Other modules see only top-level (or `!global`) members.
-                if (!local && (definition.scope !== null || own?.settled)) {
-                    continue;
-                }
+                if (definition.scope !== null || own?.settled) continue;
             }
             if (members) {
                 const access = members.get(definition.file);

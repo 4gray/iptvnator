@@ -47,8 +47,9 @@ export function stripScssComments(source) {
 
 /**
  * Every `@use`/`@forward`/`@import` target, with the rule that loads it, any
- * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix) and where
- * its `with (…)` configuration sits in `source` (`[start, end)`, or `null`).
+ * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix), where the
+ * rule starts (`index`) and where its `with (…)` configuration sits in
+ * `source` (`[start, end)`, or `null`).
  */
 export function extractStylesheetLoads(source) {
     const loads = [];
@@ -71,7 +72,7 @@ export function extractStylesheetLoads(source) {
               ]
             : null;
         for (const target of targetsOfRule(rule, clause)) {
-            loads.push({ rule, target, as, configuration });
+            loads.push({ rule, target, as, configuration, index: match.index });
         }
     }
     return loads;
