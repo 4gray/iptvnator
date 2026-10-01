@@ -5,16 +5,16 @@ import { fileURLToPath } from 'node:url';
 
 import { extractStylesheetLoads } from './check-stylesheet-inputs.mjs';
 import {
-    blockAround,
     blocksOf,
     codeExpression,
     insideTag,
     lex,
     lineIndex,
+    placeOf,
     tokensOf,
     valueAfter,
 } from './font-weight-lexer.mjs';
-import { sassScopes } from './font-weight-scope.mjs';
+import { effectiveDeclarations, sassScopes } from './font-weight-scope.mjs';
 
 /**
  * The weights `apps/web/src/styles.scss` bundles for DM Sans, its Roboto
@@ -262,13 +262,11 @@ export function scanWeights(file, source) {
         for (const term of analysis.terms) {
             findings.push({ file, line: lineOf(index), name, ...term });
         }
-        const block = blockAround(blocks, index);
+        const { scopes, inCallable } = placeOf(blocks, index);
         references.push(
             ...analysis.references.map((reference) => ({
-                ...reference,
-                file,
-                index,
-                block,
+                ...{ ...reference, file, index },
+                ...{ scopes, inCallable },
             }))
         );
     };
@@ -347,13 +345,15 @@ export function scanWeights(file, source) {
         const line = lineOf(match.index);
         const key = identity(name);
         const index = match.index;
-        // A declaration inside `{…}` is local to that block (and the blocks
-        // nested in it) unless it says `!global`.
-        const block = blockAround(blocks, index);
-        const global = block === null || /!global\b/i.test(value);
+        // A declaration belongs to its innermost scope (see `placeOf`); a
+        // `!global` one assigns the module variable, whenever it runs.
+        const place = placeOf(blocks, index);
+        const global = /!global\b/i.test(value);
         definitions.push({
-            ...{ file, line, index, name, key, value },
-            ...{ argument, block, global },
+            ...{ file, line, index, name, key, value, argument },
+            scope: global ? null : place.scope,
+            conditional: global || place.conditional,
+            ...{ scopes: place.scopes, inCallable: place.inCallable },
         });
     }
 
@@ -379,23 +379,32 @@ export function findIndirectWeights(scans) {
         const reference = pending.pop();
         const { name, mode, after = 0, file, namespace, index } = reference;
         const sass = name.startsWith('$');
-        // Two references in one innermost block see the same locals.
-        const at = reference.block ? reference.block.join('-') : 'top';
-        const origin = sass ? `${file} ${namespace ?? ''} ${at}` : '';
+        // What a Sass name resolves to depends on where it is read.
+        const origin = sass ? `${file} ${namespace ?? ''} ${index}` : '';
         const key = `${mode} ${after} ${origin} ${name}`;
         if (followed.has(key)) continue;
         followed.add(key);
         const members = sass && namespace ? qualified(file, namespace) : null;
         const scope = sass && !namespace ? unqualified(file) : null;
+        // In its own file, only the declarations in effect at the reference
+        // count; other files' declarations only when those settle nothing.
+        const own = scope
+            ? effectiveDeclarations(
+                  reference,
+                  definitions.filter(
+                      (d) => d.key === name && d.file === file && !d.argument
+                  )
+              )
+            : null;
         for (const definition of definitions) {
             if (definition.key !== name) continue;
-            // A block-local declaration is visible only inside its block;
-            // other modules see only top-level (or `!global`) members.
-            if (sass && !definition.argument && !definition.global) {
-                const [start, end] = definition.block;
-                const inside =
-                    definition.file === file && start < index && index < end;
-                if (!inside) continue;
+            if (sass && !definition.argument) {
+                const local = definition.file === file && !members;
+                if (local && !own.picked.includes(definition)) continue;
+                // Other modules see only top-level (or `!global`) members.
+                if (!local && (definition.scope !== null || own?.settled)) {
+                    continue;
+                }
             }
             if (members) {
                 const access = members.get(definition.file);
@@ -432,7 +441,8 @@ export function findIndirectWeights(scans) {
                     ...next,
                     file: definition.file,
                     index: definition.index,
-                    block: definition.block,
+                    scopes: definition.scopes,
+                    inCallable: definition.inCallable,
                 }))
             );
         }

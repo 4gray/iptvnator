@@ -229,10 +229,23 @@ export function insideTag({ text, quoteAt }, index, { html = false } = {}) {
     return inTag && !quote;
 }
 
+const FLOW = /^@(?:if|else|each|for|while)\b/i;
+const CALLABLE = /^@(?:mixin|function)\b/i;
+
+/** What opens the block at `brace`: flow control, a callable or a rule. */
+function kindOf(text, brace) {
+    let k = brace - 1;
+    while (k >= 0 && !';{}'.includes(text[k])) k -= 1;
+    const prelude = text.slice(k + 1, brace).trim();
+    if (FLOW.test(prelude)) return 'flow';
+    if (CALLABLE.test(prelude)) return 'callable';
+    return 'rule';
+}
+
 /**
- * The `{…}` blocks of a stylesheet as `[start, end]` (offsets of the braces),
- * skipping braces inside strings. An interpolation `#{…}` is a block too,
- * which is harmless: no declaration sits inside one.
+ * The `{…}` blocks of a stylesheet as `{ start, end, kind }` (offsets of the
+ * braces), skipping braces inside strings. An interpolation `#{…}` is a block
+ * too, which is harmless: no declaration sits inside one.
  */
 export function blocksOf({ text, quoteAt }) {
     const blocks = [];
@@ -241,20 +254,35 @@ export function blocksOf({ text, quoteAt }) {
         if (quoteAt[i]) continue;
         if (text[i] === '{') open.push(i);
         else if (text[i] === '}' && open.length > 0) {
-            blocks.push([open.pop(), i]);
+            const start = open.pop();
+            blocks.push({ start, end: i, kind: kindOf(text, start) });
         }
     }
-    return blocks.sort((a, b) => a[0] - b[0]);
+    return blocks.sort((a, b) => a.start - b.start);
 }
 
-/** The innermost block around `index`, or `null` at the top level. */
-export function blockAround(blocks, index) {
-    let found = null;
-    for (const block of blocks) {
-        if (block[0] >= index) break;
-        if (index < block[1]) found = block;
-    }
-    return found;
+/**
+ * Where `index` sits in the Sass scope tree. `scopes` lists the scopes a name
+ * there resolves through, innermost first and ending in `null` (the module).
+ * Flow-control blocks (`@if`, `@each`, …) are not scopes of their own: Sass
+ * assigns to the enclosing scope's variable. `scope` is the innermost scope,
+ * `conditional` says a flow-control block lies in between, and `inCallable`
+ * whether a `@mixin`/`@function` body encloses `index`.
+ */
+export function placeOf(blocks, index) {
+    const around = blocks
+        .filter((block) => block.start < index && index < block.end)
+        .reverse();
+    const scopes = around
+        .filter((block) => block.kind !== 'flow')
+        .map((block) => block.start);
+    const firstScope = around.findIndex((block) => block.kind !== 'flow');
+    return {
+        scopes: [...scopes, null],
+        scope: scopes[0] ?? null,
+        conditional: firstScope === -1 ? around.length > 0 : firstScope > 0,
+        inCallable: around.some((block) => block.kind === 'callable'),
+    };
 }
 
 /** 1-based line of every index, computed once per file. */

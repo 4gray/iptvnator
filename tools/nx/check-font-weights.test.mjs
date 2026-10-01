@@ -518,6 +518,7 @@ test('reads runtime writes to the end of the statement', () => {
         "if (element.style.fontWeight === '650') {}",
         "if (element.style.fontWeight !== '650') {}",
         '[style.font-weight]="25 ** 2"',
+        'element.style.fontWeight = 2 ** exponent;',
     ].join('\n');
 
     assert.deepEqual(
@@ -526,6 +527,7 @@ test('reads runtime writes to the end of the statement', () => {
             '1 .style.fontWeight: 650',
             '11 .style.fontWeight: += 50',
             '14 [style.font-weight]: 25 ** 2',
+            '15 .style.fontWeight: 2 ** exponent',
             '3 .style.fontWeight: 600 +\n    50',
             '5 .style.fontWeight: 600\n    + 50',
             "7 setProperty('font-weight': 750",
@@ -564,7 +566,7 @@ test('sees only what a loader passes into a loaded module', () => {
     // `@use` never injects the loader's own variables.
     const heading = scanWeights(
         'libs/h/_heading.scss',
-        '$local: 500; .h { font-weight: $local; }'
+        '.h { font-weight: $local; }'
     );
     const caller = scanWeights(
         'libs/h/h.scss',
@@ -845,6 +847,58 @@ test('resolves Sass variables within their block', () => {
         "@use 'tokens' as t; .y { font-weight: t.$heavy; }"
     );
     assert.deepEqual(findIndirectWeights([tokens, user]), []);
+});
+
+test('resolves the declaration in effect where a Sass name is read', () => {
+    const cases = {
+        // An inner declaration shadows the outer one.
+        shadowed: '$local: 650; .title { $local: 600; font-weight: $local; }',
+        // A reassignment after the reference does not reach it.
+        later: '.t { $w: 600; font-weight: $w; $w: 650; }',
+        // The last unconditional assignment wins.
+        reassigned: '$w: 650; $w: 600; .a { font-weight: $w; }',
+        heavier: '$w: 600; $w: 650; .a { font-weight: $w; }',
+        // Flow control assigns the enclosing variable, conditionally.
+        ifBlock: '.r { $w: 600; @if $c { $w: 650; } font-weight: $w; }',
+        // A conditional assignment does not hide the value before it.
+        ifKeepsOuter: '.r { $w: 650; @if $c { $w: 600; } font-weight: $w; }',
+        elseBlock:
+            '.r { $w: 600; @if $c { $w: 500; } @else { $w: 750; } font-weight: $w; }',
+        eachBlock:
+            '.r { $w: 600; @each $i in 1, 2 { $w: 700; } font-weight: $w; }',
+        topLevelIf: '$w: 600; @if $dark { $w: 520; } .a { font-weight: $w; }',
+        // A mixin body reads module variables when it is included.
+        mixin: '@mixin m { font-weight: $w; } $w: 650; .x { @include m; }',
+        mixinLocal: '@mixin m { $w: 600; font-weight: $w; } $w: 650;',
+    };
+    const found = Object.fromEntries(
+        Object.entries(cases).map(([name, source]) => [
+            name,
+            offScale(`libs/${name}.scss`, source),
+        ])
+    );
+
+    assert.deepEqual(found, {
+        shadowed: [],
+        later: [],
+        reassigned: [],
+        heavier: ['1 $w: 650'],
+        ifBlock: ['1 $w: 650'],
+        ifKeepsOuter: ['1 $w: 650'],
+        elseBlock: ['1 $w: 750'],
+        eachBlock: [],
+        topLevelIf: ['1 $w: 520'],
+        mixin: ['1 $w: 650'],
+        mixinLocal: [],
+    });
+
+    // A file whose own declaration settles the value ignores an importer's.
+    const part = scanWeights(
+        'libs/p/_part.scss',
+        '$v: 600; .g { font-weight: $v; }'
+    );
+    const importer = scanWeights('libs/p/p.scss', "$v: 750; @import 'part';");
+    assert.deepEqual(findIndirectWeights([part, importer]), []);
 });
 
 test('blanks every `//` comment in TypeScript', () => {

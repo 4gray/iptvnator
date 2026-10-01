@@ -170,3 +170,34 @@ export function sassScopes(scans) {
 
     return { qualified, unqualified };
 }
+
+/**
+ * The declarations of one name in the reference's own file that can be in
+ * effect at the reference, as Sass runs them. Scopes are tried innermost
+ * first; in the first that declares the name before the reference, the last
+ * unconditional assignment counts, plus any conditional (flow-control) ones
+ * after it, and an inner declaration shadows outer ones. A scope with only
+ * conditional assignments falls through to the next. Inside a `@mixin` or
+ * `@function` body, module variables are read at call time, so declaration
+ * order does not apply at the top level. `settled` means some unconditional
+ * declaration decided the value.
+ */
+export function effectiveDeclarations(reference, candidates) {
+    const picked = [];
+    for (const scope of reference.scopes) {
+        const anyOrder = scope === null && reference.inCallable;
+        const here = candidates
+            .filter((d) => d.scope === scope)
+            .filter((d) => anyOrder || d.index < reference.index)
+            .sort((a, b) => a.index - b.index);
+        if (here.length === 0) continue;
+        const firm = here.map((d) => !d.conditional).lastIndexOf(true);
+        if (firm === -1) {
+            picked.push(...here);
+            continue;
+        }
+        picked.push(...(anyOrder ? here : here.slice(firm)));
+        return { picked, settled: true };
+    }
+    return { picked, settled: false };
+}
