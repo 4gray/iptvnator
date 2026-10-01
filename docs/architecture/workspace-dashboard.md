@@ -76,9 +76,12 @@ Render rules:
 3. The hero (`lib-dashboard-hero`) renders when it has at least one slide;
    see [Cinematic Hero](#cinematic-hero). It shows its own skeleton while
    it has no slide and any of its sources (history, favorites, Xtream
-   recently added) is still on its first load; dropping it earlier removed
-   the hero and inserted it again when a later source featured a title,
-   moving every rail below twice. An item enters recent history only after
+   recently added) is still on its first load, or a live candidate still
+   waits for its first programme answer (portal or XMLTV, for at most
+   `DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS`, 2 s, from the hero's creation).
+   Dropping it earlier removed the hero and inserted it again when a later
+   source featured a title, moving every rail below twice. Once the
+   skeleton has gone it does not come back. An item enters recent history only after
    its stream has really played (see "Recently Viewed Confirmation" in
    `embedded-inline-playback.md`), so a channel that failed at once never
    becomes a hero slide.

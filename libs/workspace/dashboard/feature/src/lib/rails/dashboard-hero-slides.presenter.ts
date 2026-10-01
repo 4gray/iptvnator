@@ -1,8 +1,10 @@
 import {
     computed,
+    DestroyRef,
     effect,
     inject,
     Injectable,
+    linkedSignal,
     signal,
     untracked,
 } from '@angular/core';
@@ -46,6 +48,13 @@ const TYPE_LABEL_KEYS = {
     series: 'WORKSPACE.DASHBOARD.TYPE_SERIES',
 } as const;
 
+/**
+ * How long, from the hero's creation, its skeleton may wait for the first
+ * programme of a live candidate. Portal answers usually take a few hundred
+ * milliseconds; an unreachable portal must not hold the skeleton forever.
+ */
+export const DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS = 2000;
+
 const PROVIDER_LABEL_KEYS = {
     xtream: 'WORKSPACE.DASHBOARD.XTREAM',
     stalker: 'WORKSPACE.DASHBOARD.STALKER',
@@ -80,20 +89,28 @@ export class DashboardHeroSlidesPresenter {
     >(new Map());
     private readonly requestedTmdbKeys = new Set<string>();
 
+    private readonly liveAnswerWaitOver = signal(false);
+
     /**
      * Nothing to feature yet and a source that can feature a title is still
      * on its first load. Every such source counts, not only the history:
-     * the Xtream recently-added query waits for the favorites, so dropping
-     * the skeleton when the history resolved empty removed the hero and
-     * inserted it again moments later, moving every rail below twice.
+     * the Xtream recently-added query waits for the favorites, and a live
+     * slide waits for its programme, so dropping the skeleton when the
+     * history resolved empty removed the hero and inserted it again moments
+     * later, moving every rail below twice. Once the skeleton has gone it
+     * does not come back: a later reload must not shift the page either.
      */
-    readonly loading = computed(
-        () =>
+    readonly loading = linkedSignal<boolean, boolean>({
+        source: () =>
             this.slides().length === 0 &&
             (this.data.globalRecentLoading() ||
                 this.data.globalFavoritesLoading() ||
-                this.data.xtreamRecentlyAddedLoading())
-    );
+                this.data.xtreamRecentlyAddedLoading() ||
+                (!this.liveAnswerWaitOver() &&
+                    this.liveEpg.heroLiveAwaitingFirstAnswer())),
+        computation: (loading, previous) =>
+            previous?.value === false ? false : loading,
+    }).asReadonly();
 
     /** The first candidate channel with a programme on air right now. */
     private readonly liveSlide = computed(() => {
@@ -137,6 +154,12 @@ export class DashboardHeroSlidesPresenter {
     });
 
     constructor() {
+        const liveAnswerWait = setTimeout(
+            () => this.liveAnswerWaitOver.set(true),
+            DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS
+        );
+        inject(DestroyRef).onDestroy(() => clearTimeout(liveAnswerWait));
+
         effect(() => {
             if (!this.heroTmdb.isEnabled()) {
                 return;

@@ -14,7 +14,10 @@ import {
     DashboardHeroTmdbService,
     type DashboardHeroTmdbExtras,
 } from './dashboard-hero-tmdb.service';
-import { DashboardHeroSlidesPresenter } from './dashboard-hero-slides.presenter';
+import {
+    DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS,
+    DashboardHeroSlidesPresenter,
+} from './dashboard-hero-slides.presenter';
 import type { DashboardHeroLiveCandidate } from './dashboard-hero-slides.utils';
 import { DashboardLiveEpgPresenter } from './dashboard-live-epg.presenter';
 import type { DashboardLiveEpgDetails } from './dashboard-live-epg.utils';
@@ -95,6 +98,7 @@ describe('DashboardHeroSlidesPresenter', () => {
     let recentLoading: ReturnType<typeof signal<boolean>>;
     let favoritesLoading: ReturnType<typeof signal<boolean>>;
     let addedLoading: ReturnType<typeof signal<boolean>>;
+    let liveAwaiting: ReturnType<typeof signal<boolean>>;
     const positions = new Map<string | number, PlaybackPositionData>([
         [
             1,
@@ -167,6 +171,7 @@ describe('DashboardHeroSlidesPresenter', () => {
                     useValue: {
                         heroLiveCandidates: candidates,
                         heroDetailsFor: liveDetails,
+                        heroLiveAwaitingFirstAnswer: () => liveAwaiting(),
                     },
                 },
                 {
@@ -203,6 +208,11 @@ describe('DashboardHeroSlidesPresenter', () => {
         recentLoading = signal(false);
         favoritesLoading = signal(false);
         addedLoading = signal(false);
+        liveAwaiting = signal(false);
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     it('builds the rotation from resume, live, favourite and import slides', () => {
@@ -435,5 +445,64 @@ describe('DashboardHeroSlidesPresenter', () => {
         addedLoading.set(true);
 
         expect(create().loading()).toBe(false);
+    });
+
+    describe('with a live channel as the only candidate', () => {
+        let onAirNow: ReturnType<typeof signal<boolean>>;
+
+        beforeEach(() => {
+            recentItems.set([]);
+            favorites.set([]);
+            addedItems.set([]);
+            onAirNow = signal(false);
+            liveDetails = jest.fn(() => (onAirNow() ? onAir : null));
+            liveAwaiting.set(true);
+        });
+
+        it('keeps the skeleton until the channel has its first programme', () => {
+            const presenter = create();
+            expect(presenter.slides()).toEqual([]);
+            expect(presenter.loading()).toBe(true);
+
+            onAirNow.set(true);
+            liveAwaiting.set(false);
+            expect(presenter.slides().map((slide) => slide.kind)).toEqual([
+                'live',
+            ]);
+            expect(presenter.loading()).toBe(false);
+        });
+
+        it('drops the skeleton once the channel answered with nothing on air', () => {
+            const presenter = create();
+            expect(presenter.loading()).toBe(true);
+
+            liveAwaiting.set(false);
+            expect(presenter.loading()).toBe(false);
+        });
+
+        it('stops waiting for a programme that does not come', () => {
+            jest.useFakeTimers();
+            const presenter = create();
+            expect(presenter.loading()).toBe(true);
+
+            jest.advanceTimersByTime(DASHBOARD_HERO_LIVE_ANSWER_WAIT_MS - 1);
+            expect(presenter.loading()).toBe(true);
+            jest.advanceTimersByTime(1);
+            expect(presenter.loading()).toBe(false);
+        });
+    });
+
+    it('does not bring the skeleton back once it has gone', () => {
+        recentItems.set([]);
+        favorites.set([]);
+        candidates.set([]);
+        addedItems.set([]);
+        const presenter = create();
+        expect(presenter.loading()).toBe(false);
+
+        // A later live lookup (a rail card changed the XMLTV batch) must
+        // not insert the skeleton above content that is already placed.
+        liveAwaiting.set(true);
+        expect(presenter.loading()).toBe(false);
     });
 });
