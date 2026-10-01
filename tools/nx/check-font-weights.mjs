@@ -30,6 +30,7 @@ import {
     plainHost,
     reachesEverything,
     rendersMono,
+    shorthandFamilies,
 } from './font-weight-family.mjs';
 import {
     effectiveDeclarations,
@@ -394,6 +395,31 @@ function composedNames(name, valuesOf) {
 }
 
 /**
+ * Where the parameters end before a TypeScript return type that `before`
+ * ends with (`): { weight: number }`, `): Promise<{ a: 1 }>`), or -1: the
+ * return type is read back as one balanced expression to its `:`.
+ */
+function returnTypeStart(before) {
+    let depth = 0;
+    for (let k = before.length - 1; k >= 0; k -= 1) {
+        const char = before[k];
+        if (char === '>' && before[k - 1] === '=') {
+            k -= 1;
+        } else if ('})]>'.includes(char)) {
+            depth += 1;
+        } else if ('{([<'.includes(char)) {
+            if (depth === 0) return -1;
+            depth -= 1;
+        } else if (depth === 0 && char === ':') {
+            return before.slice(0, k).trimEnd().length;
+        } else if (depth === 0 && /[;=]/.test(char)) {
+            return -1;
+        }
+    }
+    return -1;
+}
+
+/**
  * Whether the `{` at `brace` opens a function body: after `=>`, or after a
  * parameter list that no `if`/`for`/`while`/`switch`/`catch` owns.
  */
@@ -401,8 +427,8 @@ function opensFunction(text, brace) {
     let before = text.slice(0, brace).trimEnd();
     if (before.endsWith('=>')) return true;
     // A TypeScript return type sits between the parameters and the body.
-    const typed = /\)\s*:\s*[\w$.<>[\]|&,\s]+$/.exec(before);
-    if (typed) before = before.slice(0, typed.index + 1);
+    const typed = returnTypeStart(before);
+    if (typed !== -1) before = before.slice(0, typed);
     if (!before.endsWith(')')) return false;
     let depth = 0;
     let k = before.length - 1;
@@ -1375,11 +1401,17 @@ export function findIndirectWeights(scans) {
             const value = definition.argument
                 ? definition.value
                 : (definition.full ?? definition.value);
+            // A shorthand that names its own family meets the Mono cap only
+            // when that family can render Mono (`--f: 700 16px Roboto` read
+            // where a fallback is Mono keeps its 700).
+            const own = mode === 'font' ? shorthandFamilies(value) : null;
+            const capHere =
+                own && !rendersMono(own) && !/var\(|\$/.test(own) ? null : cap;
             const analysis = definition.range
                 ? rangeAnalysis(definition)
                 : definition.code
-                  ? analyseCode(definition.value, mode, after, cap)
-                  : analyse(mode, value, { after, cap });
+                  ? analyseCode(definition.value, mode, after, capHere)
+                  : analyse(mode, value, { after, cap: capHere });
             const terms = definition.weighted
                 ? analysis.terms.filter(capOnly)
                 : analysis.terms;

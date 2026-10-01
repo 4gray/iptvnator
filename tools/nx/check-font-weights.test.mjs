@@ -264,12 +264,15 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
         ".f { font: 700 12px / 1.4 Roboto, 'JetBrains Mono'; }",
         ".g { font: 700 12px /1.4 Roboto, 'JetBrains Mono'; }",
         ".h { font-family: 'Roboto', 'JetBrains Mono'; font-weight: 700; }",
+        // DM Sans is Latin-only: Russian or Greek text falls through to Mono.
+        ".i { font-family: 'DM Sans', 'JetBrains Mono'; font-weight: 700; }",
     ].join('\n');
 
     assert.deepEqual(offScale('libs/m6/a.scss', source).sort(), [
         '3 font-weight: 700',
         '4 font: 700',
         '5 font: 700',
+        '9 font-weight: 700',
     ]);
     assert.deepEqual(
         offScale(
@@ -1093,6 +1096,10 @@ test('checks HostBinding style weights', () => {
         "@HostBinding('style.font') f = '650 12px x';",
         "@HostBinding('style.fontWeight') get inIf() { if (this.on) { return 750; } return 600; }",
         "@HostBinding('style.fontWeight') get typed() { function pick(): number { return 900; } return 600; }",
+        "@HostBinding('style.fontWeight') get shaped() { function pick(): { w: number } { return { w: 900 }; } return 600; }",
+        "@HostBinding('style.fontWeight') get later() { function pick(): Promise<{ w: number }> { return null; } return 650; }",
+        "@HostBinding('style.fontWeight') get arrowType() { function pick(): () => number { return () => 900; } return 600; }",
+        "@HostBinding('style.fontWeight') get bare() { const t = a ? f(b) : c; { return 750; } return 600; }",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
@@ -1102,6 +1109,8 @@ test('checks HostBinding style weights', () => {
         "7 @HostBinding('style.fontWeight'): 650",
         "11 @HostBinding('style.font'): 650",
         "12 @HostBinding('style.fontWeight'): 750",
+        "15 @HostBinding('style.fontWeight'): 650",
+        "17 @HostBinding('style.fontWeight'): 750",
     ]);
 });
 
@@ -2383,6 +2392,34 @@ test('reads a family Sass assembles from variables', () => {
     assert.deepEqual(
         report(
             `@use 'pkg:lib' as lib; $mono: 'JetBrains Mono', lib.$rest; .x { font-family: $mono; ${weight} }`
+        ),
+        ['1 700']
+    );
+});
+
+test('caps a var() branch only where its own family can render Mono', () => {
+    const report = (body) =>
+        findIndirectWeights([scanWeights('libs/m7/a.scss', body)]).map(
+            ({ line, value }) => `${line} ${value}`
+        );
+    const fallback = "font: var(--f, 500 16px 'JetBrains Mono');";
+
+    assert.deepEqual(
+        report(`.a { --f: 700 16px Roboto; } .x { ${fallback} }`),
+        []
+    );
+    assert.deepEqual(
+        report(`.a { --f: 700 16px 'JetBrains Mono'; } .x { ${fallback} }`),
+        ['1 700']
+    );
+    assert.deepEqual(
+        report(".a { --w: 700; } .x { font: var(--w) 16px 'JetBrains Mono'; }"),
+        ['1 700']
+    );
+    // A family the shorthand reads through a variable may be Mono.
+    assert.deepEqual(
+        report(
+            `.a { --face: 'JetBrains Mono'; --f: 700 16px var(--face); } .x { ${fallback} }`
         ),
         ['1 700']
     );

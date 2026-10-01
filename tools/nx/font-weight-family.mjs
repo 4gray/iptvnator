@@ -53,9 +53,27 @@ export function parsesAsFont(value) {
     return size !== -1 && family;
 }
 
-/** Families that always resolve: the app's bundled faces and generics. */
+/**
+ * Families that render every glyph the UI shows: Roboto (bundled with
+ * Latin, Cyrillic and Greek) and the generics. DM Sans is Latin-only, so
+ * Russian or Greek text falls through it to the next family.
+ */
 const ALWAYS_THERE =
-    /^(?:dm sans|roboto|serif|sans-serif|monospace|cursive|fantasy|system-ui|math|emoji|fangsong)$/i;
+    /^(?:roboto|serif|sans-serif|monospace|cursive|fantasy|system-ui|math|emoji|fangsong)$/i;
+
+/**
+ * The family list of a `font` shorthand: what follows its size and
+ * `/line-height`, or `null` when it has no size.
+ */
+export function shorthandFamilies(value) {
+    const tokens = tokensOf(value.replace(/!important\b/i, ''));
+    const size = tokens.findIndex((token) => FONT_SIZE.test(token));
+    if (size === -1) return null;
+    let rest = tokens.slice(size + 1);
+    if (rest[0] === '/') rest = rest.slice(2);
+    else if (rest[0]?.startsWith('/')) rest = rest.slice(1);
+    return rest.join(' ');
+}
 
 /**
  * Whether JetBrains Mono can render a family list: it is named before any
@@ -65,16 +83,10 @@ const ALWAYS_THERE =
  * the size and its `/line-height`.
  */
 export function rendersMono(value, { shorthand = false } = {}) {
-    let list = value.replace(/!important\b/i, '');
-    if (shorthand) {
-        const tokens = tokensOf(list);
-        const size = tokens.findIndex((token) => FONT_SIZE.test(token));
-        if (size === -1) return false;
-        let rest = tokens.slice(size + 1);
-        if (rest[0] === '/') rest = rest.slice(2);
-        else if (rest[0]?.startsWith('/')) rest = rest.slice(1);
-        list = rest.join(' ');
-    }
+    const list = shorthand
+        ? shorthandFamilies(value)
+        : value.replace(/!important\b/i, '');
+    if (list === null) return false;
     for (const family of list.split(',')) {
         const name = family
             .trim()
