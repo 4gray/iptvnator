@@ -6,20 +6,27 @@
 const QUOTES = new Set(["'", '"', '`']);
 const VALUE_END = new Set([';', '{', '}', ']']);
 
-/** Plain CSS has block comments only; SCSS and TypeScript add `//`. */
+/**
+ * Plain CSS has block comments only; SCSS and TypeScript add `//`. An
+ * unquoted `url(//cdn…)` or `https://` exists only in stylesheets: in
+ * TypeScript a URL is always inside a string, so every `//` there is a
+ * comment.
+ */
 function syntaxOf(file) {
     if (file.endsWith('.html')) return { html: true, quotes: ['"', "'"] };
+    const typescript = file.endsWith('.ts');
     return {
         block: true,
         line: !file.endsWith('.css'),
-        quotes: file.endsWith('.ts') ? ['"', "'", '`'] : ['"', "'"],
+        protocol: !typescript,
+        quotes: typescript ? ['"', "'", '`'] : ['"', "'"],
     };
 }
 
 /**
  * Blanks comments, keeping every newline so line numbers hold, and records
  * the quote enclosing each position: a comment marker inside a string is
- * text. `//` right after `:` or `(` is a protocol-relative URL, not a
+ * text. In a stylesheet, `//` right after `:` or `(` is a URL, not a
  * comment. HTML strings are attribute values, so they open only inside tags.
  */
 export function lex(file, source) {
@@ -59,7 +66,7 @@ export function lex(file, source) {
         } else if (
             syntax.line &&
             source.startsWith('//', i) &&
-            !/[:(]/.test(source[i - 1] ?? '')
+            !(syntax.protocol && /[:(]/.test(source[i - 1] ?? ''))
         ) {
             const lineEnd = source.indexOf('\n', i);
             i = blank(i, lineEnd === -1 ? source.length : lineEnd);
@@ -220,6 +227,34 @@ export function insideTag({ text, quoteAt }, index, { html = false } = {}) {
         }
     }
     return inTag && !quote;
+}
+
+/**
+ * The `{…}` blocks of a stylesheet as `[start, end]` (offsets of the braces),
+ * skipping braces inside strings. An interpolation `#{…}` is a block too,
+ * which is harmless: no declaration sits inside one.
+ */
+export function blocksOf({ text, quoteAt }) {
+    const blocks = [];
+    const open = [];
+    for (let i = 0; i < text.length; i += 1) {
+        if (quoteAt[i]) continue;
+        if (text[i] === '{') open.push(i);
+        else if (text[i] === '}' && open.length > 0) {
+            blocks.push([open.pop(), i]);
+        }
+    }
+    return blocks.sort((a, b) => a[0] - b[0]);
+}
+
+/** The innermost block around `index`, or `null` at the top level. */
+export function blockAround(blocks, index) {
+    let found = null;
+    for (const block of blocks) {
+        if (block[0] >= index) break;
+        if (index < block[1]) found = block;
+    }
+    return found;
 }
 
 /** 1-based line of every index, computed once per file. */

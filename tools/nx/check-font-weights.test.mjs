@@ -635,7 +635,7 @@ test('checks font-weight presentation attributes', () => {
         '<svg><text font-weight=750>e</text></svg>',
         '<svg><text font-weight=600>f</text></svg>',
         '<p>font-weight=750 and font-weight="650" as text</p>',
-        '<svg><text aria-label="x > y" font-weight="520">g</text></svg>',
+        '<svg><text aria-label="1 > 0" font-weight="520">g</text></svg>',
         '<p title="font-weight=650">a &lt; b</p><p>a < b font-weight=650</p>',
     ].join('\n');
     const component = [
@@ -806,6 +806,56 @@ test('counts only the configuration of the `@use` a member comes from', () => {
 
     assert.deepEqual(report([a, b, user('a.$heavy')]), []);
     assert.deepEqual(report([a, b, user('b.$heavy')]), ['libs/q/q.scss:2 650']);
+});
+
+test('resolves Sass variables within their block', () => {
+    const local = [
+        '.spacing { $local: 650; margin: $local; }',
+        '.title { $local: 600; font-weight: $local; }',
+    ].join('\n');
+    const nested = '.a { $w: 650; .b { font-weight: $w; } }';
+    const global = '.a { $w: 750 !global; } .b { font-weight: $w; }';
+    const argument = [
+        '@mixin heading($w: 500) { font-weight: $w; }',
+        '.x { @include heading($w: 650); }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', local), []);
+    // Each block resolves its own `$w`, whichever is checked first.
+    const twoBlocks = [
+        '.b { $w: 650; font-weight: $w; }',
+        '.a { $w: 600; font-weight: $w; }',
+    ].join('\n');
+    assert.deepEqual(offScale('libs/f.scss', twoBlocks), ['1 $w: 650']);
+    assert.deepEqual(offScale('libs/b.scss', nested), ['1 $w: 650']);
+    assert.deepEqual(offScale('libs/c.scss', global), ['1 $w: 750']);
+    assert.deepEqual(offScale('libs/d.scss', argument), ['2 $w: 650']);
+    // A chain continues from where the intermediate variable is defined.
+    const chain =
+        '.a { $base: 650; $w: $base !global; } .b { font-weight: $w; }';
+    assert.deepEqual(offScale('libs/e.scss', chain), ['1 $base: 650']);
+
+    // A block-local declaration is not a module member.
+    const tokens = scanWeights(
+        'libs/t/_tokens.scss',
+        '.x { $heavy: 650; margin: 0; padding: 0; color: red; }'
+    );
+    const user = scanWeights(
+        'libs/t/t.scss',
+        "@use 'tokens' as t; .y { font-weight: t.$heavy; }"
+    );
+    assert.deepEqual(findIndirectWeights([tokens, user]), []);
+});
+
+test('blanks every `//` comment in TypeScript', () => {
+    const component = [
+        'call(// font-weight: 650 was removed',
+        '    value);',
+        'const a = { b: // font-weight: 750',
+        '    1 };',
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), []);
 });
 
 test('flags relative keywords, which can land off the scale', () => {

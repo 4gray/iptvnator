@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { extractStylesheetLoads } from './check-stylesheet-inputs.mjs';
 import {
+    blockAround,
+    blocksOf,
     codeExpression,
     insideTag,
     lex,
@@ -254,13 +256,20 @@ export function scanWeights(file, source) {
     const references = [];
     const definitions = [];
     let declarations = 0;
+    const blocks = stylesheet ? blocksOf(lexed) : [];
     const record = (name, index, analysis) => {
         declarations += 1;
         for (const term of analysis.terms) {
             findings.push({ file, line: lineOf(index), name, ...term });
         }
+        const block = blockAround(blocks, index);
         references.push(
-            ...analysis.references.map((reference) => ({ ...reference, file }))
+            ...analysis.references.map((reference) => ({
+                ...reference,
+                file,
+                index,
+                block,
+            }))
         );
     };
 
@@ -338,7 +347,14 @@ export function scanWeights(file, source) {
         const line = lineOf(match.index);
         const key = identity(name);
         const index = match.index;
-        definitions.push({ file, line, index, name, key, value, argument });
+        // A declaration inside `{…}` is local to that block (and the blocks
+        // nested in it) unless it says `!global`.
+        const block = blockAround(blocks, index);
+        const global = block === null || /!global\b/i.test(value);
+        definitions.push({
+            ...{ file, line, index, name, key, value },
+            ...{ argument, block, global },
+        });
     }
 
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
@@ -360,9 +376,12 @@ export function findIndirectWeights(scans) {
     const followed = new Set();
     const findings = [];
     while (pending.length > 0) {
-        const { name, mode, after = 0, file, namespace } = pending.pop();
+        const reference = pending.pop();
+        const { name, mode, after = 0, file, namespace, index } = reference;
         const sass = name.startsWith('$');
-        const origin = sass ? `${file} ${namespace ?? ''}` : '';
+        // Two references in one innermost block see the same locals.
+        const at = reference.block ? reference.block.join('-') : 'top';
+        const origin = sass ? `${file} ${namespace ?? ''} ${at}` : '';
         const key = `${mode} ${after} ${origin} ${name}`;
         if (followed.has(key)) continue;
         followed.add(key);
@@ -370,6 +389,14 @@ export function findIndirectWeights(scans) {
         const scope = sass && !namespace ? unqualified(file) : null;
         for (const definition of definitions) {
             if (definition.key !== name) continue;
+            // A block-local declaration is visible only inside its block;
+            // other modules see only top-level (or `!global`) members.
+            if (sass && !definition.argument && !definition.global) {
+                const [start, end] = definition.block;
+                const inside =
+                    definition.file === file && start < index && index < end;
+                if (!inside) continue;
+            }
             if (members) {
                 const access = members.get(definition.file);
                 const visible = definition.argument
@@ -401,9 +428,11 @@ export function findIndirectWeights(scans) {
                 findings.push({ ...at, ...term });
             }
             pending.push(
-                ...analysis.references.map((reference) => ({
-                    ...reference,
+                ...analysis.references.map((next) => ({
+                    ...next,
                     file: definition.file,
+                    index: definition.index,
+                    block: definition.block,
                 }))
             );
         }
