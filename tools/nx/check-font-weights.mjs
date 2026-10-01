@@ -92,8 +92,8 @@ import {
  * compound also sets the family of compounds that contain it (`.x` for
  * `.x:hover`); rules are not ranked by specificity, so any that renders Mono
  * counts. Without a family of its own, a rule takes one from `*`, an
- * ancestor, or the document root (`:host`, `body`, `html`, `:root`) in its
- * file. Not traced: global styles in another file, a weight inherited from
+ * ancestor its compiled selector names (in its `@media` or always), or the
+ * document root (`:host`, `body`, `html`, `:root`) in its file. Not traced: global styles in another file, a weight inherited from
  * another rule, a mixin from another module, and a family set on an
  * element from code.
  */
@@ -1816,7 +1816,16 @@ export function findIndirectWeights(scans) {
     // an ancestor (`:root`, `body`, an enclosing rule): only what the element
     // sets itself (`*`, code) or the initial value.
     const nearest = (visible, reference) => {
-        const local = visible.some((d) => d.registered && !d.inherits);
+        // An explicit `inherit` on the reader's own rule still takes the
+        // parent's value (`unset` and `revert` give the initial one).
+        const inherited = visible.some(
+            (d) =>
+                d.file === reference.file &&
+                covers(d.selectors, reference.selectors) &&
+                /^inherit\b/i.test((d.full ?? d.value).trim())
+        );
+        const local =
+            !inherited && visible.some((d) => d.registered && !d.inherits);
         const ranks = visible.map((d) => nearness(d, reference));
         if (local) {
             const ancestor = (rank) => rank !== null && rank > 0 && rank < 4;

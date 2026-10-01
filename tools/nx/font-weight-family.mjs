@@ -595,55 +595,104 @@ export function familiesOf(
             family.set(rule, entry);
         }
     }
-    // The top-level rules on a single compound (`.x`, `a.b`), with their
-    // simple selectors: an element of `.x:hover` is an `.x`, so a family
-    // `.x` sets is its own (unless its rule sets one).
-    const bases = [...family]
-        .filter(([rule]) => rule.endsWith(' | ') && !rule.includes(' < '))
-        .map(([rule, entry]) => ({ chain: rule.slice(0, -3), entry }))
-        .map((base) => ({ ...base, simples: simplesOf(base.chain) }))
-        .filter(({ simples, entry }) => simples && !entry.inherit);
-    const fromBases = (prelude) => {
-        const found = selectorsOf(prelude).map((selector) => {
-            const simples = simplesOf(
-                compoundsOf(selector).at(-1)?.compound ?? ''
-            );
-            const own = canonicalSelector(selector);
-            return simples
-                ? bases
-                      .filter((base) => base.chain !== own)
-                      .filter((base) =>
-                          base.simples.every((s) => simples.includes(s))
-                      )
-                      .map((base) => base.entry)
-                : [];
+    // A rule as compiled: its selector (`.p { &:hover {} }` is `.p:hover`,
+    // `.w { .p .c {} }` is `.w .p .c`) and the context it applies in (its
+    // at-rule wrappers and `@if`/`@each`); `null` for one without a style
+    // rule. One the scan cannot know (`.#{$n}`) stays unique to its block.
+    const UNCONDITIONAL = ' | ';
+    const compiled = (rule) => {
+        const split = rule.lastIndexOf(' | ');
+        const chain = rule.slice(0, split);
+        let selector = '';
+        const wrappers = [];
+        for (const part of chain.split(' < ').reverse()) {
+            if (part.startsWith('@')) wrappers.push(part);
+            else if (part.includes('&'))
+                selector = part.replaceAll('&', selector);
+            else selector = selector ? `${selector} ${part}` : part;
+        }
+        if (!selector) return null;
+        const context = `${wrappers.join(' ; ')} | ${rule.slice(split + 3)}`;
+        return { selector: canonicalSelector(selector), context };
+    };
+    // Every rule's family by its compiled selector and context.
+    const byCompiled = new Map();
+    const compiledRules = [];
+    for (const [rule, entry] of family) {
+        const form = compiled(rule);
+        if (!form || entry.inherit) continue;
+        compiledRules.push({ rule, entry, ...form });
+        const key = `${form.selector} # ${form.context}`;
+        if (!byCompiled.has(key)) byCompiled.set(key, []);
+        byCompiled.get(key).push(entry);
+    }
+    // The families a compiled selector has in a context: there, or in a
+    // rule that always applies.
+    const familiesAt = (selector, context) => [
+        ...(byCompiled.get(`${selector} # ${context}`) ?? []),
+        ...(context === UNCONDITIONAL
+            ? []
+            : (byCompiled.get(`${selector} # ${UNCONDITIONAL}`) ?? [])),
+    ];
+    const chosen = (found, complete) =>
+        found.find((entry) => entry.mono) ??
+        found.find((entry) => entry.refs.length > 0) ??
+        (complete ? found[0] : undefined) ??
+        null;
+    // The rules on a single compound (`.x`, `a.b`), with their simple
+    // selectors: an element of `.x:hover` is an `.x`, so a family `.x`
+    // sets is its own (unless its rule sets one), in the same context or
+    // where the base always applies.
+    const bases = compiledRules
+        .map((base) => ({ ...base, simples: simplesOf(base.selector) }))
+        .filter(({ simples }) => simples);
+    const fromBases = (block) => {
+        const rules = rulesOf(block.start);
+        const found = rules.map((rule) => {
+            const form = compiled(rule);
+            if (!form) return [];
+            const target = compoundsOf(form.selector).at(-1)?.compound;
+            const simples = simplesOf(target ?? '');
+            if (!simples?.length) return [];
+            return bases
+                .filter(
+                    (base) =>
+                        base.context === form.context ||
+                        base.context === UNCONDITIONAL
+                )
+                .filter((base) =>
+                    base.simples.every((s) => simples.includes(s))
+                )
+                .map((base) => base.entry);
         });
-        const entries = found.flat();
-        const named =
-            entries.find((entry) => entry.mono) ??
-            entries.find((entry) => entry.refs.length > 0);
-        if (named) return named;
-        return found.every((list) => list.length) ? entries[0] : null;
+        return chosen(
+            found.flat(),
+            found.every((list) => list.length)
+        );
     };
     // A top-level rule's family, unless it inherits (`* | ` is `*`'s).
     const rooted = (selector) => {
         const entry = family.get(`${selector} | `);
         return entry && !entry.inherit ? entry : null;
     };
-    const fromAncestors = (prelude) => {
-        const found = selectorsOf(prelude).flatMap((selector) => {
-            for (const ancestor of ancestorsOf(selector)) {
-                const entry = family.get(`${ancestor} | `);
-                if (entry && !entry.inherit) return [entry];
+    // The nearest ancestor its compiled selector names (`.w .p .c` has
+    // `.w .p`, then `.w`) that sets a family, in its context or always: by
+    // that whole selector, or its last compound alone (`.p` is an element
+    // of `.w .p` too).
+    const fromAncestors = (block) => {
+        const found = rulesOf(block.start).flatMap((rule) => {
+            const form = compiled(rule);
+            for (const ancestor of form ? ancestorsOf(form.selector) : []) {
+                const own = compoundsOf(ancestor).at(-1).compound;
+                const entries = [
+                    ...familiesAt(ancestor, form.context),
+                    ...(own === ancestor ? [] : familiesAt(own, form.context)),
+                ];
+                if (entries.length) return entries;
             }
             return [];
         });
-        return (
-            found.find((entry) => entry.mono) ??
-            found.find((entry) => entry.refs.length > 0) ??
-            found[0] ??
-            NONE
-        );
+        return chosen(found, true) ?? NONE;
     };
     const lookup = (index) => {
         const around = blocks
@@ -663,21 +712,22 @@ export function familiesOf(
                 own.find((entry) => entry.refs.length > 0);
             if (named) return named;
             if (own.length && own.length === rules.length) return own[0];
-            const base = block.prelude.startsWith('@')
-                ? null
-                : fromBases(block.prelude);
+            const style = !block.prelude.startsWith('@');
+            const base = style ? fromBases(block) : null;
             if (base) return base;
             // `*` sets the element itself, ahead of anything it inherits.
             const star = rooted('*');
             if (star) return star;
+            // A rule on another element (not `&…`) inherits from the
+            // nearest ancestor its selector names.
+            if (style && !block.prelude.includes('&')) {
+                const ancestor = fromAncestors(block);
+                if (ancestor !== NONE) return ancestor;
+            }
             if (!inherits(block.prelude)) return NONE;
         }
-        // A flat descendant selector (`.parent .child`) inherits from the
-        // nearest top-level rule that names one of its ancestors, else from
-        // the document's root: a plain `:host`, `body`, `html` or `:root`.
-        const outer = around.filter((b) => !b.prelude.startsWith('@')).at(-1);
-        const ancestor = outer ? fromAncestors(outer.prelude) : NONE;
-        if (ancestor !== NONE) return ancestor;
+        // Else from the document's root: a plain `:host`, `body`, `html` or
+        // `:root`.
         for (const root of [':host', 'body', 'html', ':root']) {
             const entry = rooted(root);
             if (entry) return entry;

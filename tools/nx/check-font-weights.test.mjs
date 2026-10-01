@@ -2544,7 +2544,7 @@ test('follows the JetBrains Mono family only where it is inherited', () => {
         `.d { ${mono}; :is(.x, .y) { font-weight: 700; } }`,
         `.e { ${mono}; .f { font-family: inherit; font-weight: 700; } }`,
         `.g { ${mono}; + .h { font-family: inherit; font-weight: 700; } }`,
-        `.i { ${mono}; .n { font-family: Roboto; font-family: unset; font-weight: 700; } }`,
+        `.i { ${mono}; .u { font-family: Roboto; font-family: unset; font-weight: 700; } }`,
         `.j { ${mono}; .k { font-family: Roboto; font-family: inherit; font-weight: 700; } }`,
         `.l { ${mono}; &--wide:is(.x, .y) { font-weight: 700; } }`,
         `.m { ${mono} !important; font-family: sans-serif; font-weight: 700; }`,
@@ -3864,6 +3864,110 @@ test("inherits the document root's family", () => {
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
+});
+
+test('reads ancestors and bases as compiled, in their context', () => {
+    const mono = "'JetBrains Mono'";
+    const media = '@media (min-width: 1px)';
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // An ancestor in the same `@media`, or one that always applies.
+        [
+            `${media} { .parent { font-family: ${mono}; } .parent .child { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent { font-family: ${mono}; } ${media} { .parent .child { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { .parent { font-family: ${mono}; } } .parent .child { font-weight: 700; }`,
+            [],
+        ],
+        // A nested selector's ancestors, as compiled, by whole selector or by
+        // their own compound, nearest first.
+        [
+            `.wrapper { .parent .child { font-weight: 700; } } .parent { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.wrapper { .parent { font-family: ${mono}; } .parent .child { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.wrapper .parent { font-family: ${mono}; } .wrapper { .parent .child { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.w { font-family: Roboto; .p .c { font-weight: 700; } } .w .p { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        // A base outside a `@media` reaches into it, not the other way.
+        [
+            `.x { font-family: ${mono}; } ${media} { .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; } ${media} { .x:hover { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { .x { font-family: ${mono}; } .x:hover { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { .x { font-family: ${mono}; } } .x:hover { font-weight: 700; }`,
+            [],
+        ],
+        // The parent of `&:hover` is the same element: its family beats an
+        // ancestor's, and `*`.
+        [
+            `.p { font-family: Roboto; } .p .x { font-family: ${mono}; &:hover { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+
+        [
+            `.x { font-family: ${mono}; &:hover { font-weight: 700; } } * { font-family: Roboto; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test('reads an explicit `inherit` of a non-inheriting registered property', () => {
+    const mono = "'JetBrains Mono'";
+    const read = 'font-family: var(--face); font-weight: 700;';
+    const registered =
+        "@property --face { syntax: '*'; inherits: false; initial-value: Roboto; }";
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // `inherit` takes the parent's value; `unset` gives the initial one.
+    for (const [own, expected] of [
+        ['--face: inherit;', ['font-weight: 700']],
+        ['--face: unset;', []],
+        ['', []],
+    ]) {
+        assert.deepEqual(
+            report(
+                `${registered} body { --face: ${mono}; } .x { ${own} ${read} }`
+            ),
+            expected,
+            own
+        );
+    }
+    // Another rule's `inherit` is not the reader's.
+    assert.deepEqual(
+        report(
+            `${registered} body { --face: ${mono}; } .y { --face: inherit; } .x { ${read} }`
+        ),
+        []
+    );
 });
 
 test('reads template literals set from code', () => {
