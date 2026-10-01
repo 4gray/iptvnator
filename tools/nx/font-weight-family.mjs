@@ -83,6 +83,28 @@ export function hasLiteralSize(value) {
     );
 }
 
+/** What can come before a shorthand's size: weight, style, variant, width. */
+const SHORTHAND_PREFIX =
+    /^(?:\d+|normal|italic|oblique|small-caps|bold|bolder|lighter|(?:ultra-|extra-|semi-)?(?:condensed|expanded))$/i;
+
+/**
+ * One family entry, decided outright: `mono` (JetBrains Mono), `stop` (a
+ * family that renders every glyph), `open` (another face), or `null` for a
+ * variable (`var(…)`, `$x`, `#{…}`) whose value decides.
+ */
+export function entryVerdict(entry) {
+    if (/var\(|\$|#\{/i.test(entry)) return null;
+    const name = entry.replace(/^['"\s]+|['"\s]+$/g, '').replace(/\s+/g, ' ');
+    if (MONO_FAMILY.test(name)) return 'mono';
+    if (ALWAYS_THERE.test(name)) return 'stop';
+    return 'open';
+}
+
+/** A family list's entries, split at its top-level commas. */
+export function familyEntries(list) {
+    return selectorsOf(list.replace(/!important\b/i, ''));
+}
+
 /**
  * The family list of a `font` shorthand: what follows its size and
  * `/line-height`, or `null` when it has no size.
@@ -93,10 +115,10 @@ export function shorthandFamilies(value) {
     let size = tokens.findIndex(
         (token) => FONT_SIZE.test(token) && !/^var\(/i.test(token)
     );
-    // A size from a variable (`700 var(--size) 'JetBrains Mono'`): the
-    // family follows the last variable token.
+    // Without one, the size is the first token after the weight and style
+    // (`700 var(--size) var(--face), …`: `var(--size)`).
     if (size === -1) {
-        size = tokens.findLastIndex((token) => /^(?:var\(|\$|#\{)/.test(token));
+        size = tokens.findIndex((token) => !SHORTHAND_PREFIX.test(token));
         if (size === -1 || size === tokens.length - 1) return null;
     }
     let rest = tokens.slice(size + 1);
@@ -112,17 +134,18 @@ export function shorthandFamilies(value) {
  * `'SF Mono'`) leaves it in play. In a `font` shorthand the list follows
  * the size and its `/line-height`.
  */
-export function rendersMono(value, { shorthand = false } = {}) {
-    const list = shorthand
-        ? shorthandFamilies(value)
-        : value.replace(/!important\b/i, '');
+export function rendersMono(value, { shorthand = false, defer = false } = {}) {
+    const list = shorthand ? shorthandFamilies(value) : value;
     if (list === null) return false;
-    for (const family of list.split(',')) {
-        const name = family
-            .replace(/^['"\s]+|['"\s]+$/g, '')
-            .replace(/\s+/g, ' ');
-        if (MONO_FAMILY.test(name)) return true;
-        if (ALWAYS_THERE.test(name)) return false;
+    for (const entry of familyEntries(list)) {
+        const verdict = entryVerdict(entry.replace(/\bvar\(\)/g, 'var('));
+        // A variable decides in its place; with `defer`, leave it to the
+        // workspace-wide resolution rather than skip past it.
+        if (verdict === null) {
+            if (defer) return false;
+            continue;
+        }
+        if (verdict !== 'open') return verdict === 'mono';
     }
     return false;
 }
@@ -258,7 +281,7 @@ export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
         family.set(scope, {
             important,
             inherit: /^\s*(?:inherit|unset)\b/i.test(value),
-            mono: rendersMono(parts.outside, { shorthand }),
+            mono: rendersMono(parts.outside, { shorthand, defer: true }),
             shorthand,
             refs: refsIn(parts, match.index, place),
             // The whole family and where it sits, to resolve it later.

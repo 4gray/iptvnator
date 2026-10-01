@@ -25,6 +25,8 @@ import {
     MONO_WEIGHT_CAP,
     declarationText,
     familiesOf,
+    entryVerdict,
+    familyEntries,
     familyParts,
     fontNamespaceRule,
     hasLiteralSize,
@@ -1352,39 +1354,72 @@ export function findIndirectWeights(scans) {
                 mayBeUnset(ref, seen) &&
                 (ref.fallback === null || mayBeInvalid(ref.fallback, at, seen))
         );
-    // Whether a family reference names JetBrains Mono, through chains.
-    const namesMono = (reference, seen = new Set()) => {
-        const { name, file, namespace, index } = reference;
-        const key = `${file} ${namespace ?? ''} ${index} ${name}`;
-        if (seen.has(key)) return false;
+    // How a family list (or one variable's lists) decides JetBrains Mono,
+    // entry by entry in its order: `mono`, `stop` (a family that renders
+    // every glyph comes first) or `open`. A variable stands for each list
+    // it can hold (its `var()` fallback too where it can be unset); any
+    // branch that renders Mono counts.
+    const combine = (verdicts) => {
+        if (verdicts.includes('mono')) return 'mono';
+        const decided = verdicts.length > 0;
+        return decided && verdicts.every((v) => v === 'stop') ? 'stop' : 'open';
+    };
+    const refVerdict = (reference, seen) => {
+        const { name, file, namespace, index, shorthand } = reference;
+        const key = `${file} ${namespace ?? ''} ${index} ${name} ${shorthand}`;
+        if (seen.has(key)) return 'open';
         seen.add(key);
-        const { shorthand } = reference;
-        if (
-            reference.fallback !== null &&
-            mayBeUnset(reference) &&
-            familyIsMono(reference.fallback, reference, seen, shorthand)
-        ) {
-            return true;
-        }
-        return visibleDefinitions(reference).some((definition) =>
-            familyIsMono(
+        const verdicts = visibleDefinitions(reference).map((definition) =>
+            familyVerdict(
                 definition.full ?? definition.value,
                 definition,
                 seen,
                 shorthand
             )
         );
+        if (reference.fallback !== null && mayBeUnset(reference)) {
+            verdicts.push(
+                familyVerdict(reference.fallback, reference, seen, shorthand)
+            );
+        }
+        return combine(verdicts);
     };
-    const familyIsMono = (text, at, seen, shorthand = false) => {
+    const familyVerdict = (text, at, seen, shorthand = false) => {
         const parts = familyParts(text);
-        const mono = (t) => rendersMono(familyParts(t).outside, { shorthand });
-        if (mono(text) || composedFamilies(text, at).some(mono)) return true;
-        // After a literal size, a variable holds family names.
-        const whole = shorthand && !hasLiteralSize(parts.outside);
-        return familyRefs(parts, { ...at, shorthand: whole }).some((ref) =>
-            namesMono(ref, seen)
-        );
+        // A shorthand that is all variables: each holds a whole shorthand.
+        if (shorthand && !hasLiteralSize(parts.outside)) {
+            const list = shorthandFamilies(parts.outside);
+            if (list === null || /^\s*$/.test(list)) {
+                const refs = familyRefs(parts, { ...at, shorthand: true });
+                return combine(refs.map((ref) => refVerdict(ref, seen)));
+            }
+        }
+        const list = shorthand ? shorthandFamilies(text) : text;
+        if (list === null) return 'open';
+        for (const entry of familyEntries(list)) {
+            const verdict =
+                entryVerdict(entry) ?? variableVerdict(entry, at, seen);
+            if (verdict !== 'open') return verdict;
+        }
+        return 'open';
     };
+    // A variable entry: the lists its variables hold, or that Sass composes
+    // from it (`'#{$prefix} Mono'`, `$a $b`).
+    const variableVerdict = (entry, at, seen) => {
+        const composed = /\$/.test(entry)
+            ? composedFamilies(entry, at).map((t) => familyVerdict(t, at, seen))
+            : [];
+        const refs = familyRefs(familyParts(entry), {
+            ...at,
+            shorthand: false,
+        });
+        return combine([
+            ...composed,
+            ...refs.map((ref) => refVerdict(ref, seen)),
+        ]);
+    };
+    const familyIsMono = (text, at, seen, shorthand = false) =>
+        familyVerdict(text, at, seen, shorthand) === 'mono';
     // A family Sass assembles from variables (`'#{$prefix} Mono'`, `$a $b`),
     // with each variable replaced by a value it can hold (up to 16
     // combinations, through chains of any length, a cycle aside), so the

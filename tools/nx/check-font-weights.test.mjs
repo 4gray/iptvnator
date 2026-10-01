@@ -2449,6 +2449,39 @@ test('reads a family Sass assembles from variables', () => {
     );
 });
 
+test('resolves family variables in their place in the list', () => {
+    const report = (body) =>
+        findOffScaleWeights('libs/m8/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    const shorthand = "font: 700 var(--size) var(--face), 'JetBrains Mono';";
+
+    // `var(--size)` is the size; `var(--face)` comes first in the list.
+    assert.deepEqual(
+        report(`:root { --face: Roboto; --size: 12px; } .x { ${shorthand} }`),
+        []
+    );
+    assert.deepEqual(
+        report(
+            `:root { --face: 'SF Mono'; --size: 12px; } .x { ${shorthand} }`
+        ),
+        ['font: 700']
+    );
+    assert.deepEqual(
+        report(
+            ":root { --face: Roboto; } .y { font-family: var(--face), 'JetBrains Mono'; font-weight: 700; }"
+        ),
+        []
+    );
+    // Any branch that can render Mono counts.
+    assert.deepEqual(
+        report(
+            ":root { --face: Roboto; } .z { --face: 'SF Mono'; } .y { font-family: var(--face), 'JetBrains Mono'; font-weight: 700; }"
+        ),
+        ['font-weight: 700']
+    );
+});
+
 test('caps a var() branch only where its own family can render Mono', () => {
     const report = (body) =>
         findIndirectWeights([scanWeights('libs/m7/a.scss', body)]).map(
