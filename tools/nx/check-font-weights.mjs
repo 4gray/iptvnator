@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { extractStylesheetLoads } from './check-stylesheet-inputs.mjs';
 import {
     blocksOf,
+    calleeOf,
     codeExpression,
     insideTag,
     lex,
@@ -262,11 +263,11 @@ export function scanWeights(file, source) {
         for (const term of analysis.terms) {
             findings.push({ file, line: lineOf(index), name, ...term });
         }
-        const { scopes, inCallable } = placeOf(blocks, index);
+        const { scopes, inCallable, callable } = placeOf(blocks, index);
         references.push(
             ...analysis.references.map((reference) => ({
                 ...{ ...reference, file, index },
-                ...{ scopes, inCallable },
+                ...{ scopes, inCallable, callable },
             }))
         );
     };
@@ -351,9 +352,12 @@ export function scanWeights(file, source) {
         const global = /!global\b/i.test(value);
         definitions.push({
             ...{ file, line, index, name, key, value, argument },
+            // An argument reaches only the mixin or function it is passed to.
+            callee: argument ? calleeOf(text, index) : null,
             scope: global ? null : place.scope,
             conditional: global || place.conditional,
             ...{ scopes: place.scopes, inCallable: place.inCallable },
+            callable: place.callable,
         });
     }
 
@@ -419,8 +423,15 @@ export function findIndirectWeights(scans) {
             }
             if (scope) {
                 const access = scope.get(definition.file);
+                const passed =
+                    definition.callee !== null &&
+                    definition.callee === reference.callable;
+                const configured = access?.ranges.some(
+                    ([start, end]) =>
+                        definition.index >= start && definition.index < end
+                );
                 const visible = definition.argument
-                    ? access?.arguments
+                    ? access?.arguments && (passed || configured)
                     : access?.declarations;
                 if (!visible) continue;
             }
@@ -443,6 +454,7 @@ export function findIndirectWeights(scans) {
                     index: definition.index,
                     scopes: definition.scopes,
                     inCallable: definition.inCallable,
+                    callable: definition.callable,
                 }))
             );
         }

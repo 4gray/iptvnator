@@ -901,6 +901,35 @@ test('resolves the declaration in effect where a Sass name is read', () => {
     assert.deepEqual(findIndirectWeights([part, importer]), []);
 });
 
+test('passes an argument only to the callable it is given to', () => {
+    const part = scanWeights(
+        'libs/k/_part.scss',
+        '@mixin heading($w: 500) { font-weight: $w; }'
+    );
+    const loader = scanWeights(
+        'libs/k/k.scss',
+        "@use 'part'; .x { @include unrelated($w: 650); @include part.heading; }"
+    );
+    const passing = scanWeights(
+        'libs/k/p.scss',
+        "@use 'part'; .x { @include part.heading($w: 750); }"
+    );
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+
+    assert.deepEqual(report([part, loader]), []);
+    assert.deepEqual(report([part, passing]), ['libs/k/p.scss:1 750']);
+
+    const sameFile = [
+        '@mixin heading($w: 500) { font-weight: $w; }',
+        '.x { @include other($w: 650); @include heading; }',
+        '.y { @include other($v: 650); } $v: 600; .z { font-weight: $v; }',
+    ].join('\n');
+    assert.deepEqual(offScale('libs/same.scss', sameFile), []);
+});
+
 test('blanks every `//` comment in TypeScript', () => {
     const component = [
         'call(// font-weight: 650 was removed',

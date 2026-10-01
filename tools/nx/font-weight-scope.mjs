@@ -1,7 +1,11 @@
 import path from 'node:path';
 
-const BOTH = { declarations: true, arguments: true };
-const DECLARATIONS = { declarations: true, arguments: false };
+const BOTH = Object.freeze({ declarations: true, arguments: true, ranges: [] });
+const DECLARATIONS = Object.freeze({
+    declarations: true,
+    arguments: false,
+    ranges: [],
+});
 
 /**
  * The files a Sass load can name, in Sass's resolution order. Bare targets
@@ -37,10 +41,15 @@ function push(map, key, value) {
 }
 
 function merge(scope, file, access) {
-    const known = scope.get(file) ?? { declarations: false, arguments: false };
+    const known = scope.get(file) ?? {
+        declarations: false,
+        arguments: false,
+        ranges: [],
+    };
     scope.set(file, {
         declarations: known.declarations || access.declarations,
         arguments: known.arguments || access.arguments,
+        ranges: [...known.ranges, ...(access.ranges ?? [])],
     });
 }
 
@@ -60,9 +69,11 @@ function merge(scope, file, access) {
  * - the file itself: both;
  * - members of modules it loads `as *`, and files it `@import`s (textual
  *   inclusion, transitively): their declarations;
- * - files that load it: only the arguments they pass, since `@use` never
- *   injects the loader's own variables. A chain of `@import`s is textual,
- *   so there the loader's declarations count too.
+ * - files that load it: only what they pass in, since `@use` never injects
+ *   the loader's own variables. That is the `with (…)` configuration of the
+ *   load (as `ranges`) and arguments, which the caller then matches to the
+ *   callable they are passed to. A chain of `@import`s is textual, so there
+ *   the loader's declarations count too.
  *
  * A namespaced `@use` adds nothing unqualified, and two files that only share
  * a partial are never connected. Not traced: `@forward … as prefix-*`.
@@ -81,7 +92,11 @@ export function sassScopes(scans) {
             const namespace = load.rule === 'use' ? namespaceOf(load) : null;
             const ranges = load.configuration ? [load.configuration] : [];
             push(edges, file, { rule: load.rule, loaded, namespace, ranges });
-            push(loadedBy, loaded, { file, textual: load.rule === 'import' });
+            push(loadedBy, loaded, {
+                file,
+                textual: load.rule === 'import',
+                ranges,
+            });
         }
     }
 
@@ -156,6 +171,7 @@ export function sassScopes(scans) {
                 merge(scope, loader.file, {
                     declarations: textual,
                     arguments: true,
+                    ranges: loader.ranges,
                 });
                 const key = `${loader.file} ${textual}`;
                 if (!visitedUp.has(key)) {

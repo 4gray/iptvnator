@@ -232,14 +232,21 @@ export function insideTag({ text, quoteAt }, index, { html = false } = {}) {
 const FLOW = /^@(?:if|else|each|for|while)\b/i;
 const CALLABLE = /^@(?:mixin|function)\b/i;
 
-/** What opens the block at `brace`: flow control, a callable or a rule. */
+/**
+ * What opens the block at `brace`: flow control, a callable (with its name)
+ * or a rule.
+ */
 function kindOf(text, brace) {
     let k = brace - 1;
     while (k >= 0 && !';{}'.includes(text[k])) k -= 1;
     const prelude = text.slice(k + 1, brace).trim();
-    if (FLOW.test(prelude)) return 'flow';
-    if (CALLABLE.test(prelude)) return 'callable';
-    return 'rule';
+    if (FLOW.test(prelude)) return { kind: 'flow' };
+    const callable = CALLABLE.exec(prelude);
+    if (callable) {
+        const name = /^@\w+\s+([\w-]+)/.exec(prelude)?.[1] ?? null;
+        return { kind: 'callable', name };
+    }
+    return { kind: 'rule' };
 }
 
 /**
@@ -255,7 +262,7 @@ export function blocksOf({ text, quoteAt }) {
         if (text[i] === '{') open.push(i);
         else if (text[i] === '}' && open.length > 0) {
             const start = open.pop();
-            blocks.push({ start, end: i, kind: kindOf(text, start) });
+            blocks.push({ start, end: i, ...kindOf(text, start) });
         }
     }
     return blocks.sort((a, b) => a.start - b.start);
@@ -266,8 +273,9 @@ export function blocksOf({ text, quoteAt }) {
  * there resolves through, innermost first and ending in `null` (the module).
  * Flow-control blocks (`@if`, `@each`, …) are not scopes of their own: Sass
  * assigns to the enclosing scope's variable. `scope` is the innermost scope,
- * `conditional` says a flow-control block lies in between, and `inCallable`
- * whether a `@mixin`/`@function` body encloses `index`.
+ * `conditional` says a flow-control block lies in between, `inCallable`
+ * whether a `@mixin`/`@function` body encloses `index`, and `callable` the
+ * name of the innermost one.
  */
 export function placeOf(blocks, index) {
     const around = blocks
@@ -282,7 +290,29 @@ export function placeOf(blocks, index) {
         scope: scopes[0] ?? null,
         conditional: firstScope === -1 ? around.length > 0 : firstScope > 0,
         inCallable: around.some((block) => block.kind === 'callable'),
+        callable:
+            around.find((block) => block.kind === 'callable')?.name ?? null,
     };
+}
+
+/**
+ * The mixin or function an argument at `index` is passed to: the name before
+ * the `(` that encloses it (the last segment of `ns.name(`, or the callable's
+ * own name for a signature default), or `with` for a `@use … with (…)`.
+ */
+export function calleeOf(text, index) {
+    let depth = 0;
+    for (let k = index - 1; k >= 0; k -= 1) {
+        if (text[k] === ')') depth += 1;
+        else if (text[k] === '(') {
+            if (depth === 0) {
+                const name = /([\w.-]+)\s*$/.exec(text.slice(0, k))?.[1];
+                return name?.split('.').pop() ?? null;
+            }
+            depth -= 1;
+        }
+    }
+    return null;
 }
 
 /** 1-based line of every index, computed once per file. */
