@@ -3914,6 +3914,35 @@ test('reads mixin weights where they land, through nested includes', () => {
             `@mixin w { @content; } .a { font-family: ${mono}; @include w { font-weight: 700; } } .b { @include w { font-weight: 500; } }`,
             ['font-weight: 700'],
         ],
+        // Through nested mixins, in the order Sass writes them out.
+        [
+            `@mixin inner { @content; } @mixin outer { font-weight: 500; @include inner { font-weight: 700; } } .x { font-family: ${mono}; @include outer; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin inner { @content; } @mixin outer { font-weight: 700; @include inner { font-weight: 500; } } .x { font-family: ${mono}; @include outer; }`,
+            [],
+        ],
+        [
+            `@mixin inner { @content; font-weight: 500; } @mixin outer { @include inner { font-weight: 700; } } .x { font-family: ${mono}; @include outer; }`,
+            [],
+        ],
+        [
+            `@mixin inner { font-weight: 500; } @mixin outer { font-weight: 700; @include inner; } .x { font-family: ${mono}; @include outer; }`,
+            [],
+        ],
+        [
+            `@mixin a { font-weight: 700; } @mixin b { @include a; } @mixin c { @include b; font-weight: 500; } .x { font-family: ${mono}; @include c; }`,
+            [],
+        ],
+        [
+            `@mixin inner { @content; } @mixin outer { @include inner { font-family: Roboto; } font-family: ${mono}; } .x { font-weight: 700; @include outer; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin inner { @content; } @mixin outer { font-family: ${mono}; @include inner { font-family: Roboto; } } .x { font-weight: 700; @include outer; }`,
+            [],
+        ],
         // Placed in a nested rule, it styles another element.
         [
             `@mixin w { font-weight: 700; .inner { @content; } } .x { @include w { font-family: ${mono}; } }`,
@@ -4388,6 +4417,31 @@ test('reads cascade layers as always applying, ranked by layer', () => {
     // A layer is no condition. An unlayered declaration beats a layered one
     // whatever its specificity or place; `!important` turns that round.
     for (const [source, expected] of [
+        // `revert-layer` rolls the cascade back past its own layer.
+        [
+            `@layer base { .x { font-family: ${mono}; } } @layer theme { .x { font-family: revert-layer; font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base { .x { font-family: ${mono}; } } @layer theme { .x { all: revert-layer; font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base { .x { font-family: ${mono}; } } .x { font-family: revert-layer; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base { .x { font-family: ${mono}; } } @layer theme { .x { font-family: Roboto; } } @layer top { .x { font-family: revert-layer; font-weight: 700; } }`,
+            [],
+        ],
+        [
+            `@layer base { .x { font-family: ${mono}; } } @layer theme { .x { font-family: revert-layer; } } @layer top { .x { font-family: revert-layer; font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base { .x { font-family: ${mono}; } } @layer theme { .x { font-family: Roboto; font-family: revert-layer; font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
         [
             `@layer base { .x { font-family: ${mono}; } } .x { font-weight: 700; }`,
             ['font-weight: 700'],

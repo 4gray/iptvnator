@@ -626,12 +626,16 @@ const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
 const CONTENT = /@content\b/g;
 
 /**
- * Where a landing applies among those at one place: a content block's at
- * its `@content` in the mixin (`{ place, within }`), else the
- * declaration's own `index`.
+ * How two landings (see `landingsOf`) compare in the order Sass writes
+ * them out: by their place in the rule, then within each mixin and content
+ * block they go through.
  */
-export const placeIn = (order, index) =>
-    order ? order.place + order.within / 2 : index;
+export function keyOrder(a, b) {
+    for (let k = 0; k < Math.min(a.length, b.length); k += 1) {
+        if (a[k] !== b[k]) return a[k] - b[k];
+    }
+    return a.length - b.length;
+}
 
 /**
  * The family each rule sets (every block with one of its selector chains,
@@ -689,9 +693,7 @@ export function familiesOf(
         const site = Math.max(
             ...(includes.get(name) ?? []).filter((index) => index < scope)
         );
-        return places.length && Number.isFinite(site)
-            ? { block, places, site }
-            : null;
+        return places.length && Number.isFinite(site) ? { places, site } : null;
     };
     // Cascade layers in declared order within their parent layer: as
     // `@layer a, b;` names them, or as a `@layer name { … }` block first
@@ -800,32 +802,30 @@ export function familiesOf(
     // through each `@include` of a mixin (one included in another mixin
     // goes on to that one's includes) or `@extend` of a rule, theirs.
     // A cycle stops on its own path, so each `@include` of a mixin, two in
-    // one rule included, is a landing of its own. Landings at one place
-    // apply in `order` (the declaration's own place unless set).
-    const landingsOf = (scope, at, path = [], order = null) => {
+    // one rule included, is a landing of its own. A landing's `key` is its
+    // place at each level, outermost first (see `keyOrder`): in the rule,
+    // then in each mixin included and at each `@content` it goes through.
+    const landingsOf = (scope, at, path = [], inner = []) => {
         if (path.includes(scope)) return [];
         const next = [...path, scope];
+        const key = [at, ...inner];
         const content = contentOf(scope);
         if (content) {
-            const { block, places, site } = content;
-            const within = Math.min(
-                Math.max((at - block.start) / (block.end - block.start), 0),
-                1
-            );
+            const { places, site } = content;
             return places.flatMap((place) =>
-                landingsOf(placeOf(blocks, site).scope, site, next, {
+                landingsOf(placeOf(blocks, site).scope, site, next, [
                     place,
-                    within,
-                })
+                    ...key,
+                ])
             );
         }
         return [
-            { at, scope, rules: rulesOf(scope), order },
+            { at, scope, rules: rulesOf(scope), key },
             ...sitesOf(scope).flatMap((site) =>
-                landingsOf(placeOf(blocks, site).scope, site, next, order)
+                landingsOf(placeOf(blocks, site).scope, site, next, key)
             ),
             ...extendersOf(scope).flatMap((extender) =>
-                landingsOf(extender.scope, at, next, order)
+                landingsOf(extender.scope, at, next, inner)
             ),
         ];
     };
@@ -852,6 +852,7 @@ export function familiesOf(
         const entry = {
             important,
             inherit: /^\s*(?:inherit|unset|revert|revert-layer)\b/i.test(value),
+            revertLayer: /^\s*revert-layer\b/i.test(value),
             mono: rendersMono(parts.outside, { shorthand, defer: true }),
             shorthand,
             refs: refsIn(parts, match.index, place),
@@ -876,6 +877,7 @@ export function familiesOf(
         const entry = {
             important: Boolean(match[2]),
             inherit: match[1].toLowerCase() !== 'initial',
+            revertLayer: match[1].toLowerCase() === 'revert-layer',
             ...{ mono: false, shorthand: false, refs: [], text: match[1] },
             at: { index: match.index, ...place },
         };
@@ -884,12 +886,7 @@ export function familiesOf(
         }
     }
     // Keyed by rule, so a later block with one of its selectors wins.
-    applied.sort(
-        (a, b) =>
-            a.at - b.at ||
-            placeIn(a.order, a.entry.at.index) -
-                placeIn(b.order, b.entry.at.index)
-    );
+    applied.sort((a, b) => keyOrder(a.key, b.key));
     // Where each rule's family was set, for the cascade between rules.
     const orderOf = new Map();
     for (const { rules, entry, at } of applied) {
@@ -935,11 +932,27 @@ export function familiesOf(
         specificity: specificityOf(selector),
         order,
     });
+    // The cascade's winner among ranked candidates (`{ entry, rank }`). A
+    // `revert-layer` one rolls the cascade back past its layer: the winner
+    // among the others, else it inherits.
+    const winnerOf = (candidates) => {
+        const best = candidates.reduce(
+            (a, b) => (a && rankAbove(a.rank, b.rank) ? a : b),
+            null
+        );
+        if (!best?.entry.revertLayer) return best;
+        const others = candidates.filter(
+            ({ rank }) =>
+                rank.important !== best.rank.important ||
+                ordered(rank.layer, best.rank.layer) !== 0
+        );
+        return winnerOf(others) ?? best;
+    };
     // The family the cascade gives an element of `selectors` (the rules
     // on one element, as `html` and `:root` are), in `context` or always:
     // `null` when none sets one or the winner inherits.
     const winnerAt = (selectors, context) => {
-        const best = compiledRules
+        const ranked = compiledRules
             .filter((form) =>
                 form.alternatives.some((alternative) =>
                     selectors.includes(alternative)
@@ -949,8 +962,8 @@ export function familiesOf(
             .map((form) => ({
                 entry: form.entry,
                 rank: rankOf(form.entry, form, orderOf.get(form.rule)),
-            }))
-            .reduce((a, b) => (a && rankAbove(a.rank, b.rank) ? a : b), null);
+            }));
+        const best = winnerOf(ranked);
         return best && !best.entry.inherit ? best.entry : null;
     };
     // The family an at-rule block (`@media` inside a rule) sets itself.
@@ -1014,10 +1027,7 @@ export function familiesOf(
                     rank: rankOf(own, form, orderOf.get(rule)),
                 });
             }
-            const best = candidates.reduce(
-                (a, b) => (a && rankAbove(a.rank, b.rank) ? a : b),
-                null
-            );
+            const best = winnerOf(candidates);
             return best?.entry ?? null;
         });
         const set = winners.filter((entry) => entry && !entry.inherit);
