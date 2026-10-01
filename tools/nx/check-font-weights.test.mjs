@@ -837,6 +837,11 @@ test('follows Sass loop variables', () => {
         '@for $w from 650 to 650 { .e { font-weight: $w; } }',
         // A space-separated list is one variable's list too.
         '@each $w in 400 650 600 { .s { font-weight: $w; } }',
+        // A quoted element is one, its spaces, commas and colons included.
+        '@each $label, $w in ("wide label" 650,) { .ql { font-weight: $w; } }',
+        '@each $label, $w in ("a, b" 600, "c" 750) { .qc { font-weight: $w; } }',
+        '@each $k, $w in ("a: b": 650, c: 600) { .qk { font-weight: $w; } }',
+        '@each $l, $w in ("a\\", b" 600, "c" 750) { .qe { font-weight: $w; } }',
     ].join('\n');
 
     assert.deepEqual(offScale('libs/l3/a.scss', source).sort(), [
@@ -847,6 +852,10 @@ test('follows Sass loop variables', () => {
         '16 font-weight: 750',
         '17 $w: 650',
         '20 $w: 650',
+        '21 $w: 650',
+        '22 $w: 750',
+        '23 $w: 650',
+        '24 $w: 750',
         '3 $w: 650',
         '4 $weights: 750',
         '6 $w: from 400 through 402',
@@ -2719,6 +2728,31 @@ test('resolves a JetBrains Mono family named through variables', () => {
         ]),
         []
     );
+    // The same selector written again in the file sets it on the same
+    // elements; another selector, a condition or another file does not.
+    const read =
+        ".a { font-family: var(--face, 'JetBrains Mono'); font-weight: 700; }";
+    for (const [setter, expected] of [
+        ['.a { --face: Roboto; }', []],
+        ['.b { --face: Roboto; }', ['libs/m4/rule.scss:1 700']],
+        [
+            '@media (min-width: 1px) { .a { --face: Roboto; } }',
+            ['libs/m4/rule.scss:1 700'],
+        ],
+        ['.p { .a { --face: Roboto; } }', ['libs/m4/rule.scss:1 700']],
+    ]) {
+        assert.deepEqual(report([rule(`${setter} ${read}`)]), expected, setter);
+    }
+    // Nested alike, or written with other spacing, it is the same selector.
+    for (const same of [
+        ".p { .a { --face: Roboto; } } .p { .a { font-family: var(--face, 'JetBrains Mono'); font-weight: 700; } }",
+        ".p  .a { --face: Roboto; } .p .a { font-family: var(--face, 'JetBrains Mono'); font-weight: 700; }",
+    ]) {
+        assert.deepEqual(report([rule(same)]), [], same);
+    }
+    assert.deepEqual(report([theme('.a { --face: Roboto; }'), rule(read)]), [
+        'libs/m4/rule.scss:1 700',
+    ]);
 });
 
 test('reads template literals set from code', () => {

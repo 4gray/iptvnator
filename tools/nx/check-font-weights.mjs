@@ -482,6 +482,7 @@ function familyRefs({ outside, vars }, at) {
         ...{ file: at.file, index: at.index, scopes: at.scopes },
         ...{ inCallable: at.inCallable, callable: at.callable },
         ...{ guards: at.guards ?? [], rule: at.rule ?? null },
+        selector: at.selector ?? null,
         // Read inside a `font` shorthand: values are shorthands too.
         shorthand: at.shorthand ?? false,
     };
@@ -612,40 +613,48 @@ function rangeAnalysis({ range, value }) {
     };
 }
 
-/** Where a list item's `:` sits outside parentheses, or -1. */
-function topLevelColon(item) {
+/**
+ * The positions in a Sass list where `char` sits outside parentheses and
+ * strings (`("a, b" 650, c)` has one top-level comma).
+ */
+function topLevel(text, char) {
+    const at = [];
     let depth = 0;
-    for (let i = 0; i < item.length; i += 1) {
-        if (item[i] === '(') depth += 1;
-        else if (item[i] === ')') depth -= 1;
-        else if (item[i] === ':' && depth === 0) return i;
+    let quote = '';
+    for (let i = 0; i < text.length; i += 1) {
+        if (quote) {
+            if (text[i] === '\\') i += 1;
+            else if (text[i] === quote) quote = '';
+        } else if (text[i] === '"' || text[i] === "'") quote = text[i];
+        else if (text[i] === '(') depth += 1;
+        else if (text[i] === ')') depth -= 1;
+        else if (text[i] === char && depth === 0) at.push(i);
     }
-    return -1;
+    return at;
+}
+
+/** Where a list item's `:` sits outside parentheses and strings, or -1. */
+function topLevelColon(item) {
+    return topLevel(item, ':')[0] ?? -1;
 }
 
 /** A Sass list split at its top-level commas, outer parentheses dropped. */
 function listItems(list) {
     const inner = /^\((.*)\)$/s.exec(list.trim())?.[1] ?? list;
     const items = [];
-    let depth = 0;
-    let current = '';
-    for (const char of inner) {
-        if (char === '(') depth += 1;
-        if (char === ')') depth -= 1;
-        if (char === ',' && depth === 0) {
-            items.push(current.trim());
-            current = '';
-        } else {
-            current += char;
-        }
+    let from = 0;
+    for (const comma of topLevel(inner, ',')) {
+        items.push(inner.slice(from, comma).trim());
+        from = comma + 1;
     }
-    return [...items, current.trim()].filter(Boolean);
+    return [...items, inner.slice(from).trim()].filter(Boolean);
 }
 
 /**
  * What each variable of `@each $a, $b in …` takes, as a list: for a map,
  * the first the keys and the second the values; for a list of lists, each
- * its position in every item. One variable takes the whole list.
+ * its position in every item (a quoted `"wide label"` is one element). One
+ * variable takes the whole list.
  */
 function loopColumns(list, count) {
     if (count === 1) return [list];
@@ -656,7 +665,7 @@ function loopColumns(list, count) {
     const rows = items.map((item, i) =>
         map
             ? [item.slice(0, colons[i]), item.slice(colons[i] + 1)]
-            : item.replace(/^\((.*)\)$/s, '$1').split(/\s+/)
+            : tokensOf(item.replace(/^\((.*)\)$/s, '$1'))
     );
     return Array.from({ length: count }, (_, i) =>
         rows
@@ -852,10 +861,18 @@ export function scanWeights(file, written) {
 
     // The family each rule renders in (see `familiesOf`); one named through
     // variables is resolved once the whole workspace is scanned.
+    // The preludes of the blocks around a place, innermost first: two rules
+    // with the same chain style the same elements.
+    const selectorOf = (scopes) =>
+        scopes
+            .filter((scope) => scope !== null)
+            .map((scope) => blockAt.get(scope)?.prelude.replace(/\s+/g, ' '))
+            .join(' < ');
     const refsIn = (parts, index, place) =>
         familyRefs(parts, {
             ...{ file, index, ...place, guards: guardsAt(index) },
             rule: blockAt.get(place.scope)?.prelude ?? null,
+            selector: selectorOf(place.scopes),
         });
     const monoAt = stylesheet
         ? familiesOf(lexed, blocks, { inString, placeOf, refsIn })
@@ -1013,6 +1030,7 @@ export function scanWeights(file, written) {
                         ...{ ...family.at, file },
                         guards: guardsAt(family.at.index),
                         rule: blockAt.get(family.at.scope)?.prelude ?? null,
+                        selector: selectorOf(family.at.scopes ?? []),
                     },
                     terms: capped.terms.filter(capOnly),
                     references: capped.references.map((reference) => ({
@@ -1140,6 +1158,7 @@ export function scanWeights(file, written) {
             important: /!important\b/i.test(full),
             // The selector of the rule it sits in, for custom properties.
             rule: blockAt.get(place.scope)?.prelude ?? null,
+            selector: selectorOf(place.scopes),
             guards: guardsAt(index),
             // Checked against the scale where it is declared (see below).
             weighted: /weight$/i.test(name),
@@ -1558,8 +1577,8 @@ export function findIndirectWeights(scans) {
     };
     // Whether a definition sets a custom property for every element the
     // reading rule styles: one in a rule every element inherits from
-    // (`:root`), or in the reading rule itself or a rule it is nested in (or
-    // its component's `:host`). A property set by code sits in another file
+    // (`:root`), or in the reading rule itself, one with the same selector,
+    // or a rule it is nested in (or its component's `:host`). A property set by code sits in another file
     // and is set on some element only.
     const setsFor = (definition, reference) => {
         // A registered property always has a value: its `initial-value`.
@@ -1572,6 +1591,11 @@ export function findIndirectWeights(scans) {
             return false;
         }
         if (own && (reference.scopes ?? []).includes(definition.scope)) {
+            return true;
+        }
+        // The same selector written again in the file styles the same
+        // elements (another file's component styles reach other ones).
+        if (own && definition.selector === reference.selector) {
             return true;
         }
         if (reachesEverything(definition.rule, reference.rule)) return true;
