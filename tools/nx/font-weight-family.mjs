@@ -164,7 +164,12 @@ const SHORTHAND_PREFIX =
  * variable (`var(…)`, `$x`, `#{…}`) whose value decides.
  */
 export function entryVerdict(entry) {
-    if (/var\(|\$|#\{/i.test(entry)) return null;
+    // In a string, only a Sass `#{…}` is a variable: `"var(--x)"` and
+    // `"$x"` are names.
+    const quoted = /^\s*['"]/.test(entry);
+    if (quoted ? entry.includes('#{') : /var\(|\$|#\{/i.test(entry)) {
+        return null;
+    }
     const family = familyName(entry);
     if (!family) return 'open';
     if (MONO_FAMILY.test(family.name)) return 'mono';
@@ -233,6 +238,15 @@ export function rendersMono(value, { shorthand = false, defer = false } = {}) {
     return false;
 }
 
+/** Where the string opening at `value[start]` ends (past its quote). */
+function stringEnd(value, start) {
+    for (let i = start + 1; i < value.length; i += 1) {
+        if (value[i] === '\\') i += 1;
+        else if (value[i] === value[start]) return i + 1;
+    }
+    return value.length;
+}
+
 /**
  * A family value split into what it names outright (`outside`) and the
  * custom properties it reads (`vars`), each with the fallback that applies
@@ -243,6 +257,13 @@ export function familyParts(value) {
     let outside = '';
     let i = 0;
     while (i < value.length) {
+        // A string is a name, whatever it spells (`"var(--x)"`).
+        if (value[i] === '"' || value[i] === "'") {
+            const end = stringEnd(value, i);
+            outside += value.slice(i, end);
+            i = end;
+            continue;
+        }
         const open = /^var\(\s*(--[\w-]+)\s*(,)?/i.exec(value.slice(i));
         if (!open) {
             outside += value[i];
@@ -251,8 +272,10 @@ export function familyParts(value) {
         }
         let end = i + open[0].length;
         for (let depth = 1; end < value.length && depth > 0; end += 1) {
-            if (value[end] === '(') depth += 1;
-            if (value[end] === ')') depth -= 1;
+            if (value[end] === '"' || value[end] === "'") {
+                end = stringEnd(value, end) - 1;
+            } else if (value[end] === '(') depth += 1;
+            else if (value[end] === ')') depth -= 1;
         }
         const fallback = open[2]
             ? value.slice(i + open[0].length, end - 1)
@@ -379,6 +402,26 @@ function joined(parts) {
             return `${k ? ' ' : ''}${combinator} ${compound}`;
         })
         .join('');
+}
+
+/** One simple selector: a type or `*`, class, id, attribute or pseudo. */
+const SIMPLE =
+    /\*|[a-z][\w-]*|\.(?:\\.|[\w-])+|#(?:\\.|[\w-])+|\[[^\]]*\]|::?[\w-]+(?:\((?:[^()]|\([^()]*\))*\))?/iy;
+
+/**
+ * A compound's simple selectors (`a.x:hover` is `a`, `.x`, `:hover`), or
+ * `null` for one this cannot split: a Sass `&` or interpolation, or more
+ * than one compound.
+ */
+function simplesOf(compound) {
+    const simples = [];
+    SIMPLE.lastIndex = 0;
+    while (SIMPLE.lastIndex < compound.length) {
+        const match = SIMPLE.exec(compound);
+        if (!match) return null;
+        simples.push(match[0]);
+    }
+    return simples;
 }
 
 /** A selector spaced one way, so `.a>.b` and `.a > .b` compare equal. */
@@ -540,6 +583,36 @@ export function familiesOf(
             family.set(rule, entry);
         }
     }
+    // The top-level rules on a single compound (`.x`, `a.b`), with their
+    // simple selectors: an element of `.x:hover` is an `.x`, so a family
+    // `.x` sets is its own (unless its rule sets one).
+    const bases = [...family]
+        .filter(([rule]) => rule.endsWith(' | ') && !rule.includes(' < '))
+        .map(([rule, entry]) => ({ chain: rule.slice(0, -3), entry }))
+        .map((base) => ({ ...base, simples: simplesOf(base.chain) }))
+        .filter(({ simples, entry }) => simples && !entry.inherit);
+    const fromBases = (prelude) => {
+        const found = selectorsOf(prelude).map((selector) => {
+            const simples = simplesOf(
+                compoundsOf(selector).at(-1)?.compound ?? ''
+            );
+            const own = canonicalSelector(selector);
+            return simples
+                ? bases
+                      .filter((base) => base.chain !== own)
+                      .filter((base) =>
+                          base.simples.every((s) => simples.includes(s))
+                      )
+                      .map((base) => base.entry)
+                : [];
+        });
+        const entries = found.flat();
+        const named =
+            entries.find((entry) => entry.mono) ??
+            entries.find((entry) => entry.refs.length > 0);
+        if (named) return named;
+        return found.every((list) => list.length) ? entries[0] : null;
+    };
     const fromAncestors = (prelude) => {
         const found = selectorsOf(prelude).flatMap((selector) => {
             for (const ancestor of ancestorsOf(selector)) {
@@ -573,6 +646,10 @@ export function familiesOf(
                 own.find((entry) => entry.refs.length > 0);
             if (named) return named;
             if (own.length && own.length === rules.length) return own[0];
+            const base = block.prelude.startsWith('@')
+                ? null
+                : fromBases(block.prelude);
+            if (base) return base;
             if (!inherits(block.prelude)) return NONE;
         }
         // A flat descendant selector (`.parent .child`) inherits from the

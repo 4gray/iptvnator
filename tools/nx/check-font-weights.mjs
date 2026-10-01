@@ -88,7 +88,10 @@ import {
  * `familiesOf`) is capped at `MONO_WEIGHT_CAP`, as is a flat descendant
  * (`.parent .child`) of a top-level rule that sets it. A mixin's top-level
  * declarations land where this file includes it, and a rule this file
- * `@extend`s whole applies to its extenders. A weight it inherits from
+ * `@extend`s whole applies to its extenders. A top-level rule on a single
+ * compound also sets the family of compounds that contain it (`.x` for
+ * `.x:hover`); rules are not ranked by specificity, so any that renders Mono
+ * counts. A weight it inherits from
  * another rule, a mixin from another module, and a family set on an
  * element from code, are not traced.
  */
@@ -511,7 +514,14 @@ function familyRefs({ outside, vars }, at) {
             ...{ name, namespace: null, mode: 'family', fallback },
             ...place,
         })),
-        ...[...outside.matchAll(REFERENCE)].map((match) => ({
+        // A string is a name, unless Sass interpolates in it (`"#{$x}"`).
+        ...[
+            ...outside
+                .replace(/(['"])(?:\\[\s\S]|(?!\1)[^\\])*\1/g, (m) =>
+                    m.includes('#{') ? m : ' '.repeat(m.length)
+                )
+                .matchAll(REFERENCE),
+        ].map((match) => ({
             name: identity(match[1] ?? match[3]),
             namespace: match[2] ?? null,
             ...{ mode: 'family', fallback: null },
