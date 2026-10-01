@@ -321,6 +321,7 @@ test('reads numbers and variables inside interpolation', () => {
         'styles: [`',
         '    .a { font-weight: ${650}; }',
         '    .b { font-weight: ${700}; }',
+        '    .c { font-weight: ${this.weight()}; }',
         '`],',
     ].join('\n');
 
@@ -330,6 +331,61 @@ test('reads numbers and variables inside interpolation', () => {
     ]);
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
         '2 font-weight: 650',
+    ]);
+});
+
+test('reports a computed weight whole, since Sass compiles it', () => {
+    const computed = [
+        '.a { font-weight: 400 + 500; }',
+        '.b { font-weight: 400+200; }',
+        '.c { font-weight: $base * 1.5; }',
+        '.d { font-weight: math.div(1300, 2); }',
+        '.e { font-weight: calc(600 + 50); }',
+        '.f { font-weight: map.get($weights, title); }',
+        '.g { font-weight: #{400 + 300}; }',
+        '.h { font-weight: var(--x, 400 + 300); }',
+        '.i { font: 400 + 200 12px sans-serif; }',
+    ].join('\n');
+    const written = [
+        '.a { font-weight: +700; }',
+        '.b { font-weight: var(--title-weight, 600); }',
+        '.c { font-weight: $font-weight; }',
+        '.d { font-weight: 600 !important; }',
+        '.e { font-weight: #{$font-weight}; }',
+    ].join('\n');
+    const findings = findOffScaleWeights('libs/a.scss', computed).findings;
+
+    assert.deepEqual(
+        findings.map(({ line, value }) => `${line} ${value}`),
+        [
+            '1 400 + 500',
+            '2 400+200',
+            '3 $base * 1.5',
+            '4 math.div(1300, 2)',
+            '5 calc(600 + 50)',
+            '6 map.get($weights, title)',
+            '7 #{400 + 300}',
+            '8 var(--x, 400 + 300)',
+            '9 400 + 200',
+        ]
+    );
+    assert.match(describeFinding(findings[0]), /is computed/);
+    assert.deepEqual(offScale('libs/b.scss', written), []);
+});
+
+test('treats `-` and `_` in Sass names alike, not in custom properties', () => {
+    const source = [
+        '$heavy_value: 650;',
+        '$light-value: 750;',
+        ':root { --a_b: 650; }',
+        '.x { font-weight: $heavy-value; }',
+        '.y { font-weight: $light_value; }',
+        '.z { font-weight: var(--a-b); }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', source), [
+        '2 $light-value: 750',
+        '1 $heavy_value: 650',
     ]);
 });
 

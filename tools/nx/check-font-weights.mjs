@@ -11,6 +11,11 @@ import { lex, lineIndex, tokensOf, valueAfter } from './font-weight-lexer.mjs';
  * (650 renders as 700), and a 600 or 700 that finds nothing heavier than 500
  * gets Chromium's synthetic bold. The workspace is at zero exceptions; this
  * check keeps it there.
+ *
+ * Sass is not compiled, so a weight must be written, not computed: arithmetic
+ * and functions other than `var()` are findings in themselves. Variables are
+ * followed by name. Not traced: positional mixin or function arguments and
+ * `@function` return values, so pass weights as named `$…weight` arguments.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
@@ -50,6 +55,12 @@ const NUMBER = new RegExp(
 );
 const RELATIVE_KEYWORD = /\b(bolder|lighter)\b/gi;
 const REFERENCE = /var\(\s*(--[\w-]+)|(\$[\w-]+)/gi;
+/**
+ * One token of a weight expression: a number (with any unit), an identifier
+ * (opening a call when `(` follows), an operator or a parenthesis.
+ */
+const EXPRESSION_TOKEN =
+    /\s*(?:((?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?[a-z%]*)|([$-]*[a-z_][\w-]*(?:\.[$\w-]+)*)(\()?|([-+*/%])|([()]))/giy;
 /** A value that is nothing but one variable, with an optional fallback. */
 const SOLE_REFERENCE =
     /^(?:var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)|(\$[\w-]+))$/i;
@@ -76,6 +87,38 @@ export function nearestScaleWeight(weight) {
     return 700;
 }
 
+/** Sass treats `-` and `_` in a name alike; custom properties are exact. */
+function identity(name) {
+    return name.startsWith('$') ? name.replace(/_/g, '-') : name;
+}
+
+/**
+ * Sass arithmetic and functions compile to a value the source does not show
+ * (`400 + 500` is 900), so a CSS weight that uses them is reported whole. An
+ * operator counts only after an operand, so `+700` is a number. TypeScript
+ * `${…}` holds code, whose numbers are checked as terms instead.
+ */
+function computedIn(value) {
+    const css = value.replace(/\$\{[^}]*\}/g, ' 0 ');
+    let previous = '';
+    EXPRESSION_TOKEN.lastIndex = 0;
+    while (EXPRESSION_TOKEN.lastIndex < css.length) {
+        const start = EXPRESSION_TOKEN.lastIndex;
+        const match = EXPRESSION_TOKEN.exec(css);
+        if (!match) {
+            EXPRESSION_TOKEN.lastIndex = start + 1;
+            previous = '';
+            continue;
+        }
+        const [, number, identifier, call, operator, paren] = match;
+        if (call && identifier.toLowerCase() !== 'var') return true;
+        if (operator && previous === 'operand') return true;
+        previous =
+            !call && (number || identifier || paren === ')') ? 'operand' : '';
+    }
+    return false;
+}
+
 /**
  * What a value contributes to a weight: off-scale terms as written, and the
  * variables to follow. `font` reads the value as the shorthand. Its weight
@@ -85,13 +128,13 @@ export function nearestScaleWeight(weight) {
  * that is one `var()` or Sass variable is followed as a whole shorthand, its
  * fallback included.
  */
-function analyse(mode, value, minimum = 0) {
+function analyse(mode, value, { minimum = 0, code = false } = {}) {
     if (mode === 'font') {
         const tokens = tokensOf(value);
         const sole = tokens.length === 1 && SOLE_REFERENCE.exec(tokens[0]);
         if (sole) {
             const fallback = analyse('font', sole[2] ?? '');
-            const name = sole[1] ?? sole[3];
+            const name = identity(sole[1] ?? sole[3]);
             return {
                 terms: fallback.terms,
                 references: [{ name, mode: 'font' }, ...fallback.references],
@@ -111,10 +154,15 @@ function analyse(mode, value, minimum = 0) {
         .map((match) => match[1])
         .filter((term) => Number(term) >= minimum)
         .filter((term) => !WEIGHT_SCALE.includes(Number(term)));
+    const computed = !code && computedIn(value);
     return {
-        terms: [...numbers, ...(value.match(RELATIVE_KEYWORD) ?? [])],
+        terms: computed
+            ? [{ value: value.trim(), computed: true }]
+            : [...numbers, ...(value.match(RELATIVE_KEYWORD) ?? [])].map(
+                  (term) => ({ value: term })
+              ),
         references: [...value.matchAll(REFERENCE)].map((match) => ({
-            name: match[1] ?? match[2],
+            name: identity(match[1] ?? match[2]),
             mode: 'weight',
         })),
     };
@@ -141,8 +189,8 @@ export function scanWeights(file, source) {
     let declarations = 0;
     const record = (name, index, analysis) => {
         declarations += 1;
-        for (const value of analysis.terms) {
-            findings.push({ file, line: lineOf(index), name, value });
+        for (const term of analysis.terms) {
+            findings.push({ file, line: lineOf(index), name, ...term });
         }
         references.push(...analysis.references);
     };
@@ -161,7 +209,11 @@ export function scanWeights(file, source) {
         // Code expressions carry other numbers too; a weight is 100 or more.
         for (const pattern of CODE_WEIGHT) {
             for (const match of text.matchAll(pattern)) {
-                record(match[1], match.index, analyse('weight', match[3], 100));
+                const analysis = analyse('weight', match[3], {
+                    minimum: 100,
+                    code: true,
+                });
+                record(match[1], match.index, analysis);
             }
         }
     }
@@ -172,7 +224,8 @@ export function scanWeights(file, source) {
         const end = match.index + match[0].length;
         const { value, selector } = valueAfter(lexed, end);
         if (selector) continue;
-        definitions.push({ file, line: lineOf(match.index), name, value });
+        const line = lineOf(match.index);
+        definitions.push({ file, line, name, key: identity(name), value });
     }
 
     return { declarations, findings, references, definitions };
@@ -194,11 +247,11 @@ export function findIndirectWeights(scans) {
         if (followed.has(`${mode} ${name}`)) continue;
         followed.add(`${mode} ${name}`);
         for (const definition of definitions) {
-            if (definition.name !== name) continue;
+            if (definition.key !== name) continue;
             const { file, line, value } = definition;
             const analysis = analyse(mode, value);
             for (const term of analysis.terms) {
-                findings.push({ file, line, name, value: term });
+                findings.push({ file, line, name: definition.name, ...term });
             }
             pending.push(...analysis.references);
         }
@@ -215,8 +268,11 @@ export function findOffScaleWeights(file, source) {
     };
 }
 
-export function describeFinding({ file, line, name, value }) {
+export function describeFinding({ file, line, name, value, computed }) {
     const scale = WEIGHT_SCALE.join('/');
+    if (computed) {
+        return `${file}:${line} ${name}: ${value} is computed, and the compiled value is what renders (Sass turns \`400 + 500\` into 900). Write a ${scale} weight.`;
+    }
     if (/^(bolder|lighter)$/i.test(String(value))) {
         return `${file}:${line} ${name}: ${value} is relative to the parent weight and can land off the ${scale} scale. Use an explicit scale weight.`;
     }
