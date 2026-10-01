@@ -990,6 +990,9 @@ test('lets `!default` keep an earlier value', () => {
         // A mixin included after both assignments reads the final value.
         included:
             '$w: 650; $w: 600; @mixin heading { font-weight: $w; } .title { @include heading; }',
+        // A `!default` after a set value never applies, in any scope.
+        ignored: '$w: 600; $w: 650 !default; .x { font-weight: $w; }',
+        innerIgnored: '$w: 600; .x { $w: 650 !default; font-weight: $w; }',
     };
     const found = Object.fromEntries(
         Object.entries(cases).map(([name, source]) => [
@@ -1003,7 +1006,25 @@ test('lets `!default` keep an earlier value', () => {
         unset: [],
         alone: ['1 $heavy: 650'],
         included: [],
+        ignored: [],
+        innerIgnored: [],
     });
+
+    // The partial's default yields to the value its importer set first.
+    const part = scanWeights(
+        'libs/d/_part.scss',
+        '$v: 600 !default; .g { font-weight: $v; }'
+    );
+    const importer = scanWeights(
+        'libs/d/importer.scss',
+        "$v: 750; @import 'part';"
+    );
+    assert.deepEqual(
+        findIndirectWeights([part, importer]).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        ),
+        ['libs/d/importer.scss:1 750']
+    );
 });
 
 test('passes an argument to the module that owns the callable', () => {
@@ -1099,6 +1120,21 @@ test('runs a partial again at every @import', { timeout: 5000 }, () => {
     ]);
     assert.deepEqual(report([common, repeated]), ['libs/r/_common.scss:1 650']);
     assert.deepEqual(report([x, y, cyclic]), []);
+
+    // Inside an inclusion, assignments keep their text order: the partial's
+    // own `$w: 650` comes after its nested import's `$w: 600`.
+    const nested = scanWeights('libs/r2/_nested.scss', '$w: 600;');
+    const partial = scanWeights(
+        'libs/r2/_partial.scss',
+        "@import 'nested'; $w: 650;"
+    );
+    const reordered = scanWeights(
+        'libs/r2/main.scss',
+        "@import 'partial'; .x { font-weight: $w; }"
+    );
+    assert.deepEqual(report([nested, partial, reordered]), [
+        'libs/r2/_partial.scss:1 650',
+    ]);
 });
 
 test('runs a call inside a mixin body where that mixin runs', () => {

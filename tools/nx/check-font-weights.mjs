@@ -383,15 +383,15 @@ export function scanWeights(file, source) {
         // `!global` one assigns the module variable, whenever it runs.
         const place = placeOf(blocks, index);
         const global = /!global\b/i.test(value);
-        // `!default` assigns only while the variable is unset, so it never
-        // hides an earlier value.
+        // `!default` assigns only while the variable is unset (see
+        // `effectiveDeclarations`).
         const fallback = /!default\b/i.test(value);
         definitions.push({
-            ...{ file, line, index, name, key, value, argument },
+            ...{ file, line, index, name, key, value, argument, fallback },
             // An argument reaches only the mixin or function it is passed to.
             callee: argument ? calleeOf(text, index) : null,
             scope: global ? null : place.scope,
-            conditional: global || fallback || place.conditional,
+            conditional: global || place.conditional,
             ...{ scopes: place.scopes, inCallable: place.inCallable },
             callable: place.callable,
         });
@@ -433,16 +433,24 @@ export function findIndirectWeights(scans) {
     // effect where the `@import` sits, transitively.
     // Each `@import` runs its file again, so only the current path guards
     // against cycles.
-    const imported = (file, name, at = null, path = new Set([file])) =>
+    // `order` keeps the text order inside the inclusion: the importer's
+    // position, then each imported file's own positions.
+    const imported = (file, name, prefix = [], path = new Set([file])) =>
         imports(file).flatMap(({ loaded, index }) => {
             if (path.has(loaded)) return [];
-            const position = at ?? index;
+            const order = [...prefix, index];
+            const position = order[0];
             const own = definitions
                 .filter((d) => d.file === loaded && d.key === name)
                 .filter((d) => !d.argument && d.scope === null)
-                .map((d) => ({ ...d, index: position, original: d }));
+                .map((d) => ({
+                    ...d,
+                    index: position,
+                    order: [...order, d.index],
+                    original: d,
+                }));
             const deeper = new Set([...path, loaded]);
-            return [...own, ...imported(loaded, name, position, deeper)];
+            return [...own, ...imported(loaded, name, order, deeper)];
         });
     // Where a callable runs: its call sites, with a call inside another
     // callable's body replaced by where that one runs.

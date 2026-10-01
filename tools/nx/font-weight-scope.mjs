@@ -212,20 +212,45 @@ export function sassScopes(scans) {
  * conditional assignments falls through to the next. Inside a `@mixin` or
  * `@function` body, module variables are read at call time: the top level is
  * resolved at each call site in the file (`callSites`) and at the end of the
- * module, for callers elsewhere. `settled` means an unconditional
- * declaration decided the value.
+ * module, for callers elsewhere. A `!default` assignment counts only where
+ * no unconditional value precedes it, and never settles the value. Imported
+ * declarations keep the text order of their inclusion. `settled` means an
+ * unconditional declaration decided the value.
  */
 export function effectiveDeclarations(reference, candidates, callSites = []) {
     const picked = new Set();
+    // Text order; an imported declaration carries its path (`order`).
+    const orderOf = (d) => d.order ?? [d.index];
+    const compare = (a, b) => {
+        const [x, y] = [orderOf(a), orderOf(b)];
+        for (let i = 0; i < Math.min(x.length, y.length); i += 1) {
+            if (x[i] !== y[i]) return x[i] - y[i];
+        }
+        return x.length - y.length;
+    };
+    const firm = (d) => !d.conditional && !d.fallback;
+    // `!default` assigns only while the name is unset: an unconditional
+    // assignment before it, in its scope or an outer one, wins.
+    const rank = new Map(reference.scopes.map((scope, i) => [scope, i]));
+    const live = candidates.filter(
+        (d) =>
+            !d.fallback ||
+            !candidates.some(
+                (f) =>
+                    firm(f) &&
+                    compare(f, d) < 0 &&
+                    (rank.get(f.scope) ?? -1) >= (rank.get(d.scope) ?? -1)
+            )
+    );
     const inEffect = (here) => {
-        const firm = here.map((d) => !d.conditional).lastIndexOf(true);
-        for (const d of firm === -1 ? here : here.slice(firm)) picked.add(d);
-        return firm !== -1;
+        const last = here.map(firm).lastIndexOf(true);
+        for (const d of last === -1 ? here : here.slice(last)) picked.add(d);
+        return last !== -1;
     };
     const at = (scope, position) =>
-        candidates
+        live
             .filter((d) => d.scope === scope && d.index < position)
-            .sort((a, b) => a.index - b.index);
+            .sort(compare);
     for (const scope of reference.scopes) {
         if (scope === null && reference.inCallable) {
             const positions = [...callSites, Infinity];
