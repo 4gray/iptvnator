@@ -4489,6 +4489,19 @@ test('reads ancestors and bases as compiled, in their context', () => {
             `${media} { @supports (display: grid) { .x { font-family: ${mono}; } } .x { font-weight: 700; } }`,
             [],
         ],
+        // Conditions compare however they are spaced or cased.
+        [
+            `${media} { .x { font-family: ${mono}; } } @media (min-width:1px) { @supports (display: grid) { .x { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@MEDIA ( min-width : 1px ) { .x { font-family: ${mono}; } } ${media} { .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { .x { font-family: ${mono}; } } @media (min-width: 2px) { .x { font-weight: 700; } }`,
+            [],
+        ],
         // A parent after a prefix (`.x &`) names more ancestors, read once
         // the parent itself (the same element) sets no family.
         [

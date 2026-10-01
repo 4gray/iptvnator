@@ -663,6 +663,20 @@ function splicedWith(simple, simples, combinator) {
 }
 
 /**
+ * An at-rule prelude spaced and cased one way, so conditions written
+ * differently compare equal (`@MEDIA (min-width:1px)` is `@media
+ * (min-width: 1px)`): its name lowercased, no space around `(`, `)`, `:`
+ * or `,`, and one space elsewhere.
+ */
+function conditionKey(prelude) {
+    return prelude
+        .replace(/^@[\w-]+/, (name) => name.toLowerCase())
+        .replace(/\s+/g, ' ')
+        .replace(/\s*([():,])\s*/g, '$1')
+        .trim();
+}
+
+/**
  * Whether a rule in context `outer` applies wherever one in `inner` does:
  * each of its conditions (at-rule wrappers, `@if`/`@each` blocks) is one
  * of the inner one's too (an unconditional rule applies everywhere).
@@ -944,7 +958,7 @@ export function familiesOf(
                         .trim()
                         .split('.'),
                 ];
-            } else if (part.startsWith('@')) wrappers.push(part);
+            } else if (part.startsWith('@')) wrappers.push(conditionKey(part));
             else if (part.includes('&'))
                 selector = part.replaceAll('&', selector);
             else selector = selector ? `${selector} ${part}` : part;
