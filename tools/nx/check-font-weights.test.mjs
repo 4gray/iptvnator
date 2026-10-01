@@ -2750,6 +2750,22 @@ test('resolves a JetBrains Mono family named through variables', () => {
     ]) {
         assert.deepEqual(report([rule(same)]), [], same);
     }
+    // A string's spacing is its own, past an escaped quote too: these match
+    // different elements.
+    for (const [setter, reader] of [
+        ["[title='a  b']", "[title='a b']"],
+        ["[title='a  \\'b']", "[title='a \\'b']"],
+    ]) {
+        assert.deepEqual(
+            report([
+                rule(
+                    `${setter} { --face: Roboto; } ${reader} { font-family: var(--face, 'JetBrains Mono'); font-weight: 700; }`
+                ),
+            ]),
+            ['libs/m4/rule.scss:1 700'],
+            setter
+        );
+    }
     assert.deepEqual(report([theme('.a { --face: Roboto; }'), rule(read)]), [
         'libs/m4/rule.scss:1 700',
     ]);

@@ -288,6 +288,9 @@ function registrationAccepts(body, value) {
     );
 }
 
+/** A run of whitespace, or a quoted string (its spaces are its own). */
+const SPACING = /(['"])(?:\\[\s\S]|(?!\1)[^\\])*\1|\s+/g;
+
 /** A registered custom property: `@property --x { … }`. */
 const PROPERTY_RULE = /@property\s+(--[\w-]+)\s*\{/gi;
 /** Sass loops that bind variables: `@each $a, $b in …`, `@for $i from …`. */
@@ -862,11 +865,16 @@ export function scanWeights(file, written) {
     // The family each rule renders in (see `familiesOf`); one named through
     // variables is resolved once the whole workspace is scanned.
     // The preludes of the blocks around a place, innermost first: two rules
-    // with the same chain style the same elements.
+    // with the same chain style the same elements. Spacing outside strings
+    // is the same selector; inside one (`[title="a  b"]`) it is not.
     const selectorOf = (scopes) =>
         scopes
             .filter((scope) => scope !== null)
-            .map((scope) => blockAt.get(scope)?.prelude.replace(/\s+/g, ' '))
+            .map((scope) =>
+                blockAt
+                    .get(scope)
+                    ?.prelude.replace(SPACING, (m) => (/^\s/.test(m) ? ' ' : m))
+            )
             .join(' < ');
     const refsIn = (parts, index, place) =>
         familyRefs(parts, {
