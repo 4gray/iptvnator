@@ -106,17 +106,22 @@ const CODE_ASSIGNMENT =
     /(\.style(?:\.fontWeight|\[\s*(['"`])font(?:Weight|-weight)\2\s*\]))\s*(\*\*|[-+*/%]|\|\||&&|\?\?)?=(?!=)/g;
 /** A logical assignment stores its right-hand side as it is. */
 const LOGICAL_ASSIGNMENT = /^(?:\|\||&&|\?\?)$/;
-const CODE_SET_PROPERTY =
-    /(setProperty\(\s*['"`](font-weight|--[\w-]+)['"`])\s*,/gi;
 /**
- * Angular's `Renderer2.setStyle(element, 'fontWeight', value, flags?)`, in
- * either case, or a custom property with `RendererStyleFlags2.DashCase`.
+ * Runtime setters, by the arguments before the property name and the names
+ * that set a weight or a custom property: `style.setProperty(name, value)`,
+ * Angular's `Renderer2.setStyle(element, 'fontWeight', value, flags?)` and
+ * SVG presentation attributes, `setAttribute(NS)`. Each argument is read as
+ * a whole expression, so `setStyle(wrap(getEl()), …)` counts too.
  */
-const CODE_SET_STYLE =
-    /(setStyle\(\s*(?:[^,()]|\([^()]*\))+,\s*['"`](font-?weight|--[\w-]+)['"`])\s*,/gi;
-/** An SVG presentation attribute set at runtime, with or without a namespace. */
-const CODE_SET_ATTRIBUTE =
-    /(setAttribute(?:NS)?\(\s*(?:[^,()'"`]+,\s*)?['"`](font-weight)['"`])\s*,/gi;
+const CODE_SETTER =
+    /\b(setProperty|setStyle|setAttribute|setAttributeNS)\s*\(/g;
+const SETTERS = {
+    setProperty: { skip: 0, property: /^(?:font-weight|--[\w-]+)$/i },
+    setStyle: { skip: 1, property: /^(?:font-?weight|--[\w-]+)$/i },
+    setAttribute: { skip: 0, property: /^font-weight$/i },
+    setAttributeNS: { skip: 1, property: /^font-weight$/i },
+};
+const QUOTED_NAME = /^(\s*(['"`])([^'"`]*)\2)\s*,/;
 /**
  * CSS-wide keywords on a custom property: `initial` (and `revert`, to the
  * browser's value) leaves it unset; `inherit` and `unset` take the parent's
@@ -125,6 +130,12 @@ const CODE_SET_ATTRIBUTE =
 const RESETTING = /^(?:initial|revert|revert-layer)\b/i;
 const INHERITING = /^(?:inherit|unset)\b/i;
 const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font)\s*:/gi;
+/** A `font` size, alone or with its `/line-height`. */
+const FONT_SIZE =
+    /^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[a-z]+|%)?|(?:xx?x?-)?(?:small|large)|medium|smaller|larger|[a-z-]+\(.*\))(?:\/.*)?$/i;
+/** `font` values that parse without a size and a family. */
+const FONT_KEYWORD =
+    /^(?:inherit|initial|unset|revert|revert-layer|caption|icon|menu|message-box|small-caption|status-bar)$/i;
 /**
  * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
  * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
@@ -316,6 +327,23 @@ function familyRefs({ outside, vars }, at) {
 }
 
 /**
+ * Whether a `font` shorthand parses, and so replaces the rule's earlier
+ * weight: a keyword, or a size followed by a family. One with `var()` or a
+ * Sass value is only checked once substituted, so it counts (at computed
+ * time an invalid one inherits the weight instead).
+ */
+function parsesAsFont(value) {
+    const text = value.replace(/!important\b/i, '').trim();
+    if (/var\(|\$|#\{/.test(text) || FONT_KEYWORD.test(text)) return true;
+    const tokens = tokensOf(text);
+    const size = tokens.findIndex((token) => FONT_SIZE.test(token));
+    const family = tokens
+        .slice(size + 1)
+        .some((token) => token !== '/' && !/^[\d.]/.test(token));
+    return size !== -1 && family;
+}
+
+/**
  * A term that only the JetBrains Mono cap makes a finding: a scale weight
  * (or `bold`) above it. An off-scale one is reported as such already.
  */
@@ -429,17 +457,22 @@ export function scanWeights(file, source) {
         const start = match.index + match[0].length;
         const { value, selector } = declarationText(lexed, start);
         if (selector) continue;
+        if (match[1].toLowerCase() === 'font' && !parsesAsFont(value)) continue;
         const { scope } = placeOf(blocks, match.index);
         const important = /!important\b/i.test(value);
         if (!setters.has(scope)) setters.set(scope, []);
         setters.get(scope).push({ index: match.index, important });
     }
+    // A shorthand that fails to parse is dropped, so it sets nothing.
     const inEffect = (index) => {
         const rule = setters.get(placeOf(blocks, index).scope) ?? [];
         const own = rule.find((setter) => setter.index === index);
-        return !rule.some(
-            (later) =>
-                later.index > index && (later.important || !own?.important)
+        return (
+            Boolean(own) &&
+            !rule.some(
+                (later) =>
+                    later.index > index && (later.important || !own.important)
+            )
         );
     };
 
@@ -515,19 +548,20 @@ export function scanWeights(file, source) {
                 setByCode(match[1], 'font-weight', match.index, expression);
             }
         }
-        for (const pattern of [
-            CODE_SET_PROPERTY,
-            CODE_SET_STYLE,
-            CODE_SET_ATTRIBUTE,
-        ]) {
-            for (const match of text.matchAll(pattern)) {
-                const end = match.index + match[0].length;
-                const expression = codeExpression(text, end, {
-                    argument: true,
-                });
-                const name = match[1].replace(/\s+/g, '');
-                setByCode(name, match[2], match.index, expression);
+        for (const match of text.matchAll(CODE_SETTER)) {
+            const { skip, property } = SETTERS[match[1]];
+            let at = match.index + match[0].length;
+            for (let k = 0; k < skip && at < text.length; k += 1) {
+                at += codeExpression(text, at, { argument: true }).length + 1;
             }
+            const quoted = QUOTED_NAME.exec(text.slice(at));
+            if (!quoted || !property.test(quoted[3])) continue;
+            const value = at + quoted[0].length;
+            const expression = codeExpression(text, value, { argument: true });
+            const name = text
+                .slice(match.index, at + quoted[1].length)
+                .replace(/\s+/g, '');
+            setByCode(name, quoted[3], match.index, expression);
         }
     }
     for (const match of text.matchAll(DEFINITION)) {

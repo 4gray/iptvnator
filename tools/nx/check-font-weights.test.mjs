@@ -859,11 +859,17 @@ test('checks Renderer2 setStyle weights', () => {
         "renderer.setStyle(el(), 'font-weight', '750', RendererStyleFlags2.DashCase);",
         "renderer.setStyle(el, 'fontWeight', 600);",
         "renderer.setStyle(el, 'color', '650');",
+        "renderer.setStyle(wrap(getEl(a, b)), 'fontWeight', 650);",
+        "node.setAttributeNS(ns(), 'font-weight', '650');",
+        'renderer.setStyle(el, `font-${kind}`, 650);',
+        "node.setAttribute('--title-weight', '650');",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
         "1 setStyle(this.host.nativeElement,'fontWeight': 650",
         "2 setStyle(el(),'font-weight': 750",
+        "5 setStyle(wrap(getEl(a,b)),'fontWeight': 650",
+        "6 setAttributeNS(ns(),'font-weight': 650",
     ]);
 });
 
@@ -1778,6 +1784,13 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
         ".r { font-weight: 700 !important; font: 400 12px 'JetBrains Mono'; }",
         ".s { font: 400 12px 'JetBrains Mono'; font-weight: 700; }",
         ".t { font-weight: 700; font-weight: 500; font-family: 'JetBrains Mono'; }",
+        ".u { font-weight: 700; font: bogus; font-family: 'JetBrains Mono'; }",
+        ".v { font-weight: 700; font: 12px; font-family: 'JetBrains Mono'; }",
+        ".w { font-weight: 700; font: var(--f); font-family: 'JetBrains Mono'; }",
+        ".x2 { font-weight: 700; font: inherit; font-family: 'JetBrains Mono'; }",
+        ".y2 { font-weight: 700; font: 12px/1.4 sans-serif; font-family: 'JetBrains Mono'; }",
+        ".z2 { font-weight: 700; font: 12px / 1.4; font-family: 'JetBrains Mono'; }",
+        ".z3 { font: 700 12px 1.4; font-family: 'JetBrains Mono'; }",
     ].join('\n');
 
     assert.equal(MONO_WEIGHT_CAP, 500);
@@ -1788,6 +1801,9 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
         '18 font-weight: 700',
         '19 font-weight: 700',
         '2 font: 600',
+        '21 font-weight: 700',
+        '22 font-weight: 700',
+        '26 font-weight: 700',
         '3 font-weight: bold',
         '6 font-weight: 600',
         '9 font-weight: 600',
