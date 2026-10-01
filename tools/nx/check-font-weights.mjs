@@ -27,9 +27,27 @@ const STYLESHEET_WEIGHT = /(?<![\w$-])((?:\$|--)?[\w-]*weight)\s*:/gi;
 const SOURCE_WEIGHT =
     /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"]?\s*:/g;
 const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/g;
-/** A bare integer: not part of a name, a decimal, a hex colour or a unit. */
-const BARE_INTEGER = /(?<![\w.#-])(\d+)(?![\w.%])/g;
-const RELATIVE_KEYWORD = /\b(bolder|lighter)\b/;
+/** A custom property or Sass variable that a weight value may refer to. */
+const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
+/**
+ * Weights set from code: Angular `[style.font-weight]` bindings (template or
+ * `host`) and literal DOM writes. The expression is the second capture.
+ */
+const CODE_WEIGHT = [
+    /(\[style\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])(.*?)\2/g,
+    /(\.style\.fontWeight)\s*=\s*(['"`]?)([\w.+-]*)\2/g,
+    /(setProperty\(\s*['"]font-weight['"])\s*,\s*(['"`]?)([\w.+-]*)\2/g,
+];
+
+/** A CSS <number>: decimals, an exponent and a `+` sign are all valid. */
+const NUMBER_TEXT = String.raw`\+?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?`;
+const NUMBER = new RegExp(
+    String.raw`(?<![\w.#$-])(${NUMBER_TEXT})(?![\w.%])`,
+    'gi'
+);
+const RELATIVE_KEYWORD = /\b(bolder|lighter)\b/g;
+const REFERENCE = /var\(\s*(--[\w-]+)|(\$[\w-]+)/g;
+const VALUE_END = new Set([';', '{', '}', "'", '"', '`', ']']);
 
 export function isScannedFile(file) {
     const normalized = file.split(path.sep).join('/');
@@ -54,9 +72,6 @@ export function blankComments(source) {
         });
 }
 
-const VALUE_END = new Set([';', '{', '}', "'", '"', '`', ']']);
-const VALUE_LIMIT = 400;
-
 /**
  * The declaration's value, across line breaks, so a wrapped
  * `var(--x,\n    650)` keeps its fallback. It ends at `;`, a brace, a quote
@@ -67,7 +82,7 @@ const VALUE_LIMIT = 400;
 function valueAfter(source, start) {
     let depth = 0;
     let end = start;
-    for (; end < source.length && end - start < VALUE_LIMIT; end += 1) {
+    for (; end < source.length; end += 1) {
         const char = source[end];
         if (char === '(') {
             depth += 1;
@@ -95,70 +110,157 @@ export function nearestScaleWeight(weight) {
     return 700;
 }
 
+/** Whitespace-separated tokens, keeping `var(--x, 650)` in one piece. */
+function tokensOf(value) {
+    const tokens = [];
+    let depth = 0;
+    let current = '';
+    for (const char of value.trim()) {
+        if (char === '(') depth += 1;
+        if (char === ')') depth -= 1;
+        if (depth === 0 && /\s/.test(char)) {
+            if (current) tokens.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    if (current) tokens.push(current);
+    return tokens;
+}
+
 /**
- * In the `font` shorthand a weight can only come before the size, so an
- * integer counts when a token follows it and it is not the line height after
- * `/`. A TypeScript `font: 12` property is therefore not read as a weight.
+ * The parts of a value that can set a weight. In the `font` shorthand a weight
+ * comes before the size and the family, so only tokens with two more after
+ * them count, never the line height after `/`. A TypeScript `font: 12`
+ * property is therefore not read as a weight.
  */
-function shorthandWeights(value) {
-    const tokens = value.trim().split(/\s+/);
+function weightText(name, value) {
+    if (name !== 'font') return value;
+    const tokens = tokensOf(value);
     return tokens
         .filter((token, index) => {
             const previous = tokens[index - 1] ?? '';
-            return (
-                /^\d+$/.test(token) &&
-                index < tokens.length - 1 &&
-                !previous.endsWith('/')
-            );
+            return index < tokens.length - 2 && !previous.endsWith('/');
         })
-        .map(Number);
+        .join(' ');
 }
 
-function weightsIn(name, value) {
-    if (name === 'font') return shorthandWeights(value);
-    return [...value.matchAll(BARE_INTEGER)].map((match) => Number(match[1]));
+/** Numbers off the scale and relative keywords, as written. */
+function offScaleTerms(text, minimum = 0) {
+    const numbers = [...text.matchAll(NUMBER)]
+        .map((match) => match[1])
+        .filter((term) => Number(term) >= minimum)
+        .filter((term) => !WEIGHT_SCALE.includes(Number(term)));
+    return [...numbers, ...(text.match(RELATIVE_KEYWORD) ?? [])];
 }
 
-/** Every weight declaration in one file that is off the scale. */
-export function findOffScaleWeights(file, source) {
+function referencesIn(text) {
+    return [...text.matchAll(REFERENCE)].map((match) => match[1] ?? match[2]);
+}
+
+/**
+ * One file's weight declarations: off-scale findings, the custom properties
+ * and Sass variables its weights refer to, and every such variable it defines
+ * (checked later, once the whole workspace has named what it refers to).
+ */
+export function scanWeights(file, source) {
     const stripped = blankComments(source);
-    const patterns = STYLESHEET.test(file)
+    const stylesheet = STYLESHEET.test(file);
+    const patterns = stylesheet
         ? [STYLESHEET_WEIGHT, FONT_SHORTHAND]
         : [SOURCE_WEIGHT, FONT_SHORTHAND];
     const findings = [];
+    const references = new Set();
+    const definitions = [];
     let declarations = 0;
+    const record = (name, index, text, minimum) => {
+        const line = lineOf(stripped, index);
+        declarations += 1;
+        for (const value of offScaleTerms(text, minimum)) {
+            findings.push({ file, line, name, value });
+        }
+        for (const reference of referencesIn(text)) references.add(reference);
+    };
 
     for (const pattern of patterns) {
         for (const match of stripped.matchAll(pattern)) {
             const name = match[1];
-            const { value, selector } = valueAfter(
-                stripped,
-                match.index + match[0].length
-            );
-            if (selector) continue;
-            const line = lineOf(stripped, match.index);
-            declarations += 1;
-            const keyword = value.match(RELATIVE_KEYWORD);
-            if (keyword && name !== 'font') {
-                findings.push({ file, line, name, value: keyword[1] });
-            }
-            for (const weight of weightsIn(name, value)) {
-                if (!WEIGHT_SCALE.includes(weight)) {
-                    findings.push({ file, line, name, value: weight });
-                }
+            const end = match.index + match[0].length;
+            const { value, selector } = valueAfter(stripped, end);
+            if (!selector) record(name, match.index, weightText(name, value));
+        }
+    }
+    if (!stylesheet) {
+        // Code expressions carry other numbers too; a weight is 100 or more.
+        for (const pattern of CODE_WEIGHT) {
+            for (const match of stripped.matchAll(pattern)) {
+                record(match[1], match.index, match[3], 100);
             }
         }
     }
+    for (const match of stripped.matchAll(DEFINITION)) {
+        const name = match[1];
+        if (/weight$/i.test(name) || (!stylesheet && name.startsWith('$'))) {
+            continue;
+        }
+        const { value, selector } = valueAfter(
+            stripped,
+            match.index + match[0].length
+        );
+        if (selector) continue;
+        definitions.push({
+            file,
+            line: lineOf(stripped, match.index),
+            name,
+            value,
+        });
+    }
 
-    return { declarations, findings };
+    return { declarations, findings, references, definitions };
+}
+
+/**
+ * Definitions of the variables that weight declarations refer to, followed
+ * through chains (`--a: var(--b)`). A name ending in `weight` is already
+ * checked where it is declared.
+ */
+export function findIndirectWeights(scans) {
+    const definitions = scans.flatMap((scan) => scan.definitions);
+    const pending = scans.flatMap((scan) => [...scan.references]);
+    const followed = new Set();
+    const findings = [];
+    while (pending.length > 0) {
+        const name = pending.pop();
+        if (followed.has(name)) continue;
+        followed.add(name);
+        for (const definition of definitions) {
+            if (definition.name !== name) continue;
+            const { file, line, value } = definition;
+            for (const term of offScaleTerms(value)) {
+                findings.push({ file, line, name, value: term });
+            }
+            pending.push(...referencesIn(value));
+        }
+    }
+    return findings;
+}
+
+/** Every off-scale weight one file can reach on its own. */
+export function findOffScaleWeights(file, source) {
+    const scan = scanWeights(file, source);
+    return {
+        declarations: scan.declarations,
+        findings: [...scan.findings, ...findIndirectWeights([scan])],
+    };
 }
 
 export function describeFinding({ file, line, name, value }) {
     const scale = WEIGHT_SCALE.join('/');
-    if (typeof value === 'string') {
+    if (/^(bolder|lighter)$/.test(String(value))) {
         return `${file}:${line} ${name}: ${value} is relative to the parent weight and can land off the ${scale} scale. Use an explicit scale weight.`;
     }
-    return `${file}:${line} ${name}: ${value} is off the ${scale} scale, so the bundled faces render it as a neighbouring weight or a synthetic bold. Use ${nearestScaleWeight(value)}.`;
+    return `${file}:${line} ${name}: ${value} is off the ${scale} scale, so the bundled faces render it as a neighbouring weight or a synthetic bold. Use ${nearestScaleWeight(Number(value))}.`;
 }
 
 /**
@@ -189,14 +291,23 @@ if (isMain) {
         .filter(Boolean)
         .filter(isScannedFile);
 
-    let declarations = 0;
-    const diagnostics = validateScanCoverage(files);
+    const scans = [];
     for (const file of files) {
         const source = await readFile(path.resolve(rootDir, file), 'utf8');
-        const result = findOffScaleWeights(file, source);
-        declarations += result.declarations;
-        diagnostics.push(...result.findings.map(describeFinding));
+        scans.push(scanWeights(file, source));
     }
+    const findings = [
+        ...scans.flatMap((scan) => scan.findings),
+        ...findIndirectWeights(scans),
+    ];
+    const diagnostics = [
+        ...validateScanCoverage(files),
+        ...findings.map(describeFinding),
+    ];
+    const declarations = scans.reduce(
+        (sum, scan) => sum + scan.declarations,
+        0
+    );
 
     if (diagnostics.length > 0) {
         console.error('Font weight scale check failed:');

@@ -4,9 +4,11 @@ import { test } from 'node:test';
 import {
     blankComments,
     describeFinding,
+    findIndirectWeights,
     findOffScaleWeights,
     isScannedFile,
     nearestScaleWeight,
+    scanWeights,
     validateScanCoverage,
 } from './check-font-weights.mjs';
 
@@ -124,6 +126,85 @@ test('checks the font shorthand in TypeScript, not a font property', () => {
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
         '1 font: 650',
+    ]);
+});
+
+test('compares every CSS number form with the scale', () => {
+    const source = [
+        '.a { font-weight: 650.0; }',
+        '.b { font-weight: 600.0; }',
+        '.c { font-weight: 6.5e2; }',
+        '.d { font-weight: +700; }',
+        '.e { font: 520.5 12px sans-serif; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', source), [
+        '1 font-weight: 650.0',
+        '3 font-weight: 6.5e2',
+        '5 font: 520.5',
+    ]);
+});
+
+test('reads a declaration to its terminator however long it is', () => {
+    const source = `.a { font-weight: /* ${'x'.repeat(600)} */ 650; }`;
+
+    assert.deepEqual(offScale('libs/a.scss', source), ['1 font-weight: 650']);
+});
+
+test('flags relative keywords in the font shorthand', () => {
+    const source = '.a { font: bolder 1rem sans-serif; }';
+
+    assert.deepEqual(offScale('libs/a.scss', source), ['1 font: bolder']);
+});
+
+test('follows variables a weight refers to, through chains and files', () => {
+    const source = [
+        ':root { --title: var(--title-base); --title-base: 650; --gap: 3; }',
+        '$heading: 750;',
+        '.a { font-weight: var(--title); gap: var(--gap); }',
+        '.b { font-weight: $heading; }',
+        '.c { font: 600 var(--size) $family; }',
+        ':root { --size: 12; }',
+        '$family: 1;',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', source), [
+        '2 $heading: 750',
+        '1 --title-base: 650',
+    ]);
+
+    const tokens = scanWeights('libs/tokens.scss', ':root { --title: 650; }');
+    const usage = scanWeights(
+        'libs/b.component.scss',
+        '.b { font-weight: var(--title); }'
+    );
+    assert.deepEqual(
+        findIndirectWeights([tokens, usage]).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        ),
+        ['libs/tokens.scss:1 650']
+    );
+});
+
+test('checks Angular style bindings and literal DOM writes', () => {
+    const template = [
+        '<p [style.font-weight]="active() ? 650 : 400">a</p>',
+        '<p [style.fontWeight]="items.length > 3 ? 700 : 500">b</p>',
+    ].join('\n');
+    const component = [
+        "host: { '[style.font-weight]': '750' },",
+        "element.style.fontWeight = '650';",
+        "element.style.setProperty('font-weight', '450');",
+        'element.style.fontWeight = weight;',
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
+        '1 [style.font-weight]: 650',
+    ]);
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 [style.font-weight]: 750',
+        '2 .style.fontWeight: 650',
+        "3 setProperty('font-weight': 450",
     ]);
 });
 
