@@ -240,7 +240,9 @@ function analyseCode(expression, mode = 'weight', after = 0) {
 
 /**
  * Where each mixin or function a stylesheet defines is called in it
- * (`@include name`, `name(`), skipping the definition itself.
+ * (`@include name`, `name(`), skipping the definition itself, with the
+ * callable a call sits in (`within`), if any: such a call runs only when
+ * that callable does.
  */
 function callSitesOf(text, blocks) {
     const calls = {};
@@ -261,7 +263,10 @@ function callSitesOf(text, blocks) {
                 );
                 return !/@(?:mixin|function)\s+$/.test(before);
             })
-            .map((match) => match.index);
+            .map(({ index }) => ({
+                index,
+                within: placeOf(blocks, index).callable,
+            }));
     }
     return calls;
 }
@@ -426,17 +431,29 @@ export function findIndirectWeights(scans) {
     };
     // `@import` is textual: an imported file's top-level declarations take
     // effect where the `@import` sits, transitively.
-    const imported = (file, name, at = null, seen = new Set([file])) =>
+    // Each `@import` runs its file again, so only the current path guards
+    // against cycles.
+    const imported = (file, name, at = null, path = new Set([file])) =>
         imports(file).flatMap(({ loaded, index }) => {
-            if (seen.has(loaded)) return [];
-            seen.add(loaded);
+            if (path.has(loaded)) return [];
             const position = at ?? index;
             const own = definitions
                 .filter((d) => d.file === loaded && d.key === name)
                 .filter((d) => !d.argument && d.scope === null)
                 .map((d) => ({ ...d, index: position, original: d }));
-            return [...own, ...imported(loaded, name, position, seen)];
+            const deeper = new Set([...path, loaded]);
+            return [...own, ...imported(loaded, name, position, deeper)];
         });
+    // Where a callable runs: its call sites, with a call inside another
+    // callable's body replaced by where that one runs.
+    const runsAt = (file, name, seen = new Set()) => {
+        if (!name || seen.has(name)) return [];
+        seen.add(name);
+        return (callsByFile.get(file)?.[name] ?? []).flatMap(
+            ({ index, within }) =>
+                within ? runsAt(file, within, seen) : [index]
+        );
+    };
     const followed = new Set();
     const findings = [];
     while (pending.length > 0) {
@@ -462,7 +479,7 @@ export function findIndirectWeights(scans) {
                       ),
                       ...imported(file, name),
                   ],
-                  callsByFile.get(file)?.[reference.callable] ?? []
+                  runsAt(file, reference.callable)
               )
             : null;
         const picked = new Set(own?.picked.map((d) => d.original ?? d));

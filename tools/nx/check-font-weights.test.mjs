@@ -1071,6 +1071,52 @@ test('counts the configuration of a module loaded `as *`', () => {
     );
 });
 
+test('runs a partial again at every @import', { timeout: 5000 }, () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const common = scanWeights('libs/r/_common.scss', '$w: 650;');
+    const a = scanWeights('libs/r/_a.scss', "@import 'common';");
+    const b = scanWeights('libs/r/_b.scss', "@import 'common';");
+    const siblings = scanWeights(
+        'libs/r/siblings.scss',
+        "@import 'a'; $w: 600; @import 'b'; .x { font-weight: $w; }"
+    );
+    const repeated = scanWeights(
+        'libs/r/repeated.scss',
+        "@import 'common'; $w: 600; @import 'common'; .x { font-weight: $w; }"
+    );
+    const x = scanWeights('libs/c2/_x.scss', "@import 'y';");
+    const y = scanWeights('libs/c2/_y.scss', "@import 'x'; $w: 600;");
+    const cyclic = scanWeights(
+        'libs/c2/main.scss',
+        "@import 'x'; .x { font-weight: $w; }"
+    );
+
+    assert.deepEqual(report([common, a, b, siblings]), [
+        'libs/r/_common.scss:1 650',
+    ]);
+    assert.deepEqual(report([common, repeated]), ['libs/r/_common.scss:1 650']);
+    assert.deepEqual(report([x, y, cyclic]), []);
+});
+
+test('runs a call inside a mixin body where that mixin runs', () => {
+    const deferred = [
+        '$w: 650; @mixin caller { @include m; } $w: 600;',
+        '@mixin m { font-weight: $w; } .x { @include caller; }',
+    ].join('\n');
+    const calledEarly = [
+        '$w: 650; @mixin caller { @include m; } .x { @include caller; }',
+        '$w: 600; @mixin m { font-weight: $w; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/n2/deferred.scss', deferred), []);
+    assert.deepEqual(offScale('libs/n2/early.scss', calledEarly), [
+        '1 $w: 650',
+    ]);
+});
+
 test('blanks every `//` comment in TypeScript', () => {
     const component = [
         'call(// font-weight: 650 was removed',
