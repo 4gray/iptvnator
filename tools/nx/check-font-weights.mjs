@@ -1676,13 +1676,33 @@ export function findIndirectWeights(scans) {
         const decided = verdicts.length > 0;
         return decided && verdicts.every((v) => v === 'stop') ? 'stop' : 'open';
     };
+    // A custom property set on the reading rule's own elements: by a rule
+    // with its selector in its file (see `selectorOf`), under no condition
+    // the reader does not share, to a value of its own. It replaces what
+    // those elements inherit.
+    const setsOwn = (definition, reference) =>
+        definition.file === reference.file &&
+        definition.selector === reference.selector &&
+        !INHERITING.test((definition.full ?? definition.value).trim()) &&
+        (definition.guards ?? []).every((guard) =>
+            (reference.guards ?? []).includes(guard)
+        );
     const refVerdict = (reference, seen) => {
         const { name, file, namespace, index, shorthand } = reference;
         const key = `${file} ${namespace ?? ''} ${index} ${name} ${shorthand}`;
         if (seen.has(key)) return 'open';
         seen.add(key);
+        // A value the elements set themselves hides inherited ones; one set
+        // from code (an inline style) may still win over it.
+        const visible = visibleDefinitions(reference);
+        const own = name.startsWith('--')
+            ? visible.filter((definition) => setsOwn(definition, reference))
+            : [];
+        const definitions = own.length
+            ? visible.filter((d) => d.code || own.includes(d))
+            : visible;
         // A value set from code holds the text of its strings.
-        const verdicts = visibleDefinitions(reference).flatMap((definition) =>
+        const verdicts = definitions.flatMap((definition) =>
             (definition.code
                 ? cssOfCode(definition.value)
                 : [definition.full ?? definition.value]

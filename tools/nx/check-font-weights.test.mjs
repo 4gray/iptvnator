@@ -2911,6 +2911,80 @@ test('treats blocks with the same selector as one rule', () => {
     }
 });
 
+test("prefers a rule's own custom property over an inherited one", () => {
+    const mono = "'JetBrains Mono'";
+    const read = 'font-family: var(--face); font-weight: 700;';
+    const report = (body) =>
+        findOffScaleWeights('libs/s3/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        [`:root { --face: ${mono}; } .x { --face: Roboto; ${read} }`, []],
+        [
+            `:root { --face: Roboto; } .x { --face: ${mono}; ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } .x { --face: Roboto; } .x { ${read} }`,
+            [],
+        ],
+        [`.p { --face: ${mono}; .x { --face: Roboto; ${read} } }`, []],
+        // Not its own: inherited on purpose, conditional, or another rule.
+        [
+            `:root { --face: ${mono}; } .x { --face: inherit; ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } .x { @if $a { --face: Roboto; } ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } @media (min-width: 1px) { .x { --face: Roboto; } } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } .y { --face: Roboto; } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } @if $a { .x { --face: Roboto; } } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        // Inside the same condition, it is its own.
+        [
+            `:root { --face: ${mono}; } .x { @if $a { --face: Roboto; ${read} } }`,
+            [],
+        ],
+        // Sass variables keep Sass scoping: an `@if` may still assign Mono.
+        [
+            `.x { $f: Roboto; @if $a { $f: ${mono}; } font-family: $f; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+    // Another file's rule styles other elements (component styles).
+    assert.deepEqual(
+        findIndirectWeights([
+            scanWeights('libs/s3/theme.scss', `:root { --face: ${mono}; }`),
+            scanWeights('libs/s3/b.scss', '.x { --face: Roboto; }'),
+            scanWeights('libs/s3/a.scss', `.x { ${read} }`),
+        ]).map(({ value }) => value),
+        ['700']
+    );
+    // A value set from code (an inline style) can still win.
+    assert.deepEqual(
+        findIndirectWeights([
+            scanWeights(
+                'libs/s3/x.component.ts',
+                `el.style.setProperty('--face', "${mono}");`
+            ),
+            scanWeights('libs/s3/a.scss', `.x { --face: Roboto; ${read} }`),
+        ]).map(({ value }) => value),
+        ['700']
+    );
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",
