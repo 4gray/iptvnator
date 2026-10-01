@@ -97,9 +97,10 @@ function identity(name) {
 
 /**
  * Sass arithmetic and functions compile to a value the source does not show
- * (`400 + 500` is 900), so a CSS weight that uses them is reported whole. An
- * operator counts only after an operand, so `+700` is a number. TypeScript
- * `${…}` holds code, whose numbers are checked as terms instead.
+ * (`400 + 500` is 900, `-(-650)` is 650), so a CSS weight that uses them is
+ * reported whole. The one sign that is part of a number is a `+` written
+ * directly before it (`+700`). TypeScript `${…}` holds code, whose numbers
+ * are checked as terms instead.
  */
 function computedIn(value) {
     const css = value.replace(/\$\{[^}]*\}/g, ' 0 ');
@@ -115,7 +116,12 @@ function computedIn(value) {
         }
         const [, number, identifier, call, operator, paren] = match;
         if (call && identifier.toLowerCase() !== 'var') return true;
-        if (operator && previous === 'operand') return true;
+        // `+700` is a number; any other sign or operator computes a value.
+        const signed =
+            operator === '+' &&
+            previous !== 'operand' &&
+            /^[\d.]/.test(css.slice(EXPRESSION_TOKEN.lastIndex));
+        if (operator && !signed) return true;
         previous =
             !call && (number || identifier || paren === ')') ? 'operand' : '';
     }
@@ -139,7 +145,8 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
         const terms = [];
         const references = [];
         tokens.forEach((token, index) => {
-            const tail = tokens.length - 1 - index + after;
+            // Only "two or more after" matters; capping keeps cycles finite.
+            const tail = Math.min(tokens.length - 1 - index + after, 2);
             const variable = VARIABLE_TOKEN.exec(token);
             if (variable) {
                 const [, custom, fallback, sass, interpolated] = variable;

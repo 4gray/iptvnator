@@ -345,6 +345,9 @@ test('reports a computed weight whole, since Sass compiles it', () => {
         '.g { font-weight: #{400 + 300}; }',
         '.h { font-weight: var(--x, 400 + 300); }',
         '.i { font: 400 + 200 12px sans-serif; }',
+        '.j { font-weight: -(-650); }',
+        '.k { font-weight: -650; }',
+        '.l { font-weight: +(650); }',
     ].join('\n');
     const written = [
         '.a { font-weight: +700; }',
@@ -366,6 +369,9 @@ test('reports a computed weight whole, since Sass compiles it', () => {
             '6 map.get($weights, title)',
             '7 #{400 + 300}',
             '8 var(--x, 400 + 300)',
+            '10 -(-650)',
+            '11 -650',
+            '12 +(650)',
             '9 400 + 200',
         ]
     );
@@ -414,6 +420,19 @@ test('follows a variable for any stretch of the font shorthand', () => {
         '4 $d-weight-and-size: 450',
     ]);
     assert.deepEqual(offScale('libs/b.scss', sizeAndFamily), []);
+});
+
+test('terminates on cyclic variables', { timeout: 5000 }, () => {
+    const source = [
+        ':root { --body: var(--body) sans-serif; }',
+        '$a: $b 1rem;',
+        '$b: $a sans-serif;',
+        '.x { font: var(--body); }',
+        '.y { font: italic $a Inter; }',
+        '.z { font-weight: var(--body); }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', source), []);
 });
 
 test('flags relative keywords, which can land off the scale', () => {
