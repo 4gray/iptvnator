@@ -4281,6 +4281,35 @@ test('reads `:is()` and `:where()` as the selectors they hold', () => {
             `.x > :is(.a .b) { font-family: ${mono}; } .x > .a .b { font-weight: 700; }`,
             [],
         ],
+        // Beside other simples, which join its selectors' last compound.
+        [
+            `:where(.parent .child).active { font-family: ${mono}; } .parent .child.active { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent .child.active { font-family: ${mono}; } :where(.parent .child).active { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x :is(.a .b).on { font-family: ${mono}; } .x .a .b.on { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `span:where(.p .c) { font-family: ${mono}; } .p span.c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `*:where(.p .c) { font-family: ${mono}; } .p .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:is(.p .c, .d).on { font-family: ${mono}; } .d.on { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x > :is(.a .b).on { font-family: ${mono}; } .x > .a .b.on { font-weight: 700; }`,
+            [],
+        ],
         // Ranked with its own specificity: `:where()` counts nothing.
         [
             `.parent .child { font-family: Roboto; } :where(.parent .child) { font-family: ${mono}; } .parent .child { font-weight: 700; }`,

@@ -576,18 +576,11 @@ function complexOf(selector) {
     let ways = [[]];
     for (const [k, part] of compoundsOf(selector).entries()) {
         const simples = simplesOf(part.compound);
-        const [, name, argument] =
-            simples?.length === 1 ? (FUNCTIONAL.exec(simples[0]) ?? []) : [];
+        const spliced = (k === 0 || part.combinator === ' ') && simples;
+        const whole = spliced ? simples.filter(holdsSelectors) : [];
         const options =
-            (k === 0 || part.combinator === ' ') &&
-            /^(?:is|where|matches)$/i.test(name ?? '')
-                ? selectorsOf(argument)
-                      .flatMap(complexOf)
-                      .map((inner) =>
-                          compoundsOf(inner).map((c, i) =>
-                              i ? c : { ...c, combinator: part.combinator }
-                          )
-                      )
+            whole.length === 1
+                ? splicedWith(whole[0], simples, part.combinator)
                 : (simples ? alternativesOf(simples) : [[part.compound]]).map(
                       (way) => [{ ...part, compound: way.join('') }]
                   );
@@ -595,6 +588,48 @@ function complexOf(selector) {
         if (ways.length > 16) return [canonicalSelector(selector)];
     }
     return ways.map(joined);
+}
+
+/** Whether a simple is an `:is()`/`:where()` holding a whole selector. */
+function holdsSelectors(simple) {
+    const [, name, argument] = FUNCTIONAL.exec(simple) ?? [];
+    return (
+        /^(?:is|where|matches)$/i.test(name ?? '') &&
+        selectorsOf(argument).some((s) => compoundsOf(s).length > 1)
+    );
+}
+
+/**
+ * The compounds `simple` (one holding whole selectors) opens into, the
+ * compound's other simples joining each selector's last compound
+ * (`:where(.p .c).active` is `.p .c.active`).
+ */
+function splicedWith(simple, simples, combinator) {
+    const [, , argument] = FUNCTIONAL.exec(simple);
+    const rest = alternativesOf(simples.filter((s) => s !== simple));
+    return selectorsOf(argument)
+        .flatMap(complexOf)
+        .flatMap((inner) =>
+            rest.flatMap((others) => {
+                const parts = compoundsOf(inner);
+                const last = parts.at(-1);
+                const own = simplesOf(last.compound);
+                if (!own) return [];
+                // A type leads the compound, and `*` gives way to the rest.
+                const merged = [...new Set([...own, ...others])];
+                const all =
+                    merged.length > 1
+                        ? merged.filter((s) => s !== '*')
+                        : merged;
+                const types = all.filter((s) => /^[a-z][\w-]*$/i.test(s));
+                const compound = [
+                    ...types,
+                    ...all.filter((s) => !types.includes(s)),
+                ].join('');
+                const spliced = [...parts.slice(0, -1), { ...last, compound }];
+                return [spliced.map((c, i) => (i ? c : { ...c, combinator }))];
+            })
+        );
 }
 
 /**
