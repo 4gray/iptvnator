@@ -9,6 +9,7 @@ import {
     calleeOf,
     closingBrace,
     codeExpression,
+    decodeEscapes,
     inBinding,
     inConditionPrelude,
     inMarkupCss,
@@ -61,7 +62,9 @@ import {
  * A parameter default counts where a call leaves it out, or when no call is
  * in sight. A weight set from code is read per value it can take, so a
  * condition's numbers are not weights. A partial's `!default` gives way
- * where every load of it configures the name. Not traced: positional mixin
+ * where every load of it configures the name. CSS escapes in names read as
+ * Sass reads them (`font-w\65 ight` is `font-weight`). Not traced:
+ * JavaScript escapes in TypeScript (`fontW\u0065ight`), positional mixin
  * or function arguments, calls through `meta.apply`, `meta.load-css` and
  * `@function` return values, so pass weights as named `$…weight` arguments;
  * nor values TypeScript stores and binds later (a component field, signal or
@@ -659,10 +662,13 @@ function callSitesOf(text, blocks) {
  * and Sass variables its weights refer to, and every such variable it defines
  * (checked later, once the whole workspace has named what it refers to).
  */
-export function scanWeights(file, source) {
+export function scanWeights(file, written) {
+    // Names read with their CSS escapes decoded; lines are the file's own.
+    const { text: source, origin } = decodeEscapes(file, written);
     const lexed = lex(file, source);
     const { text, quoteAt } = lexed;
-    const lineOf = lineIndex(text);
+    const writtenLine = lineIndex(written);
+    const lineOf = origin ? (index) => writtenLine(origin[index]) : writtenLine;
     const stylesheet = STYLESHEET.test(file);
     const patterns = stylesheet
         ? [STYLESHEET_WEIGHT, FONT_SHORTHAND]

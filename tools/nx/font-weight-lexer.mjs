@@ -604,6 +604,63 @@ export function invocationsOf({ text, quoteAt }) {
     return calls;
 }
 
+/** A CSS escape: up to six hex digits (one whitespace after them ends it). */
+const ESCAPE = /\\(?:([\da-f]{1,6})(?:\r\n|[ \t\r\n\f])?|([^\n\r\f]))/iy;
+
+/** The name characters `text` ends with (`font-w` in `.x { font-w`). */
+function trailingName(text) {
+    let start = text.length;
+    while (start > 0 && /[\w-]/.test(text[start - 1])) start -= 1;
+    return text.slice(start);
+}
+
+/**
+ * The name character an escape decodes to after `name` (the name characters
+ * before it), or `''` where it stays an escape: past ASCII, outside a name,
+ * or a digit or `-` that would start one.
+ */
+function escapedName(escape, name) {
+    const code = escape[1] ? Number.parseInt(escape[1], 16) : null;
+    const char = code === null ? escape[2] : String.fromCharCode(code);
+    if ((code !== null && code >= 0x80) || !/^[\w-]$/.test(char)) return '';
+    if (/^(?:-?[a-z_]|--)/i.test(name)) return char;
+    return /^-?$/.test(name) && /^[a-z_]$/i.test(char) ? char : '';
+}
+
+/**
+ * `source` with the CSS escapes that Sass and the browser read as plain name
+ * characters decoded (`font-w\65 ight` is `font-weight`, `b\6f ld` is
+ * `bold`, `--w\65 ight` is `--weight`), and `origin`, the offset in `source`
+ * of each position (`null` when nothing changed). An escape stays where its
+ * character would change the token, as Sass leaves it: a digit or `-`
+ * starting a name (`\36 50` is a name, not 650), anything after a number
+ * (`6\35 0`, `6\65 2`), and a character no name has (`\:`, `\20`, `\'`).
+ * TypeScript is left as written: its strings use JavaScript escapes.
+ */
+export function decodeEscapes(file, source) {
+    if (file.endsWith('.ts') || !source.includes('\\')) {
+        return { text: source, origin: null };
+    }
+    let text = '';
+    const origin = [];
+    for (let i = 0; i < source.length; i += 1) {
+        ESCAPE.lastIndex = i;
+        const escape = source[i] === '\\' ? ESCAPE.exec(source) : null;
+        const length = escape ? escape[0].length : 1;
+        const char = escape ? escapedName(escape, trailingName(text)) : '';
+        if (char) {
+            text += char;
+            origin.push(i);
+        } else {
+            text += source.slice(i, i + length);
+            for (let k = i; k < i + length; k += 1) origin.push(k);
+        }
+        i += length - 1;
+    }
+    origin.push(source.length);
+    return { text, origin };
+}
+
 /** 1-based line of every index, computed once per file. */
 export function lineIndex(text) {
     const starts = [0];

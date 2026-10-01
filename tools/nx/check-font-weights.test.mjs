@@ -12,6 +12,7 @@ import {
     scanWeights,
     validateScanCoverage,
 } from './check-font-weights.mjs';
+import { decodeEscapes } from './font-weight-lexer.mjs';
 
 const offScale = (file, source) =>
     findOffScaleWeights(file, source).findings.map(
@@ -334,6 +335,61 @@ test('reads a family name as the browser does', () => {
         '5 font-weight: 700',
         '9 font-weight: 700',
     ]);
+});
+
+test('reads escaped names as Sass and the browser do', () => {
+    const source = [
+        '.a { font-w\\65 ight: 650; fo\\6et-weight: 750; }',
+        '.b { font\\2d weight: 650; font-\\77 eight: 750; }',
+        '.c { --w\\65 ight: 650; font-weight: var(--weight); }',
+        '$w\\65: 750; .d { font-weight: $we; }',
+        ".e { font-family: 'JetBrains Mono'; font-weight: b\\6f ld; }",
+        // An escape that ends at a line break keeps later lines in place.
+        '.f { font-w\\65',
+        'ight: 650; }',
+        '.g { font-weight: 750; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/m6/escaped.scss', source).sort(), [
+        '1 font-weight: 650',
+        '1 font-weight: 750',
+        '2 font-weight: 650',
+        '2 font-weight: 750',
+        '3 --weight: 650',
+        '4 $we: 750',
+        '5 font-weight: bold',
+        '6 font-weight: 650',
+        '8 font-weight: 750',
+    ]);
+    assert.deepEqual(
+        offScale(
+            'apps/web/src/a.component.html',
+            '<p style="font-w\\65 ight: 650">x</p>'
+        ),
+        ['1 font-weight: 650']
+    );
+    // An escape stays where its character would change the token: a digit
+    // starting a name, anything after a number, a character no name has,
+    // and past ASCII. TypeScript strings use JavaScript escapes instead.
+    const kept = [
+        '\\36 50',
+        '6\\35 0',
+        '6\\65 2',
+        '-\\35',
+        '.a\\:b',
+        "'\\\\65'",
+        'JetBrains\\20 Mono',
+        'a\\10061',
+    ].join(' ');
+    assert.equal(decodeEscapes('a.scss', kept).text, kept);
+    assert.equal(
+        decodeEscapes('a.scss', '-\\77 x a\\31, \\5f x -w\\65 bkit').text,
+        '-wx a1, _x -webkit'
+    );
+    assert.equal(
+        decodeEscapes('a.ts', 'font-w\\65 ight').text,
+        'font-w\\65 ight'
+    );
 });
 
 test('reads Sass nested font properties', () => {
