@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+    expectedPlaywrightTargets,
     findInvalidTaskGraphs,
+    findMissingTargets,
     MODES,
     playwrightTargets,
 } from './check-e2e-task-graphs.mjs';
@@ -75,4 +77,23 @@ test('accepts a non-parallel e2e target whose servers Playwright starts', async 
 
 test('validates both the local and the CI plugin inference', () => {
     assert.deepEqual(MODES, { local: { CI: undefined }, ci: { CI: 'true' } });
+});
+
+test('expects the e2e target and one atomized target per spec', () => {
+    assert.deepEqual(
+        expectedPlaywrightTargets({ 'web-e2e': ['src/basic.e2e.ts'] }),
+        ['web-e2e:e2e', 'web-e2e:e2e-ci--src/basic.e2e.ts']
+    );
+});
+
+test('reports expected targets the plugin no longer infers', () => {
+    const graph = graphWithE2eTarget({ parallelism: false, dependsOn: [] });
+
+    assert.deepEqual(
+        findMissingTargets(graph, [
+            'web-e2e:e2e',
+            'web-e2e:e2e-ci--src/basic.e2e.ts',
+        ]),
+        ['web-e2e:e2e-ci--src/basic.e2e.ts']
+    );
 });

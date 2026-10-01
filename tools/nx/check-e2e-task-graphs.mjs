@@ -1,4 +1,6 @@
 import { execFileSync } from 'node:child_process';
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -17,6 +19,47 @@ export const MODES = {
     local: { CI: undefined },
     ci: { CI: 'true' },
 };
+
+/**
+ * The Playwright projects whose targets must be inferred. The check only sees
+ * targets the plugin tags as Playwright ones, so a target that drops out of
+ * the inference would otherwise pass unchecked.
+ */
+export const E2E_PROJECTS = {
+    'web-e2e': 'apps/web-e2e',
+    'electron-backend-e2e': 'apps/electron-backend-e2e',
+};
+
+/** `e2e` plus one atomized target per spec, as the plugin names them. */
+export function expectedPlaywrightTargets(specFilesByProject) {
+    return Object.entries(specFilesByProject).flatMap(([project, specs]) => [
+        `${project}:e2e`,
+        ...specs.map((spec) => `${project}:e2e-ci--${spec}`),
+    ]);
+}
+
+export function findMissingTargets(projectGraph, expectedTargets) {
+    const inferred = new Set(
+        playwrightTargets(projectGraph).map(
+            ({ project, target }) => `${project}:${target}`
+        )
+    );
+    return expectedTargets.filter((task) => !inferred.has(task));
+}
+
+function readSpecFiles(workspaceRoot) {
+    return Object.fromEntries(
+        Object.entries(E2E_PROJECTS).map(([project, root]) => [
+            project,
+            readdirSync(path.join(workspaceRoot, root, 'src'), {
+                recursive: true,
+            })
+                .filter((file) => file.endsWith('.e2e.ts'))
+                .map((file) => `src/${file.split(path.sep).join('/')}`)
+                .sort(),
+        ])
+    );
+}
 
 export function playwrightTargets(projectGraph) {
     return Object.values(projectGraph.nodes)
@@ -67,11 +110,18 @@ function childEnv(mode) {
 }
 
 async function checkCurrentEnvironment() {
-    const { createProjectGraphAsync } = await import('@nx/devkit');
+    const { createProjectGraphAsync, workspaceRoot } =
+        await import('@nx/devkit');
     const projectGraph = await createProjectGraphAsync({ exitOnError: true });
     const failures = await findInvalidTaskGraphs(projectGraph);
     const checked = playwrightTargets(projectGraph).length;
-    console.log(`${RESULT_PREFIX}${JSON.stringify({ checked, failures })}`);
+    const missing = findMissingTargets(
+        projectGraph,
+        expectedPlaywrightTargets(readSpecFiles(workspaceRoot))
+    );
+    console.log(
+        `${RESULT_PREFIX}${JSON.stringify({ checked, failures, missing })}`
+    );
 }
 
 function main() {
@@ -89,12 +139,14 @@ function main() {
         const result = output
             .split('\n')
             .find((line) => line.startsWith(RESULT_PREFIX));
-        const { checked, failures } = JSON.parse(
+        const { checked, failures, missing } = JSON.parse(
             result.slice(RESULT_PREFIX.length)
         );
-        if (checked === 0) {
+        for (const task of missing) {
             failed = true;
-            console.error(`[${mode}] no Playwright targets were inferred`);
+            console.error(
+                `[${mode}] ${task} was not inferred as a Playwright target`
+            );
         }
         for (const { task, message } of failures) {
             failed = true;
@@ -102,7 +154,7 @@ function main() {
                 `[${mode}] ${task}\n  ${message.replace(/\n/g, '\n  ')}`
             );
         }
-        if (failures.length === 0 && checked > 0) {
+        if (failures.length === 0 && missing.length === 0) {
             console.log(
                 `[${mode}] ${checked} Playwright task graphs are valid`
             );
