@@ -296,9 +296,10 @@ export function placeOf(blocks, index) {
 }
 
 /**
- * The mixin or function an argument at `index` is passed to: the name before
- * the `(` that encloses it (the last segment of `ns.name(`, or the callable's
- * own name for a signature default), or `with` for a `@use … with (…)`.
+ * The mixin or function an argument at `index` is passed to, as
+ * `{ name, namespace }`: the name before the `(` that encloses it (`ns.name(`
+ * gives both; a signature default gives the callable's own name), or `with`
+ * for a `@use … with (…)`.
  */
 export function calleeOf(text, index) {
     let depth = 0;
@@ -306,8 +307,11 @@ export function calleeOf(text, index) {
         if (text[k] === ')') depth += 1;
         else if (text[k] === '(') {
             if (depth === 0) {
-                const name = /([\w.-]+)\s*$/.exec(text.slice(0, k))?.[1];
-                return name?.split('.').pop() ?? null;
+                const full = /([\w.-]+)\s*$/.exec(text.slice(0, k))?.[1];
+                if (!full) return null;
+                const parts = full.split('.');
+                const name = parts.pop();
+                return { name, namespace: parts.pop() ?? null };
             }
             depth -= 1;
         }

@@ -378,12 +378,15 @@ export function scanWeights(file, source) {
         // `!global` one assigns the module variable, whenever it runs.
         const place = placeOf(blocks, index);
         const global = /!global\b/i.test(value);
+        // `!default` assigns only while the variable is unset, so it never
+        // hides an earlier value.
+        const fallback = /!default\b/i.test(value);
         definitions.push({
             ...{ file, line, index, name, key, value, argument },
             // An argument reaches only the mixin or function it is passed to.
             callee: argument ? calleeOf(text, index) : null,
             scope: global ? null : place.scope,
-            conditional: global || place.conditional,
+            conditional: global || fallback || place.conditional,
             ...{ scopes: place.scopes, inCallable: place.inCallable },
             callable: place.callable,
         });
@@ -410,6 +413,17 @@ export function findIndirectWeights(scans) {
     const pending = scans.flatMap((scan) => scan.references);
     const { qualified, unqualified, imports } = sassScopes(scans);
     const callsByFile = new Map(scans.map((scan) => [scan.file, scan.calls]));
+    // Whether the callable an argument is passed to is defined in `file`:
+    // `ns.name(` must load `file` (or a module forwarding it) as `ns`; a bare
+    // `name(` is defined in the caller itself or in what it brings in.
+    const calleeReaches = ({ callee, file: caller }, file) => {
+        if (callee.namespace)
+            return qualified(caller, callee.namespace).has(file);
+        return (
+            caller === file ||
+            Boolean(unqualified(caller).get(file)?.declarations)
+        );
+    };
     // `@import` is textual: an imported file's top-level declarations take
     // effect where the `@import` sits, transitively.
     const imported = (file, name, at = null, seen = new Set([file])) =>
@@ -473,8 +487,8 @@ export function findIndirectWeights(scans) {
             if (scope) {
                 const access = scope.get(definition.file);
                 const passed =
-                    definition.callee !== null &&
-                    definition.callee === reference.callable;
+                    definition.callee?.name === reference.callable &&
+                    calleeReaches(definition, file);
                 const configured = access?.ranges.some(
                     ([start, end]) =>
                         definition.index >= start && definition.index < end

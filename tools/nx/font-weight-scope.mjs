@@ -151,10 +151,17 @@ export function sassScopes(scans) {
         const down = [file];
         const imported = new Set(down);
         while (down.length > 0) {
-            for (const edge of edges.get(down.pop()) ?? []) {
+            const current = down.pop();
+            for (const edge of edges.get(current) ?? []) {
                 if (edge.rule === 'use' && edge.namespace === '*') {
-                    for (const member of members(edge.loaded).keys()) {
-                        merge(scope, member, DECLARATIONS);
+                    // Its `with (…)` configures what the loading file reads.
+                    merge(scope, current, { ...BOTH, ranges: edge.ranges });
+                    for (const [member, ranges] of members(edge.loaded)) {
+                        merge(scope, member, {
+                            ...DECLARATIONS,
+                            arguments: ranges.length > 0,
+                            ranges,
+                        });
                     }
                 } else if (edge.rule === 'import') {
                     merge(scope, edge.loaded, DECLARATIONS);

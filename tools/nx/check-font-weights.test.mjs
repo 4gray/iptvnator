@@ -982,6 +982,95 @@ test('reads module variables where a mixin is called', () => {
     assert.deepEqual(offScale('libs/m/early.scss', calledEarly), ['1 $w: 650']);
 });
 
+test('lets `!default` keep an earlier value', () => {
+    const cases = {
+        kept: '$heavy: 650; $heavy: 600 !default; .x { font-weight: $heavy; }',
+        unset: '$heavy: 600 !default; .x { font-weight: $heavy; }',
+        alone: '$heavy: 650 !default; .x { font-weight: $heavy; }',
+        // A mixin included after both assignments reads the final value.
+        included:
+            '$w: 650; $w: 600; @mixin heading { font-weight: $w; } .title { @include heading; }',
+    };
+    const found = Object.fromEntries(
+        Object.entries(cases).map(([name, source]) => [
+            name,
+            offScale(`libs/d/${name}.scss`, source),
+        ])
+    );
+
+    assert.deepEqual(found, {
+        kept: ['1 $heavy: 650'],
+        unset: [],
+        alone: ['1 $heavy: 650'],
+        included: [],
+    });
+});
+
+test('passes an argument to the module that owns the callable', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const a = scanWeights(
+        'libs/o/_a.scss',
+        '@mixin heading($w: 1) { margin: $w; }'
+    );
+    const b = scanWeights(
+        'libs/o/_b.scss',
+        '@mixin heading($w: 600) { font-weight: $w; }'
+    );
+    const loader = (body) => scanWeights('libs/o/o.scss', body);
+
+    assert.deepEqual(
+        report([
+            a,
+            b,
+            loader(
+                "@use 'a'; @use 'b'; .x { @include a.heading($w: 650); @include b.heading; }"
+            ),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([a, b, loader("@use 'b'; .x { @include b.heading($w: 750); }")]),
+        ['libs/o/o.scss:1 750']
+    );
+    assert.deepEqual(
+        report([
+            a,
+            b,
+            loader("@use 'b' as *; .x { @include heading($w: 750); }"),
+        ]),
+        ['libs/o/o.scss:1 750']
+    );
+    // A bare `heading(` resolves to `a` (`as *`), not to the namespaced `b`.
+    assert.deepEqual(
+        report([
+            a,
+            b,
+            loader(
+                "@use 'a' as *; @use 'b'; .x { @include heading($w: 650); @include b.heading; }"
+            ),
+        ]),
+        []
+    );
+});
+
+test('counts the configuration of a module loaded `as *`', () => {
+    const tokens = scanWeights('libs/s2/_tokens.scss', '$w: 500 !default;');
+    const loader = scanWeights(
+        'libs/s2/s.scss',
+        "@use 'tokens' as * with ($w: 650); .x { font-weight: $w; }"
+    );
+
+    assert.deepEqual(
+        findIndirectWeights([tokens, loader]).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        ),
+        ['libs/s2/s.scss:1 650']
+    );
+});
+
 test('blanks every `//` comment in TypeScript', () => {
     const component = [
         'call(// font-weight: 650 was removed',
