@@ -459,9 +459,28 @@ function joined(parts) {
         .join('');
 }
 
-/** One simple selector: a type or `*`, class, id, attribute or pseudo. */
+/**
+ * One simple selector: a type or `*`, class, id, attribute or pseudo (a
+ * functional one's argument read to its balanced `)`, however nested).
+ */
 const SIMPLE =
-    /\*|[a-z][\w-]*|\.(?:\\.|[\w-])+|#(?:\\.|[\w-])+|\[[^\]]*\]|::?[\w-]+(?:\((?:[^()]|\([^()]*\))*\))?/iy;
+    /\*|[a-z][\w-]*|\.(?:\\.|[\w-])+|#(?:\\.|[\w-])+|\[[^\]]*\]|::?[\w-]+/iy;
+
+/** Where the `(` at `open` closes (past its `)`), or -1; strings skipped. */
+function closingParen(text, open) {
+    let depth = 0;
+    let quote = '';
+    for (let i = open; i < text.length; i += 1) {
+        const char = text[i];
+        if (char === '\\') i += 1;
+        else if (quote) {
+            if (char === quote) quote = '';
+        } else if (char === '"' || char === "'") quote = char;
+        else if (char === '(') depth += 1;
+        else if (char === ')' && (depth -= 1) === 0) return i + 1;
+    }
+    return -1;
+}
 
 /**
  * A compound's simple selectors (`a.x:hover` is `a`, `.x`, `:hover`), or
@@ -472,9 +491,15 @@ function simplesOf(compound) {
     const simples = [];
     SIMPLE.lastIndex = 0;
     while (SIMPLE.lastIndex < compound.length) {
+        const start = SIMPLE.lastIndex;
         const match = SIMPLE.exec(compound);
         if (!match) return null;
-        simples.push(match[0]);
+        if (match[0].startsWith(':') && compound[SIMPLE.lastIndex] === '(') {
+            const end = closingParen(compound, SIMPLE.lastIndex);
+            if (end === -1) return null;
+            SIMPLE.lastIndex = end;
+        }
+        simples.push(compound.slice(start, SIMPLE.lastIndex));
     }
     return simples;
 }
@@ -590,12 +615,17 @@ function complexOf(selector) {
     return ways.map(joined);
 }
 
-/** Whether a simple is an `:is()`/`:where()` holding a whole selector. */
+/**
+ * Whether a simple is an `:is()`/`:where()` holding a whole selector, also
+ * through others nested in it (`:where(:is(.p .c))`).
+ */
 function holdsSelectors(simple) {
     const [, name, argument] = FUNCTIONAL.exec(simple) ?? [];
     return (
         /^(?:is|where|matches)$/i.test(name ?? '') &&
-        selectorsOf(argument).some((s) => compoundsOf(s).length > 1)
+        selectorsOf(argument)
+            .flatMap(complexOf)
+            .some((s) => compoundsOf(s).length > 1)
     );
 }
 

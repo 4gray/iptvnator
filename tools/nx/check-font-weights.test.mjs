@@ -4310,6 +4310,34 @@ test('reads `:is()` and `:where()` as the selectors they hold', () => {
             `.x > :is(.a .b).on { font-family: ${mono}; } .x > .a .b.on { font-weight: 700; }`,
             [],
         ],
+        // Through wrappers nested in each other, however deep.
+        [
+            `:where(:is(.parent .child)) { font-family: ${mono}; } .parent .child { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent .child { font-family: ${mono}; } :where(:is(.parent .child)) { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:is(:where(.a .b), .c) .d { font-family: ${mono}; } .a .b .d { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:where(:is(:where(.p .c))).on { font-family: ${mono}; } .p .c.on { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x > :where(:is(.a .b)) { font-family: ${mono}; } .x > .a .b { font-weight: 700; }`,
+            [],
+        ],
+        // An unclosed one cannot be read, but its rule's weight still is.
+        [`.x:not(.a { font-weight: 650; }`, ['font-weight: 650']],
+        // Specificity counts through them too: `#a` outranks the later `.x`.
+        [
+            `:is(:is(:is(#a))) { font-family: ${mono}; } .x { font-family: Roboto; } #a.x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
         // Ranked with its own specificity: `:where()` counts nothing.
         [
             `.parent .child { font-family: Roboto; } :where(.parent .child) { font-family: ${mono}; } .parent .child { font-weight: 700; }`,
