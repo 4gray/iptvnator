@@ -1936,6 +1936,8 @@
             "NO_RECOVERY": "忘れた PIN を復元する方法はありません。PIN を削除するには、アプリのデータをリセットするしかありません。",
             "SAVE": "PIN を保存",
             "UNLOCK": "ロック解除",
+            "CONFIRM": "確認",
+            "TURN_OFF": "無効化",
             "CONFIRM_TITLE": "ペアレンタル PIN を確認",
             "CONFIRM_DESCRIPTION": "この設定を変更するには、現在の PIN を入力してください。"
         },

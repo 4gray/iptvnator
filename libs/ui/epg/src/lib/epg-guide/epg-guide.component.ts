@@ -151,6 +151,7 @@ export class EpgGuideComponent implements OnDestroy {
         play: (row) => this.commitRow(this.rows()[row]),
         details: (row, block) =>
             this.openDetails(this.rows()[row], this.blocksFor(row)[block]),
+        revealFocus: () => this.viewportController.revealFocus(this.focus()),
         jumpNow: () => this.jumpNow(),
         stepDay: (direction) => this.stepDay(direction),
         close: () => this.close.emit(),
@@ -184,6 +185,8 @@ export class EpgGuideComponent implements OnDestroy {
         activeRow: () => this.activeRowIndex(),
         ensureLoaded: (channels) => this.programsService.ensureLoaded(channels),
         setScrollLeft: (left) => this.view.scrollLeft.set(left),
+        afterRender: (callback) =>
+            afterNextRender(callback, { injector: this.injector }),
     });
 
     private readonly dialogs = new EpgGuideDialogController(
@@ -229,11 +232,18 @@ export class EpgGuideComponent implements OnDestroy {
             if (!viewport) {
                 return;
             }
-            untracked(() =>
-                this.viewportController.watch(viewport, this.destroyRef)
-            );
+            untracked(() => {
+                this.viewportController.watch(viewport, this.destroyRef);
+                this.viewportController.whenRowsRendered(
+                    viewport,
+                    this.destroyRef,
+                    () =>
+                        afterNextRender(() => this.jumpNow(false), {
+                            injector: this.injector,
+                        })
+                );
+            });
         });
-        afterNextRender(() => this.jumpNow(false));
     }
 
     ngOnDestroy(): void {
@@ -246,7 +256,7 @@ export class EpgGuideComponent implements OnDestroy {
      * listener of its own — but it must own the DOM focus, or a screen reader
      * would still announce whatever the user tabbed from. The roving
      * `tabindex="0"` moves with the signal, so the element to focus only exists
-     * after the next render.
+     * after the next render — after N's smooth jump, once its row is rendered.
      */
     @HostListener('document:keydown', ['$event'])
     onKeydown(event: KeyboardEvent): void {
@@ -254,10 +264,7 @@ export class EpgGuideComponent implements OnDestroy {
             return;
         }
         event.preventDefault();
-        this.viewportController.revealFocus(this.focus());
-        afterNextRender(() => this.viewportController.focusRovingTarget(), {
-            injector: this.injector,
-        });
+        this.viewportController.focusRovingTargetOnRow(this.tabbableRow());
     }
 
     trackRow(_index: number, channel: EpgGuideChannel): string {

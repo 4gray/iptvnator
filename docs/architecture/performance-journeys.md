@@ -19,9 +19,9 @@ live in `tools/performance/`.
 | J4 `search`      | six-character query typed into global search | results list settled                                                          |
 
 J1 is instrumented: `renderer.initialBytes` from the built output, and the
-runtime counters of the launch benchmark below. J2 is instrumented by its own
-spec (below). J3 and J4 follow the plan in `.plans/` and are added one thread
-at a time; each thread names its journey and counter in the PR description.
+runtime counters of the launch benchmark below. J2 and J3 are instrumented by
+their own specs (below). J4 follows the plan in `.plans/` and is added in its
+own thread; each thread names its journey and counter in the PR description.
 
 ## Running the journeys
 
@@ -108,10 +108,13 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
 | Counter                            | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `renderer.ipcCallsToFirstCard`     | `start` trace events the preload emits for every bridge invocation (listener registrations `on*`/`remove*` excluded, as in `wrapElectronApi`). The renderer probe fires one sentinel `cancelSourceProbe('__iptvnator-journey-sentinel__')` at the terminal moment; renderer-to-main IPC is ordered, so events before the sentinel are the exact count. The preload traces the call before forwarding it, and `SOURCE_HEALTH_CANCEL` only looks the id up in an in-memory map, so the sentinel never reaches the database worker.                      |
+| `renderer.ipcSerialDepthToFirstCard` | Length of the longest chain of bridge calls before the sentinel in which each call started after the previous one completed. Derived from the same trace channel; see [Serial IPC depth](#serial-ipc-depth). |
 | `renderer.domMutationsToFirstCard` | `MutationRecord`s (not callback batches) from a `MutationObserver` on the document element with `childList`, `attributes`, `characterData` and `subtree`. When the init script runs before `<html>` exists the observer watches `document`, which the blob reports in `capabilities.observedTarget`.                                                                                                                                                                                                                                                  |
 | `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to three decimals (a shift of 0.0001 flips in and out of the cutoff between runs; the CLS "good" threshold is 0.1, so three decimals keep the counter exact without hiding anything a user could see). The cutoff is sampled in a timer queued from the first `requestAnimationFrame` after the terminal batch, that is after the frame that paints the card has been committed; entries delivered live after the terminal batch are buffered and filtered by the same cutoff. |
 | `renderer.layoutShiftScoreSettled` | The same filter from navigation start until the settle point after the first card (see [Settle window](#settle-window)), rounded to three decimals. It catches shifts that land after the cutoff, such as skeletons that collapse once their data resolves.                                                                                                                                                                                                                                                                                           |
 | `renderer.longTasks`               | `longtask` entries over 50 ms up to that same cutoff, which includes the task that rendered the card. The count depends on machine speed, so it is evidence until a run shows it is stable on the CI runner.                                                                                                                                                                                                                                                                                                                                          |
+| `renderer.cdTicksToFirstCard`      | `ApplicationRef` ticks from document start until the terminal batch, read from the `electron-performance` build's tick counter (see [Change-detection ticks](#change-detection-ticks)). The tick that rendered the card runs before the observer's microtask, so it is included.                                                                                                                                                                                                                         |
+| `renderer.cdTicksIdle30s`          | Ticks during the 30 s [idle window](#idle-window) that opens at the settle point, with nothing touching the page. The baseline for plan item C6 (zoneless change detection).                                                                                                                                                                                                                                                                                                                          |
 
 #### Settle window
 
@@ -188,12 +191,96 @@ The 316 px element was the dashboard hero. The J1 profile has no history
 and no favorites; its only slide is an Xtream recently-added title, and that
 query waits for the favorites. The hero dropped its skeleton as soon as the
 history resolved empty and came back with that slide moments later. It now
-keeps the skeleton until every source that can feature a title has loaded
+keeps the skeleton until every source that can feature a title has loaded,
+including a live candidate's first programme answer for at most 2 s
 (`DashboardHeroSlidesPresenter.loading`), and
 `DashboardDataService.xtreamRecentlyAddedLoading` no longer settles before
 the playlist inventory has loaded. After the fix (macOS, 2026-09-30): both
 counters were 0 in all 12 iterations of two runs, every window closed on
 `quiet` and `lateShifts` was empty.
+
+#### Idle window
+
+After the settle point J1 leaves the dashboard alone for
+`JOURNEY_IDLE_WINDOW_MS` (30 s) and counts what it does anyway:
+`renderer.cdTicksIdle30s` is the number of change-detection ticks in that
+window, and `evidence.idle.domMutations` the mutation records in the whole
+document. The [idle work audit](idle-work-audit-2026-09.md) found Eager
+components re-rendering on every such tick in a dev build; this counter
+measures the ticks in the optimized build, so plan item C6 can show what
+zoneless change detection removes.
+
+The window opens when the settle window closes, so startup data still
+landing is not idle work, and it is timed by a renderer `setTimeout`. The
+record refuses an iteration whose window opened before the settle point or
+more than 100 ms after it (`launch-journey-record-idle-start-late`), or
+lasted less than 30 s, or more than 1 s longer
+(`launch-journey-record-idle-window-late`). The window opens in the settle
+timer's callback while the settle point is that timer's deadline, so a late
+callback would leave ticks between the two outside both windows; either late
+timer means the page was busy, not idle. Locally the window opened 1-4 ms
+after the settle point. `evidence.idle` keeps the measured `durationMs` and
+`settledToIdleStartMs`. The main-process counters and the IPC capture are
+read after the window, which does not move them: they are frozen earlier.
+J2's launches skip the window (`runLaunchJourney` with `idleWindowMs: null`),
+so its click does not wait 30 s; a record without a finished window is
+refused as a J1 measurement.
+
+#### Change-detection ticks
+
+`window.ng` and Angular's profiler hook (`ɵsetProfiler`) exist only in dev
+mode, and the `electron-performance` build is optimized like production. So
+that build alone installs its own counter: its `fileReplacements` entry
+swaps `apps/web/src/environments/environment.ts` for
+`environment.performance.ts`, which re-exports the production `AppConfig`
+and calls `installChangeDetectionTickCounter()` from
+`change-detection-tick-counter.ts` while `main.js` is evaluated, before
+Angular bootstraps. The counter wraps the internal `ApplicationRef._tick`,
+the method every tick runs through: the zone scheduler's `onMicrotaskEmpty`,
+the zoneless scheduler, `afterNextRender` idle buckets and the public
+`ApplicationRef.tick()` all call it, and it is where Angular emits the
+profiler's `ChangeDetectionStart`. The count therefore equals the profiler's
+tick count and stays comparable across the zoneless migration. The running
+total is `window.__iptvnatorCdTicks.count`; the probe subtracts it at the
+journey's boundaries (zero at document start for J1, the value in the
+capture-phase click listener for J2). If a future Angular renames `_tick`,
+the performance build throws at startup instead of reporting zero.
+
+This is a fileReplacements swap rather than an environment flag checked in
+`app.config.ts` on purpose: a flag, even one the optimizer folds, would put
+an import and a branch into the production sources, while the swap leaves
+every file the production and PWA builds compile unchanged. Their output is
+byte-identical with and without the counter (every emitted file hashes the
+same apart from the `ngsw.json` build timestamp), so
+`renderer.initialBytes` cannot move. A build-config test fails if another
+configuration references `environment.performance.ts`. The other benchmarks
+built from `electron-performance` (M3U import, Xtream, cancellation) carry
+the counter too; it adds one increment per tick.
+
+A build without the counter reports
+`capabilities.changeDetectionTicks: "unavailable-counter-missing"` and the
+record refuses the iteration, so a zero is never a missing hook.
+
+First local measurement (macOS, 2026-09-30, three `perf:journeys` runs,
+18 iterations per journey including warm-ups):
+
+| Counter                       | Run 1 | Run 2 | Run 3 |
+| ----------------------------- | ----- | ----- | ----- |
+| `renderer.cdTicksToFirstCard` | 20    | 20    | 21    |
+| `renderer.cdTicksIdle30s`     | 3     | 3     | 3     |
+| `renderer.cdTicksToFirstPage` | 22    | 22    | 22    |
+
+Every run marked all three `stable: true`. `renderer.cdTicksIdle30s` and
+`renderer.cdTicksToFirstPage` were identical in all 18 iterations, and every
+idle window saw 90 mutation records. `renderer.cdTicksToFirstCard` read 20
+in 13 iterations and 21 in the five measured iterations of the third run
+(its warm-up read 20), with every other J1 counter unchanged
+(`renderer.ipcCallsToFirstCard` 14, `renderer.domMutationsToFirstCard` 554).
+With zone.js a tick follows every macrotask that ran in the Angular zone, so
+two startup callbacks that land in one task on one launch and in two tasks
+on another differ by one tick without any different work. Treat a one-tick
+difference in J1 as that race, and confirm on the CI runner that the counter
+is deterministic before it becomes a baseline.
 
 #### Main-process counters
 
@@ -249,14 +336,57 @@ iteration. When iterations disagree, the summary reports the maximum and marks
 the counter `stable: false` under `counterStability`; such a counter is not
 promoted to a guardrail until it is deterministic.
 
-One counter from the plan is listed under `unavailable` with the reason
-instead of being faked:
+No J1 counter from the plan is listed under `unavailable` any more; the
+list stays in the record so a future gap is reported instead of faked.
 
-- `renderer.cdTicksToFirstCard`: the `electron-performance` build optimizes
-  scripts, which sets `ngDevMode` to false, so Angular does not publish
-  `window.ng` and `ɵsetProfiler` is unavailable. The probe checks this at the
-  terminal moment and the record refuses a build where the hook exists but was
-  not counted.
+#### Serial IPC depth
+
+`renderer.ipcCallsToFirstCard` counts calls, but calls issued in parallel
+cost one round trip, and #1716 showed that lowering the count did not move
+wall-clock. `renderer.ipcSerialDepthToFirstCard` counts the round trips the
+renderer made one after another instead.
+
+The capture records every `start` and every completion (`success` or
+`error`) the preload traces, in arrival order, from install until the
+sentinel (`timeline` in the capture state). The preload traces a completion
+inside the wrapper's `then`, before the caller's own continuation runs, and
+renderer-to-main IPC is ordered, so a call the renderer issued because
+another call resolved always arrives after that call's completion.
+`computeJourneyIpcSerialDepth` (`src/performance/journey-ipc-serial-depth.ts`)
+then defines:
+
+- the depth of a call is 1 plus the largest depth of the calls that
+  completed before it started (1 when none had);
+- the counter is the largest depth of a call that completed before the
+  sentinel. A call still in flight at the first card is excluded: the card
+  did not wait for it. Every bridge call counts, including a synchronous one,
+  as `renderer.ipcCallsToFirstCard` does.
+
+Trace events carry no call id, so when several calls of one method are in
+flight the capture cannot tell which one completed. The counter attributes
+each completion to the deepest in-flight call of that method (an upper
+bound); `evidence.ipcSerialDepth.depthLowerBound` attributes it to the
+shallowest. The two differ only when concurrent calls of one method sit at
+different depths. A completion with no matching start fails the iteration.
+
+With a start marker (J2) the timeline starts mid-run, so the capture keeps
+calls that started outside it (before the marker, and the markers
+themselves) apart: their completions are left out. When a method has calls
+in flight both inside and outside the timeline, a completion is attributed
+outside, which leaves the timeline call in flight (excluded from the depth)
+rather than ending it too early; `evidence.ipcTimelineAmbiguousCompletions`
+counts these.
+
+Per iteration, `evidence.ipcSerialDepth.chain` names the methods of one
+longest chain, first call first (at each step the predecessor is the latest
+completion at the largest depth), `inFlightAtEnd` counts the calls excluded
+as in flight, and `evidence.ipcTimeline` is the whole ordered timeline
+(`+method` start, `-method` completion). The CI job summary prints the chain
+of the first measured iteration. The chain is ordering, not proven
+causality: a call placed in it may have been triggered by a timer or signal
+rather than by its predecessor. [Startup work before the first
+card](#startup-work-before-the-first-card) records what the chain is on
+`master`.
 
 ### Wall-clock
 
@@ -300,6 +430,33 @@ path the first card waits for. That path is a serial chain of round trips
 (the migration reads, the inventory read and `reconcileEpgSources`), so a
 serial-depth counter is a better guardrail candidate than a raw call count.
 
+`renderer.ipcSerialDepthToFirstCard` is that counter. First measurement
+(macOS, 2026-09-30, `master` at 525ca7bc4, six launches): 6 in every
+iteration, upper and lower bound equal, with the same chain each time:
+
+```
+dbGetAppState → dbRecoverLegacyPlaylists → dbGetAppState
+  → dbGetAppPlaylistMetas → reconcileEpgSources → setParentalLockState
+```
+
+The first level is three parallel `dbGetAppState` reads (with
+`announcePlaylistOpenListener` and `getAppUpdateStatus`); the four calls
+started after `setParentalLockState` resolved (`downloadsGetList`,
+`dbGetRecentlyViewed`, `dbGetAllGlobalFavorites`, `xtreamRequest`) are
+still in flight at the first card and excluded.
+
+The chain is ordering, and its last link shows the limit of that: nothing
+on the card's path awaits `setParentalLockState`. The parental lock
+service fires it (without awaiting) once `SettingsStore.loadSettings()`
+has resolved, which happens only after `reconcileEpgSources`, and it
+completes before the card in every measured launch. The links the card
+waits for are the first five: the route resolver
+(`settingsReadyResolver`) and the startup overlay (`allPlaylistsLoaded`,
+set by the `loadPlaylists$` effect) both wait for `loadSettings()`, which
+waits for the playlist migrations, the inventory read and
+`reconcileEpgSources`. No baseline yet: the counter is promoted only after a
+PR that lowers it also lowers `spawnToFirstCardMs` (Principle 3).
+
 ### Summary schema
 
 ```json
@@ -316,6 +473,8 @@ serial-depth counter is a better guardrail candidate than a raw call count.
   "journeys": {
     "launch": {
       "counters": {
+        "renderer.cdTicksIdle30s": 3,
+        "renderer.cdTicksToFirstCard": 20,
         "renderer.ipcCallsToFirstCard": 12,
         "renderer.layoutShiftScoreSettled": 0.236
       },
@@ -333,7 +492,7 @@ serial-depth counter is a better guardrail candidate than a raw call count.
         "spawnToFirstCardMs.p50": 1234.5,
         "spawnToFirstCardMs.p90": 1300.1
       },
-      "unavailable": { "renderer.cdTicksToFirstCard": "reason" },
+      "unavailable": {},
       "iterations": [
         {
           "index": 0,
@@ -376,6 +535,13 @@ that every measured iteration reports the same counter names with finite
 values, so a new counter needs no schema change. A J1 runtime baseline is added
 once its counter is deterministic on the CI runner; the launch counters are
 not yet (see [Ratchet](#ratchet)), so the summary is evidence only.
+
+J3 adds the `journeys.playback` entry with the same shape and no schema
+version change: `counters` and `wallClock` hold only plain numbers, and its
+iterations carry `evidence.media` (the video element at `playing`) and
+`evidence.epochs.loadedMetadata` / `.playing`. The renderer probe blob gained
+a `media` field (`null` for J1 and J2), which the probe's
+`schemaVersion` 1 readers ignore.
 
 ## J2 `open-source`: open a source to a browsable list
 
@@ -456,12 +622,12 @@ strings and stream paths carry credentials and are never stored.
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `renderer.ipcCallsToFirstPage`     | Bridge `start` trace events between the start and end sentinels, counted by a second `journey-main-ipc-capture.ts` instance installed with `startSentinelId`. Calls before the start marker are tallied separately (`callsBeforeStart`); a start marker that is missing, repeated or received after the end sentinel fails the iteration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `renderer.domMutationsToFirstPage` | `MutationRecord`s from the click until the terminal batch. Records produced before the click (hover, settling) are taken from the observer at the start and counted under `evidence.settle` instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `renderer.cdTicksToFirstPage`      | `ApplicationRef` ticks from the click until the terminal batch: the counter's running total read in the capture-phase click listener, before the app handles the click, subtracted from its value at the terminal batch (see [Change-detection ticks](#change-detection-ticks)). |
 | `renderer.layoutShiftScore`        | Sum of all `layout-shift` entries from the click until the post-paint cutoff, rounded to three decimals. Unlike J1 it includes entries with `hadRecentInput === true`: the journey is a response to the click and runs inside the 500 ms input window, so the CLS filter would always read 0. The split is under `evidence.layoutShift`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `renderer.longTasks`               | `longtask` entries over 50 ms whose time range overlaps the window from the click to the cutoff. The task that dispatches the click began before the event's timestamp and still counts; buffered J1 tasks that ended before the click are dropped. Evidence until it is shown to be stable on the CI runner, as for J1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `main.mockHttpRequestsToSettled`   | Requests the proxy received from the click until, after the terminal batch, no new request had arrived for 1 s and none was in flight (a response slower than that, and what it triggers, stays inside the window). The window ends at the ledger position read by that accepted quiet sample; a request arriving after it was never seen in flight, so it goes to `evidence.httpRequestsAfterSettledByRoute` instead of the counter. The ledger is read 1 s after that sample, so that late traffic is actually observed. The window starts at the renderer's click stamp, the same boundary as every other J2 counter, not when Playwright began its actionability checks; the proxy stamps requests with the test process's wall clock, and both processes read the same host clock. Bounding by the terminal would compare the test process's clock with the renderer's, so the count up to the terminal epoch is evidence only (`evidence.httpRequestsToFirstPage`); `evidence.httpRequestsByRoute` names the requests. |
 
-Two counters are listed under `unavailable`. `renderer.cdTicksToFirstPage`
-is missing for the same reason as its J1 counterpart.
+One counter is listed under `unavailable`.
 `main.sqlStatementsToFirstPage` is missing because the running
 `main.sqlStatements` total that J1 freezes at `ready-to-show` can only be
 read from the test process through the journey gate. It therefore cannot be
@@ -478,6 +644,132 @@ give a click-to-settled count; that is left to a follow-up.
 | `clickToFirstPagePaintMs.p50/.p90` | Post-paint cutoff minus start epoch: the click until the frame that paints the first page has been committed (the timer queued from the next `requestAnimationFrame`). This is the "painted" figure of the journey definition. |
 
 All epochs are taken in the renderer, so neither entry crosses a process clock.
+
+## J3 `playback`: start playback to the first frame
+
+`playback.journey.ts` follows J2: the profile is seeded once through the
+"Add playlist" dialogs (`seedLaunchJourneyProfile` with
+`PLAYBACK_JOURNEY_SEED`), every iteration copies it, spawns a fresh process
+through `runLaunchJourney` without main-process counters, and hands the
+running app to `measurePlaybackJourney` in
+`src/journeys/playback-journey-app.ts`. One warm-up and five measured
+iterations.
+
+**Profile.** J2's M3U source plus an Xtream portal ("Journey live portal") on
+the mock's `live-fallback:live-fallback` account, behind the same request
+ledger proxy. Seeding also selects **Settings > Playback > Video player >
+HTML5 video player** and **Stream format > ts** through the settings page
+(`configureLiveFormat`), so live URLs end in `.ts`. Embedded MPV and external
+players are out of scope.
+
+**Stream.** `/live/live-fallback/live-fallback/10000.ts` returns
+`apps/xtream-mock-server/src/fixtures/live.mpegts` from disk: six seconds of
+160x90 H.264 baseline video and AAC audio in MPEG-TS, about 300 KB. The HTML5
+player plays `.ts` through mpegts.js, which transmuxes to fragmented MP4 for
+Media Source Extensions; H.264 and AAC are among the codecs Electron's
+Chromium decodes on every platform, including the Linux runner, and the
+Electron E2E for the live-format fallback already plays this fixture there.
+Two other choices were rejected: the `marketing` and `marketing2` accounts
+serve live URLs from local bytes, but those bytes are zero-filled (a fixture
+for download screenshots, not media), so no player ever fires `playing`; every
+other account redirects streams to a public HLS test stream. The record
+fails an iteration whose click-to-`playing` window has no `.ts` request for
+a live stream, so a player that played something else is never measured.
+
+**No request leaves the machine.** The generated live catalog's channel and
+category logos point at `picsum.photos`. Before navigating, the journey
+registers `session.defaultSession.webRequest.onBeforeRequest` for
+`*://picsum.photos/*` from the test side and cancels those requests (the app
+registers no `onBeforeRequest` listener of its own, so none is replaced). A
+logo therefore never loads, or fails, at a moment that depends on the
+runner's network; the number cancelled is kept as
+`evidence.externalArtworkCancelled`. Every other request goes to the mock
+through the ledger.
+
+**Start.** After J1 has ended, the test clicks the portal's dashboard card,
+the **Live TV** link and the first category (not measured), then installs the
+IPC capture with a start sentinel, arms the probe, hovers the first
+`app-live-stream-layout [data-test-id="channel-item"]` and waits for the same
+1 s quiet as J2 (`src/performance/journey-click-settle.ts`, shared with J2).
+J1's capture is detached and the channel is clicked. The probe's capture-phase
+`click` listener stamps the start and sends
+`cancelSourceProbe('__iptvnator-journey-playback-start__')`. The record
+rejects activity between the settle snapshot and the click exactly as J2
+does.
+
+**End.** The probe runs with `media: { endEvent: 'playing', phaseEvents:
+['loadedmetadata'] }`. Media events do not bubble, but a capture-phase
+listener on `window` sees them before any listener of the app. The first
+`playing` event after the start on an element matching
+`app-web-player-view video` ends the journey: pending mutation records are
+taken synchronously, the end sentinel
+`cancelSourceProbe('__iptvnator-journey-playback-end__')` is sent, and the
+element's state is recorded (`evidence.media`: `readyState`, `paused`,
+`currentTime`, intrinsic size, and `currentSrcScheme`, which is `blob` for
+Media Source playback). The first `loadedmetadata` on such an element after
+the start is recorded as a phase. A visible video element does not end the
+journey, and media events before the click or on other elements are
+ignored.
+
+### Counters
+
+| Counter                          | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `renderer.ipcCallsToPlaying`     | Bridge `start` trace events between the start and end sentinels, as `renderer.ipcCallsToFirstPage` in J2.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `renderer.httpRequestsToPlaying` | Requests the ledger proxy received from the click stamp until the `playing` stamp, from either process (the stream request comes from the renderer, Xtream API calls from the main process). Both stamps are `performance.timeOrigin + performance.now()` of processes on the same host clock, as in J2. Unlike J2's counter the window ends at the terminal, not at a quiet mock: a live stream has no quiet end. Later requests are kept as `evidence.httpRequestsAfterPlayingByRoute`, the ones in the window as `evidence.httpRequestsByRoute`. |
+| `renderer.domMutationsToPlaying` | `MutationRecord`s from the click until the `playing` event, including records still queued when it fires.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `renderer.cdTicksToPlaying`      | `ApplicationRef` ticks from the click until the `playing` event, read like `renderer.cdTicksToFirstPage` in J2 (see [Change-detection ticks](#change-detection-ticks)). Not yet measured on a run; the counter shipped after J3's first measurements. |
+| `renderer.layoutShiftScore`      | All `layout-shift` entries from the click until the `playing` event, including `hadRecentInput` ones (as J2), rounded to three decimals. Entries delivered up to the post-paint cutoff are read, but only those that started by the event count.                                                                                                                                                                                                                                                                                                    |
+| `renderer.longTasks`             | `longtask` entries over 50 ms whose time range overlaps the window from the click to the `playing` event, so the task that dispatched the event counts. Evidence until shown to be stable on the runner.                                                                                                                                                                                                                                                                                                                                            |
+
+`renderer.httpRequestsToPlaying` compares the ledger's arrival stamps
+(test process) with the renderer's click and `playing` stamps. Both are
+`performance.timeOrigin + performance.now()` on the same host clock, but the
+two processes' time origins can differ by a fraction of a millisecond, so
+every iteration records `evidence.httpBoundaryMarginsMs`: the distance of
+the nearest request on either side of the click and of `playing`. A margin
+of a few milliseconds means a clock difference could move that request
+across the boundary. Locally the first request after the click arrives 3-6
+ms after its stamp (the click causes it, so it cannot precede the click) and
+the nearest request to `playing` is more than 170 ms away; both are well
+above a sub-millisecond origin difference. `evidence.httpRequestsAfterPlayingByRoute` covers a fixed
+window of 1 s after `playing` (the test waits that long before reading the
+ledger), not a quiet mock as in J2: a live stream has no quiet end.
+
+One counter is listed under `unavailable`.
+`renderer.ipcSerialDepthToPlaying` is missing because the serial-depth
+helper (see [Startup work before the first card](#startup-work-before-the-first-card))
+was not on `master` when J3 landed; J3 adopts it once the J1 thread adds it.
+`main.sqlStatementsToPlaying` is not measured for the same reason as J2's
+SQL counter.
+
+### Wall-clock
+
+| Entry                              | Derivation                                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `clickToPlayingMs.p50/.p90`        | `playing` epoch minus start epoch.                                                                                      |
+| `clickToLoadedMetadataMs.p50/.p90` | First `loadedmetadata` epoch minus start epoch: player setup, the stream request and the first transmuxed init segment. |
+
+The difference of the two is stream start: buffering until the element can
+play. All epochs are taken in the renderer.
+
+### First measurement
+
+Local, macOS, 2026-09-30 (two `perf:journeys` runs, five measured iterations
+each): every counter identical in all ten, `renderer.ipcCallsToPlaying` 4
+(`getEpgMapping`, `xtreamRequest`, `updateRemoteControlStatus`,
+`setUserAgent`), `renderer.httpRequestsToPlaying` 2 (the `.ts` stream and
+`get_simple_data_table`), `renderer.domMutationsToPlaying` 6,188,
+`renderer.layoutShiftScore` 0.001, `renderer.longTasks` 0; P50
+click→`loadedmetadata` 92-94 ms and click→`playing` 239-257 ms. The warm-up
+iteration of the first run took the cold path (888 ms to `playing`, one more
+`updateRemoteControlStatus` call); warm-ups are excluded. About 6,000 of the
+mutations come from the EPG timeline rendering about 240 programme blocks
+from the `get_simple_data_table` response before the first frame. Whether
+that response and its render land before `playing` is a race on a slower
+machine, so check the runner's `counterStability` before trusting the
+mutation and request counts. No J3 baseline exists yet; J3 counters join the
+ratchet once three runner runs agree.
 
 ## `renderer.initialBytes`
 
@@ -774,10 +1066,12 @@ reports slow imports of non-Latin playlists.
    continues from J1 with `runLaunchJourney` and lets the app settle first,
    as `open-source-journey-app.ts` does.
 2. Give the journey its own probe options (`cardSelector`,
-   `companionSelectors`, `routeFragment`, `startClick` for a click start) or
-   extend `journey-renderer-probe.ts` when the end condition is not "elements
-   became visible". Use a state key and sentinel ids of its own. Keep the
-   probe self-contained: Playwright serializes it with `toString()`.
+   `companionSelectors`, `routeFragment`, `startClick` for a click start,
+   `media` for a media-event end such as J3's `playing`) or extend
+   `journey-renderer-probe.ts` when the end condition is neither. Use a state
+   key and sentinel ids of its own. Keep the probe self-contained: Playwright
+   serializes it with `toString()`. A click-started journey settles with
+   `waitForJourneyClickQuiet` from `journey-click-settle.ts`.
 3. Map the measurement to a `JourneyIterationRecord` in a
    `<journey>-journey-record.ts` under `src/performance/`; name counters
    `renderer.*` or `main.*`, and list counters you cannot measure under

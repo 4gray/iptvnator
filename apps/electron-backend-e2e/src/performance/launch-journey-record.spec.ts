@@ -14,12 +14,13 @@ function measurement(
 ): LaunchJourneyMeasurement {
     const renderer: JourneyRendererProbeState = {
         capabilities: {
-            changeDetectionTicks: 'unavailable-ng-global-not-published',
+            changeDetectionTicks: 'counted',
             layoutShift: true,
             longTask: true,
             observedTarget: 'document',
         },
         counters: {
+            changeDetectionTicks: 23,
             domMutations: 480,
             layoutShiftScore: 0.123456789,
             layoutShiftScoreSettled: 0.2304999,
@@ -28,6 +29,13 @@ function measurement(
         },
         final: true,
         firstCardPaintEpochMs: 2_650,
+        idle: {
+            domMutations: 12,
+            endEpochMs: 33_200.04,
+            startEpochMs: 3_200,
+            status: 'done',
+            ticks: 31,
+        },
         installed: {
             bridgePresent: true,
             documentElementPresent: false,
@@ -38,6 +46,7 @@ function measurement(
         invalidReasons: [],
         journey: 'launch',
         longTaskDurationsMs: [71.26, 120.04],
+        media: null,
         navigation: {
             domContentLoadedEpochMs: 1_300,
             loadEventEndEpochMs: 1_400.26,
@@ -76,6 +85,7 @@ function measurement(
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
+        ambiguousTimelineCompletions: 0,
         callsAfterSentinel: 3,
         callsBeforeStart: 0,
         callsBeforeSentinel: 14,
@@ -87,6 +97,13 @@ function measurement(
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 2_602 },
         start: null,
+        timeline: [
+            { method: 'getSettings', phase: 'start' },
+            { method: 'getSettings', phase: 'end' },
+            { method: 'dbGetAppPlaylists', phase: 'start' },
+            { method: 'getSettings', phase: 'start' },
+            { method: 'dbGetAppPlaylists', phase: 'end' },
+        ],
         unmatchedCompletions: 0,
     };
     return {
@@ -129,8 +146,11 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
     assert.deepEqual(record.counters, {
         'main.modulesRegisteredBeforeWindow': 2,
         'main.sqlStatementsBeforeReadyToShow': 9,
+        'renderer.cdTicksIdle30s': 31,
+        'renderer.cdTicksToFirstCard': 23,
         'renderer.domMutationsToFirstCard': 480,
         'renderer.ipcCallsToFirstCard': 14,
+        'renderer.ipcSerialDepthToFirstCard': 2,
         'renderer.layoutShiftScore': 0.123,
         'renderer.layoutShiftScoreSettled': 0.23,
         'renderer.longTasks': 2,
@@ -143,6 +163,19 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         dbGetAppPlaylists: 1,
         getSettings: 13,
     });
+    assert.deepEqual(record.evidence['ipcSerialDepth'], {
+        chain: ['getSettings', 'dbGetAppPlaylists'],
+        depth: 2,
+        depthLowerBound: 2,
+        inFlightAtEnd: 1,
+    });
+    assert.deepEqual(record.evidence['ipcTimeline'], [
+        '+getSettings',
+        '-getSettings',
+        '+dbGetAppPlaylists',
+        '+getSettings',
+        '-dbGetAppPlaylists',
+    ]);
     assert.deepEqual(record.evidence['longTaskDurationsMs'], [71.3, 120]);
     assert.equal(record.evidence['ipcCallsAfterFirstCard'], 3);
     assert.deepEqual(record.evidence['mainCountersAtRead'], {
@@ -185,6 +218,11 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         observedTarget: 'root',
         reason: 'quiet',
     });
+    assert.deepEqual(record.evidence['idle'], {
+        domMutations: 12,
+        durationMs: 30_000,
+        settledToIdleStartMs: 19.9,
+    });
 });
 
 test('rejects measurements whose clocks or probes are inconsistent', () => {
@@ -217,11 +255,85 @@ test('rejects measurements whose clocks or probes are inconsistent', () => {
                     ...base.renderer,
                     capabilities: {
                         ...base.renderer.capabilities,
-                        changeDetectionTicks: 'hook-present-not-counted',
+                        changeDetectionTicks: 'unavailable-counter-missing',
+                    },
+                    counters: {
+                        ...base.renderer.counters,
+                        changeDetectionTicks: null,
                     },
                 },
             }),
-        /cd-hook-hook-present-not-counted/
+        /cd-ticks-unavailable-counter-missing/
+    );
+});
+
+test('refuses a launch without a complete, on-time idle window after the settle point', () => {
+    const base = measurement();
+    const withIdle = (
+        idle: Partial<LaunchJourneyMeasurement['renderer']['idle']>
+    ): LaunchJourneyMeasurement => ({
+        ...base,
+        renderer: {
+            ...base.renderer,
+            idle: { ...base.renderer.idle, ...idle },
+        },
+    });
+    // J2's launches skip the window; such a launch is not a J1 measurement.
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(
+                0,
+                false,
+                withIdle({ status: 'disabled', ticks: null })
+            ),
+        /idle-disabled/
+    );
+    assert.throws(
+        () => toLaunchIterationRecord(0, false, withIdle({ ticks: null })),
+        /idle-done/
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(
+                0,
+                false,
+                withIdle({ endEpochMs: 33_000, startEpochMs: 3_000 })
+            ),
+        /idle-before-settle/
+    );
+    // The settle point is 3_180.06: a window opened 120 ms after it left
+    // ticks uncounted in between.
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(
+                0,
+                false,
+                withIdle({ endEpochMs: 33_300.1, startEpochMs: 3_300.1 })
+            ),
+        /idle-start-late/
+    );
+    assert.doesNotThrow(() =>
+        toLaunchIterationRecord(
+            0,
+            false,
+            withIdle({ endEpochMs: 33_250, startEpochMs: 3_250 })
+        )
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 33_000 })),
+        /idle-window-short/
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 34_500 })),
+        /idle-window-late/
+    );
+    assert.equal(
+        toLaunchIterationRecord(0, false, withIdle({ ticks: 0 })).counters[
+            'renderer.cdTicksIdle30s'
+        ],
+        0
     );
 });
 
@@ -261,7 +373,7 @@ test('refuses a launch whose settle window did not end after the first-card cuto
     const capped = toLaunchIterationRecord(
         0,
         false,
-        withSettle({ epochMs: 5_650, status: 'cap' })
+        withSettle({ epochMs: 3_150, status: 'cap' })
     );
     assert.equal(
         (capped.evidence['settle'] as { reason: string }).reason,
@@ -269,10 +381,8 @@ test('refuses a launch whose settle window did not end after the first-card cuto
     );
 });
 
-test('names the counters the harness cannot measure yet', () => {
-    assert.deepEqual(Object.keys(LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS), [
-        'renderer.cdTicksToFirstCard',
-    ]);
+test('measures every counter the plan lists for J1', () => {
+    assert.deepEqual(Object.keys(LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS), []);
 });
 
 test('never reports a measured counter as unavailable', () => {

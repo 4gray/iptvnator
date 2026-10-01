@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../shared/ui/src/lib/styles/content-grid' as grid;
 
 :host {
@@ -153,7 +154,7 @@
     height: 32px;
     padding: 4px;
     color: #fff;
-    --mdc-icon-button-state-layer-size: 32px;
+    @include mat.icon-button-overrides((state-layer-size: 32px));
 
     &::before {
         position: absolute;

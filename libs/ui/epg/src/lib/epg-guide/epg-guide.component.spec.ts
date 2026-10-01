@@ -447,6 +447,29 @@ describe('EpgGuideComponent', () => {
         ]);
     });
 
+    it('jumps to now on N without scrolling back to a focus left off-screen', async () => {
+        await settle(fixture);
+        const viewportEl: HTMLElement = fixture.debugElement.query(
+            By.css('cdk-virtual-scroll-viewport')
+        ).nativeElement;
+        const scrollTo = jest.fn();
+        viewportEl.scrollTo = scrollTo as unknown as HTMLElement['scrollTo'];
+        // jsdom reports a zero-sized lane, so this programme counts as hidden.
+        component.focusCell(0, 0);
+        await settle(fixture);
+        scrollTo.mockClear();
+
+        component.onKeydown(keydown('n'));
+
+        // One combined smooth scroll; a reveal after it would cancel it. The
+        // focus follows the jump to the playing row.
+        expect(scrollTo).toHaveBeenCalledTimes(1);
+        expect(scrollTo).toHaveBeenCalledWith(
+            expect.objectContaining({ top: 0, behavior: 'smooth' })
+        );
+        expect(component.focus()).toEqual({ row: 0, block: null });
+    });
+
     it('moves the roving focus to a clicked programme card', async () => {
         await settle(fixture);
         const card = fixture.debugElement.query(

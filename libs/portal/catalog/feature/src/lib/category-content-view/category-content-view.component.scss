@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 @use '../../../../../../ui/styles/panel-header' as panel;
 
 :host {
@@ -74,8 +75,12 @@
     min-height: 32px;
     border-radius: 999px;
     color: var(--app-body-color, var(--mat-sys-on-surface-variant));
-    --mdc-text-button-label-text-color: currentColor;
-    --mat-text-button-state-layer-color: currentColor;
+    @include mat.button-overrides(
+        (
+            text-label-text-color: currentColor,
+            text-state-layer-color: currentColor,
+        )
+    );
 
     mat-icon {
         width: 18px;

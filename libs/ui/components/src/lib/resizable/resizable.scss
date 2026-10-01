@@ -94,8 +94,8 @@ body.resizing-active {
 
     &:active &__line {
         width: 2px;
-        background: var(--mdc-theme-primary, #6366f1);
-        box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
+        background: var(--app-selection-color, #2f7bff);
+        box-shadow: 0 0 12px var(--app-selection-glow, rgba(47, 123, 255, 0.3));
     }
 
     // Grip dots indicator
@@ -129,7 +129,7 @@ body.resizing-active {
         opacity: 1;
 
         span {
-            background: var(--mdc-theme-primary, #6366f1);
+            background: var(--app-selection-color, #2f7bff);
             transform: scale(1.2);
         }
     }
@@ -161,8 +161,8 @@ body.resizing-active {
         }
 
         &:active &__line {
-            background: var(--mdc-theme-primary, #6366f1);
-            box-shadow: 0 0 12px rgba(99, 102, 241, 0.2);
+            background: var(--app-selection-color, #2f7bff);
+            box-shadow: 0 0 12px var(--app-selection-glow, rgba(47, 123, 255, 0.2));
         }
 
         &__grip {
