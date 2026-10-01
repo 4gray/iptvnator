@@ -209,6 +209,43 @@ test('checks Angular style bindings and literal DOM writes', () => {
     ]);
 });
 
+test('reads `//` after `:` or `(` as a Sass comment outside url()', () => {
+    const stylesheet = [
+        '.x { font-weight:// old 650',
+        '600; }',
+        '.y { font-weight: (// note 650',
+        '600); }',
+        '.z { background: url(http://cdn.test/a.png); font-weight: 750; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', stylesheet), [
+        '5 font-weight: 750',
+    ]);
+});
+
+test('reads a TypeScript style object value as code', () => {
+    const component = [
+        'const style = { fontWeight: viewportWidth >= 768 ? 700 : 600 };',
+        "const other = { 'font-weight': wide ? 650 : 400, color: 'red' };",
+        'const css = `font-weight: ${w}; font: 650 12px x`;',
+        'fontWeight: number;',
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '2 font-weight: 650',
+        '3 font: 650',
+    ]);
+    // HTML outside attributes is markup, not code: a `<style>` block's
+    // shorthand keeps its `/line-height`.
+    assert.deepEqual(
+        offScale(
+            'apps/web/src/a.component.html',
+            '<style>.x { font: italic 12px/200 Roboto; }</style>'
+        ),
+        []
+    );
+});
+
 test('treats comment markers inside strings as text', () => {
     const stylesheet = [
         '.x { content: "//"; font-weight: 650; }',
@@ -863,6 +900,7 @@ test('checks Renderer2 setStyle weights', () => {
         "node.setAttributeNS(ns(), 'font-weight', '650');",
         'renderer.setStyle(el, `font-${kind}`, 650);',
         "node.setAttribute('--title-weight', '650');",
+        "node.setAttributeNS('http://www.w3.org/2000/svg', 'font-weight', '650');",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
@@ -870,6 +908,7 @@ test('checks Renderer2 setStyle weights', () => {
         "2 setStyle(el(),'font-weight': 750",
         "5 setStyle(wrap(getEl(a,b)),'fontWeight': 650",
         "6 setAttributeNS(ns(),'font-weight': 650",
+        "9 setAttributeNS('http://www.w3.org/2000/svg','font-weight': 650",
     ]);
 });
 

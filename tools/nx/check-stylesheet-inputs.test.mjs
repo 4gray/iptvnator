@@ -217,6 +217,8 @@ test('keeps comment markers inside strings', () => {
         ["$a: 'open\n// gone", /open/, /gone/],
         ['$a: url(//cdn/x.css); // gone', /url\(\/\/cdn/, /gone/],
         ['$a: url(https://cdn/x.css); // gone', /https:\/\/cdn/, /gone/],
+        ['$a:// gone', /\$a:/, /gone/],
+        ['$a: (// gone\n1);', /\$a: \(/, /gone/],
     ]) {
         const result = stripScssComments(text);
         assert.match(result, kept);

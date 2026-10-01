@@ -7,8 +7,9 @@ const QUOTES = new Set(["'", '"', '`']);
 const VALUE_END = new Set([';', '{', '}', ']']);
 
 /**
- * Plain CSS has block comments only; SCSS and TypeScript add `//`. An
- * unquoted `url(//cdn…)` or `https://` exists only in stylesheets: in
+ * Plain CSS has block comments only; SCSS and TypeScript add `//`. In SCSS
+ * a `//` is a comment anywhere outside a string (`font-weight:// old`, `(//
+ * note`) except in an unquoted `url(//cdn…)` or `url(https://…)`. In
  * TypeScript a URL is always inside a string, so every `//` there is a
  * comment.
  */
@@ -21,6 +22,12 @@ function syntaxOf(file) {
         protocol: !typescript,
         quotes: typescript ? ['"', "'", '`'] : ['"', "'"],
     };
+}
+
+/** Whether `index` sits in an unquoted `url(…)`, whose `//` is a URL. */
+function inUrl(source, index) {
+    const before = source.slice(Math.max(0, index - 2048), index);
+    return /url\(\s*[^\s)'"]*$/i.test(before);
 }
 
 /**
@@ -66,7 +73,7 @@ export function lex(file, source) {
         } else if (
             syntax.line &&
             source.startsWith('//', i) &&
-            !(syntax.protocol && /[:(]/.test(source[i - 1] ?? ''))
+            !(syntax.protocol && inUrl(source, i))
         ) {
             const lineEnd = source.indexOf('\n', i);
             i = blank(i, lineEnd === -1 ? source.length : lineEnd);

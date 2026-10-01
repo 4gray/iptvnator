@@ -484,6 +484,15 @@ export function scanWeights(file, source) {
             const { value, selector } = valueAfter(lexed, end);
             if (selector) continue;
             const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
+            // A TypeScript object value (`{ fontWeight: wide ? 700 : 600 }`)
+            // is code, read per value it can take; a string is CSS text.
+            if (!stylesheet && file.endsWith('.ts') && !quoteAt[end]) {
+                const expression = codeExpression(text, end, {
+                    argument: true,
+                });
+                record(name, match.index, analyseCode(expression, mode));
+                continue;
+            }
             const family =
                 /^font(?:-weight)?$/i.test(name) && inEffect(match.index)
                     ? monoAt(match.index)

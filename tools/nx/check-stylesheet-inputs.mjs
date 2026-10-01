@@ -5,6 +5,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const STYLESHEET_RULE = /@(use|forward|import)\s+([^;{}]*)/g;
+const OPEN_URL = /url\(\s*[^\s)'"]*$/i;
+
+/** Whether `index` sits in an unquoted `url(…)`, whose `//` is a URL. */
+function inUrl(source, index) {
+    return OPEN_URL.test(source.slice(Math.max(0, index - 2048), index));
+}
 const QUOTED_TARGET = /(['"])([^'"]+)\1/g;
 const CSS_URL = /url\([^)]*\)/g;
 
@@ -28,8 +34,9 @@ function targetsOfRule(rule, clause) {
  * Sass documents relative `@use` examples inside comments. Those paths do not
  * resolve from the file that documents them, so scanning raw source reports
  * them as broken imports. A comment marker inside a string is text
- * (`with ($asset: '//cdn/x')`), and so is an unquoted `//` right after `:`
- * or `(`, as in `url(https://…)`.
+ * (`with ($asset: '//cdn/x')`), and so is a `//` in an unquoted
+ * `url(https://…)`; anywhere else, even right after `:` or `(`, `//` opens
+ * a comment.
  */
 export function stripScssComments(source) {
     // Blank rather than cut, so every offset still points into `source`.
@@ -49,7 +56,7 @@ export function stripScssComments(source) {
         } else if (source.startsWith('/*', i)) {
             const end = source.indexOf('*/', i + 2);
             i = blank(i, end === -1 ? source.length : end + 2);
-        } else if (source.startsWith('//', i) && !/[:(]/.test(source[i - 1])) {
+        } else if (source.startsWith('//', i) && !inUrl(source, i)) {
             const end = source.indexOf('\n', i);
             i = blank(i, end === -1 ? source.length : end);
         }
