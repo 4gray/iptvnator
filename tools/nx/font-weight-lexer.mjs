@@ -33,6 +33,30 @@ function inUrl(source, index) {
     return /url\(\s*[^\s)'"]*$/i.test(line);
 }
 
+const CONDITION_PRELUDE = /^@(?:supports|media|container)\b/i;
+
+/**
+ * Whether `index` sits in a conditional at-rule's prelude, such as the test
+ * of `@supports (font-weight: 650) {…}`, which is a condition rather than a
+ * declaration. A mixin call's arguments (`@include m($w: 650)`) do count.
+ */
+export function inConditionPrelude({ text, quoteAt }, index) {
+    let k = index - 1;
+    while (k >= 0 && (quoteAt[k] || !';{}'.includes(text[k]))) k -= 1;
+    return CONDITION_PRELUDE.test(text.slice(k + 1, index).trimStart());
+}
+
+/** The `}` that closes the `{` at `open`, skipping strings. */
+export function closingBrace({ text, quoteAt }, open) {
+    let depth = 0;
+    for (let i = open; i < text.length; i += 1) {
+        if (quoteAt[i]) continue;
+        if (text[i] === '{') depth += 1;
+        else if (text[i] === '}' && --depth === 0) return i;
+    }
+    return text.length;
+}
+
 /**
  * Whether `index` sits in an Angular binding's value (`[ngStyle]="{…}"`),
  * which is code, and not in a string literal inside it, which is CSS text.

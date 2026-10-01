@@ -3,7 +3,7 @@
  * `check-font-weights.mjs`.
  */
 
-import { tokensOf } from './font-weight-lexer.mjs';
+import { inConditionPrelude, tokensOf } from './font-weight-lexer.mjs';
 
 /** JetBrains Mono is bundled at 400 and 500 only (see `styles.scss`). */
 export const MONO_WEIGHT_CAP = 500;
@@ -145,7 +145,9 @@ function inherits(prelude) {
 export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
     const family = new Map();
     for (const match of lexed.text.matchAll(FONT_FAMILY)) {
-        if (inString(match.index)) continue;
+        if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
+            continue;
+        }
         const start = match.index + match[0].length;
         const { value, selector } = declarationText(lexed, start);
         const place = placeOf(blocks, match.index);

@@ -276,6 +276,45 @@ test('reads Angular style bindings as code', () => {
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), []);
 });
 
+test('reads a feature query test as a condition, not a declaration', () => {
+    const source = [
+        '@supports (font-weight: 650) { .x { font-weight: 600; } }',
+        '@supports (font: 650 1px x) { .y { font: 600 12px x; } }',
+        '@container style(--w: 650) { .z { font-weight: var(--w); } }',
+        '@mixin m($title-weight: 400) { font-weight: $title-weight; }',
+        '.w { @include m($title-weight: 650); }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/q3/a.scss', source), [
+        '5 $title-weight: 650',
+    ]);
+});
+
+test('checks property names Sass builds by interpolation', () => {
+    const source = [
+        '$prop: font-weight;',
+        '.z { #{$prop}: 650; }',
+        '.x { font-#{weight}: 650; }',
+        '.y { #{"font-weight"}: 750; }',
+        '.w { margin-#{left}: 650px; }',
+        '.v { font-#{$elsewhere}: 650; }',
+        '.u { font-#{weight}: 600; }',
+        // Another module's variable is not guessed; a literal `…weight`
+        // tail is checked as written, once.
+        '.t { font#{$elsewhere}: 650 12px x; }',
+        '.s { #{$elsewhere}-weight: 650; }',
+        '$pre: title; .r { #{$pre}-weight: 650; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/q3/b.scss', source).sort(), [
+        '10 -weight: 650',
+        '2 #{$prop}: 650',
+        '3 font-#{weight}: 650',
+        '4 #{"font-weight"}: 750',
+        '9 -weight: 650',
+    ]);
+});
+
 test('treats comment markers inside strings as text', () => {
     const stylesheet = [
         '.x { content: "//"; font-weight: 650; }',
@@ -936,12 +975,15 @@ test('checks HostBinding style weights', () => {
         "@HostBinding('attr.font-weight') svg = '650';",
         "@HostBinding('class.bold') bold = 650;",
         "@HostBinding('attr.--title-weight') odd = '650';",
+        "@HostBinding('style.fontWeight') get branchy() { if (this.on) { return 600; } return 650; }",
+        "@HostBinding('style.fontWeight') get quoted() { const s = 'return 650'; return 600; }",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
         "1 @HostBinding('style.fontWeight'): 650",
         '2 @HostBinding("style.font-weight"): 750',
         "4 @HostBinding('attr.font-weight'): 650",
+        "7 @HostBinding('style.fontWeight'): 650",
     ]);
 });
 

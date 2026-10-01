@@ -7,8 +7,10 @@ import { extractStylesheetLoads } from './check-stylesheet-inputs.mjs';
 import {
     blocksOf,
     calleeOf,
+    closingBrace,
     codeExpression,
     inBinding,
+    inConditionPrelude,
     insideTag,
     invocationsOf,
     lex,
@@ -112,8 +114,15 @@ const CODE_BINDING =
  */
 const HOST_BINDING =
     /@HostBinding\(\s*(['"`])(style|attr)\.(font-weight|fontWeight|--[\w-]+)\1\s*\)/g;
-const HOST_VALUE =
-    /^\s*(?:(?:public|private|protected|readonly|override|static)\s+)*(?:get\s+[\w$]+\s*\(\s*\)\s*(?::[^{]+)?\{\s*return\b|[\w$]+\s*[!?]?\s*(?::[^=;]+)?=(?!=))/;
+const HOST_GETTER =
+    /^\s*(?:(?:public|private|protected|override|static)\s+)*get\s+[\w$]+\s*\(\s*\)\s*(?::[^{]+)?\{/;
+const HOST_FIELD =
+    /^\s*(?:(?:public|private|protected|readonly|override|static)\s+)*[\w$]+\s*[!?]?\s*(?::[^=;]+)?=(?!=)/;
+/**
+ * A Sass property name built by interpolation (`font-#{weight}`,
+ * `#{'font-weight'}`, `#{$prop}`).
+ */
+const INTERPOLATED_NAME = /(?<![\w$#{-])((?:[\w-]*#\{[^{}]*\})+[\w-]*)\s*:/g;
 /**
  * DOM writes of the weight or the `font` shorthand, dotted or indexed
  * (`style['font-weight']`). `===` compares, so only a lone `=` (or `+=` and
@@ -352,6 +361,36 @@ function familyRefs({ outside, vars }, at) {
     ];
 }
 
+/** The last value the file gives the Sass variable `$name`, or `null`. */
+function lastSassValue(text, name) {
+    const declaration = new RegExp(
+        String.raw`(?<![\w$-])\$` + name + String.raw`\s*:\s*([^;{}]+);`,
+        'g'
+    );
+    const last = [...text.matchAll(declaration)].pop();
+    return last ? sassValue(last[1]) : null;
+}
+
+/**
+ * A Sass property name with its interpolations resolved: a quoted or bare
+ * literal stands for itself, and a variable for its last value in the file.
+ * `null` when one cannot be resolved.
+ */
+function composedName(name, text) {
+    let resolved = true;
+    const composed = name.replace(/#\{\s*([^{}]*?)\s*\}/g, (_, inner) => {
+        const literal = /^(['"])(.*)\1$/.exec(inner);
+        if (literal) return literal[2];
+        if (/^[\w-]+$/.test(inner)) return inner;
+        const value = /^\$[\w-]+$/.test(inner)
+            ? lastSassValue(text, inner.slice(1))
+            : null;
+        if (value === null) resolved = false;
+        return value ?? '';
+    });
+    return resolved ? composed : null;
+}
+
 /**
  * A term that only the JetBrains Mono cap makes a finding: a scale weight
  * (or `bold`) above it. An off-scale one is reported as such already.
@@ -474,7 +513,9 @@ export function scanWeights(file, source) {
     // replaces it, so only the one in effect meets the cap.
     const setters = new Map();
     for (const match of stylesheet ? text.matchAll(WEIGHT_SETTER) : []) {
-        if (inString(match.index)) continue;
+        if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
+            continue;
+        }
         const start = match.index + match[0].length;
         const { value, selector } = declarationText(lexed, start);
         if (selector) continue;
@@ -497,9 +538,11 @@ export function scanWeights(file, source) {
         );
     };
 
+    // A feature query's test is a condition, not a declaration.
+    const inPrelude = (index) => stylesheet && inConditionPrelude(lexed, index);
     for (const pattern of patterns) {
         for (const match of text.matchAll(pattern)) {
-            if (inString(match.index)) continue;
+            if (inString(match.index) || inPrelude(match.index)) continue;
             const name = match[1];
             const end = match.index + match[0].length;
             const { value, selector } = valueAfter(lexed, end);
@@ -578,9 +621,22 @@ export function scanWeights(file, source) {
             const [label, , target, property] = match;
             if (target === 'attr' && property !== 'font-weight') continue;
             const end = match.index + label.length;
-            const value = HOST_VALUE.exec(text.slice(end));
-            if (!value) continue;
-            const expression = codeExpression(text, end + value[0].length);
+            // A getter's value is whatever any `return` in its body gives.
+            const getter = HOST_GETTER.exec(text.slice(end));
+            if (getter) {
+                const open = end + getter[0].length - 1;
+                const body = text.slice(open, closingBrace(lexed, open));
+                for (const statement of body.matchAll(/\breturn\b/g)) {
+                    const at = open + statement.index;
+                    if (quoteAt[at]) continue;
+                    const expression = codeExpression(text, at + 6);
+                    setByCode(label, property, match.index, expression);
+                }
+                continue;
+            }
+            const field = HOST_FIELD.exec(text.slice(end));
+            if (!field) continue;
+            const expression = codeExpression(text, end + field[0].length);
             setByCode(label, property, match.index, expression);
         }
         for (const match of text.matchAll(CODE_ASSIGNMENT)) {
@@ -614,9 +670,28 @@ export function scanWeights(file, source) {
             setByCode(name, quoted[3], match.index, expression);
         }
     }
+    // Sass can build a property name; one that composes to a weight name
+    // (from literals or this file's variables) is checked like one.
+    // A name whose own tail ends in `weight` is checked as written above.
+    for (const match of stylesheet ? text.matchAll(INTERPOLATED_NAME) : []) {
+        if (inString(match.index) || inPrelude(match.index)) continue;
+        if (/weight$/i.test(match[1])) continue;
+        const name = composedName(match[1], text);
+        if (
+            !name ||
+            !/^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i.test(name)
+        ) {
+            continue;
+        }
+        const end = match.index + match[0].length;
+        const { value, selector } = valueAfter(lexed, end);
+        if (selector) continue;
+        const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
+        record(match[1], match.index, analyse(mode, value));
+    }
     for (const match of text.matchAll(DEFINITION)) {
         const name = match[1];
-        if (inString(match.index)) continue;
+        if (inString(match.index) || inPrelude(match.index)) continue;
         if (!stylesheet && name.startsWith('$')) continue;
         const end = match.index + match[0].length;
         const { value, selector } = valueAfter(lexed, end);
