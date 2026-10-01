@@ -6,8 +6,16 @@
 @include mat.app-background();
 
 // ─── Typography ─────────────────────────────────────────────────────────────
-$app-font-stack:
+// The stack is declared once on html; every Material typography token and the
+// typography hierarchy read it through the variable. Inlined, the 103-char
+// stack was copied into ~90 declarations (about 7 KB of the initial CSS).
+$app-font-stack-value:
     "'DM Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+$app-font-stack: var(--app-font-family);
+
+html {
+    --app-font-family: #{$app-font-stack-value};
+}
 
 $my-typography: mat.m2-define-typography-config(
     $font-family: $app-font-stack,

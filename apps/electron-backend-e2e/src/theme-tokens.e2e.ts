@@ -126,6 +126,31 @@ test.describe('Theme tokens', () => {
                     }),
                     `floated label size in ${theme} theme`
                 ).toBeGreaterThanOrEqual(11);
+
+                // The typography tokens carry the font stack through
+                // --app-font-family. A dangling var() voids the whole `font`
+                // shorthand; body text would still inherit the same family,
+                // so check the token's own size and weight.
+                expect(
+                    await page.evaluate(() => {
+                        const probe = document.createElement('span');
+                        probe.style.font = 'var(--mat-sys-label-small)';
+                        document.body.appendChild(probe);
+                        const style = getComputedStyle(probe);
+                        const font = {
+                            family: style.fontFamily,
+                            size: Math.round(parseFloat(style.fontSize)),
+                            weight: style.fontWeight,
+                        };
+                        probe.remove();
+                        return font;
+                    }),
+                    `label-small typography in ${theme} theme`
+                ).toEqual({
+                    family: expect.stringMatching(/^"?DM Sans"?,/),
+                    size: 11,
+                    weight: '500',
+                });
             }
             expect(surfaces['light']).not.toBe(surfaces['dark']);
         } finally {
