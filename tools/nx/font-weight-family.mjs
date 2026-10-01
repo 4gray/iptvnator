@@ -14,6 +14,11 @@ export const MONO_WEIGHT_CAP = 500;
 export const MONO_FAMILY = /^jetbrains mono$/i;
 
 const FONT_FAMILY = /(?<![\w$-])(font-family|font|family)\s*:/gi;
+/**
+ * A declaration's `!important`, however it is spaced or cased: CSS allows
+ * whitespace and comments (blanked to spaces) after the `!`.
+ */
+export const IMPORTANT = /!\s*important\b/i;
 
 /**
  * The rule a Sass nested `font: { family: …; weight: … }` block belongs
@@ -58,7 +63,7 @@ const FONT_KEYWORD =
  * time an invalid one inherits the weight instead).
  */
 export function parsesAsFont(value) {
-    const text = value.replace(/!important\b/i, '').trim();
+    const text = value.replace(IMPORTANT, '').trim();
     if (/var\(|\$|#\{/.test(text) || FONT_KEYWORD.test(text)) return true;
     const tokens = tokensOf(text);
     const size = tokens.findIndex((token) => FONT_SIZE.test(token));
@@ -160,7 +165,7 @@ export function entryVerdict(entry) {
 
 /** A family list's entries, split at its top-level commas. */
 export function familyEntries(list) {
-    return selectorsOf(list.replace(/!important\b/i, ''));
+    return selectorsOf(list.replace(IMPORTANT, ''));
 }
 
 /**
@@ -168,7 +173,7 @@ export function familyEntries(list) {
  * `/line-height`, or `null` when it has no size.
  */
 export function shorthandFamilies(value) {
-    const tokens = tokensOf(value.replace(/!important\b/i, ''));
+    const tokens = tokensOf(value.replace(IMPORTANT, ''));
     // A literal size first; `var()` (or its placeholder) only when none.
     const size = tokens.findIndex(
         (token) => FONT_SIZE.test(token) && !/^var\(/i.test(token)
@@ -366,7 +371,7 @@ export function familiesOf(
         const scope = ruleOf(namespace ?? place.scope);
         // A shorthand that fails to parse is dropped, family and all.
         if (property === 'font' && !parsesAsFont(value)) continue;
-        const important = /!important\b/i.test(value);
+        const important = IMPORTANT.test(value);
         if (family.get(scope)?.important && !important) continue;
         const parts = familyParts(value);
         const shorthand = property === 'font';

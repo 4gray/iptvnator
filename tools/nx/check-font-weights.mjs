@@ -28,6 +28,7 @@ import {
     valueAfter,
 } from './font-weight-lexer.mjs';
 import {
+    IMPORTANT,
     MONO_WEIGHT_CAP,
     declarationText,
     familiesOf,
@@ -588,7 +589,7 @@ function familyInCss(css) {
     let effective = null;
     for (const [, property, value] of css.matchAll(FAMILY_DECLARATION)) {
         if (property.toLowerCase() === 'font' && !parsesAsFont(value)) continue;
-        const important = /!important\b/i.test(value);
+        const important = IMPORTANT.test(value);
         if (effective?.important && !important) continue;
         const shorthand = property.toLowerCase() === 'font';
         effective = { important, mono: rendersMono(value, { shorthand }) };
@@ -932,7 +933,7 @@ export function scanWeights(file, written) {
             continue;
         }
         const scope = ruleScope(match.index);
-        const important = /!important\b/i.test(value);
+        const important = IMPORTANT.test(value);
         if (!setters.has(scope)) setters.set(scope, []);
         setters.get(scope).push({ index: match.index, important });
     }
@@ -1180,7 +1181,7 @@ export function scanWeights(file, written) {
             ...{ file, line, index, name, key, value, argument, fallback },
             // The whole declaration, for a family list (`a, b`).
             full,
-            important: /!important\b/i.test(full),
+            important: IMPORTANT.test(full),
             // The selector of the rule it sits in, for custom properties.
             rule: blockAt.get(place.scope)?.prelude ?? null,
             selector: selectorOf(place.scopes),

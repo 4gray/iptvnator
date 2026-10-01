@@ -2771,6 +2771,66 @@ test('resolves a JetBrains Mono family named through variables', () => {
     ]);
 });
 
+test('reads `!important` however it is spaced or cased', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (file, body) =>
+        findOffScaleWeights(file, body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        [
+            `.x { font-family: ${mono} ! important; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono} !/* why */important; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`.x { font: 700 12px ${mono} ! IMPORTANT; }`, ['font: 700']],
+        // It wins over a later declaration of its property.
+        [
+            `.x { font-family: ${mono} ! important; font-family: Roboto; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-weight: 700 ! important; font-family: ${mono}; font-weight: 400; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono} ! important; } :root { --face: Roboto; } .x { font-family: var(--face); font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // A shorthand keyword with it still parses, so it sets the family.
+        [
+            `.x { font-family: ${mono}; font: inherit ! important; font-weight: 700; }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report('libs/s2/a.scss', source), expected, source);
+    }
+    assert.deepEqual(
+        report(
+            'apps/web/src/a.component.html',
+            `<div style="font-family: ${mono} ! important; font-family: sans-serif; font-weight: 700"></div>`
+        ),
+        ['font-weight: 700']
+    );
+    // A shorthand that is all variables keeps its family from them.
+    assert.deepEqual(
+        findIndirectWeights([
+            scanWeights(
+                'libs/s2/theme.scss',
+                `:root { --f: 400 12px ${mono}; }`
+            ),
+            scanWeights(
+                'libs/s2/b.scss',
+                '.x { font: var(--f) ! important; .y { font-weight: 700; } }'
+            ),
+        ]).map(({ name, value }) => `${name}: ${value}`),
+        ['font-weight: 700']
+    );
+});
+
 test('treats blocks with the same selector as one rule', () => {
     const mono = "'JetBrains Mono'";
     const report = (body) =>
