@@ -783,14 +783,17 @@ reachable by touch needs its restore affordance to be reachable too.
 
 The app stack is DM Sans with Roboto behind it (`$app-font-stack` in
 `apps/web/src/m3-theme.scss`). DM Sans covers Latin only, so Cyrillic and Greek
-UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles
-DM Sans, Roboto and JetBrains Mono in 400, 500, 600 and 700.
+UI text (ru, by, el) renders in Roboto. `apps/web/src/styles.scss` bundles both
+families in 400, 500, 600 and 700, and JetBrains Mono in 400 and 500 (its
+heavier faces would exceed the initial-bytes ratchet).
 
 - Use only those four weights: in `font-weight`, in the `font` shorthand, and in
   any custom property, Sass variable or token map that feeds one. A weight
   between faces snaps to a neighbour (650 renders as 700), and 600 or more with
   no face of at least 600 gets Chromium's synthetic bold. CI runs
   `pnpm run styles:font-weights:validate`, which rejects any other value.
+- JetBrains Mono text stays at 500 or lighter, including what a mono
+  modifier class inherits from its base rule; set `font-weight: 500` there.
 - Import whole `@fontsource/<family>/<weight>.css` files. The single-script
   files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
   face wins the weight match for Latin text in `Roboto, …` stacks and sends it

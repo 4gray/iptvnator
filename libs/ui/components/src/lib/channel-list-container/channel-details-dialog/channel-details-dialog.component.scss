@@ -178,6 +178,8 @@
     &--mono {
         font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
         font-size: 0.92rem;
+        // JetBrains Mono is bundled up to 500; the value's 600 would be faked.
+        font-weight: 500;
     }
 
     &--empty {

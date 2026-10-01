@@ -15,12 +15,14 @@
 
 // ─── Bundled Fonts ────────────────────────────────────────────────────────────
 // DM Sans ships only Latin glyphs, so Cyrillic and Greek text (ru, by, el)
-// falls back to Roboto. Every family loads every weight on the UI scale
+// falls back to Roboto. Both load every weight on the UI scale
 // (400/500/600/700, enforced by `pnpm run styles:font-weights:check`): a 600
 // or 700 that finds nothing heavier than 500 gets Chromium's synthetic bold.
 // Load whole weights, not the single-script files: those carry no
 // unicode-range, so a Cyrillic-only 600 face would win the weight match for
 // Latin text in `Roboto, …` stacks and push it onto the next family.
+// JetBrains Mono stops at 500: its 600/700 faces would add more than the
+// initial-bytes ratchet allows, so monospace text stays at 400/500.
 @import '@fontsource/dm-sans/400.css';
 @import '@fontsource/dm-sans/500.css';
 @import '@fontsource/dm-sans/600.css';
@@ -31,8 +33,6 @@
 @import '@fontsource/roboto/700.css';
 @import '@fontsource/jetbrains-mono/400.css';
 @import '@fontsource/jetbrains-mono/500.css';
-@import '@fontsource/jetbrains-mono/600.css';
-@import '@fontsource/jetbrains-mono/700.css';
 
 // ─── Shared Components ────────────────────────────────────────────────────────
 
