@@ -3168,6 +3168,118 @@ test('reads an interpolated family declaration whole', () => {
     }
 });
 
+test('reads a selector list as each of its selectors', () => {
+    const mono = "'JetBrains Mono'";
+    const read = 'font-family: var(--face); font-weight: 700;';
+    const report = (body) =>
+        findOffScaleWeights('libs/s5/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // A family set for one selector of a list reaches that selector.
+        [
+            `.x, .y { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; } .x, .y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.y { font-family: ${mono}; } .x, .y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a, .b { .x { font-family: ${mono}; } } .a { .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x, .y { font-family: ${mono}; } .x { font-family: Roboto; } .x { font-weight: 700; }`,
+            [],
+        ],
+        [`.x, .y { font-family: ${mono}; } .z { font-weight: 700; }`, []],
+        // A weight stays in effect while it is for any of its selectors.
+        [
+            `.x, .y { font-weight: 700; } .x { font-weight: 400; } .x, .y { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x, .y { font-weight: 700; } .x, .y { font-weight: 400; } .x { font-family: ${mono}; }`,
+            [],
+        ],
+        // A custom property: set for the reader's selectors, replaced for them.
+        [
+            `:root { --face: ${mono}; } .x, .y { --face: Roboto; } .x { ${read} }`,
+            [],
+        ],
+        [
+            `:root { --face: ${mono}; } .x { --face: Roboto; } .x, .y { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x, .y { --face: ${mono}; } .x { --face: Roboto; } .x { ${read} }`,
+            [],
+        ],
+        [
+            `.x, .y { --face: ${mono}; } .x { --face: Roboto; } .y { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        // Selectors without a family of their own inherit one from outside;
+        // one named through a variable is resolved later.
+        [
+            `.p { font-family: ${mono}; .x { font-family: Roboto; } .x, .y { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --f: ${mono}; } .x { font-family: var(--f); } .x, .y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // More than 16 chains keep the block its own rule.
+        [
+            `.a, .b, .c, .d, .e { .f, .g, .h, .i { font-family: ${mono}; } } .a { .f { font-weight: 700; } }`,
+            [],
+        ],
+        // A comma in a string or inside `:is()` is no list.
+        [
+            `[title="a, b"] { font-family: ${mono}; } [title="a"] { font-weight: 700; }`,
+            [],
+        ],
+        [`:is(.x, .y) { font-family: ${mono}; } .x { font-weight: 700; }`, []],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test('reads `revert` on a custom property as inheriting', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s5/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // `revert` and `revert-layer` bring back the inherited value; only
+    // `initial` leaves the property unset, for the fallback.
+    for (const [keyword, expected] of [
+        ['revert', ['font-weight: 700']],
+        ['revert-layer', ['font-weight: 700']],
+        ['unset', ['font-weight: 700']],
+        ['initial', []],
+    ]) {
+        assert.deepEqual(
+            report(
+                `:root { --face: ${mono}; } .x { --face: ${keyword}; font-family: var(--face, Roboto); font-weight: 700; }`
+            ),
+            expected,
+            keyword
+        );
+    }
+    assert.deepEqual(
+        report(
+            `.p { font-family: ${mono}; .x { font-family: revert; font-weight: 700; } }`
+        ),
+        ['font-weight: 700']
+    );
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",

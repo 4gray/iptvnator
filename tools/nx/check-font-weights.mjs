@@ -40,6 +40,7 @@ import {
     parsesAsFont,
     plainHost,
     reachDepth,
+    selectorList,
     reachesEverything,
     rendersMono,
     shorthandFamilies,
@@ -172,14 +173,15 @@ const SETTERS = {
 };
 const QUOTED_NAME = /^(\s*(['"`])([^'"`]*)\2)\s*,/;
 /**
- * CSS-wide keywords on a custom property: `initial` (and `revert`, to the
- * browser's value) leaves it unset; `inherit` and `unset` take the parent's
- * value, whatever another rule sets.
+ * CSS-wide keywords on a custom property: `initial` leaves it unset;
+ * `inherit` and `unset` take the parent's value, whatever another rule
+ * sets, and so do `revert` and `revert-layer` (the browser has no value of
+ * its own for it, and a lower layer's is another rule).
  */
-const RESETTING = /^(?:initial|revert|revert-layer)\b/i;
+const RESETTING = /^initial\b/i;
 /** At-rules whose body applies only under a condition. */
 const CONDITIONAL_RULE = /^@(?:media|supports|container|document)\b/i;
-const INHERITING = /^(?:inherit|unset)\b/i;
+const INHERITING = /^(?:inherit|unset|revert|revert-layer)\b/i;
 const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font|weight)\s*:/gi;
 /** A property name that sets or holds a weight. */
 const WEIGHT_NAME = /^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i;
@@ -292,6 +294,14 @@ function registrationAccepts(body, value) {
 
 /** A run of whitespace, or a quoted string (its spaces are its own). */
 const SPACING = /(['"])(?:\\[\s\S]|(?!\1)[^\\])*\1|\s+/g;
+
+/**
+ * Whether rules with the selector chains `a` style every element that ones
+ * with `b` do (see `selectorsOf` in `scanWeights`).
+ */
+function covers(a, b) {
+    return Boolean(a && b?.length) && b.every((chain) => a.includes(chain));
+}
 
 /** A registered custom property: `@property --x { … }`. */
 const PROPERTY_RULE = /@property\s+(--[\w-]+)\s*\{/gi;
@@ -487,7 +497,7 @@ function familyRefs({ outside, vars }, at) {
         ...{ file: at.file, index: at.index, scopes: at.scopes },
         ...{ inCallable: at.inCallable, callable: at.callable },
         ...{ guards: at.guards ?? [], rule: at.rule ?? null },
-        selector: at.selector ?? null,
+        selectors: at.selectors ?? null,
         // Read inside a `font` shorthand: values are shorthands too.
         shorthand: at.shorthand ?? false,
     };
@@ -906,43 +916,47 @@ export function scanWeights(file, written) {
         const value = /^\s*(?:([\w-]+)|(['"])([^'"]*)\2)\s*$/.exec(last.value);
         return value ? (value[1] ?? value[3]) : null;
     };
-    // The preludes of the blocks around a place, innermost first: two rules
-    // with the same chain style the same elements. Spacing outside strings
-    // is the same selector; inside one (`[title="a  b"]`) it is not. A
-    // Sass interpolation reads the literal its variable holds there
-    // (`$n: a; .#{$n}` is `.a`); one the scan cannot know makes the chain
-    // that block's own.
-    const selectorOf = (scopes) => {
-        const chain = scopes
-            .filter((scope) => scope !== null)
-            .map((scope) =>
-                blockAt
-                    .get(scope)
-                    ?.prelude.replace(SPACING, (m) => (/^\s/.test(m) ? ' ' : m))
-                    .replace(
-                        /#\{\s*(\$[\w-]+)\s*\}/g,
-                        (m, name) => literalAt(name, scope) ?? m
-                    )
-            )
-            .join(' < ');
-        return chain.includes('#{') ? `${chain} @ ${scopes.join(' ')}` : chain;
+    // The selector chains of the blocks around a place, innermost first:
+    // one per selector of each list (`.a, .b { .x {} }` is `.x < .a` and
+    // `.x < .b`), and two rules with a chain in common style its elements.
+    // Spacing outside strings is the same selector; inside one
+    // (`[title="a  b"]`) it is not. A Sass interpolation reads the literal
+    // its variable holds there (`$n: a; .#{$n}` is `.a`); one the scan cannot
+    // know, or more than 16 chains, makes the block's chain its own.
+    const selectorsOf = (scopes) => {
+        let chains = [''];
+        for (const scope of scopes) {
+            if (scope === null) continue;
+            const prelude = blockAt
+                .get(scope)
+                .prelude.replace(SPACING, (m) => (/^\s/.test(m) ? ' ' : m))
+                .replace(
+                    /#\{\s*(\$[\w-]+)\s*\}/g,
+                    (m, name) => literalAt(name, scope) ?? m
+                );
+            const parts = /^@|#\{/.test(prelude)
+                ? [prelude]
+                : selectorList(prelude);
+            chains = chains.flatMap((chain) =>
+                parts.map((part) => (chain ? `${chain} < ${part}` : part))
+            );
+        }
+        const known = chains.length <= 16 && !chains.join().includes('#{');
+        return known ? chains : [`${chains.join(', ')} @ ${scopes.join(' ')}`];
     };
-    // Blocks with the same selector chain (and the same `@if` or `@each`
-    // around them) are one rule to the cascade: its declarations apply in
-    // source order, whichever block holds them. Each block maps to the first
-    // one of its rule.
-    const ruleStarts = new Map();
-    const ruleOf = (start) => {
-        if (start === null || start === undefined) return start;
+    // Blocks with a selector chain in common (and the same `@if` or `@each`
+    // around them) are one rule to the cascade for it: its declarations
+    // apply in source order, whichever block holds them. A block is in one
+    // rule per chain.
+    const rulesOf = (start) => {
+        if (start === null || start === undefined) return [];
         const flow = blocks
             .filter(
                 (b) => b.kind === 'flow' && b.start < start && start < b.end
             )
             .map((b) => b.start);
-        const chain = selectorOf(placeOf(blocks, start + 1).scopes);
-        const key = `${chain} | ${flow.join(' ')}`;
-        if (!ruleStarts.has(key)) ruleStarts.set(key, start);
-        return ruleStarts.get(key);
+        const chains = selectorsOf(placeOf(blocks, start + 1).scopes);
+        return chains.map((chain) => `${chain} | ${flow.join(' ')}`);
     };
     // The family each rule renders in (see `familiesOf`); one named through
     // variables is resolved once the whole workspace is scanned.
@@ -950,10 +964,10 @@ export function scanWeights(file, written) {
         familyRefs(parts, {
             ...{ file, index, ...place, guards: guardsAt(index) },
             rule: blockAt.get(place.scope)?.prelude ?? null,
-            selector: selectorOf(place.scopes),
+            selectors: selectorsOf(place.scopes),
         });
     const monoAt = stylesheet
-        ? familiesOf(lexed, blocks, { inString, placeOf, refsIn, ruleOf })
+        ? familiesOf(lexed, blocks, { inString, placeOf, refsIn, rulesOf })
         : () => ({ mono: false, refs: [] });
     // Weights in rules whose family is named through variables: capped once
     // that family resolves to JetBrains Mono.
@@ -966,7 +980,7 @@ export function scanWeights(file, written) {
     // included.
     const ruleScope = (index) => {
         const place = placeOf(blocks, index);
-        return ruleOf(fontNamespaceRule(blocks, place) ?? place.scope);
+        return rulesOf(fontNamespaceRule(blocks, place) ?? place.scope);
     };
     for (const match of stylesheet ? text.matchAll(WEIGHT_SETTER) : []) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
@@ -984,23 +998,27 @@ export function scanWeights(file, written) {
         if (match[1].toLowerCase() === 'weight' && namespace === undefined) {
             continue;
         }
-        const scope = ruleScope(match.index);
         const important = IMPORTANT.test(value);
-        if (!setters.has(scope)) setters.set(scope, []);
-        setters.get(scope).push({ index: match.index, important });
+        for (const rule of ruleScope(match.index)) {
+            if (!setters.has(rule)) setters.set(rule, []);
+            setters.get(rule).push({ index: match.index, important });
+        }
     }
     // A shorthand that fails to parse is dropped, so it sets nothing.
-    const inEffect = (index) => {
-        const rule = setters.get(ruleScope(index)) ?? [];
-        const own = rule.find((setter) => setter.index === index);
-        return (
-            Boolean(own) &&
-            !rule.some(
-                (later) =>
-                    later.index > index && (later.important || !own.important)
-            )
-        );
-    };
+    // In a selector list, it is in effect while it is for any selector.
+    const inEffect = (index) =>
+        ruleScope(index).some((id) => {
+            const rule = setters.get(id) ?? [];
+            const own = rule.find((setter) => setter.index === index);
+            return (
+                Boolean(own) &&
+                !rule.some(
+                    (later) =>
+                        later.index > index &&
+                        (later.important || !own.important)
+                )
+            );
+        });
 
     // CSS text in a string (an inline `style="…"`, a component style) meets
     // the Mono cap when the declarations around it set JetBrains Mono.
@@ -1108,7 +1126,7 @@ export function scanWeights(file, written) {
                         ...{ ...family.at, file },
                         guards: guardsAt(family.at.index),
                         rule: blockAt.get(family.at.scope)?.prelude ?? null,
-                        selector: selectorOf(family.at.scopes ?? []),
+                        selectors: selectorsOf(family.at.scopes ?? []),
                     },
                     terms: capped.terms.filter(capOnly),
                     references: capped.references.map((reference) => ({
@@ -1234,9 +1252,9 @@ export function scanWeights(file, written) {
             important: IMPORTANT.test(full),
             // The selector of the rule it sits in, for custom properties.
             rule: blockAt.get(place.scope)?.prelude ?? null,
-            selector: selectorOf(place.scopes),
-            // The rule it belongs to in the cascade (see `ruleOf`).
-            cascade: ruleOf(place.scope),
+            selectors: selectorsOf(place.scopes),
+            // The rules it belongs to in the cascade (see `rulesOf`).
+            cascades: rulesOf(place.scope),
             guards: guardsAt(index),
             // Checked against the scale where it is declared (see below).
             weighted: /weight$/i.test(name),
@@ -1534,29 +1552,47 @@ export function findIndirectWeights(scans) {
         );
     };
     // A custom property declared again, unconditionally, later in the same
-    // rule (any block with its selector, see `ruleOf`) is replaced there,
-    // unless only the earlier one is `!important`.
-    const replaced = new Set();
+    // rule (any block with its selector, see `rulesOf`) is replaced there,
+    // unless only the earlier one is `!important`; in a selector list, only
+    // where that holds for every selector.
     const byRule = new Map();
     for (const definition of definitions) {
-        const { key, argument, cascade, code } = definition;
-        if (!key.startsWith('--') || argument || code || cascade == null)
+        const { key, argument, cascades, code } = definition;
+        if (!key.startsWith('--') || argument || code || !cascades?.length) {
             continue;
-        const group = `${definition.file} ${cascade} ${key}`;
-        if (!byRule.has(group)) byRule.set(group, []);
-        byRule.get(group).push(definition);
+        }
+        // Its rules and selector chains line up (see `rulesOf`).
+        cascades.forEach((rule, i) => {
+            const group = `${definition.file} ${rule} ${key}`;
+            if (!byRule.has(group)) byRule.set(group, []);
+            byRule
+                .get(group)
+                .push({ definition, chain: definition.selectors[i] });
+        });
     }
+    // The selector chains each definition is replaced for.
+    const overridden = new Map();
     for (const group of byRule.values()) {
-        for (const definition of group) {
+        for (const { definition, chain } of group) {
             const later = group.some(
-                (other) =>
+                ({ definition: other }) =>
                     other.index > definition.index &&
                     !other.conditional &&
                     (other.important || !definition.important)
             );
-            if (later) replaced.add(definition);
+            if (!later) continue;
+            if (!overridden.has(definition))
+                overridden.set(definition, new Set());
+            overridden.get(definition).add(chain);
         }
     }
+    const replacedFor = (definition, chains) =>
+        chains.every((chain) => overridden.get(definition)?.has(chain));
+    const replaced = new Set(
+        [...overridden.keys()].filter((definition) =>
+            replacedFor(definition, definition.selectors)
+        )
+    );
     // The definitions a reference can resolve to, as Sass and the cascade
     // read them (see `sassScopes` and `effectiveDeclarations`).
     const visibleDefinitions = (reference) => {
@@ -1674,7 +1710,7 @@ export function findIndirectWeights(scans) {
         }
         // The same selector written again in the file styles the same
         // elements (another file's component styles reach other ones).
-        if (own && definition.selector === reference.selector) {
+        if (own && covers(definition.selectors, reference.selectors)) {
             return true;
         }
         if (reachesEverything(definition.rule, reference.rule)) return true;
@@ -1728,7 +1764,7 @@ export function findIndirectWeights(scans) {
     // those elements inherit.
     const setsOwn = (definition, reference) =>
         definition.file === reference.file &&
-        definition.selector === reference.selector &&
+        covers(definition.selectors, reference.selectors) &&
         !INHERITING.test((definition.full ?? definition.value).trim()) &&
         (definition.guards ?? []).every((guard) =>
             (reference.guards ?? []).includes(guard)
@@ -1776,8 +1812,13 @@ export function findIndirectWeights(scans) {
         // one set from code (an inline style) may still win over either.
         const visible = visibleDefinitions(reference);
         const custom = name.startsWith('--');
+        // One replaced for each of the reader's selectors sets nothing there.
         const own = custom
-            ? visible.filter((definition) => setsOwn(definition, reference))
+            ? visible.filter(
+                  (definition) =>
+                      setsOwn(definition, reference) &&
+                      !replacedFor(definition, reference.selectors)
+              )
             : [];
         const definitions = own.length
             ? visible.filter((d) => d.code || own.includes(d))

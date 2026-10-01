@@ -269,6 +269,10 @@ export function familyParts(value) {
  * A selector (or family) list split at its top-level commas: `:is(a, b)`,
  * `'a, b'` and `a\, b` stay whole.
  */
+export function selectorList(prelude) {
+    return selectorsOf(prelude);
+}
+
 function selectorsOf(prelude) {
     const selectors = [];
     let depth = 0;
@@ -359,8 +363,8 @@ function inherits(prelude) {
 }
 
 /**
- * The family each rule sets (every block with its selector chain, mapped
- * by `ruleOf`), the last declaration in source order winning unless an
+ * The family each rule sets (every block with one of its selector chains,
+ * see `rulesOf`), the last declaration in source order winning unless an
  * earlier one is `!important`: whether it names JetBrains Mono outright (`mono`),
  * the variables it reads (`refs`, from `familyParts`, resolved later across
  * the workspace) or that it inherits (`inherit`/`unset`). Returns
@@ -371,7 +375,7 @@ function inherits(prelude) {
 export function familiesOf(
     lexed,
     blocks,
-    { inString, placeOf, refsIn, ruleOf }
+    { inString, placeOf, refsIn, rulesOf }
 ) {
     const family = new Map();
     for (const match of lexed.text.matchAll(FONT_FAMILY)) {
@@ -386,24 +390,26 @@ export function familiesOf(
         const namespace = fontNamespaceRule(blocks, place);
         const property = match[1].toLowerCase();
         if (property === 'family' && namespace === undefined) continue;
-        // Keyed by its rule, so a later block with the same selector wins.
-        const scope = ruleOf(namespace ?? place.scope);
         // A shorthand that fails to parse is dropped, family and all.
         if (property === 'font' && !parsesAsFont(value)) continue;
         const important = IMPORTANT.test(value);
-        if (family.get(scope)?.important && !important) continue;
         const parts = familyParts(value);
         const shorthand = property === 'font';
-        family.set(scope, {
+        const entry = {
             important,
-            inherit: /^\s*(?:inherit|unset)\b/i.test(value),
+            inherit: /^\s*(?:inherit|unset|revert|revert-layer)\b/i.test(value),
             mono: rendersMono(parts.outside, { shorthand, defer: true }),
             shorthand,
             refs: refsIn(parts, match.index, place),
             // The whole family and where it sits, to resolve it later.
             text: value,
             at: { index: match.index, ...place },
-        });
+        };
+        // Keyed by rule, so a later block with one of its selectors wins.
+        for (const rule of rulesOf(namespace ?? place.scope)) {
+            if (family.get(rule)?.important && !important) continue;
+            family.set(rule, entry);
+        }
     }
     return (index) => {
         const around = blocks
@@ -412,8 +418,17 @@ export function familiesOf(
             .reverse();
         for (const block of around) {
             if (/^@font-face\b/i.test(block.prelude)) return NONE;
-            const own = family.get(ruleOf(block.start));
-            if (own && !own.inherit) return own;
+            // A selector list meets the cap when one of its selectors
+            // renders Mono; one without a family of its own inherits it.
+            const rules = rulesOf(block.start);
+            const own = rules
+                .map((rule) => family.get(rule))
+                .filter((entry) => entry && !entry.inherit);
+            const named =
+                own.find((entry) => entry.mono) ??
+                own.find((entry) => entry.refs.length > 0);
+            if (named) return named;
+            if (own.length && own.length === rules.length) return own[0];
             if (!inherits(block.prelude)) return NONE;
         }
         return NONE;
