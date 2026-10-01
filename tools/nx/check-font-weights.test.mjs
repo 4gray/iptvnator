@@ -3241,12 +3241,16 @@ test('reads a selector list as each of its selectors', () => {
             `.a, .b, .c, .d, .e { .f, .g, .h, .i { font-family: ${mono}; } } .a { .f { font-weight: 700; } }`,
             [],
         ],
-        // A comma in a string or inside `:is()` is no list.
+        // A comma in a string is no list; `:is(.x, .y)` is one selector
+        // that every `.x` matches.
         [
             `[title="a, b"] { font-family: ${mono}; } [title="a"] { font-weight: 700; }`,
             [],
         ],
-        [`:is(.x, .y) { font-family: ${mono}; } .x { font-weight: 700; }`, []],
+        [
+            `:is(.x, .y) { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
@@ -3968,6 +3972,126 @@ test('reads an explicit `inherit` of a non-inheriting registered property', () =
         ),
         []
     );
+});
+
+test("picks the cascade's winner among the rules on an element", () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s12/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // `!important`, then specificity, then source order, over the element's
+    // own rule, the bases it contains and `*`.
+    for (const [source, expected] of [
+        [
+            `.x { font-family: ${mono}; } .y { font-family: Roboto; } .x.y { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.y { font-family: Roboto; } .x { font-family: ${mono}; } .x.y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `div { font-family: ${mono}; } .x { font-family: Roboto; } div.x:hover { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.x { font-family: Roboto; } div { font-family: ${mono}; } div.x:hover { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; } .x.active { font-family: Roboto; } .x.active:hover { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono} !important; } .x.active { font-family: Roboto; } .x.active:hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x:hover { font-family: Roboto; font-weight: 700; } .x { font-family: ${mono}; }`,
+            [],
+        ],
+        [
+            `.x:hover { font-weight: 700; } .x { font-family: ${mono}; } * { font-family: Roboto; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `* { font-family: ${mono}; } .x { font-family: Roboto; } .x:hover { font-weight: 700; }`,
+            [],
+        ],
+        // A rule's place is where its winning declaration is.
+        [
+            `.x { font-family: ${mono}; } .y { font-family: Roboto; } .x { font-family: ${mono}; } .x.y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // An id outranks any number of classes; `:is()` takes its most
+        // specific argument.
+        [
+            `#a { font-family: Roboto; } .x { font-family: ${mono}; } #a.x { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `:is(.x, #y) { font-family: Roboto; } .x { font-family: ${mono}; } .x:hover { font-weight: 700; }`,
+            [],
+        ],
+        // More than 16 ways to read one is left unopened.
+        [
+            `:is(.a, .b, .c, .d, .e):is(.f, .g, .h, .i) { font-family: ${mono}; } .a.f { font-weight: 700; }`,
+            [],
+        ],
+        // `:where()` and `:is()` open into their selectors; `:where()`
+        // counts nothing toward specificity.
+        [
+            `:where(.x) { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:where(.x) { font-family: ${mono}; } .x { font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.x { font-family: Roboto; } :where(.x) { font-family: ${mono}; } .x:hover { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `:is(.x, .y) { font-family: ${mono}; } .y { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`:is(.x, .y) { font-family: ${mono}; } .z { font-weight: 700; }`, []],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test('follows `@extend` through extenders and inside `@media`', () => {
+    const mono = "'JetBrains Mono'";
+    const media = '@media (min-width: 1px)';
+    const report = (body) =>
+        findOffScaleWeights('libs/s12/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        [
+            `%mono { font-family: ${mono}; } %base { @extend %mono; } .x { @extend %base; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // Inside a `@media`, an `@extend` reaches only the same `@media`; from
+        // outside, it reaches into one.
+        [
+            `${media} { %mono { font-family: ${mono}; } .x { @extend %mono; font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { %mono { font-family: ${mono}; } } .x { @extend %mono; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `%mono { font-family: ${mono}; } ${media} { .x { @extend %mono; font-weight: 700; } }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
 });
 
 test('reads template literals set from code', () => {

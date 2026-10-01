@@ -54,10 +54,10 @@ import {
 
 /**
  * The weights `apps/web/src/styles.scss` bundles for DM Sans and its Roboto
- * fallback (JetBrains Mono stops at 500). Any other value snaps to a neighbouring face
- * (650 renders as 700), and a 600 or 700 that finds nothing heavier than 500
- * gets Chromium's synthetic bold. The workspace is at zero exceptions; this
- * check keeps it there.
+ * fallback (JetBrains Mono stops at 500). Any other value snaps to a
+ * neighbouring face (650 renders as 700), and a 600 or 700 that finds
+ * nothing heavier than 500 gets Chromium's synthetic bold. The workspace is
+ * at zero exceptions; this check keeps it there.
  *
  * Sass is not compiled, so a weight must be written, not computed: arithmetic
  * and functions other than `var()` are findings in themselves. Every weight
@@ -85,17 +85,20 @@ import {
  *
  * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
  * written out or through variables, or one a nested rule inherits; see
- * `familiesOf`) is capped at `MONO_WEIGHT_CAP`, as is a flat descendant
- * (`.parent .child`) of a top-level rule that sets it. A mixin's top-level
+ * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A mixin's top-level
  * declarations land where this file includes it, and a rule this file
- * `@extend`s whole applies to its extenders. A top-level rule on a single
- * compound also sets the family of compounds that contain it (`.x` for
- * `.x:hover`); rules are not ranked by specificity, so any that renders Mono
- * counts. Without a family of its own, a rule takes one from `*`, an
- * ancestor its compiled selector names (in its `@media` or always), or the
- * document root (`:host`, `body`, `html`, `:root`) in its file. Not traced: global styles in another file, a weight inherited from
- * another rule, a mixin from another module, and a family set on an
- * element from code.
+ * `@extend`s whole applies to its extenders. A rule on a single compound
+ * also sets the family of compounds that contain it (`.x` for `.x:hover`,
+ * `:is()`/`:where()` opened); of those, the element's own rule and `*`, the
+ * cascade winner counts (`!important`, specificity, source order). Without
+ * a family of its own, a rule takes one from an ancestor its compiled
+ * selector names (in its `@media`, or always), else from the document root
+ * (`:host`, `body`, `html`, `:root`) in its file.
+ *
+ * Not traced: global styles in another file, a weight inherited from
+ * another rule, a mixin from another module, a family set on an element
+ * from code, and one that reaches only some of a rule's elements (a more
+ * specific `.x.active`, or `@extend .m` into `.m.active`).
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 

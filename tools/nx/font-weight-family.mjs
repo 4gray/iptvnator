@@ -424,6 +424,69 @@ function simplesOf(compound) {
     return simples;
 }
 
+/** A functional pseudo-class and its argument (`:is(.x, .y)`). */
+const FUNCTIONAL = /^:([\w-]+)\(([\s\S]*)\)$/;
+
+/**
+ * A selector's specificity as `[ids, classes, types]`: `:where()` counts
+ * nothing, `:is()`, `:not()` and `:has()` their most specific argument.
+ */
+export function specificityOf(selector) {
+    const total = [0, 0, 0];
+    for (const { compound } of compoundsOf(selector)) {
+        for (const simple of simplesOf(compound) ?? []) {
+            const [, name, argument] = FUNCTIONAL.exec(simple) ?? [];
+            let add = [0, 0, 0];
+            if (/^(?:is|not|has|matches)$/i.test(name ?? '')) {
+                add = selectorsOf(argument)
+                    .map(specificityOf)
+                    .reduce((a, b) => (compare(a, b) >= 0 ? a : b), add);
+            } else if (/^where$/i.test(name ?? '') || simple === '*') {
+                add = [0, 0, 0];
+            } else if (simple.startsWith('#')) add = [1, 0, 0];
+            else if (
+                /^::|^:(?:before|after|first-line|first-letter)$/i.test(simple)
+            ) {
+                add = [0, 0, 1];
+            } else if (/^[.:[]/.test(simple)) add = [0, 1, 0];
+            else add = [0, 0, 1];
+            for (let k = 0; k < 3; k += 1) total[k] += add[k];
+        }
+    }
+    return total;
+}
+
+/** Whether cascade rank `a` beats `b` (a later equal rank wins). */
+function rankAbove(a, b) {
+    for (let k = 0; k < a.length; k += 1) {
+        if (a[k] !== b[k]) return a[k] > b[k];
+    }
+    return false;
+}
+
+/** Which of two specificities is greater (positive), equal (0) or less. */
+function compare(a, b) {
+    return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+}
+
+/**
+ * The ways a compound's simple selectors can be read with `:is()` and
+ * `:where()` opened (`:is(.x, .y).z` is `.x .z` or `.y .z`), up to 16.
+ */
+function alternativesOf(simples) {
+    let ways = [[]];
+    for (const simple of simples) {
+        const [, name, argument] = FUNCTIONAL.exec(simple) ?? [];
+        const options = /^(?:is|where|matches)$/i.test(name ?? '')
+            ? selectorsOf(argument).map((s) => simplesOf(s))
+            : [[simple]];
+        if (options.some((option) => !option)) return [simples];
+        ways = ways.flatMap((way) => options.map((o) => [...way, ...o]));
+        if (ways.length > 16) return [simples];
+    }
+    return ways;
+}
+
 /** A selector spaced one way, so `.a>.b` and `.a > .b` compare equal. */
 export function canonicalSelector(selector) {
     return joined(compoundsOf(selector));
@@ -520,21 +583,49 @@ export function familiesOf(
             ? (includes.get(block.name) ?? [])
             : [];
     };
-    // This file's `@extend`s, by the top-level rule they extend: that rule's
+    // A rule as compiled: its selector (`.p { &:hover {} }` is `.p:hover`,
+    // `.w { .p .c {} }` is `.w .p .c`) and the context it applies in (its
+    // at-rule wrappers and `@if`/`@each`); `null` for one without a style
+    // rule. One the scan cannot know (`.#{$n}`) stays unique to its block.
+    const UNCONDITIONAL = ' | ';
+    const compiled = (rule) => {
+        const split = rule.lastIndexOf(' | ');
+        const chain = rule.slice(0, split);
+        let selector = '';
+        const wrappers = [];
+        for (const part of chain.split(' < ').reverse()) {
+            if (part.startsWith('@')) wrappers.push(part);
+            else if (part.includes('&'))
+                selector = part.replaceAll('&', selector);
+            else selector = selector ? `${selector} ${part}` : part;
+        }
+        if (!selector) return null;
+        const context = `${wrappers.join(' ; ')} | ${rule.slice(split + 3)}`;
+        return { selector: canonicalSelector(selector), context };
+    };
+    // This file's `@extend`s, by the selector they extend: that rule's
     // declarations apply to the extending rule too, where they are written.
     const extenders = new Map();
     for (const match of lexed.text.matchAll(EXTEND)) {
         if (inString(match.index)) continue;
         const { scope } = placeOf(blocks, match.index);
+        const context = compiled(rulesOf(scope)[0] ?? '')?.context;
         for (const target of selectorsOf(match[1]).map(canonicalSelector)) {
             if (!extenders.has(target)) extenders.set(target, []);
-            extenders.get(target).push({ index: match.index, scope });
+            extenders.get(target).push({ index: match.index, scope, context });
         }
     }
+    // Who extends a rule on one compound: from anywhere, or (as Sass allows)
+    // from inside the same `@media`.
     const extendersOf = (scope) =>
-        rulesOf(scope)
-            .filter((rule) => rule.endsWith(' | ') && !rule.includes(' < '))
-            .flatMap((rule) => extenders.get(rule.slice(0, -3)) ?? []);
+        rulesOf(scope).flatMap((rule) => {
+            const form = compiled(rule);
+            if (!form) return [];
+            return (extenders.get(form.selector) ?? []).filter(
+                ({ context }) =>
+                    context === UNCONDITIONAL || context === form.context
+            );
+        });
     // Where a declaration in `scope` at `at` applies: its own rules, and
     // through each `@include` of a mixin (one included in another mixin
     // goes on to that one's includes) or `@extend` of a rule, theirs.
@@ -589,39 +680,23 @@ export function familiesOf(
     }
     // Keyed by rule, so a later block with one of its selectors wins.
     applied.sort((a, b) => a.at - b.at);
-    for (const { rules, entry } of applied) {
+    // Where each rule's family was set, for the cascade between rules.
+    const orderOf = new Map();
+    for (const { rules, entry, at } of applied) {
         for (const rule of rules) {
             if (family.get(rule)?.important && !entry.important) continue;
             family.set(rule, entry);
+            orderOf.set(rule, at);
         }
     }
-    // A rule as compiled: its selector (`.p { &:hover {} }` is `.p:hover`,
-    // `.w { .p .c {} }` is `.w .p .c`) and the context it applies in (its
-    // at-rule wrappers and `@if`/`@each`); `null` for one without a style
-    // rule. One the scan cannot know (`.#{$n}`) stays unique to its block.
-    const UNCONDITIONAL = ' | ';
-    const compiled = (rule) => {
-        const split = rule.lastIndexOf(' | ');
-        const chain = rule.slice(0, split);
-        let selector = '';
-        const wrappers = [];
-        for (const part of chain.split(' < ').reverse()) {
-            if (part.startsWith('@')) wrappers.push(part);
-            else if (part.includes('&'))
-                selector = part.replaceAll('&', selector);
-            else selector = selector ? `${selector} ${part}` : part;
-        }
-        if (!selector) return null;
-        const context = `${wrappers.join(' ; ')} | ${rule.slice(split + 3)}`;
-        return { selector: canonicalSelector(selector), context };
-    };
     // Every rule's family by its compiled selector and context.
     const byCompiled = new Map();
     const compiledRules = [];
     for (const [rule, entry] of family) {
         const form = compiled(rule);
-        if (!form || entry.inherit) continue;
+        if (!form) continue;
         compiledRules.push({ rule, entry, ...form });
+        if (entry.inherit) continue;
         const key = `${form.selector} # ${form.context}`;
         if (!byCompiled.has(key)) byCompiled.set(key, []);
         byCompiled.get(key).push(entry);
@@ -639,36 +714,94 @@ export function familiesOf(
         found.find((entry) => entry.refs.length > 0) ??
         (complete ? found[0] : undefined) ??
         null;
-    // The rules on a single compound (`.x`, `a.b`), with their simple
-    // selectors: an element of `.x:hover` is an `.x`, so a family `.x`
-    // sets is its own (unless its rule sets one), in the same context or
-    // where the base always applies.
+    // The rules on a single compound (`.x`, `a.b`, `:where(.x)`), with the
+    // ways their simple selectors read: an element of `.x:hover` is an `.x`,
+    // so a family `.x` sets reaches it, in the same context or where the
+    // base always applies.
     const bases = compiledRules
-        .map((base) => ({ ...base, simples: simplesOf(base.selector) }))
-        .filter(({ simples }) => simples);
-    const fromBases = (block) => {
+        .map((base) => {
+            const simples = simplesOf(base.selector);
+            return { ...base, ways: simples ? alternativesOf(simples) : [] };
+        })
+        .filter(({ ways }) => ways.length);
+    // The family an at-rule block (`@media` inside a rule) sets itself.
+    const ownFamily = (block) => {
         const rules = rulesOf(block.start);
-        const found = rules.map((rule) => {
+        const set = rules
+            .map((rule) => family.get(rule))
+            .filter((entry) => entry && !entry.inherit);
+        const named =
+            set.find((entry) => entry.mono) ??
+            set.find((entry) => entry.refs.length > 0);
+        if (named) return named;
+        return set.length && set.length === rules.length ? set[0] : null;
+    };
+    // The family on an element of each of a rule's selectors: the cascade
+    // winner (`!important`, then specificity, then source order) among its
+    // own rule, the bases it contains and `*`. One whose winner inherits
+    // (or with none) takes the family its element inherits.
+    const elementFamily = (block) => {
+        const rules = rulesOf(block.start);
+        const winners = rules.map((rule) => {
             const form = compiled(rule);
-            if (!form) return [];
+            if (!form) return family.get(rule) ?? null;
             const target = compoundsOf(form.selector).at(-1)?.compound;
-            const simples = simplesOf(target ?? '');
-            if (!simples?.length) return [];
-            return bases
+            const simples = simplesOf(target ?? '') ?? [];
+            const candidates = bases
                 .filter(
                     (base) =>
                         base.context === form.context ||
                         base.context === UNCONDITIONAL
                 )
                 .filter((base) =>
-                    base.simples.every((s) => simples.includes(s))
+                    base.ways.some((way) =>
+                        way.every((s) => simples.includes(s))
+                    )
                 )
-                .map((base) => base.entry);
+                .map((base) => ({
+                    entry: base.entry,
+                    rank: [
+                        base.entry.important ? 1 : 0,
+                        ...specificityOf(base.selector),
+                        orderOf.get(base.rule) ?? 0,
+                    ],
+                }));
+            const own = family.get(rule);
+            if (own && !candidates.some(({ entry }) => entry === own)) {
+                candidates.push({
+                    entry: own,
+                    rank: [
+                        own.important ? 1 : 0,
+                        ...specificityOf(form.selector),
+                        orderOf.get(rule) ?? 0,
+                    ],
+                });
+            }
+            const star = family.get(`* | `);
+            if (star) {
+                candidates.push({
+                    entry: star,
+                    rank: [
+                        star.important ? 1 : 0,
+                        0,
+                        0,
+                        0,
+                        orderOf.get('* | ') ?? 0,
+                    ],
+                });
+            }
+            const best = candidates.reduce(
+                (a, b) => (a && rankAbove(a.rank, b.rank) ? a : b),
+                null
+            );
+            return best?.entry ?? null;
         });
-        return chosen(
-            found.flat(),
-            found.every((list) => list.length)
-        );
+        const set = winners.filter((entry) => entry && !entry.inherit);
+        const named =
+            set.find((entry) => entry.mono) ??
+            set.find((entry) => entry.refs.length > 0);
+        if (named) return named;
+        return set.length && set.length === rules.length ? set[0] : null;
     };
     // A top-level rule's family, unless it inherits (`* | ` is `*`'s).
     const rooted = (selector) => {
@@ -703,21 +836,9 @@ export function familiesOf(
             if (/^@font-face\b/i.test(block.prelude)) return NONE;
             // A selector list meets the cap when one of its selectors
             // renders Mono; one without a family of its own inherits it.
-            const rules = rulesOf(block.start);
-            const own = rules
-                .map((rule) => family.get(rule))
-                .filter((entry) => entry && !entry.inherit);
-            const named =
-                own.find((entry) => entry.mono) ??
-                own.find((entry) => entry.refs.length > 0);
-            if (named) return named;
-            if (own.length && own.length === rules.length) return own[0];
             const style = !block.prelude.startsWith('@');
-            const base = style ? fromBases(block) : null;
-            if (base) return base;
-            // `*` sets the element itself, ahead of anything it inherits.
-            const star = rooted('*');
-            if (star) return star;
+            const own = style ? elementFamily(block) : ownFamily(block);
+            if (own) return own;
             // A rule on another element (not `&…`) inherits from the
             // nearest ancestor its selector names.
             if (style && !block.prelude.includes('&')) {
