@@ -4188,6 +4188,19 @@ test('reads a complex rule as a base of the narrower ones it reaches', () => {
             `.a + .b { font-family: ${mono}; } .a + .q + .b { font-weight: 700; }`,
             [],
         ],
+        // Every place a span allows, not only the nearest match.
+        [
+            `.a > .b .x { font-family: ${mono}; } .a > .b .b .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a + .b ~ .x { font-family: ${mono}; } .a + .b ~ .b ~ .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.a .b .c .x { font-family: ${mono}; } .a .c .b .x { font-weight: 700; }`,
+            [],
+        ],
         // As an ancestor's rule, and ranked in the cascade.
         [
             `.parent .x { font-family: ${mono}; } .parent .x:hover .c { font-weight: 700; }`,

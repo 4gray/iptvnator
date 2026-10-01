@@ -1122,24 +1122,28 @@ export function familiesOf(
                 ways.every((s) => s === '*' || simples?.includes(s))
             );
         };
-        return base.chains.some((chain) => {
-            let k = reader.length - 1;
-            if (!within(chain.at(-1), k)) return false;
-            for (let i = chain.length - 2; i >= 0; i -= 1) {
-                const combinator = chain[i + 1].combinator;
-                const across = ACROSS[combinator] ?? [combinator];
-                let j = k - 1;
-                for (; j >= 0; j -= 1) {
-                    if (!across.includes(reader[j + 1].combinator))
-                        return false;
-                    if (within(chain[i], j)) break;
-                    if (across.length === 1) return false;
+        // With `chain[i]` at the reader's `k`, whether the compounds before
+        // it fit further left, trying each place a span allows in turn (a
+        // nearer `.b` may leave no room for `.a > .b`'s `>`).
+        const fits = (chain, i, k) => {
+            if (i === 0) return true;
+            const combinator = chain[i].combinator;
+            const across = ACROSS[combinator] ?? [combinator];
+            for (let j = k - 1; j >= 0; j -= 1) {
+                if (!across.includes(reader[j + 1].combinator)) return false;
+                if (within(chain[i - 1], j) && fits(chain, i - 1, j)) {
+                    return true;
                 }
-                if (j < 0) return false;
-                k = j;
+                if (across.length === 1) return false;
             }
-            return true;
-        });
+            return false;
+        };
+        const last = reader.length - 1;
+        return base.chains.some(
+            (chain) =>
+                within(chain.at(-1), last) &&
+                fits(chain, chain.length - 1, last)
+        );
     };
     // Whether a rule reaches every element of `selector` (see `covers`),
     // in any way its target reads.
