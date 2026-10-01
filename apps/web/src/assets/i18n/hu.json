@@ -1936,6 +1936,8 @@
             "NO_RECOVERY": "Az elfelejtett PIN-kód nem állítható vissza — csak az alkalmazásadatok alaphelyzetbe állítása távolítja el.",
             "SAVE": "PIN-kód mentése",
             "UNLOCK": "Feloldás",
+            "CONFIRM": "Megerősítés",
+            "TURN_OFF": "Kikapcsolás",
             "CONFIRM_TITLE": "Szülői PIN-kód megerősítése",
             "CONFIRM_DESCRIPTION": "A beállítás módosításához adja meg a jelenlegi PIN-kódot."
         },

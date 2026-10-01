@@ -1936,6 +1936,8 @@
             "NO_RECOVERY": "Não é possível recuperar um PIN esquecido — somente redefinir os dados do app o remove.",
             "SAVE": "Salvar PIN",
             "UNLOCK": "Desbloquear",
+            "CONFIRM": "Confirmar",
+            "TURN_OFF": "Desativar",
             "CONFIRM_TITLE": "Confirmar PIN parental",
             "CONFIRM_DESCRIPTION": "Digite o PIN atual para alterar esta configuração."
         },

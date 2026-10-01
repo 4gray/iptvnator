@@ -559,6 +559,46 @@ describe('ParentalLockService', () => {
         expect(prompt.requestPin.mock.calls[0][0].mode).toBe('unlock');
     });
 
+    it('labels each prompt with the verb of its flow', async () => {
+        prompt.requestPin.mockImplementation(
+            async (request: ParentalLockPromptRequest) =>
+                request.mode === 'set'
+                    ? '1234'
+                    : (await request.verify?.('1234'))
+                      ? '1234'
+                      : null
+        );
+        const service = await createService();
+        const submitKeys = () =>
+            prompt.requestPin.mock.calls.map(
+                ([request]: [ParentalLockPromptRequest]) =>
+                    `${request.mode}:${request.submitKey}`
+            );
+
+        await expect(service.setupPin()).resolves.toBe(true);
+        expect(submitKeys()).toEqual(['set:PARENTAL_LOCK.PIN_DIALOG.SAVE']);
+
+        prompt.requestPin.mockClear();
+        await expect(service.changePin()).resolves.toBe(true);
+        expect(submitKeys()).toEqual([
+            'unlock:PARENTAL_LOCK.PIN_DIALOG.CONFIRM',
+            'set:PARENTAL_LOCK.PIN_DIALOG.SAVE',
+        ]);
+
+        prompt.requestPin.mockClear();
+        service.lock();
+        await expect(service.requestUnlock()).resolves.toBe(true);
+        expect(submitKeys()).toEqual([
+            'unlock:PARENTAL_LOCK.PIN_DIALOG.UNLOCK',
+        ]);
+
+        prompt.requestPin.mockClear();
+        await expect(service.disable()).resolves.toBe(true);
+        expect(submitKeys()).toEqual([
+            'unlock:PARENTAL_LOCK.PIN_DIALOG.TURN_OFF',
+        ]);
+    });
+
     it('persists locks per portal, stamps the Xtream column and bumps the version', async () => {
         const service = await createService();
         const versionBefore = service.version();

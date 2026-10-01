@@ -44,6 +44,7 @@ export class AppParentalLockPromptService implements ParentalLockPrompt {
                 throttle: request.throttle,
                 titleKey: request.titleKey,
                 descriptionKey: request.descriptionKey,
+                submitKey: request.submitKey,
             }
         );
         const pin = await firstValueFrom(dialogRef.afterClosed());
