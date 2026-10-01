@@ -510,7 +510,10 @@ const ATTRIBUTE =
 /**
  * A simple selector as the elements it matches, spelled one way for
  * comparing (not ranking): a type lowercased, an attribute's quotes and
- * spaces dropped, and `[class~=x]` read as `.x` and `[id=x]` as `#x`.
+ * spaces dropped, and `[class~=x]` read as `.x` and `[id=x]` as `#x`. A
+ * type is lowercased even for SVG (`foreignObject`): Chromium, the app's
+ * Electron runtime, matches it so in an HTML document, where WebKit and
+ * Firefox match an SVG element's case exactly.
  */
 function matchKey(simple) {
     const attribute = ATTRIBUTE.exec(simple);

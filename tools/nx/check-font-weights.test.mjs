@@ -4218,6 +4218,11 @@ test('reads a complex rule as a base of the narrower ones it reaches', () => {
             `div { font-family: ${mono}; } DIV.x { font-weight: 700; }`,
             ['font-weight: 700'],
         ],
+        // Chromium matches an SVG type in any case, too.
+        [
+            `foreignobject { font-family: ${mono}; } foreignObject { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
         [`[class="x"] { font-family: ${mono}; } .x { font-weight: 700; }`, []],
         // As an ancestor's rule, and ranked in the cascade.
         [
