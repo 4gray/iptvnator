@@ -335,15 +335,20 @@ function inherits(prelude) {
 }
 
 /**
- * The family each rule sets, the last declaration winning unless an earlier
- * one is `!important`: whether it names JetBrains Mono outright (`mono`),
+ * The family each rule sets (every block with its selector chain, mapped
+ * by `ruleOf`), the last declaration in source order winning unless an
+ * earlier one is `!important`: whether it names JetBrains Mono outright (`mono`),
  * the variables it reads (`refs`, from `familyParts`, resolved later across
  * the workspace) or that it inherits (`inherit`/`unset`). Returns
  * `monoAt(index)`: the family in effect for a declaration there, from the
  * innermost rule that sets one and that the declaration's rule inherits
  * from. `@font-face` describes a face, so nothing in it is capped.
  */
-export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
+export function familiesOf(
+    lexed,
+    blocks,
+    { inString, placeOf, refsIn, ruleOf }
+) {
     const family = new Map();
     for (const match of lexed.text.matchAll(FONT_FAMILY)) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
@@ -357,7 +362,8 @@ export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
         const namespace = fontNamespaceRule(blocks, place);
         const property = match[1].toLowerCase();
         if (property === 'family' && namespace === undefined) continue;
-        const scope = namespace ?? place.scope;
+        // Keyed by its rule, so a later block with the same selector wins.
+        const scope = ruleOf(namespace ?? place.scope);
         // A shorthand that fails to parse is dropped, family and all.
         if (property === 'font' && !parsesAsFont(value)) continue;
         const important = /!important\b/i.test(value);
@@ -382,7 +388,7 @@ export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
             .reverse();
         for (const block of around) {
             if (/^@font-face\b/i.test(block.prelude)) return NONE;
-            const own = family.get(block.start);
+            const own = family.get(ruleOf(block.start));
             if (own && !own.inherit) return own;
             if (!inherits(block.prelude)) return NONE;
         }

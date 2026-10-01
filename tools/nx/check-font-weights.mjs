@@ -876,6 +876,23 @@ export function scanWeights(file, written) {
                     ?.prelude.replace(SPACING, (m) => (/^\s/.test(m) ? ' ' : m))
             )
             .join(' < ');
+    // Blocks with the same selector chain (and the same `@if` or `@each`
+    // around them) are one rule to the cascade: its declarations apply in
+    // source order, whichever block holds them. Each block maps to the first
+    // one of its rule.
+    const ruleStarts = new Map();
+    const ruleOf = (start) => {
+        if (start === null || start === undefined) return start;
+        const flow = blocks
+            .filter(
+                (b) => b.kind === 'flow' && b.start < start && start < b.end
+            )
+            .map((b) => b.start);
+        const chain = selectorOf(placeOf(blocks, start + 1).scopes);
+        const key = `${chain} | ${flow.join(' ')}`;
+        if (!ruleStarts.has(key)) ruleStarts.set(key, start);
+        return ruleStarts.get(key);
+    };
     const refsIn = (parts, index, place) =>
         familyRefs(parts, {
             ...{ file, index, ...place, guards: guardsAt(index) },
@@ -883,7 +900,7 @@ export function scanWeights(file, written) {
             selector: selectorOf(place.scopes),
         });
     const monoAt = stylesheet
-        ? familiesOf(lexed, blocks, { inString, placeOf, refsIn })
+        ? familiesOf(lexed, blocks, { inString, placeOf, refsIn, ruleOf })
         : () => ({ mono: false, refs: [] });
     // Weights in rules whose family is named through variables: capped once
     // that family resolves to JetBrains Mono.
@@ -896,7 +913,7 @@ export function scanWeights(file, written) {
     // included.
     const ruleScope = (index) => {
         const place = placeOf(blocks, index);
-        return fontNamespaceRule(blocks, place) ?? place.scope;
+        return ruleOf(fontNamespaceRule(blocks, place) ?? place.scope);
     };
     for (const match of stylesheet ? text.matchAll(WEIGHT_SETTER) : []) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
@@ -1167,6 +1184,8 @@ export function scanWeights(file, written) {
             // The selector of the rule it sits in, for custom properties.
             rule: blockAt.get(place.scope)?.prelude ?? null,
             selector: selectorOf(place.scopes),
+            // The rule it belongs to in the cascade (see `ruleOf`).
+            cascade: ruleOf(place.scope),
             guards: guardsAt(index),
             // Checked against the scale where it is declared (see below).
             weighted: /weight$/i.test(name),
@@ -1464,14 +1483,15 @@ export function findIndirectWeights(scans) {
         );
     };
     // A custom property declared again, unconditionally, later in the same
-    // rule is replaced there, unless only the earlier one is `!important`.
+    // rule (any block with its selector, see `ruleOf`) is replaced there,
+    // unless only the earlier one is `!important`.
     const replaced = new Set();
     const byRule = new Map();
     for (const definition of definitions) {
-        const { key, argument, scope, code } = definition;
-        if (!key.startsWith('--') || argument || code || scope == null)
+        const { key, argument, cascade, code } = definition;
+        if (!key.startsWith('--') || argument || code || cascade == null)
             continue;
-        const group = `${definition.file} ${scope} ${key}`;
+        const group = `${definition.file} ${cascade} ${key}`;
         if (!byRule.has(group)) byRule.set(group, []);
         byRule.get(group).push(definition);
     }

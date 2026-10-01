@@ -2771,6 +2771,68 @@ test('resolves a JetBrains Mono family named through variables', () => {
     ]);
 });
 
+test('treats blocks with the same selector as one rule', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s1/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // Its family is the last one in source order, wherever the weight sits,
+    // unless an earlier one is `!important`.
+    for (const [source, expected] of [
+        [
+            `.x { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-weight: 700; } .x { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; } .x { font-family: Roboto; } .x { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono} !important; } .x { font-family: Roboto; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.p { .x { font-family: ${mono}; } } .p { .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@media (min-width: 1px) { .x { font-family: ${mono}; } } @media (min-width: 1px) { .x { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        // Another selector is another rule.
+        [`.y { font-family: ${mono}; } .x { font-weight: 700; }`, []],
+        // A later weight in the rule replaces an earlier one.
+        [
+            `.x { font-family: ${mono}; font-weight: 700; } .x { font-weight: 400; }`,
+            [],
+        ],
+        // So does a custom property, unless an `@if` may skip the later one.
+        [
+            `:root { --face: ${mono}; } :root { --face: Roboto; } .x { font-family: var(--face); font-weight: 700; }`,
+            [],
+        ],
+        [
+            `:root { --face: Roboto; } :root { --face: ${mono}; } .x { font-family: var(--face); font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono} !important; } :root { --face: Roboto; } .x { font-family: var(--face); font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } @if $a { :root { --face: Roboto; } } .x { font-family: var(--face); font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",
