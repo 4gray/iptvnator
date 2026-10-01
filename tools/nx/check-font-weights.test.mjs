@@ -4094,6 +4094,28 @@ test('reads a static Sass interpolation in a family as Sass writes it', () => {
             `$f: #{'JetBrains'} Mono; .x { font-family: $f; font-weight: 700; }`,
             true,
         ],
+        // Its strings' escapes decoded as Sass unquotes them.
+        [
+            `.x { font-family: #{'JetBrains\\20 Mono'}; font-weight: 700; }`,
+            true,
+        ],
+        [
+            `.x { font-family: #{"JetBrains\\20 Mono"}; font-weight: 700; }`,
+            true,
+        ],
+        [
+            `.x { font-family: #{'Jet' + 'Brains\\20 Mono'}; font-weight: 700; }`,
+            true,
+        ],
+        [
+            `.x { font-family: #{"JetBrains\\" Mono"}; font-weight: 700; }`,
+            false,
+        ],
+        // A quote it writes out opens a string the browser never closes.
+        [
+            `.x { font-family: #{'JetBrains Mono\\', x'}; font-weight: 700; }`,
+            false,
+        ],
         // A string it writes out can hold the whole list.
         [
             `.x { font-family: #{'JetBrains Mono, monospace'}; font-weight: 700; }`,

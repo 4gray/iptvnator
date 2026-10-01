@@ -158,8 +158,12 @@ export function hasLiteralSize(value) {
 const SHORTHAND_PREFIX =
     /^(?:\d+|normal|italic|oblique|small-caps|bold|bolder|lighter|(?:ultra-|extra-|semi-)?(?:condensed|expanded))$/i;
 
-/** An operand of a static Sass interpolation: a string, word or number. */
-const STATIC_OPERAND = String.raw`(?:'[^'\\]*'|"[^"\\]*"|[a-z_][\w-]*|\d[\w.%]*)`;
+/**
+ * An operand of a static Sass interpolation: a string (its escapes kept,
+ * for the name to decode as it does its own), word or number.
+ */
+const STATIC_OPERAND = String.raw`(?:'(?:[^'\\]|\\[\s\S])*'|"(?:[^"\\]|\\[\s\S])*"|[a-z_][\w-]*|\d[\w.%]*)`;
+
 const STATIC_INTERPOLATION = new RegExp(
     String.raw`#\{\s*(${STATIC_OPERAND}(?:\s*\+?\s*${STATIC_OPERAND})*)\s*\}`,
     'gi'
