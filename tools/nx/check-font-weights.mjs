@@ -1011,12 +1011,6 @@ export function scanWeights(file, written) {
     // shorthand): a later one, unless only the earlier is `!important`,
     // replaces it, so only the one in effect meets the cap.
     const setters = new Map();
-    // The rule a declaration belongs to, a nested `font: {…}` block's
-    // included.
-    const ruleScope = (index) => {
-        const place = placeOf(blocks, index);
-        return rulesOf(fontNamespaceRule(blocks, place) ?? place.scope);
-    };
     // A weight declaration registers in each rule it lands in (a mixin's
     // where it is included), at the place it lands.
     const setAt = (index, important) => {
