@@ -50,7 +50,6 @@
             class="rail__track"
             [attr.data-layout]="layout()"
             (scroll)="onScroll()"
-            (focusin)="onTrackFocusIn($event)"
             role="list"
         >
             @for (card of items(); track card.id) {

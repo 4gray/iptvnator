@@ -592,6 +592,45 @@ describe('DashboardRailComponent', () => {
             });
         });
 
+        it('reveals the card when the focus comes from the keyboard', async () => {
+            const { element, scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            element.dispatchEvent(
+                new KeyboardEvent('keydown', { bubbles: true, key: 'Tab' })
+            );
+            focusLink(5);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 102,
+                behavior: 'auto',
+            });
+        });
+
+        it('keeps the rail still when a mouse press focuses a partly hidden card', async () => {
+            // Scrolling on mousedown would move the card from under the
+            // pointer, so the click would land elsewhere.
+            const { element, scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            element.querySelectorAll('.rail__card-link')[5].dispatchEvent(
+                new MouseEvent('mousedown', {
+                    bubbles: true,
+                    buttons: 1,
+                    detail: 1,
+                })
+            );
+            focusLink(5);
+
+            expect(scrollTo).not.toHaveBeenCalled();
+        });
+
         it('leaves the scroll position alone for a fully visible card', async () => {
             const { scrollTo, focusLink } = await renderRail({
                 count: 6,
