@@ -4,7 +4,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { LangChangeEvent, TranslateService } from '@ngx-translate/core';
+import {
+    DefaultLangChangeEvent,
+    LangChangeEvent,
+    TranslateService,
+} from '@ngx-translate/core';
 import {
     EpgRuntimeBridgeService,
     EpgService,
@@ -154,6 +158,8 @@ describe('AppComponent', () => {
                     getDefaultLang: jest.fn(() => 'en'),
                     use: jest.fn(),
                     onLangChange: new EventEmitter<LangChangeEvent>(),
+                    onDefaultLangChange:
+                        new EventEmitter<DefaultLangChangeEvent>(),
                 }),
                 // The real service imports locale chunks; the language switch
                 // is gated on it, so it must resolve deterministically here.

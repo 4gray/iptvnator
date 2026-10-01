@@ -40,4 +40,27 @@ describe('document language', () => {
         translate.use('tr');
         expect(document.documentElement.lang).toBe('tr');
     });
+
+    it('follows the fallback language while no language is active', () => {
+        // Startup seeds the fallback from the stored hint, then resets it to
+        // English when no settings exist, without ever calling use().
+        TestBed.configureTestingModule({
+            imports: [
+                HostComponent,
+                TranslateModule.forRoot({ defaultLanguage: 'ru' }),
+            ],
+        });
+        const translate = TestBed.inject(TranslateService);
+        const document = TestBed.inject(DOCUMENT);
+
+        TestBed.createComponent(HostComponent);
+        expect(document.documentElement.lang).toBe('ru');
+
+        translate.setDefaultLang('en');
+        expect(document.documentElement.lang).toBe('en');
+
+        translate.use('el');
+        translate.setDefaultLang('ru');
+        expect(document.documentElement.lang).toBe('el');
+    });
 });
