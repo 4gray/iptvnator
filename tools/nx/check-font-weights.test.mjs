@@ -3038,6 +3038,136 @@ test("prefers a rule's own custom property over an inherited one", () => {
     );
 });
 
+test('prefers the nearest inherited custom property', () => {
+    const mono = "'JetBrains Mono'";
+    const read = 'font-family: var(--face); font-weight: 700;';
+    const report = (body) =>
+        findOffScaleWeights('libs/s4/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // `*` sets each element, an enclosing rule sits nearer than `body`,
+    // `body` nearer than `:root`, and a registered initial value applies
+    // only where nothing is set.
+    for (const [source, expected] of [
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } .x { ${read} }`,
+            [],
+        ],
+        [
+            `:root { --face: Roboto; } body { --face: ${mono}; } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [`:root { --face: ${mono}; } * { --face: Roboto; } .x { ${read} }`, []],
+        [
+            `* { --face: ${mono}; } body { --face: Roboto; } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } .p { --face: Roboto; .x { ${read} } }`,
+            [],
+        ],
+        [`.p { --face: ${mono}; .q { --face: Roboto; .x { ${read} } } }`, []],
+        [
+            `.p { --face: Roboto; .q { --face: ${mono}; .x { ${read} } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@property --face { syntax: '*'; inherits: true; initial-value: ${mono}; } body { --face: Roboto; } .x { ${read} }`,
+            [],
+        ],
+        // Not settled: inherited on purpose, conditional, or not an
+        // ancestor for sure; and `body` does not reach `:root`.
+        [
+            `:root { --face: ${mono}; } body { --face: inherit; } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } @media (min-width: 1px) { body { --face: Roboto; } } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } .y { --face: Roboto; } .x { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: ${mono}; } body { --face: Roboto; } :root { ${read} }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+    // Across files too; a value set from code can still win.
+    const theme = (body) => scanWeights('libs/s4/theme.scss', body);
+    const consumer = scanWeights('libs/s4/b.scss', `.x { ${read} }`);
+    // A condition in another file is not the reader's, even at the same
+    // place in its text.
+    assert.deepEqual(
+        findIndirectWeights([
+            theme(`:root { --face: ${mono}; }`),
+            scanWeights(
+                'libs/s4/d.scss',
+                '@media (min-width: 1px) { body { --face: Roboto; } }'
+            ),
+            scanWeights(
+                'libs/s4/e.scss',
+                `@media (min-width: 1px) { .x { ${read} } }`
+            ),
+        ]).map(({ value }) => value),
+        ['700']
+    );
+    assert.deepEqual(
+        findIndirectWeights([
+            theme(`:root { --face: ${mono}; } body { --face: Roboto; }`),
+            consumer,
+        ]),
+        []
+    );
+    assert.deepEqual(
+        findIndirectWeights([
+            theme('body { --face: Roboto; }'),
+            scanWeights(
+                'libs/s4/x.component.ts',
+                `el.style.setProperty('--face', "${mono}");`
+            ),
+            consumer,
+        ]).map(({ value }) => value),
+        ['700']
+    );
+});
+
+test('reads an interpolated family declaration whole', () => {
+    const report = (body) =>
+        findOffScaleWeights('libs/s4/c.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        [
+            "$face: 'JetBrains Mono'; .x { font-family: #{$face}; font-weight: 700; }",
+            ['font-weight: 700'],
+        ],
+        [
+            "$face: 'JetBrains Mono'; .x { font-family: #{$face}, monospace; font-weight: 700; }",
+            ['font-weight: 700'],
+        ],
+        [
+            "$face: 'JetBrains Mono'; .x { font-family: #{$face}; .y { font-weight: 700; } }",
+            ['font-weight: 700'],
+        ],
+        ['$face: Roboto; .x { font-family: #{$face}; font-weight: 700; }', []],
+        // The list goes on past the interpolation, and past a quoted `;`.
+        [
+            "$face: 'Fira'; .x { font-family: #{$face}, 'JetBrains Mono'; font-weight: 700; }",
+            ['font-weight: 700'],
+        ],
+        [
+            ".x { font-family: 'Odd;Name', 'JetBrains Mono'; font-weight: 700; }",
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",

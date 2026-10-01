@@ -36,12 +36,22 @@ const NONE = Object.freeze({ mono: false, refs: [] });
 
 /**
  * A declaration's whole value, to its `;`: a family list is comma-separated.
- * `selector` means a `{` came first.
+ * A Sass `#{…}` (or template `${…}`) interpolation is part of it; `selector`
+ * means a `{` came first.
  */
 export function declarationText({ text, quoteAt }, start) {
     let end = start;
-    while (end < text.length && (quoteAt[end] || !';{}'.includes(text[end]))) {
-        end += 1;
+    let interpolation = 0;
+    for (; end < text.length; end += 1) {
+        if (quoteAt[end]) continue;
+        if ('#$'.includes(text[end]) && text[end + 1] === '{') {
+            interpolation += 1;
+            end += 1;
+        } else if (text[end] === '}' && interpolation > 0) {
+            interpolation -= 1;
+        } else if (';{}'.includes(text[end])) {
+            break;
+        }
     }
     return { value: text.slice(start, end), selector: text[end] === '{' };
 }
@@ -292,20 +302,29 @@ function selectorsOf(prelude) {
 }
 
 /**
- * Whether a rule's custom properties reach every element: `:root`, `html`,
- * `body` or `*` (a component's `:host` reaches only its own view).
+ * How near the elements a reading rule styles a rule that reaches every
+ * element sets its custom properties: `:root`/`html` at the top (1), `body`
+ * below it (2), `*` on each element itself (4); `null` for any other rule (a
+ * component's `:host` reaches only its own view). `body` sits below `html`,
+ * so it cannot pass a property up to a `:root` reader.
  */
-export function reachesEverything(prelude, reader = null) {
-    if (!prelude) return false;
-    // `body` sits below `html`, so it cannot pass a property up to it.
+export function reachDepth(prelude, reader = null) {
+    if (!prelude) return null;
     const rootReader = reader
         ? rootSelectors(reader).some((s) => /^(?::root|html)$/i.test(s))
         : false;
-    return rootSelectors(prelude).some(
-        (selector) =>
-            /^(?::root|html|\*)$/i.test(selector) ||
-            (/^body$/i.test(selector) && !rootReader)
-    );
+    const depths = rootSelectors(prelude).map((selector) => {
+        if (selector === '*') return 4;
+        if (/^body$/i.test(selector)) return rootReader ? null : 2;
+        return /^(?::root|html)$/i.test(selector) ? 1 : null;
+    });
+    const reached = depths.filter((depth) => depth !== null);
+    return reached.length ? Math.max(...reached) : null;
+}
+
+/** Whether a rule's custom properties reach every element (`reachDepth`). */
+export function reachesEverything(prelude, reader = null) {
+    return reachDepth(prelude, reader) !== null;
 }
 
 /** A selector list with `:where(…)` and `:is(…)` wrappers opened. */

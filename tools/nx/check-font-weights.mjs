@@ -39,6 +39,7 @@ import {
     hasLiteralSize,
     parsesAsFont,
     plainHost,
+    reachDepth,
     reachesEverything,
     rendersMono,
     shorthandFamilies,
@@ -1732,20 +1733,57 @@ export function findIndirectWeights(scans) {
         (definition.guards ?? []).every((guard) =>
             (reference.guards ?? []).includes(guard)
         );
+    // How near the reading rule's elements a definition sets a custom
+    // property: a registered initial value lowest (it applies where nothing
+    // is set), then `:root`, `body`, an enclosing rule in the reader's file
+    // (the innermost nearest) and `*` on the element itself; `null` for one
+    // whose place relative to them is unknown (another rule, code).
+    const nearness = (definition, reference) => {
+        if (definition.registered) return 0;
+        const depth = reachDepth(definition.rule, reference.rule);
+        if (depth !== null) return depth;
+        const own = definition.file === reference.file;
+        const at = own
+            ? (reference.scopes ?? []).indexOf(definition.scope)
+            : -1;
+        return at > 0 ? 3 - at / 1000 : null;
+    };
+    // The definitions that can still apply once the nearest one set
+    // unconditionally to a value of its own hides the farther ones.
+    const nearest = (visible, reference) => {
+        const ranks = visible.map((d) => nearness(d, reference));
+        const settled = visible
+            .map((definition, i) => ({ definition, rank: ranks[i] }))
+            .filter(({ definition, rank }) => {
+                const text = (definition.full ?? definition.value).trim();
+                const shared = (definition.guards ?? []).every(
+                    (guard) =>
+                        definition.file === reference.file &&
+                        (reference.guards ?? []).includes(guard)
+                );
+                return rank !== null && shared && !INHERITING.test(text);
+            });
+        const top = Math.max(-1, ...settled.map(({ rank }) => rank));
+        return visible.filter((_, i) => ranks[i] === null || ranks[i] >= top);
+    };
     const refVerdict = (reference, seen) => {
         const { name, file, namespace, index, shorthand } = reference;
         const key = `${file} ${namespace ?? ''} ${index} ${name} ${shorthand}`;
         if (seen.has(key)) return 'open';
         seen.add(key);
-        // A value the elements set themselves hides inherited ones; one set
-        // from code (an inline style) may still win over it.
+        // A value the elements set themselves hides inherited ones, and of
+        // those the nearest settled one hides the farther (see `nearest`);
+        // one set from code (an inline style) may still win over either.
         const visible = visibleDefinitions(reference);
-        const own = name.startsWith('--')
+        const custom = name.startsWith('--');
+        const own = custom
             ? visible.filter((definition) => setsOwn(definition, reference))
             : [];
         const definitions = own.length
             ? visible.filter((d) => d.code || own.includes(d))
-            : visible;
+            : custom
+              ? nearest(visible, reference)
+              : visible;
         // A value set from code holds the text of its strings.
         const verdicts = definitions.flatMap((definition) =>
             (definition.code
