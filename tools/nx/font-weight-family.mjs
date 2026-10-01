@@ -9,7 +9,18 @@ import { inConditionPrelude, tokensOf } from './font-weight-lexer.mjs';
 export const MONO_WEIGHT_CAP = 500;
 export const MONO_FAMILY = /jetbrains\s+mono/i;
 
-const FONT_FAMILY = /(?<![\w$-])(font-family|font)\s*:/gi;
+const FONT_FAMILY = /(?<![\w$-])(font-family|font|family)\s*:/gi;
+
+/**
+ * The rule a Sass nested `font: { family: …; weight: … }` block belongs
+ * to, if `scope` (from `placeOf`) is one; `undefined` otherwise. Its
+ * declarations compile to `font-family`/`font-weight` on that rule.
+ */
+export function fontNamespaceRule(blocks, { scope, scopes }) {
+    const block = blocks.find((b) => b.start === scope);
+    if (!block || !/^font\s*:/i.test(block.prelude)) return undefined;
+    return scopes[1] ?? null;
+}
 /** At-rules whose body styles the enclosing rule's own element. */
 const SAME_ELEMENT = /^@(?:media|supports|container|layer|include)\b/i;
 const NONE = Object.freeze({ mono: false, refs: [] });
@@ -67,8 +78,13 @@ const ALWAYS_THERE =
  */
 export function shorthandFamilies(value) {
     const tokens = tokensOf(value.replace(/!important\b/i, ''));
-    const size = tokens.findIndex((token) => FONT_SIZE.test(token));
-    if (size === -1) return null;
+    let size = tokens.findIndex((token) => FONT_SIZE.test(token));
+    // A size from a variable (`700 var(--size) 'JetBrains Mono'`): the
+    // family follows the last variable token.
+    if (size === -1) {
+        size = tokens.findLastIndex((token) => /^(?:var\(|\$|#\{)/.test(token));
+        if (size === -1 || size === tokens.length - 1) return null;
+    }
     let rest = tokens.slice(size + 1);
     if (rest[0] === '/') rest = rest.slice(2);
     else if (rest[0]?.startsWith('/')) rest = rest.slice(1);
@@ -123,7 +139,8 @@ export function familyParts(value) {
             ? value.slice(i + open[0].length, end - 1)
             : null;
         vars.push({ name: open[1], fallback });
-        outside += ' ';
+        // A placeholder keeps the token's place (a shorthand's size).
+        outside += ' var() ';
         i = end;
     }
     return { outside, vars };
@@ -206,13 +223,18 @@ export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
         const { value, selector } = declarationText(lexed, start);
         const place = placeOf(blocks, match.index);
         if (selector || place.scope === null) continue;
+        // A nested `font: { family: … }` sets its rule's family.
+        const namespace = fontNamespaceRule(blocks, place);
+        const property = match[1].toLowerCase();
+        if (property === 'family' && namespace === undefined) continue;
+        const scope = namespace ?? place.scope;
         // A shorthand that fails to parse is dropped, family and all.
-        if (match[1].toLowerCase() === 'font' && !parsesAsFont(value)) continue;
+        if (property === 'font' && !parsesAsFont(value)) continue;
         const important = /!important\b/i.test(value);
-        if (family.get(place.scope)?.important && !important) continue;
+        if (family.get(scope)?.important && !important) continue;
         const parts = familyParts(value);
-        const shorthand = match[1].toLowerCase() === 'font';
-        family.set(place.scope, {
+        const shorthand = property === 'font';
+        family.set(scope, {
             important,
             inherit: /^\s*(?:inherit|unset)\b/i.test(value),
             mono: rendersMono(parts.outside, { shorthand }),

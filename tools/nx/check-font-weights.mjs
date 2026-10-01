@@ -26,6 +26,7 @@ import {
     declarationText,
     familiesOf,
     familyParts,
+    fontNamespaceRule,
     parsesAsFont,
     plainHost,
     reachesEverything,
@@ -57,7 +58,10 @@ import {
  * condition's numbers are not weights. A partial's `!default` gives way
  * where every load of it configures the name. Not traced: positional mixin
  * or function arguments, calls through `meta.apply`, `meta.load-css` and
- * `@function` return values, so pass weights as named `$…weight` arguments.
+ * `@function` return values, so pass weights as named `$…weight` arguments;
+ * nor values TypeScript stores and binds later (a component field, signal or
+ * input read by `[style.fontWeight]="weight"`), so bind a literal or keep
+ * the field's literal on the scale.
  *
  * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
  * written out or through variables, or one a nested rule inherits; see
@@ -158,7 +162,7 @@ const RESETTING = /^(?:initial|revert|revert-layer)\b/i;
 /** At-rules whose body applies only under a condition. */
 const CONDITIONAL_RULE = /^@(?:media|supports|container|document)\b/i;
 const INHERITING = /^(?:inherit|unset)\b/i;
-const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font)\s*:/gi;
+const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font|weight)\s*:/gi;
 /** A property name that sets or holds a weight. */
 const WEIGHT_NAME = /^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i;
 /** A family declaration in CSS text: `font-family`, or the `font` shorthand. */
@@ -655,6 +659,12 @@ export function scanWeights(file, source) {
     // shorthand): a later one, unless only the earlier is `!important`,
     // replaces it, so only the one in effect meets the cap.
     const setters = new Map();
+    // The rule a declaration belongs to, a nested `font: {…}` block's
+    // included.
+    const ruleScope = (index) => {
+        const place = placeOf(blocks, index);
+        return fontNamespaceRule(blocks, place) ?? place.scope;
+    };
     for (const match of stylesheet ? text.matchAll(WEIGHT_SETTER) : []) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
@@ -663,14 +673,22 @@ export function scanWeights(file, source) {
         const { value, selector } = declarationText(lexed, start);
         if (selector) continue;
         if (match[1].toLowerCase() === 'font' && !parsesAsFont(value)) continue;
-        const { scope } = placeOf(blocks, match.index);
+        // A nested `font: { weight: … }` sets its rule's weight.
+        const namespace = fontNamespaceRule(
+            blocks,
+            placeOf(blocks, match.index)
+        );
+        if (match[1].toLowerCase() === 'weight' && namespace === undefined) {
+            continue;
+        }
+        const scope = ruleScope(match.index);
         const important = /!important\b/i.test(value);
         if (!setters.has(scope)) setters.set(scope, []);
         setters.get(scope).push({ index: match.index, important });
     }
     // A shorthand that fails to parse is dropped, so it sets nothing.
     const inEffect = (index) => {
-        const rule = setters.get(placeOf(blocks, index).scope) ?? [];
+        const rule = setters.get(ruleScope(index)) ?? [];
         const own = rule.find((setter) => setter.index === index);
         return (
             Boolean(own) &&
@@ -731,7 +749,11 @@ export function scanWeights(file, source) {
                 record(name, match.index, analyseCode(expression, mode));
                 continue;
             }
-            const weightName = /^font(?:-weight)?$/i.test(name);
+            const nested =
+                /^weight$/i.test(name) &&
+                fontNamespaceRule(blocks, placeOf(blocks, match.index)) !==
+                    undefined;
+            const weightName = /^font(?:-weight)?$/i.test(name) || nested;
             const family =
                 weightName && inEffect(match.index)
                     ? monoAt(match.index)

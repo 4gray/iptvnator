@@ -266,9 +266,15 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
         ".h { font-family: 'Roboto', 'JetBrains Mono'; font-weight: 700; }",
         // DM Sans is Latin-only: Russian or Greek text falls through to Mono.
         ".i { font-family: 'DM Sans', 'JetBrains Mono'; font-weight: 700; }",
+        // A size from a variable: the family follows it.
+        ".j { font: 700 var(--size, 12px) 'JetBrains Mono'; }",
+        ".k { font: 700 var(--size, 12px) Roboto, 'JetBrains Mono'; }",
+        ".l { font: 700 $size 'JetBrains Mono'; }",
     ].join('\n');
 
     assert.deepEqual(offScale('libs/m6/a.scss', source).sort(), [
+        '10 font: 700',
+        '12 font: 700',
         '3 font-weight: 700',
         '4 font: 700',
         '5 font: 700',
@@ -281,6 +287,30 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
         ),
         []
     );
+});
+
+test('reads Sass nested font properties', () => {
+    const source = [
+        ".x { font: { family: 'JetBrains Mono'; weight: 700; } }",
+        ".z { font-family: 'JetBrains Mono'; font: { weight: 700; } }",
+        ".w { font: { family: 'JetBrains Mono'; } font-weight: 700; }",
+        '.y { font: 12px { weight: 650; } }',
+        '.u { font: { family: Roboto; weight: 700; } }',
+        // `family`/`weight` outside a `font` block are other properties.
+        ".t { family: 'JetBrains Mono'; font-weight: 700; }",
+        // A nested weight and the rule's own replace each other in order;
+        // a bare `weight:` is no weight at all.
+        ".r { font-family: 'JetBrains Mono'; font: { weight: 700; } font-weight: 500; }",
+        ".s { font-family: 'JetBrains Mono'; font-weight: 700; weight: 400; }",
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/n4/a.scss', source).sort(), [
+        '1 weight: 700',
+        '2 weight: 700',
+        '3 font-weight: 700',
+        '4 weight: 650',
+        '8 font-weight: 700',
+    ]);
 });
 
 test('caps inline JetBrains Mono declarations', () => {
