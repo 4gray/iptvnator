@@ -962,9 +962,12 @@ export function scanWeights(file, written) {
                     /#\{\s*(\$[\w-]+)\s*\}/g,
                     (m, name) => literalAt(name, scope) ?? m
                 );
-            const parts = /^@|#\{/.test(prelude)
-                ? [prelude]
-                : selectorList(prelude).map(canonicalSelector);
+            // Each unnamed `@layer { … }` is a layer of its own.
+            const parts = /^@layer\s*$/i.test(prelude)
+                ? [`@layer @${scope}`]
+                : /^@|#\{/.test(prelude)
+                  ? [prelude]
+                  : selectorList(prelude).map(canonicalSelector);
             chains = chains.flatMap((chain) =>
                 parts.map((part) => (chain ? `${chain} < ${part}` : part))
             );

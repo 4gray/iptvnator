@@ -4177,6 +4177,65 @@ test('reads cascade layers as always applying, ranked by layer', () => {
     }
 });
 
+test('ranks nested and unnamed cascade layers by their full place', () => {
+    const mono = "'JetBrains Mono'";
+    const weight = '.x { font-weight: 700; }';
+    const report = (body) =>
+        findOffScaleWeights('libs/s14/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // Sublayers rank in their declared order within their layer.
+        [
+            `@layer base { @layer theme, fonts; @layer fonts { .x { font-family: ${mono}; } } @layer theme { .x { font-family: Roboto; } } } ${weight}`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer base { @layer fonts, theme; @layer fonts { .x { font-family: ${mono}; } } @layer theme { .x { font-family: Roboto; } } } ${weight}`,
+            [],
+        ],
+        // Each unnamed layer is its own, the later winning.
+        [
+            `@layer named { .x { font-family: ${mono}; } } @layer { .x { font-family: Roboto; } } ${weight}`,
+            [],
+        ],
+        [
+            `@layer { .x { font-family: Roboto; } } @layer { .x { font-family: ${mono}; } } ${weight}`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer { .x { font-family: ${mono}; } } @layer { .x { font-family: Roboto; } } ${weight}`,
+            [],
+        ],
+        // A layer's own declarations beat its sublayers', `!important` the
+        // other way; `x.y` is a sublayer of `x`.
+        [
+            `@layer p { .x { font-family: ${mono}; } @layer q { .x { font-family: Roboto; } } } ${weight}`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer p { .x { font-family: ${mono} !important; } @layer q { .x { font-family: Roboto !important; } } } ${weight}`,
+            [],
+        ],
+        [
+            `@layer x.y { .x { font-family: Roboto; } } @layer x { .x { font-family: ${mono}; } } ${weight}`,
+            ['font-weight: 700'],
+        ],
+        // A layer is placed where it first appears, a block with no family
+        // or a dotted name (`x.y` places `x`) included.
+        [
+            `@layer a { .y { color: red; } } @layer b { .x { font-family: Roboto; } } @layer a { .x { font-family: ${mono}; } } ${weight}`,
+            [],
+        ],
+        [
+            `@layer x.y, z; @layer z { .x { font-family: Roboto; } } @layer x { .x { font-family: ${mono}; } } ${weight}`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('compiles a nested `&` after its parent', () => {
     const mono = "'JetBrains Mono'";
     const report = (body) =>

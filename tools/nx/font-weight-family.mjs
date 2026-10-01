@@ -592,23 +592,61 @@ export function familiesOf(
             ? (includes.get(block.name) ?? [])
             : [];
     };
-    // Cascade layers in declared order: as `@layer a, b;` names them, or as
-    // a `@layer name { … }` block first appears (unnamed ones rank together,
-    // where the first appears).
-    const layers = new Map();
+    // Cascade layers in declared order within their parent layer: as
+    // `@layer a, b;` names them, or as a `@layer name { … }` block first
+    // appears; an unnamed block is a layer of its own (`@<start>`).
+    const layerIndex = new Map();
+    const layerCount = new Map();
+    const indexIn = (parent, name) => {
+        const key = `${parent}/${name}`;
+        if (!layerIndex.has(key)) {
+            layerIndex.set(key, layerCount.get(parent) ?? 0);
+            layerCount.set(parent, (layerCount.get(parent) ?? 0) + 1);
+        }
+        return layerIndex.get(key);
+    };
+    const layerNameOf = (block) =>
+        block.prelude.replace(/^@layer\s*/i, '').trim() || `@${block.start}`;
+    const parentLayer = (index) =>
+        blocks
+            .filter((b) => b.start < index && index < b.end)
+            .filter((b) => /^@layer\b/i.test(b.prelude))
+            .sort((a, b) => a.start - b.start)
+            .flatMap((b) => layerNameOf(b).split('.'));
+    const declare = (parent, name) => {
+        const path = [...parent];
+        for (const part of name.split('.')) {
+            indexIn(path.join('/'), part);
+            path.push(part);
+        }
+    };
     for (const match of lexed.text.matchAll(/@layer\b\s*([^{;]*)([{;])/gi)) {
         if (inString(match.index)) continue;
-        const names = match[1].trim()
-            ? match[1].split(',').map((name) => name.trim())
-            : ['@layer'];
-        for (const name of names.filter(Boolean)) {
-            if (!layers.has(name)) layers.set(name, layers.size);
+        const parent = parentLayer(match.index);
+        if (match[2] === ';') {
+            for (const name of match[1].split(',').map((n) => n.trim())) {
+                if (name) declare(parent, name);
+            }
+        } else {
+            const brace = match.index + match[0].length - 1;
+            declare(parent, match[1].trim() || `@${brace}`);
         }
     }
-    const layerOrder = (layer) => {
-        const top = layer.split('.')[0];
-        if (!layers.has(top)) layers.set(top, layers.size);
-        return layers.get(top);
+    // A layer path as one number to compare, level by level (up to four
+    // deep, 998 layers each): a layer's own declarations rank above its
+    // sublayers, and unlayered ones above every layer.
+    const layerScore = (path) => {
+        let score = 0;
+        for (let level = 0; level < 4; level += 1) {
+            const at =
+                level < path.length
+                    ? indexIn(path.slice(0, level).join('/'), path[level])
+                    : level === path.length
+                      ? 999
+                      : 0;
+            score = score * 1000 + Math.min(at, 998) + (at === 999 ? 1 : 0);
+        }
+        return score;
     };
     // A rule as compiled: its selector (`.p { &:hover {} }` is `.p:hover`,
     // `.w { .p .c {} }` is `.w .p .c`) and the context it applies in (its
@@ -619,13 +657,18 @@ export function familiesOf(
         const split = rule.lastIndexOf(' | ');
         const chain = rule.slice(0, split);
         let selector = '';
-        let layer = null;
+        let layer = [];
         const wrappers = [];
         for (const part of chain.split(' < ').reverse()) {
             // A cascade layer always applies; it only ranks (see `rankOf`).
             if (/^@layer\b/i.test(part)) {
-                const name = part.replace(/^@layer\s*/i, '').trim() || part;
-                layer = layer ? `${layer}.${name}` : name;
+                layer = [
+                    ...layer,
+                    ...part
+                        .replace(/^@layer\s*/i, '')
+                        .trim()
+                        .split('.'),
+                ];
             } else if (part.startsWith('@')) wrappers.push(part);
             else if (part.includes('&'))
                 selector = part.replaceAll('&', selector);
@@ -757,13 +800,13 @@ export function familiesOf(
         })
         .filter(({ ways }) => ways.length);
     // A declaration's place in the cascade: `!important`, then its layer
-    // (an unlayered one beats every layer, and of layers the later declared;
-    // `!important` turns both round), then specificity, then source order.
-    const rankOf = (entry, { selector, layer }, order = 0) => {
-        const at = layer == null ? layers.size : layerOrder(layer);
+    // (see `layerScore`; `!important` turns the order round), then
+    // specificity, then source order.
+    const rankOf = (entry, { selector, layer = [] }, order = 0) => {
+        const at = layerScore(layer);
         return [
             entry.important ? 1 : 0,
-            entry.important ? layers.size - at : at,
+            entry.important ? -at : at,
             ...specificityOf(selector),
             order,
         ];
