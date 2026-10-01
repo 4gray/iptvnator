@@ -111,6 +111,15 @@ export function reachesEverything(prelude) {
 }
 
 /**
+ * Whether a rule is a component's plain `:host`, which reaches its whole
+ * view; `:host(.light)` applies only in that state.
+ */
+export function plainHost(prelude) {
+    if (!prelude) return false;
+    return selectorsOf(prelude).some((selector) => /^:host$/i.test(selector));
+}
+
+/**
  * Whether a nested rule styles its parent's element or a descendant, which
  * inherit the parent's family: `&:hover`, `.child`, `> .child`, or a
  * `@media` or `@include` body. A `&-suffix` class and a `+`/`~` sibling are

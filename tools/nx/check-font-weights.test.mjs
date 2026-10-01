@@ -260,6 +260,7 @@ test('reads Angular style bindings as code', () => {
         `<div [ngStyle]="{ 'font-weight': wide ? 650 : 400 }"></div>`,
         `<div [style]="'font-weight: 750'"></div>`,
         '<p style="font-weight: 650">text</p>',
+        `<div [ngStyle]='{ "font-weight": w >= 768 ? 700 : 600 }'></div>`,
         // A string in a binding is CSS, so `/200` is a line-height.
         '<div [style]="`font: italic 12px/200 Roboto`"></div>',
         `<div [style]='"font: italic 12px/200 Roboto"'></div>`,
@@ -908,6 +909,10 @@ test('checks indexed style writes', () => {
         "element.style.fontWeight ||= '650';",
         "element.style['fontWeight'] ??= 750;",
         "element.style.fontWeight &&= '600';",
+        "element.style.font = '650 16px sans-serif';",
+        "element.style['font'] = '600 12px x';",
+        "element.style.fontFamily = 'x 650';",
+        "element.style.font = 'italic 12px/200 x';",
     ].join('\n');
 
     assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
@@ -916,6 +921,7 @@ test('checks indexed style writes', () => {
         '3 .style[`fontWeight`]: += 50',
         '6 .style.fontWeight: 650',
         "7 .style['fontWeight']: 750",
+        '9 .style.font: 650',
     ]);
 });
 
@@ -2093,8 +2099,18 @@ test('reads custom properties as the cascade applies them', () => {
         `.a { --face: Roboto; .b { ${mono} } }`,
         `:host { --face: Roboto; } .b { ${mono} }`,
         `html, .theme { --face: Roboto; } .b { ${mono} }`,
+        `:host, :host(.x) { --face: Roboto; } .b { ${mono} }`,
+        `@media (min-width: 1px) { .b { --face: Roboto; ${mono} } }`,
     ]) {
         assert.deepEqual(report([rule(body)]), []);
+    }
+    // A definition under a condition, or a host state, may not apply.
+    for (const body of [
+        `@media (min-width: 600px) { :root { --face: Roboto; } } .b { ${mono} }`,
+        `@if $dark { :root { --face: Roboto; } } .b { ${mono} }`,
+        `:host(.light) { --face: Roboto; } .b { ${mono} }`,
+    ]) {
+        assert.deepEqual(report([rule(body)]), ['libs/m5/rule.scss:1 700']);
     }
     assert.deepEqual(
         report([
@@ -2134,6 +2150,17 @@ test('reads a family Sass assembles from variables', () => {
         report(
             `$prefix: Roboto; .x { font-family: '#{$prefix} Mono'; ${weight} }`
         ),
+        []
+    );
+    // Chains of any length resolve, and a cycle ends.
+    assert.deepEqual(
+        report(
+            `$a: JetBrains; $b: $a; $c: $b; $d: $c; $prefix: $d; .x { font-family: '#{$prefix} Mono'; ${weight} }`
+        ),
+        ['1 700']
+    );
+    assert.deepEqual(
+        report(`$a: $b; $b: $a; .x { font-family: '#{$a} Mono'; ${weight} }`),
         []
     );
     // A package module's variable cannot be resolved; the name written

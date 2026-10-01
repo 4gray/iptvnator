@@ -26,6 +26,7 @@ import {
     familiesOf,
     familyParts,
     parsesAsFont,
+    plainHost,
     reachesEverything,
 } from './font-weight-family.mjs';
 import {
@@ -102,11 +103,12 @@ const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
 const CODE_BINDING =
     /(\[(?:style|attr)\.(font-weight|fontWeight|--[\w-]+)\])['"]?\s*[:=]\s*(['"])([\s\S]*?)\3/gi;
 /**
- * DOM writes, dotted or indexed (`style['font-weight']`). `===` compares, so
- * only a lone `=` (or `+=` and kin, or a logical `||=`) assigns.
+ * DOM writes of the weight or the `font` shorthand, dotted or indexed
+ * (`style['font-weight']`). `===` compares, so only a lone `=` (or `+=` and
+ * kin, or a logical `||=`) assigns.
  */
 const CODE_ASSIGNMENT =
-    /(\.style(?:\.fontWeight|\[\s*(['"`])font(?:Weight|-weight)\2\s*\]))\s*(\*\*|[-+*/%]|\|\||&&|\?\?)?=(?!=)/g;
+    /(\.style(?:\.(font(?:Weight)?)|\[\s*(['"`])(font(?:Weight|-weight)?)\3\s*\]))\s*(\*\*|[-+*/%]|\|\||&&|\?\?)?=(?!=)/g;
 /** A logical assignment stores its right-hand side as it is. */
 const LOGICAL_ASSIGNMENT = /^(?:\|\||&&|\?\?)$/;
 /**
@@ -131,6 +133,8 @@ const QUOTED_NAME = /^(\s*(['"`])([^'"`]*)\2)\s*,/;
  * value, whatever another rule sets.
  */
 const RESETTING = /^(?:initial|revert|revert-layer)\b/i;
+/** At-rules whose body applies only under a condition. */
+const CONDITIONAL_RULE = /^@(?:media|supports|container|document)\b/i;
 const INHERITING = /^(?:inherit|unset)\b/i;
 const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font)\s*:/gi;
 /**
@@ -480,8 +484,7 @@ export function scanWeights(file, source) {
             // or one in an Angular binding (`[ngStyle]="{…}"`), is code, read
             // per value it can take; a string is CSS text.
             const code =
-                (file.endsWith('.ts') && !quoteAt[end]) ||
-                inBinding(text, match.index);
+                (file.endsWith('.ts') && !quoteAt[end]) || inBinding(text, end);
             if (!stylesheet && code) {
                 const expression = codeExpression(text, end, {
                     argument: true,
@@ -546,10 +549,14 @@ export function scanWeights(file, source) {
         for (const match of text.matchAll(CODE_ASSIGNMENT)) {
             const end = match.index + match[0].length;
             const expression = codeExpression(text, end).trim();
-            if (match[3] && !LOGICAL_ASSIGNMENT.test(match[3])) {
-                const value = `${match[3]}= ${expression}`;
+            const operator = match[5];
+            const shorthand = (match[2] ?? match[4]) === 'font';
+            if (operator && !LOGICAL_ASSIGNMENT.test(operator)) {
+                const value = `${operator}= ${expression}`;
                 const terms = [{ value, computed: true }];
                 record(match[1], match.index, { terms, references: [] });
+            } else if (shorthand) {
+                record(match[1], match.index, analyseCode(expression, 'font'));
             } else {
                 setByCode(match[1], 'font-weight', match.index, expression);
             }
@@ -601,6 +608,13 @@ export function scanWeights(file, source) {
             important: /!important\b/i.test(full),
             // The selector of the rule it sits in, for custom properties.
             rule: blockAt.get(place.scope)?.prelude ?? null,
+            guarded: blocks.some(
+                (block) =>
+                    block.start < index &&
+                    index < block.end &&
+                    (block.kind === 'flow' ||
+                        CONDITIONAL_RULE.test(block.prelude))
+            ),
             // Checked against the scale where it is declared (see below).
             weighted: /weight$/i.test(name),
             // An argument reaches only the mixin or function it is passed to.
@@ -900,12 +914,14 @@ export function findIndirectWeights(scans) {
     // its component's `:host`). A property set by code sits in another file
     // and is set on some element only.
     const setsFor = (definition, reference) => {
+        const own = definition.file === reference.file;
+        if (own && (reference.scopes ?? []).includes(definition.scope)) {
+            return true;
+        }
+        // Under `@media`, `@supports` or flow control it may not apply.
+        if (definition.guarded) return false;
         if (reachesEverything(definition.rule)) return true;
-        if (definition.file !== reference.file) return false;
-        return (
-            /^:host\b/i.test(definition.rule ?? '') ||
-            (reference.scopes ?? []).includes(definition.scope)
-        );
+        return own && plainHost(definition.rule);
     };
     // Whether a custom property can be unset where it is read, so a `var()`
     // fallback applies: no rule sets it (one that inherits sets nothing of
@@ -964,9 +980,10 @@ export function findIndirectWeights(scans) {
     };
     // A family Sass assembles from variables (`'#{$prefix} Mono'`, `$a $b`),
     // with each variable replaced by a value it can hold (up to 16
-    // combinations, three levels deep), so the name is read whole. One the
-    // scan cannot resolve (a package module) leaves nothing to compose.
-    const composedFamilies = (text, at, depth = 0) => {
+    // combinations, through chains of any length, a cycle aside), so the
+    // name is read whole. One the scan cannot resolve (a package module)
+    // leaves nothing to compose.
+    const composedFamilies = (text, at, path = new Set()) => {
         let results = [''];
         let last = 0;
         for (const match of text.matchAll(SASS_VALUE)) {
@@ -978,16 +995,15 @@ export function findIndirectWeights(scans) {
                 ...{ file: at.file, index: at.index, scopes: at.scopes },
                 ...{ inCallable: at.inCallable, callable: at.callable },
             };
-            const values =
-                depth >= 3
-                    ? []
-                    : visibleDefinitions(reference).flatMap((definition) =>
-                          composedFamilies(
-                              sassValue(definition.full ?? definition.value),
-                              definition,
-                              depth + 1
-                          )
-                      );
+            const values = visibleDefinitions(reference)
+                .filter((definition) => !path.has(definition))
+                .flatMap((definition) =>
+                    composedFamilies(
+                        sassValue(definition.full ?? definition.value),
+                        definition,
+                        new Set([...path, definition])
+                    )
+                );
             const between = text.slice(last, match.index);
             results = results
                 .flatMap((result) => values.map((v) => result + between + v))
