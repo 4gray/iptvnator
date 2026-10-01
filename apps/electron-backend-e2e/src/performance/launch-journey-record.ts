@@ -160,6 +160,7 @@ export function toLaunchIterationRecord(
                 measurement.gate.readyToShowHeldOnBlank,
             ipcCallsByMethod: ipc.callsByMethod,
             ipcSerialDepth: serialDepth,
+            ipcTimelineAmbiguousCompletions: ipc.ambiguousTimelineCompletions,
             // `+method` for a start, `-method` for a completion.
             ipcTimeline: ipc.timeline.map(
                 ({ method, phase }) =>

@@ -76,6 +76,7 @@ function measurement(
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
+        ambiguousTimelineCompletions: 0,
         callsAfterSentinel: 2,
         callsBeforeStart: 0,
         callsBeforeSentinel: 17,

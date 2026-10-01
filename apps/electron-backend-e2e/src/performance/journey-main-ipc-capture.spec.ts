@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import type { ElectronApplication } from '@playwright/test';
 
+import { computeJourneyIpcSerialDepth } from './journey-ipc-serial-depth';
 import {
     assertJourneyMainIpcCapture,
     countJourneyMainIpcInFlight,
@@ -32,6 +33,7 @@ function validCapture(
     overrides: Partial<JourneyMainIpcCaptureState> = {}
 ): JourneyMainIpcCaptureState {
     return {
+        ambiguousTimelineCompletions: 0,
         callsAfterSentinel: 2,
         callsBeforeStart: 0,
         callsBeforeSentinel: 7,
@@ -349,6 +351,58 @@ test('records starts and completions in order between the markers', async () => 
                 { method: 'dbGetAppPlaylist', phase: 'end' },
                 { method: 'xtreamRequest', phase: 'start' },
                 { method: 'xtreamRequest', phase: 'end' },
+            ]);
+        }
+    );
+});
+
+test('leaves out the completion of a call started before the start marker', async () => {
+    await withCapture(
+        { startSentinelId: JOURNEY_OPEN_SOURCE_START_SENTINEL_ID },
+        async (fake, read) => {
+            fake.send(1, 'dbGetAppState', []);
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+                JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
+            ]);
+            fake.send(1, 'dbGetAppState', [], 'success');
+            fake.send(1, 'xtreamRequest', []);
+            fake.send(1, 'xtreamRequest', [], 'success');
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+                JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+            ]);
+            const state = assertJourneyMainIpcCapture(await read());
+            assert.deepEqual(state.timeline, [
+                { method: 'xtreamRequest', phase: 'start' },
+                { method: 'xtreamRequest', phase: 'end' },
+            ]);
+            assert.doesNotThrow(() =>
+                computeJourneyIpcSerialDepth(state.timeline)
+            );
+        }
+    );
+});
+
+test('attributes an ambiguous marker-method completion outside the timeline', async () => {
+    await withCapture(
+        { startSentinelId: JOURNEY_OPEN_SOURCE_START_SENTINEL_ID },
+        async (fake, read) => {
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+                JOURNEY_OPEN_SOURCE_START_SENTINEL_ID,
+            ]);
+            // An app call of the marker method overlaps the start marker.
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, ['source-1']);
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [], 'success');
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [], 'success');
+            fake.send(1, JOURNEY_IPC_SENTINEL_METHOD, [
+                JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
+            ]);
+            const state = assertJourneyMainIpcCapture(await read());
+            assert.equal(state.ambiguousTimelineCompletions, 1);
+            // The first completion could be either call; only the second one
+            // certainly belongs to the app call.
+            assert.deepEqual(state.timeline, [
+                { method: JOURNEY_IPC_SENTINEL_METHOD, phase: 'start' },
+                { method: JOURNEY_IPC_SENTINEL_METHOD, phase: 'end' },
             ]);
         }
     );

@@ -279,6 +279,14 @@ bound); `evidence.ipcSerialDepth.depthLowerBound` attributes it to the
 shallowest. The two differ only when concurrent calls of one method sit at
 different depths. A completion with no matching start fails the iteration.
 
+With a start marker (J2) the timeline starts mid-run, so the capture keeps
+calls that started outside it (before the marker, and the markers
+themselves) apart: their completions are left out. When a method has calls
+in flight both inside and outside the timeline, a completion is attributed
+outside, which leaves the timeline call in flight (excluded from the depth)
+rather than ending it too early; `evidence.ipcTimelineAmbiguousCompletions`
+counts these.
+
 Per iteration, `evidence.ipcSerialDepth.chain` names the methods of one
 longest chain, first call first (at each step the predecessor is the latest
 completion at the largest depth), `inFlightAtEnd` counts the calls excluded
