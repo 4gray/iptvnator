@@ -580,8 +580,9 @@ launch with sources). Rail skeletons are gated per rail
 
 The top block (the dashboard hero) keeps its immediate skeleton: it reserves
 the space above everything else, where a late insertion would push the whole
-page down. Use the same rules for any page that stacks independently loading
-blocks.
+page down. For the same reason it stays until every source that can fill it
+has loaded, not only the first one. Use the same rules for any page that
+stacks independently loading blocks.
 
 ### Reload with content on screen: non-destructive indicator
 

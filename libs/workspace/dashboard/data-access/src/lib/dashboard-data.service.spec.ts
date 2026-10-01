@@ -167,6 +167,35 @@ describe('DashboardDataService', () => {
         clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
     };
 
+    const createTestingModuleProviders = () => ({
+        providers: [
+            DashboardDataService,
+            { provide: Store, useValue: storeMock },
+            { provide: DatabaseService, useValue: dbServiceMock },
+            {
+                provide: XTREAM_DATA_SOURCE,
+                useValue: xtreamDataSourceMock,
+            },
+            {
+                provide: PlaylistsService,
+                useValue: playlistsServiceMock,
+            },
+            {
+                provide: TranslateService,
+                useValue: {
+                    instant: (key: string) => key,
+                    onLangChange: of(null),
+                    currentLang: 'en',
+                    defaultLang: 'en',
+                },
+            },
+            {
+                provide: PORTAL_PLAYBACK_POSITIONS,
+                useValue: playbackPositionsMock,
+            },
+        ],
+    });
+
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {
             value: {
@@ -225,34 +254,7 @@ describe('DashboardDataService', () => {
         playbackPositionsMock.getAllPlaybackPositions.mockClear();
         playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([]);
 
-        TestBed.configureTestingModule({
-            providers: [
-                DashboardDataService,
-                { provide: Store, useValue: storeMock },
-                { provide: DatabaseService, useValue: dbServiceMock },
-                {
-                    provide: XTREAM_DATA_SOURCE,
-                    useValue: xtreamDataSourceMock,
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: playlistsServiceMock,
-                },
-                {
-                    provide: TranslateService,
-                    useValue: {
-                        instant: (key: string) => key,
-                        onLangChange: of(null),
-                        currentLang: 'en',
-                        defaultLang: 'en',
-                    },
-                },
-                {
-                    provide: PORTAL_PLAYBACK_POSITIONS,
-                    useValue: playbackPositionsMock,
-                },
-            ],
-        });
+        TestBed.configureTestingModule(createTestingModuleProviders());
         service = TestBed.inject(DashboardDataService);
     });
 
@@ -301,6 +303,43 @@ describe('DashboardDataService', () => {
 
         await service.reloadGlobalFavorites();
         expect(service.dashboardReady()).toBe(true);
+    });
+
+    it('keeps xtream recently added loading until the playlist inventory has loaded', async () => {
+        // Startup: the dashboard exists before the inventory, which is empty
+        // until it loads, so "no Xtream playlists" is not known yet.
+        TestBed.resetTestingModule();
+        playlistsLoadedSignal.set(false);
+        playlistsSignal.set([]);
+        TestBed.configureTestingModule(createTestingModuleProviders());
+        service = TestBed.inject(DashboardDataService);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(true);
+        expect(service.xtreamRecentlyAddedLoaded()).toBe(false);
+
+        playlistsSignal.set(createDefaultPlaylists());
+        playlistsLoadedSignal.set(true);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(true);
+
+        await service.reloadXtreamRecentlyAddedItems();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(false);
+        expect(service.xtreamRecentlyAddedLoaded()).toBe(true);
+    });
+
+    it('settles xtream recently added once the loaded inventory has no xtream playlists', () => {
+        TestBed.resetTestingModule();
+        playlistsLoadedSignal.set(false);
+        playlistsSignal.set([]);
+        TestBed.configureTestingModule(createTestingModuleProviders());
+        service = TestBed.inject(DashboardDataService);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(true);
+
+        playlistsLoadedSignal.set(true);
+        TestBed.tick();
+        expect(service.xtreamRecentlyAddedLoading()).toBe(false);
+        expect(service.xtreamRecentlyAddedLoaded()).toBe(true);
     });
 
     it('includes M3U favorites in global favorite items', async () => {

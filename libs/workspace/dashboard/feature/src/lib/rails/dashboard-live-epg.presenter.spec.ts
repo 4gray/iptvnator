@@ -1,6 +1,6 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, EMPTY, of, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, of, Subject, throwError } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
@@ -57,6 +57,7 @@ describe('DashboardLiveEpgPresenter', () => {
         setVisibleCards: jest.Mock;
         programFor: jest.Mock;
         isPending: jest.Mock;
+        awaitsFirstAnswer: jest.Mock;
     };
 
     const setup = (cards: DashboardRailCard[]) => {
@@ -88,6 +89,7 @@ describe('DashboardLiveEpgPresenter', () => {
             setVisibleCards: jest.fn(),
             programFor: jest.fn(() => undefined),
             isPending: jest.fn(() => false),
+            awaitsFirstAnswer: jest.fn(() => false),
         };
 
         TestBed.configureTestingModule({
@@ -257,6 +259,55 @@ describe('DashboardLiveEpgPresenter', () => {
         expect(presenter.heroDetailsFor(channel)?.nowPlayingTitle).toBe(
             'Tagesschau'
         );
+    });
+
+    it('reports a hero live candidate still waiting for its first programme', () => {
+        const xmltvAnswer = new Subject<Map<string, EpgProgram | null>>();
+        getCurrentProgramsForChannels.mockImplementation(() => xmltvAnswer);
+        expect(presenter.heroLiveAwaitingFirstAnswer()).toBe(false);
+
+        const m3uChannel = {
+            id: 'ard-hd',
+            title: 'Das Erste HD',
+            type: 'live',
+            source: 'm3u',
+            playlist_id: 'a',
+            category_id: '',
+            xtream_id: 'ard-hd',
+            epg_lookup_key: 'ard.de',
+        } as PortalActivityItem;
+        favoriteLiveItems.set([m3uChannel]);
+        setup([]);
+        // The XMLTV batch for the candidate has not answered yet.
+        expect(presenter.heroLiveAwaitingFirstAnswer()).toBe(true);
+
+        xmltvAnswer.next(new Map([['ard.de', null]]));
+        xmltvAnswer.complete();
+        expect(presenter.heroLiveAwaitingFirstAnswer()).toBe(false);
+
+        // A portal candidate also waits for its portal's first answer.
+        portal.awaitsFirstAnswer.mockReturnValue(true);
+        favoriteLiveItems.set([
+            m3uChannel,
+            {
+                ...m3uChannel,
+                id: 7,
+                source: 'xtream',
+                playlist_id: 'portal',
+                xtream_id: 7,
+                epg_lookup_key: undefined,
+            } as PortalActivityItem,
+        ]);
+        getCurrentProgramsForChannels.mockImplementation(() =>
+            of(new Map<string, EpgProgram | null>())
+        );
+        TestBed.tick();
+        expect(presenter.heroLiveAwaitingFirstAnswer()).toBe(true);
+
+        portal.awaitsFirstAnswer.mockReturnValue(false);
+        favoriteLiveItems.update((items) => [...items]);
+        TestBed.tick();
+        expect(presenter.heroLiveAwaitingFirstAnswer()).toBe(false);
     });
 
     it('prefers the portal answer and forwards what the portal presenter owns', () => {
