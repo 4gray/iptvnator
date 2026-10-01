@@ -7,7 +7,8 @@ import { inConditionPrelude, tokensOf } from './font-weight-lexer.mjs';
 
 /** JetBrains Mono is bundled at 400 and 500 only (see `styles.scss`). */
 export const MONO_WEIGHT_CAP = 500;
-export const MONO_FAMILY = /jetbrains\s+mono/i;
+/** The bundled face's name, matched whole (`'Not JetBrains Mono'` is not it). */
+export const MONO_FAMILY = /^jetbrains\s+mono$/i;
 
 const FONT_FAMILY = /(?<![\w$-])(font-family|font|family)\s*:/gi;
 
@@ -73,12 +74,25 @@ const ALWAYS_THERE =
     /^(?:roboto|serif|sans-serif|monospace|cursive|fantasy|system-ui|math|emoji|fangsong)$/i;
 
 /**
+ * Whether a `font` shorthand has a literal size, so a variable after it
+ * holds family names rather than the whole shorthand.
+ */
+export function hasLiteralSize(value) {
+    return tokensOf(value).some(
+        (token) => FONT_SIZE.test(token) && !/^var\(/i.test(token)
+    );
+}
+
+/**
  * The family list of a `font` shorthand: what follows its size and
  * `/line-height`, or `null` when it has no size.
  */
 export function shorthandFamilies(value) {
     const tokens = tokensOf(value.replace(/!important\b/i, ''));
-    let size = tokens.findIndex((token) => FONT_SIZE.test(token));
+    // A literal size first; `var()` (or its placeholder) only when none.
+    let size = tokens.findIndex(
+        (token) => FONT_SIZE.test(token) && !/^var\(/i.test(token)
+    );
     // A size from a variable (`700 var(--size) 'JetBrains Mono'`): the
     // family follows the last variable token.
     if (size === -1) {
@@ -105,8 +119,7 @@ export function rendersMono(value, { shorthand = false } = {}) {
     if (list === null) return false;
     for (const family of list.split(',')) {
         const name = family
-            .trim()
-            .replace(/^(['"])(.*)\1$/, '$2')
+            .replace(/^['"\s]+|['"\s]+$/g, '')
             .replace(/\s+/g, ' ');
         if (MONO_FAMILY.test(name)) return true;
         if (ALWAYS_THERE.test(name)) return false;
@@ -172,13 +185,21 @@ export function reachesEverything(prelude, reader = null) {
     if (!prelude) return false;
     // `body` sits below `html`, so it cannot pass a property up to it.
     const rootReader = reader
-        ? selectorsOf(reader).some((s) => /^(?::root|html)$/i.test(s))
+        ? rootSelectors(reader).some((s) => /^(?::root|html)$/i.test(s))
         : false;
-    return selectorsOf(prelude).some(
+    return rootSelectors(prelude).some(
         (selector) =>
             /^(?::root|html|\*)$/i.test(selector) ||
             (/^body$/i.test(selector) && !rootReader)
     );
+}
+
+/** A selector list with `:where(…)` and `:is(…)` wrappers opened. */
+function rootSelectors(prelude) {
+    return selectorsOf(prelude).flatMap((selector) => {
+        const wrapped = /^:(?:where|is)\((.*)\)$/i.exec(selector);
+        return wrapped ? rootSelectors(wrapped[1]) : [selector];
+    });
 }
 
 /**

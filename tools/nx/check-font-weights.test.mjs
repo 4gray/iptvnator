@@ -270,11 +270,15 @@ test('treats JetBrains Mono after an always-available family as a fallback', () 
         ".j { font: 700 var(--size, 12px) 'JetBrains Mono'; }",
         ".k { font: 700 var(--size, 12px) Roboto, 'JetBrains Mono'; }",
         ".l { font: 700 $size 'JetBrains Mono'; }",
+        ".m { font: 700 var(--size) 'JetBrains Mono'; }",
+        // The name is matched whole.
+        ".n { font-family: 'Not JetBrains Mono'; font-weight: 700; }",
     ].join('\n');
 
     assert.deepEqual(offScale('libs/m6/a.scss', source).sort(), [
         '10 font: 700',
         '12 font: 700',
+        '13 font: 700',
         '3 font-weight: 700',
         '4 font: 700',
         '5 font: 700',
@@ -310,6 +314,19 @@ test('reads Sass nested font properties', () => {
         '3 font-weight: 700',
         '4 weight: 650',
         '8 font-weight: 700',
+    ]);
+});
+
+test('checks SVG presentation attributes and styles', () => {
+    const svg = [
+        '<svg><text font-weight="650">x</text>',
+        '<style>.a { font-weight: 750; }</style>',
+        '<!-- font-weight="900" --><text font-weight="700">y</text></svg>',
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/assets/logo.svg', svg).sort(), [
+        '1 font-weight: 650',
+        '2 font-weight: 750',
     ]);
 });
 
@@ -2325,6 +2342,8 @@ test('reads custom properties as the cascade applies them', () => {
         `.a { --face: Roboto; .b { ${mono} } }`,
         `:host { --face: Roboto; } .b { ${mono} }`,
         `html, .theme { --face: Roboto; } .b { ${mono} }`,
+        `:where(:root) { --face: Roboto; } .b { ${mono} }`,
+        `:is(html, .theme) { --face: Roboto; } .b { ${mono} }`,
         `:host, :host(.x) { --face: Roboto; } .b { ${mono} }`,
         `@media (min-width: 1px) { .b { --face: Roboto; ${mono} } }`,
     ]) {
@@ -2444,6 +2463,11 @@ test('caps a var() branch only where its own family can render Mono', () => {
     );
     assert.deepEqual(
         report(".a { --w: 700; } .x { font: var(--w) 16px 'JetBrains Mono'; }"),
+        ['1 700']
+    );
+    // A whole shorthand from a variable is read as a shorthand.
+    assert.deepEqual(
+        report(".a { --f: 700 16px 'JetBrains Mono'; } .x { font: var(--f); }"),
         ['1 700']
     );
     // A family the shorthand reads through a variable may be Mono.
@@ -2736,6 +2760,7 @@ test('scans app and library styles and sources, not the landing site', () => {
     assert.equal(isScannedFile('apps/web/src/styles.scss'), true);
     assert.equal(isScannedFile('apps/web/src/app/app.component.ts'), true);
     assert.equal(isScannedFile('apps/web/src/index.html'), true);
+    assert.equal(isScannedFile('apps/web/src/assets/images/logo.svg'), true);
     assert.equal(isScannedFile('apps/website/src/styles/global.css'), false);
     assert.equal(isScannedFile('tools/nx/check-font-weights.mjs'), false);
     assert.equal(isScannedFile('libs/ui/styles/README.md'), false);

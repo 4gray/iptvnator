@@ -14,7 +14,8 @@ const VALUE_END = new Set([';', '{', '}', ']']);
  * comment.
  */
 function syntaxOf(file) {
-    if (file.endsWith('.html')) return { html: true, quotes: ['"', "'"] };
+    // SVG is markup like HTML: attributes, `<!-- -->` comments, `<style>`.
+    if (/\.(?:html|svg)$/.test(file)) return { html: true, quotes: ['"', "'"] };
     const typescript = file.endsWith('.ts');
     return {
         block: true,

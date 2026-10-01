@@ -27,6 +27,7 @@ import {
     familiesOf,
     familyParts,
     fontNamespaceRule,
+    hasLiteralSize,
     parsesAsFont,
     plainHost,
     reachesEverything,
@@ -84,12 +85,12 @@ const EXCLUDED_PREFIXES = [
     'libs/shared/marketing-fixtures/',
 ];
 const STYLESHEET = /\.(s?css)$/;
-const SOURCE = /\.(ts|html)$/;
+const SOURCE = /\.(ts|html|svg)$/;
 
 /**
  * Stylesheets feed weights through `font-weight`, custom properties, Sass
  * variables and Material token maps, so any name ending in `weight` counts.
- * In TypeScript and HTML only CSS text is in scope, never a variable that
+ * In TypeScript, HTML and SVG only CSS text is in scope, never a variable that
  * happens to be called `…Weight`. CSS names, keywords and functions are
  * case-insensitive, so every pattern below that matches CSS text is too.
  */
@@ -359,6 +360,8 @@ function familyRefs({ outside, vars }, at) {
         ...{ file: at.file, index: at.index, scopes: at.scopes },
         ...{ inCallable: at.inCallable, callable: at.callable },
         ...{ guards: at.guards ?? [], rule: at.rule ?? null },
+        // Read inside a `font` shorthand: values are shorthands too.
+        shorthand: at.shorthand ?? false,
     };
     return [
         ...vars.map(({ name, fallback }) => ({
@@ -809,7 +812,7 @@ export function scanWeights(file, source) {
         for (const match of text.matchAll(ATTRIBUTE_WEIGHT)) {
             // An attribute sits inside a tag; text such as
             // `<p>font-weight=750</p>` sets nothing.
-            const html = file.endsWith('.html');
+            const html = /\.(?:html|svg)$/.test(file);
             if (!insideTag(lexed, match.index, { html })) continue;
             const value = match[3] ?? match[4];
             record(match[1], match.index, analyse('weight', value));
@@ -1345,22 +1348,32 @@ export function findIndirectWeights(scans) {
         const key = `${file} ${namespace ?? ''} ${index} ${name}`;
         if (seen.has(key)) return false;
         seen.add(key);
+        const { shorthand } = reference;
         if (
             reference.fallback !== null &&
             mayBeUnset(reference) &&
-            familyIsMono(reference.fallback, reference, seen)
+            familyIsMono(reference.fallback, reference, seen, shorthand)
         ) {
             return true;
         }
         return visibleDefinitions(reference).some((definition) =>
-            familyIsMono(definition.full ?? definition.value, definition, seen)
+            familyIsMono(
+                definition.full ?? definition.value,
+                definition,
+                seen,
+                shorthand
+            )
         );
     };
     const familyIsMono = (text, at, seen, shorthand = false) => {
         const parts = familyParts(text);
         const mono = (t) => rendersMono(familyParts(t).outside, { shorthand });
         if (mono(text) || composedFamilies(text, at).some(mono)) return true;
-        return familyRefs(parts, at).some((ref) => namesMono(ref, seen));
+        // After a literal size, a variable holds family names.
+        const whole = shorthand && !hasLiteralSize(parts.outside);
+        return familyRefs(parts, { ...at, shorthand: whole }).some((ref) =>
+            namesMono(ref, seen)
+        );
     };
     // A family Sass assembles from variables (`'#{$prefix} Mono'`, `$a $b`),
     // with each variable replaced by a value it can hold (up to 16
