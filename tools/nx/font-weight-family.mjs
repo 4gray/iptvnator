@@ -509,6 +509,38 @@ function alternativesOf(simples) {
     return ways;
 }
 
+/**
+ * The complex selectors a selector reads as when it is one `:is()` or
+ * `:where()` alone (`:where(.p .c)` is `.p .c`), opened in turn; itself
+ * otherwise, or past 16.
+ */
+function complexOf(selector) {
+    const parts = compoundsOf(selector);
+    const simples = parts.length === 1 ? simplesOf(parts[0].compound) : null;
+    const [, name, argument] =
+        simples?.length === 1 ? (FUNCTIONAL.exec(simples[0]) ?? []) : [];
+    if (!/^(?:is|where|matches)$/i.test(name ?? '')) {
+        return [canonicalSelector(selector)];
+    }
+    const all = selectorsOf(argument).flatMap(complexOf);
+    return all.length <= 16 ? all : [canonicalSelector(selector)];
+}
+
+/**
+ * Whether a rule in context `outer` applies wherever one in `inner` does:
+ * each of its conditions (at-rule wrappers, `@if`/`@each` blocks) is one
+ * of the inner one's too (an unconditional rule applies everywhere).
+ */
+function encloses(outer, inner) {
+    const parts = (context) =>
+        context.split(' | ').map((list, k) => {
+            if (!list) return [];
+            return list.split(k === 0 ? ' ; ' : ' ');
+        });
+    const [a, b] = [parts(outer), parts(inner)];
+    return a.every((list, k) => list.every((part) => b[k].includes(part)));
+}
+
 /** A selector spaced one way, so `.a>.b` and `.a > .b` compare equal. */
 export function canonicalSelector(selector) {
     return joined(compoundsOf(selector));
@@ -871,7 +903,10 @@ export function familiesOf(
     const compiledRules = [];
     for (const [rule, entry] of family) {
         const form = compiled(rule);
-        if (form) compiledRules.push({ rule, entry, ...form });
+        if (form) {
+            const alternatives = complexOf(form.selector);
+            compiledRules.push({ rule, entry, ...form, alternatives });
+        }
     }
     const chosen = (found, complete) =>
         found.find((entry) => entry.mono) ??
@@ -883,10 +918,13 @@ export function familiesOf(
     // so a family `.x` sets reaches it, in the same context or where the
     // base always applies.
     const bases = compiledRules
-        .map((base) => {
-            const simples = simplesOf(base.selector);
-            return { ...base, ways: simples ? alternativesOf(simples) : [] };
-        })
+        .map((base) => ({
+            ...base,
+            ways: base.alternatives.flatMap((alternative) => {
+                const simples = simplesOf(alternative);
+                return simples ? alternativesOf(simples) : [];
+            }),
+        }))
         .filter(({ ways }) => ways.length);
     // A declaration's place in the cascade: `!important`, then its layer
     // (see `layerPlace`; `!important` turns the order round), then
@@ -902,11 +940,12 @@ export function familiesOf(
     // `null` when none sets one or the winner inherits.
     const winnerAt = (selectors, context) => {
         const best = compiledRules
-            .filter((form) => selectors.includes(form.selector))
-            .filter(
-                (form) =>
-                    form.context === context || form.context === UNCONDITIONAL
+            .filter((form) =>
+                form.alternatives.some((alternative) =>
+                    selectors.includes(alternative)
+                )
             )
+            .filter((form) => encloses(form.context, context))
             .map((form) => ({
                 entry: form.entry,
                 rank: rankOf(form.entry, form, orderOf.get(form.rule)),
@@ -931,32 +970,43 @@ export function familiesOf(
     // own rule, the bases it contains and `*`. One whose winner inherits
     // (or with none) takes the family its element inherits.
     const elementFamily = (block) => {
-        // Each way a rule's target reads (`:is(.x, .y)` is `.x` or `.y`).
+        // Each way a rule's target reads (`:is(.x, .y)` is `.x` or `.y`,
+        // `:where(.p .c)` is `.p .c`).
         const targets = rulesOf(block.start).flatMap((rule) => {
             const form = compiled(rule);
             if (!form) return [{ rule, form }];
-            const target = compoundsOf(form.selector).at(-1)?.compound;
-            const simples = simplesOf(target ?? '') ?? [];
-            return alternativesOf(simples).map((way) => ({ rule, form, way }));
-        });
-        const winners = targets.map(({ rule, form, way: simples }) => {
-            if (!form) return family.get(rule) ?? null;
-            const candidates = bases
-                .filter(
-                    (base) =>
-                        base.context === form.context ||
-                        base.context === UNCONDITIONAL
-                )
-                // `*` matches every element.
-                .filter((base) =>
-                    base.ways.some((way) =>
-                        way.every((s) => s === '*' || simples.includes(s))
-                    )
-                )
-                .map((base) => ({
-                    entry: base.entry,
-                    rank: rankOf(base.entry, base, orderOf.get(base.rule)),
+            return complexOf(form.selector).flatMap((selector) => {
+                const target = compoundsOf(selector).at(-1)?.compound;
+                const simples = simplesOf(target ?? '') ?? [];
+                return alternativesOf(simples).map((way) => ({
+                    ...{ rule, form, selector, way },
                 }));
+            });
+        });
+        const ranked = (other) => ({
+            entry: other.entry,
+            rank: rankOf(other.entry, other, orderOf.get(other.rule)),
+        });
+        const winners = targets.map(({ rule, form, selector, way }) => {
+            if (!form) return family.get(rule) ?? null;
+            const applies = (other) => encloses(other.context, form.context);
+            const candidates = [
+                // `*` matches every element.
+                ...bases
+                    .filter(applies)
+                    .filter((base) =>
+                        base.ways.some((simples) =>
+                            simples.every((s) => s === '*' || way.includes(s))
+                        )
+                    )
+                    .map(ranked),
+                // A rule on the same elements written another way
+                // (`:where(.p .c)` for `.p .c`).
+                ...compiledRules
+                    .filter(applies)
+                    .filter((other) => other.alternatives.includes(selector))
+                    .map(ranked),
+            ];
             const own = family.get(rule);
             if (own && !candidates.some(({ entry }) => entry === own)) {
                 candidates.push({
@@ -984,12 +1034,15 @@ export function familiesOf(
     const fromAncestors = (block) => {
         const found = rulesOf(block.start).flatMap((rule) => {
             const form = compiled(rule);
-            for (const ancestor of form ? ancestorsOf(form.selector) : []) {
-                const own = compoundsOf(ancestor).at(-1).compound;
-                const entry = winnerAt([ancestor, own], form.context);
-                if (entry) return [entry];
-            }
-            return [];
+            const nearest = (selector) => {
+                for (const ancestor of ancestorsOf(selector)) {
+                    const own = compoundsOf(ancestor).at(-1).compound;
+                    const entry = winnerAt([ancestor, own], form.context);
+                    if (entry) return [entry];
+                }
+                return [];
+            };
+            return form ? complexOf(form.selector).flatMap(nearest) : [];
         });
         return chosen(found, true) ?? NONE;
     };

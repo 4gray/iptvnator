@@ -4032,6 +4032,61 @@ test("inherits the document root's family", () => {
     }
 });
 
+test('reads a lone `:is()` or `:where()` as the selectors it holds', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // The same elements written another way, either side.
+        [
+            `:where(.parent .child) { font-family: ${mono}; } .parent .child { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.parent .child { font-family: ${mono}; } :where(.parent .child) { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:is(.a .b, .c) { font-family: ${mono}; } .a .b { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:is(.a .b, .c) { font-family: ${mono}; } .c:hover { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:where(.a .b) { font-family: ${mono}; } .z .b { font-weight: 700; }`,
+            [],
+        ],
+        // Ranked with its own specificity: `:where()` counts nothing.
+        [
+            `.parent .child { font-family: Roboto; } :where(.parent .child) { font-family: ${mono}; } .parent .child { font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.parent .child { font-family: ${mono}; } :is(.parent .child) { font-family: Roboto; } .parent .child { font-weight: 700; }`,
+            [],
+        ],
+        // As an ancestor or the document root.
+        [
+            `:where(.a .p) { font-family: ${mono}; } .a .p .c { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.p { font-family: ${mono}; } :where(.p .c) { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:where(html) { font-family: ${mono}; } .x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads ancestors and bases as compiled, in their context', () => {
     const mono = "'JetBrains Mono'";
     const media = '@media (min-width: 1px)';
@@ -4051,6 +4106,28 @@ test('reads ancestors and bases as compiled, in their context', () => {
         ],
         [
             `${media} { .parent { font-family: ${mono}; } } .parent .child { font-weight: 700; }`,
+            [],
+        ],
+        // A family whose conditions are all the reader's applies there too,
+        // in any order; one under a further condition does not.
+        [
+            `${media} { .x { font-family: ${mono}; } @supports (display: grid) { .x { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@supports (display: grid) { .x { font-family: ${mono}; } } ${media} { @supports (display: grid) { .x { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { html { font-family: ${mono}; } @supports (display: grid) { .x { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@if $c { .x { font-family: ${mono}; } @if $d { .x { font-weight: 700; } } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${media} { @supports (display: grid) { .x { font-family: ${mono}; } } .x { font-weight: 700; } }`,
             [],
         ],
         // The ancestor's family is the cascade's winner there.
