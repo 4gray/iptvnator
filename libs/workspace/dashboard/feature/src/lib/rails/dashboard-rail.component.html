@@ -33,7 +33,7 @@
         }
     </header>
 
-    <div class="rail__viewport">
+    <div #viewport class="rail__viewport">
         <button
             type="button"
             class="rail__chev rail__chev--left"
@@ -50,6 +50,7 @@
             class="rail__track"
             [attr.data-layout]="layout()"
             (scroll)="onScroll()"
+            (focusin)="onTrackFocusIn($event)"
             role="list"
         >
             @for (card of items(); track card.id) {

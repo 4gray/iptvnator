@@ -156,6 +156,8 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
      */
     readonly totalCount = input<number | null>(null);
 
+    private readonly viewport =
+        viewChild.required<ElementRef<HTMLDivElement>>('viewport');
     private readonly track =
         viewChild.required<ElementRef<HTMLDivElement>>('track');
     private readonly cardElements =
@@ -279,6 +281,54 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
 
     onScroll(): void {
         this.updateScrollState();
+    }
+
+    /**
+     * Brings a card that receives focus (Tab or `focus()`) fully into view.
+     * Chromium skips its own focus scroll when 32px or more of the element
+     * already shows, which left a card partly hidden under the edge fade
+     * when the rail overflows by less than a card. A plain "nearest" scroll
+     * is not enough either: mandatory snapping can round it back to where
+     * the card is still cut off. So the rail moves to the first card-start
+     * snap position that reveals the whole card. The visible area is the
+     * viewport, not the track, whose padding bleeds under the fades.
+     */
+    onTrackFocusIn(event: FocusEvent): void {
+        const card =
+            event.target instanceof Element
+                ? event.target.closest<HTMLElement>('.rail__card')
+                : null;
+        if (!card) return;
+        const track = this.track().nativeElement;
+        const visible = this.viewport().nativeElement.getBoundingClientRect();
+        const rect = card.getBoundingClientRect();
+        const hiddenLeft = rect.left < visible.left - 1;
+        if (!hiddenLeft && rect.right <= visible.right + 1) return;
+
+        // Scroll offset that aligns an element's start with the visible
+        // edge — where `scroll-padding-inline-start` makes each card snap.
+        const snapOffset = (element: HTMLElement) =>
+            track.scrollLeft +
+            element.getBoundingClientRect().left -
+            visible.left;
+        const maxLeft = track.scrollWidth - track.clientWidth;
+        let left = maxLeft;
+        if (hiddenLeft) {
+            left = snapOffset(card);
+        } else {
+            const needed = track.scrollLeft + rect.right - visible.right;
+            for (const { nativeElement } of this.cardElements()) {
+                const offset = snapOffset(nativeElement);
+                if (offset >= needed - 1) {
+                    left = offset;
+                    break;
+                }
+            }
+        }
+        track.scrollTo({
+            left: Math.max(0, Math.min(left, maxLeft)),
+            behavior: 'auto',
+        });
     }
 
     scrollBy(direction: 1 | -1): void {

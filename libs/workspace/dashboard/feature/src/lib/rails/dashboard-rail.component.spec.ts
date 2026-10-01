@@ -439,4 +439,169 @@ describe('DashboardRailComponent', () => {
             ).toHaveLength(1);
         });
     });
+
+    describe('focus reveal', () => {
+        beforeEach(() => {
+            (
+                globalThis as unknown as { ResizeObserver: unknown }
+            ).ResizeObserver = class {
+                observe = jest.fn();
+                unobserve = jest.fn();
+                disconnect = jest.fn();
+            };
+        });
+
+        const rect = (left: number, width: number) =>
+            ({ left, right: left + width, top: 0, bottom: 100 }) as DOMRect;
+
+        /**
+         * Lays the cards out at `stride` px intervals in a 1000px viewport
+         * (jsdom has no layout) and records the track's `scrollTo` calls.
+         */
+        const renderRail = async (options: {
+            count: number;
+            width: number;
+            stride: number;
+            scrollLeft?: number;
+        }) => {
+            await TestBed.configureTestingModule({
+                imports: [DashboardRailComponent, TranslateModule.forRoot()],
+                providers: [
+                    provideRouter([]),
+                    {
+                        provide: SettingsStore,
+                        useValue: { stripCountryPrefix: signal(false) },
+                    },
+                ],
+            }).compileComponents();
+            const fixture = TestBed.createComponent(DashboardRailComponent);
+            fixture.componentRef.setInput('label', 'Sources');
+            fixture.componentRef.setInput(
+                'items',
+                Array.from({ length: options.count }, (_, index) =>
+                    card({
+                        id: `card-${index}`,
+                        actions: [
+                            { id: 'edit', labelKey: 'EDIT', icon: 'edit' },
+                        ],
+                    })
+                )
+            );
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const element = fixture.nativeElement as HTMLElement;
+            const scrollLeft = options.scrollLeft ?? 0;
+            const track = element.querySelector('.rail__track') as HTMLElement;
+            const contentWidth =
+                (options.count - 1) * options.stride + options.width;
+            Object.defineProperties(track, {
+                scrollLeft: { configurable: true, value: scrollLeft },
+                clientWidth: { configurable: true, value: 1000 },
+                scrollWidth: { configurable: true, value: contentWidth },
+            });
+            const scrollTo = jest.fn();
+            track.scrollTo = scrollTo;
+            jest.spyOn(
+                element.querySelector('.rail__viewport') as HTMLElement,
+                'getBoundingClientRect'
+            ).mockReturnValue(rect(0, 1000));
+            element
+                .querySelectorAll<HTMLElement>('.rail__card')
+                .forEach((cardElement, index) =>
+                    jest
+                        .spyOn(cardElement, 'getBoundingClientRect')
+                        .mockReturnValue(
+                            rect(
+                                index * options.stride - scrollLeft,
+                                options.width
+                            )
+                        )
+                );
+            const focusLink = (index: number) =>
+                element
+                    .querySelectorAll<HTMLElement>('.rail__card-link')
+                    [index].focus();
+            return { element, scrollTo, focusLink };
+        };
+
+        it('scrolls to the end when the last card is cut off by an overflow smaller than a card', async () => {
+            // Max scroll 102px: the last card shows 70px, which Chromium
+            // already treats as visible enough to skip its focus scroll.
+            const { scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            focusLink(5);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 102,
+                behavior: 'auto',
+            });
+        });
+
+        it('moves to the next snap position that reveals the card rather than the nearest one', async () => {
+            // A "nearest" scroll would need 264px, which mandatory snapping
+            // rounds back to 0 — leaving the card cut off.
+            const { scrollTo, focusLink } = await renderRail({
+                count: 5,
+                width: 306,
+                stride: 316,
+            });
+
+            focusLink(3);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 316,
+                behavior: 'auto',
+            });
+        });
+
+        it('aligns a card cut off on the left with the start edge', async () => {
+            const { scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+                scrollLeft: 100,
+            });
+
+            focusLink(0);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 0,
+                behavior: 'auto',
+            });
+        });
+
+        it('reveals the card when its actions button gains focus', async () => {
+            const { element, scrollTo } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            element
+                .querySelectorAll<HTMLElement>('.rail__action-trigger')[5]
+                .focus();
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 102,
+                behavior: 'auto',
+            });
+        });
+
+        it('leaves the scroll position alone for a fully visible card', async () => {
+            const { scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            focusLink(4);
+
+            expect(scrollTo).not.toHaveBeenCalled();
+        });
+    });
 });
