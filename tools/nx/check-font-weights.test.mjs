@@ -917,6 +917,34 @@ test('resolves Sass variables within their block', () => {
     assert.deepEqual(findIndirectWeights([tokens, user]), []);
 });
 
+test('runs a `!global` assignment in text order', () => {
+    const read = '.x { font-weight: $w; }';
+
+    for (const setter of [
+        '.setter { $w: 600 !global; }',
+        '.a { .b { $w: 600 !global; } }',
+    ]) {
+        assert.deepEqual(
+            offScale('libs/g4/a.scss', `$w: 650; ${setter} ${read}`),
+            []
+        );
+    }
+    // Under flow control or in a mixin body it may not run first.
+    for (const setter of [
+        '@if $flag { .s { $w: 600 !global; } }',
+        '@mixin set { $w: 600 !global; }',
+    ]) {
+        assert.deepEqual(
+            offScale('libs/g4/a.scss', `$w: 650; ${setter} ${read}`),
+            ['1 $w: 650']
+        );
+    }
+    assert.deepEqual(
+        offScale('libs/g4/a.scss', `.y { $w: 650 !global; } ${read}`),
+        ['1 $w: 650']
+    );
+});
+
 test('resolves the declaration in effect where a Sass name is read', () => {
     const cases = {
         // An inner declaration shadows the outer one.
@@ -1745,6 +1773,9 @@ test('follows the JetBrains Mono family only where it is inherited', () => {
         `.i { ${mono}; .n { font-family: Roboto; font-family: unset; font-weight: 700; } }`,
         `.j { ${mono}; .k { font-family: Roboto; font-family: inherit; font-weight: 700; } }`,
         `.l { ${mono}; &--wide:is(.x, .y) { font-weight: 700; } }`,
+        `.m { ${mono} !important; font-family: sans-serif; font-weight: 700; }`,
+        `.n { font-family: Roboto !important; ${mono}; font-weight: 700; }`,
+        `.o { font-family: Roboto !important; ${mono} !important; font-weight: 700; }`,
     ].join('\n');
 
     assert.deepEqual(offScale('libs/m4/a.scss', source), [
@@ -1753,6 +1784,8 @@ test('follows the JetBrains Mono family only where it is inherited', () => {
         '5 font-weight: 700',
         '7 font-weight: 700',
         '8 font-weight: 700',
+        '10 font-weight: 700',
+        '12 font-weight: 700',
     ]);
 });
 
@@ -1786,6 +1819,48 @@ test('resolves a JetBrains Mono family named through variables', () => {
             rule('.a { font-family: var(--face); font-weight: 700; }'),
         ]),
         []
+    );
+    // A `var()` fallback counts only where the property is never set.
+    const fallback = (family) =>
+        rule(`.a { font-family: ${family}; font-weight: 700; }`);
+    const everything = (scans) => [
+        ...scans.flatMap((scan) =>
+            scan.findings.map(
+                ({ file, line, value }) => `${file}:${line} ${value}`
+            )
+        ),
+        ...report(scans),
+    ];
+    for (const family of [
+        "var(--face, 'JetBrains Mono')",
+        "var(--face, var(--y), 'JetBrains Mono')",
+    ]) {
+        assert.deepEqual(
+            everything([theme(':root { --face: Roboto; }'), fallback(family)]),
+            []
+        );
+    }
+    for (const family of [
+        "var(--nowhere, ui-monospace, 'JetBrains Mono', monospace)",
+        "var(--x, var(--y, 'JetBrains Mono'))",
+    ]) {
+        assert.deepEqual(report([fallback(family)]), [
+            'libs/m4/rule.scss:1 700',
+        ]);
+    }
+    assert.deepEqual(
+        report([
+            theme(':root { --y: Roboto; }'),
+            fallback("var(--x, var(--y, 'JetBrains Mono'))"),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            theme(":root { --face: var(--brand, 'JetBrains Mono'); }"),
+            fallback('var(--face)'),
+        ]),
+        ['libs/m4/rule.scss:1 700']
     );
     assert.deepEqual(
         report([

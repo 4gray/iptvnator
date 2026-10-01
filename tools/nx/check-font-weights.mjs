@@ -23,6 +23,7 @@ import {
     MONO_WEIGHT_CAP,
     declarationText,
     familiesOf,
+    familyParts,
 } from './font-weight-family.mjs';
 import {
     effectiveDeclarations,
@@ -272,6 +273,30 @@ function analyse(mode, value, options = {}) {
 }
 
 /**
+ * The variables a family reads (see `familyParts`), as references resolved
+ * from `at` (a file, position and scope): each custom property with its
+ * `var()` fallback, then any Sass variable named outright.
+ */
+function familyRefs({ outside, vars }, at) {
+    const place = {
+        ...{ file: at.file, index: at.index, scopes: at.scopes },
+        ...{ inCallable: at.inCallable, callable: at.callable },
+    };
+    return [
+        ...vars.map(({ name, fallback }) => ({
+            ...{ name, namespace: null, mode: 'family', fallback },
+            ...place,
+        })),
+        ...[...outside.matchAll(REFERENCE)].map((match) => ({
+            name: identity(match[1] ?? match[3]),
+            namespace: match[2] ?? null,
+            ...{ mode: 'family', fallback: null },
+            ...place,
+        })),
+    ];
+}
+
+/**
  * A term that only the JetBrains Mono cap makes a finding: a scale weight
  * (or `bold`) above it. An off-scale one is reported as such already.
  */
@@ -368,14 +393,8 @@ export function scanWeights(file, source) {
 
     // The family each rule renders in (see `familiesOf`); one named through
     // variables is resolved once the whole workspace is scanned.
-    const refsIn = (value, index, place) =>
-        [...value.matchAll(REFERENCE)].map((match) => ({
-            name: identity(match[1] ?? match[3]),
-            namespace: match[2] ?? null,
-            mode: 'family',
-            ...{ file, index, scopes: place.scopes },
-            ...{ inCallable: place.inCallable, callable: place.callable },
-        }));
+    const refsIn = (parts, index, place) =>
+        familyRefs(parts, { file, index, ...place });
     const monoAt = stylesheet
         ? familiesOf(lexed, blocks, { inString, placeOf, refsIn })
         : () => ({ mono: false, refs: [] });
@@ -492,7 +511,11 @@ export function scanWeights(file, source) {
             // An argument reaches only the mixin or function it is passed to.
             callee: argument ? calleeOf(text, index) : null,
             scope: global ? null : place.scope,
-            conditional: global || place.conditional,
+            // A `!global` assignment runs in text order, unless flow
+            // control or a callable body (run when called) encloses it.
+            conditional: global
+                ? place.flow || place.inCallable
+                : place.conditional,
             ...{ scopes: place.scopes, inCallable: place.inCallable },
             callable: place.callable,
         });
@@ -752,30 +775,28 @@ export function findIndirectWeights(scans) {
             return true;
         });
     };
-    // Whether a family reference names JetBrains Mono, through chains.
+    // Whether a family reference names JetBrains Mono, through chains. A
+    // `var()` fallback applies only where the property is never set.
     const namesMono = (reference, seen = new Set()) => {
         const { name, file, namespace, index } = reference;
         const key = `${file} ${namespace ?? ''} ${index} ${name}`;
         if (seen.has(key)) return false;
         seen.add(key);
-        return visibleDefinitions(reference).some((definition) => {
-            const text = definition.full ?? definition.value;
-            if (MONO_FAMILY.test(text)) return true;
-            return [...text.matchAll(REFERENCE)].some((match) =>
-                namesMono(
-                    {
-                        name: identity(match[1] ?? match[3]),
-                        namespace: match[2] ?? null,
-                        file: definition.file,
-                        index: definition.index,
-                        scopes: definition.scopes,
-                        inCallable: definition.inCallable,
-                        callable: definition.callable,
-                    },
-                    seen
-                )
+        const found = visibleDefinitions(reference);
+        if (found.length === 0) {
+            return (
+                reference.fallback !== null &&
+                familyIsMono(reference.fallback, reference, seen)
             );
-        });
+        }
+        return found.some((definition) =>
+            familyIsMono(definition.full ?? definition.value, definition, seen)
+        );
+    };
+    const familyIsMono = (text, at, seen) => {
+        const parts = familyParts(text);
+        if (MONO_FAMILY.test(parts.outside)) return true;
+        return familyRefs(parts, at).some((ref) => namesMono(ref, seen));
     };
     const followed = new Set();
     const findings = [];

@@ -381,7 +381,8 @@ export function blocksOf({ text, quoteAt }) {
  * there resolves through, innermost first and ending in `null` (the module).
  * Flow-control blocks (`@if`, `@each`, …) are not scopes of their own: Sass
  * assigns to the enclosing scope's variable. `scope` is the innermost scope,
- * `conditional` says a flow-control block lies in between, `inCallable`
+ * `conditional` says a flow-control block lies in between, `flow` that one
+ * encloses `index` at any depth, `inCallable`
  * whether a `@mixin`/`@function` body encloses `index`, and `callable` the
  * name of the innermost one.
  */
@@ -397,6 +398,7 @@ export function placeOf(blocks, index) {
         scopes: [...scopes, null],
         scope: scopes[0] ?? null,
         conditional: firstScope === -1 ? around.length > 0 : firstScope > 0,
+        flow: around.some((block) => block.kind === 'flow'),
         inCallable: around.some((block) => block.kind === 'callable'),
         callable:
             around.find((block) => block.kind === 'callable')?.name ?? null,
