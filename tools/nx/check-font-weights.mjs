@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { extractRelativeImports } from './check-stylesheet-inputs.mjs';
 import { lex, lineIndex, tokensOf, valueAfter } from './font-weight-lexer.mjs';
+import { sassScopes } from './font-weight-scope.mjs';
 
 /**
  * The weights `apps/web/src/styles.scss` bundles for DM Sans, its Roboto
@@ -43,9 +45,12 @@ const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
  */
 const CODE_WEIGHT = [
     /(\[style\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])(.*?)\2/g,
-    /(\.style\.fontWeight)\s*=\s*(['"`]?)([\w.+-]*)\2/g,
-    /(setProperty\(\s*['"]font-weight['"])\s*,\s*(['"`]?)([\w.+-]*)\2/gi,
+    /(\.style\.fontWeight)\s*=\s*()([^;\n]*)/g,
+    /(setProperty\(\s*['"]font-weight['"])\s*,\s*()([^;\n]*)/gi,
 ];
+/** Arithmetic next to a number in code: `600 + 50` is 650 at runtime. */
+const CODE_ARITHMETIC =
+    /\d\s*[-+*/%]\s*[\w$(.'"`]|[\w$).'"`]\s*[-+*/%]\s*\.?\d/;
 
 /** A CSS <number>: decimals, an exponent and a `+` sign are all valid. */
 const NUMBER_TEXT = String.raw`\+?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?`;
@@ -172,7 +177,7 @@ function analyse(mode, value, { minimum = 1, code = false, after = 0 } = {}) {
         .map((match) => match[1])
         .filter((term) => Number(term) >= minimum)
         .filter((term) => !WEIGHT_SCALE.includes(Number(term)));
-    const computed = !code && computedIn(value);
+    const computed = code ? CODE_ARITHMETIC.test(value) : computedIn(value);
     return {
         terms: computed
             ? [{ value: value.trim(), computed: true }]
@@ -210,7 +215,9 @@ export function scanWeights(file, source) {
         for (const term of analysis.terms) {
             findings.push({ file, line: lineOf(index), name, ...term });
         }
-        references.push(...analysis.references);
+        references.push(
+            ...analysis.references.map((reference) => ({ ...reference, file }))
+        );
     };
 
     for (const pattern of patterns) {
@@ -246,33 +253,48 @@ export function scanWeights(file, source) {
         definitions.push({ file, line, name, key: identity(name), value });
     }
 
-    return { declarations, findings, references, definitions };
+    const imports = stylesheet ? extractRelativeImports(source) : [];
+    return { file, imports, declarations, findings, references, definitions };
 }
 
 /**
  * Definitions of the variables that weight declarations refer to, read the
  * way they are used (a weight or a whole `font` shorthand) and followed
  * through chains (`--a: var(--b)`). A name ending in `weight` is already
- * checked where it is declared.
+ * checked where it is declared. Custom properties cascade across the app, so
+ * any definition counts; a Sass variable only within its module scope.
  */
 export function findIndirectWeights(scans) {
     const definitions = scans.flatMap((scan) => scan.definitions);
     const pending = scans.flatMap((scan) => scan.references);
+    const scopeOf = sassScopes(scans);
     const followed = new Set();
     const findings = [];
     while (pending.length > 0) {
-        const { name, mode, after = 0 } = pending.pop();
-        const key = `${mode} ${after} ${name}`;
+        const { name, mode, after = 0, file } = pending.pop();
+        const sass = name.startsWith('$');
+        const key = `${mode} ${after} ${sass ? file : ''} ${name}`;
         if (followed.has(key)) continue;
         followed.add(key);
         for (const definition of definitions) {
             if (definition.key !== name) continue;
-            const { file, line, value } = definition;
-            const analysis = analyse(mode, value, { after });
+            if (sass && !scopeOf(file).has(definition.file)) continue;
+            const analysis = analyse(mode, definition.value, { after });
             for (const term of analysis.terms) {
-                findings.push({ file, line, name: definition.name, ...term });
+                const { line } = definition;
+                const at = {
+                    file: definition.file,
+                    line,
+                    name: definition.name,
+                };
+                findings.push({ ...at, ...term });
             }
-            pending.push(...analysis.references);
+            pending.push(
+                ...analysis.references.map((reference) => ({
+                    ...reference,
+                    file: definition.file,
+                }))
+            );
         }
     }
     return findings;

@@ -435,6 +435,73 @@ test('terminates on cyclic variables', { timeout: 5000 }, () => {
     assert.deepEqual(offScale('libs/a.scss', source), []);
 });
 
+test('reports arithmetic in code weights, not calls or conditions', () => {
+    const template = [
+        '<p [style.font-weight]="600 + 50">a</p>',
+        '<p [style.font-weight]="active() ? 700 : 400">b</p>',
+    ].join('\n');
+    const component = [
+        'element.style.fontWeight = 600 + 50;',
+        "element.style.setProperty('font-weight', String(base + 100));",
+        'element.style.fontWeight = this.weight();',
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
+        '1 [style.font-weight]: 600 + 50',
+    ]);
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '1 .style.fontWeight: 600 + 50',
+        "2 setProperty('font-weight': String(base + 100))",
+    ]);
+});
+
+test('resolves Sass variables within their module scope', () => {
+    const scan = (file, source) => scanWeights(file, source);
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+
+    // Same name, unrelated files: the spacing value never feeds the weight.
+    const own = scan(
+        'libs/a/a.scss',
+        '$local: 600; .a { font-weight: $local; }'
+    );
+    const other = scan('libs/b/b.scss', '$local: 650; .b { margin: $local; }');
+    assert.deepEqual(report([own, other]), []);
+
+    // A loaded module, through a namespace.
+    const tokens = scan('libs/c/_tokens.scss', '$title: 650;');
+    const user = scan(
+        'libs/c/c.scss',
+        "@use './tokens' as t; .c { font-weight: t.$title; }"
+    );
+    assert.deepEqual(report([tokens, user]), ['libs/c/_tokens.scss:1 650']);
+
+    // A mixin argument passed by the file that loads the mixin.
+    const mixin = scan(
+        'libs/d/_heading.scss',
+        '@mixin heading($w: 500) { font-weight: $w; }'
+    );
+    const caller = scan(
+        'libs/d/d.scss',
+        "@use './heading'; .d { @include heading.heading($w: 750); }"
+    );
+    assert.deepEqual(report([mixin, caller]), ['libs/d/d.scss:1 750']);
+
+    // Two files that only share a partial are not connected.
+    const shared = scan('libs/e/_shared.scss', '$gap: 4px;');
+    const reader = scan(
+        'libs/e/x.scss',
+        "@use './shared'; .x { font-weight: $v; }"
+    );
+    const sibling = scan(
+        'libs/e/y.scss',
+        "@use './shared'; $v: 650; .y { margin: $v; }"
+    );
+    assert.deepEqual(report([shared, reader, sibling]), []);
+});
+
 test('flags relative keywords, which can land off the scale', () => {
     const findings = findOffScaleWeights(
         'libs/a.scss',
