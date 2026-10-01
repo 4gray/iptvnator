@@ -1,6 +1,8 @@
 import { Injector } from '@angular/core';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
 import {
+    PlaylistSourceIconKey,
+    resolvePlaylistSourceIconKey,
     SOURCE_TYPE_ICONS,
     sourceHealthType,
 } from '@iptvnator/shared/interfaces';
@@ -72,6 +74,10 @@ export class PlaylistItemComponent implements OnInit {
     private readonly portalStatusService = inject(PortalStatusService);
     readonly runtime = inject(RuntimeCapabilitiesService);
     readonly sourceIcons = SOURCE_TYPE_ICONS;
+
+    get sourceIconKey(): PlaylistSourceIconKey {
+        return resolvePlaylistSourceIconKey(this.item);
+    }
     private readonly translate = inject(TranslateService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),

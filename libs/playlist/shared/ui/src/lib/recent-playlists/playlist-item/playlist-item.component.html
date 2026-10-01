@@ -17,69 +17,68 @@
                 [enabled]="!isBusy()"
             />
         }
-        @if (item.url) {
-            <div class="icon-container">
+        <!-- One provider icon per row, by the shared precedence: a restored
+             Stalker or Xtream playlist can also carry a URL. -->
+        @switch (sourceIconKey) {
+            @case ('stalker') {
                 <mat-icon
                     class="upload-type-icon"
-                    [matTooltip]="
-                        ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) +
-                        ' ' +
-                        item.url
-                    "
-                    >{{ sourceIcons['m3u-url'] }}</mat-icon
+                    [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
+                    >{{ sourceIcons.stalker }}</mat-icon
                 >
-                @if (item.autoRefresh) {
+            }
+            @case ('xtream') {
+                <div class="icon-container">
                     <mat-icon
-                        class="auto-refresh-indicator"
+                        class="upload-type-icon"
                         [matTooltip]="
-                            'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
+                            'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate
                         "
-                        >autorenew</mat-icon
+                        >{{ sourceIcons.xtream }}</mat-icon
                     >
-                }
-            </div>
-        }
-        @if (!item.url && !item.serverUrl && !item.macAddress) {
-            <div class="icon-container">
-                <mat-icon
-                    class="upload-type-icon"
-                    [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
-                    >{{ sourceIcons['m3u-local'] }}</mat-icon
-                >
-                @if (item.autoRefresh) {
-                    <mat-icon
-                        class="auto-refresh-indicator"
-                        [matTooltip]="
-                            'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
-                        "
-                        >autorenew</mat-icon
-                    >
-                }
-            </div>
-        }
-        @if (item.serverUrl) {
-            <div class="icon-container">
-                <mat-icon
-                    class="upload-type-icon"
-                    [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
-                    >{{ sourceIcons.xtream }}</mat-icon
-                >
-                @if (!runtime.supportsSourceHealth) {
-                    <span
-                        class="status-dot"
-                        [class]="getStatusClass()"
-                        [matTooltip]="'Portal status: ' + portalStatus"
-                        [attr.aria-label]="'Portal status: ' + portalStatus"
-                    ></span>
-                }
-            </div>
-        }
-        @if (item.macAddress) {
-            <mat-icon
-                class="upload-type-icon"
-                [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
-                >{{ sourceIcons.stalker }}</mat-icon
-            >
+                    @if (!runtime.supportsSourceHealth) {
+                        <span
+                            class="status-dot"
+                            [class]="getStatusClass()"
+                            [matTooltip]="'Portal status: ' + portalStatus"
+                            [attr.aria-label]="'Portal status: ' + portalStatus"
+                        ></span>
+                    }
+                </div>
+            }
+            @default {
+                <div class="icon-container">
+                    @if (sourceIconKey === 'm3u-url') {
+                        <mat-icon
+                            class="upload-type-icon"
+                            [matTooltip]="
+                                ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) +
+                                ' ' +
+                                item.url
+                            "
+                            >{{ sourceIcons['m3u-url'] }}</mat-icon
+                        >
+                    } @else {
+                        <mat-icon
+                            class="upload-type-icon"
+                            [matTooltip]="
+                                'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate
+                            "
+                            >{{ sourceIcons['m3u-local'] }}</mat-icon
+                        >
+                    }
+                    @if (item.autoRefresh) {
+                        <mat-icon
+                            class="auto-refresh-indicator"
+                            [matTooltip]="
+                                'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED'
+                                    | translate
+                            "
+                            >autorenew</mat-icon
+                        >
+                    }
+                </div>
+            }
         }
     </div>
     <div class="playlist-content">

@@ -221,4 +221,40 @@ describe('PlaylistItemComponent', () => {
         ).toContain('42%');
         expect(nativeElement.querySelector('.cancel-btn')).not.toBeNull();
     });
+
+    it.each([
+        [
+            { macAddress: '00:1A:79:00:00:01', url: 'http://portal.test' },
+            'cast',
+        ],
+        [
+            { serverUrl: 'http://xtream.test', url: 'http://xtream.test' },
+            'cloud',
+        ],
+        [{ url: 'http://list.test/playlist.m3u' }, 'link'],
+        [{}, 'description'],
+    ])(
+        'shows one provider icon for %o, with the shared precedence',
+        (source, icon) => {
+            fixture.destroy();
+            fixture = TestBed.createComponent(PlaylistItemComponent);
+            fixture.componentInstance.item = {
+                title: 'Source',
+                _id: 'source',
+                count: 10,
+                importDate: Date.now().toString(),
+                autoRefresh: false,
+                ...source,
+            };
+            fixture.detectChanges();
+
+            const icons = Array.from(
+                (fixture.nativeElement as HTMLElement).querySelectorAll(
+                    '.upload-type-icon'
+                ),
+                (element) => element.textContent?.trim()
+            );
+            expect(icons).toEqual([icon]);
+        }
+    );
 });
