@@ -40,16 +40,11 @@ export function findDeadMaterialTokens(file, source) {
     return findings;
 }
 
-const isMain =
-    process.argv[1] &&
-    path.resolve(process.argv[1]) ===
-        path.resolve(fileURLToPath(import.meta.url));
-
-if (isMain) {
-    const rootDir = process.cwd();
+/** Tracked files under `rootDir` that the guard reads, at any depth. */
+export function listScannedFiles(rootDir) {
     // No shell: `cmd.exe` treats single quotes as literal characters, so a
     // POSIX-quoted pathspec reaches git intact on Windows and matches nothing.
-    const files = execFileSync('git', ['ls-files', ...SCANNED_PATHSPECS], {
+    return execFileSync('git', ['ls-files', ...SCANNED_PATHSPECS], {
         cwd: rootDir,
         encoding: 'utf8',
         maxBuffer: 32 * 1024 * 1024,
@@ -58,6 +53,16 @@ if (isMain) {
         .split('\n')
         .filter(Boolean)
         .filter(isScanned);
+}
+
+const isMain =
+    process.argv[1] &&
+    path.resolve(process.argv[1]) ===
+        path.resolve(fileURLToPath(import.meta.url));
+
+if (isMain) {
+    const rootDir = process.cwd();
+    const files = listScannedFiles(rootDir);
 
     const findings = [];
     for (const file of files) {

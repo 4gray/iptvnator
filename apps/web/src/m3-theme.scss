@@ -141,8 +141,9 @@ html {
 
     .dark-theme {
         @include mat.all-component-colors($dark-theme);
+        // Only the color roles differ per theme: the elevation shadows are
+        // the same black in both, so html's declarations already apply here.
         @include mat.system-level-colors($dark-theme);
-        @include mat.system-level-elevation($dark-theme);
 
         // ── Dark graphite theme ────────────────────────────────────────────
         // Inspired by both Slack (sidebar distinction) and GitButler (data density)
