@@ -259,6 +259,9 @@ test('caps inline JetBrains Mono declarations', () => {
         `<div style="font: 700 16px 'JetBrains Mono'"></div>`,
         `<div style="font-family: 'JetBrains Mono'; font-weight: 700"></div>`,
         '<div style="font-weight: 700"></div>',
+        `<div style="font-family: 'JetBrains Mono'; font-family: sans-serif; font-weight: 700"></div>`,
+        `<div style="font-family: 'JetBrains Mono' !important; font-family: sans-serif; font-weight: 700"></div>`,
+        `<div style="font-family: 'JetBrains Mono'; font: 12px; font-weight: 700"></div>`,
     ].join('\n');
     const component = [
         `element.style.font = "700 16px 'JetBrains Mono'";`,
@@ -268,6 +271,8 @@ test('caps inline JetBrains Mono declarations', () => {
 
     assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
         '2 font-weight: 700',
+        '5 font-weight: 700',
+        '6 font-weight: 700',
         '1 font: 700',
     ]);
     assert.deepEqual(
@@ -341,6 +346,35 @@ test('checks property names Sass builds by interpolation', () => {
         '3 font-#{weight}: 650',
         '4 #{"font-weight"}: 750',
         '9 -weight: 650',
+    ]);
+});
+
+test('follows Sass loop variables', () => {
+    const source = [
+        '@each $w in 400, 650 { .x-#{$w} { font-weight: $w; } }',
+        '@each $w in 400, 600 { .y-#{$w} { font-weight: $w; } }',
+        '@each $n, $w in (light: 400, heavy: 650) { .t-#{$n} { font-weight: $w; } }',
+        '$weights: 400, 750;',
+        '@each $w in $weights { .u-#{$w} { font-weight: $w; } }',
+        '@for $w from 400 through 402 { .z-#{$w} { font-weight: $w; } }',
+        '@for $w from 600 through 600 { .s { font-weight: $w; } }',
+        '@for $i from 1 through 3 { .m-#{$i} { margin: $i * 4px; } }',
+        '@for $w from 650 through 650 { .r { font-weight: $w; } }',
+        // Inside its loop the variable shadows an outer one; after it, the
+        // outer one is back.
+        '$o: 650; @each $o in 400, 600 { .i { font-weight: $o; } }',
+        '$v: 600; @each $v in 650 { .in { color: red; } } .after { font-weight: $v; }',
+        '$p: margin; @each $p in font-weight, color { .l { #{$p}: 650; } }',
+        '$q: margin; @each $q in font-weight { .in { color: red; } } .w { #{$q}: 650; }',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/l3/a.scss', source).sort(), [
+        '1 $w: 650',
+        '12 #{$p}: 650',
+        '3 $w: 650',
+        '4 $weights: 750',
+        '6 $w: from 400 through 402',
+        '9 $w: from 650 through 650',
     ]);
 });
 

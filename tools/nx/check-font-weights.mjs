@@ -160,8 +160,12 @@ const INHERITING = /^(?:inherit|unset)\b/i;
 const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font)\s*:/gi;
 /** A property name that sets or holds a weight. */
 const WEIGHT_NAME = /^(?:font|font-weight|(?:\$|--)?[\w-]*weight)$/i;
-/** A declaration that sets JetBrains Mono, in CSS text. */
-const MONO_DECLARATION = /(?<![\w-])font(?:-family)?\s*:[^;]*jetbrains\s+mono/i;
+/** A family declaration in CSS text: `font-family`, or the `font` shorthand. */
+const FAMILY_DECLARATION = /(?<![\w-])(font-family|font)\s*:\s*([^;]*)/gi;
+/** Sass loops that bind variables: `@each $a, $b in …`, `@for $i from …`. */
+const EACH_LOOP = /@each\s+((?:\$[\w-]+\s*,\s*)*\$[\w-]+)\s+in\s+([^{]+)\{/gi;
+const FOR_LOOP =
+    /@for\s+(\$[\w-]+)\s+from\s+([\s\S]+?)\s+(through|to)\s+([\s\S]+?)\s*\{/gi;
 /**
  * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
  * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
@@ -407,6 +411,43 @@ function opensFunction(text, brace) {
     return !/^(?:if|for|while|switch|catch|with)$/.test(word);
 }
 
+/** Whether `index` sits where a definition exists: a loop variable's body. */
+function inLoopOf(definition, index) {
+    const { loop } = definition;
+    return !loop || (loop.start < index && index < loop.end);
+}
+
+/**
+ * Whether the family in effect in a block of CSS text is JetBrains Mono: the
+ * last `font-family` or parsing `font` declaration, unless an earlier one is
+ * `!important`.
+ */
+function familyInCss(css) {
+    let effective = null;
+    for (const [, property, value] of css.matchAll(FAMILY_DECLARATION)) {
+        if (property.toLowerCase() === 'font' && !parsesAsFont(value)) continue;
+        const important = /!important\b/i.test(value);
+        if (effective?.important && !important) continue;
+        effective = { important, mono: MONO_FAMILY.test(value) };
+    }
+    return effective?.mono ?? false;
+}
+
+/**
+ * A `@for` variable read as a weight: a range of literal bounds is one
+ * weight only when both are the same scale weight; any other range (or a
+ * bound Sass computes) yields values the source does not show.
+ */
+function rangeAnalysis({ range, value }) {
+    const [from, to] = [Number(range.from), Number(range.to)];
+    const single = range.through ? from === to : Math.abs(to - from) === 1;
+    const onScale = single && WEIGHT_SCALE.includes(from);
+    return {
+        terms: onScale ? [] : [{ value, computed: true }],
+        references: [],
+    };
+}
+
 /**
  * A term that only the JetBrains Mono cap makes a finding: a scale weight
  * (or `bold`) above it. An off-scale one is reported as such already.
@@ -575,7 +616,7 @@ export function scanWeights(file, source) {
             before.slice(
                 Math.max(before.lastIndexOf('{'), before.lastIndexOf('}')) + 1
             ) + after.slice(0, after.search(/[{}]|$/));
-        return MONO_DECLARATION.test(rule);
+        return familyInCss(rule);
     };
     // Whether a `return` at `at` belongs to a function nested in the body
     // opened at `open` (an arrow, `function` or method), not to the body.
@@ -772,6 +813,42 @@ export function scanWeights(file, source) {
         });
     }
 
+    // Loop variables take every value of their list (or range), and only
+    // inside the loop body (`loop`), where they shadow an outer namesake.
+    const loopVariable = (name, header, value, range = null) => {
+        const index = header.index;
+        const brace = index + header[0].length - 1;
+        const body = blockAt.get(brace);
+        const place = placeOf(blocks, index);
+        definitions.push({
+            ...{ file, line: lineOf(index), index, name, key: identity(name) },
+            ...{ value, full: value, argument: false, fallback: false },
+            ...{ important: false, weighted: false, callee: null, range },
+            rule: blockAt.get(place.scope)?.prelude ?? null,
+            ...{ guards: guardsAt(index), scope: place.scope },
+            ...{ conditional: false, scopes: place.scopes },
+            ...{ inCallable: place.inCallable, callable: place.callable },
+            loop: { start: brace, end: body?.end ?? brace },
+        });
+    };
+    for (const match of stylesheet ? text.matchAll(EACH_LOOP) : []) {
+        if (inString(match.index)) continue;
+        for (const name of match[1].split(',')) {
+            loopVariable(name.trim(), match, match[2].trim());
+        }
+    }
+    for (const match of stylesheet ? text.matchAll(FOR_LOOP) : []) {
+        if (inString(match.index)) continue;
+        const [, name, from, bound, to] = match;
+        const value = `from ${from.trim()} ${bound} ${to.trim()}`;
+        const range = {
+            from: from.trim(),
+            to: to.trim(),
+            through: bound === 'through',
+        };
+        loopVariable(name, match, value, range);
+    }
+
     // Sass can build a property name; one that composes to a weight name
     // (from literals, or this file's variables as they stand there) is
     // checked like one.
@@ -779,12 +856,20 @@ export function scanWeights(file, source) {
         const place = placeOf(blocks, index);
         const key = identity(variable);
         const candidates = definitions.filter(
-            (d) => d.key === key && !d.argument
+            (d) => d.key === key && !d.argument && inLoopOf(d, index)
         );
+        // A loop variable takes each item of its list in turn.
         return effectiveDeclarations(
             { index, ...place },
             candidates
-        ).picked.map((d) => sassValue(d.value));
+        ).picked.flatMap((d) =>
+            d.loop
+                ? d.value
+                      .replace(/^\((.*)\)$/s, '$1')
+                      .split(',')
+                      .map(sassValue)
+                : [sassValue(d.value)]
+        );
     };
     // A name whose own tail ends in `weight` is checked as written above.
     for (const match of stylesheet ? text.matchAll(INTERPOLATED_NAME) : []) {
@@ -1015,7 +1100,10 @@ export function findIndirectWeights(scans) {
                   [
                       ...definitions.filter(
                           (d) =>
-                              d.key === name && d.file === file && !d.argument
+                              d.key === name &&
+                              d.file === file &&
+                              !d.argument &&
+                              inLoopOf(d, reference.index)
                       ),
                       ...imported(file, name),
                   ],
@@ -1026,6 +1114,12 @@ export function findIndirectWeights(scans) {
         return definitions.filter((definition) => {
             const access = (members ?? scope)?.get(definition.file);
             if (!sass && definition.key !== name) return false;
+            // A loop variable exists only inside its loop, in its file.
+            if (definition.loop) {
+                const here = definition.file === file;
+                if (!here || !inLoopOf(definition, reference.index))
+                    return false;
+            }
             if (!sass && replaced.has(definition)) return false;
             // An argument's name is matched where it is passed, below.
             if (sass && !definition.argument) {
@@ -1207,9 +1301,16 @@ export function findIndirectWeights(scans) {
         if (followed.has(key)) continue;
         followed.add(key);
         for (const definition of visibleDefinitions(reference)) {
-            const analysis = definition.code
-                ? analyseCode(definition.value, mode, after, cap)
-                : analyse(mode, definition.value, { after, cap });
+            // A declaration's whole value (a list `400, 650` too); an
+            // argument's ends at its comma.
+            const value = definition.argument
+                ? definition.value
+                : (definition.full ?? definition.value);
+            const analysis = definition.range
+                ? rangeAnalysis(definition)
+                : definition.code
+                  ? analyseCode(definition.value, mode, after, cap)
+                  : analyse(mode, value, { after, cap });
             const terms = definition.weighted
                 ? analysis.terms.filter(capOnly)
                 : analysis.terms;
