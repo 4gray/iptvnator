@@ -197,6 +197,33 @@ test('keeps protocol slashes intact when stripping line comments', () => {
     assert.doesNotMatch(stripped, /trailing note/);
 });
 
+test('keeps comment markers inside strings', () => {
+    const source = [
+        "@use 'tokens' with ($asset: '//cdn/x', $w: 600); // note",
+        '/* a */ $b: "/* kept */";',
+    ].join('\n');
+    const stripped = stripScssComments(source);
+
+    assert.equal(stripped.length, source.length);
+    assert.match(stripped, /'\/\/cdn\/x', \$w: 600\);/);
+    assert.match(stripped, /"\/\* kept \*\/"/);
+    assert.doesNotMatch(stripped, /note|\/\* a/);
+    const [{ configuration }] = extractStylesheetLoads(source);
+    assert.equal(source.slice(...configuration), "$asset: '//cdn/x', $w: 600");
+    // An escaped quote stays inside the string, an unclosed one ends at the
+    // line break, and an unquoted URL keeps its slashes.
+    for (const [text, kept, dropped] of [
+        ["$a: 'it\\'s // kept'; // gone", /\/\/ kept/, /gone/],
+        ["$a: 'open\n// gone", /open/, /gone/],
+        ['$a: url(//cdn/x.css); // gone', /url\(\/\/cdn/, /gone/],
+        ['$a: url(https://cdn/x.css); // gone', /https:\/\/cdn/, /gone/],
+    ]) {
+        const result = stripScssComments(text);
+        assert.match(result, kept);
+        assert.doesNotMatch(result, dropped);
+    }
+});
+
 test('resolves a specifier to its Sass partial file', () => {
     const existing = new Set([
         path.resolve('/repo/libs/ui/styles/_detail-view.scss'),

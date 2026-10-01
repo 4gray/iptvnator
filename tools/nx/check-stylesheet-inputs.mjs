@@ -27,22 +27,34 @@ function targetsOfRule(rule, clause) {
 /**
  * Sass documents relative `@use` examples inside comments. Those paths do not
  * resolve from the file that documents them, so scanning raw source reports
- * them as broken imports.
+ * them as broken imports. A comment marker inside a string is text
+ * (`with ($asset: '//cdn/x')`), and so is an unquoted `//` right after `:`
+ * or `(`, as in `url(https://…)`.
  */
 export function stripScssComments(source) {
     // Blank rather than cut, so every offset still points into `source`.
-    const blank = (text) => text.replace(/[^\n]/g, ' ');
-    const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, blank);
-    return withoutBlocks
-        .split('\n')
-        .map((line) => {
-            const commentStart = line.search(/(^|[^:])\/\//);
-            if (commentStart === -1) return line;
-            const cut =
-                line[commentStart] === '/' ? commentStart : commentStart + 1;
-            return line.slice(0, cut) + blank(line.slice(cut));
-        })
-        .join('\n');
+    const out = source.split('');
+    const blank = (from, to) => {
+        for (let k = from; k < to; k += 1) if (out[k] !== '\n') out[k] = ' ';
+        return to - 1;
+    };
+    let quote = '';
+    for (let i = 0; i < source.length; i += 1) {
+        const char = source[i];
+        if (quote) {
+            if (char === '\\') i += 1;
+            else if (char === quote || char === '\n') quote = '';
+        } else if (char === '"' || char === "'") {
+            quote = char;
+        } else if (source.startsWith('/*', i)) {
+            const end = source.indexOf('*/', i + 2);
+            i = blank(i, end === -1 ? source.length : end + 2);
+        } else if (source.startsWith('//', i) && !/[:(]/.test(source[i - 1])) {
+            const end = source.indexOf('\n', i);
+            i = blank(i, end === -1 ? source.length : end);
+        }
+    }
+    return out.join('');
 }
 
 /**

@@ -108,11 +108,23 @@ const CODE_ASSIGNMENT =
 const LOGICAL_ASSIGNMENT = /^(?:\|\||&&|\?\?)$/;
 const CODE_SET_PROPERTY =
     /(setProperty\(\s*['"`](font-weight|--[\w-]+)['"`])\s*,/gi;
+/**
+ * Angular's `Renderer2.setStyle(element, 'fontWeight', value, flags?)`, in
+ * either case, or a custom property with `RendererStyleFlags2.DashCase`.
+ */
+const CODE_SET_STYLE =
+    /(setStyle\(\s*(?:[^,()]|\([^()]*\))+,\s*['"`](font-?weight|--[\w-]+)['"`])\s*,/gi;
 /** An SVG presentation attribute set at runtime, with or without a namespace. */
 const CODE_SET_ATTRIBUTE =
     /(setAttribute(?:NS)?\(\s*(?:[^,()'"`]+,\s*)?['"`](font-weight)['"`])\s*,/gi;
-/** A CSS-wide keyword can leave a custom property unset where it is read. */
-const CSS_WIDE = /^(?:initial|inherit|unset|revert|revert-layer)\b/i;
+/**
+ * CSS-wide keywords on a custom property: `initial` (and `revert`, to the
+ * browser's value) leaves it unset; `inherit` and `unset` take the parent's
+ * value, whatever another rule sets.
+ */
+const RESETTING = /^(?:initial|revert|revert-layer)\b/i;
+const INHERITING = /^(?:inherit|unset)\b/i;
+const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font)\s*:/gi;
 /**
  * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
  * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
@@ -408,6 +420,28 @@ export function scanWeights(file, source) {
     // Weights in rules whose family is named through variables: capped once
     // that family resolves to JetBrains Mono.
     const deferred = [];
+    // Each rule's weight declarations (`font-weight` and the `font`
+    // shorthand): a later one, unless only the earlier is `!important`,
+    // replaces it, so only the one in effect meets the cap.
+    const setters = new Map();
+    for (const match of stylesheet ? text.matchAll(WEIGHT_SETTER) : []) {
+        if (inString(match.index)) continue;
+        const start = match.index + match[0].length;
+        const { value, selector } = declarationText(lexed, start);
+        if (selector) continue;
+        const { scope } = placeOf(blocks, match.index);
+        const important = /!important\b/i.test(value);
+        if (!setters.has(scope)) setters.set(scope, []);
+        setters.get(scope).push({ index: match.index, important });
+    }
+    const inEffect = (index) => {
+        const rule = setters.get(placeOf(blocks, index).scope) ?? [];
+        const own = rule.find((setter) => setter.index === index);
+        return !rule.some(
+            (later) =>
+                later.index > index && (later.important || !own?.important)
+        );
+    };
 
     for (const pattern of patterns) {
         for (const match of text.matchAll(pattern)) {
@@ -417,9 +451,10 @@ export function scanWeights(file, source) {
             const { value, selector } = valueAfter(lexed, end);
             if (selector) continue;
             const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
-            const family = /^font(?:-weight)?$/i.test(name)
-                ? monoAt(match.index)
-                : { mono: false, refs: [] };
+            const family =
+                /^font(?:-weight)?$/i.test(name) && inEffect(match.index)
+                    ? monoAt(match.index)
+                    : { mono: false, refs: [] };
             const cap = family.mono ? MONO_WEIGHT_CAP : null;
             record(name, match.index, analyse(mode, value, { cap }));
             if (!family.mono && family.refs.length > 0) {
@@ -480,7 +515,11 @@ export function scanWeights(file, source) {
                 setByCode(match[1], 'font-weight', match.index, expression);
             }
         }
-        for (const pattern of [CODE_SET_PROPERTY, CODE_SET_ATTRIBUTE]) {
+        for (const pattern of [
+            CODE_SET_PROPERTY,
+            CODE_SET_STYLE,
+            CODE_SET_ATTRIBUTE,
+        ]) {
             for (const match of text.matchAll(pattern)) {
                 const end = match.index + match[0].length;
                 const expression = codeExpression(text, end, {
@@ -787,24 +826,34 @@ export function findIndirectWeights(scans) {
         });
     };
     // Whether a custom property can be unset where it is read, so a `var()`
-    // fallback applies: it is never set, set to a CSS-wide keyword, or set
-    // through a `var()` without a fallback to one that can be unset.
+    // fallback applies: no rule sets it (one that inherits sets nothing of
+    // its own), one resets it, or one sets it to a value that can be invalid.
     const mayBeUnset = (reference, seen = new Set()) => {
         const key = `${reference.file} ${reference.index} ${reference.name}`;
         if (seen.has(key)) return false;
         seen.add(key);
-        const found = visibleDefinitions(reference);
+        const own = visibleDefinitions(reference)
+            .map((definition) => ({
+                definition,
+                text: (definition.full ?? definition.value).trim(),
+            }))
+            .filter(({ text }) => !INHERITING.test(text));
         return (
-            found.length === 0 ||
-            found.some((definition) => {
-                const text = (definition.full ?? definition.value).trim();
-                if (CSS_WIDE.test(text)) return true;
-                return familyRefs(familyParts(text), definition).some(
-                    (ref) => ref.fallback === null && mayBeUnset(ref, seen)
-                );
-            })
+            own.length === 0 ||
+            own.some(
+                ({ definition, text }) =>
+                    RESETTING.test(text) || mayBeInvalid(text, definition, seen)
+            )
         );
     };
+    // A value is invalid when a `var()` in it reads a property that can be
+    // unset and its own fallback (if any) can be invalid too.
+    const mayBeInvalid = (text, at, seen) =>
+        familyRefs(familyParts(text), at).some(
+            (ref) =>
+                mayBeUnset(ref, seen) &&
+                (ref.fallback === null || mayBeInvalid(ref.fallback, at, seen))
+        );
     // Whether a family reference names JetBrains Mono, through chains.
     const namesMono = (reference, seen = new Set()) => {
         const { name, file, namespace, index } = reference;

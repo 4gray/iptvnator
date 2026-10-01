@@ -853,6 +853,20 @@ test('checks indexed style writes', () => {
     ]);
 });
 
+test('checks Renderer2 setStyle weights', () => {
+    const component = [
+        "this.renderer.setStyle(this.host.nativeElement, 'fontWeight', 650);",
+        "renderer.setStyle(el(), 'font-weight', '750', RendererStyleFlags2.DashCase);",
+        "renderer.setStyle(el, 'fontWeight', 600);",
+        "renderer.setStyle(el, 'color', '650');",
+    ].join('\n');
+
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        "1 setStyle(this.host.nativeElement,'fontWeight': 650",
+        "2 setStyle(el(),'font-weight': 750",
+    ]);
+});
+
 test('checks font-weight attributes set at runtime', () => {
     const component = [
         "node.setAttribute('font-weight', '650');",
@@ -1760,6 +1774,10 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
         "@mixin m { font-weight: 700; } .n { font-family: 'JetBrains Mono'; @include m; }",
         ".o { font-family: 'JetBrains Mono'; @include up { font-weight: 700; } }",
         ".p { font-family: 'JetBrains Mono'; @mixin local { font-weight: 700; } }",
+        ".q { font-weight: 700; font: 400 12px 'JetBrains Mono'; }",
+        ".r { font-weight: 700 !important; font: 400 12px 'JetBrains Mono'; }",
+        ".s { font: 400 12px 'JetBrains Mono'; font-weight: 700; }",
+        ".t { font-weight: 700; font-weight: 500; font-family: 'JetBrains Mono'; }",
     ].join('\n');
 
     assert.equal(MONO_WEIGHT_CAP, 500);
@@ -1767,6 +1785,8 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
         '1 font-weight: 700',
         '11 font-weight: 650',
         '15 font-weight: 700',
+        '18 font-weight: 700',
+        '19 font-weight: 700',
         '2 font: 600',
         '3 font-weight: bold',
         '6 font-weight: 600',
@@ -1899,6 +1919,22 @@ test('resolves a JetBrains Mono family named through variables', () => {
         ]),
         []
     );
+    // `inherit` takes what another rule sets; a fallback that is itself
+    // unset leaves the value invalid.
+    assert.deepEqual(
+        report([
+            theme(':root { --face: Roboto; } .child { --face: inherit; }'),
+            fallback("var(--face, 'JetBrains Mono')"),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            theme(':root { --face: var(--missing, var(--also-missing)); }'),
+            fallback("var(--face, 'JetBrains Mono')"),
+        ]),
+        ['libs/m4/rule.scss:1 700']
+    );
     assert.deepEqual(
         report([
             rule(
@@ -2019,6 +2055,21 @@ test('lets every configured load replace a partial default', () => {
     const flagged = ['libs/c3/_tokens.scss:1 650'];
 
     assert.deepEqual(report([tokens, configured]), []);
+    // A quoted `//` in the configuration is a value, not a comment.
+    assert.deepEqual(
+        report([
+            tokens,
+            load('a.scss', "@use 'tokens' with ($asset: '//cdn/x', $w: 600);"),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            tokens,
+            load('a.scss', "@use 'tokens' with ($asset: '//cdn/x', $w: 750);"),
+        ]),
+        ['libs/c3/a.scss:1 750']
+    );
     assert.deepEqual(
         report([tokens, configured, load('b.scss', "@use 'tokens';")]),
         flagged
