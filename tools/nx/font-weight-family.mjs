@@ -463,10 +463,23 @@ export function specificityOf(selector) {
 
 /** Whether cascade rank `a` beats `b` (a later equal rank wins). */
 function rankAbove(a, b) {
-    for (let k = 0; k < a.length; k += 1) {
-        if (a[k] !== b[k]) return a[k] > b[k];
+    if (a.important !== b.important) return a.important;
+    const layer = ordered(a.layer, b.layer);
+    if (layer) return a.important ? layer < 0 : layer > 0;
+    const specificity = compare(a.specificity, b.specificity);
+    if (specificity) return specificity > 0;
+    return a.order > b.order;
+}
+
+/**
+ * How two layer places compare, level by level: each ends in `Infinity`,
+ * so two that differ do so before the shorter one ends.
+ */
+function ordered(a, b) {
+    for (let k = 0; k < Math.min(a.length, b.length); k += 1) {
+        if (a[k] !== b[k]) return a[k] > b[k] ? 1 : -1;
     }
-    return false;
+    return 0;
 }
 
 /** Which of two specificities is greater (positive), equal (0) or less. */
@@ -632,22 +645,16 @@ export function familiesOf(
             declare(parent, match[1].trim() || `@${brace}`);
         }
     }
-    // A layer path as one number to compare, level by level (up to four
-    // deep, 998 layers each): a layer's own declarations rank above its
-    // sublayers, and unlayered ones above every layer.
-    const layerScore = (path) => {
-        let score = 0;
-        for (let level = 0; level < 4; level += 1) {
-            const at =
-                level < path.length
-                    ? indexIn(path.slice(0, level).join('/'), path[level])
-                    : level === path.length
-                      ? 999
-                      : 0;
-            score = score * 1000 + Math.min(at, 998) + (at === 999 ? 1 : 0);
-        }
-        return score;
-    };
+    // A layer path to compare level by level, however deep: each level's
+    // place among its siblings, then an end that ranks a layer's own
+    // declarations above its sublayers' (and unlayered ones above every
+    // layer).
+    const layerPlace = (path) => [
+        ...path.map((name, level) =>
+            indexIn(path.slice(0, level).join('/'), name)
+        ),
+        Infinity,
+    ];
     // A rule as compiled: its selector (`.p { &:hover {} }` is `.p:hover`,
     // `.w { .p .c {} }` is `.w .p .c`) and the context it applies in (its
     // at-rule wrappers and `@if`/`@each`); `null` for one without a style
@@ -800,17 +807,14 @@ export function familiesOf(
         })
         .filter(({ ways }) => ways.length);
     // A declaration's place in the cascade: `!important`, then its layer
-    // (see `layerScore`; `!important` turns the order round), then
+    // (see `layerPlace`; `!important` turns the order round), then
     // specificity, then source order.
-    const rankOf = (entry, { selector, layer = [] }, order = 0) => {
-        const at = layerScore(layer);
-        return [
-            entry.important ? 1 : 0,
-            entry.important ? -at : at,
-            ...specificityOf(selector),
-            order,
-        ];
-    };
+    const rankOf = (entry, { selector, layer = [] }, order = 0) => ({
+        important: Boolean(entry.important),
+        layer: layerPlace(layer),
+        specificity: specificityOf(selector),
+        order,
+    });
     // The family an at-rule block (`@media` inside a rule) sets itself.
     const ownFamily = (block) => {
         const rules = rulesOf(block.start);

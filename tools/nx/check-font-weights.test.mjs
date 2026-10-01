@@ -4231,6 +4231,23 @@ test('ranks nested and unnamed cascade layers by their full place', () => {
             `@layer x.y, z; @layer z { .x { font-family: Roboto; } } @layer x { .x { font-family: ${mono}; } } ${weight}`,
             [],
         ],
+        // However deep: five levels compare as fully as one.
+        [
+            `@layer a.b.c.d.theme, a.b.c.d.fonts; @layer a.b.c.d.fonts { .x { font-family: ${mono}; } } @layer a.b.c.d.theme { .x { font-family: Roboto; } } ${weight}`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer a.b.c.d.fonts, a.b.c.d.theme; @layer a.b.c.d.fonts { .x { font-family: ${mono}; } } @layer a.b.c.d.theme { .x { font-family: Roboto; } } ${weight}`,
+            [],
+        ],
+        [
+            `@layer a.b.c.d { .x { font-family: ${mono}; } } @layer a.b.c.d.e { .x { font-family: Roboto; } } ${weight}`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@layer a.b.c.d { .x { font-family: ${mono} !important; } } @layer a.b.c.d.e { .x { font-family: Roboto !important; } } ${weight}`,
+            [],
+        ],
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
