@@ -570,6 +570,14 @@ function inherits(prelude) {
 /** An `@extend` of whole selectors (`%mono`, `.a, .b`), `!optional` aside. */
 const EXTEND = /@extend\s+([^;{}!]+?)\s*(?:!\s*optional\s*)?[;}]/gi;
 
+/**
+ * The `all` shorthand set to a CSS-wide keyword: it resets the family too,
+ * to the inherited one (`unset`, `inherit`, `revert`) or the browser's
+ * default (`initial`).
+ */
+export const ALL_RESET =
+    /(?<![\w$-])all\s*:\s*(initial|inherit|unset|revert|revert-layer)\s*(!\s*important\s*)?(?=[;}])/gi;
+
 /** An `@include` of a mixin in this file (`ns.mixin` is another file's). */
 const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
 
@@ -757,6 +765,22 @@ export function familiesOf(
             namespace ?? place.scope,
             match.index
         )) {
+            applied.push({ ...landing, entry });
+        }
+    }
+    for (const match of lexed.text.matchAll(ALL_RESET)) {
+        if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
+            continue;
+        }
+        const place = placeOf(blocks, match.index);
+        if (place.scope === null) continue;
+        const entry = {
+            important: Boolean(match[2]),
+            inherit: match[1].toLowerCase() !== 'initial',
+            ...{ mono: false, shorthand: false, refs: [], text: match[1] },
+            at: { index: match.index, ...place },
+        };
+        for (const landing of landingsOf(place.scope, match.index)) {
             applied.push({ ...landing, entry });
         }
     }

@@ -4253,6 +4253,59 @@ test('ranks nested and unnamed cascade layers by their full place', () => {
     }
 });
 
+test('reads an `all` reset as resetting the family and weight', () => {
+    const mono = "'JetBrains Mono'";
+    const parent = `.parent { font-family: ${mono}; }`;
+    const report = (body) =>
+        findOffScaleWeights('libs/s15/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // `unset` and `revert` inherit the family, `initial` takes the
+        // browser's; a later or `!important` family still wins.
+        [
+            `${parent} .parent .a { font-family: Roboto; all: unset; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${parent} .parent .a { font-family: Roboto; all: revert; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `${parent} .parent .a { font-family: Roboto; all: initial; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `${parent} .parent .a { all: unset; font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `${parent} .parent .a { font-family: Roboto !important; all: unset; font-weight: 700; }`,
+            [],
+        ],
+        // A weight before it is reset too, unless `!important`; and it resets
+        // the family either way.
+        [`.a { font-family: ${mono}; font-weight: 700; all: unset; }`, []],
+        [
+            `.a { font-family: ${mono}; font-weight: 700 !important; all: unset; }`,
+            [],
+        ],
+        [
+            `.a { all: unset; font-family: ${mono}; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // An `!important` reset beats a later family; a weight before it is
+        // gone even where the family is set again after it.
+        [
+            `${parent} .parent .a { all: unset !important; font-family: Roboto; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`.a { font-weight: 700; all: unset; font-family: ${mono}; }`, []],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('compiles a nested `&` after its parent', () => {
     const mono = "'JetBrains Mono'";
     const report = (body) =>

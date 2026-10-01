@@ -28,6 +28,7 @@ import {
     valueAfter,
 } from './font-weight-lexer.mjs';
 import {
+    ALL_RESET,
     IMPORTANT,
     MONO_WEIGHT_CAP,
     canonicalSelector,
@@ -1033,6 +1034,18 @@ export function scanWeights(file, written) {
         for (const rule of ruleScope(match.index)) {
             if (!setters.has(rule)) setters.set(rule, []);
             setters.get(rule).push({ index: match.index, important });
+        }
+    }
+    // An `all` reset replaces an earlier weight too.
+    for (const match of stylesheet ? text.matchAll(ALL_RESET) : []) {
+        if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
+            continue;
+        }
+        for (const rule of ruleScope(match.index)) {
+            if (!setters.has(rule)) setters.set(rule, []);
+            setters
+                .get(rule)
+                .push({ index: match.index, important: Boolean(match[2]) });
         }
     }
     // A shorthand that fails to parse is dropped, so it sets nothing.
