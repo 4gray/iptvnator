@@ -74,14 +74,16 @@ export function lex(file, source) {
  * A declaration's value, across line breaks, so a wrapped
  * `var(--x,\n    650)` keeps its fallback. It stays inside the string that
  * encloses the declaration (an inline style) and skips the CSS strings within
- * it, so `font: 650 12px 'DM Sans'` keeps its family. It ends at `;`, a brace,
- * or, outside parentheses, at a comma or the `)` that closes a Sass map or
+ * it, so `font: 650 12px 'DM Sans'` keeps its family. Sass `#{…}` and template
+ * `${…}` interpolations are part of the value. It ends at `;`, a brace, or,
+ * outside parentheses, at a comma or the `)` that closes a Sass map or
  * argument list. A `{` first means the match was a selector such as
  * `.x-weight:hover`.
  */
 export function valueAfter({ text, quoteAt }, start) {
     const enclosing = quoteAt[start] ?? '';
     let depth = 0;
+    let interpolation = 0;
     let end = start;
     for (; end < text.length; end += 1) {
         const char = text[end];
@@ -95,12 +97,20 @@ export function valueAfter({ text, quoteAt }, start) {
             const close = text.indexOf(char, end + 1);
             if (close === -1 || quoteAt[close] !== enclosing) break;
             end = close;
+        } else if ((char === '#' || char === '$') && text[end + 1] === '{') {
+            interpolation += 1;
+            end += 1;
+        } else if (char === '}' && interpolation > 0) {
+            interpolation -= 1;
         } else if (char === '(') {
             depth += 1;
         } else if (char === ')') {
             if (depth === 0) break;
             depth -= 1;
-        } else if (VALUE_END.has(char) || (char === ',' && depth === 0)) {
+        } else if (
+            VALUE_END.has(char) ||
+            (char === ',' && depth === 0 && interpolation === 0)
+        ) {
             break;
         }
     }

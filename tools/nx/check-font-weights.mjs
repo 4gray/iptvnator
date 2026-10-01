@@ -23,12 +23,13 @@ const SOURCE = /\.(ts|html)$/;
  * Stylesheets feed weights through `font-weight`, custom properties, Sass
  * variables and Material token maps, so any name ending in `weight` counts.
  * In TypeScript and HTML only CSS text is in scope, never a variable that
- * happens to be called `…Weight`.
+ * happens to be called `…Weight`. CSS names, keywords and functions are
+ * case-insensitive, so every pattern below that matches CSS text is too.
  */
 const STYLESHEET_WEIGHT = /(?<![\w$-])((?:\$|--)?[\w-]*weight)\s*:/gi;
 const SOURCE_WEIGHT =
-    /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"]?\s*:/g;
-const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/g;
+    /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"]?\s*:/gi;
+const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/gi;
 /** A custom property or Sass variable that a weight value may refer to. */
 const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
 /**
@@ -38,7 +39,7 @@ const DEFINITION = /(?<![\w$-])((?:\$|--)[\w-]+)\s*:/g;
 const CODE_WEIGHT = [
     /(\[style\.(?:font-weight|fontWeight)\])['"]?\s*[:=]\s*(['"])(.*?)\2/g,
     /(\.style\.fontWeight)\s*=\s*(['"`]?)([\w.+-]*)\2/g,
-    /(setProperty\(\s*['"]font-weight['"])\s*,\s*(['"`]?)([\w.+-]*)\2/g,
+    /(setProperty\(\s*['"]font-weight['"])\s*,\s*(['"`]?)([\w.+-]*)\2/gi,
 ];
 
 /** A CSS <number>: decimals, an exponent and a `+` sign are all valid. */
@@ -47,11 +48,11 @@ const NUMBER = new RegExp(
     String.raw`(?<![\w.#$-])(${NUMBER_TEXT})(?![\w.%])`,
     'gi'
 );
-const RELATIVE_KEYWORD = /\b(bolder|lighter)\b/g;
-const REFERENCE = /var\(\s*(--[\w-]+)|(\$[\w-]+)/g;
+const RELATIVE_KEYWORD = /\b(bolder|lighter)\b/gi;
+const REFERENCE = /var\(\s*(--[\w-]+)|(\$[\w-]+)/gi;
 /** A value that is nothing but one variable, with an optional fallback. */
 const SOLE_REFERENCE =
-    /^(?:var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)|(\$[\w-]+))$/;
+    /^(?:var\(\s*(--[\w-]+)\s*(?:,([\s\S]*))?\)|(\$[\w-]+))$/i;
 
 export function isScannedFile(file) {
     const normalized = file.split(path.sep).join('/');
@@ -152,7 +153,7 @@ export function scanWeights(file, source) {
             const name = match[1];
             const end = match.index + match[0].length;
             const { value, selector } = valueAfter(lexed, end);
-            const mode = name === 'font' ? 'font' : 'weight';
+            const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
             if (!selector) record(name, match.index, analyse(mode, value));
         }
     }
@@ -216,7 +217,7 @@ export function findOffScaleWeights(file, source) {
 
 export function describeFinding({ file, line, name, value }) {
     const scale = WEIGHT_SCALE.join('/');
-    if (/^(bolder|lighter)$/.test(String(value))) {
+    if (/^(bolder|lighter)$/i.test(String(value))) {
         return `${file}:${line} ${name}: ${value} is relative to the parent weight and can land off the ${scale} scale. Use an explicit scale weight.`;
     }
     return `${file}:${line} ${name}: ${value} is off the ${scale} scale, so the bundled faces render it as a neighbouring weight or a synthetic bold. Use ${nearestScaleWeight(Number(value))}.`;

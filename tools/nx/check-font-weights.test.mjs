@@ -285,6 +285,54 @@ test('follows a shorthand that is one variable, fallback included', () => {
     ]);
 });
 
+test('matches CSS names, keywords and functions in any case', () => {
+    const source = [
+        '.a { font-weight: BOLDER; }',
+        '.b { font: LiGhTeR 1rem sans-serif; }',
+        '.c { FONT-WEIGHT: 650; }',
+        ':root { --title: 750; }',
+        '.d { font-weight: VAR(--title); }',
+        '.e { FONT: 650 12px sans-serif; }',
+        '.f { FONT: 400 16px/1.5 Inter; }',
+    ].join('\n');
+    const findings = findOffScaleWeights('libs/a.scss', source).findings;
+
+    assert.deepEqual(
+        findings.map(({ line, name, value }) => `${line} ${name}: ${value}`),
+        [
+            '1 font-weight: BOLDER',
+            '3 FONT-WEIGHT: 650',
+            '2 font: LiGhTeR',
+            '6 FONT: 650',
+            '4 --title: 750',
+        ]
+    );
+    assert.match(describeFinding(findings[0]), /relative to the parent/);
+});
+
+test('reads numbers and variables inside interpolation', () => {
+    const stylesheet = [
+        '$w: 750;',
+        '.a { font-weight: #{650}; }',
+        '.b { font-weight: #{$w}; }',
+        '.c { font-weight: #{600}; }',
+    ].join('\n');
+    const component = [
+        'styles: [`',
+        '    .a { font-weight: ${650}; }',
+        '    .b { font-weight: ${700}; }',
+        '`],',
+    ].join('\n');
+
+    assert.deepEqual(offScale('libs/a.scss', stylesheet), [
+        '2 font-weight: 650',
+        '1 $w: 750',
+    ]);
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
+        '2 font-weight: 650',
+    ]);
+});
+
 test('flags relative keywords, which can land off the scale', () => {
     const findings = findOffScaleWeights(
         'libs/a.scss',
