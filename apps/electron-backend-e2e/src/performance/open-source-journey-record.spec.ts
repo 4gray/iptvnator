@@ -77,6 +77,7 @@ function measurement(
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
+        ambiguousTimelineCompletions: 0,
         callsAfterSentinel: 2,
         callsBeforeStart: 0,
         callsBeforeSentinel: 17,
@@ -88,6 +89,7 @@ function measurement(
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 10_081 },
         start: { occurrences: 1, receivedEpochMs: 10_002 },
+        timeline: [],
         unmatchedCompletions: 0,
     };
     return {

@@ -77,6 +77,7 @@ function measurement(
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
+        ambiguousTimelineCompletions: 0,
         callsAfterSentinel: 3,
         callsBeforeStart: 0,
         callsBeforeSentinel: 14,
@@ -88,6 +89,13 @@ function measurement(
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 2_602 },
         start: null,
+        timeline: [
+            { method: 'getSettings', phase: 'start' },
+            { method: 'getSettings', phase: 'end' },
+            { method: 'dbGetAppPlaylists', phase: 'start' },
+            { method: 'getSettings', phase: 'start' },
+            { method: 'dbGetAppPlaylists', phase: 'end' },
+        ],
         unmatchedCompletions: 0,
     };
     return {
@@ -132,6 +140,7 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         'main.sqlStatementsBeforeReadyToShow': 9,
         'renderer.domMutationsToFirstCard': 480,
         'renderer.ipcCallsToFirstCard': 14,
+        'renderer.ipcSerialDepthToFirstCard': 2,
         'renderer.layoutShiftScore': 0.123,
         'renderer.layoutShiftScoreSettled': 0.23,
         'renderer.longTasks': 2,
@@ -144,6 +153,19 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
         dbGetAppPlaylists: 1,
         getSettings: 13,
     });
+    assert.deepEqual(record.evidence['ipcSerialDepth'], {
+        chain: ['getSettings', 'dbGetAppPlaylists'],
+        depth: 2,
+        depthLowerBound: 2,
+        inFlightAtEnd: 1,
+    });
+    assert.deepEqual(record.evidence['ipcTimeline'], [
+        '+getSettings',
+        '-getSettings',
+        '+dbGetAppPlaylists',
+        '+getSettings',
+        '-dbGetAppPlaylists',
+    ]);
     assert.deepEqual(record.evidence['longTaskDurationsMs'], [71.3, 120]);
     assert.equal(record.evidence['ipcCallsAfterFirstCard'], 3);
     assert.deepEqual(record.evidence['mainCountersAtRead'], {

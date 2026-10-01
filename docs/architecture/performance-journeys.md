@@ -108,6 +108,7 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
 | Counter                            | Source                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `renderer.ipcCallsToFirstCard`     | `start` trace events the preload emits for every bridge invocation (listener registrations `on*`/`remove*` excluded, as in `wrapElectronApi`). The renderer probe fires one sentinel `cancelSourceProbe('__iptvnator-journey-sentinel__')` at the terminal moment; renderer-to-main IPC is ordered, so events before the sentinel are the exact count. The preload traces the call before forwarding it, and `SOURCE_HEALTH_CANCEL` only looks the id up in an in-memory map, so the sentinel never reaches the database worker.                      |
+| `renderer.ipcSerialDepthToFirstCard` | Length of the longest chain of bridge calls before the sentinel in which each call started after the previous one completed. Derived from the same trace channel; see [Serial IPC depth](#serial-ipc-depth). |
 | `renderer.domMutationsToFirstCard` | `MutationRecord`s (not callback batches) from a `MutationObserver` on the document element with `childList`, `attributes`, `characterData` and `subtree`. When the init script runs before `<html>` exists the observer watches `document`, which the blob reports in `capabilities.observedTarget`.                                                                                                                                                                                                                                                  |
 | `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to three decimals (a shift of 0.0001 flips in and out of the cutoff between runs; the CLS "good" threshold is 0.1, so three decimals keep the counter exact without hiding anything a user could see). The cutoff is sampled in a timer queued from the first `requestAnimationFrame` after the terminal batch, that is after the frame that paints the card has been committed; entries delivered live after the terminal batch are buffered and filtered by the same cutoff. |
 | `renderer.layoutShiftScoreSettled` | The same filter from navigation start until the settle point after the first card (see [Settle window](#settle-window)), rounded to three decimals. It catches shifts that land after the cutoff, such as skeletons that collapse once their data resolves.                                                                                                                                                                                                                                                                                           |
@@ -248,6 +249,55 @@ instead of being faked:
   terminal moment and the record refuses a build where the hook exists but was
   not counted.
 
+#### Serial IPC depth
+
+`renderer.ipcCallsToFirstCard` counts calls, but calls issued in parallel
+cost one round trip, and #1716 showed that lowering the count did not move
+wall-clock. `renderer.ipcSerialDepthToFirstCard` counts the round trips the
+renderer made one after another instead.
+
+The capture records every `start` and every completion (`success` or
+`error`) the preload traces, in arrival order, from install until the
+sentinel (`timeline` in the capture state). The preload traces a completion
+inside the wrapper's `then`, before the caller's own continuation runs, and
+renderer-to-main IPC is ordered, so a call the renderer issued because
+another call resolved always arrives after that call's completion.
+`computeJourneyIpcSerialDepth` (`src/performance/journey-ipc-serial-depth.ts`)
+then defines:
+
+- the depth of a call is 1 plus the largest depth of the calls that
+  completed before it started (1 when none had);
+- the counter is the largest depth of a call that completed before the
+  sentinel. A call still in flight at the first card is excluded: the card
+  did not wait for it. Every bridge call counts, including a synchronous one,
+  as `renderer.ipcCallsToFirstCard` does.
+
+Trace events carry no call id, so when several calls of one method are in
+flight the capture cannot tell which one completed. The counter attributes
+each completion to the deepest in-flight call of that method (an upper
+bound); `evidence.ipcSerialDepth.depthLowerBound` attributes it to the
+shallowest. The two differ only when concurrent calls of one method sit at
+different depths. A completion with no matching start fails the iteration.
+
+With a start marker (J2) the timeline starts mid-run, so the capture keeps
+calls that started outside it (before the marker, and the markers
+themselves) apart: their completions are left out. When a method has calls
+in flight both inside and outside the timeline, a completion is attributed
+outside, which leaves the timeline call in flight (excluded from the depth)
+rather than ending it too early; `evidence.ipcTimelineAmbiguousCompletions`
+counts these.
+
+Per iteration, `evidence.ipcSerialDepth.chain` names the methods of one
+longest chain, first call first (at each step the predecessor is the latest
+completion at the largest depth), `inFlightAtEnd` counts the calls excluded
+as in flight, and `evidence.ipcTimeline` is the whole ordered timeline
+(`+method` start, `-method` completion). The CI job summary prints the chain
+of the first measured iteration. The chain is ordering, not proven
+causality: a call placed in it may have been triggered by a timer or signal
+rather than by its predecessor. [Startup work before the first
+card](#startup-work-before-the-first-card) records what the chain is on
+`master`.
+
 ### Wall-clock
 
 | Entry                             | Derivation                                                                                                                                                                                            |
@@ -289,6 +339,33 @@ load→card beyond run-to-run drift on a quiet machine, and it grew
 path the first card waits for. That path is a serial chain of round trips
 (the migration reads, the inventory read and `reconcileEpgSources`), so a
 serial-depth counter is a better guardrail candidate than a raw call count.
+
+`renderer.ipcSerialDepthToFirstCard` is that counter. First measurement
+(macOS, 2026-09-30, `master` at 525ca7bc4, six launches): 6 in every
+iteration, upper and lower bound equal, with the same chain each time:
+
+```
+dbGetAppState → dbRecoverLegacyPlaylists → dbGetAppState
+  → dbGetAppPlaylistMetas → reconcileEpgSources → setParentalLockState
+```
+
+The first level is three parallel `dbGetAppState` reads (with
+`announcePlaylistOpenListener` and `getAppUpdateStatus`); the four calls
+started after `setParentalLockState` resolved (`downloadsGetList`,
+`dbGetRecentlyViewed`, `dbGetAllGlobalFavorites`, `xtreamRequest`) are
+still in flight at the first card and excluded.
+
+The chain is ordering, and its last link shows the limit of that: nothing
+on the card's path awaits `setParentalLockState`. The parental lock
+service fires it (without awaiting) once `SettingsStore.loadSettings()`
+has resolved, which happens only after `reconcileEpgSources`, and it
+completes before the card in every measured launch. The links the card
+waits for are the first five: the route resolver
+(`settingsReadyResolver`) and the startup overlay (`allPlaylistsLoaded`,
+set by the `loadPlaylists$` effect) both wait for `loadSettings()`, which
+waits for the playlist migrations, the inventory read and
+`reconcileEpgSources`. No baseline yet: the counter is promoted only after a
+PR that lowers it also lowers `spawnToFirstCardMs` (Principle 3).
 
 ### Summary schema
 

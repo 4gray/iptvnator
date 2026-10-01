@@ -70,5 +70,7 @@ runs:
                           ($j.counterStability[.key] // {}) as $s |
                           "| `\(.key)` | \(.value) | \(($s.values // []) | map(tostring) | join(", "))\(if $s.stable == false then " (unstable)" else "" end) |"),
                       (($j.wallClock // {}) | to_entries[] | "| `\(.key)` | \(.value) | |"),
-                      "")
+                      "",
+                      ([($j.iterations // [])[] | select(.warmup | not) | .evidence.ipcSerialDepth // empty][0] // empty |
+                          "Serial IPC chain (first measured iteration): \(.chain | map("`\(.)`") | join(" → "))", ""))
               ' "$SUMMARY" | tee -a "$GITHUB_STEP_SUMMARY"
