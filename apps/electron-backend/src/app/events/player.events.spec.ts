@@ -26,6 +26,10 @@ jest.mock('../services/store.service', () => ({
     },
 }));
 
+jest.mock('../startup/login-shell-path', () => ({
+    waitForLoginShellPath: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock('../services/stalker-playback-context.service', () => ({
     getStalkerPlaybackContextHeaders: jest.fn(() => undefined),
 }));
@@ -53,6 +57,7 @@ import {
     shouldUseMpvSocketBridge,
 } from './player.events';
 import { openVlcPlayer } from './vlc-session.service';
+import { waitForLoginShellPath } from '../startup/login-shell-path';
 
 function createPathExists(existingPaths: string[]) {
     return (candidatePath: string) => existingPaths.includes(candidatePath);
@@ -459,6 +464,51 @@ describe('openVlcPlayer', () => {
             consoleErrorSpy.mockRestore();
         }
     });
+});
+
+describe('external player launch handlers', () => {
+    beforeEach(() => {
+        (spawn as unknown as jest.Mock).mockReset();
+        (store.get as unknown as jest.Mock).mockImplementation(
+            (_key: string, fallback?: unknown) => fallback
+        );
+    });
+
+    it.each(['OPEN_MPV_PLAYER', 'OPEN_VLC_PLAYER'])(
+        '%s spawns only after the login shell PATH lookup settled',
+        async (channel) => {
+            let settle: () => void = () => undefined;
+            (waitForLoginShellPath as jest.Mock).mockReturnValueOnce(
+                new Promise<void>((resolve) => {
+                    settle = resolve;
+                })
+            );
+            const proc = createMockChildProcess();
+            (spawn as unknown as jest.Mock).mockReturnValue(proc);
+            const consoleErrorSpy = jest
+                .spyOn(console, 'error')
+                .mockImplementation(() => undefined);
+
+            try {
+                const launch = Promise.resolve(
+                    getIpcMainHandler(channel)(
+                        {},
+                        'https://example.com/live.m3u8',
+                        'Live'
+                    )
+                ).catch(() => undefined);
+                await new Promise<void>((resolve) => setImmediate(resolve));
+                expect(spawn).not.toHaveBeenCalled();
+
+                settle();
+                await waitForSpawnCallCount(1);
+                proc.emit('error', new Error('spawn ENOENT'));
+                await launch;
+            } finally {
+                consoleErrorSpy.mockRestore();
+            }
+        }
+    );
 });
 
 describe('buildVlcEnqueueCommands', () => {

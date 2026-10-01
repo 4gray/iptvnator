@@ -60,6 +60,39 @@ describe('login shell PATH', () => {
         expect(process.env.PATH).toBe('/opt/homebrew/bin:/usr/bin:/bin');
     });
 
+    it('lets spawns wait until the lookup settled, at most the limit', async () => {
+        let resolveShell: (path: string) => void = () => undefined;
+        const module = loadModule();
+        module.scheduleDeferredFixPath(
+            () =>
+                new Promise((resolve) => {
+                    resolveShell = resolve;
+                })
+        );
+        let waited = false;
+        const wait = module.waitForLoginShellPath().then(() => {
+            waited = true;
+        });
+        await flushScheduled();
+        expect(waited).toBe(false);
+
+        resolveShell('/opt/homebrew/bin');
+        await wait;
+        expect(process.env.PATH).toBe('/opt/homebrew/bin');
+
+        // A shell that never returns cannot block a launch forever.
+        const stuck = loadModule();
+        stuck.scheduleDeferredFixPath(() => new Promise(() => undefined));
+        await expect(stuck.waitForLoginShellPath(5)).resolves.toBeUndefined();
+    });
+
+    it('lets spawns go immediately on Windows', async () => {
+        Object.defineProperty(process, 'platform', { value: 'win32' });
+        await expect(
+            loadModule().waitForLoginShellPath(60_000)
+        ).resolves.toBeUndefined();
+    });
+
     it('falls back to the paths fix-path used when the shell reports none', async () => {
         await loadModule().hydratePathFromLoginShell(async () => undefined);
 

@@ -33,6 +33,7 @@ import {
     embeddedMpvNativeService,
 } from '../services/embedded-mpv-native.service';
 import { readEmbeddedMpvSessionOptions } from '../services/embedded-mpv-session-options';
+import { waitForLoginShellPath } from '../startup/login-shell-path';
 
 export default class EmbeddedMpvEvents {
     static bootstrapEmbeddedMpvEvents(): Electron.IpcMain {
@@ -56,6 +57,9 @@ function handleEmbeddedMpv<Args extends unknown[]>(
 ): void {
     ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
         try {
+            // Linux support checks run `mpv --version` by bare name and
+            // cache the result, so they must see the login shell PATH.
+            await waitForLoginShellPath();
             return await handler(...(args as Args));
         } catch (error) {
             console.error(`[Embedded MPV] ${channel} handler failed:`, error);

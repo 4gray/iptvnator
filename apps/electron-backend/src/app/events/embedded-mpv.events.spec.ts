@@ -21,6 +21,10 @@ jest.mock('../services/embedded-mpv-native.service', () => ({
 jest.mock('../services/embedded-mpv-session-options', () => ({
     readEmbeddedMpvSessionOptions: () => mockSessionOptions,
 }));
+const mockWaitForLoginShellPath = jest.fn(() => Promise.resolve());
+jest.mock('../startup/login-shell-path', () => ({
+    waitForLoginShellPath: () => mockWaitForLoginShellPath(),
+}));
 
 import { ipcMain } from 'electron';
 import {
@@ -53,6 +57,24 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
         mockEmbeddedMpvService.createSession.mockReset();
         mockEmbeddedMpvService.getSupport.mockReset();
         mockEmbeddedMpvService.setPaused.mockReset();
+    });
+
+    it('checks support only after the login shell PATH lookup settled', async () => {
+        let settle: () => void = () => undefined;
+        mockWaitForLoginShellPath.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                settle = resolve;
+            })
+        );
+        mockEmbeddedMpvService.getSupport.mockReturnValue({ supported: true });
+
+        const support = getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({});
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        // Linux caches the result of a bare-name `mpv --version`.
+        expect(mockEmbeddedMpvService.getSupport).not.toHaveBeenCalled();
+
+        settle();
+        await expect(support).resolves.toEqual({ supported: true });
     });
 
     it('creates a session with the options read from the settings mirror', async () => {

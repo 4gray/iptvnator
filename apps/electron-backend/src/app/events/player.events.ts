@@ -5,6 +5,7 @@ import {
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 import { setPlaybackKeepAwake } from '../services/playback-keep-awake.service';
+import { waitForLoginShellPath } from '../startup/login-shell-path';
 import {
     MPV_PLAYER_PATH,
     store,
@@ -53,8 +54,10 @@ ipcMain.handle(
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
-    ) =>
-        openMpvPlayer({
+    ) => {
+        // A bare player name resolves through the login shell PATH.
+        await waitForLoginShellPath();
+        return openMpvPlayer({
             url,
             title,
             thumbnail,
@@ -64,7 +67,8 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
-        })
+        });
+    }
 );
 
 ipcMain.handle(
@@ -95,8 +99,10 @@ ipcMain.handle(
         contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
-    ) =>
-        openVlcPlayer({
+    ) => {
+        // A bare player name resolves through the login shell PATH.
+        await waitForLoginShellPath();
+        return openVlcPlayer({
             url,
             title,
             thumbnail,
@@ -106,7 +112,8 @@ ipcMain.handle(
             contentInfo,
             startTime,
             headers,
-        })
+        });
+    }
 );
 
 ipcMain.handle(
