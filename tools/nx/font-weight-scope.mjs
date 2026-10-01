@@ -51,9 +51,10 @@ function merge(scope, file, access) {
  *
  * `qualified(file, ns)` — `ns.$x`: the members of the module the file loads
  * as `ns` (its declarations and, transitively, what it `@forward`s), plus the
- * arguments of a `with (…)` configuration for exactly the names it sets, on
- * that `@use` or on a `@forward` in the chain. Returned per file as
- * `{ declarations, configured }`.
+ * arguments written inside that `@use`'s own `with (…)` (or a `@forward …
+ * with (…)` in the chain), by position, so a same-named argument elsewhere,
+ * or another module's configuration, never counts. Returned per file as
+ * `{ declarations, ranges }`.
  *
  * `unqualified(file)` — `$x`, per file:
  * - the file itself: both;
@@ -65,7 +66,7 @@ function merge(scope, file, access) {
  *
  * A namespaced `@use` adds nothing unqualified, and two files that only share
  * a partial are never connected. Not traced: `@forward … as prefix-*`.
- * `scans` carry `file` and `loads` (`{ rule, target, as, configured }`).
+ * `scans` carry `file` and `loads` (`{ rule, target, as, configuration }`).
  */
 export function sassScopes(scans) {
     const known = new Set(scans.map((scan) => scan.file));
@@ -78,35 +79,26 @@ export function sassScopes(scans) {
             );
             if (!loaded) continue;
             const namespace = load.rule === 'use' ? namespaceOf(load) : null;
-            // Sass treats `-` and `_` in a name alike.
-            const configured = new Set(
-                (load.configured ?? []).map((name) => name.replace(/_/g, '-'))
-            );
-            push(edges, file, {
-                rule: load.rule,
-                loaded,
-                namespace,
-                configured,
-            });
+            const ranges = load.configuration ? [load.configuration] : [];
+            push(edges, file, { rule: load.rule, loaded, namespace, ranges });
             push(loadedBy, loaded, { file, textual: load.rule === 'import' });
         }
     }
 
-    // A module's members, each with the names a forwarding `with (…)` sets.
+    // A module's members, each with where a forwarding `with (…)` sits.
     const membersCache = new Map();
     const members = (module) => {
         if (membersCache.has(module)) return membersCache.get(module);
-        const found = new Map([[module, new Set()]]);
+        const found = new Map([[module, []]]);
         membersCache.set(module, found);
         const stack = [module];
         while (stack.length > 0) {
             const current = stack.pop();
             for (const edge of edges.get(current) ?? []) {
                 if (edge.rule !== 'forward') continue;
-                for (const name of edge.configured)
-                    found.get(current).add(name);
+                found.get(current).push(...edge.ranges);
                 if (found.has(edge.loaded)) continue;
-                found.set(edge.loaded, new Set());
+                found.set(edge.loaded, []);
                 stack.push(edge.loaded);
             }
         }
@@ -115,20 +107,20 @@ export function sassScopes(scans) {
 
     const qualified = (file, namespace) => {
         const scope = new Map();
-        const add = (target, declarations, names) => {
+        const add = (target, declarations, ranges) => {
             const known = scope.get(target) ?? {
                 declarations: false,
-                configured: new Set(),
+                ranges: [],
             };
-            for (const name of names) known.configured.add(name);
+            known.ranges.push(...ranges);
             known.declarations ||= declarations;
             scope.set(target, known);
         };
         for (const edge of edges.get(file) ?? []) {
             if (edge.rule !== 'use' || edge.namespace !== namespace) continue;
-            add(file, false, edge.configured);
-            for (const [member, configured] of members(edge.loaded)) {
-                add(member, true, configured);
+            add(file, false, edge.ranges);
+            for (const [member, ranges] of members(edge.loaded)) {
+                add(member, true, ranges);
             }
         }
         return scope;

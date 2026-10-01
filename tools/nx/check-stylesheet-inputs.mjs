@@ -30,40 +30,48 @@ function targetsOfRule(rule, clause) {
  * them as broken imports.
  */
 export function stripScssComments(source) {
-    const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, ' ');
+    // Blank rather than cut, so every offset still points into `source`.
+    const blank = (text) => text.replace(/[^\n]/g, ' ');
+    const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, blank);
     return withoutBlocks
         .split('\n')
         .map((line) => {
             const commentStart = line.search(/(^|[^:])\/\//);
             if (commentStart === -1) return line;
-            return line.slice(
-                0,
-                line[commentStart] === '/' ? commentStart : commentStart + 1
-            );
+            const cut =
+                line[commentStart] === '/' ? commentStart : commentStart + 1;
+            return line.slice(0, cut) + blank(line.slice(cut));
         })
         .join('\n');
 }
 
 /**
  * Every `@use`/`@forward`/`@import` target, with the rule that loads it, any
- * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix) and the
- * variable names a `with (…)` configuration sets.
+ * `as` clause (`as t`, `as *`, or a `@forward … as btn-*` prefix) and where
+ * its `with (…)` configuration sits in `source` (`[start, end)`, or `null`).
  */
 export function extractStylesheetLoads(source) {
     const loads = [];
     const stripped = stripScssComments(source);
-    for (const [, rule, clause] of stripped.matchAll(STYLESHEET_RULE)) {
-        const rest = clause.replace(QUOTED_TARGET, ' ');
+    for (const match of stripped.matchAll(STYLESHEET_RULE)) {
+        const [whole, rule, clause] = match;
+        const clauseStart = match.index + whole.length - clause.length;
+        const rest = clause.replace(QUOTED_TARGET, (quoted) =>
+            ' '.repeat(quoted.length)
+        );
         const as =
             rule === 'import'
                 ? null
                 : (/\bas\s+(\*|[\w-]+\*?)/.exec(rest)?.[1] ?? null);
-        const configuration = /\bwith\s*\(([\s\S]*)\)/.exec(rest)?.[1] ?? '';
-        const configured = [...configuration.matchAll(/(\$[\w-]+)\s*:/g)].map(
-            (match) => match[1]
-        );
+        const opening = /\bwith\s*\(/.exec(rest);
+        const configuration = opening
+            ? [
+                  clauseStart + opening.index + opening[0].length,
+                  clauseStart + rest.lastIndexOf(')'),
+              ]
+            : null;
         for (const target of targetsOfRule(rule, clause)) {
-            loads.push({ rule, target, as, configured });
+            loads.push({ rule, target, as, configuration });
         }
     }
     return loads;

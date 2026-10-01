@@ -293,6 +293,12 @@ export function scanWeights(file, source) {
     };
     if (!stylesheet) {
         for (const match of text.matchAll(ATTRIBUTE_WEIGHT)) {
+            // An attribute sits inside a tag; text such as
+            // `<p>font-weight=750</p>` sets nothing.
+            const open = text.lastIndexOf('<', match.index);
+            if (open === -1 || text.lastIndexOf('>', match.index) > open) {
+                continue;
+            }
             const value = match[3] ?? match[4];
             record(match[1], match.index, analyse('weight', value));
         }
@@ -331,7 +337,8 @@ export function scanWeights(file, source) {
         const argument = text[before] === '(' || text[before] === ',';
         const line = lineOf(match.index);
         const key = identity(name);
-        definitions.push({ file, line, name, key, value, argument });
+        const index = match.index;
+        definitions.push({ file, line, index, name, key, value, argument });
     }
 
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
@@ -366,7 +373,11 @@ export function findIndirectWeights(scans) {
             if (members) {
                 const access = members.get(definition.file);
                 const visible = definition.argument
-                    ? access?.configured.has(definition.key)
+                    ? access?.ranges.some(
+                          ([start, end]) =>
+                              definition.index >= start &&
+                              definition.index < end
+                      )
                     : access?.declarations;
                 if (!visible) continue;
             }

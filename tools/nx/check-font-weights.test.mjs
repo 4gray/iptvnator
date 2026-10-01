@@ -634,6 +634,7 @@ test('checks font-weight presentation attributes', () => {
         '<p [style.font-weight]="650">d</p>',
         '<svg><text font-weight=750>e</text></svg>',
         '<svg><text font-weight=600>f</text></svg>',
+        '<p>font-weight=750 and font-weight="650" as text</p>',
     ].join('\n');
     const component = `template: '<svg><text font-weight="750">x</text></svg>',`;
 
@@ -774,6 +775,30 @@ test('reports signed and unary arithmetic in code weights', () => {
             '8 .style.fontWeight: offset + +600',
         ]
     );
+});
+
+test('counts only the configuration of the `@use` a member comes from', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const a = scanWeights(
+        'libs/q/_alpha-palette.scss',
+        '$heavy: 500 !default;'
+    );
+    const b = scanWeights('libs/q/_beta-palette.scss', '$heavy: 500 !default;');
+    const user = (reference) =>
+        scanWeights(
+            'libs/q/q.scss',
+            [
+                "/* Two palettes */ @use 'alpha-palette' as a with ($heavy: 600);",
+                "@use 'beta-palette' as b with ($heavy: 650); // heavy",
+                `.x { @include m($heavy: 750); font-weight: ${reference}; }`,
+            ].join('\n')
+        );
+
+    assert.deepEqual(report([a, b, user('a.$heavy')]), []);
+    assert.deepEqual(report([a, b, user('b.$heavy')]), ['libs/q/q.scss:2 650']);
 });
 
 test('flags relative keywords, which can land off the scale', () => {
