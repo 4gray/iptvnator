@@ -201,9 +201,13 @@ zoneless change detection removes.
 The window opens when the settle window closes, so startup data still
 landing is not idle work, and it is timed by a renderer `setTimeout`. The
 record refuses an iteration whose window opened before the settle point or
+more than 100 ms after it (`launch-journey-record-idle-start-late`), or
 lasted less than 30 s, or more than 1 s longer
-(`launch-journey-record-idle-window-late`): a timer that late means the
-page was busy, not idle. `evidence.idle` keeps the measured `durationMs` and
+(`launch-journey-record-idle-window-late`). The window opens in the settle
+timer's callback while the settle point is that timer's deadline, so a late
+callback would leave ticks between the two outside both windows; either late
+timer means the page was busy, not idle. Locally the window opened 1-4 ms
+after the settle point. `evidence.idle` keeps the measured `durationMs` and
 `settledToIdleStartMs`. The main-process counters and the IPC capture are
 read after the window, which does not move them: they are frozen earlier.
 J2's launches skip the window (`runLaunchJourney` with `idleWindowMs: null`),

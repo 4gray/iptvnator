@@ -31,8 +31,8 @@ function measurement(
         firstCardPaintEpochMs: 2_650,
         idle: {
             domMutations: 12,
-            endEpochMs: 36_000.04,
-            startEpochMs: 6_000,
+            endEpochMs: 33_200.04,
+            startEpochMs: 3_200,
             status: 'done',
             ticks: 31,
         },
@@ -198,7 +198,7 @@ test('maps the probe, IPC capture and main counters to exact counters and spawn-
     assert.deepEqual(record.evidence['idle'], {
         domMutations: 12,
         durationMs: 30_000,
-        settledToIdleStartMs: 2_819.9,
+        settledToIdleStartMs: 19.9,
     });
 });
 
@@ -278,14 +278,32 @@ test('refuses a launch without a complete, on-time idle window after the settle 
             ),
         /idle-before-settle/
     );
+    // The settle point is 3_180.06: a window opened 120 ms after it left
+    // ticks uncounted in between.
     assert.throws(
         () =>
-            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 35_000 })),
+            toLaunchIterationRecord(
+                0,
+                false,
+                withIdle({ endEpochMs: 33_300.1, startEpochMs: 3_300.1 })
+            ),
+        /idle-start-late/
+    );
+    assert.doesNotThrow(() =>
+        toLaunchIterationRecord(
+            0,
+            false,
+            withIdle({ endEpochMs: 33_250, startEpochMs: 3_250 })
+        )
+    );
+    assert.throws(
+        () =>
+            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 33_000 })),
         /idle-window-short/
     );
     assert.throws(
         () =>
-            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 37_500 })),
+            toLaunchIterationRecord(0, false, withIdle({ endEpochMs: 34_500 })),
         /idle-window-late/
     );
     assert.equal(
@@ -332,7 +350,7 @@ test('refuses a launch whose settle window did not end after the first-card cuto
     const capped = toLaunchIterationRecord(
         0,
         false,
-        withSettle({ epochMs: 5_650, status: 'cap' })
+        withSettle({ epochMs: 3_150, status: 'cap' })
     );
     assert.equal(
         (capped.evidence['settle'] as { reason: string }).reason,

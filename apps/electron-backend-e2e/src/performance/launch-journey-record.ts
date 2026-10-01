@@ -50,6 +50,14 @@ export const LAUNCH_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
  */
 export const LAUNCH_JOURNEY_IDLE_LATE_TOLERANCE_MS = 1_000;
 
+/**
+ * The idle window opens in the settle timer's callback, but the settle point
+ * is that timer's deadline. A callback that ran later than this left ticks
+ * between the two outside both windows, and means the page was still busy
+ * at the settle point, so the iteration is refused rather than undercounted.
+ */
+export const LAUNCH_JOURNEY_IDLE_START_TOLERANCE_MS = 100;
+
 export interface LaunchJourneyMeasurement {
     readonly electronVersion: string;
     readonly gate: JourneyRendererGateState;
@@ -229,6 +237,12 @@ function assertLaunchIdleWindow(
     }
     if (idle.startEpochMs < settledEpochMs) {
         throw new Error('launch-journey-record-idle-before-settle');
+    }
+    if (
+        idle.startEpochMs - settledEpochMs >
+        LAUNCH_JOURNEY_IDLE_START_TOLERANCE_MS
+    ) {
+        throw new Error('launch-journey-record-idle-start-late');
     }
     const durationMs = idle.endEpochMs - idle.startEpochMs;
     // Timers may fire up to a millisecond early after clamping.
