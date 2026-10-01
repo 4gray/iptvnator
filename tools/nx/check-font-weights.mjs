@@ -8,6 +8,7 @@ import {
     blocksOf,
     calleeOf,
     codeExpression,
+    inBinding,
     insideTag,
     invocationsOf,
     lex,
@@ -24,6 +25,7 @@ import {
     declarationText,
     familiesOf,
     familyParts,
+    parsesAsFont,
     reachesEverything,
 } from './font-weight-family.mjs';
 import {
@@ -82,7 +84,7 @@ const SOURCE = /\.(ts|html)$/;
  */
 const STYLESHEET_WEIGHT = /(?<![\w$-])((?:\$|--)?[\w-]*weight)\s*:/gi;
 const SOURCE_WEIGHT =
-    /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"]?\s*:/gi;
+    /(?<![\w$-])(font-weight|fontWeight|--[\w-]*weight)['"`]?\]?\s*:/gi;
 const FONT_SHORTHAND = /(?<![\w$-])(font)\s*:/gi;
 /**
  * A static HTML or SVG presentation attribute, quoted (`font-weight="650"`,
@@ -131,12 +133,6 @@ const QUOTED_NAME = /^(\s*(['"`])([^'"`]*)\2)\s*,/;
 const RESETTING = /^(?:initial|revert|revert-layer)\b/i;
 const INHERITING = /^(?:inherit|unset)\b/i;
 const WEIGHT_SETTER = /(?<![\w$-])(font-weight|font)\s*:/gi;
-/** A `font` size, alone or with its `/line-height`. */
-const FONT_SIZE =
-    /^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[a-z]+|%)?|(?:xx?x?-)?(?:small|large)|medium|smaller|larger|[a-z-]+\(.*\))(?:\/.*)?$/i;
-/** `font` values that parse without a size and a family. */
-const FONT_KEYWORD =
-    /^(?:inherit|initial|unset|revert|revert-layer|caption|icon|menu|message-box|small-caption|status-bar)$/i;
 /**
  * Computed code: arithmetic next to a number (`600 + 50` is 650, also with a
  * signed operand as in `600 - -50`), or a minus (or a `+` before a bracket)
@@ -340,23 +336,6 @@ function familyRefs({ outside, vars }, at) {
 }
 
 /**
- * Whether a `font` shorthand parses, and so replaces the rule's earlier
- * weight: a keyword, or a size followed by a family. One with `var()` or a
- * Sass value is only checked once substituted, so it counts (at computed
- * time an invalid one inherits the weight instead).
- */
-function parsesAsFont(value) {
-    const text = value.replace(/!important\b/i, '').trim();
-    if (/var\(|\$|#\{/.test(text) || FONT_KEYWORD.test(text)) return true;
-    const tokens = tokensOf(text);
-    const size = tokens.findIndex((token) => FONT_SIZE.test(token));
-    const family = tokens
-        .slice(size + 1)
-        .some((token) => token !== '/' && !/^[\d.]/.test(token));
-    return size !== -1 && family;
-}
-
-/**
  * A term that only the JetBrains Mono cap makes a finding: a scale weight
  * (or `bold`) above it. An off-scale one is reported as such already.
  */
@@ -497,9 +476,13 @@ export function scanWeights(file, source) {
             const { value, selector } = valueAfter(lexed, end);
             if (selector) continue;
             const mode = name.toLowerCase() === 'font' ? 'font' : 'weight';
-            // A TypeScript object value (`{ fontWeight: wide ? 700 : 600 }`)
-            // is code, read per value it can take; a string is CSS text.
-            if (!stylesheet && file.endsWith('.ts') && !quoteAt[end]) {
+            // A TypeScript object value (`{ fontWeight: wide ? 700 : 600 }`),
+            // or one in an Angular binding (`[ngStyle]="{…}"`), is code, read
+            // per value it can take; a string is CSS text.
+            const code =
+                (file.endsWith('.ts') && !quoteAt[end]) ||
+                inBinding(text, match.index);
+            if (!stylesheet && code) {
                 const expression = codeExpression(text, end, {
                     argument: true,
                 });

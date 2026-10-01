@@ -24,10 +24,29 @@ function syntaxOf(file) {
     };
 }
 
-/** Whether `index` sits in an unquoted `url(…)`, whose `//` is a URL. */
+/**
+ * Whether `index` sits in an unquoted `url(…)` on its line, whose `//` is a
+ * URL; a `url(` that a comment ends with leaves the next line alone.
+ */
 function inUrl(source, index) {
-    const before = source.slice(Math.max(0, index - 2048), index);
-    return /url\(\s*[^\s)'"]*$/i.test(before);
+    const line = source.slice(source.lastIndexOf('\n', index - 1) + 1, index);
+    return /url\(\s*[^\s)'"]*$/i.test(line);
+}
+
+/**
+ * Whether `index` sits in an Angular binding's value (`[ngStyle]="{…}"`),
+ * which is code, and not in a string literal inside it, which is CSS text.
+ */
+export function inBinding(text, index) {
+    const before = text.slice(Math.max(0, index - 4096), index);
+    const binding = /\[[^\]\s="'<>]+\]\s*=\s*(?:"([^"]*)|'([^']*))$/.exec(
+        before
+    );
+    if (!binding) return false;
+    const value = binding[1] ?? binding[2];
+    const inner = binding[1] === undefined ? '"' : "'";
+    const count = (quote) => value.split(quote).length - 1;
+    return count(inner) % 2 === 0 && count('`') % 2 === 0;
 }
 
 /**

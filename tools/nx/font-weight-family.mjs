@@ -3,6 +3,8 @@
  * `check-font-weights.mjs`.
  */
 
+import { tokensOf } from './font-weight-lexer.mjs';
+
 /** JetBrains Mono is bundled at 400 and 500 only (see `styles.scss`). */
 export const MONO_WEIGHT_CAP = 500;
 export const MONO_FAMILY = /jetbrains\s+mono/i;
@@ -22,6 +24,30 @@ export function declarationText({ text, quoteAt }, start) {
         end += 1;
     }
     return { value: text.slice(start, end), selector: text[end] === '{' };
+}
+
+/** A `font` size, alone or with its `/line-height`. */
+const FONT_SIZE =
+    /^(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:[a-z]+|%)?|(?:xx?x?-)?(?:small|large)|medium|smaller|larger|[a-z-]+\(.*\))(?:\/.*)?$/i;
+/** `font` values that parse without a size and a family. */
+const FONT_KEYWORD =
+    /^(?:inherit|initial|unset|revert|revert-layer|caption|icon|menu|message-box|small-caption|status-bar)$/i;
+
+/**
+ * Whether a `font` shorthand parses, and so replaces the rule's earlier
+ * weight: a keyword, or a size followed by a family. One with `var()` or a
+ * Sass value is only checked once substituted, so it counts (at computed
+ * time an invalid one inherits the weight instead).
+ */
+export function parsesAsFont(value) {
+    const text = value.replace(/!important\b/i, '').trim();
+    if (/var\(|\$|#\{/.test(text) || FONT_KEYWORD.test(text)) return true;
+    const tokens = tokensOf(text);
+    const size = tokens.findIndex((token) => FONT_SIZE.test(token));
+    const family = tokens
+        .slice(size + 1)
+        .some((token) => token !== '/' && !/^[\d.]/.test(token));
+    return size !== -1 && family;
 }
 
 /**
@@ -115,6 +141,8 @@ export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
         const { value, selector } = declarationText(lexed, start);
         const place = placeOf(blocks, match.index);
         if (selector || place.scope === null) continue;
+        // A shorthand that fails to parse is dropped, family and all.
+        if (match[1].toLowerCase() === 'font' && !parsesAsFont(value)) continue;
         const important = /!important\b/i.test(value);
         if (family.get(place.scope)?.important && !important) continue;
         const parts = familyParts(value);

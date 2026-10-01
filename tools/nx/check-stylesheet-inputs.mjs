@@ -7,9 +7,10 @@ import { fileURLToPath } from 'node:url';
 const STYLESHEET_RULE = /@(use|forward|import)\s+([^;{}]*)/g;
 const OPEN_URL = /url\(\s*[^\s)'"]*$/i;
 
-/** Whether `index` sits in an unquoted `url(…)`, whose `//` is a URL. */
+/** Whether `index` sits in an unquoted `url(…)` on its line. */
 function inUrl(source, index) {
-    return OPEN_URL.test(source.slice(Math.max(0, index - 2048), index));
+    const lineStart = source.lastIndexOf('\n', index - 1) + 1;
+    return OPEN_URL.test(source.slice(lineStart, index));
 }
 const QUOTED_TARGET = /(['"])([^'"]+)\1/g;
 const CSS_URL = /url\([^)]*\)/g;

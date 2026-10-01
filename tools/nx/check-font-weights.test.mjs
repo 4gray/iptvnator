@@ -216,6 +216,8 @@ test('reads `//` after `:` or `(` as a Sass comment outside url()', () => {
         '.y { font-weight: (// note 650',
         '600); }',
         '.z { background: url(http://cdn.test/a.png); font-weight: 750; }',
+        '.w { color: red; } // a note that ends in url(',
+        '// font-weight: 650 was the old value',
     ].join('\n');
 
     assert.deepEqual(offScale('libs/a.scss', stylesheet), [
@@ -229,12 +231,18 @@ test('reads a TypeScript style object value as code', () => {
         "const other = { 'font-weight': wide ? 650 : 400, color: 'red' };",
         'const css = `font-weight: ${w}; font: 650 12px x`;',
         'fontWeight: number;',
+        "const keyed = { ['font-weight']: 650, [`fontWeight`]: 750 };",
     ].join('\n');
 
-    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), [
-        '2 font-weight: 650',
-        '3 font: 650',
-    ]);
+    assert.deepEqual(
+        offScale('apps/web/src/a.component.ts', component).sort(),
+        [
+            '2 font-weight: 650',
+            '3 font: 650',
+            '5 font-weight: 650',
+            '5 fontWeight: 750',
+        ]
+    );
     // HTML outside attributes is markup, not code: a `<style>` block's
     // shorthand keeps its `/line-height`.
     assert.deepEqual(
@@ -244,6 +252,27 @@ test('reads a TypeScript style object value as code', () => {
         ),
         []
     );
+});
+
+test('reads Angular style bindings as code', () => {
+    const template = [
+        '<div [ngStyle]="{ fontWeight: viewportWidth >= 768 ? 700 : 600 }"></div>',
+        `<div [ngStyle]="{ 'font-weight': wide ? 650 : 400 }"></div>`,
+        `<div [style]="'font-weight: 750'"></div>`,
+        '<p style="font-weight: 650">text</p>',
+        // A string in a binding is CSS, so `/200` is a line-height.
+        '<div [style]="`font: italic 12px/200 Roboto`"></div>',
+        `<div [style]='"font: italic 12px/200 Roboto"'></div>`,
+    ].join('\n');
+    const component =
+        'template: `<div [ngStyle]="{ fontWeight: w >= 768 ? 700 : 600 }"></div>`,';
+
+    assert.deepEqual(offScale('apps/web/src/a.component.html', template), [
+        '2 font-weight: 650',
+        '3 font-weight: 750',
+        '4 font-weight: 650',
+    ]);
+    assert.deepEqual(offScale('apps/web/src/a.component.ts', component), []);
 });
 
 test('treats comment markers inside strings as text', () => {
@@ -1830,6 +1859,7 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
         ".y2 { font-weight: 700; font: 12px/1.4 sans-serif; font-family: 'JetBrains Mono'; }",
         ".z2 { font-weight: 700; font: 12px / 1.4; font-family: 'JetBrains Mono'; }",
         ".z3 { font: 700 12px 1.4; font-family: 'JetBrains Mono'; }",
+        ".z4 { font-family: 'JetBrains Mono'; font: 12px; font-weight: 700; }",
     ].join('\n');
 
     assert.equal(MONO_WEIGHT_CAP, 500);
@@ -1843,6 +1873,7 @@ test('caps JetBrains Mono rules at the heaviest bundled Mono face', () => {
         '21 font-weight: 700',
         '22 font-weight: 700',
         '26 font-weight: 700',
+        '28 font-weight: 700',
         '3 font-weight: bold',
         '6 font-weight: 600',
         '9 font-weight: 600',

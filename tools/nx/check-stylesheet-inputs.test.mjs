@@ -218,6 +218,7 @@ test('keeps comment markers inside strings', () => {
         ['$a: url(//cdn/x.css); // gone', /url\(\/\/cdn/, /gone/],
         ['$a: url(https://cdn/x.css); // gone', /https:\/\/cdn/, /gone/],
         ['$a:// gone', /\$a:/, /gone/],
+        ['// a note on url(\n// gone', /\n/, /gone/],
         ['$a: (// gone\n1);', /\$a: \(/, /gone/],
     ]) {
         const result = stripScssComments(text);
