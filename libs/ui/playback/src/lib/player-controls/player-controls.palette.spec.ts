@@ -30,6 +30,8 @@ const STYLE_SOURCES = new Map(
 const HOST_STYLES = STYLE_SOURCES.get('player-controls.component.scss') ?? '';
 const TIMELINE_STYLES =
     STYLE_SOURCES.get('player-timeline.component.scss') ?? '';
+const SETTINGS_STYLES =
+    STYLE_SOURCES.get('player-settings-panel.component.scss') ?? '';
 
 type Rgb = [number, number, number];
 
@@ -50,6 +52,24 @@ function paletteColor(token: string): { rgb: Rgb; alpha: number } {
         return { rgb, alpha: Number(rgba[4]) };
     }
     throw new Error(`${token} is not a literal palette colour: "${value}"`);
+}
+
+/** A translucent palette colour composited over an opaque frame. */
+function over(color: { rgb: Rgb; alpha: number }, frame: Rgb): Rgb {
+    return color.rgb.map(
+        (channel, index) =>
+            channel * color.alpha + frame[index] * (1 - color.alpha)
+    ) as Rgb;
+}
+
+/** The declarations of the first rule whose selector list is exactly `selector`. */
+function ruleBody(source: string, selector: string): string {
+    const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return (
+        source.match(
+            new RegExp(`(?:^|[}\\s])${escaped}\\s*\\{([^}]*)\\}`)
+        )?.[1] ?? ''
+    );
 }
 
 function contrastRatio(foreground: Rgb, background: Rgb): number {
@@ -128,6 +148,67 @@ describe('player controls overlay palette', () => {
         expect(HOST_STYLES).toMatch(
             /:host :is\(button\[mat-icon-button\]\[disabled\]\) mat-icon\s*\{[^}]*color:\s*var\(--pc-text-tertiary\);/
         );
+    });
+
+    it('keeps the settings headings at 4.5:1 on the panel glass over bright frames', () => {
+        const midGrey: Rgb = [128, 128, 128];
+        const white: Rgb = [255, 255, 255];
+        const glass = paletteColor('--pc-glass-bg-dense');
+        const secondary = paletteColor('--pc-text-secondary').rgb;
+
+        expect(ruleBody(SETTINGS_STYLES, ':host')).toMatch(
+            /background:\s*var\(--pc-glass-bg-dense\b/
+        );
+        expect(
+            ruleBody(
+                SETTINGS_STYLES,
+                '.player-settings__heading,\n.player-settings__subheading'
+            )
+        ).toMatch(/color:\s*var\(--pc-text-secondary\b/);
+        expect(SETTINGS_STYLES).not.toMatch(
+            /__(sub)?heading\s*\{[^}]*--pc-text-tertiary/
+        );
+        for (const frame of [midGrey, white]) {
+            expect(
+                contrastRatio(secondary, over(glass, frame))
+            ).toBeGreaterThanOrEqual(4.5);
+        }
+        // The tertiary step the headings used to read failed on mid-grey.
+        expect(
+            contrastRatio(
+                paletteColor('--pc-text-tertiary').rgb,
+                over(paletteColor('--pc-glass-bg'), midGrey)
+            )
+        ).toBeLessThan(4.5);
+    });
+
+    it('draws keyboard focus on icon buttons in the overlay text colour', () => {
+        const ring = /outline:\s*2px solid var\(--pc-text[,)]/;
+        for (const source of [HOST_STYLES, SETTINGS_STYLES]) {
+            expect(
+                ruleBody(
+                    source,
+                    ':host :is(button[mat-icon-button]:focus-visible)'
+                )
+            ).toMatch(ring);
+            // Material's focus layer takes the app theme's colour.
+            expect(
+                ruleBody(source, ':host :is(button[mat-icon-button])')
+            ).toMatch(/--mat-icon-button-focus-state-layer-opacity:\s*0;/);
+        }
+    });
+
+    it('tells a focused selected swatch from one that is only selected', () => {
+        const selected = ruleBody(
+            SETTINGS_STYLES,
+            '.player-settings__swatch--selected'
+        );
+        const focused = ruleBody(
+            SETTINGS_STYLES,
+            '.player-settings__swatch:focus-visible'
+        );
+        expect(selected).not.toMatch(/outline/);
+        expect(focused).toMatch(/outline:\s*2px solid var\(--pc-text[,)]/);
     });
 
     it('keeps the palette reds readable on video', () => {

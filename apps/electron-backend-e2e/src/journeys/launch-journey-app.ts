@@ -86,12 +86,21 @@ function removeDirectory(directory: string): Promise<void> {
     });
 }
 
+/** What a journey changes in the seeded profile; J1 and J2 use neither. */
+export interface LaunchJourneySeedOptions {
+    /** Portal credentials; default: the mock's default account. */
+    readonly portal?: Parameters<typeof addXtreamPortal>[1];
+    /** Runs after both sources are imported, e.g. to change settings. */
+    readonly configure?: (page: Page) => Promise<void>;
+}
+
 /**
  * Seeds one M3U source and one Xtream portal through the app's own dialogs
  * and returns the data directory to copy for every measured launch.
  */
 export async function seedLaunchJourneyProfile(
-    mockOrigin: string
+    mockOrigin: string,
+    options: LaunchJourneySeedOptions = {}
 ): Promise<string> {
     const templateDirectory = await mkdtemp(
         join(tmpdir(), 'iptvnator-journey-launch-seed-')
@@ -104,8 +113,12 @@ export async function seedLaunchJourneyProfile(
                 `${mockOrigin}/playlist.m3u`
             );
             await waitForM3uCatalog(app.mainWindow);
-            await addXtreamPortal(app.mainWindow, { serverUrl: mockOrigin });
+            await addXtreamPortal(app.mainWindow, {
+                ...options.portal,
+                serverUrl: mockOrigin,
+            });
             await waitForXtreamCatalog(app.mainWindow);
+            await options.configure?.(app.mainWindow);
         } finally {
             await closeElectronAppAndConfirmExit(app);
         }

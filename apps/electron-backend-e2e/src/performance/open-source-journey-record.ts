@@ -1,3 +1,7 @@
+import {
+    journeyActivityBeforeClick,
+    type JourneyClickSettle,
+} from './journey-click-settle';
 import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
 import {
     countJourneyMockRoutes,
@@ -37,13 +41,7 @@ export const OPEN_SOURCE_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
 });
 
 /** How long the app was left alone before the click, and what it did. */
-export interface OpenSourceJourneySettle {
-    readonly preStartDomMutations: number;
-    readonly preStartHttpRequests: number;
-    readonly preStartIpcCalls: number;
-    readonly quietMs: number;
-    readonly waitedMs: number;
-}
+export type OpenSourceJourneySettle = JourneyClickSettle;
 
 export interface OpenSourceJourneyMeasurement {
     readonly http: {
@@ -108,13 +106,11 @@ export function toOpenSourceIterationRecord(
     // the click and be counted as J2. The probe and the capture keep
     // counting until the click itself, so they must still match the
     // snapshot; otherwise the iteration is rejected.
-    const lateActivity = [
-        renderer.preStart.domMutations !== settle.preStartDomMutations
-            ? 'dom'
-            : null,
-        ipc.callsBeforeStart !== settle.preStartIpcCalls ? 'ipc' : null,
-        http.afterSettleBeforeClick > 0 ? 'http' : null,
-    ].filter((kind) => kind !== null);
+    const lateActivity = journeyActivityBeforeClick(settle, {
+        httpAfterSettleBeforeClick: http.afterSettleBeforeClick,
+        ipcCallsBeforeStart: ipc.callsBeforeStart,
+        preStartDomMutations: renderer.preStart.domMutations,
+    });
     if (lateActivity.length > 0) {
         throw new Error(
             `open-source-journey-record-activity-before-click-${lateActivity.join('-')}`

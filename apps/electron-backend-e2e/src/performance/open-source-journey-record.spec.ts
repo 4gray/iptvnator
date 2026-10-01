@@ -54,6 +54,7 @@ function measurement(
         invalidReasons: [],
         journey: 'open-source',
         longTaskDurationsMs: [61.26],
+        media: null,
         navigation: null,
         preStart: { domMutations: 4, lastMutationEpochMs: 9_100 },
         schemaVersion: 1,

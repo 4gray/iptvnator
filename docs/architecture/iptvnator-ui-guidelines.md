@@ -91,7 +91,9 @@ themes and fullscreen; frame-copy and built-in shared controls keep their
 light-on-dark overlay palette — the fixed `--pc-*` token set of the shared
 dock (accent blue, cyan, violet, the `--pc-live` / `--pc-danger` reds and a
 light text ramp), never the app theme. The overlay styles in
-`player-controls/` never read a `--mat-sys-*` token.
+`player-controls/` never read a `--mat-sys-*` token, and their keyboard focus
+is a 2px `--pc-text` outline rather than Material's theme-coloured focus layer
+(`player-controls-keyboard.e2e.ts` checks it in both themes).
 
 EPG timeline, list, empty states and programme details use the library-local
 `libs/ui/epg/src/lib/_epg-theme.scss` palette, based on app surfaces, separators,
@@ -626,6 +628,13 @@ inset surface. The checked grid/list toggle uses `--app-selection-surface`
 and `--app-selection-color`; hover uses the app's neutral surface treatment.
 Keep these treatments in the shared season components and detail-action
 partial so Xtream and Stalker share the same behavior.
+
+The season header's actions wrap onto their own row, starting under the
+"Seasons and Episodes" heading, before the heading itself would wrap. The
+detail pane is narrower than the window (context panel, the sticky Back lane),
+so the header's own width decides, not a viewport breakpoint. A translation
+wider than the pane itself wraps rather than ellipsizing: unlike a fixed-height
+panel title, a content heading has room to wrap and should not lose words.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.

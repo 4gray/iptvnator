@@ -388,8 +388,9 @@ $ pnpm run perf:initial-bytes
 The contract behind that number is in
 [docs/architecture/performance-journeys.md](docs/architecture/performance-journeys.md).
 
-To benchmark the "launch to usable" journey (fresh Electron process on a
-seeded profile, exact renderer counters plus wall-clock), run:
+To benchmark the "launch to usable", "open a source" and "start playback"
+journeys (fresh Electron processes on a seeded profile against the local
+Xtream mock, exact renderer counters plus wall-clock), run:
 
 ```
 $ pnpm run perf:journeys
