@@ -284,7 +284,7 @@ process before the first card.
 - The main thread must stay free between the load and the first card. The
   renderer's first database read creates the database worker, and every
   request waits until the main process has handled the worker's `ready`
-  message. Until #NNNN the login-shell PATH lookup (`fix-path`) ran right
+  message. Until #1784 the login-shell PATH lookup (`fix-path`) ran right
   after `bootstrap-events:done` and spawned `$SHELL -ilc env` synchronously:
   on a Mac with a typical zsh profile it held the main thread for about
   1-2 s, the first `dbGetAppState` resolved about 2.3 s after spawn, and
