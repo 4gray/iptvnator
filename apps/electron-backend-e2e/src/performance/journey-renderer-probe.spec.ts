@@ -7,6 +7,8 @@ import {
     assertJourneyRendererProbeState,
     createLaunchJourneyProbeOptions,
     createOpenSourceJourneyProbeOptions,
+    JOURNEY_CD_TICK_COUNTER_KEY,
+    JOURNEY_IDLE_WINDOW_MS,
     JOURNEY_IPC_SENTINEL_ID,
     JOURNEY_IPC_SENTINEL_METHOD,
     JOURNEY_OPEN_SOURCE_END_SENTINEL_ID,
@@ -57,12 +59,25 @@ function createFixture(
     return createFixtureFromDom(
         dom,
         {
-            ...createLaunchJourneyProbeOptions(),
+            ...createLaunchJourneyProbeOptions(null),
             settle: FAST_SETTLE,
             ...optionOverrides,
         },
         bridge
     );
+}
+
+/**
+ * The electron-performance build's tick counter, installed in the fixture's
+ * window the way `environment.performance.ts` installs it before bootstrap.
+ */
+function installTickCounter(fixture: Fixture): { count: number } {
+    const counter = { count: 0 };
+    Object.defineProperty(fixture.window, JOURNEY_CD_TICK_COUNTER_KEY, {
+        configurable: true,
+        value: counter,
+    });
+    return counter;
 }
 
 function renderFirstCard(fixture: Fixture): void {
@@ -99,7 +114,7 @@ test('installs once per document', () => {
     const fixture = createFixture();
     const first = fixture.rawState();
     fixture.window.eval(
-        `(${journeyRendererProbeScript.toString()})(${JSON.stringify(createLaunchJourneyProbeOptions())})`
+        `(${journeyRendererProbeScript.toString()})(${JSON.stringify(createLaunchJourneyProbeOptions(null))})`
     );
     assert.equal(fixture.rawState(), first);
 });
@@ -134,10 +149,12 @@ test('counts mutation records until the first card is visible after the splash i
         state.navigation?.loadEventEndEpochMs,
         fixture.window.performance.timeOrigin + 120
     );
+    // No tick counter in this build: reported, never zero.
     assert.equal(
         state.capabilities.changeDetectionTicks,
-        'unavailable-ng-global-not-published'
+        'unavailable-counter-missing'
     );
+    assert.equal(state.counters.changeDetectionTicks, null);
     assert.ok(fixture.observers.every((observer) => observer.disconnected));
 
     appRoot.append(document.createElement('div'));
@@ -506,8 +523,66 @@ test('rejects a probe whose performance observers were unavailable instead of re
     );
 });
 
+test('counts change-detection ticks from document start until the terminal batch', async () => {
+    const fixture = createFixture();
+    const counter = installTickCounter(fixture);
+    counter.count += 3;
+    renderFirstCard(fixture);
+    // The tick that rendered the card ran before the observer's microtask.
+    counter.count += 1;
+    await settle();
+    counter.count += 5;
+    const state = fixture.state();
+    assert.equal(state.capabilities.changeDetectionTicks, 'counted');
+    assert.equal(state.counters.changeDetectionTicks, 4);
+    assert.equal(state.idle.status, 'disabled');
+    assert.equal(state.idle.ticks, null);
+});
+
+test('counts ticks and mutations in the idle window that opens at the settle point', async () => {
+    const fixture = createFixture({ idle: { durationMs: 80 } });
+    const counter = installTickCounter(fixture);
+    renderFirstCard(fixture);
+    counter.count += 2;
+    await waitFor(() => fixture.rawState().idle.startEpochMs !== null);
+    const opened = fixture.state();
+    assert.equal(opened.idle.status, 'pending');
+    assert.ok(opened.settle.epochMs !== null);
+    assert.ok((opened.idle.startEpochMs ?? 0) >= opened.settle.epochMs);
+    assert.throws(
+        () => assertJourneyRendererProbeState(opened),
+        /idle-pending/
+    );
+    counter.count += 7;
+    fixture.window.document.body.append(
+        fixture.window.document.createElement('div')
+    );
+    await waitFor(() => fixture.rawState().idle.status === 'done');
+    counter.count += 100;
+    const state = fixture.state();
+    assert.equal(state.counters.changeDetectionTicks, 2);
+    assert.equal(state.idle.ticks, 7);
+    assert.equal(state.idle.domMutations, 1);
+    assert.ok(
+        (state.idle.endEpochMs ?? 0) - (state.idle.startEpochMs ?? 0) >= 79
+    );
+    assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
+});
+
+test('launch options add the idle window only when asked', () => {
+    assert.equal(createLaunchJourneyProbeOptions(null).idle, undefined);
+    assert.deepEqual(
+        createLaunchJourneyProbeOptions(JOURNEY_IDLE_WINDOW_MS).idle,
+        { durationMs: 30_000 }
+    );
+    assert.equal(
+        createLaunchJourneyProbeOptions(null).cdTickCounterKey,
+        '__iptvnatorCdTicks'
+    );
+});
+
 test('launch options target the workspace source cards and the shared sentinel', () => {
-    const options = createLaunchJourneyProbeOptions();
+    const options = createLaunchJourneyProbeOptions(null);
     assert.equal(options.stateKey, JOURNEY_PROBE_STATE_KEY);
     assert.equal(options.sentinelMethod, 'cancelSourceProbe');
     assert.equal(options.splashId, 'initial-splash');
@@ -631,6 +706,10 @@ test('the click sends the start sentinel before the app sees it and the end sent
     assert.equal(state.navigation, null);
     assert.equal(state.final, true);
     assert.ok(state.terminal.epochMs >= state.start.epochMs);
+    assert.equal(
+        state.capabilities.changeDetectionTicks,
+        'unavailable-counter-missing'
+    );
     assert.doesNotThrow(() => assertJourneyRendererProbeState(state));
 
     // One start per armed probe.
@@ -638,6 +717,23 @@ test('the click sends the start sentinel before the app sees it and the end sent
     fixture.card.click();
     await settle();
     assert.equal(fixture.bridgeCalls.length, 2);
+});
+
+test('counts ticks from the click, not from document start', async () => {
+    const fixture = createOpenSourceFixture();
+    const counter = installTickCounter(fixture);
+    counter.count = 40;
+    fixture.card.addEventListener('click', () => {
+        counter.count += 1;
+        openSource(fixture);
+        counter.count += 1;
+    });
+    fixture.card.click();
+    await settle();
+    counter.count += 10;
+    const state = fixture.state();
+    assert.equal(state.capabilities.changeDetectionTicks, 'counted');
+    assert.equal(state.counters.changeDetectionTicks, 2);
 });
 
 test('the first page needs the category list as well as the items', async () => {

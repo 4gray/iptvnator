@@ -19,6 +19,7 @@ import type { JourneyIterationRecord } from './journey-summary';
 export const PLAYBACK_JOURNEY_ID = 'playback';
 
 export const PLAYBACK_JOURNEY_COUNTER = {
+    CD_TICKS: 'renderer.cdTicksToPlaying',
     DOM_MUTATIONS: 'renderer.domMutationsToPlaying',
     HTTP_REQUESTS: 'renderer.httpRequestsToPlaying',
     IPC_CALLS: 'renderer.ipcCallsToPlaying',
@@ -39,8 +40,6 @@ export const PLAYBACK_JOURNEY_AFTER_PLAYING_WINDOW_MS = 1_000;
 export const PLAYBACK_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
     Record<string, string>
 > = Object.freeze({
-    'renderer.cdTicksToPlaying':
-        'The electron-performance build optimizes scripts (ngDevMode=false), so Angular does not publish window.ng and ɵsetProfiler is unavailable.',
     'renderer.ipcSerialDepthToPlaying':
         'The serial-depth helper is being added for J1 in a separate thread and is not on master yet; J3 adopts it once it lands.',
 });
@@ -140,16 +139,18 @@ export function toPlaybackIterationRecord(
             `playback-journey-record-activity-before-click-${lateActivity.join('-')}`
         );
     }
+    const cdTicks = renderer.counters.changeDetectionTicks;
     if (
-        renderer.capabilities.changeDetectionTicks !==
-        'unavailable-ng-global-not-published'
+        renderer.capabilities.changeDetectionTicks !== 'counted' ||
+        cdTicks === null
     ) {
         throw new Error(
-            `playback-journey-record-cd-hook-${renderer.capabilities.changeDetectionTicks}`
+            `playback-journey-record-cd-ticks-${renderer.capabilities.changeDetectionTicks}`
         );
     }
     return Object.freeze({
         counters: Object.freeze({
+            [PLAYBACK_JOURNEY_COUNTER.CD_TICKS]: cdTicks,
             [PLAYBACK_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [PLAYBACK_JOURNEY_COUNTER.HTTP_REQUESTS]: http.toPlaying.length,

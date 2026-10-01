@@ -22,12 +22,13 @@ function measurement(
 ): OpenSourceJourneyMeasurement {
     const renderer: JourneyRendererProbeState = {
         capabilities: {
-            changeDetectionTicks: 'unavailable-ng-global-not-published',
+            changeDetectionTicks: 'counted',
             layoutShift: true,
             longTask: true,
             observedTarget: 'documentElement',
         },
         counters: {
+            changeDetectionTicks: 9,
             domMutations: 1_596,
             layoutShiftScore: 0.0004,
             layoutShiftScoreSettled: 0,
@@ -36,6 +37,13 @@ function measurement(
         },
         final: true,
         firstCardPaintEpochMs: 10_090,
+        idle: {
+            domMutations: 0,
+            endEpochMs: null,
+            startEpochMs: null,
+            status: 'disabled',
+            ticks: null,
+        },
         installed: {
             bridgePresent: true,
             documentElementPresent: true,
@@ -127,6 +135,7 @@ test('maps the click-started probe, IPC window and mock ledger to exact counters
     assert.equal(record.pid, 4343);
     assert.deepEqual(record.counters, {
         'main.mockHttpRequestsToSettled': 2,
+        'renderer.cdTicksToFirstPage': 9,
         'renderer.domMutationsToFirstPage': 1_596,
         'renderer.ipcCallsToFirstPage': 17,
         'renderer.layoutShiftScore': 0.221,
@@ -261,11 +270,15 @@ test('rejects measurements that did not start at the click or did not open the s
                     ...renderer,
                     capabilities: {
                         ...renderer.capabilities,
-                        changeDetectionTicks: 'hook-present-not-counted',
+                        changeDetectionTicks: 'unavailable-counter-missing',
+                    },
+                    counters: {
+                        ...renderer.counters,
+                        changeDetectionTicks: null,
                     },
                 },
             }),
-        /cd-hook-hook-present-not-counted/
+        /cd-ticks-unavailable-counter-missing/
     );
 });
 
@@ -322,8 +335,8 @@ test('summarizes under the J2 counters with the unmeasurable ones listed', () =>
     );
     assert.equal(entry.wallClock['clickToFirstPageMs.p50'], 78.3);
     assert.equal(entry.wallClock['clickToFirstPagePaintMs.p90'], 89.8);
+    assert.equal(entry.counters['renderer.cdTicksToFirstPage'], 9);
     assert.deepEqual(Object.keys(entry.unavailable).sort(), [
         'main.sqlStatementsToFirstPage',
-        'renderer.cdTicksToFirstPage',
     ]);
 });

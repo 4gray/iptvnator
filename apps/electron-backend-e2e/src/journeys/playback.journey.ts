@@ -57,7 +57,7 @@ test('J3 start playback', async () => {
                     templateDirectory,
                     JOURNEY_ITERATION_TIMEOUT_MS,
                     // Like J2: no main-process counters or SQL hook.
-                    { mainCounters: false },
+                    { idleWindowMs: null, mainCounters: false },
                     (session) =>
                         measurePlaybackJourney(
                             session,

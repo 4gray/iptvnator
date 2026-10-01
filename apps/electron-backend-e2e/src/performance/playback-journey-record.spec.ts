@@ -27,12 +27,13 @@ function measurement(
 ): PlaybackJourneyMeasurement {
     const renderer: JourneyRendererProbeState = {
         capabilities: {
-            changeDetectionTicks: 'unavailable-ng-global-not-published',
+            changeDetectionTicks: 'counted',
             layoutShift: true,
             longTask: true,
             observedTarget: 'documentElement',
         },
         counters: {
+            changeDetectionTicks: 14,
             domMutations: 6_188,
             layoutShiftScore: 0,
             layoutShiftScoreSettled: 0,
@@ -41,6 +42,13 @@ function measurement(
         },
         final: true,
         firstCardPaintEpochMs: 10_360,
+        idle: {
+            domMutations: 0,
+            endEpochMs: null,
+            startEpochMs: null,
+            status: 'disabled',
+            ticks: null,
+        },
         installed: {
             bridgePresent: true,
             documentElementPresent: true,
@@ -156,6 +164,7 @@ test('maps the media-terminated probe, IPC window and mock ledger to exact count
     assert.equal(record.warmup, false);
     assert.equal(record.pid, 5151);
     assert.deepEqual(record.counters, {
+        'renderer.cdTicksToPlaying': 14,
         'renderer.domMutationsToPlaying': 6_188,
         'renderer.httpRequestsToPlaying': 2,
         'renderer.ipcCallsToPlaying': 4,
@@ -263,10 +272,14 @@ test('rejects measurements that did not start at a live channel or did not play 
             withRenderer({
                 capabilities: {
                     ...base.renderer.capabilities,
-                    changeDetectionTicks: 'hook-present-not-counted',
+                    changeDetectionTicks: 'unavailable-counter-missing',
+                },
+                counters: {
+                    ...base.renderer.counters,
+                    changeDetectionTicks: null,
                 },
             }),
-            /cd-hook-hook-present-not-counted/,
+            /cd-ticks-unavailable-counter-missing/,
         ],
     ];
     for (const [input, error] of cases) {
@@ -337,8 +350,8 @@ test('summarizes playback iterations with J3 counters and unavailable reasons', 
     });
     assert.equal(entry.wallClock['clickToPlayingMs.p50'], 349.8);
     assert.equal(entry.wallClock['clickToLoadedMetadataMs.p90'], 95);
+    assert.equal(entry.counters['renderer.cdTicksToPlaying'], 14);
     assert.deepEqual(Object.keys(entry.unavailable).sort(), [
-        'renderer.cdTicksToPlaying',
         'renderer.ipcSerialDepthToPlaying',
     ]);
 });

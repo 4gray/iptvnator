@@ -113,6 +113,8 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
 | `renderer.layoutShiftScore`        | Sum of `layout-shift` entries with `hadRecentInput === false`, rounded to three decimals (a shift of 0.0001 flips in and out of the cutoff between runs; the CLS "good" threshold is 0.1, so three decimals keep the counter exact without hiding anything a user could see). The cutoff is sampled in a timer queued from the first `requestAnimationFrame` after the terminal batch, that is after the frame that paints the card has been committed; entries delivered live after the terminal batch are buffered and filtered by the same cutoff. |
 | `renderer.layoutShiftScoreSettled` | The same filter from navigation start until the settle point after the first card (see [Settle window](#settle-window)), rounded to three decimals. It catches shifts that land after the cutoff, such as skeletons that collapse once their data resolves.                                                                                                                                                                                                                                                                                           |
 | `renderer.longTasks`               | `longtask` entries over 50 ms up to that same cutoff, which includes the task that rendered the card. The count depends on machine speed, so it is evidence until a run shows it is stable on the CI runner.                                                                                                                                                                                                                                                                                                                                          |
+| `renderer.cdTicksToFirstCard`      | `ApplicationRef` ticks from document start until the terminal batch, read from the `electron-performance` build's tick counter (see [Change-detection ticks](#change-detection-ticks)). The tick that rendered the card runs before the observer's microtask, so it is included.                                                                                                                                                                                                                         |
+| `renderer.cdTicksIdle30s`          | Ticks during the 30 s [idle window](#idle-window) that opens at the settle point, with nothing touching the page. The baseline for plan item C6 (zoneless change detection).                                                                                                                                                                                                                                                                                                                          |
 
 #### Settle window
 
@@ -186,6 +188,89 @@ On the Linux CI runner (`Performance journeys` job of #1756, run
 after the first card), and the one hit shows the same two 316 px moves of
 the recent-sources rail.
 
+#### Idle window
+
+After the settle point J1 leaves the dashboard alone for
+`JOURNEY_IDLE_WINDOW_MS` (30 s) and counts what it does anyway:
+`renderer.cdTicksIdle30s` is the number of change-detection ticks in that
+window, and `evidence.idle.domMutations` the mutation records in the whole
+document. The [idle work audit](idle-work-audit-2026-09.md) found Eager
+components re-rendering on every such tick in a dev build; this counter
+measures the ticks in the optimized build, so plan item C6 can show what
+zoneless change detection removes.
+
+The window opens when the settle window closes, so startup data still
+landing is not idle work, and it is timed by a renderer `setTimeout`. The
+record refuses an iteration whose window opened before the settle point or
+more than 100 ms after it (`launch-journey-record-idle-start-late`), or
+lasted less than 30 s, or more than 1 s longer
+(`launch-journey-record-idle-window-late`). The window opens in the settle
+timer's callback while the settle point is that timer's deadline, so a late
+callback would leave ticks between the two outside both windows; either late
+timer means the page was busy, not idle. Locally the window opened 1-4 ms
+after the settle point. `evidence.idle` keeps the measured `durationMs` and
+`settledToIdleStartMs`. The main-process counters and the IPC capture are
+read after the window, which does not move them: they are frozen earlier.
+J2's launches skip the window (`runLaunchJourney` with `idleWindowMs: null`),
+so its click does not wait 30 s; a record without a finished window is
+refused as a J1 measurement.
+
+#### Change-detection ticks
+
+`window.ng` and Angular's profiler hook (`ɵsetProfiler`) exist only in dev
+mode, and the `electron-performance` build is optimized like production. So
+that build alone installs its own counter: its `fileReplacements` entry
+swaps `apps/web/src/environments/environment.ts` for
+`environment.performance.ts`, which re-exports the production `AppConfig`
+and calls `installChangeDetectionTickCounter()` from
+`change-detection-tick-counter.ts` while `main.js` is evaluated, before
+Angular bootstraps. The counter wraps the internal `ApplicationRef._tick`,
+the method every tick runs through: the zone scheduler's `onMicrotaskEmpty`,
+the zoneless scheduler, `afterNextRender` idle buckets and the public
+`ApplicationRef.tick()` all call it, and it is where Angular emits the
+profiler's `ChangeDetectionStart`. The count therefore equals the profiler's
+tick count and stays comparable across the zoneless migration. The running
+total is `window.__iptvnatorCdTicks.count`; the probe subtracts it at the
+journey's boundaries (zero at document start for J1, the value in the
+capture-phase click listener for J2). If a future Angular renames `_tick`,
+the performance build throws at startup instead of reporting zero.
+
+This is a fileReplacements swap rather than an environment flag checked in
+`app.config.ts` on purpose: a flag, even one the optimizer folds, would put
+an import and a branch into the production sources, while the swap leaves
+every file the production and PWA builds compile unchanged. Their output is
+byte-identical with and without the counter (every emitted file hashes the
+same apart from the `ngsw.json` build timestamp), so
+`renderer.initialBytes` cannot move. A build-config test fails if another
+configuration references `environment.performance.ts`. The other benchmarks
+built from `electron-performance` (M3U import, Xtream, cancellation) carry
+the counter too; it adds one increment per tick.
+
+A build without the counter reports
+`capabilities.changeDetectionTicks: "unavailable-counter-missing"` and the
+record refuses the iteration, so a zero is never a missing hook.
+
+First local measurement (macOS, 2026-09-30, three `perf:journeys` runs,
+18 iterations per journey including warm-ups):
+
+| Counter                       | Run 1 | Run 2 | Run 3 |
+| ----------------------------- | ----- | ----- | ----- |
+| `renderer.cdTicksToFirstCard` | 20    | 20    | 21    |
+| `renderer.cdTicksIdle30s`     | 3     | 3     | 3     |
+| `renderer.cdTicksToFirstPage` | 22    | 22    | 22    |
+
+Every run marked all three `stable: true`. `renderer.cdTicksIdle30s` and
+`renderer.cdTicksToFirstPage` were identical in all 18 iterations, and every
+idle window saw 90 mutation records. `renderer.cdTicksToFirstCard` read 20
+in 13 iterations and 21 in the five measured iterations of the third run
+(its warm-up read 20), with every other J1 counter unchanged
+(`renderer.ipcCallsToFirstCard` 14, `renderer.domMutationsToFirstCard` 554).
+With zone.js a tick follows every macrotask that ran in the Angular zone, so
+two startup callbacks that land in one task on one launch and in two tasks
+on another differ by one tick without any different work. Treat a one-tick
+difference in J1 as that race, and confirm on the CI runner that the counter
+is deterministic before it becomes a baseline.
+
 #### Main-process counters
 
 With `IPTVNATOR_PERF_CAPTURE=1`, which the journey sets,
@@ -240,14 +325,8 @@ iteration. When iterations disagree, the summary reports the maximum and marks
 the counter `stable: false` under `counterStability`; such a counter is not
 promoted to a guardrail until it is deterministic.
 
-One counter from the plan is listed under `unavailable` with the reason
-instead of being faked:
-
-- `renderer.cdTicksToFirstCard`: the `electron-performance` build optimizes
-  scripts, which sets `ngDevMode` to false, so Angular does not publish
-  `window.ng` and `ɵsetProfiler` is unavailable. The probe checks this at the
-  terminal moment and the record refuses a build where the hook exists but was
-  not counted.
+No J1 counter from the plan is listed under `unavailable` any more; the
+list stays in the record so a future gap is reported instead of faked.
 
 #### Serial IPC depth
 
@@ -383,6 +462,8 @@ PR that lowers it also lowers `spawnToFirstCardMs` (Principle 3).
   "journeys": {
     "launch": {
       "counters": {
+        "renderer.cdTicksIdle30s": 3,
+        "renderer.cdTicksToFirstCard": 20,
         "renderer.ipcCallsToFirstCard": 12,
         "renderer.layoutShiftScoreSettled": 0.236
       },
@@ -400,7 +481,7 @@ PR that lowers it also lowers `spawnToFirstCardMs` (Principle 3).
         "spawnToFirstCardMs.p50": 1234.5,
         "spawnToFirstCardMs.p90": 1300.1
       },
-      "unavailable": { "renderer.cdTicksToFirstCard": "reason" },
+      "unavailable": {},
       "iterations": [
         {
           "index": 0,
@@ -530,12 +611,12 @@ strings and stream paths carry credentials and are never stored.
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `renderer.ipcCallsToFirstPage`     | Bridge `start` trace events between the start and end sentinels, counted by a second `journey-main-ipc-capture.ts` instance installed with `startSentinelId`. Calls before the start marker are tallied separately (`callsBeforeStart`); a start marker that is missing, repeated or received after the end sentinel fails the iteration.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `renderer.domMutationsToFirstPage` | `MutationRecord`s from the click until the terminal batch. Records produced before the click (hover, settling) are taken from the observer at the start and counted under `evidence.settle` instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `renderer.cdTicksToFirstPage`      | `ApplicationRef` ticks from the click until the terminal batch: the counter's running total read in the capture-phase click listener, before the app handles the click, subtracted from its value at the terminal batch (see [Change-detection ticks](#change-detection-ticks)). |
 | `renderer.layoutShiftScore`        | Sum of all `layout-shift` entries from the click until the post-paint cutoff, rounded to three decimals. Unlike J1 it includes entries with `hadRecentInput === true`: the journey is a response to the click and runs inside the 500 ms input window, so the CLS filter would always read 0. The split is under `evidence.layoutShift`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `renderer.longTasks`               | `longtask` entries over 50 ms whose time range overlaps the window from the click to the cutoff. The task that dispatches the click began before the event's timestamp and still counts; buffered J1 tasks that ended before the click are dropped. Evidence until it is shown to be stable on the CI runner, as for J1.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `main.mockHttpRequestsToSettled`   | Requests the proxy received from the click until, after the terminal batch, no new request had arrived for 1 s and none was in flight (a response slower than that, and what it triggers, stays inside the window). The window ends at the ledger position read by that accepted quiet sample; a request arriving after it was never seen in flight, so it goes to `evidence.httpRequestsAfterSettledByRoute` instead of the counter. The ledger is read 1 s after that sample, so that late traffic is actually observed. The window starts at the renderer's click stamp, the same boundary as every other J2 counter, not when Playwright began its actionability checks; the proxy stamps requests with the test process's wall clock, and both processes read the same host clock. Bounding by the terminal would compare the test process's clock with the renderer's, so the count up to the terminal epoch is evidence only (`evidence.httpRequestsToFirstPage`); `evidence.httpRequestsByRoute` names the requests. |
 
-Two counters are listed under `unavailable`. `renderer.cdTicksToFirstPage`
-is missing for the same reason as its J1 counterpart.
+One counter is listed under `unavailable`.
 `main.sqlStatementsToFirstPage` is missing because the running
 `main.sqlStatements` total that J1 freezes at `ready-to-show` can only be
 read from the test process through the journey gate. It therefore cannot be
@@ -626,6 +707,7 @@ ignored.
 | `renderer.ipcCallsToPlaying`     | Bridge `start` trace events between the start and end sentinels, as `renderer.ipcCallsToFirstPage` in J2.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `renderer.httpRequestsToPlaying` | Requests the ledger proxy received from the click stamp until the `playing` stamp, from either process (the stream request comes from the renderer, Xtream API calls from the main process). Both stamps are `performance.timeOrigin + performance.now()` of processes on the same host clock, as in J2. Unlike J2's counter the window ends at the terminal, not at a quiet mock: a live stream has no quiet end. Later requests are kept as `evidence.httpRequestsAfterPlayingByRoute`, the ones in the window as `evidence.httpRequestsByRoute`. |
 | `renderer.domMutationsToPlaying` | `MutationRecord`s from the click until the `playing` event, including records still queued when it fires.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `renderer.cdTicksToPlaying`      | `ApplicationRef` ticks from the click until the `playing` event, read like `renderer.cdTicksToFirstPage` in J2 (see [Change-detection ticks](#change-detection-ticks)). Not yet measured on a run; the counter shipped after J3's first measurements. |
 | `renderer.layoutShiftScore`      | All `layout-shift` entries from the click until the `playing` event, including `hadRecentInput` ones (as J2), rounded to three decimals. Entries delivered up to the post-paint cutoff are read, but only those that started by the event count.                                                                                                                                                                                                                                                                                                    |
 | `renderer.longTasks`             | `longtask` entries over 50 ms whose time range overlaps the window from the click to the `playing` event, so the task that dispatched the event counts. Evidence until shown to be stable on the runner.                                                                                                                                                                                                                                                                                                                                            |
 
@@ -643,8 +725,7 @@ above a sub-millisecond origin difference. `evidence.httpRequestsAfterPlayingByR
 window of 1 s after `playing` (the test waits that long before reading the
 ledger), not a quiet mock as in J2: a live stream has no quiet end.
 
-Two counters are listed under `unavailable`. `renderer.cdTicksToPlaying` is
-missing for the same reason as in J1 and J2.
+One counter is listed under `unavailable`.
 `renderer.ipcSerialDepthToPlaying` is missing because the serial-depth
 helper (see [Startup work before the first card](#startup-work-before-the-first-card))
 was not on `master` when J3 landed; J3 adopts it once the J1 thread adds it.

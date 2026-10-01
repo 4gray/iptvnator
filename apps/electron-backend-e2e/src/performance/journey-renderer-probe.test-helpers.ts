@@ -155,7 +155,9 @@ export async function settle(ms = 40): Promise<void> {
             const state = read();
             return (
                 state.terminal !== null &&
-                (!state.final || state.settle.status === 'pending')
+                (!state.final ||
+                    state.settle.status === 'pending' ||
+                    state.idle.status === 'pending')
             );
         }) &&
         Date.now() < deadline
