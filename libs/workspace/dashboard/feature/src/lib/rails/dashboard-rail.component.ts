@@ -14,7 +14,7 @@ import {
     viewChild,
     viewChildren,
 } from '@angular/core';
-import { FocusMonitor } from '@angular/cdk/a11y';
+import { InputModalityDetector } from '@angular/cdk/a11y';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -135,7 +135,7 @@ export interface DashboardRailActionSelection {
 })
 export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
-    private readonly focusMonitor = inject(FocusMonitor);
+    private readonly inputModality = inject(InputModalityDetector);
 
     readonly label = input.required<string>();
     readonly items = input.required<DashboardRailCard[]>();
@@ -210,19 +210,10 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
             this.updateScrollState()
         );
         this.resizeObserver.observe(this.track().nativeElement);
-        // Every focus inside the track, with where it came from. A mouse or
-        // touch press focuses the card it lands on too, but scrolling then
-        // would slide the card from under the pointer and lose the click.
-        this.focusMonitor.monitor(this.track(), true).subscribe((origin) => {
-            if (origin === 'keyboard' || origin === 'program') {
-                this.revealFocusedCard();
-            }
-        });
     }
 
     ngOnDestroy(): void {
         this.resizeObserver?.disconnect();
-        this.focusMonitor.stopMonitoring(this.track());
         this.intersectionObserver?.disconnect();
         this.cancelPendingReset();
     }
@@ -296,7 +287,8 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
 
     /**
      * Brings a card that receives keyboard or programmatic focus (Tab or
-     * `focus()`) fully into view.
+     * `focus()`) fully into view; focus that follows a mouse or touch press
+     * leaves the rail where it is.
      * Chromium skips its own focus scroll when 32px or more of the element
      * already shows, which left a card partly hidden under the edge fade
      * when the rail overflows by less than a card. A plain "nearest" scroll
@@ -305,13 +297,19 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
      * snap position that reveals the whole card. The visible area is the
      * viewport, not the track, whose padding bleeds under the fades.
      */
-    private revealFocusedCard(): void {
-        const track = this.track().nativeElement;
+    onTrackFocusIn(event: FocusEvent): void {
+        // A mouse or touch press focuses the card it lands on too, but
+        // scrolling then would slide the card from under the pointer and
+        // lose the click. The detector only listens, so nothing in the DOM
+        // changes before the click itself.
+        const modality = this.inputModality.mostRecentModality;
+        if (modality === 'mouse' || modality === 'touch') return;
         const card =
-            track.ownerDocument.activeElement?.closest<HTMLElement>(
-                '.rail__card'
-            );
-        if (!card || !track.contains(card)) return;
+            event.target instanceof Element
+                ? event.target.closest<HTMLElement>('.rail__card')
+                : null;
+        if (!card) return;
+        const track = this.track().nativeElement;
         const visible = this.viewport().nativeElement.getBoundingClientRect();
         const rect = card.getBoundingClientRect();
         const hiddenLeft = rect.left < visible.left - 1;
