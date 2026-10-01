@@ -270,19 +270,21 @@ export function effectiveDeclarations(reference, candidates, callSites = []) {
         return x.length - y.length;
     };
     const firm = (d) => !d.conditional && !d.fallback;
-    // `!default` assigns only while the name is unset: an unconditional
-    // assignment before it, in its scope or an outer one, wins.
+    // `!default` assigns only while the name is unset, and `null` counts as
+    // unset: the latest unconditional assignment before it, in its scope or
+    // an outer one, wins unless it is `null`.
     const rank = new Map(reference.scopes.map((scope, i) => [scope, i]));
-    const live = candidates.filter(
-        (d) =>
-            !d.fallback ||
-            !candidates.some(
-                (f) =>
-                    firm(f) &&
-                    compare(f, d) < 0 &&
-                    (rank.get(f.scope) ?? -1) >= (rank.get(d.scope) ?? -1)
+    const live = candidates.filter((d) => {
+        if (!d.fallback) return true;
+        const earlier = candidates
+            .filter((f) => firm(f) && compare(f, d) < 0)
+            .filter(
+                (f) => (rank.get(f.scope) ?? -1) >= (rank.get(d.scope) ?? -1)
             )
-    );
+            .sort(compare)
+            .pop();
+        return !earlier || /^null\b/i.test(earlier.value.trim());
+    });
     const inEffect = (here) => {
         const last = here.map(firm).lastIndexOf(true);
         for (const d of last === -1 ? here : here.slice(last)) picked.add(d);

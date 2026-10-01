@@ -992,6 +992,10 @@ test('lets `!default` keep an earlier value', () => {
             '$w: 650; $w: 600; @mixin heading { font-weight: $w; } .title { @include heading; }',
         // A `!default` after a set value never applies, in any scope.
         ignored: '$w: 600; $w: 650 !default; .x { font-weight: $w; }',
+        // `null` counts as unset, so a later `!default` applies.
+        afterNull: '$w: null; $w: 650 !default; .x { font-weight: $w; }',
+        resetToNull:
+            '$w: 600; $w: null; $w: 650 !default; .x { font-weight: $w; }',
         innerIgnored: '$w: 600; .x { $w: 650 !default; font-weight: $w; }',
     };
     const found = Object.fromEntries(
@@ -1008,6 +1012,8 @@ test('lets `!default` keep an earlier value', () => {
         included: [],
         ignored: [],
         innerIgnored: [],
+        afterNull: ['1 $w: 650'],
+        resetToNull: ['1 $w: 650'],
     });
 
     // The partial's default yields to the value its importer set first.
@@ -1227,6 +1233,36 @@ test('renders an imported rule where the @import sits', () => {
 
     assert.deepEqual(report([part, importer]), []);
     assert.deepEqual(report([mixin, caller]), ['libs/g2/c.scss:1 650']);
+});
+
+test('skips a module default its configuration replaces', () => {
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const tokens = scanWeights('libs/w2/_tokens.scss', '$w: 650 !default;');
+    const user = (body) => scanWeights('libs/w2/u.scss', body);
+
+    assert.deepEqual(
+        report([
+            tokens,
+            user(
+                "@use 'tokens' with ($w: 600); .x { font-weight: tokens.$w; }"
+            ),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([
+            tokens,
+            user("@use 'tokens' as * with ($w: 600); .x { font-weight: $w; }"),
+        ]),
+        []
+    );
+    assert.deepEqual(
+        report([tokens, user("@use 'tokens'; .x { font-weight: tokens.$w; }")]),
+        ['libs/w2/_tokens.scss:1 650']
+    );
 });
 
 test('blanks every `//` comment in TypeScript', () => {

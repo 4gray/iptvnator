@@ -488,6 +488,17 @@ export function findIndirectWeights(scans) {
         followed.add(key);
         const members = sass && namespace ? qualified(file, namespace) : null;
         const scope = sass && !namespace ? unqualified(file) : null;
+        // A `with (…)` of this very lookup sets the name, so the module's
+        // `!default` for it never applies here.
+        const configuredHere = definitions.some(
+            (d) =>
+                d.argument &&
+                d.key === name &&
+                d.file === file &&
+                (members ?? scope)
+                    ?.get(file)
+                    ?.ranges.some(([s, e]) => d.index >= s && d.index < e)
+        );
         // In its own file, only the declarations in effect at the reference
         // count; other files' declarations only when those settle nothing.
         const own = scope
@@ -506,6 +517,14 @@ export function findIndirectWeights(scans) {
         const picked = new Set(own?.picked.map((d) => d.original ?? d));
         for (const definition of definitions) {
             if (!exposedAs(definition, members ?? scope, name)) continue;
+            if (
+                configuredHere &&
+                definition.fallback &&
+                !definition.argument &&
+                definition.file !== file
+            ) {
+                continue;
+            }
             if (sass && !definition.argument && !picked.has(definition)) {
                 if (definition.file === file && !members) continue;
                 // Other modules see only top-level (or `!global`) members.
