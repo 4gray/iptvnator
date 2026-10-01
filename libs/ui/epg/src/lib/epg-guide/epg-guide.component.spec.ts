@@ -461,12 +461,13 @@ describe('EpgGuideComponent', () => {
 
         component.onKeydown(keydown('n'));
 
-        // One combined smooth scroll; a reveal after it would cancel it.
+        // One combined smooth scroll; a reveal after it would cancel it. The
+        // focus follows the jump to the playing row.
         expect(scrollTo).toHaveBeenCalledTimes(1);
         expect(scrollTo).toHaveBeenCalledWith(
             expect.objectContaining({ top: 0, behavior: 'smooth' })
         );
-        expect(component.focus()).toEqual({ row: 0, block: 0 });
+        expect(component.focus()).toEqual({ row: 0, block: null });
     });
 
     it('moves the roving focus to a clicked programme card', async () => {

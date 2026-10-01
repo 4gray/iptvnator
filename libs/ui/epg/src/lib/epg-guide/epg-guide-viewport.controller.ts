@@ -2,7 +2,7 @@ import { ListRange } from '@angular/cdk/collections';
 import { DestroyRef } from '@angular/core';
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { filter, take } from 'rxjs';
+import { filter, Subscription, take } from 'rxjs';
 import { TimelineRenderBlock } from '../epg-timeline/epg-timeline-render.util';
 import { EpgGuideFocus } from './epg-guide-keyboard.controller';
 import { EPG_GUIDE_ROW_BUFFER } from './epg-guide-layout.util';
@@ -31,6 +31,8 @@ export interface EpgGuideViewportHost {
     ensureLoaded(channels: readonly EpgGuideChannel[]): void;
     /** Reports the viewport's horizontal offset; drives the ruler and now-line. */
     setScrollLeft(left: number): void;
+    /** Run `callback` after the next render (`afterNextRender`). */
+    afterRender(callback: () => void): void;
 }
 
 /**
@@ -41,6 +43,7 @@ export interface EpgGuideViewportHost {
  */
 export class EpgGuideViewportController {
     private renderedRange: ListRange | null = null;
+    private pendingFocus: Subscription | null = null;
 
     constructor(private readonly host: EpgGuideViewportHost) {}
 
@@ -161,12 +164,41 @@ export class EpgGuideViewportController {
      */
     focusRovingTarget(): void {
         const element = this.host.viewport()?.elementRef.nativeElement;
+        const active = document.activeElement;
+        // Only a focus inside the grid, or one already lost to the page, is
+        // moved: a deferred call must not take it from a control used since.
+        if (active && active !== document.body && !element?.contains(active)) {
+            return;
+        }
         const target = element?.querySelector<HTMLElement>(
             '[data-epg-guide-grid][tabindex="0"]'
         );
         if (typeof target?.focus === 'function') {
             target.focus({ preventScroll: true });
         }
+    }
+
+    /**
+     * `focusRovingTarget` once `row` is rendered. A smooth jump renders a far
+     * row only towards its end, and only a rendered cell can take the focus;
+     * the CDK may recycle the previously focused one meanwhile. Before the
+     * viewport has reported a range (jsdom), the next render is used.
+     */
+    focusRovingTargetOnRow(row: number): void {
+        this.pendingFocus?.unsubscribe();
+        this.pendingFocus = null;
+        const viewport = this.host.viewport();
+        const focus = () =>
+            this.host.afterRender(() => this.focusRovingTarget());
+        const rendered = (range: ListRange | null) =>
+            range === null || (range.start <= row && row < range.end);
+        if (!viewport || rendered(this.renderedRange)) {
+            focus();
+            return;
+        }
+        this.pendingFocus = viewport.renderedRangeStream
+            .pipe(filter(rendered), take(1))
+            .subscribe(focus);
     }
 
     /** Keep the keyboard focus target inside the viewport, both axes. */

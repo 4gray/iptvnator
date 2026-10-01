@@ -183,6 +183,10 @@ test('@epg @electron opens the programme guide with the playlist channels, switc
         );
         await app.mainWindow.keyboard.press('n');
         await expect.poll(() => nowLineInLane(app.mainWindow)).toBe(true);
+        // The keyboard focus follows the jump to the playing row.
+        await expect(
+            rows.nth(0).locator('[data-epg-guide-grid][tabindex="0"]')
+        ).toBeFocused();
 
         // "Only with EPG" hides the silent channel once coverage is known.
         const toggle = guide.locator('.guide-toolbar__toggle input');

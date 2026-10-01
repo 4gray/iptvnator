@@ -106,6 +106,7 @@ function harness(rowCount = 100): Harness {
         activeRow: () => 40,
         ensureLoaded,
         setScrollLeft,
+        afterRender: (callback) => callback(),
     };
     return {
         controller: new EpgGuideViewportController(host),
@@ -285,6 +286,70 @@ describe('EpgGuideViewportController', () => {
 
         outside.remove();
         test.element.remove();
+    });
+
+    it('focuses the roving target only once its row is rendered', () => {
+        const test = harness();
+        test.controller.watch(test.viewport, test.destroyRef);
+        test.renderedRange$.next({ start: 0, end: 20 });
+        const cell = document.createElement('button');
+        cell.setAttribute('data-epg-guide-grid', '');
+        cell.tabIndex = 0;
+        const focus = jest.spyOn(cell, 'focus');
+
+        // A smooth jump to row 40: the row is not rendered yet.
+        test.controller.focusRovingTargetOnRow(40);
+        expect(focus).not.toHaveBeenCalled();
+        test.renderedRange$.next({ start: 20, end: 35 });
+        expect(focus).not.toHaveBeenCalled();
+        test.element.appendChild(cell);
+        test.renderedRange$.next({ start: 30, end: 50 });
+        expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+
+        // Already rendered: focused after the next render, and only once.
+        focus.mockClear();
+        test.controller.focusRovingTargetOnRow(35);
+        expect(focus).toHaveBeenCalledTimes(1);
+        test.renderedRange$.next({ start: 30, end: 60 });
+        expect(focus).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops a pending roving focus when a newer one is requested', () => {
+        const test = harness();
+        test.controller.watch(test.viewport, test.destroyRef);
+        test.renderedRange$.next({ start: 0, end: 20 });
+        const cell = document.createElement('button');
+        cell.setAttribute('data-epg-guide-grid', '');
+        cell.tabIndex = 0;
+        test.element.appendChild(cell);
+        const focus = jest.spyOn(cell, 'focus');
+
+        test.controller.focusRovingTargetOnRow(40);
+        test.controller.focusRovingTargetOnRow(60);
+        focus.mockClear();
+        test.renderedRange$.next({ start: 30, end: 50 });
+        expect(focus).not.toHaveBeenCalled();
+        test.renderedRange$.next({ start: 50, end: 70 });
+        expect(focus).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not take the focus from a control outside the grid', () => {
+        const test = harness();
+        const cell = document.createElement('button');
+        cell.setAttribute('data-epg-guide-grid', '');
+        cell.tabIndex = 0;
+        test.element.appendChild(cell);
+        const focus = jest.spyOn(cell, 'focus');
+        const field = document.createElement('input');
+        document.body.appendChild(field);
+        field.focus();
+        try {
+            test.controller.focusRovingTarget();
+            expect(focus).not.toHaveBeenCalled();
+            expect(document.activeElement).toBe(field);
+        } finally {
+            field.remove();
+        }
     });
 
     it('reveals the focused row and block, and ignores a null focus', () => {
