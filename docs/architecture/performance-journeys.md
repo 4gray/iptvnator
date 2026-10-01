@@ -281,6 +281,17 @@ process before the first card.
   completion bumps `EpgSourceSettingsService.revision()`, the fence that
   keeps XMLTV lookups from returning data of a removed source.
 
+- The main thread must stay free between the load and the first card. The
+  renderer's first database read creates the database worker, and every
+  request waits until the main process has handled the worker's `ready`
+  message. Until #NNNN the login-shell PATH lookup (`fix-path`) ran right
+  after `bootstrap-events:done` and spawned `$SHELL -ilc env` synchronously:
+  on a Mac with a typical zsh profile it held the main thread for about
+  1-2 s, the first `dbGetAppState` resolved about 2.3 s after spawn, and
+  everything after it (about 20 ms of IPC) waited. It now runs the shell
+  asynchronously (`startup/login-shell-path.ts`). On Linux runners bash
+  starts in tens of milliseconds, so the effect there is small.
+
 Validation (#1716, Principle 3): deferring the download list, update status
 and dashboard recent/favorites reads until after the first render took the
 counter from 12 to 7 on a Mac, but moved neither `spawnToFirstCardMs` nor
