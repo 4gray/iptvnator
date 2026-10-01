@@ -33,6 +33,9 @@ export const PLAYBACK_JOURNEY_WALL_CLOCK = {
     CLICK_TO_PLAYING: 'clickToPlayingMs',
 } as const;
 
+/** How long requests after `playing` are observed, for evidence only. */
+export const PLAYBACK_JOURNEY_AFTER_PLAYING_WINDOW_MS = 1_000;
+
 export const PLAYBACK_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
     Record<string, string>
 > = Object.freeze({
@@ -46,7 +49,7 @@ export interface PlaybackJourneyMeasurement {
     /** Logo requests to picsum.photos cancelled in the main process. */
     readonly externalArtworkCancelled: number;
     readonly http: {
-        /** Requests at or after `playing` seen when the ledger was read. */
+        /** Requests in the first second after `playing`. */
         readonly afterPlaying: readonly JourneyMockRequest[];
         /** Mock requests after the app settled but before the click stamp. */
         readonly afterSettleBeforeClick: number;
@@ -63,6 +66,24 @@ export interface PlaybackJourneyMeasurement {
 
 const ROUTE_FRAGMENT = '/workspace/xtreams/';
 const LIVE_STREAM_ROUTE = /^\/live\/:username\/:password\/[^/]+\.ts$/;
+
+/**
+ * Distance of the nearest ledger request to a boundary on either side
+ * (null when there is none). The ledger and the renderer stamp with
+ * different processes' clocks; a small margin flags a count that a clock
+ * difference could move across the boundary.
+ */
+function boundaryMarginMs(
+    before: readonly JourneyMockRequest[],
+    after: readonly JourneyMockRequest[],
+    boundaryEpochMs: number
+): number | null {
+    const distances = [
+        ...before.map((entry) => boundaryEpochMs - entry.epochMs),
+        ...after.map((entry) => entry.epochMs - boundaryEpochMs),
+    ];
+    return distances.length === 0 ? null : roundTenth(Math.min(...distances));
+}
 
 function roundTenth(value: number): number {
     return Math.round(value * 10) / 10;
@@ -160,6 +181,18 @@ export function toPlaybackIterationRecord(
                 http.beforeClick
             ),
             httpRequestsByRoute: countJourneyMockRoutes(http.toPlaying),
+            httpBoundaryMarginsMs: Object.freeze({
+                click: boundaryMarginMs(
+                    http.beforeClick,
+                    http.toPlaying,
+                    start.epochMs
+                ),
+                playing: boundaryMarginMs(
+                    http.toPlaying,
+                    http.afterPlaying,
+                    terminal.epochMs
+                ),
+            }),
             ipcCallsAfterPlaying: ipc.callsAfterSentinel,
             ipcCallsByMethod: ipc.callsByMethod,
             layoutShift: Object.freeze({

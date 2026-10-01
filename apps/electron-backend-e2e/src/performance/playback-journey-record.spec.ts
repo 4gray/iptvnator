@@ -193,6 +193,12 @@ test('maps the media-terminated probe, IPC window and mock ledger to exact count
         mainIpcStart: 10_001,
         playing: 10_349.84,
     });
+    // Click 10,000: last request before at 8,000, first after at 10,020.
+    // Playing 10,349.84: last before at 10,030, first after at 10,400.
+    assert.deepEqual(record.evidence['httpBoundaryMarginsMs'], {
+        click: 20,
+        playing: 50.2,
+    });
     assert.equal(record.evidence['externalArtworkCancelled'], 8);
     assert.equal(record.evidence['ipcCallsAfterPlaying'], 3);
 });

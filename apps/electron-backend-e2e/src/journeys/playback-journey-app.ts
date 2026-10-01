@@ -1,7 +1,10 @@
 import type { ElectronApplication, Page } from '@playwright/test';
 
 import { configureLiveFormat } from '../xtream-live-format.fixture';
-import { waitForJourneyClickQuiet } from '../performance/journey-click-settle';
+import {
+    JOURNEY_CLICK_QUIET_MS,
+    waitForJourneyClickQuiet,
+} from '../performance/journey-click-settle';
 import {
     detachJourneyMainIpcCapture,
     installJourneyMainIpcCapture,
@@ -16,7 +19,10 @@ import {
     JOURNEY_OPEN_SOURCE_START_SELECTOR,
     waitForJourneyRendererProbe,
 } from '../performance/journey-renderer-probe';
-import type { PlaybackJourneyMeasurement } from '../performance/playback-journey-record';
+import {
+    PLAYBACK_JOURNEY_AFTER_PLAYING_WINDOW_MS,
+    type PlaybackJourneyMeasurement,
+} from '../performance/playback-journey-record';
 import type {
     LaunchJourneySeedOptions,
     LaunchJourneySession,
@@ -174,8 +180,19 @@ export async function measurePlaybackJourney(
     if (clickEpochMs === undefined || playingEpochMs === undefined) {
         throw new Error('playback-journey-probe-incomplete');
     }
+    // A live stream never leaves the mock quiet, so instead of J2's quiet
+    // wait the ledger is watched for a fixed window after `playing`.
+    const afterPlayingUntilEpochMs =
+        playingEpochMs + PLAYBACK_JOURNEY_AFTER_PLAYING_WINDOW_MS;
+    const remainingMs =
+        afterPlayingUntilEpochMs - (performance.timeOrigin + performance.now());
+    if (remainingMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remainingMs));
+    }
     // The ledger stamps arrivals with this process's clock, the probe with
-    // the renderer's; both read the same host clock (as in J2).
+    // the renderer's; both read the same host clock (as in J2). The record
+    // keeps the distance of the nearest request to each boundary, so a
+    // count that a small clock difference could flip is visible.
     const sinceSpawn = ledger.since(spawnLedgerMark);
     const beforeClick = sinceSpawn.filter(
         (entry) => entry.epochMs < clickEpochMs
@@ -185,7 +202,9 @@ export async function measurePlaybackJourney(
             await readCancelledExternalArtwork(electronApp),
         http: {
             afterPlaying: sinceSpawn.filter(
-                (entry) => entry.epochMs >= playingEpochMs
+                (entry) =>
+                    entry.epochMs >= playingEpochMs &&
+                    entry.epochMs < afterPlayingUntilEpochMs
             ),
             afterSettleBeforeClick: beforeClick.filter(
                 (entry) => entry.sequence >= settledLedgerMark

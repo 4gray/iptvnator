@@ -552,6 +552,20 @@ ignored.
 | `renderer.layoutShiftScore`      | All `layout-shift` entries from the click until the `playing` event, including `hadRecentInput` ones (as J2), rounded to three decimals. Entries delivered up to the post-paint cutoff are read, but only those that started by the event count.                                                                                                                                                                                                                                                                                                    |
 | `renderer.longTasks`             | `longtask` entries over 50 ms whose time range overlaps the window from the click to the `playing` event, so the task that dispatched the event counts. Evidence until shown to be stable on the runner.                                                                                                                                                                                                                                                                                                                                            |
 
+`renderer.httpRequestsToPlaying` compares the ledger's arrival stamps
+(test process) with the renderer's click and `playing` stamps. Both are
+`performance.timeOrigin + performance.now()` on the same host clock, but the
+two processes' time origins can differ by a fraction of a millisecond, so
+every iteration records `evidence.httpBoundaryMarginsMs`: the distance of
+the nearest request on either side of the click and of `playing`. A margin
+of a few milliseconds means a clock difference could move that request
+across the boundary. Locally the first request after the click arrives 3-6
+ms after its stamp (the click causes it, so it cannot precede the click) and
+the nearest request to `playing` is more than 170 ms away; both are well
+above a sub-millisecond origin difference. `evidence.httpRequestsAfterPlayingByRoute` covers a fixed
+window of 1 s after `playing` (the test waits that long before reading the
+ledger), not a quiet mock as in J2: a live stream has no quiet end.
+
 Two counters are listed under `unavailable`. `renderer.cdTicksToPlaying` is
 missing for the same reason as in J1 and J2.
 `renderer.ipcSerialDepthToPlaying` is missing because the serial-depth
