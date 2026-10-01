@@ -38,6 +38,7 @@ function measurement(
         invalidReasons: [],
         journey: 'launch',
         longTaskDurationsMs: [71.26, 120.04],
+        media: null,
         navigation: {
             domContentLoadedEpochMs: 1_300,
             loadEventEndEpochMs: 1_400.26,
