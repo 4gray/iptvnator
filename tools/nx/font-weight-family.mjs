@@ -591,6 +591,15 @@ export function startsDeclaration(text, index) {
 
 /** An `@include` of a mixin in this file (`ns.mixin` is another file's). */
 const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
+const CONTENT = /@content\b/g;
+
+/**
+ * Where a landing applies among those at one place: a content block's at
+ * its `@content` in the mixin (`{ place, within }`), else the
+ * declaration's own `index`.
+ */
+export const placeIn = (order, index) =>
+    order ? order.place + order.within / 2 : index;
 
 /**
  * The family each rule sets (every block with one of its selector chains,
@@ -623,6 +632,34 @@ export function familiesOf(
         return block?.kind === 'callable'
             ? (includes.get(block.name) ?? [])
             : [];
+    };
+    // A content block (`@include m { … }`) passed to a mixin of this file
+    // that places `@content` at its top level is the including rule's
+    // there: its declarations land at the `@include`, in order where each
+    // `@content` sits in `m`. One placed deeper (in a nested rule or
+    // `@media`) is not traced, as the mixin's own nested blocks are not.
+    const contentOf = (scope) => {
+        const block = blocks.find((b) => b.start === scope);
+        const named = /^@include\s+([\w-]+)/i.exec(block?.prelude ?? '');
+        if (!named) return null;
+        const name = named[1].replace(/_/g, '-');
+        const places = blocks
+            .filter((b) => b.kind === 'callable' && b.name === name)
+            .filter((b) => /^@mixin\b/i.test(b.prelude))
+            .flatMap((mixin) =>
+                [...lexed.text.slice(mixin.start, mixin.end).matchAll(CONTENT)]
+                    .map((match) => mixin.start + match.index)
+                    .filter((index) => !inString(index))
+                    .filter(
+                        (index) => placeOf(blocks, index).scope === mixin.start
+                    )
+            );
+        const site = Math.max(
+            ...(includes.get(name) ?? []).filter((index) => index < scope)
+        );
+        return places.length && Number.isFinite(site)
+            ? { block, places, site }
+            : null;
     };
     // Cascade layers in declared order within their parent layer: as
     // `@layer a, b;` names them, or as a `@layer name { … }` block first
@@ -731,17 +768,32 @@ export function familiesOf(
     // through each `@include` of a mixin (one included in another mixin
     // goes on to that one's includes) or `@extend` of a rule, theirs.
     // A cycle stops on its own path, so each `@include` of a mixin, two in
-    // one rule included, is a landing of its own.
-    const landingsOf = (scope, at, path = []) => {
+    // one rule included, is a landing of its own. Landings at one place
+    // apply in `order` (the declaration's own place unless set).
+    const landingsOf = (scope, at, path = [], order = null) => {
         if (path.includes(scope)) return [];
         const next = [...path, scope];
+        const content = contentOf(scope);
+        if (content) {
+            const { block, places, site } = content;
+            const within = Math.min(
+                Math.max((at - block.start) / (block.end - block.start), 0),
+                1
+            );
+            return places.flatMap((place) =>
+                landingsOf(placeOf(blocks, site).scope, site, next, {
+                    place,
+                    within,
+                })
+            );
+        }
         return [
-            { at, scope, rules: rulesOf(scope) },
+            { at, scope, rules: rulesOf(scope), order },
             ...sitesOf(scope).flatMap((site) =>
-                landingsOf(placeOf(blocks, site).scope, site, next)
+                landingsOf(placeOf(blocks, site).scope, site, next, order)
             ),
             ...extendersOf(scope).flatMap((extender) =>
-                landingsOf(extender.scope, at, next)
+                landingsOf(extender.scope, at, next, order)
             ),
         ];
     };
@@ -800,7 +852,12 @@ export function familiesOf(
         }
     }
     // Keyed by rule, so a later block with one of its selectors wins.
-    applied.sort((a, b) => a.at - b.at);
+    applied.sort(
+        (a, b) =>
+            a.at - b.at ||
+            placeIn(a.order, a.entry.at.index) -
+                placeIn(b.order, b.entry.at.index)
+    );
     // Where each rule's family was set, for the cascade between rules.
     const orderOf = new Map();
     for (const { rules, entry, at } of applied) {
@@ -979,6 +1036,9 @@ export function familiesOf(
         const scope = fontNamespaceRule(blocks, place) ?? place.scope;
         if (seen.has(scope)) return [];
         seen.add(scope);
+        // A content block's declaration meets the family at its `@include`.
+        const content = contentOf(scope);
+        if (content) return familyAt(content.site, keep, seen);
         const block = blocks.find((b) => b.start === scope);
         const includes = sitesOf(scope);
         const extended = extendersOf(scope).map((extender) => extender.index);

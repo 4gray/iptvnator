@@ -41,6 +41,7 @@ import {
     fontNamespaceRule,
     hasLiteralSize,
     parsesAsFont,
+    placeIn,
     plainHost,
     reachDepth,
     selectorList,
@@ -88,18 +89,20 @@ import {
  * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
  * written out or through variables, or one a nested rule inherits; see
  * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A mixin's top-level
- * declarations land where this file includes it, and a rule this file
+ * declarations land where this file includes it, a content block's too where
+ * the mixin places `@content` at its top level, and a rule this file
  * `@extend`s whole applies to its extenders. A rule on a single compound
  * also sets the family of compounds that contain it (`.x` for `.x:hover`,
  * `:is()`/`:where()` opened); of those, the element's own rule and `*`, the
- * cascade winner counts (`!important`, layer, specificity, source order;
- * a `@layer` always applies). Without
- * a family of its own, a rule takes one from an ancestor its compiled
- * selector names (in its `@media`, or always), else from the document root
- * (`:host`, `body`, `html`, `:root`) in its file.
+ * cascade winner counts (`!important`, layer, specificity, source order; a
+ * `@layer` always applies). Without a family of its own, a rule takes one
+ * from an ancestor its compiled selector names (in its `@media`, or always),
+ * else from the document root (`:host`, `body`, `html`, `:root`) in its
+ * file.
  *
  * Not traced: global styles in another file, a weight inherited from
- * another rule, a mixin from another module, a family set on an element
+ * another rule, a mixin from another module, a mixin's nested rules and
+ * at-rules (and a `@content` placed in one), a family set on an element
  * from code, and one that reaches only some of a rule's elements (a more
  * specific `.x.active`, or `@extend .m` into `.m.active`).
  */
@@ -1031,10 +1034,11 @@ export function scanWeights(file, written) {
     // A weight declaration registers in each rule it lands in (a mixin's
     // where it is included), at the place it lands.
     const setAt = (index, important) => {
-        for (const { at, rules } of monoAt.landings(index)) {
+        for (const { at, rules, order } of monoAt.landings(index)) {
+            const place = placeIn(order, index);
             for (const rule of rules) {
                 if (!setters.has(rule)) setters.set(rule, []);
-                setters.get(rule).push({ at, index, important });
+                setters.get(rule).push({ at, place, index, important });
             }
         }
     };
@@ -1071,13 +1075,17 @@ export function scanWeights(file, written) {
     // A weight is in effect where, in a rule it lands in, nothing later
     // replaces it and nothing earlier outranks it (`!important`): the
     // scopes of those landings, the only ones whose family it meets.
-    const after = (a, b) => a.at > b.at || (a.at === b.at && a.index > b.index);
+    const after = (a, b) => a.at > b.at || (a.at === b.at && a.place > b.place);
     const effectiveIn = (index) => {
-        const landings = monoAt.landings(index).filter(({ at, rules }) =>
+        const landings = monoAt.landings(index).filter(({ at, rules, order }) =>
             rules.some((id) => {
                 const rule = setters.get(id) ?? [];
+                const place = placeIn(order, index);
                 const own = rule.find(
-                    (setter) => setter.index === index && setter.at === at
+                    (setter) =>
+                        setter.index === index &&
+                        setter.at === at &&
+                        setter.place === place
                 );
                 return (
                     Boolean(own) &&

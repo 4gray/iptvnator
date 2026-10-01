@@ -3855,6 +3855,65 @@ test('reads mixin weights where they land, through nested includes', () => {
             `@mixin m { font: { weight: 700; } } .x { font-family: ${mono}; @include m; }`,
             ['weight: 700'],
         ],
+        // A content block is the including rule's where the mixin places
+        // `@content` at its top level, in order there.
+        [
+            `@mixin w { font-weight: 700; @content; } .x { @include w { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin w { font-family: ${mono}; @content; } .x { @include w { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin w { font-weight: 700; @content; } .x { font-family: Roboto; @include w { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin w { font-weight: 700; @content; } .x { @include w { font-family: ${mono}; } font-family: Roboto; }`,
+            [],
+        ],
+        [
+            `@mixin w { @content; font-family: Roboto; } .x { font-weight: 700; @include w { font-family: ${mono}; } }`,
+            [],
+        ],
+        [
+            `@mixin w { @content; font-weight: 500; } .x { font-family: ${mono}; @include w { font-weight: 700; } }`,
+            [],
+        ],
+        [
+            `@mixin w { font-weight: 500; @content; } .x { font-family: ${mono}; @include w { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin w { @content; } .x { font-family: ${mono}; @include w { font-weight: 700; } font-weight: 500; }`,
+            [],
+        ],
+        [
+            `@mixin w { @if true { @content; } } .x { font-weight: 700; @include w { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin w { font-weight: 700; @content; } @mixin outer { @include w { font-family: ${mono}; } } .x { @include outer; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin w { @content; } .a { @include w { font-family: ${mono}; } } .b { font-weight: 700; @include w { font-family: Roboto; } }`,
+            [],
+        ],
+        [
+            `@mixin w { @content; font-weight: 500; @content; } .x { font-family: ${mono}; @include w { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@mixin w { @content; } .a { font-family: ${mono}; @include w { font-weight: 700; } } .b { @include w { font-weight: 500; } }`,
+            ['font-weight: 700'],
+        ],
+        // Placed in a nested rule, it styles another element.
+        [
+            `@mixin w { font-weight: 700; .inner { @content; } } .x { @include w { font-family: ${mono}; } }`,
+            [],
+        ],
         // A placeholder styles nothing where it is written; a class still does.
         [
             `%h { font-family: ${mono}; font-weight: 700; } .x { @extend %h; font-family: Roboto; }`,
