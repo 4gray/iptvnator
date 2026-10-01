@@ -776,6 +776,11 @@ tag a language at all, so in practice it is usually silent — which is the
 honest state, and the same one the rest of this feature takes when it does not
 know.
 
+Undetermined language tags (`und`, including regional forms such as `und-US`)
+are explicitly treated as unknown after normalization. This must hold whether
+the runtime's `Intl.Locale` returns no language or preserves `und`: neither
+case establishes a factual dub difference against a known language.
+
 Switching sources through `startResolvedPlayback` closes the external session
 it LAUNCHED first — tracked separately so refreshes and overlapping handoffs
 cannot disown it within the same route session. The retained identity is ignored
