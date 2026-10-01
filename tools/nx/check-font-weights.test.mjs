@@ -3506,6 +3506,125 @@ test('reads a non-inheriting registered property and a compound root', () => {
     }
 });
 
+test('reads a Sass `@extend` as the extended rule applied to its own', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (body) =>
+        findOffScaleWeights('libs/s8/a.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // The extended rule's family, where that rule is written.
+        [
+            `%mono { font-family: ${mono}; } .x { @extend %mono; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.m { font-family: ${mono}; } .x { @extend .m; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `%mono { font-family: ${mono}; } .x { @extend %mono !optional; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `%mono { font-family: ${mono}; } .x { @extend %mono; .y { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: Roboto; @extend %mono; font-weight: 700; } %mono { font-family: ${mono}; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `%mono { font-family: ${mono}; } .x { font-family: Roboto; @extend %mono; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `%mono { font-family: ${mono}; } .x { @extend %other; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `%mono { font-family: ${mono}; } .x { content: "@extend %mono;"; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.m { font-family: ${mono}; } .x { @extend .n, .m; font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        // Its weight, against each extending rule's family.
+        [
+            `%heavy { font-weight: 700; } .x { font-family: ${mono}; @extend %heavy; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `%heavy { font-weight: 700; } .x { font-family: Roboto; @extend %heavy; }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
+test('reads custom properties per selector of a reading list', () => {
+    const mono = "'JetBrains Mono'";
+    const read = 'font-family: var(--face); font-weight: 700;';
+    const report = (body) =>
+        findOffScaleWeights('libs/s8/b.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    // Each selector of `.x, .y` styles its own elements: an override for
+    // one, or no value of its own there, decides that selector alone.
+    for (const [source, expected] of [
+        [
+            `.x, .y { --face: Roboto; } .y { --face: ${mono}; } .x, .y { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x, .y { --face: ${mono}; } .y { --face: Roboto; } .x, .y { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x, .y { --face: ${mono}; } .x { --face: Roboto; } .y { --face: Roboto; } .x, .y { ${read} }`,
+            [],
+        ],
+        [
+            `:root { --face: ${mono}; } .x { --face: Roboto; } .x, .y { ${read} }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `:root { --face: Roboto; } .x { --face: Roboto; } .x, .y { ${read} }`,
+            [],
+        ],
+        [
+            `:root { --face: ${mono}; } .x, .y { --face: Roboto; } .x, .y { ${read} }`,
+            [],
+        ],
+        // Every selector setting its own leaves no room for another rule's,
+        // and one replaced for a selector is gone there.
+        [
+            `.z { --face: ${mono}; } .x { --face: Roboto; } .y { --face: Roboto; } .x, .y { ${read} }`,
+            [],
+        ],
+        [
+            `.x, .z { --face: ${mono}; } .x { --face: Roboto; } .y { --face: Roboto; } .x, .y { ${read} }`,
+            [],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+    // A value set from code reads others through `var()`, with no selector.
+    assert.deepEqual(
+        findIndirectWeights([
+            scanWeights(
+                'libs/s8/x.component.ts',
+                "el.style.setProperty('--face', 'var(--brand)');"
+            ),
+            scanWeights('libs/s8/theme.scss', `:root { --brand: ${mono}; }`),
+            scanWeights('libs/s8/c.scss', `.x { ${read} }`),
+        ]).map(({ value }) => value),
+        ['700']
+    );
+});
+
 test('reads template literals set from code', () => {
     const component = [
         "renderer.setStyle(el, 'font-weight', `65${0}`);",

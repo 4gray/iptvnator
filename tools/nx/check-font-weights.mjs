@@ -87,7 +87,8 @@ import {
  * written out or through variables, or one a nested rule inherits; see
  * `familiesOf`) is capped at `MONO_WEIGHT_CAP`, as is a flat descendant
  * (`.parent .child`) of a top-level rule that sets it. A mixin's top-level
- * declarations land where this file includes it. A weight it inherits from
+ * declarations land where this file includes it, and a rule this file
+ * `@extend`s whole applies to its extenders. A weight it inherits from
  * another rule, a mixin from another module, and a family set on an
  * element from code, are not traced.
  */
@@ -1775,9 +1776,9 @@ export function findIndirectWeights(scans) {
     // with its selector in its file (see `selectorOf`), under no condition
     // the reader does not share, to a value of its own. It replaces what
     // those elements inherit.
-    const setsOwn = (definition, reference) =>
+    const setsOwn = (definition, reference, chains = reference.selectors) =>
         definition.file === reference.file &&
-        covers(definition.selectors, reference.selectors) &&
+        covers(definition.selectors, chains) &&
         !INHERITING.test((definition.full ?? definition.value).trim()) &&
         (definition.guards ?? []).every((guard) =>
             (reference.guards ?? []).includes(guard)
@@ -1832,20 +1833,26 @@ export function findIndirectWeights(scans) {
         // those the nearest settled one hides the farther (see `nearest`);
         // one set from code (an inline style) may still win over either.
         const visible = visibleDefinitions(reference);
-        const custom = name.startsWith('--');
-        // One replaced for each of the reader's selectors sets nothing there.
-        const own = custom
-            ? visible.filter(
-                  (definition) =>
-                      setsOwn(definition, reference) &&
-                      !replacedFor(definition, reference.selectors)
-              )
-            : [];
-        const definitions = own.length
-            ? visible.filter((d) => d.code || own.includes(d))
-            : custom
-              ? nearest(visible, reference)
-              : visible;
+        let definitions = visible;
+        if (name.startsWith('--')) {
+            // Each of the reader's selectors (`.x, .y`) is its own elements:
+            // a value one sets there, and not replaced there, hides what
+            // those inherit, while one with none of its own inherits.
+            const chains = reference.selectors ?? [];
+            const ownFor = chains.map((chain) =>
+                visible.filter(
+                    (definition) =>
+                        setsOwn(definition, reference, [chain]) &&
+                        !replacedFor(definition, [chain])
+                )
+            );
+            const inherited =
+                !chains.length || ownFor.some((own) => !own.length)
+                    ? nearest(visible, reference)
+                    : [];
+            const kept = new Set([...ownFor.flat(), ...inherited]);
+            definitions = visible.filter((d) => d.code || kept.has(d));
+        }
         // A value set from code holds the text of its strings.
         const verdicts = definitions.flatMap((definition) =>
             (definition.code

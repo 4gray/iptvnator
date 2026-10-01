@@ -439,6 +439,9 @@ function inherits(prelude) {
     });
 }
 
+/** An `@extend` of whole selectors (`%mono`, `.a, .b`), `!optional` aside. */
+const EXTEND = /@extend\s+([^;{}!]+?)\s*(?:!\s*optional\s*)?[;}]/gi;
+
 /** An `@include` of a mixin in this file (`ns.mixin` is another file's). */
 const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
 
@@ -474,6 +477,21 @@ export function familiesOf(
             ? (includes.get(block.name) ?? [])
             : [];
     };
+    // This file's `@extend`s, by the top-level rule they extend: that rule's
+    // declarations apply to the extending rule too, where they are written.
+    const extenders = new Map();
+    for (const match of lexed.text.matchAll(EXTEND)) {
+        if (inString(match.index)) continue;
+        const { scope } = placeOf(blocks, match.index);
+        for (const target of selectorsOf(match[1]).map(canonicalSelector)) {
+            if (!extenders.has(target)) extenders.set(target, []);
+            extenders.get(target).push({ index: match.index, scope });
+        }
+    }
+    const extendersOf = (scope) =>
+        rulesOf(scope)
+            .filter((rule) => rule.endsWith(' | ') && !rule.includes(' < '))
+            .flatMap((rule) => extenders.get(rule.slice(0, -3)) ?? []);
     // Each declaration, where it applies, in source order.
     const applied = [];
     for (const match of lexed.text.matchAll(FONT_FAMILY)) {
@@ -508,6 +526,10 @@ export function familiesOf(
         for (const site of sitesOf(scope)) {
             const rules = rulesOf(placeOf(blocks, site).scope);
             applied.push({ at: site, rules, entry });
+        }
+        for (const extender of extendersOf(scope)) {
+            const rules = rulesOf(extender.scope);
+            applied.push({ at: match.index, rules, entry });
         }
     }
     // Keyed by rule, so a later block with one of its selectors wins.
@@ -558,12 +580,16 @@ export function familiesOf(
         const outer = around.filter((b) => !b.prelude.startsWith('@')).at(-1);
         return outer ? fromAncestors(outer.prelude) : NONE;
     };
-    // A weight in a mixin's body meets its own family, else the family of
-    // each rule that includes it.
+    // A weight in a mixin's body, or in a rule others extend, meets its own
+    // family, else the family of each rule that includes or extends it.
     return (index) => {
         const own = lookup(index);
         if (own !== NONE) return own;
-        const sites = sitesOf(placeOf(blocks, index).scope).map(lookup);
+        const { scope } = placeOf(blocks, index);
+        const sites = [
+            ...sitesOf(scope),
+            ...extendersOf(scope).map((extender) => extender.index),
+        ].map(lookup);
         return (
             sites.find((site) => site.mono) ??
             sites.find((site) => site.refs.length > 0) ??
