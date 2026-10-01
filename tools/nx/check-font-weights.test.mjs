@@ -4201,6 +4201,24 @@ test('reads a complex rule as a base of the narrower ones it reaches', () => {
             `.a .b .c .x { font-family: ${mono}; } .a .c .b .x { font-weight: 700; }`,
             [],
         ],
+        // A simple selector however it is spelled.
+        [
+            `.x { font-family: ${mono}; } [class~="x"] { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `#x { font-family: ${mono}; } [id="x"] { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `[ data-a = '1' ] { font-family: ${mono}; } [data-a="1"].on { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `div { font-family: ${mono}; } DIV.x { font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [`[class="x"] { font-family: ${mono}; } .x { font-weight: 700; }`, []],
         // As an ancestor's rule, and ranked in the cascade.
         [
             `.parent .x { font-family: ${mono}; } .parent .x:hover .c { font-weight: 700; }`,

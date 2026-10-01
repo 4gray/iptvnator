@@ -504,6 +504,29 @@ function simplesOf(compound) {
     return simples;
 }
 
+const ATTRIBUTE =
+    /^\[\s*([\w-]+)\s*(?:([~|^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\s'"\]]+))\s*)?\]$/;
+
+/**
+ * A simple selector as the elements it matches, spelled one way for
+ * comparing (not ranking): a type lowercased, an attribute's quotes and
+ * spaces dropped, and `[class~=x]` read as `.x` and `[id=x]` as `#x`.
+ */
+function matchKey(simple) {
+    const attribute = ATTRIBUTE.exec(simple);
+    if (!attribute) {
+        return /^[a-z][\w-]*$/i.test(simple) ? simple.toLowerCase() : simple;
+    }
+    const [, written, operator, double, single, bare] = attribute;
+    const name = written.toLowerCase();
+    if (!operator) return `[${name}]`;
+    const value = double ?? single ?? bare;
+    const word = /^[\w-]+$/.test(value);
+    if (word && name === 'class' && operator === '~=') return `.${value}`;
+    if (word && name === 'id' && operator === '=') return `#${value}`;
+    return `[${name}${operator}${JSON.stringify(value)}]`;
+}
+
 /** A functional pseudo-class and its argument (`:is(.x, .y)`). */
 const FUNCTIONAL = /^:([\w-]+)\(([\s\S]*)\)$/;
 
@@ -1130,10 +1153,11 @@ export function familiesOf(
     const covers = (base, selector, way) => {
         const reader = compoundsOf(selector);
         const within = (part, k) => {
-            const simples =
-                k === reader.length - 1 ? way : simplesOf(reader[k].compound);
+            const simples = (
+                k === reader.length - 1 ? way : simplesOf(reader[k].compound)
+            )?.map(matchKey);
             return part.ways.some((ways) =>
-                ways.every((s) => s === '*' || simples?.includes(s))
+                ways.every((s) => s === '*' || simples?.includes(matchKey(s)))
             );
         };
         // With `chain[i]` at the reader's `k`, whether the compounds before
