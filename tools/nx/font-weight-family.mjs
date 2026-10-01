@@ -74,6 +74,17 @@ function selectorsOf(prelude) {
 }
 
 /**
+ * Whether a rule's custom properties reach every element: `:root`, `html`,
+ * `body` or `*` (a component's `:host` reaches only its own view).
+ */
+export function reachesEverything(prelude) {
+    if (!prelude) return false;
+    return selectorsOf(prelude).some((selector) =>
+        /^(?::root|html|body|\*)$/i.test(selector)
+    );
+}
+
+/**
  * Whether a nested rule styles its parent's element or a descendant, which
  * inherit the parent's family: `&:hover`, `.child`, `> .child`, or a
  * `@media` or `@include` body. A `&-suffix` class and a `+`/`~` sibling are
@@ -112,6 +123,9 @@ export function familiesOf(lexed, blocks, { inString, placeOf, refsIn }) {
             inherit: /^\s*(?:inherit|unset)\b/i.test(value),
             mono: MONO_FAMILY.test(parts.outside),
             refs: refsIn(parts, match.index, place),
+            // The whole family and where it sits, to resolve it later.
+            text: value,
+            at: { index: match.index, ...place },
         });
     }
     return (index) => {

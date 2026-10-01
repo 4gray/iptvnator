@@ -2028,6 +2028,93 @@ test('resolves a JetBrains Mono family named through variables', () => {
     );
 });
 
+test('reads custom properties as the cascade applies them', () => {
+    const read = '.x { font-weight: var(--w); }';
+    // A later declaration in the same rule replaces an earlier one.
+    assert.deepEqual(
+        offScale('libs/m5/a.scss', `:root { --w: 650; --w: 600; } ${read}`),
+        []
+    );
+    for (const rule of [
+        ':root { --w: 650 !important; --w: 600; }',
+        ':root { --w: 650; @if $a { --w: 600; } }',
+    ]) {
+        assert.deepEqual(offScale('libs/m5/a.scss', `${rule} ${read}`), [
+            '1 --w: 650',
+        ]);
+    }
+
+    // A fallback stays live unless a rule that reaches the reading rule
+    // sets the property: `:root`, the rule itself, an enclosing one, or the
+    // component's `:host`.
+    const mono =
+        "font-family: var(--face, 'JetBrains Mono'); font-weight: 700;";
+    const report = (scans) =>
+        findIndirectWeights(scans).map(
+            ({ file, line, value }) => `${file}:${line} ${value}`
+        );
+    const rule = (body) => scanWeights('libs/m5/rule.scss', body);
+    assert.deepEqual(report([rule(`.a { --face: Roboto; } .b { ${mono} }`)]), [
+        'libs/m5/rule.scss:1 700',
+    ]);
+    for (const body of [
+        `.b { --face: Roboto; ${mono} }`,
+        `.a { --face: Roboto; .b { ${mono} } }`,
+        `:host { --face: Roboto; } .b { ${mono} }`,
+        `html, .theme { --face: Roboto; } .b { ${mono} }`,
+    ]) {
+        assert.deepEqual(report([rule(body)]), []);
+    }
+    assert.deepEqual(
+        report([
+            scanWeights('libs/m5/other.scss', ':host { --face: Roboto; }'),
+            rule(`.b { ${mono} }`),
+        ]),
+        ['libs/m5/rule.scss:1 700']
+    );
+});
+
+test('reads a family Sass assembles from variables', () => {
+    const report = (body) =>
+        findIndirectWeights([scanWeights('libs/m5/s.scss', body)]).map(
+            ({ line, value }) => `${line} ${value}`
+        );
+    const weight = 'font-weight: 700;';
+
+    assert.deepEqual(
+        report(
+            `$prefix: JetBrains; .x { font-family: '#{$prefix} Mono'; ${weight} }`
+        ),
+        ['1 700']
+    );
+    assert.deepEqual(
+        report(
+            `$a: 'JetBrains'; $b: Mono; .x { font-family: $a $b, monospace; ${weight} }`
+        ),
+        ['1 700']
+    );
+    assert.deepEqual(
+        report(
+            `$base: JetBrains; $prefix: $base; .x { font-family: '#{$prefix} Mono'; ${weight} }`
+        ),
+        ['1 700']
+    );
+    assert.deepEqual(
+        report(
+            `$prefix: Roboto; .x { font-family: '#{$prefix} Mono'; ${weight} }`
+        ),
+        []
+    );
+    // A package module's variable cannot be resolved; the name written
+    // beside it still counts.
+    assert.deepEqual(
+        report(
+            `@use 'pkg:lib' as lib; $mono: 'JetBrains Mono', lib.$rest; .x { font-family: $mono; ${weight} }`
+        ),
+        ['1 700']
+    );
+});
+
 test('caps the weights a JetBrains Mono rule reads through variables', () => {
     const mono = "font-family: 'JetBrains Mono'";
     assert.deepEqual(

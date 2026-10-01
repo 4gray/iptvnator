@@ -24,6 +24,7 @@ import {
     declarationText,
     familiesOf,
     familyParts,
+    reachesEverything,
 } from './font-weight-family.mjs';
 import {
     effectiveDeclarations,
@@ -302,6 +303,18 @@ function analyse(mode, value, options = {}) {
     };
 }
 
+/** A Sass variable in a family, interpolated (`#{$x}`) or not (`ns.$x`). */
+const SASS_VALUE =
+    /#\{\s*((?:[\w-]+\.)?\$[\w-]+)\s*\}|((?:[\w-]+\.)?\$[\w-]+)/g;
+
+/** A Sass variable's value as it is substituted: no flags, no outer quotes. */
+function sassValue(value) {
+    return value
+        .replace(/!(?:default|global)\b/gi, '')
+        .trim()
+        .replace(/^(['"])(.*)\1$/, '$2');
+}
+
 /**
  * The variables a family reads (see `familyParts`), as references resolved
  * from `at` (a file, position and scope): each custom property with its
@@ -504,7 +517,8 @@ export function scanWeights(file, source) {
                 const place = placeOf(blocks, match.index);
                 deferred.push({
                     ...{ file, line: lineOf(match.index), name },
-                    refs: family.refs,
+                    family: family.text,
+                    at: { ...family.at, file },
                     terms: capped.terms.filter(capOnly),
                     references: capped.references.map((reference) => ({
                         ...{ ...reference, file, index: match.index },
@@ -573,6 +587,7 @@ export function scanWeights(file, source) {
             setByCode(name, quoted[3], match.index, expression);
         }
     }
+    const blockAt = new Map(blocks.map((block) => [block.start, block]));
     for (const match of text.matchAll(DEFINITION)) {
         const name = match[1];
         if (inString(match.index)) continue;
@@ -595,10 +610,14 @@ export function scanWeights(file, source) {
         // `!default` assigns only while the variable is unset (see
         // `effectiveDeclarations`).
         const fallback = /!default\b/i.test(value);
+        const full = argument ? value : declarationText(lexed, end).value;
         definitions.push({
             ...{ file, line, index, name, key, value, argument, fallback },
             // The whole declaration, for a family list (`a, b`).
-            full: argument ? value : declarationText(lexed, end).value,
+            full,
+            important: /!important\b/i.test(full),
+            // The selector of the rule it sits in, for custom properties.
+            rule: blockAt.get(place.scope)?.prelude ?? null,
             // Checked against the scale where it is declared (see below).
             weighted: /weight$/i.test(name),
             // An argument reaches only the mixin or function it is passed to.
@@ -781,6 +800,29 @@ export function findIndirectWeights(scans) {
                 within ? runsAt(file, within, seen) : [index]
         );
     };
+    // A custom property declared again, unconditionally, later in the same
+    // rule is replaced there, unless only the earlier one is `!important`.
+    const replaced = new Set();
+    const byRule = new Map();
+    for (const definition of definitions) {
+        const { key, argument, scope, code } = definition;
+        if (!key.startsWith('--') || argument || code || scope == null)
+            continue;
+        const group = `${definition.file} ${scope} ${key}`;
+        if (!byRule.has(group)) byRule.set(group, []);
+        byRule.get(group).push(definition);
+    }
+    for (const group of byRule.values()) {
+        for (const definition of group) {
+            const later = group.some(
+                (other) =>
+                    other.index > definition.index &&
+                    !other.conditional &&
+                    (other.important || !definition.important)
+            );
+            if (later) replaced.add(definition);
+        }
+    }
     // The definitions a reference can resolve to, as Sass and the cascade
     // read them (see `sassScopes` and `effectiveDeclarations`).
     const visibleDefinitions = (reference) => {
@@ -817,6 +859,7 @@ export function findIndirectWeights(scans) {
         return definitions.filter((definition) => {
             const access = (members ?? scope)?.get(definition.file);
             if (!sass && definition.key !== name) return false;
+            if (!sass && replaced.has(definition)) return false;
             // An argument's name is matched where it is passed, below.
             if (sass && !definition.argument) {
                 if (!exposes(access, definition, name)) return false;
@@ -868,6 +911,19 @@ export function findIndirectWeights(scans) {
             return true;
         });
     };
+    // Whether a definition sets a custom property for every element the
+    // reading rule styles: one in a rule every element inherits from
+    // (`:root`), or in the reading rule itself or a rule it is nested in (or
+    // its component's `:host`). A property set by code sits in another file
+    // and is set on some element only.
+    const setsFor = (definition, reference) => {
+        if (reachesEverything(definition.rule)) return true;
+        if (definition.file !== reference.file) return false;
+        return (
+            /^:host\b/i.test(definition.rule ?? '') ||
+            (reference.scopes ?? []).includes(definition.scope)
+        );
+    };
     // Whether a custom property can be unset where it is read, so a `var()`
     // fallback applies: no rule sets it (one that inherits sets nothing of
     // its own), one resets it, or one sets it to a value that can be invalid.
@@ -882,7 +938,7 @@ export function findIndirectWeights(scans) {
             }))
             .filter(({ text }) => !INHERITING.test(text));
         return (
-            own.length === 0 ||
+            !own.some(({ definition }) => setsFor(definition, reference)) ||
             own.some(
                 ({ definition, text }) =>
                     RESETTING.test(text) || mayBeInvalid(text, definition, seen)
@@ -917,12 +973,50 @@ export function findIndirectWeights(scans) {
     const familyIsMono = (text, at, seen) => {
         const parts = familyParts(text);
         if (MONO_FAMILY.test(parts.outside)) return true;
+        const whole = composedFamilies(text, at);
+        if (whole.some((t) => MONO_FAMILY.test(familyParts(t).outside))) {
+            return true;
+        }
         return familyRefs(parts, at).some((ref) => namesMono(ref, seen));
+    };
+    // A family Sass assembles from variables (`'#{$prefix} Mono'`, `$a $b`),
+    // with each variable replaced by a value it can hold (up to 16
+    // combinations, three levels deep), so the name is read whole. One the
+    // scan cannot resolve (a package module) leaves nothing to compose.
+    const composedFamilies = (text, at, depth = 0) => {
+        let results = [''];
+        let last = 0;
+        for (const match of text.matchAll(SASS_VALUE)) {
+            const full = match[1] ?? match[2];
+            const dot = full.lastIndexOf('.');
+            const reference = {
+                name: identity(full.slice(dot + 1)),
+                namespace: dot === -1 ? null : full.slice(0, dot),
+                ...{ file: at.file, index: at.index, scopes: at.scopes },
+                ...{ inCallable: at.inCallable, callable: at.callable },
+            };
+            const values =
+                depth >= 3
+                    ? []
+                    : visibleDefinitions(reference).flatMap((definition) =>
+                          composedFamilies(
+                              sassValue(definition.full ?? definition.value),
+                              definition,
+                              depth + 1
+                          )
+                      );
+            const between = text.slice(last, match.index);
+            results = results
+                .flatMap((result) => values.map((v) => result + between + v))
+                .slice(0, 16);
+            last = match.index + match[0].length;
+        }
+        return results.map((result) => result + text.slice(last));
     };
     const followed = new Set();
     const findings = [];
     for (const candidate of scans.flatMap((scan) => scan.deferred ?? [])) {
-        if (!candidate.refs.some((reference) => namesMono(reference))) continue;
+        if (!familyIsMono(candidate.family, candidate.at, new Set())) continue;
         const { file, line, name } = candidate;
         findings.push(
             ...candidate.terms.map((term) => ({ file, line, name, ...term }))
