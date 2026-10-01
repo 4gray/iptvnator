@@ -26,6 +26,7 @@
                 [errorStateMatcher]="pinErrorState"
                 [ngModel]="pin()"
                 (ngModelChange)="onPinInput($event)"
+                (keydown.enter)="onPinEnter($event)"
                 name="pin"
             />
             <mat-hint>

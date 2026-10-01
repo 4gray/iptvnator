@@ -110,7 +110,16 @@ test.describe('Electron parental-lock PIN dialog', () => {
                 'new-password'
             );
 
+            // Enter after the PIN moves on to the empty repeat; Save
+            // with the repeat still empty is refused.
             await pin.fill(PIN);
+            await pin.press('Enter');
+            await expect(confirm).toBeFocused();
+            await expect(mismatch).toBeHidden();
+            await submit.click();
+            await expect(mismatch).toBeVisible();
+            await expect(dialog).toBeVisible();
+
             await confirm.fill(PIN.slice(0, 3));
             await expect(mismatch).toBeHidden();
             await expect(confirm).toHaveAttribute('aria-invalid', 'false');

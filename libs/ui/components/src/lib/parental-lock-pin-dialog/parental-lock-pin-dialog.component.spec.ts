@@ -171,16 +171,37 @@ describe('ParentalLockPinDialogComponent', () => {
 
         it('moves on to an empty repeat on Enter in the PIN field', async () => {
             const dialog = await openDialog({ mode: 'set' });
+            const enter = new KeyboardEvent('keydown', {
+                key: 'Enter',
+                cancelable: true,
+            });
 
             await dialog.type('parental-lock-pin', '2468');
-            dialog.query('parental-lock-pin')?.focus();
-            await dialog.pressEnter();
+            dialog.query('parental-lock-pin')?.dispatchEvent(enter);
+            await dialog.fixture.whenStable();
 
+            // Handled before the form sees it: no implicit submission.
+            expect(enter.defaultPrevented).toBe(true);
             expect(document.activeElement).toBe(
                 dialog.query('parental-lock-pin-confirm')
             );
             expect(dialog.query('parental-lock-pin-mismatch')).toBeNull();
             expect(dialog.component.shake()).toBeNull();
+        });
+
+        it('refuses an empty repeat on Save while the PIN field keeps focus', async () => {
+            // WebKit does not focus a clicked button, so focus says nothing
+            // about how the form was submitted.
+            const dialog = await openDialog({ mode: 'set' });
+
+            await dialog.type('parental-lock-pin', '2468');
+            dialog.query('parental-lock-pin')?.focus();
+            await dialog.pressEnter();
+
+            expect(text(dialog.query('parental-lock-pin-mismatch'))).toBe(
+                KEYS.mismatch
+            );
+            expect(dialog.component.shake()).toBe('confirmation');
             expect(dialog.close).not.toHaveBeenCalled();
         });
 

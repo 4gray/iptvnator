@@ -186,6 +186,23 @@ export class ParentalLockPinDialogComponent {
         this.clearRefusal('confirmation');
     }
 
+    /**
+     * Set mode: Enter after a complete first PIN moves on to an empty repeat
+     * instead of submitting. Handled on the key, not in `submit()`: focus
+     * cannot tell Enter from a click on Save, as WebKit does not focus a
+     * clicked button.
+     */
+    onPinEnter(event: Event): void {
+        if (
+            this.isSetMode() &&
+            !this.confirmation() &&
+            isValidParentalLockPin(this.pin())
+        ) {
+            event.preventDefault();
+            this.confirmationInput()?.nativeElement.focus();
+        }
+    }
+
     async submit(): Promise<void> {
         if (this.busy() || this.inCooldown()) {
             return;
@@ -197,12 +214,6 @@ export class ParentalLockPinDialogComponent {
             return;
         }
         if (this.isSetMode()) {
-            const pinField = this.pinInput()?.nativeElement;
-            if (!this.confirmation() && document.activeElement === pinField) {
-                // Enter after the first PIN moves on to the repeat.
-                this.confirmationInput()?.nativeElement.focus();
-                return;
-            }
             if (this.confirmation() !== pin) {
                 this.refuse('confirmation');
                 return;

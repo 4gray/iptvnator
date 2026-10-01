@@ -429,7 +429,8 @@ so a cancelled or refused PIN leaves it showing the real state.
   disabled default button; `submit()` refuses instead, shakes the field
   (no shake under `prefers-reduced-motion: reduce`) and focuses it — except
   that Enter in the PIN field with the repeat still empty only moves focus
-  to the repeat. Set
+  to the repeat (a `keydown.enter` handler: focus cannot tell Enter from a
+  click on Save, since WebKit does not focus a clicked button). Set
   mode marks both inputs `autocomplete="new-password"`. The Electron
   `parental-lock-pin-dialog.e2e.ts` covers the labels and the
   mismatch → fix → save flow.
