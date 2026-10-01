@@ -96,6 +96,7 @@ export class ParentalLockPinDialogComponent {
     private readonly throttle =
         this.data.throttle ?? createParentalLockPinThrottle();
     private cooldownTimer: number | null = null;
+    private shakeTimer: number | null = null;
 
     readonly isSetMode = computed(() => this.data.mode === 'set');
     readonly titleKey = computed(
@@ -252,8 +253,16 @@ export class ParentalLockPinDialogComponent {
     }
 
     private shakeField(field: PinDialogField): void {
+        // A refusal inside the previous one's 400ms shakes for its own
+        // full time; the earlier timer would otherwise end it early.
+        if (this.shakeTimer !== null) {
+            window.clearTimeout(this.shakeTimer);
+        }
         this.shake.set(field);
-        window.setTimeout(() => this.shake.set(null), 400);
+        this.shakeTimer = window.setTimeout(() => {
+            this.shakeTimer = null;
+            this.shake.set(null);
+        }, 400);
     }
 
     private startCooldown(until: number): void {

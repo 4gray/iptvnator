@@ -198,6 +198,30 @@ describe('ParentalLockPinDialogComponent', () => {
             expect(dialog.close).not.toHaveBeenCalled();
         });
 
+        it('lets a second refusal shake for its full time', async () => {
+            const { component } = await openDialog({ mode: 'set' });
+            jest.useFakeTimers();
+            try {
+                component.onPinInput('24');
+                await component.submit();
+                expect(component.shake()).toBe('pin');
+
+                jest.advanceTimersByTime(300);
+                component.onPinInput('2468');
+                component.onConfirmationInput('2469');
+                await component.submit();
+                expect(component.shake()).toBe('confirmation');
+
+                // The first refusal's timer must not end the second shake.
+                jest.advanceTimersByTime(150);
+                expect(component.shake()).toBe('confirmation');
+                jest.advanceTimersByTime(250);
+                expect(component.shake()).toBeNull();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
         it('refuses a too-short PIN on Enter with an error on the PIN field', async () => {
             const dialog = await openDialog({ mode: 'set' });
             const pin = () =>
