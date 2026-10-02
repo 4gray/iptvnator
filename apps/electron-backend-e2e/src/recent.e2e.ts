@@ -676,7 +676,10 @@ async function clearRecentItems(page: Page, typeLabel: string): Promise<void> {
     await page
         .getByRole('button', { name: `Clear recently viewed ${typeLabel}` })
         .click();
-    await page.getByRole('button', { name: 'Yes' }).click();
+    await page
+        .locator('mat-dialog-container')
+        .getByRole('button', { name: 'Clear', exact: true })
+        .click();
 }
 
 async function expectUnifiedLiveDetailOpen(

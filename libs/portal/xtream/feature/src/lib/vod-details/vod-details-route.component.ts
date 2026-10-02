@@ -747,6 +747,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             message: this.translateService.instant(
                 'DOWNLOADS.CANCEL_CONFIRM_MESSAGE'
             ),
+            confirmLabel: this.translateService.instant(
+                'DOWNLOADS.CANCEL_CONFIRM_TITLE'
+            ),
+            // "Cancel" next to "Cancel download" would read as the same action.
+            cancelLabel: this.translateService.instant('CLOSE'),
+            tone: 'destructive',
             onConfirm: () => void this.downloads.cancelActive(),
         });
     }

@@ -287,8 +287,8 @@ html {
     }
 
     // ─── Destructive actions ───────────────────────────────────────────────
-    // Material only emits `.mat-warn` button colors for M2 themes, so
-    // `color="warn"` is a no-op with this M3 theme. Buttons that remove or
+    // Material only emits `.mat-warn` button colors for M2 themes, so the
+    // `warn` color input is a no-op with this M3 theme. Buttons that remove or
     // discard user data opt in with this class instead; the error tokens are
     // declared per theme context above, so light and dark each get their own
     // error/on-error pair.

@@ -7,13 +7,19 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router, RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistDeleteActionService,
+    SourceActivityService,
+} from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DialogService } from '@iptvnator/ui/components';
-import { PlaylistActions } from '@iptvnator/m3u-state';
 
 @Component({
     selector: 'app-playlist-error-view',
@@ -25,8 +31,11 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 export class PlaylistErrorViewComponent {
     private dialog = inject(MatDialog);
     private dialogService = inject(DialogService);
+    private readonly activity = inject(SourceActivityService);
     private readonly playlistContext = inject(PlaylistContextFacade);
+    private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
     private router = inject(Router);
+    private readonly snackBar = inject(MatSnackBar);
     private store = inject(Store);
     private translate = inject(TranslateService);
 
@@ -48,7 +57,10 @@ export class PlaylistErrorViewComponent {
 
     removeClicked(): void {
         const currentPlaylist = this.currentPlaylist();
-        if (!currentPlaylist?._id) {
+        if (
+            !currentPlaylist?._id ||
+            this.activity.isBusy(currentPlaylist._id)
+        ) {
             return;
         }
 
@@ -57,12 +69,38 @@ export class PlaylistErrorViewComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
-            onConfirm: (): void => this.removePlaylist(currentPlaylist._id),
+            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
+            tone: 'destructive',
+            onConfirm: (): void => void this.removePlaylist(currentPlaylist),
         });
     }
 
-    removePlaylist(playlistId: string): void {
-        this.store.dispatch(PlaylistActions.removePlaylist({ playlistId }));
-        this.router.navigate(['/']);
+    /**
+     * Same path as every other source removal: the shared delete action marks
+     * the source busy, lets persistence drop the Xtream cache and cleanups,
+     * and only a completed delete is committed to the store.
+     */
+    async removePlaylist(playlist: PlaylistMeta): Promise<void> {
+        if (this.activity.isBusy(playlist._id)) {
+            return;
+        }
+
+        const deleted =
+            await this.playlistDeleteAction.deletePlaylist(playlist);
+        if (!deleted) {
+            return;
+        }
+
+        this.store.dispatch(
+            PlaylistActions.playlistRemovalCommitted({
+                playlistId: playlist._id,
+            })
+        );
+        this.snackBar.open(
+            this.translate.instant('HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS'),
+            undefined,
+            { duration: 2000 }
+        );
+        void this.router.navigate(['/']);
     }
 }

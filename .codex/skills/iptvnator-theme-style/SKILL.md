@@ -29,8 +29,8 @@ consumers currently use relative `@use` paths to the needed partial.
   them outside Material components only for roles without an app token.
 - Set component tokens through `mat.*-overrides()`; retired `--mdc-*` names
   do nothing and `pnpm run styles:material-tokens:validate` rejects them.
-- Destructive buttons use `.app-destructive-button` (`color="warn"` is a no-op
-  with M3).
+- Destructive buttons use `.app-destructive-button` (the `warn` color input is
+  a no-op with M3); provider icons come from `SOURCE_TYPE_ICONS`.
 - Local semantic status colors are acceptable. Existing hard-coded layout,
   selection, and EPG surface colors are migration debt, not precedent.
 

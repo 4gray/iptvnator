@@ -18,6 +18,7 @@ import {
     ProviderImportCandidate,
     ProviderImportConfidence,
     ProviderImportKind,
+    SOURCE_TYPE_ICONS,
 } from '@iptvnator/shared/interfaces';
 
 interface CandidateSummaryRow {
@@ -26,10 +27,10 @@ interface CandidateSummaryRow {
 }
 
 const KIND_ICONS: Record<ProviderImportKind, string> = {
-    xtream: 'vpn_key',
-    stalker: 'cast',
-    'm3u-url': 'public',
-    'm3u-text': 'subject',
+    xtream: SOURCE_TYPE_ICONS.xtream,
+    stalker: SOURCE_TYPE_ICONS.stalker,
+    'm3u-url': SOURCE_TYPE_ICONS['m3u-url'],
+    'm3u-text': SOURCE_TYPE_ICONS['m3u-text'],
 };
 
 const KIND_LABEL_KEYS: Record<ProviderImportKind, string> = {

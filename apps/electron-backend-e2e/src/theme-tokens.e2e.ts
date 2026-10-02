@@ -4,6 +4,7 @@ import {
     expect,
     launchElectronApp,
     openSettings,
+    openSettingsSection,
     test,
 } from './electron-test-fixtures';
 import { applyTheme } from './theme-contrast';
@@ -189,6 +190,57 @@ test.describe('Theme tokens', () => {
                 });
             }
             expect(surfaces['light']).not.toBe(surfaces['dark']);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
+    test('@theme @electron destructive actions name the action and use the error color', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+        const page = app.mainWindow;
+        try {
+            await openSettings(page);
+            await openSettingsSection(page, 'epg');
+
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(page, theme);
+                const error = await resolveColor(page, 'var(--mat-sys-error)');
+                const trigger = page.getByRole('button', {
+                    name: 'Clear EPG data',
+                    exact: true,
+                });
+                // The `warn` color input was a no-op with M3: the trigger
+                // rendered in the primary color.
+                await expect
+                    .poll(() =>
+                        trigger.evaluate((el) => getComputedStyle(el).color)
+                    )
+                    .toBe(error);
+                await trigger.click();
+
+                const dialog = page.locator('mat-dialog-container');
+                await expect(dialog).toBeVisible();
+                await expect(
+                    dialog.getByRole('button', { name: 'Yes' })
+                ).toHaveCount(0);
+                const confirm = dialog.getByTestId('confirm-dialog-confirm');
+                await expect(confirm).toHaveText('Clear EPG data');
+                await expect(confirm).toHaveClass(/app-destructive-button/);
+                await expect
+                    .poll(() =>
+                        confirm.evaluate(
+                            (el) => getComputedStyle(el).backgroundColor
+                        )
+                    )
+                    .toBe(error);
+
+                await dialog
+                    .getByRole('button', { name: 'Cancel', exact: true })
+                    .click();
+                await expect(dialog).toBeHidden();
+            }
         } finally {
             await closeElectronApp(app);
         }

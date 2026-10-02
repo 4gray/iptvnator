@@ -17,70 +17,66 @@
                 [enabled]="!isBusy()"
             />
         }
-        @if (item.url) {
-            <div class="icon-container">
+        <!-- One provider icon per row, by the shared precedence: a restored
+             Stalker or Xtream playlist can also carry a URL. -->
+        <div class="icon-container">
+            @switch (sourceIconKey) {
+                @case ('stalker') {
+                    <mat-icon
+                        class="upload-type-icon"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.STALKER_PORTAL' | translate
+                        "
+                        >{{ sourceIcons.stalker }}</mat-icon
+                    >
+                }
+                @case ('xtream') {
+                    <mat-icon
+                        class="upload-type-icon"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate
+                        "
+                        >{{ sourceIcons.xtream }}</mat-icon
+                    >
+                }
+                @case ('m3u-url') {
+                    <mat-icon
+                        class="upload-type-icon"
+                        [matTooltip]="
+                            ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) +
+                            ' ' +
+                            item.url
+                        "
+                        >{{ sourceIcons['m3u-url'] }}</mat-icon
+                    >
+                }
+                @default {
+                    <mat-icon
+                        class="upload-type-icon"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate
+                        "
+                        >{{ sourceIcons['m3u-local'] }}</mat-icon
+                    >
+                }
+            }
+            @if (showsPortalStatusDot) {
+                <span
+                    class="status-dot"
+                    [class]="getStatusClass()"
+                    [matTooltip]="'Portal status: ' + portalStatus"
+                    [attr.aria-label]="'Portal status: ' + portalStatus"
+                ></span>
+            } @else if (showsAutoRefresh) {
                 <mat-icon
-                    class="upload-type-icon"
+                    class="auto-refresh-indicator"
                     [matTooltip]="
-                        ('HOME.PLAYLISTS.ADDED_VIA_URL' | translate) +
-                        ' ' +
-                        item.url
+                        'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
                     "
-                    >cloud</mat-icon
+                    >autorenew</mat-icon
                 >
-                @if (item.autoRefresh) {
-                    <mat-icon
-                        class="auto-refresh-indicator"
-                        [matTooltip]="
-                            'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
-                        "
-                        >autorenew</mat-icon
-                    >
-                }
-            </div>
-        }
-        @if (!item.url && !item.serverUrl && !item.macAddress) {
-            <div class="icon-container">
-                <mat-icon
-                    class="upload-type-icon"
-                    [matTooltip]="'HOME.PLAYLISTS.ADDED_VIA_FILE' | translate"
-                    >folder</mat-icon
-                >
-                @if (item.autoRefresh) {
-                    <mat-icon
-                        class="auto-refresh-indicator"
-                        [matTooltip]="
-                            'HOME.PLAYLISTS.AUTO_REFRESH_ENABLED' | translate
-                        "
-                        >autorenew</mat-icon
-                    >
-                }
-            </div>
-        }
-        @if (item.serverUrl) {
-            <div class="icon-container">
-                <mat-icon
-                    class="upload-type-icon"
-                    [matTooltip]="'HOME.PLAYLISTS.XTREAM_PLAYLIST' | translate"
-                    >public</mat-icon
-                >
-                @if (!runtime.supportsSourceHealth) {
-                    <span
-                        class="status-dot"
-                        [class]="getStatusClass()"
-                        [matTooltip]="'Portal status: ' + portalStatus"
-                        [attr.aria-label]="'Portal status: ' + portalStatus"
-                    ></span>
-                }
-            </div>
-        }
-        @if (item.macAddress) {
-            <mat-icon
-                class="upload-type-icon"
-                [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
-                >dashboard</mat-icon
-            >
-        }
+            }
+        </div>
     </div>
     <div class="playlist-content">
         <div class="playlist-title">
@@ -180,8 +176,7 @@
             @if (canCancelBusyAction()) {
                 <button
                     mat-icon-button
-                    color="warn"
-                    class="cancel-btn"
+                    class="cancel-btn app-destructive-button"
                     (click)="
                         $event.stopPropagation(); cancelBusyActionClicked.emit()
                     "

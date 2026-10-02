@@ -3,12 +3,25 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 
+/**
+ * `destructive` renders the confirm action with the app-wide error styling
+ * (`.app-destructive-button`). Use it whenever confirming removes or discards
+ * user data; Material's `warn` color input has no effect with the M3 theme.
+ */
+export type ConfirmDialogTone = 'default' | 'destructive';
+
 export interface ConfirmDialogData {
     title: string;
     message: string;
     width?: string;
-    confirmLabel?: string;
+    /**
+     * Translated verb that names the action ("Remove playlist", "Clear").
+     * Required so a confirmation never falls back to an ambiguous "Yes".
+     */
+    confirmLabel: string;
+    /** Translated dismiss label; defaults to "Cancel". */
     cancelLabel?: string;
+    tone?: ConfirmDialogTone;
     /** Run the action in the dialog; only Close/backdrop/Escape dismiss it. */
     keepOpenOnConfirm?: boolean;
     onConfirm: () => void;
@@ -27,23 +40,25 @@ export interface ConfirmDialogData {
         </mat-dialog-content>
         <mat-dialog-actions align="end">
             <button mat-button mat-dialog-close cdkFocusInitial>
-                {{ dialogData.cancelLabel || 'NO' | translate }}
+                {{ dialogData.cancelLabel || ('CANCEL' | translate) }}
             </button>
             @if (dialogData.keepOpenOnConfirm) {
                 <button
                     mat-flat-button
+                    data-test-id="confirm-dialog-confirm"
+                    [class.app-destructive-button]="isDestructive"
                     (click)="dialogData.onConfirm()"
-                    color="primary"
                 >
-                    {{ dialogData.confirmLabel || 'YES' | translate }}
+                    {{ dialogData.confirmLabel }}
                 </button>
             } @else {
                 <button
                     mat-flat-button
+                    data-test-id="confirm-dialog-confirm"
+                    [class.app-destructive-button]="isDestructive"
                     [mat-dialog-close]="true"
-                    color="primary"
                 >
-                    {{ dialogData.confirmLabel || 'YES' | translate }}
+                    {{ dialogData.confirmLabel }}
                 </button>
             }
         </mat-dialog-actions>
@@ -55,5 +70,9 @@ export class ConfirmDialogComponent {
 
     constructor() {
         this.dialogData = this.data;
+    }
+
+    get isDestructive(): boolean {
+        return this.dialogData.tone === 'destructive';
     }
 }

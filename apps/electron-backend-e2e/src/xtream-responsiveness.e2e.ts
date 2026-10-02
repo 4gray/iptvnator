@@ -11,6 +11,7 @@ import {
     waitForXtreamCatalog,
     xtreamMockServer,
 } from './electron-test-fixtures';
+import { applyTheme } from './theme-contrast';
 
 const stressPortalName = 'Stress Xtream Portal';
 const stressXtreamUsername = 'stress';
@@ -292,7 +293,7 @@ test.describe('Electron Xtream Responsiveness', () => {
             );
             await expect(confirmDialog).toBeVisible();
             await confirmDialog
-                .getByRole('button', { name: 'Yes', exact: true })
+                .getByRole('button', { name: 'Remove playlist', exact: true })
                 .click();
 
             await waitForDbOperationEvent(app.mainWindow, {
@@ -304,7 +305,25 @@ test.describe('Electron Xtream Responsiveness', () => {
             await expect(
                 playlistRow.locator('.busy-state__message')
             ).toBeVisible({ timeout: 20000 });
-            await expect(playlistRow.locator('.cancel-btn')).toBeVisible();
+            const cancel = playlistRow.locator('.cancel-btn');
+            await expect(cancel).toBeVisible();
+            // The row's action buttons inherit its color; the cancel action
+            // must still read as destructive on the selected row.
+            for (const theme of ['light', 'dark'] as const) {
+                await applyTheme(app.mainWindow, theme);
+                const error = await app.mainWindow.evaluate(() => {
+                    const probe = document.createElement('div');
+                    probe.style.color = 'var(--mat-sys-error)';
+                    document.body.appendChild(probe);
+                    const color = getComputedStyle(probe).color;
+                    probe.remove();
+                    return color;
+                });
+                expect(
+                    await cancel.evaluate((el) => getComputedStyle(el).color),
+                    `cancel color in ${theme} theme`
+                ).toBe(error);
+            }
 
             await waitForDbOperationEvent(app.mainWindow, {
                 operation: 'delete-playlist',

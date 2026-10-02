@@ -336,21 +336,6 @@ export class PlaylistEffects {
         { dispatch: false }
     );
 
-    removePlaylist$ = createEffect(
-        () => {
-            return this.actions$.pipe(
-                ofType(PlaylistActions.removePlaylist),
-                switchMap(async (action) => {
-                    this.playlistScopedEpgFetchKeys.delete(action.playlistId);
-                    await firstValueFrom(
-                        this.playlistsService.deletePlaylist(action.playlistId)
-                    );
-                })
-            );
-        },
-        { dispatch: false }
-    );
-
     updatePlaylist$ = createEffect(
         () => {
             return this.actions$.pipe(

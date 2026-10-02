@@ -250,6 +250,8 @@ export class RecentPlaylistsComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
+            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
+            tone: 'destructive',
             onConfirm: () => {
                 this.removePlaylist(item);
             },
