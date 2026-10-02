@@ -230,6 +230,21 @@ describe('DashboardHeroSlidesPresenter', () => {
         );
     });
 
+    it('drops a season marker from a series title and leaves live titles alone', () => {
+        recentItems.set([
+            { ...series, title: 'Big Pharma (1 сезон)' },
+            watchedMovie,
+        ]);
+        candidates.set([
+            { origin: 'favorite', item: { ...channel, title: 'Sport S01' } },
+        ]);
+        const presenter = create();
+        const titles = presenter.slides().map((slide) => slide.title);
+        expect(titles).toContain('Big Pharma');
+        expect(titles).not.toContain('Big Pharma (1 сезон)');
+        expect(titles).toContain('Sport S01');
+    });
+
     it('resumes an unfinished series and offers a detail-only way in', () => {
         const [resume] = create().slides();
 

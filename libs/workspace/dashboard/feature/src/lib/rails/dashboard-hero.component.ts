@@ -10,6 +10,7 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
+import { MetaChipComponent } from '@iptvnator/ui/components';
 import { DashboardHeroSlidesPresenter } from './dashboard-hero-slides.presenter';
 import { HERO_ROTATION_MS } from './dashboard-hero-slides.utils';
 import type { DashboardHeroSlide } from './dashboard-hero.utils';
@@ -29,10 +30,13 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
  *
  * The active slide is tracked by id, so a slide that arrives late (the live
  * slide waits for its EPG answer) never yanks the user off the current one.
+ *
+ * The hero is a focusable region: ←/→ switch slides, Enter follows the
+ * primary action. Rotation also pauses while the document is hidden.
  */
 @Component({
     selector: 'lib-dashboard-hero',
-    imports: [MatIcon, RouterLink, TranslatePipe],
+    imports: [MatIcon, MetaChipComponent, RouterLink, TranslatePipe],
     templateUrl: './dashboard-hero.component.html',
     styleUrl: './dashboard-hero.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -74,6 +78,7 @@ export class DashboardHeroComponent {
     });
     private readonly hovered = signal(false);
     private readonly focusWithin = signal(false);
+    private readonly documentHidden = signal(false);
     readonly userPaused = signal(false);
     readonly reducedMotion = signal(false);
 
@@ -93,10 +98,23 @@ export class DashboardHeroComponent {
     );
 
     readonly paused = computed(
-        () => this.userPaused() || this.hovered() || this.focusWithin()
+        () =>
+            this.userPaused() ||
+            this.hovered() ||
+            this.focusWithin() ||
+            this.documentHidden()
     );
 
     constructor() {
+        if (typeof document !== 'undefined') {
+            const onVisibility = () =>
+                this.documentHidden.set(document.visibilityState === 'hidden');
+            onVisibility();
+            document.addEventListener('visibilitychange', onVisibility);
+            inject(DestroyRef).onDestroy(() =>
+                document.removeEventListener('visibilitychange', onVisibility)
+            );
+        }
         const media =
             typeof window !== 'undefined' && window.matchMedia
                 ? window.matchMedia(REDUCED_MOTION_QUERY)
@@ -153,6 +171,32 @@ export class DashboardHeroComponent {
         const next = event.relatedTarget as Node | null;
         if (!host || !next || !host.contains(next)) {
             this.focusWithin.set(false);
+        }
+    }
+
+    /**
+     * On the hero region itself: ←/→ switch slides, Enter follows the
+     * primary action. Buttons and dots inside keep their own keys.
+     */
+    onHeroKeydown(event: KeyboardEvent): void {
+        if (event.target !== event.currentTarget) {
+            return;
+        }
+        const count = this.slides().length;
+        if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+            if (count < 2) {
+                return;
+            }
+            event.preventDefault();
+            const step = event.key === 'ArrowRight' ? 1 : -1;
+            this.show((this.activeIndex() + step + count) % count);
+            return;
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            (event.currentTarget as HTMLElement)
+                .querySelector<HTMLElement>('.hero__button--primary')
+                ?.click();
         }
     }
 

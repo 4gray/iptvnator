@@ -11,7 +11,10 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
-import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import {
+    isPortalPlaybackWatched,
+    splitSeasonSuffix,
+} from '@iptvnator/portal/shared/util';
 import {
     playlistDisplayLabel,
     resolvePortalActivityWatchKind,
@@ -228,7 +231,9 @@ export class DashboardHeroSlidesPresenter {
             id: `${source.kind}:${dashboardHeroItemKey(item)}`,
             kind: source.kind,
             contentType: item.type,
-            title: item.title,
+            // "Большая фарма (1 сезон)" → "Большая фарма": the episode badge
+            // already names the season.
+            title: isLive ? item.title : splitSeasonSuffix(item.title).title,
             // Watch kind: a Stalker embedded-VOD show routes as a movie
             typeLabelKey:
                 TYPE_LABEL_KEYS[

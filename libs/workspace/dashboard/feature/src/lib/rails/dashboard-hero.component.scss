@@ -8,6 +8,8 @@
 // light theme gets a light scrim with dark text and the dark theme the
 // reverse, with the same geometry.
 
+@use '../../../../../../ui/styles/detail-view-actions' as detail-actions;
+
 // The host renders nothing when there is no slide and no skeleton; with
 // `display: contents` it then adds no flex gap to the rails page either.
 :host {
@@ -34,13 +36,6 @@
         var(--app-on-surface, #e6e1e5) 12%,
         transparent
     );
-    // Gold in the dark theme, a deeper amber on the light one: mixed with
-    // the theme's heading colour rather than detected per theme.
-    --hero-rating: color-mix(
-        in srgb,
-        #f5b400 60%,
-        var(--app-heading-color, #d8dce8)
-    );
 
     position: relative;
     // A floor, not a fixed height: the slide sits in normal flow at the
@@ -59,6 +54,11 @@
     overflow: hidden;
     isolation: isolate;
     color: var(--hero-heading);
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: -2px;
+    }
 }
 
 // ── Backdrops ──────────────────────────────────────────────────────────────
@@ -101,19 +101,18 @@
 }
 
 // No 16:9 backdrop (Xtream/Stalker often lack one): the poster, blurred and
-// scaled, washes its colours across the whole stage…
+// scaled past its edges, is the backdrop. No second, sharp copy of it.
 .hero__backdrop--poster .hero__backdrop-image {
-    filter: blur(48px) saturate(1.4);
-    transform: scale(1.35);
-    opacity: 0.8;
+    filter: blur(24px) saturate(1.2);
+    transform: scale(1.12);
 }
 
 .hero__backdrop--poster.hero__backdrop--active .hero__backdrop-image {
-    transform: scale(1.3);
+    transform: scale(1.1);
 }
 
-// …and the sharp poster fills the right-hand side as key art, faded into
-// that wash, so the slide still shows the actual title artwork.
+// A live channel's logo fills the right-hand side as key art, faded into
+// its own blurred wash, so the slide still shows the channel's artwork.
 .hero__backdrop-keyart {
     position: absolute;
     top: 0;
@@ -278,25 +277,12 @@
 }
 
 .hero__pill {
-    padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--hero-pill-bg);
-    color: var(--hero-heading);
-    white-space: nowrap;
-
-    &--rating {
-        color: var(--hero-rating);
-        font-weight: 600;
-    }
-
     &--time {
         font-variant-numeric: tabular-nums;
     }
 
     &--source {
         max-width: 220px;
-        overflow: hidden;
-        text-overflow: ellipsis;
         color: var(--hero-body);
     }
 }
@@ -396,19 +382,13 @@
         transform: translateY(1px);
     }
 
+    // The same light primary as the details pages' Continue / Play.
     &--primary {
-        background: var(--app-selection-color, #78adff);
-        color: var(--app-selection-on-color, #071225);
-        box-shadow: 0 6px 18px -8px
-            var(--app-selection-glow, rgba(120, 173, 255, 0.6));
+        @include detail-actions.light-primary-button;
 
-        &:hover {
-            background: color-mix(
-                in srgb,
-                var(--app-selection-color, #78adff) 88%,
-                #fff
-            );
-        }
+        height: 38px;
+        padding: 0 18px 0 14px;
+        font-size: 13px;
     }
 
     &--secondary {
