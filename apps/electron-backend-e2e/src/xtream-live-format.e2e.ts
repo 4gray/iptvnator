@@ -17,7 +17,7 @@ import {
     observeLiveFormatMedia,
 } from './xtream-live-format.fixture';
 
-for (const player of ['html5', 'artplayer'] as const) {
+for (const player of ['html5', 'artplayer', 'vidstack'] as const) {
     test(`@electron @xtream Auto live format ${player}: failing segment to playable TS`, async ({
         dataDir,
     }) => {

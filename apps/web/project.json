@@ -31,7 +31,12 @@
                 "styles": [
                     "apps/web/src/styles.scss",
                     "apps/web/src/m3-theme.scss",
-                    "./node_modules/video.js/dist/video-js.css"
+                    "./node_modules/video.js/dist/video-js.css",
+                    {
+                        "input": "libs/ui/playback/src/lib/vidstack-player/vidstack-layout-theme.scss",
+                        "bundleName": "vidstack-theme",
+                        "inject": false
+                    }
                 ],
                 "allowedCommonJsDependencies": [
                     "qrcode",

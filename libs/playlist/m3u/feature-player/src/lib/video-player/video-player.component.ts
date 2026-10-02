@@ -144,6 +144,7 @@ import {
     STORE_KEY,
     Settings,
     VideoPlayer,
+    playsDashInline,
 } from '@iptvnator/shared/interfaces';
 import { M3uEpgGuideSourceService } from '../epg-guide/m3u-epg-guide-source.service';
 import { M3uVodDetailComponent } from '../m3u-vod-detail/m3u-vod-detail.component';
@@ -384,16 +385,14 @@ export class VideoPlayerComponent
             isDashChannel(this.activeChannel())
     );
     /**
-     * Player forced for DASH channels: ArtPlayer keeps ArtPlayer (it has a
-     * Shaka source engine); every other choice — Video.js (no DASH bridge),
-     * embedded/external MPV and VLC (no KODIPROP ClearKey support) — falls
-     * back to the HTML5 player.
+     * Player forced for DASH channels: a player with a Shaka source engine
+     * keeps itself; every other choice falls back to the HTML5 player (see
+     * `playsDashInline`).
      */
-    readonly dashPlayerOverride = computed<VideoPlayer>(() =>
-        this.settingsStore.player() === VideoPlayer.ArtPlayer
-            ? VideoPlayer.ArtPlayer
-            : VideoPlayer.Html5Player
-    );
+    readonly dashPlayerOverride = computed<VideoPlayer>(() => {
+        const player = this.settingsStore.player();
+        return playsDashInline(player) ? player : VideoPlayer.Html5Player;
+    });
     /**
      * The active channel is a movie FILE (URL-shape heuristic) and the user
      * has TMDB enrichment plus the recognition toggle on — the content area

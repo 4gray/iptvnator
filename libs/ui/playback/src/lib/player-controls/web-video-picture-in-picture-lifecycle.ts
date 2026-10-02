@@ -1,9 +1,11 @@
 const releasedVideos = new WeakSet<HTMLVideoElement>();
 
-interface WebKitPictureInPictureVideo extends HTMLVideoElement {
+// An intersection, not `extends`: Vidstack's global DOM typings declare these
+// WebKit members on HTMLVideoElement too, with narrower types.
+type WebKitPictureInPictureVideo = HTMLVideoElement & {
     readonly webkitPresentationMode?: string;
     webkitSetPresentationMode?: (mode: 'inline') => void;
-}
+};
 
 /** Release a legacy/native video that will never be used by this host again. */
 export function releaseVideoPictureInPicture(

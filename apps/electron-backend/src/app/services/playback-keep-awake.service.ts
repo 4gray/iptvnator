@@ -2,7 +2,8 @@ import { powerSaveBlocker, WebContents } from 'electron';
 
 /**
  * Keeps the display awake while a built-in web player (HTML5/hls.js,
- * Video.js, ArtPlayer) is playing video in the renderer (issue #1095).
+ * Video.js, ArtPlayer, Vidstack) is playing video in the renderer
+ * (issue #1095).
  *
  * Chromium is supposed to hold a video wake lock on its own, but on Linux
  * that goes through DE-dependent D-Bus inhibitors and is not reliable, so the

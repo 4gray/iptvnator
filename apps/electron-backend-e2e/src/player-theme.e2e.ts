@@ -33,6 +33,7 @@ for (const engine of [
     'html5',
     'videojs',
     'artplayer',
+    'vidstack',
 ] as const) {
     test(`@playback @theme @electron ${engine} keeps controls readable across live theme and fullscreen changes`, async ({
         dataDir,

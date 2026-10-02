@@ -29,6 +29,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
+    isWebVideoPlayer,
     normalizeAppUpdateChannel,
     normalizeEpgOffsetMinutes,
     normalizeDashboardRailsSettings,
@@ -312,11 +313,10 @@ export const SettingsStore = signalStore(
             },
 
             isEmbeddedPlayer() {
+                const player = store.player();
                 return (
-                    store.player() === VideoPlayer.VideoJs ||
-                    store.player() === VideoPlayer.Html5Player ||
-                    store.player() === VideoPlayer.ArtPlayer ||
-                    store.player() === VideoPlayer.EmbeddedMpv
+                    isWebVideoPlayer(player) ||
+                    player === VideoPlayer.EmbeddedMpv
                 );
             },
 

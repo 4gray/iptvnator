@@ -46,6 +46,7 @@ import {
     WEB_PLAYER_SHARED_CONTROLS,
 } from '../player-controls';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { VidstackPlayerComponent } from '../vidstack-player/vidstack-player.component';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 import type { VideoPlayerOptions } from '../vjs-player/vjs-player.types';
 import { ElectronStreamHeadersService } from './electron-stream-headers.service';
@@ -83,6 +84,7 @@ import { resolveWebPlayerSharedControls } from './web-player-shared-controls';
         FullscreenChannelPanelComponent,
         HtmlVideoPlayerComponent,
         PlaybackDiagnosticPanelComponent,
+        VidstackPlayerComponent,
         VjsPlayerComponent,
     ],
     providers: [

@@ -145,6 +145,8 @@ function getPlayerTestId(target: PlaybackRecommendationTarget): string {
             return 'playback-recommendation-html5';
         case 'artplayer':
             return 'playback-recommendation-artplayer';
+        case 'vidstack':
+            return 'playback-recommendation-vidstack';
         case 'mpv':
             return 'playback-fallback-mpv';
         case 'vlc':
@@ -160,6 +162,7 @@ function getPlayerLabelKey(
         case 'videojs':
         case 'html5':
         case 'artplayer':
+        case 'vidstack':
             return 'PLAYBACK_DIAGNOSTICS.ACTION_TRY_PLAYER';
         case 'mpv':
             return getExternalPlayerLabelKey('MPV', state);
@@ -192,6 +195,8 @@ function getPlayerName(target: PlaybackRecommendationTarget): string {
             return 'HTML5';
         case 'artplayer':
             return 'ArtPlayer';
+        case 'vidstack':
+            return 'Vidstack';
         case 'mpv':
             return 'MPV';
         case 'vlc':

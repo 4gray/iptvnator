@@ -21,6 +21,7 @@ import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
     VideoPlayer,
+    isWebVideoPlayer,
     type VodSourceDescriptor,
     type VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
@@ -158,16 +159,11 @@ export class PortalInlinePlayerComponent {
             : null;
     });
     // Web players only — mirrors the settings UI, which offers the ambient
-    // and Up Next toggles for HTML5, Video.js, and ArtPlayer. Embedded MPV
-    // composites a native video layer, so extra DOM stays out of the mix.
-    private readonly isWebPlayerEngine = computed<boolean>(() => {
-        const player = this.settingsStore.player?.();
-        return (
-            player === VideoPlayer.VideoJs ||
-            player === VideoPlayer.Html5Player ||
-            player === VideoPlayer.ArtPlayer
-        );
-    });
+    // and Up Next toggles for the web players. Embedded MPV composites a
+    // native video layer, so extra DOM stays out of the mix.
+    private readonly isWebPlayerEngine = computed<boolean>(() =>
+        isWebVideoPlayer(this.settingsStore.player?.())
+    );
     readonly ambientEnabled = computed<boolean>(() => {
         return (
             this.isWebPlayerEngine() &&

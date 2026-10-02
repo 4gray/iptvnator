@@ -120,7 +120,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
         delete (window as unknown as { electron?: unknown }).electron;
     });
 
-    it('registers all six player commands when running in Electron', () => {
+    it('registers all seven player commands when running in Electron', () => {
         bootstrap({ supportsManagedExternalPlayers: true });
 
         const ids = getRegistered(viewCommands).map((c) => c.id);
@@ -128,6 +128,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
             'switch-player-videojs',
             'switch-player-html5',
             'switch-player-artplayer',
+            'switch-player-vidstack',
             'switch-player-embedded-mpv',
             'switch-player-mpv',
             'switch-player-vlc',
@@ -145,6 +146,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
         expect(visibilityById['switch-player-videojs']).toBe(true);
         expect(visibilityById['switch-player-html5']).toBe(true);
         expect(visibilityById['switch-player-artplayer']).toBe(true);
+        expect(visibilityById['switch-player-vidstack']).toBe(true);
         expect(visibilityById['switch-player-mpv']).toBe(false);
         expect(visibilityById['switch-player-vlc']).toBe(false);
     });

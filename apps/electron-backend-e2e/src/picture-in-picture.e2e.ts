@@ -25,7 +25,7 @@ const playlist = [
     `${streamHost}/two.webm`,
 ].join('\n');
 
-for (const player of ['html5', 'videojs', 'artplayer']) {
+for (const player of ['html5', 'videojs', 'artplayer', 'vidstack']) {
     for (const sharedControls of [false, true]) {
         test(`@playback @electron closes ${player} PiP on channel change (shared controls: ${sharedControls})`, async ({
             dataDir,
