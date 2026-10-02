@@ -98,22 +98,6 @@
     }
 }
 
-.brand {
-    margin-bottom: 10px;
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.brand img {
-    width: 24px;
-    height: 24px;
-    object-fit: contain;
-}
-
 .rail-context-region {
     --region-accent: var(--mat-sys-outline-variant);
     display: flex;
@@ -237,12 +221,6 @@
 
         &.is-macos {
             padding-top: 6px;
-        }
-
-        // The brand links to the dashboard, which the first workspace link
-        // already does. On a bar this narrow that duplicate costs a section.
-        .brand {
-            display: none;
         }
 
         a {

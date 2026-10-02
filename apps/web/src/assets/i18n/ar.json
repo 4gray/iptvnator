@@ -1586,11 +1586,8 @@
             "HERO_PLAY": "تشغيل العرض"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "لوحة التحكم",
-            "OPEN_DASHBOARD": "فتح لوحة التحكم",
             "RAIL_SOURCES": "المصادر",
-            "OPEN_SOURCES": "فتح المصادر",
             "RAIL_GLOBAL_FAVORITES": "المفضلة",
             "RAIL_GLOBAL_RECENT": "تمت مشاهدتها مؤخرًا",
             "RAIL_GLOBAL_SEARCH": "بحث عام",

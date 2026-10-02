@@ -87,7 +87,7 @@ export async function runXtreamBackgroundUiActions(
             async () => {
                 const start = await clickSelector(
                     page,
-                    'a.brand[href$="/workspace/dashboard"]'
+                    'app-workspace-shell-rail a[href$="/workspace/dashboard"]'
                 );
                 await page.waitForFunction(() => {
                     const overlay = document.querySelector(

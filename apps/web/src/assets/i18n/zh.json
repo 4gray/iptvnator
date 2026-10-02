@@ -1586,11 +1586,8 @@
             "HERO_PLAY": "播放轮播"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "仪表盘",
-            "OPEN_DASHBOARD": "打开仪表盘",
             "RAIL_SOURCES": "源",
-            "OPEN_SOURCES": "打开源",
             "RAIL_GLOBAL_FAVORITES": "收藏",
             "RAIL_GLOBAL_RECENT": "最近观看",
             "RAIL_GLOBAL_SEARCH": "全局搜索",

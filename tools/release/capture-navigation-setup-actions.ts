@@ -38,7 +38,10 @@ export async function openSettings(page: Page): Promise<void> {
 }
 
 async function openDashboard(page: Page): Promise<void> {
-    await page.locator('a.brand[href$="/workspace/dashboard"]').first().click();
+    await page
+        .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
+        .first()
+        .click();
     await page.waitForURL(/\/workspace\/dashboard/, { timeout: 20_000 });
     await page
         .locator('[data-test-id="dashboard-hero"]')

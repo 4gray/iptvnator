@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
+    WorkspaceBackNavigationService,
     WorkspaceHeaderContextService,
     WorkspaceResolvedCommandItem,
 } from '@iptvnator/portal/shared/util';
@@ -47,6 +48,7 @@ export class WorkspaceShellFacade {
     private readonly header = inject(WorkspaceShellHeaderService);
     private readonly xtreamImport = inject(WorkspaceShellXtreamImportService);
     readonly headerContext = inject(WorkspaceHeaderContextService);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -84,9 +86,7 @@ export class WorkspaceShellFacade {
     readonly currentUrl = this.routeState.currentUrl;
     readonly currentRoute = this.routeState.currentRoute;
     readonly showDashboard = this.routeState.showDashboard;
-    readonly brandLink = this.routeState.brandLink;
-    readonly brandTooltipKey = this.routeState.brandTooltipKey;
-    readonly brandAriaLabelKey = this.routeState.brandAriaLabelKey;
+    readonly backTarget = this.backNavigation.target;
     readonly currentContext = this.routeState.currentContext;
     readonly currentSection = this.routeState.currentSection;
     readonly commandPaletteCommands = computed<WorkspaceResolvedCommandItem[]>(
@@ -216,6 +216,10 @@ export class WorkspaceShellFacade {
 
     toggleLiveSidebar(): void {
         this.header.toggleLiveSidebar();
+    }
+
+    goBack(): void {
+        this.backNavigation.goBack();
     }
 
     navigateToGlobalFavorites(): void {

@@ -90,8 +90,7 @@ async function openUnsavedDialog(page: Page, locale: Locale): Promise<Locator> {
         page.locator('[data-test-id="settings-unsaved-bar"]')
     ).toBeVisible();
 
-    // The rail's Dashboard link stays visible in the phone top bar, unlike
-    // the brand link.
+    // The rail's Dashboard link stays visible in the phone top bar.
     await page
         .getByRole('navigation')
         .locator('a[href$="/workspace/dashboard"]')
