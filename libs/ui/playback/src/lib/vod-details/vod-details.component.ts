@@ -29,6 +29,7 @@ import {
     TrailerDialogService,
     ViewInPortalActionComponent,
     VodMoreMenuComponent,
+    scrollToCastCrewRow,
     type SimilarRailItem,
 } from '@iptvnator/ui/components';
 import { Router } from '@angular/router';
@@ -206,12 +207,16 @@ export class VodDetailsComponent {
     readonly isElectron = computed(() => this.downloadsService.isAvailable());
 
     /** Normalized metadata for display */
-    readonly normalizedMeta = computed(() => {
-        return normalizeVodDetails(this.item());
-    });
+    readonly normalizedMeta = computed(() => normalizeVodDetails(this.item()));
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.normalizedMeta().youtubeTrailer)
+    );
+    /** Settings → Playback → Play trailers in details background. */
+    readonly trailerBackdropUrl = computed(() =>
+        this.settingsStore.detailTrailerBackdrop?.() === true
+            ? this.trailerEmbedUrl()
+            : null
     );
 
     /**
@@ -360,11 +365,7 @@ export class VodDetailsComponent {
         }
     }
 
-    scrollToCast(): void {
-        document
-            .getElementById('detail-cast-crew')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    readonly scrollToCast = scrollToCastCrewRow;
 
     openSimilarRailItem(item: SimilarRailItem): void {
         const match = this.similarInPortals().find(

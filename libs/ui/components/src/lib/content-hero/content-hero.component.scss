@@ -72,6 +72,11 @@
         }
     }
 
+    // The muted trailer sits over the still backdrop and under the scrim.
+    &__trailer {
+        z-index: 0;
+    }
+
     // Two scrim layers: a horizontal one for the text column, a vertical one
     // that dissolves the artwork into the page.
     &__vignette {

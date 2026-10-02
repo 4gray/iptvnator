@@ -1,0 +1,35 @@
+@if (playing()) {
+    <iframe
+        #frame
+        class="trailer-backdrop__frame"
+        [src]="frameUrl()"
+        [title]="title()"
+        allow="autoplay; encrypted-media"
+        referrerpolicy="strict-origin-when-cross-origin"
+        tabindex="-1"
+        aria-hidden="true"
+    ></iframe>
+    <button
+        type="button"
+        class="trailer-backdrop__mute"
+        [matTooltip]="
+            (muted()
+                ? 'PORTALS.DETAIL.TRAILER_UNMUTE'
+                : 'PORTALS.DETAIL.TRAILER_MUTE'
+            ) | translate
+        "
+        [attr.aria-label]="
+            (muted()
+                ? 'PORTALS.DETAIL.TRAILER_UNMUTE'
+                : 'PORTALS.DETAIL.TRAILER_MUTE'
+            ) | translate
+        "
+        [attr.aria-pressed]="!muted()"
+        data-test-id="trailer-backdrop-mute"
+        (click)="toggleMute()"
+    >
+        <mat-icon aria-hidden="true">{{
+            muted() ? 'volume_off' : 'volume_up'
+        }}</mat-icon>
+    </button>
+}

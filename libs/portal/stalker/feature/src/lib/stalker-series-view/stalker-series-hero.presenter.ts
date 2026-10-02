@@ -5,7 +5,10 @@ import {
     StalkerStore,
     type StalkerSelectedVodItem,
 } from '@iptvnator/portal/stalker/data-access';
-import type { CrossPortalSimilarItem } from '@iptvnator/services';
+import {
+    SettingsStore,
+    type CrossPortalSimilarItem,
+} from '@iptvnator/services';
 import { youtubeEmbedUrl } from '@iptvnator/shared/interfaces';
 import {
     createSeriesHeroState,
@@ -29,6 +32,7 @@ export class StalkerSeriesHeroPresenter {
     private readonly translate = inject(TranslateService);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly trailerDialog = inject(TrailerDialogService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly bindings = signal<StalkerSeriesHeroBindings | null>(null);
     private readonly info = computed(
         () => this.bindings()?.displayItem()?.info ?? null
@@ -95,6 +99,12 @@ export class StalkerSeriesHeroPresenter {
     /** TMDB enrichment supplies the trailer; Stalker portals send none. */
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.info()?.tmdb_trailer)
+    );
+    /** Settings → Playback → Play trailers in details background. */
+    readonly trailerBackdropUrl = computed(() =>
+        this.settingsStore.detailTrailerBackdrop?.() === true
+            ? this.trailerEmbedUrl()
+            : null
     );
 
     openTrailer(): void {

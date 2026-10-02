@@ -104,6 +104,14 @@
             }
         </div>
 
+        @if (trailerBackdropUrl(); as trailerUrl) {
+            <app-hero-trailer-backdrop
+                class="hero__trailer"
+                [embedUrl]="trailerUrl"
+                [title]="formattedTitle()"
+            />
+        }
+
         <!-- Scrim: strong on the text side, fading into the page below -->
         <div class="hero__vignette"></div>
 

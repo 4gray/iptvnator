@@ -5,6 +5,7 @@ import {
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { SettingsStore } from '@iptvnator/services';
 import type { CrossPortalSimilarItem } from '@iptvnator/services';
 import { youtubeEmbedUrl } from '@iptvnator/shared/interfaces';
 import {
@@ -32,6 +33,7 @@ export class SerialDetailsHeroPresenter {
     private readonly translate = inject(TranslateService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly trailerDialog = inject(TrailerDialogService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly bindings = signal<SerialDetailsHeroBindings | null>(null);
     private readonly info = computed(
         () => this.bindings()?.selectedItem()?.info ?? null
@@ -100,6 +102,12 @@ export class SerialDetailsHeroPresenter {
 
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.info()?.youtube_trailer)
+    );
+    /** Settings → Playback → Play trailers in details background. */
+    readonly trailerBackdropUrl = computed(() =>
+        this.settingsStore.detailTrailerBackdrop?.() === true
+            ? this.trailerEmbedUrl()
+            : null
     );
 
     openTrailer(): void {

@@ -381,6 +381,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
     );
+    /** Settings → Playback → Play trailers in details background. */
+    readonly trailerBackdropUrl = computed(() =>
+        this.settingsStore.detailTrailerBackdrop?.() === true
+            ? this.trailerEmbedUrl()
+            : null
+    );
 
     readonly similarItems = this.similar.similarItems;
     readonly similarInPortals = this.similar.similarInPortals;

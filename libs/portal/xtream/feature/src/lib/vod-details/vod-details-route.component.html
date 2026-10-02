@@ -235,6 +235,7 @@
         [posterUrl]="info.movie_image || info.cover_big"
         [backdropUrl]="getBackdropUrl(info)"
         [progress]="hero.progress()"
+        [trailerBackdropUrl]="trailerBackdropUrl()"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"

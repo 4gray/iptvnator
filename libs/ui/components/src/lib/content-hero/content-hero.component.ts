@@ -15,11 +15,13 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
+import { HeroTrailerBackdropComponent } from '../detail-ui/hero-trailer-backdrop.component';
 
 @Component({
     selector: 'app-content-hero',
     standalone: true,
     imports: [
+        HeroTrailerBackdropComponent,
         MatIconModule,
         MatButtonModule,
         NgxSkeletonLoaderComponent,
@@ -41,6 +43,8 @@ export class ContentHeroComponent {
     readonly backdropUrl = input<string>();
     /** 0–100 watched share; renders the resume bar above the actions. */
     readonly progress = input<number | null>(null);
+    /** With the setting on, this trailer plays muted behind the details. */
+    readonly trailerBackdropUrl = input<string | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
 

@@ -178,6 +178,13 @@ and chip. Series titles drop their season marker (`splitSeasonSuffix`) into a
 disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
 only carries the page shell, meta items and the episodes section.
 
+With `detailTrailerBackdrop` on (Settings → Playback → "Play trailers in
+details background", default off) the hosts hand the trailer embed URL to the
+shell and `app-hero-trailer-backdrop` plays it muted and looping under the
+scrim after three idle seconds, with a 32px mute toggle in the corner. It
+never starts under `prefers-reduced-motion` or with `saveData`, and stops
+while the hero is off screen or the window is unfocused.
+
 ## Electron Drag Regions
 
 Every interactive descendant of a drag region—including buttons, links,

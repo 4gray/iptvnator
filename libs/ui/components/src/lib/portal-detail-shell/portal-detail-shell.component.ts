@@ -90,6 +90,8 @@ export class PortalDetailShellComponent {
     readonly backdropUrl = input<string>();
     /** 0–100 watched share shown as the hero's resume bar. */
     readonly progress = input<number | null>(null);
+    /** Trailer embed to play muted behind the hero, when the setting is on. */
+    readonly trailerBackdropUrl = input<string | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     readonly backLabel = input<string>();
