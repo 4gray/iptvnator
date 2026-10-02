@@ -83,9 +83,13 @@ export class PortalDetailShellComponent {
         viewChild<ElementRef<HTMLButtonElement>>('backButton');
 
     readonly title = input<string>();
+    /** "Movie · playlist name" eyebrow above the hero title. */
+    readonly kindLabel = input<string | null>(null);
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    /** 0–100 watched share shown as the hero's resume bar. */
+    readonly progress = input<number | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     readonly backLabel = input<string>();

@@ -1,6 +1,7 @@
 <button
     type="button"
     class="play-btn"
+    [class.play-btn--secondary]="variant() === 'secondary'"
     [class.play-btn--launching]="state() === 'launching'"
     [class.play-btn--stop]="state() === 'stop'"
     [class.play-btn--two-line]="!!meta()"

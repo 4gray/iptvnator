@@ -24,6 +24,8 @@
             [vodDetailsItem]="inlineDetail().vodDetailsItem"
             [isFavorite]="isSelectedVodFavorite()"
             [playbackPosition]="selectedVodPlaybackPosition()"
+            [playbackDurationSeconds]="selectedVodPlaybackDuration()"
+            [sourceLabel]="sourceLabel()"
             [inlinePlayback]="inlinePlayback()"
             [externalPlayback]="externalPlayback.activeSession()"
             (playClicked)="onVodPlay($event)"
@@ -36,6 +38,8 @@
             "
             (favoriteToggled)="onVodFavoriteToggled($event)"
             (backClicked)="onVodBack()"
+            (externalPlayRequested)="vodDetailActions.openExternal($event)"
+            (resetProgressRequested)="vodDetailActions.resetProgress($event)"
         />
     }
 

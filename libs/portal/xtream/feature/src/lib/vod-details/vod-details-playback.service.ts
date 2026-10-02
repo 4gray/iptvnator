@@ -21,6 +21,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
+    ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
     PlayerContentInfo,
@@ -188,68 +189,30 @@ export class VodDetailsPlaybackService {
         this.bindings.set(bindings);
     }
 
-    async playVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+    /**
+     * The playback the route copy resolves to, with the saved resume point
+     * when `resume` is set. Null when the item carries no playable source
+     * or no playlist is current.
+     */
+    buildVodPlayback(
+        vodItem: XtreamVodDetails | null,
+        resume: boolean
+    ): ResolvedPortalPlayback | null {
         if (!vodItem) {
-            return false;
+            return null;
         }
 
         const source = resolveXtreamVodPlaybackSource(vodItem);
-        if (!source) {
-            return false;
-        }
-
         const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return false;
-        }
-
-        const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
-        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
-        const routeVodId = this.bindings()?.vodId();
-        const id =
-            routeVodId != null &&
-            Number.isSafeInteger(routeVodId) &&
-            routeVodId > 0
-                ? routeVodId
-                : source.streamId;
-
-        this.logger.debug('playVod resolved ID', { id, vodItem });
-
-        const contentInfo: PlayerContentInfo = {
-            playlistId: playlist.id,
-            contentXtreamId: id,
-            contentType: 'vod',
-        };
-        const playback: ResolvedPortalPlayback = {
-            streamUrl,
-            title: presentation.title,
-            thumbnail: presentation.posterUrl,
-            contentInfo,
-        };
-
-        return await this.startPlayback(playback);
-    }
-
-    async resumeVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
-        if (!vodItem) {
-            return false;
-        }
-
-        const source = resolveXtreamVodPlaybackSource(vodItem);
-        if (!source) {
-            return false;
-        }
-
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return false;
+        if (!source || !playlist) {
+            return null;
         }
 
         const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         // Master's sparse-details fallback: a provider that omits the route
         // id still has the stream id on the resolved source.
         const routeVodId = this.bindings()?.vodId();
-        const vodId =
+        const id =
             routeVodId != null &&
             Number.isSafeInteger(routeVodId) &&
             routeVodId > 0
@@ -258,23 +221,32 @@ export class VodDetailsPlaybackService {
         // The ROUTE copy's row, not the last position seen: Resume starts the
         // route's stream, and an alternative's timecode belongs to a
         // different (playlist, stream) key.
-        const position = this.routePlaybackPosition();
-        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
+        const position = resume ? this.routePlaybackPosition() : null;
+
+        this.logger.debug('buildVodPlayback resolved ID', { id, resume });
 
         const contentInfo: PlayerContentInfo = {
             playlistId: playlist.id,
-            contentXtreamId: vodId,
+            contentXtreamId: id,
             contentType: 'vod',
         };
-        const playback: ResolvedPortalPlayback = {
-            streamUrl,
+        return {
+            streamUrl: this.xtreamStore.constructVodStreamUrl(vodItem),
             title: presentation.title,
             thumbnail: presentation.posterUrl,
-            startTime: position?.positionSeconds,
+            ...(position ? { startTime: position.positionSeconds } : {}),
             contentInfo,
         };
+    }
 
-        return await this.startPlayback(playback);
+    async playVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+        const playback = this.buildVodPlayback(vodItem, false);
+        return playback ? await this.startPlayback(playback) : false;
+    }
+
+    async resumeVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+        const playback = this.buildVodPlayback(vodItem, true);
+        return playback ? await this.startPlayback(playback) : false;
     }
 
     onPrimaryAction(vodItem: XtreamVodDetails | null): void {
@@ -329,20 +301,31 @@ export class VodDetailsPlaybackService {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        request.trackLaunch(
+            this.launchExternal(request.playback, request.player)
+        );
+    }
+
+    /**
+     * Hands the playback to MPV or VLC regardless of the configured player
+     * (the "Open in external player" action and the inline player's
+     * fallback), owned and settled like a regular external start.
+     */
+    launchExternal(
+        playback: ResolvedPortalPlayback,
+        player: ExternalPlayerName
+    ): Promise<ExternalPlayerSession | void> {
         const routeIdentity = this.externalLaunchOwner.captureRoute();
         this.bindings()?.supersedePendingSwitch();
         const generation = ++this.startGeneration;
-        this.claimExternalLaunch(request.playback, generation);
-        const launch = this.portalPlayer.openExternalPlayback(
-            request.playback,
-            request.player
-        );
-        request.trackLaunch(launch);
+        this.claimExternalLaunch(playback, generation);
+        const launch = this.portalPlayer.openExternalPlayback(playback, player);
         void this.settleExternalLaunch(
             generation,
             () => this.externalLaunchOwner.ownsRoute(routeIdentity),
             launch
         );
+        return launch;
     }
 
     /**

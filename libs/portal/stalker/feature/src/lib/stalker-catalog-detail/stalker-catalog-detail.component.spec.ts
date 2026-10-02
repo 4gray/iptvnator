@@ -50,6 +50,8 @@ class StubVodDetailsComponent {
     readonly providerOnly = input(false);
     readonly isFavorite = input(false);
     readonly playbackPosition = input<number | null>(null);
+    readonly playbackDurationSeconds = input<number | null>(null);
+    readonly sourceLabel = input<string | null>(null);
     readonly inlinePlayback = input<unknown>(null);
     readonly externalPlayback = input<unknown>(null);
     readonly isWatched = input(false);
@@ -64,6 +66,8 @@ class StubVodDetailsComponent {
     readonly backClicked = output<void>();
     readonly inlineTimeUpdated = output<unknown>();
     readonly inlinePlaybackClosed = output<void>();
+    readonly externalPlayRequested = output<unknown>();
+    readonly resetProgressRequested = output<unknown>();
     readonly streamUrlCopied = output<void>();
     readonly inlineExternalFallbackRequested = output<unknown>();
 }

@@ -17,15 +17,22 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
+    DetailIconButtonComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
     DialogService,
+    MetaChipComponent,
     PortalDetailShellComponent,
+    SimilarRailComponent,
+    type SimilarRailItem,
+    TrailerDialogService,
     ViewInPortalActionComponent,
-    VodSourcesChipComponent,
+    VodMoreMenuComponent,
 } from '@iptvnator/ui/components';
-import { SafePipe } from '@iptvnator/pipes';
 import {
     createDiscoverFacetNavigation,
     createLogger,
@@ -74,6 +81,8 @@ import { VodDetailsPlaybackService } from './vod-details-playback.service';
 import { VodDetailsMultiSourceUiService } from './vod-details-multi-source-ui.service';
 import { VodDetailsDownloadsService } from './vod-details-downloads.service';
 import { VodDetailsWatchedService } from './vod-details-watched.service';
+import { VodDetailsHeroPresenter } from './vod-details-hero.presenter';
+import { VodDetailsMenuService } from './vod-details-menu.service';
 import { VodDetailsSimilarService } from './vod-details-similar.service';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import { resolveVodMultiSourceMovie } from './vod-multi-source-identity';
@@ -113,6 +122,8 @@ function resolveVodIdentity(item: XtreamVodDetails): number | null {
         VodDetailsSimilarService,
         VodDetailsDownloadsService,
         VodDetailsWatchedService,
+        VodDetailsHeroPresenter,
+        VodDetailsMenuService,
     ],
     imports: [
         DetailActionsTemplateDirective,
@@ -123,11 +134,16 @@ function resolveVodIdentity(item: XtreamVodDetails): number | null {
         NgTemplateOutlet,
         PortalDetailShellComponent,
         ViewInPortalActionComponent,
-        SafePipe,
         SlicePipe,
         TranslateModule,
         PortalInlinePlayerComponent,
-        VodSourcesChipComponent,
+        CastCrewRowComponent,
+        DetailActionButtonComponent,
+        DetailCreditsComponent,
+        DetailIconButtonComponent,
+        MetaChipComponent,
+        SimilarRailComponent,
+        VodMoreMenuComponent,
     ],
 })
 export class VodDetailsRouteComponent implements OnInit, OnDestroy {
@@ -148,6 +164,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly similar = inject(VodDetailsSimilarService);
     private readonly downloads = inject(VodDetailsDownloadsService);
     private readonly watched = inject(VodDetailsWatchedService);
+    readonly hero = inject(VodDetailsHeroPresenter);
+    readonly menu = inject(VodDetailsMenuService);
+    private readonly trailerDialog = inject(TrailerDialogService);
     private readonly logger = createLogger('VodDetailsRoute');
     /** `playlistId:vodId` of the last initialized detail view */
     private readonly lastInitKey = signal<string | null>(null);
@@ -456,6 +475,24 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         });
 
         this.watched.bind(this.selectedVodId);
+        this.hero.bind({
+            info: this.selectedVodInfo,
+            position: this.routePlaybackPosition,
+            hasPlaybackPosition: this.hasPlaybackPosition,
+            isOfflinePrimary: this.isOfflinePrimary,
+            externalLabel: this.externalPrimaryLabel,
+            externalIcon: this.externalPrimaryIcon,
+            externalState: this.externalPrimaryButtonState,
+            formatPosition: () => this.formatPosition(),
+            similarItems: this.similarItems,
+            similarInPortals: this.similarInPortals,
+        });
+        this.menu.bind({
+            item: this.playableVodItem,
+            vodId: this.selectedVodId,
+            category: this.selectedCategory,
+            restart: () => this.restartVod(this.playableVodItem()),
+        });
 
         registerContentMetadataBackfill({
             store: this.xtreamStore,
@@ -482,6 +519,38 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         void this.router.navigate(['../..', item.categoryId, item.id], {
             relativeTo: this.route,
         });
+    }
+
+    openSimilarRailItem(item: SimilarRailItem): void {
+        const local = this.similarItems().find(
+            (candidate) => `c${candidate.id}` === item.key
+        );
+        if (local) {
+            this.openSimilar(local);
+            return;
+        }
+        const crossPortal = this.similarInPortals().find(
+            (candidate) =>
+                `x${candidate.match.playlistId}-${candidate.match.xtreamId}` ===
+                item.key
+        );
+        if (crossPortal) {
+            this.openSimilarInPortals(crossPortal);
+        }
+    }
+
+    openTrailer(): void {
+        const embedUrl = this.trailerEmbedUrl();
+        const title = this.selectedVodInfo()?.name;
+        if (embedUrl) {
+            this.trailerDialog.open({ embedUrl, title: title ?? '' });
+        }
+    }
+
+    scrollToCast(): void {
+        document
+            .getElementById('detail-cast-crew')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     openActor(member: TmdbEnrichedCastMember): void {

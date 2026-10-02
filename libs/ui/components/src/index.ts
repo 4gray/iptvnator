@@ -38,7 +38,7 @@ export * from './lib/detail-ui/cast-crew.util';
 export * from './lib/detail-ui/cast-crew-row.component';
 export * from './lib/detail-ui/detail-credits.component';
 export * from './lib/detail-ui/detail-icon-button.component';
-export * from './lib/detail-ui/detail-primary-button.component';
+export * from './lib/detail-ui/detail-action-button.component';
 export * from './lib/detail-ui/detail-rail.component';
 export * from './lib/detail-ui/meta-chip.component';
 export * from './lib/detail-ui/similar-rail.component';

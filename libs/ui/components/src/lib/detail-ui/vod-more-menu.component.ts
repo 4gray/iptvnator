@@ -53,7 +53,7 @@ export class VodMoreMenuComponent {
     readonly testId = input<string | null>(null);
 
     // Alternative sources, shown by the `sources` row.
-    readonly sources = input<readonly VodSourceDescriptor[]>([]);
+    readonly sources = input<VodSourceDescriptor[]>([]);
     readonly sourcesTitle = input('');
     readonly matchKind = input<VodSourceMatchKind>('title-year');
     readonly autoFailoverEnabled = input(false);

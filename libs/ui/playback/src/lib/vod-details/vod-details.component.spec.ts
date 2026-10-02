@@ -1,3 +1,4 @@
+import { OverlayContainer } from '@angular/cdk/overlay';
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -7,23 +8,30 @@ import {
     TranslatePipe,
     TranslateService,
 } from '@ngx-translate/core';
-import { MatIcon } from '@angular/material/icon';
-import { SafePipe } from '@iptvnator/pipes';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
+    DetailIconButtonComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
+    SimilarRailComponent,
     ViewInPortalActionComponent,
+    VodMoreMenuComponent,
 } from '@iptvnator/ui/components';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import {
     CrossPortalSimilarService,
     DownloadItem,
     DownloadsService,
+    SettingsStore,
 } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
+    VideoPlayer,
     VodDetailsItem,
     createStalkerVodItem,
 } from '@iptvnator/shared/interfaces';
@@ -123,25 +131,40 @@ describe('VodDetailsComponent offline playback', () => {
     const buttonText = (button: HTMLButtonElement): string =>
         button.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 
-    const primaryButton = (): HTMLButtonElement => {
-        const button = fixture.nativeElement.querySelector(
-            '.action-buttons > .play-btn'
+    const byTestId = (testId: string): HTMLButtonElement | null =>
+        fixture.nativeElement.querySelector(
+            `[data-testid="${testId}"]`
         ) as HTMLButtonElement | null;
+
+    const primaryButton = (): HTMLButtonElement => {
+        const button = byTestId('vod-primary-action');
         expect(button).not.toBeNull();
         return button as HTMLButtonElement;
     };
 
-    const findButtonWithText = (text: string): HTMLButtonElement | undefined =>
-        Array.from(
-            fixture.nativeElement.querySelectorAll('.action-buttons button')
-        ).find((candidate) =>
-            buttonText(candidate as HTMLButtonElement).includes(text)
-        ) as HTMLButtonElement | undefined;
+    const providerPlayButton = (): HTMLButtonElement | null =>
+        byTestId('vod-play-provider');
 
-    const buttonWithText = (text: string): HTMLButtonElement => {
-        const button = findButtonWithText(text);
-        expect(button).toBeDefined();
-        return button as HTMLButtonElement;
+    /** Opens the "…" menu and returns its "Start over" row, if offered. */
+    const openStartOver = async (): Promise<HTMLButtonElement | null> => {
+        const trigger = byTestId('vod-more-menu');
+        expect(trigger).not.toBeNull();
+        trigger?.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        return TestBed.inject(OverlayContainer)
+            .getContainerElement()
+            .querySelector<HTMLButtonElement>(
+                '[data-test-id="vod-menu-start-over"]'
+            );
+    };
+
+    const closeMenu = async (): Promise<void> => {
+        document
+            .querySelector<HTMLElement>('.cdk-overlay-backdrop')
+            ?.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
     };
 
     const render = async ({
@@ -284,6 +307,10 @@ describe('VodDetailsComponent offline playback', () => {
                     },
                 },
                 {
+                    provide: SettingsStore,
+                    useValue: { player: signal(VideoPlayer.Html5Player) },
+                },
+                {
                     provide: Router,
                     useValue: {
                         navigate: jest.fn(),
@@ -296,14 +323,19 @@ describe('VodDetailsComponent offline playback', () => {
                 // player swapped for the stub above.
                 set: {
                     imports: [
+                        CastCrewRowComponent,
+                        DetailActionButtonComponent,
                         DetailActionsTemplateDirective,
+                        DetailCreditsComponent,
+                        DetailIconButtonComponent,
                         DetailMetaTemplateDirective,
                         DetailTagsTemplateDirective,
-                        MatIcon,
+                        MetaChipComponent,
                         PortalDetailShellComponent,
+                        SimilarRailComponent,
                         ViewInPortalActionComponent,
+                        VodMoreMenuComponent,
                         StubPortalInlinePlayerComponent,
-                        SafePipe,
                         TranslatePipe,
                     ],
                 },
@@ -319,6 +351,7 @@ describe('VodDetailsComponent offline playback', () => {
                 MARK_WATCHED: 'Mark as Watched',
                 MARK_UNWATCHED: 'Mark as Unwatched',
             },
+            WORKSPACE: { DASHBOARD: { HERO_CONTINUE: 'Continue' } },
             PORTALS: {
                 ADD_TO_FAVORITES: 'Add to favorites',
                 REMOVE_FROM_FAVORITES: 'Remove from favorites',
@@ -376,7 +409,10 @@ describe('VodDetailsComponent offline playback', () => {
         completeDownload();
         await render();
 
-        buttonWithText('Play from this source').click();
+        expect(providerPlayButton()?.getAttribute('aria-label')).toBe(
+            'Play from this source'
+        );
+        providerPlayButton()?.click();
         await fixture.whenStable();
 
         expect(playClicked).toHaveBeenCalledWith(STALKER_VOD);
@@ -388,7 +424,7 @@ describe('VodDetailsComponent offline playback', () => {
         completeDownload();
         await render({ playbackPosition: 83 });
 
-        buttonWithText('Play from this source').click();
+        providerPlayButton()?.click();
         await fixture.whenStable();
 
         expect(resumeClicked).toHaveBeenCalledWith({
@@ -397,13 +433,9 @@ describe('VodDetailsComponent offline playback', () => {
         });
         expect(playClicked).not.toHaveBeenCalled();
         expect(playDownload).not.toHaveBeenCalled();
-        expect(
-            Array.from(
-                fixture.nativeElement.querySelectorAll('.action-buttons button')
-            ).some((button) =>
-                buttonText(button as HTMLButtonElement).includes('Restart')
-            )
-        ).toBe(false);
+        // Start over lives in the "…" menu and stays there for a download.
+        expect(await openStartOver()).not.toBeNull();
+        await closeMenu();
     });
 
     it('keeps Stop MPV ahead of local and provider playback', async () => {
@@ -411,7 +443,7 @@ describe('VodDetailsComponent offline playback', () => {
         await render({ externalPlayback: MATCHING_MPV_SESSION });
 
         expect(buttonText(primaryButton())).toContain('Stop MPV');
-        expect(findButtonWithText('Play from this source')).toBeUndefined();
+        expect(providerPlayButton()).toBeNull();
 
         primaryButton().click();
         await fixture.whenStable();
@@ -431,8 +463,7 @@ describe('VodDetailsComponent offline playback', () => {
 
         expect(buttonText(primaryButton())).toContain('Opening in MPV...');
         expect(primaryButton().disabled).toBe(true);
-        expect(findButtonWithText('Play from this source')).toBeUndefined();
-        expect(findButtonWithText('Restart')).toBeUndefined();
+        expect(providerPlayButton()).toBeNull();
         expect(playDownload).not.toHaveBeenCalled();
         expect(playClicked).not.toHaveBeenCalled();
         expect(resumeClicked).not.toHaveBeenCalled();
@@ -446,7 +477,6 @@ describe('VodDetailsComponent offline playback', () => {
 
         expect(buttonText(primaryButton())).toContain('Opening in MPV...');
         expect(primaryButton().disabled).toBe(true);
-        expect(findButtonWithText('Restart')).toBeUndefined();
         expect(playClicked).not.toHaveBeenCalled();
         expect(resumeClicked).not.toHaveBeenCalled();
     });
@@ -471,10 +501,8 @@ describe('VodDetailsComponent offline playback', () => {
 
         expect(fixture.nativeElement.textContent).not.toContain('Offline');
         expect(fixture.nativeElement.textContent).not.toContain('Play Local');
-        expect(fixture.nativeElement.textContent).not.toContain(
-            'Play from this source'
-        );
-        expect(fixture.nativeElement.textContent).not.toContain('Download');
+        expect(providerPlayButton()).toBeNull();
+        expect(byTestId('vod-download-start')).toBeNull();
         expect(buttonText(primaryButton())).toContain('Play');
 
         primaryButton().click();
@@ -484,10 +512,11 @@ describe('VodDetailsComponent offline playback', () => {
         expect(playDownload).not.toHaveBeenCalled();
     });
 
-    it('keeps provider Resume and Restart actions when undownloaded', async () => {
+    it('keeps provider Continue and Start over actions when undownloaded', async () => {
         await render({ playbackPosition: 83 });
 
-        expect(buttonText(primaryButton())).toContain('Resume 1:23');
+        expect(buttonText(primaryButton())).toContain('Continue');
+        expect(buttonText(primaryButton())).toContain('1:23');
         primaryButton().click();
         await fixture.whenStable();
         expect(resumeClicked).toHaveBeenCalledWith({
@@ -495,7 +524,9 @@ describe('VodDetailsComponent offline playback', () => {
             positionSeconds: 83,
         });
 
-        buttonWithText('Restart').click();
+        const startOver = await openStartOver();
+        expect(startOver).not.toBeNull();
+        startOver?.click();
         await fixture.whenStable();
         expect(playClicked).toHaveBeenCalledWith(STALKER_VOD);
         expect(playDownload).not.toHaveBeenCalled();
@@ -503,18 +534,18 @@ describe('VodDetailsComponent offline playback', () => {
 
     describe('manual watched toggle', () => {
         const watchedButton = (): HTMLButtonElement =>
-            fixture.nativeElement.querySelector(
-                '[data-test-id="vod-watched-toggle"]'
-            ) as HTMLButtonElement;
+            byTestId('vod-watched-toggle') as HTMLButtonElement;
+        const watchedLabel = (): string =>
+            watchedButton().getAttribute('aria-label') ?? '';
 
         it('offers Mark as Watched and emits the desired state', async () => {
             await render({ playbackPosition: 600 });
             const watchedToggled = jest.fn();
             fixture.componentInstance.watchedToggled.subscribe(watchedToggled);
 
-            expect(buttonText(watchedButton())).toContain('Mark as Watched');
+            expect(watchedLabel()).toBe('Mark as Watched');
             expect(watchedButton().getAttribute('aria-pressed')).toBe('false');
-            expect(buttonText(primaryButton())).toContain('Resume');
+            expect(buttonText(primaryButton())).toContain('Continue');
 
             watchedButton().click();
 
@@ -530,11 +561,10 @@ describe('VodDetailsComponent offline playback', () => {
             fixture.componentInstance.watchedToggled.subscribe(watchedToggled);
 
             expect(buttonText(primaryButton())).toContain('Play');
-            expect(buttonText(primaryButton())).not.toContain('Resume');
-            expect(findButtonWithText('Restart')).toBeUndefined();
-            expect(buttonText(watchedButton())).toContain('Mark as Unwatched');
+            expect(buttonText(primaryButton())).not.toContain('Continue');
+            expect(watchedLabel()).toBe('Mark as Unwatched');
             expect(watchedButton().getAttribute('aria-pressed')).toBe('true');
-            expect(watchedButton().classList).toContain('favorite-btn--active');
+            expect(watchedButton().classList).toContain('is-active');
 
             watchedButton().click();
 

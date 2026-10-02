@@ -9,23 +9,31 @@ import {
     untracked,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatIcon } from '@angular/material/icon';
-import { TranslatePipe } from '@ngx-translate/core';
-import { SafePipe } from '@iptvnator/pipes';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     createDiscoverFacetNavigation,
     createExternalPlaybackButtonState,
 } from '@iptvnator/portal/shared/util';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
+    DetailIconButtonComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
+    SimilarRailComponent,
+    TrailerDialogService,
     ViewInPortalActionComponent,
+    VodMoreMenuComponent,
+    type SimilarRailItem,
 } from '@iptvnator/ui/components';
 import { Router } from '@angular/router';
 import {
+    ExternalPlayerName,
     ExternalPlayerSession,
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
@@ -38,8 +46,11 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     DownloadsService,
+    SettingsStore,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
+import { VOD_DETAILS_MENU_ACTION } from './vod-details-presentation';
+import { createVodDetailsHeroState } from './vod-details-hero.state';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
 import { createVodDownloadState } from './vod-download-state.util';
@@ -69,14 +80,19 @@ import { createVodDownloadState } from './vod-download-state.util';
     styleUrls: ['../styles/detail-view.scss'],
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
+        CastCrewRowComponent,
+        DetailActionButtonComponent,
         DetailActionsTemplateDirective,
+        DetailCreditsComponent,
+        DetailIconButtonComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
-        MatIcon,
+        MetaChipComponent,
         PortalDetailShellComponent,
+        SimilarRailComponent,
         ViewInPortalActionComponent,
+        VodMoreMenuComponent,
         PortalInlinePlayerComponent,
-        SafePipe,
         TranslatePipe,
     ],
 })
@@ -92,6 +108,10 @@ export class VodDetailsComponent {
 
     /** Playback position in seconds for resume feature (managed by parent) */
     readonly playbackPosition = input<number | null>(null);
+    /** Duration the saved position was recorded against, for "N min left". */
+    readonly playbackDurationSeconds = input<number | null>(null);
+    /** Playlist name shown in the "Movie · source" eyebrow. */
+    readonly sourceLabel = input<string | null>(null);
 
     /** Inline playback payload for embedded players (managed by parent) */
     readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
@@ -161,6 +181,14 @@ export class VodDetailsComponent {
     /** Emitted when the inline player requests MPV/VLC fallback */
     readonly inlineExternalFallbackRequested =
         output<PlaybackFallbackRequest>();
+    /** "Open in external player": the host resolves and launches MPV/VLC. */
+    readonly externalPlayRequested = output<{
+        item: VodDetailsItem;
+        player: ExternalPlayerName;
+        positionSeconds: number | null;
+    }>();
+    /** "Reset progress": the host clears the saved position. */
+    readonly resetProgressRequested = output<VodDetailsItem>();
 
     // ============ Services ============
 
@@ -168,6 +196,9 @@ export class VodDetailsComponent {
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly router = inject(Router);
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly translate = inject(TranslateService);
+    private readonly trailerDialog = inject(TrailerDialogService);
 
     // ============ Computed State ============
 
@@ -277,6 +308,74 @@ export class VodDetailsComponent {
         () =>
             this.isDownloaded() && this.externalPrimaryButtonState() === 'idle'
     );
+
+    // ============ Hero presentation ============
+
+    readonly hero = createVodDetailsHeroState({
+        meta: this.normalizedMeta,
+        sourceLabel: this.sourceLabel,
+        playbackPosition: this.playbackPosition,
+        playbackDurationSeconds: this.playbackDurationSeconds,
+        hasPlaybackPosition: this.hasPlaybackPosition,
+        formattedPosition: this.formattedPosition,
+        isWatched: this.isWatched,
+        isElectron: this.isElectron,
+        providerOnly: this.providerOnly,
+        isOfflinePrimary: this.isOfflinePrimary,
+        externalLabel: this.externalPrimaryLabel,
+        externalIcon: this.externalPrimaryIcon,
+        externalState: this.externalPrimaryButtonState,
+        similarInPortals: this.similarInPortals,
+        configuredPlayer: this.settingsStore.player,
+        translate: this.translate,
+    });
+
+    runMenuAction(actionId: string): void {
+        switch (actionId) {
+            case VOD_DETAILS_MENU_ACTION.ExternalPlayer:
+                this.externalPlayRequested.emit({
+                    item: this.item(),
+                    player: this.hero.externalPlayer(),
+                    positionSeconds: this.hasPlaybackPosition()
+                        ? this.playbackPosition()
+                        : null,
+                });
+                return;
+            case VOD_DETAILS_MENU_ACTION.StartOver:
+                this.onPlay();
+                return;
+            case VOD_DETAILS_MENU_ACTION.ResetProgress:
+                this.resetProgressRequested.emit(this.item());
+                return;
+        }
+    }
+
+    openTrailer(): void {
+        const embedUrl = this.trailerEmbedUrl();
+        if (embedUrl) {
+            this.trailerDialog.open({
+                embedUrl,
+                title: this.normalizedMeta().title ?? '',
+            });
+        }
+    }
+
+    scrollToCast(): void {
+        document
+            .getElementById('detail-cast-crew')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    openSimilarRailItem(item: SimilarRailItem): void {
+        const match = this.similarInPortals().find(
+            (candidate) =>
+                `x${candidate.match.playlistId}-${candidate.match.xtreamId}` ===
+                item.key
+        );
+        if (match) {
+            this.openSimilarInPortals(match);
+        }
+    }
 
     // ============ Actions ============
 

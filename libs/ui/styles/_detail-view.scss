@@ -12,24 +12,24 @@
     $episode-title-letter-spacing: 0
 ) {
     :host {
-        --poster-width: 220px;
-        --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+        --poster-width: 190px;
+        --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
         --content-max-width: 1400px;
 
-        // Light theme colors (default - no .dark-theme class on body)
-        --hero-gradient-start: rgba(255, 250, 245, 0);
-        --hero-gradient-mid: rgba(255, 250, 245, 0.75);
-        --hero-gradient-end: rgba(255, 250, 245, 1);
-        --surface-bg: #fffaf5;
-        --text-primary: #1a1a1a;
-        --text-secondary: rgba(26, 26, 26, 0.75);
-        --text-muted: rgba(26, 26, 26, 0.5);
+        // Page surface and text follow the app theme (light by default).
+        --hero-gradient-start: color-mix(in srgb, var(--app-content-bg, #f5f6f8) 0%, transparent);
+        --hero-gradient-mid: color-mix(in srgb, var(--app-content-bg, #f5f6f8) 75%, transparent);
+        --hero-gradient-end: var(--app-content-bg, #f5f6f8);
+        --surface-bg: var(--app-content-bg, #f5f6f8);
+        --text-primary: var(--app-heading-color, #1a1d23);
+        --text-secondary: var(--app-body-color, #4a5060);
+        --text-muted: var(--app-muted-color, #8891a4);
         // Single primary CTA color — matches --app-selection-color so the
         // Play button reads as the same blue used everywhere else for
         // "active / call to action".
-        --accent-color: #2f7bff;
-        --tag-bg: rgba(0, 0, 0, 0.06);
-        --tag-border: rgba(0, 0, 0, 0.12);
+        --accent-color: var(--app-selection-color, #2f7bff);
+        --tag-bg: color-mix(in srgb, var(--app-on-surface, #1d1b1e) 10%, transparent);
+        --tag-border: color-mix(in srgb, var(--app-on-surface, #1d1b1e) 14%, transparent);
         --play-idle-bg: linear-gradient(
             135deg,
             #2f7bff 0%,
@@ -70,17 +70,7 @@
 
     // Dark theme overrides - cinematic dark mode
     :host-context(.dark-theme) {
-        --hero-gradient-start: rgba(20, 20, 20, 0);
-        --hero-gradient-mid: rgba(20, 20, 20, 0.7);
-        --hero-gradient-end: rgba(20, 20, 20, 1);
-        --surface-bg: #141414;
-        --text-primary: #fff;
-        --text-secondary: rgba(255, 255, 255, 0.7);
-        --text-muted: rgba(255, 255, 255, 0.5);
-        --accent-color: #78adff;
-        --tag-bg: rgba(255, 255, 255, 0.1);
-        --tag-border: rgba(255, 255, 255, 0.2);
-        --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+        --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
         --play-idle-bg: linear-gradient(
             135deg,
             #2f7bff 0%,

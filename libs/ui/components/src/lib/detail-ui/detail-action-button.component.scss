@@ -11,6 +11,14 @@
     height: 44px;
     max-width: 100%;
 
+    &--secondary {
+        @include actions.ghost-text-button;
+
+        height: 44px;
+        gap: 8px;
+        padding: 0 18px;
+    }
+
     &__copy {
         display: inline-flex;
         flex-direction: column;

@@ -34,9 +34,13 @@ export class ContentHeroComponent {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly title = input<string>();
+    /** "Movie · playlist name" eyebrow above the title. */
+    readonly kindLabel = input<string | null>(null);
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    /** 0–100 watched share; renders the resume bar above the actions. */
+    readonly progress = input<number | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
 
@@ -52,9 +56,16 @@ export class ContentHeroComponent {
     readonly backdropImageUrl = computed(() =>
         this.backdropError() ? undefined : this.backdropSourceUrl()
     );
-    readonly usesPosterBackdrop = computed(
-        () => !this.backdropUrl() && !!this.posterUrl() && !this.backdropError()
-    );
+    /**
+     * No 16:9 backdrop, or the provider sent the poster twice: the poster,
+     * blurred and scaled, becomes the backdrop (the sharp copy stays on the
+     * left). Common for Xtream and Stalker portals.
+     */
+    readonly usesPosterBackdrop = computed(() => {
+        const poster = this.posterUrl();
+        const backdrop = this.backdropUrl();
+        return !!poster && (!backdrop || backdrop === poster) && !this.backdropError();
+    });
 
     readonly descriptionEl =
         viewChild<ElementRef<HTMLElement>>('descriptionEl');

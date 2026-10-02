@@ -70,6 +70,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { createStalkerVodDetailActions } from '../stalker-vod-detail-actions';
 import { isStalkerSearchRequestCurrent } from './stalker-search-request.util';
 
 interface StalkerFilter {
@@ -203,6 +204,12 @@ export class StalkerSearchComponent {
         JSON.stringify([this.playbackSessionKey(), this.selectedFilterType()])
     );
     readonly selectedVodPosition = signal<PlaybackPositionData | null>(null);
+    readonly selectedVodPlaybackDuration = computed<number | null>(
+        () => this.selectedVodPosition()?.durationSeconds ?? null
+    );
+    readonly sourceLabel = computed(
+        () => this.stalkerStore.currentPlaylist()?.title ?? null
+    );
     readonly selectedVodPlaybackPosition = computed<number | null>(
         () => this.selectedVodPosition()?.positionSeconds ?? null
     );
@@ -891,6 +898,25 @@ export class StalkerSearchComponent {
             return relativePath;
         }
     }
+
+    readonly vodDetailActions = createStalkerVodDetailActions({
+        resolvePlayback: (cmd, title, thumbnail, startTime) =>
+            this.stalkerStore.resolveVodPlayback(
+                cmd,
+                title,
+                thumbnail,
+                undefined,
+                undefined,
+                startTime
+            ),
+        portalPlayer: this.portalPlayer,
+        playbackPositions: this.playbackPositions,
+        playlistId: () => this.stalkerStore.currentPlaylist()?._id,
+        selectedVodPosition: this.selectedVodPosition,
+        snackBar: this.snackBar,
+        translate: this.translateService,
+        logError: () => undefined,
+    });
 
     private async startStalkerVodPlayback(
         cmd?: string,

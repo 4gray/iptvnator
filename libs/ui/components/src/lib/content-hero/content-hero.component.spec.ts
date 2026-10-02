@@ -107,3 +107,75 @@ describe('ContentHeroComponent', () => {
         ).toBeNull();
     });
 });
+
+describe('ContentHeroComponent cinematic layout', () => {
+    let fixture: ComponentFixture<ContentHeroComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [ContentHeroComponent, TranslateModule.forRoot()],
+        }).compileComponents();
+        fixture = TestBed.createComponent(ContentHeroComponent);
+    });
+
+    function host(): HTMLElement {
+        return fixture.nativeElement as HTMLElement;
+    }
+
+    it('renders the kind label above the title and the resume bar', () => {
+        fixture.componentRef.setInput('title', 'Black Harbor');
+        fixture.componentRef.setInput('kindLabel', 'Movie · Demo');
+        fixture.componentRef.setInput('progress', 63);
+        fixture.detectChanges();
+
+        const kind = host().querySelector('[data-test-id="detail-kind"]');
+        expect(kind?.textContent?.trim()).toBe('Movie · Demo');
+        const title = host().querySelector('.details__title');
+        expect(kind?.compareDocumentPosition(title as Node)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING
+        );
+        const bar = host().querySelector('[data-test-id="detail-progress"]');
+        expect(bar?.getAttribute('aria-valuenow')).toBe('63');
+        expect(
+            (bar?.querySelector('i') as HTMLElement | null)?.style.width
+        ).toBe('63%');
+    });
+
+    it('hides the resume bar and kind label when absent', () => {
+        fixture.componentRef.setInput('title', 'Black Harbor');
+        fixture.detectChanges();
+        expect(host().querySelector('[data-test-id="detail-kind"]')).toBeNull();
+        expect(
+            host().querySelector('[data-test-id="detail-progress"]')
+        ).toBeNull();
+    });
+
+    it('blurs the poster as backdrop when the backdrop is missing or is the poster', () => {
+        fixture.componentRef.setInput('posterUrl', 'poster.jpg');
+        fixture.detectChanges();
+        expect(
+            host().querySelector('.hero__backdrop--blurred img[src="poster.jpg"]')
+        ).toBeTruthy();
+
+        fixture.componentRef.setInput('backdropUrl', 'poster.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero__backdrop--blurred')).toBeTruthy();
+
+        fixture.componentRef.setInput('backdropUrl', 'wide.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero__backdrop--blurred')).toBeNull();
+        expect(
+            host().querySelector('img.hero__backdrop-image[src="wide.jpg"]')
+        ).toBeTruthy();
+    });
+
+    it('places the actions before the credits slot', () => {
+        fixture.componentRef.setInput('title', 'Black Harbor');
+        fixture.detectChanges();
+        const actions = host().querySelector('.action-buttons');
+        const meta = host().querySelector('.details__meta');
+        expect(actions?.compareDocumentPosition(meta as Node)).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING
+        );
+    });
+});
