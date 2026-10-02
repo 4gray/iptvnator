@@ -9,8 +9,6 @@
 // light theme gets a light scrim with dark text and the dark theme the
 // reverse, with the same geometry.
 
-@use '../../../../styles/detail-view-actions' as detail-actions;
-
 :host {
     --poster-width: 190px;
     --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
@@ -107,7 +105,7 @@
         width: 100%;
         max-width: var(--content-max-width);
         margin: 0 auto;
-        padding: 80px 32px 28px;
+        padding: 72px 32px 24px;
         // Reserved by the detail shell while its sticky Back control shows.
         padding-inline-start: max(32px, var(--detail-back-lane, 0px));
         box-sizing: border-box;
@@ -245,43 +243,6 @@
         }
     }
 
-    // Legacy `.details__tag` projected by hosts not yet on `app-meta-chip`.
-    ::ng-deep .details__tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 3px 9px;
-        font-size: 12px;
-        font-weight: 500;
-        line-height: 1.4;
-        background: var(--tag-bg);
-        border: 0;
-        border-radius: 999px;
-        color: var(--text-primary);
-
-        &--rating {
-            color: var(--app-rating-color, #ffcf5c);
-            font-weight: 600;
-        }
-
-        &--clickable {
-            appearance: none;
-            cursor: pointer;
-            font-family: inherit;
-            letter-spacing: inherit;
-            transition: background 0.15s ease;
-
-            &:hover {
-                background: var(--tag-border);
-            }
-
-            &:focus-visible {
-                outline: 2px solid var(--accent-color);
-                outline-offset: 2px;
-            }
-        }
-    }
-
     &__description {
         margin: 0;
         font-size: 13.5px;
@@ -407,31 +368,6 @@
 
     &:empty {
         display: none;
-    }
-
-    // Legacy projected buttons (series hosts until they move to the shared
-    // pieces) take the cinematic surfaces too.
-    ::ng-deep .play-btn {
-        @include detail-actions.light-primary-button;
-
-        height: 44px;
-
-        @include detail-actions.play-button-copy(var(--app-cta-meta-fg, #5a6274));
-    }
-
-    ::ng-deep .favorite-btn,
-    ::ng-deep .download-btn {
-        @include detail-actions.ghost-text-button;
-
-        height: 44px;
-    }
-
-    ::ng-deep .favorite-btn {
-        @include detail-actions.favorite-button-state;
-    }
-
-    ::ng-deep .download-btn {
-        @include detail-actions.download-button-state;
     }
 }
 

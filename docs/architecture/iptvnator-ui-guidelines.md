@@ -153,14 +153,30 @@ Do not add extra badges, left rails, or second selection systems unless there is
 
 ## Detail Views
 
-VOD and series detail screens share the detail-view Sass mixin (`@mixin base`)
-from `libs/ui/styles/_detail-view.scss`. Feature-local `styles/detail-view.scss`
-files should only `@use` that module and `@include detail-view.base(...)` with
-small typography overrides when a provider needs them.
+VOD and series detail screens share `app-portal-detail-shell` and
+`app-content-hero` (`libs/ui/components`). The hero orders its column as
+kind label ("Movie · playlist") → title → chips → description (three lines,
+"More") → resume bar → action row → credits, with the poster bottom-aligned
+on the left and the backdrop filling the hero behind a two-layer scrim built
+from `--app-content-bg`. Without a backdrop, or when the provider sends the
+poster as the backdrop, the blurred poster fills the stage. The pane is a
+size container (`detail`); the poster hides below 760px of pane width.
 
-Do not copy the full detail-view stylesheet into feature libraries. Add shared
-layout changes to the mixin, and keep provider-specific differences explicit in
-the wrapper file that includes it.
+The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
+`app-meta-chip` (pill; `rating` and `status` variants; facets as projected
+`.meta-chip__facet` buttons), `app-detail-action-button` (the light primary
+with a two-line label, or the ghost `secondary` text button),
+`app-detail-icon-button` (44px ghost with tooltip and `aria-label`),
+`app-vod-more-menu` (the "…" dropdown: right-aligned, flips upward, arrow
+keys, Escape, hosts the alternative-sources panel), `app-detail-credits`
+("Starring" + three names + "and more", "Director"), `app-cast-crew-row`,
+`app-detail-rail`/`app-similar-rail` (hidden scrollbar, prev/next arrows,
+title + year) and `TrailerDialogService`. The dashboard hero reuses the same
+light primary (`light-primary-button` in `libs/ui/styles/_detail-view-actions.scss`)
+and chip. Series titles drop their season marker (`splitSeasonSuffix`) into a
+"Season N" chip. Rows a provider cannot serve are left out of the menu, never
+disabled. The page-level Sass mixin (`libs/ui/styles/_detail-view.scss`)
+only carries the page shell, meta items and the episodes section.
 
 ## Electron Drag Regions
 
@@ -631,23 +647,20 @@ If the label is too long for the rail, shorten the label key instead of shrinkin
 
 ## Detail Actions And Episode Surfaces
 
-Secondary detail buttons, episode cards and list rows, and the season view
-toggle must keep visible edges in both themes before hover. Use app-owned
-surface colors and neutral borders derived from `--app-on-surface`; fixed
-white-alpha fills and borders disappear over the light detail background.
-Grid cards keep the thumbnail and title on one continuous widget surface.
-List rows use a subtle neutral fill, with the number on a slightly stronger
-inset surface. The checked grid/list toggle uses `--app-selection-surface`
-and `--app-selection-color`; hover uses the app's neutral surface treatment.
-Keep these treatments in the shared season components and detail-action
-partial so Xtream and Stalker share the same behavior.
+The action row never wraps on a desktop window: the primary, the Trailer
+button, then the 44px icon buttons and the "…" menu. Season and series
+actions (mark watched, download season, reset progress) live in that menu
+and drive the season container's presenters; the container's header is
+"Episodes" with the season pills and the episode count, plus the grid/list
+toggle. The checked toggle uses `--app-selection-surface` and
+`--app-selection-color`; hover uses the app's neutral surface treatment.
 
-The season header's actions wrap onto their own row, starting under the
-"Seasons and Episodes" heading, before the heading itself would wrap. The
-detail pane is narrower than the window (context panel, the sticky Back lane),
-so the header's own width decides, not a viewport breakpoint. A translation
-wider than the pane itself wraps rather than ellipsizing: unlike a fixed-height
-panel title, a content heading has room to wrap and should not lose words.
+Episode cards are flat: a 16:9 thumbnail with a 3px watched bar at its
+bottom edge, "N. Title", the plot clamped to two lines and a "42 min ·
+18m left / watched" line. List rows keep a subtle neutral fill. The selected
+season's cover and synopsis sit in a compact strip under the header only
+when present. Keep these treatments in the shared season components so
+Xtream and Stalker share the same behavior.
 
 Browser regression coverage measures the composited neutral edges and selected
 toggle fill, in addition to capturing light/dark grid and list screenshots.

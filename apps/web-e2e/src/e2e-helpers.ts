@@ -244,7 +244,9 @@ export async function expectSeriesSurfacesInBothThemes(
         const shell = page.locator('app-portal-detail-shell');
         await expect
             .poll(() =>
-                rasterizedBorderContrast(shell.locator('.favorite-btn').first())
+                rasterizedBorderContrast(
+                    shell.locator('[data-testid="series-favorite-toggle"]').first()
+                )
             )
             .toBeGreaterThan(1.1);
         for (const selector of ['.episode-card', 'mat-button-toggle-group']) {

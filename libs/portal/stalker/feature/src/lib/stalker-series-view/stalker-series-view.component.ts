@@ -9,9 +9,9 @@ import {
     signal,
     untracked,
     ChangeDetectionStrategy,
+    viewChild,
 } from '@angular/core';
 import { Location } from '@angular/common';
-import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -25,27 +25,34 @@ import {
     stalkerSeriesResumeKey,
 } from './stalker-series-resume';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
-    ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerSeasonPlaybackToggleRequest,
     SeasonContainerSeriesPlaybackToggleRequest,
+    SimilarRailComponent,
+    ViewInPortalActionComponent,
+    VodMoreMenuComponent,
     buildSeriesWatchToggleRequest,
+    scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import {
-    pickSeasonMarkedTitle,
+    ExternalPlayerName,
     PlaybackPositionData,
     ResolvedPortalPlayback,
-    seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
+    pickSeasonMarkedTitle,
+    seriesStatusLabelKey,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
-import { SafePipe } from '@iptvnator/pipes';
 import {
     isLiveExternalPlayerSession,
     isPortalPlaybackWatched,
@@ -91,6 +98,8 @@ import {
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
+import { StalkerSeriesHeroPresenter } from './stalker-series-hero.presenter';
+import { StalkerSeriesMenuService } from './stalker-series-menu.service';
 import {
     getStalkerSeriesQuickStartButton,
     type StalkerQuickStartButton,
@@ -168,22 +177,34 @@ interface StalkerSeriesPlaybackRequestContext {
     styleUrls: ['../styles/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
+        CastCrewRowComponent,
+        DetailActionButtonComponent,
         DetailActionsTemplateDirective,
+        DetailCreditsComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
+        MetaChipComponent,
         PortalDetailShellComponent,
+        SimilarRailComponent,
         ViewInPortalActionComponent,
+        VodMoreMenuComponent,
         PortalInlinePlayerComponent,
-        SafePipe,
         TranslatePipe,
         SeasonContainerComponent,
-        MatIcon,
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
-    providers: [StalkerSeriesTmdbSeasonsService],
+    providers: [
+        StalkerSeriesTmdbSeasonsService,
+        StalkerSeriesHeroPresenter,
+        StalkerSeriesMenuService,
+    ],
 })
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
+    readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
+    readonly menu = inject(StalkerSeriesMenuService);
+    private readonly seasonContainerRef =
+        viewChild<SeasonContainerComponent>('seasonContainer');
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly migrationPlaybackPositions = {
         savePlaybackPosition: (
@@ -362,6 +383,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly isSerialSeasonsLoading = this.stalkerStore.isSerialSeasonsLoading;
 
     constructor() {
+        this.heroPresenter.bind({
+            displayItem: this.displayItem,
+            quickStart: this.quickStartAction,
+            yearLabel: (releaseDate) => this.discover.yearLabel(releaseDate),
+            similarInPortals: this.similarInPortals,
+            openSimilarInPortals: (item) => this.openSimilarInPortals(item),
+        });
+        this.menu.bind({
+            quickStart: this.quickStartAction,
+            seasonContainer: this.seasonContainerRef,
+            hasProgress: computed(() => this.episodePlaybackPositions().size > 0),
+            resetProgress: () => this.resetProgress(),
+            openExternal: (player) => this.openQuickStartExternally(player),
+        });
         effect(() => {
             const ownerKey = this.seriesPlaybackOwnerKey();
             untracked(() => this.syncSeriesPlaybackOwner(ownerKey));
@@ -626,10 +661,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const item = sameEntity ? fromStore : input || fromStore;
         return item ? normalizeStalkerVodDetailsItem(item) : null;
     });
-
-    readonly trailerEmbedUrl = computed(() =>
-        youtubeEmbedUrl(this.displayItem()?.info?.tmdb_trailer)
-    );
 
     private readonly seriesSeasonTitle = computed(() =>
         pickSeasonMarkedTitle(
@@ -959,7 +990,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * offset for an episode whose position row the page could not attach
      * (matched by coordinates only), so it resumes where the card said.
      */
-    onEpisodeClicked(episode: XtreamSerieEpisode, startTimeOverride?: number) {
+    onEpisodeClicked(
+        episode: XtreamSerieEpisode,
+        startTimeOverride?: number,
+        forcePlayer?: ExternalPlayerName
+    ) {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
             episodesBySeason: this.mappedSeasons(),
@@ -986,7 +1021,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             title,
             item.info.movie_image,
             episodeState,
-            startTime
+            startTime,
+            forcePlayer
         );
     }
 
@@ -1003,6 +1039,25 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         if (quickStart.lazySeason) {
             await this.loadAndPlayVodSeriesSeason(quickStart.lazySeason);
+        }
+    }
+
+    readonly scrollToCast = scrollToCastCrewRow;
+
+    /** Clears every saved episode position of the series. */
+    async resetProgress(): Promise<void> {
+        const request =
+            this.seasonContainerRef()?.watchPresenter.buildResetRequest();
+        if (request) {
+            await this.handleSeriesPlaybackToggleRequestedFromUi(request);
+        }
+    }
+
+    /** "Open in external player": the next episode, straight to MPV/VLC. */
+    async openQuickStartExternally(player: ExternalPlayerName): Promise<void> {
+        const episode = this.quickStartAction()?.action?.episode;
+        if (episode) {
+            this.onEpisodeClicked(episode, undefined, player);
         }
     }
 
@@ -1152,14 +1207,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         title: string | undefined,
         thumbnail: string | undefined,
         episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode>,
-        startTime?: number
+        startTime?: number,
+        forcePlayer?: ExternalPlayerName
     ): Promise<void> {
         const generation = ++this.seriesPlaybackRequestGeneration;
         const episodeNum = episodeState.episodeNumber;
         const episodeId = Number(episodeState.episode.id);
         const request: StalkerSeriesPlaybackRequestContext = {
             generation,
-            usesEmbeddedPlayer: this.portalPlayer.isEmbeddedPlayer(),
+            usesEmbeddedPlayer:
+                !forcePlayer && this.portalPlayer.isEmbeddedPlayer(),
             identity: captureStalkerEpisodePlaybackSessionIdentity({
                 sourceId: this.stalkerStore.currentPlaylist()?._id,
                 parentSeriesId: this.displayItem()?.id,
@@ -1199,7 +1256,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.closeInlinePlayer();
-            void this.portalPlayer.openResolvedPlayback(resolvedPlayback, true);
+            void (forcePlayer
+                ? this.portalPlayer.openExternalPlayback(
+                      resolvedPlayback,
+                      forcePlayer
+                  )
+                : this.portalPlayer.openResolvedPlayback(resolvedPlayback, true));
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);

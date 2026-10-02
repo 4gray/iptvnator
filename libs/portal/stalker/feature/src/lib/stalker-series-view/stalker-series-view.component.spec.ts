@@ -247,9 +247,7 @@ describe('StalkerSeriesViewComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_FIRST_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
@@ -448,7 +446,9 @@ describe('StalkerSeriesViewComponent', () => {
         expect(
             fixture.componentInstance.quickStartAction()?.labelParams
         ).toEqual({ episode: 1 });
-        expect(button?.textContent).toContain('Play episode 1');
+        // The hero shows "Play" with the episode on the second line.
+        expect(button?.textContent).toContain('XTREAM.PLAY');
+        expect(button?.textContent).toContain('S01E01 · Pilot');
         expect(button?.textContent).not.toContain('{{episode}}');
     });
 
@@ -605,9 +605,7 @@ describe('StalkerSeriesViewComponent', () => {
 
         expect(quickStartButton).not.toBeNull();
         expect(quickStartButton?.disabled).toBe(false);
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_NEXT_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S01E01');
 
         quickStartButton?.click();
@@ -1097,9 +1095,7 @@ describe('StalkerSeriesViewComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_NEXT_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S02E01');
 
         quickStartButton?.click();

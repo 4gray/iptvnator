@@ -117,12 +117,3 @@
         font-weight: 700;
     }
 }
-
-.season-tabs__description {
-    margin: 10px 4px 0;
-    max-width: 760px;
-    font-size: 12.5px;
-    line-height: 1.55;
-    color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-    // Clamping + the show more/less toggle live in app-expandable-text.
-}

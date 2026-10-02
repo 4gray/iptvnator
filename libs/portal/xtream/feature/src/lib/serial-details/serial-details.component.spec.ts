@@ -25,9 +25,13 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    DownloadsService,
+    PlaybackPositionRuntimeBridgeService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
-import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { PlaybackPositionData, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
@@ -247,7 +251,18 @@ describe('SerialDetailsComponent', () => {
                         addRecentItem,
                         backfillContentMetadata: jest.fn(),
                         loadAllPositions,
+                        recentItems: signal([]),
+                        serialCategories: signal([]),
+                        loadRecentItems: jest.fn(),
                     },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: { player: signal(VideoPlayer.Html5Player) },
+                },
+                {
+                    provide: DownloadsService,
+                    useValue: { isAvailable: signal(false) },
                 },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
@@ -555,9 +570,7 @@ describe('SerialDetailsComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_FIRST_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
@@ -619,9 +632,9 @@ describe('SerialDetailsComponent', () => {
             );
 
         expect(quickStartButton?.textContent).toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
-        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
+        expect(quickStartButton?.textContent).toContain('S01E01');
 
         quickStartButton?.click();
 
@@ -671,12 +684,16 @@ describe('SerialDetailsComponent', () => {
                 updatedAt: expect.any(String),
             })
         );
+        // The launched episode's position lands two microtasks after the
+        // save: `recordExternalLaunch` awaits the launch, then the save.
+        await Promise.resolve();
+        await Promise.resolve();
         fixture.detectChanges();
         const quickStartButton: HTMLButtonElement | null =
             fixture.nativeElement.querySelector(
                 '[data-testid="series-quick-start"]'
             );
-        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY_EPISODE');
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain(
             'S02E01 \u00b7 Season 2 Episode 1'
         );
@@ -777,7 +794,7 @@ describe('SerialDetailsComponent', () => {
                 '[data-testid="series-quick-start"]'
             );
         expect(quickStartButton()?.textContent).not.toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
 
         positionUpdateCallback({
@@ -793,9 +810,9 @@ describe('SerialDetailsComponent', () => {
         fixture.detectChanges();
 
         expect(quickStartButton()?.textContent).toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
-        expect(quickStartButton()?.textContent).toContain('S01E01 · Episode 1');
+        expect(quickStartButton()?.textContent).toContain('S01E01');
     });
 
     it('persists the launched episode after an external fallback succeeds', async () => {

@@ -34,7 +34,6 @@
     <ng-template appDetailActions>
         @if (canPlayInline() && !playbackActive()) {
             <app-detail-action-button
-                class="play-btn"
                 [label]="'XTREAM.PLAY' | translate"
                 [meta]="runtimeLabel()"
                 testId="m3u-vod-play"

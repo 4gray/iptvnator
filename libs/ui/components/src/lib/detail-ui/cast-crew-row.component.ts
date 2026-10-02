@@ -11,6 +11,13 @@ import type { TmdbEnrichedCastMember } from '@iptvnator/shared/interfaces';
 import { buildCastCrewEntries, type CastCrewEntry } from './cast-crew.util';
 import { DetailRailComponent } from './detail-rail.component';
 
+/** Scrolls the page to the Cast & crew row ("and more" in the credits). */
+export function scrollToCastCrewRow(): void {
+    document
+        .getElementById('detail-cast-crew')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 /**
  * "Cast & crew" row under the hero: 72px round avatars with the full name
  * and the character (or "Director"), the director first, initials when a

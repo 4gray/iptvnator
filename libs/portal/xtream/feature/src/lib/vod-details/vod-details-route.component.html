@@ -3,7 +3,6 @@
     @if (playableItem || isDownloaded()) {
         @let primary = hero.primaryAction();
         <app-detail-action-button
-            class="play-btn"
             [label]="primary.label"
             [meta]="primary.meta"
             [icon]="primary.icon"

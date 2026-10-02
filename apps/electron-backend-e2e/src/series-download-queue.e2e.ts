@@ -160,7 +160,10 @@ test.describe('Electron Series Download Queue', () => {
                 })
                 .toEqual(expectedEpisodeQueue.slice(0, 2));
 
-            const seasonAction = app.mainWindow.getByTestId('download-season');
+            await app.mainWindow.getByTestId('series-more-menu').click();
+            const seasonAction = app.mainWindow.locator(
+                '[data-test-id="download-season"]'
+            );
             await expect(seasonAction).toBeVisible();
             await expect(seasonAction).toContainText('Download season (2)');
             await expect(seasonAction).toBeEnabled();
