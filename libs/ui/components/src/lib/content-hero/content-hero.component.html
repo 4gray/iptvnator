@@ -1,5 +1,5 @@
 <!-- Hero Section with Backdrop -->
-<section class="hero">
+<section class="hero" [class.hero--compact]="layout() === 'compact'">
     @if (errorMessage()) {
         <div class="hero__content hero__error">
             <mat-icon class="error-icon">cloud_off</mat-icon>

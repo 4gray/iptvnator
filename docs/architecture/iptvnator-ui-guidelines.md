@@ -158,9 +158,13 @@ VOD and series detail screens share `app-portal-detail-shell` and
 kind label ("Movie · playlist") → title → chips → description (three lines,
 "More") → resume bar → action row → credits, with the poster bottom-aligned
 on the left and the backdrop filling the hero behind a two-layer scrim built
-from `--app-content-bg`. Without a backdrop, or when the provider sends the
-poster as the backdrop, the blurred poster fills the stage. The pane is a
-size container (`detail`); the poster hides below 760px of pane width.
+from `--app-content-bg`. The hero keeps `min(480px, 60vh)` of stage for a
+16:9 backdrop. Without one, or when the provider sends the poster as the
+backdrop, the hero is compact (`hero--compact`, sized by its content) over
+the blurred poster. The layout is decided once per title, so a backdrop that
+TMDB enrichment adds a moment later fills the compact hero instead of
+growing it. The pane is a size container (`detail`); the poster hides below
+760px of pane width.
 
 The pieces are shared and provider-neutral (`libs/ui/components/src/lib/detail-ui/`):
 `app-meta-chip` (pill; `rating` and `status` variants; facets as projected

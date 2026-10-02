@@ -18,8 +18,16 @@
     --text-secondary: var(--app-body-color, #9aa3b2);
     --text-muted: var(--app-muted-color, #6b7384);
     --accent-color: var(--app-selection-color, #78adff);
-    --tag-bg: color-mix(in srgb, var(--app-on-surface, #e6e1e5) 10%, transparent);
-    --tag-border: color-mix(in srgb, var(--app-on-surface, #e6e1e5) 14%, transparent);
+    --tag-bg: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 10%,
+        transparent
+    );
+    --tag-border: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 14%,
+        transparent
+    );
 
     width: 100%;
     display: block;
@@ -40,13 +48,19 @@
     display: flex;
     align-items: flex-end;
     width: 100%;
-    // The content column decides the height on a short window; on a tall one
-    // the hero caps at 72vh so the next block starts inside the first screen.
-    min-height: min(560px, 72vh);
+    // Room for a 16:9 backdrop above the content, capped so the episodes or
+    // cast row still starts inside the first screen of a desktop window.
+    min-height: min(480px, 60vh);
     box-sizing: border-box;
     // `overflow: hidden` clips the scaled blurred backdrop fallback.
     overflow: hidden;
     background: var(--surface-bg);
+
+    // Only the poster: nothing to show above the content, so the hero is
+    // sized by its content column over the blurred wash.
+    &--compact {
+        min-height: 0;
+    }
 
     &__backdrop {
         position: absolute;
@@ -110,7 +124,7 @@
         width: 100%;
         max-width: var(--content-max-width);
         margin: 0 auto;
-        padding: 72px 32px 24px;
+        padding: 48px 32px 24px;
         // Reserved by the detail shell while its sticky Back control shows.
         padding-inline-start: max(32px, var(--detail-back-lane, 0px));
         box-sizing: border-box;
@@ -388,7 +402,7 @@
     }
 
     .hero__content {
-        padding: 64px 20px 24px;
+        padding: 40px 20px 24px;
         padding-inline-start: max(20px, var(--detail-back-lane, 0px));
     }
 

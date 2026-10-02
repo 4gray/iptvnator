@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     input,
+    linkedSignal,
     signal,
     untracked,
     viewChild,
@@ -16,6 +17,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { HeroTrailerBackdropComponent } from '../detail-ui/hero-trailer-backdrop.component';
+
+/** `stage` keeps room for a 16:9 backdrop; `compact` is sized by the content. */
+export type ContentHeroLayout = 'stage' | 'compact';
 
 @Component({
     selector: 'app-content-hero',
@@ -68,7 +72,25 @@ export class ContentHeroComponent {
     readonly usesPosterBackdrop = computed(() => {
         const poster = this.posterUrl();
         const backdrop = this.backdropUrl();
-        return !!poster && (!backdrop || backdrop === poster) && !this.backdropError();
+        return (
+            !!poster &&
+            (!backdrop || backdrop === poster) &&
+            !this.backdropError()
+        );
+    });
+    private readonly hasRealBackdrop = computed(() => {
+        const backdrop = this.backdropUrl();
+        return !!backdrop && backdrop !== this.posterUrl();
+    });
+    /**
+     * Decided once per title: a backdrop that TMDB enrichment adds a moment
+     * later fills the compact hero instead of growing it under the user's
+     * cursor. The title survives the merge; the poster may not.
+     */
+    readonly layout = linkedSignal<string | undefined, ContentHeroLayout>({
+        source: () => this.title(),
+        computation: () =>
+            untracked(() => this.hasRealBackdrop()) ? 'stage' : 'compact',
     });
 
     readonly descriptionEl =

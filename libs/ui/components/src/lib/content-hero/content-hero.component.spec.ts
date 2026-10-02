@@ -154,7 +154,9 @@ describe('ContentHeroComponent cinematic layout', () => {
         fixture.componentRef.setInput('posterUrl', 'poster.jpg');
         fixture.detectChanges();
         expect(
-            host().querySelector('.hero__backdrop--blurred img[src="poster.jpg"]')
+            host().querySelector(
+                '.hero__backdrop--blurred img[src="poster.jpg"]'
+            )
         ).toBeTruthy();
 
         fixture.componentRef.setInput('backdropUrl', 'poster.jpg');
@@ -166,6 +168,40 @@ describe('ContentHeroComponent cinematic layout', () => {
         expect(host().querySelector('.hero__backdrop--blurred')).toBeNull();
         expect(
             host().querySelector('img.hero__backdrop-image[src="wide.jpg"]')
+        ).toBeTruthy();
+    });
+
+    it('keeps room for a real backdrop and sizes the hero by content without one', () => {
+        fixture.componentRef.setInput('title', 'Poster only');
+        fixture.componentRef.setInput('posterUrl', 'poster.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeTruthy();
+
+        fixture.componentRef.setInput('title', 'With backdrop');
+        fixture.componentRef.setInput('backdropUrl', 'wide.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeNull();
+
+        fixture.componentRef.setInput('title', 'Poster twice');
+        fixture.componentRef.setInput('backdropUrl', 'poster.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeTruthy();
+    });
+
+    it('does not grow when enrichment adds a backdrop to the same title', () => {
+        fixture.componentRef.setInput('title', 'Late backdrop');
+        fixture.componentRef.setInput('posterUrl', 'poster.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeTruthy();
+
+        fixture.componentRef.setInput('backdropUrl', 'tmdb-wide.jpg');
+        fixture.componentRef.setInput('posterUrl', 'tmdb-poster.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeTruthy();
+        expect(
+            host().querySelector(
+                'img.hero__backdrop-image[src="tmdb-wide.jpg"]'
+            )
         ).toBeTruthy();
     });
 
