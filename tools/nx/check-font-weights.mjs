@@ -114,11 +114,15 @@ import {
  * always. Sass conditions are not evaluated: each `@if`/`@else` branch
  * counts as one that may run, in a rule, a mixin or a content block alike.
  *
- * Not traced: global styles in another file, a weight inherited from
- * another rule, a mixin from another module, a mixin's nested rules and
- * at-rules (and a `@content` placed in one), a family set on an element
- * from code, and one that reaches only some of a rule's elements (a more
- * specific `.x.active`, or `@extend .m` into `.m.active`).
+ * Not traced: global styles in another file, a weight inherited from another
+ * rule, a mixin from another module, a mixin's nested rules and at-rules
+ * (and a `@content` placed in one), a family set on an element from code,
+ * and one that reaches only some of a rule's elements (a more specific
+ * `.x.active`, or `@extend .m` into `.m.active`). Animations are read as a
+ * whole: a keyframe's steps cascade as one rule rather than as states in
+ * turn, a rule's last `animation` runs whatever an earlier `!important` one
+ * sets, one layer holding a frame holds all of them, and a quoted name is
+ * read word by word.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
