@@ -420,6 +420,14 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             activeSource: this.msUi.activeAlternativeSource,
             supersedePendingSwitch: () =>
                 this.multiSource.supersedePendingSwitch(),
+            reportExternalLaunchFailure: (error) => {
+                this.logger.error('External launch failed', error);
+                this.snackBar.open(
+                    this.translateService.instant('PORTALS.PLAYBACK_ERROR'),
+                    undefined,
+                    { duration: 3000 }
+                );
+            },
         });
 
         effect(() => {

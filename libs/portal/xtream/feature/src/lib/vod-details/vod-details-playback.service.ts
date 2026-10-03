@@ -57,6 +57,8 @@ export interface VodDetailsPlaybackBindings {
     activeSource?: Signal<PlayerContentInfo | null>;
     /** Retires a source resolution that the accepted fallback now supersedes. */
     supersedePendingSwitch: () => void;
+    /** An MPV/VLC launch failed while nothing superseded it; the page tells the user. */
+    reportExternalLaunchFailure?: (error: unknown) => void;
 }
 
 /**
@@ -532,6 +534,8 @@ export class VodDetailsPlaybackService {
                     'Closing a superseded external player failed.',
                     error
                 ),
+            reportLaunchFailure: (error) =>
+                this.bindings()?.reportExternalLaunchFailure?.(error),
             clearPending: () => this.clearExternalLaunchPending(generation),
             clearOwnership: () => this.clearExternalLaunchOwnership(generation),
         });

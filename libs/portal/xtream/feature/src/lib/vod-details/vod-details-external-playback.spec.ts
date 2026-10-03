@@ -211,6 +211,45 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
         expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
     });
 
+    it('reports a failed launch to the page unless another start superseded it', async () => {
+        const reportExternalLaunchFailure = jest.fn();
+        service.bind({
+            vodId: routeVodId,
+            vodInfo: signal(null),
+            activeSource,
+            supersedePendingSwitch: jest.fn(),
+            reportExternalLaunchFailure,
+        });
+        const failure = new Error('mpv is not installed');
+        const playback = {
+            streamUrl: 'https://example.com/alt.mkv',
+            title: 'Example Movie',
+            contentInfo: {
+                playlistId: 'playlist-1',
+                contentXtreamId: 1,
+                contentType: 'vod' as const,
+            },
+        };
+
+        openResolvedPlayback.mockRejectedValueOnce(failure);
+        await service.startResolvedPlayback(playback);
+        expect(reportExternalLaunchFailure).toHaveBeenCalledWith(failure);
+
+        // The route moved on before the failure arrived: the error belongs
+        // to a launch nothing shows any more.
+        let shown = true;
+        let rejectLaunch: (error: Error) => void = () => undefined;
+        openResolvedPlayback.mockImplementationOnce(
+            () => new Promise((_, reject) => (rejectLaunch = reject))
+        );
+        const stale = service.startResolvedPlayback(playback, () => shown);
+        await new Promise((resolve) => setTimeout(resolve));
+        shown = false;
+        rejectLaunch(failure);
+        await expect(stale).resolves.toBe(false);
+        expect(reportExternalLaunchFailure).toHaveBeenCalledTimes(1);
+    });
+
     it('closes a closable error before starting a replacement source', async () => {
         activeSession.set({
             ...sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID),
