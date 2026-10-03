@@ -23,35 +23,6 @@
     border: 0;
 }
 
-.trailer-backdrop__mute {
-    position: absolute;
-    right: 16px;
-    bottom: 16px;
-    display: grid;
-    place-items: center;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: 1px solid color-mix(in srgb, var(--app-on-surface, #e6e1e5) 14%, transparent);
-    border-radius: 50%;
-    background: color-mix(in srgb, var(--app-content-bg, #161a22) 70%, transparent);
-    color: var(--app-heading-color, #e7ecf3);
-    cursor: pointer;
-    pointer-events: auto;
-
-    mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
-        line-height: 18px;
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--app-selection-color, #78adff);
-        outline-offset: 2px;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     :host {
         transition: none;

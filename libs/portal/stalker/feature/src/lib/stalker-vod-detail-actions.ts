@@ -83,6 +83,14 @@ export function createStalkerVodDetailActions(
             if (event.item.type !== 'stalker') {
                 return;
             }
+            // The `create_link` round trip may outlive the selection: a
+            // stream resolved for a movie the user left is dropped, and its
+            // failure is not reported over the new one.
+            const playlistId = deps.playlistId();
+            const vodId = Number(event.item.data.id);
+            const stillSelected = () =>
+                deps.selectedVodId() === vodId &&
+                deps.playlistId() === playlistId;
             try {
                 const playback = await deps.resolvePlayback(
                     event.item.cmd,
@@ -90,6 +98,9 @@ export function createStalkerVodDetailActions(
                     event.item.data.info?.movie_image,
                     event.positionSeconds ?? undefined
                 );
+                if (!stillSelected()) {
+                    return;
+                }
                 deps.beforeExternalLaunch?.();
                 await deps.portalPlayer.openExternalPlayback(
                     playback,
@@ -97,7 +108,9 @@ export function createStalkerVodDetailActions(
                 );
             } catch (error) {
                 deps.logError('External VOD playback failed', error);
-                notify('PORTALS.PLAYBACK_ERROR');
+                if (stillSelected()) {
+                    notify('PORTALS.PLAYBACK_ERROR');
+                }
             }
         },
 

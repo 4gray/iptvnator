@@ -39,6 +39,7 @@ import {
 } from '@iptvnator/ui/playback';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
+import { openEpisodeExternally } from './serial-details-external-launch';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 import {
     SerialDetailsSeasonWatchService,
@@ -66,8 +67,8 @@ export class SerialDetailsPlaybackService {
     private readonly playbackPositionBridge = inject(
         PlaybackPositionRuntimeBridgeService
     );
-    private readonly portalPlayer = inject(PORTAL_PLAYER);
-    private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    readonly portalPlayer = inject(PORTAL_PLAYER);
+    readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly recordRecentItem = injectXtreamRecentHistory();
     private readonly resumeTarget = inject(XTREAM_SERIES_RESUME_TARGET);
     private readonly seasonWatch = inject(SerialDetailsSeasonWatchService);
@@ -75,7 +76,7 @@ export class SerialDetailsPlaybackService {
     private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(
         null
     );
-    private readonly currentPlaylistId = computed(
+    readonly currentPlaylistId = computed(
         () => this.xtreamStore.currentPlaylist()?.id ?? ''
     );
     private readonly playbackPositionState =
@@ -254,11 +255,9 @@ export class SerialDetailsPlaybackService {
 
     playQuickStartEpisode(): void {
         const action = this.quickStartAction();
-        if (!action || action.disabled) {
-            return;
+        if (action && !action.disabled) {
+            this.playEpisode(action.episode);
         }
-
-        this.playEpisode(action.episode);
     }
 
     playPreviousEpisode(): void {
@@ -410,7 +409,7 @@ export class SerialDetailsPlaybackService {
         );
     }
 
-    private selectedItem(): XtreamSerieDetailsView | null {
+    selectedItem(): XtreamSerieDetailsView | null {
         return this.bindings()?.selectedItem() ?? null;
     }
 
@@ -430,7 +429,7 @@ export class SerialDetailsPlaybackService {
         void this.playbackPositionState.recordExternalLaunch(
             playback,
             player
-                ? this.portalPlayer.openExternalPlayback(playback, player)
+                ? openEpisodeExternally(this, playback, player)
                 : this.portalPlayer.openResolvedPlayback(playback, true),
             (playlistId, position) =>
                 this.playbackPositions.savePlaybackPosition(

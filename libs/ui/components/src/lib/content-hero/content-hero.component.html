@@ -106,10 +106,37 @@
 
         @if (trailerBackdropUrl(); as trailerUrl) {
             <app-hero-trailer-backdrop
+                #trailer
                 class="hero__trailer"
                 [embedUrl]="trailerUrl"
                 [title]="formattedTitle()"
             />
+            <!-- Above the content layer, or the content box would take the clicks -->
+            @if (trailer.playing()) {
+                <button
+                    type="button"
+                    class="hero__trailer-mute"
+                    [matTooltip]="
+                        (trailer.muted()
+                            ? 'PORTALS.DETAIL.TRAILER_UNMUTE'
+                            : 'PORTALS.DETAIL.TRAILER_MUTE'
+                        ) | translate
+                    "
+                    [attr.aria-label]="
+                        (trailer.muted()
+                            ? 'PORTALS.DETAIL.TRAILER_UNMUTE'
+                            : 'PORTALS.DETAIL.TRAILER_MUTE'
+                        ) | translate
+                    "
+                    [attr.aria-pressed]="!trailer.muted()"
+                    data-test-id="trailer-backdrop-mute"
+                    (click)="trailer.toggleMute()"
+                >
+                    <mat-icon aria-hidden="true">{{
+                        trailer.muted() ? 'volume_off' : 'volume_up'
+                    }}</mat-icon>
+                </button>
+            }
         }
 
         <!-- Scrim: strong on the text side, fading into the page below -->

@@ -91,6 +91,38 @@
         z-index: 0;
     }
 
+    // Its sound toggle lives above the content box (z-index 2), which would
+    // otherwise take the clicks; the top band is clear of the content.
+    &__trailer-mute {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        z-index: 3;
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--surface-bg) 70%, transparent);
+        color: var(--app-heading-color);
+        cursor: pointer;
+
+        mat-icon {
+            width: 18px;
+            height: 18px;
+            font-size: 18px;
+            line-height: 18px;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--app-selection-color);
+            outline-offset: 2px;
+        }
+    }
+
     // Two scrim layers: a horizontal one for the text column, a vertical one
     // that dissolves the artwork into the page.
     &__vignette {

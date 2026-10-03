@@ -20,6 +20,70 @@ const POSITION = {
     durationSeconds: 5400,
 } as PlaybackPositionData;
 
+describe('createStalkerVodDetailActions openExternal', () => {
+    function setup(selectedVodId: () => number | null) {
+        let resolveLink: (playback: unknown) => void = () => undefined;
+        const resolvePlayback = jest.fn(
+            () => new Promise((resolve) => (resolveLink = resolve))
+        );
+        const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
+        const beforeExternalLaunch = jest.fn();
+        const actions = createStalkerVodDetailActions({
+            resolvePlayback: resolvePlayback as never,
+            portalPlayer: { openExternalPlayback },
+            playbackPositions: { clearPlaybackPositionOrThrow: jest.fn() },
+            playlistId: () => 'portal-1',
+            selectedVodId,
+            selectedVodPosition: signal(null),
+            beforeExternalLaunch,
+            snackBar: { open: jest.fn() },
+            translate: { instant: (key: string) => key },
+            logError: jest.fn(),
+        });
+        return {
+            actions,
+            openExternalPlayback,
+            beforeExternalLaunch,
+            resolveLink: () => resolveLink({ streamUrl: 'http://cdn/42.mp4' }),
+        };
+    }
+
+    it('launches the resolved stream while the movie is still selected', async () => {
+        const t = setup(() => 42);
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.resolveLink();
+        await launch;
+
+        expect(t.beforeExternalLaunch).toHaveBeenCalledTimes(1);
+        expect(t.openExternalPlayback).toHaveBeenCalledWith(
+            { streamUrl: 'http://cdn/42.mp4' },
+            'mpv'
+        );
+    });
+
+    it('drops the stream once another movie was selected meanwhile', async () => {
+        let selected = 42;
+        const t = setup(() => selected);
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'vlc',
+            positionSeconds: null,
+        });
+        selected = 7;
+        t.resolveLink();
+        await launch;
+
+        // Neither the old movie's player nor the new movie's inline playback
+        // is touched.
+        expect(t.beforeExternalLaunch).not.toHaveBeenCalled();
+        expect(t.openExternalPlayback).not.toHaveBeenCalled();
+    });
+});
+
 describe('createStalkerVodDetailActions resetProgress', () => {
     function setup(selectedVodId: () => number | null) {
         const selectedVodPosition = signal<PlaybackPositionData | null>(

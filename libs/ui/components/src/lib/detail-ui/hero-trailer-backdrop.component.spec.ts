@@ -63,16 +63,13 @@ describe('HeroTrailerBackdropComponent', () => {
             value: { postMessage },
             configurable: true,
         });
-        const mute = host().querySelector<HTMLButtonElement>(
-            '[data-test-id="trailer-backdrop-mute"]'
-        );
-        mute?.click();
+        fixture.componentInstance.toggleMute();
         fixture.detectChanges();
         expect(postMessage).toHaveBeenCalledWith(
             expect.stringContaining('"unMute"'),
             '*'
         );
-        expect(mute?.getAttribute('aria-pressed')).toBe('true');
+        expect(fixture.componentInstance.muted()).toBe(false);
     });
 
     it('never starts under reduced motion', () => {
@@ -87,11 +84,7 @@ describe('HeroTrailerBackdropComponent', () => {
         renderFocused();
         jest.advanceTimersByTime(TRAILER_BACKDROP_IDLE_MS);
         fixture.detectChanges();
-        host()
-            .querySelector<HTMLButtonElement>(
-                '[data-test-id="trailer-backdrop-mute"]'
-            )
-            ?.click();
+        fixture.componentInstance.toggleMute();
         fixture.detectChanges();
         expect(fixture.componentInstance.muted()).toBe(false);
 

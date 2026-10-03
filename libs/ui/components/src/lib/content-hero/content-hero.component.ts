@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
 import { HeroTrailerBackdropComponent } from '../detail-ui/hero-trailer-backdrop.component';
@@ -28,6 +29,7 @@ export type ContentHeroLayout = 'stage' | 'compact';
         HeroTrailerBackdropComponent,
         MatIconModule,
         MatButtonModule,
+        MatTooltipModule,
         NgxSkeletonLoaderComponent,
         TranslateModule,
     ],

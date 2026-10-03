@@ -13,9 +13,6 @@ import {
     viewChild,
 } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
-import { MatIcon } from '@angular/material/icon';
-import { MatTooltip } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
 
 /** Idle time on the page before the trailer takes over the backdrop. */
 export const TRAILER_BACKDROP_IDLE_MS = 3000;
@@ -25,12 +22,12 @@ export const TRAILER_BACKDROP_IDLE_MS = 3000;
  * few idle seconds (`Settings → Playback → Play trailers in details
  * background`). It stops when the hero scrolls out of view, the window
  * loses focus or the document is hidden, and never starts under
- * `prefers-reduced-motion` or on a metered connection. The 32px button in the corner toggles the sound
- * through the YouTube IFrame API (`enablejsapi`).
+ * `prefers-reduced-motion` or on a metered connection. `toggleMute()`
+ * drives the sound through the YouTube IFrame API (`enablejsapi`); the hero
+ * renders that control itself, above its content layer.
  */
 @Component({
     selector: 'app-hero-trailer-backdrop',
-    imports: [MatIcon, MatTooltip, TranslatePipe],
     templateUrl: './hero-trailer-backdrop.component.html',
     styleUrl: './hero-trailer-backdrop.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

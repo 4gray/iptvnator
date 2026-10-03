@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { HeroTrailerBackdropComponent } from '../detail-ui/hero-trailer-backdrop.component';
 import { ContentHeroComponent } from './content-hero.component';
 
 describe('ContentHeroComponent', () => {
@@ -203,6 +205,30 @@ describe('ContentHeroComponent cinematic layout', () => {
                 'img.hero__backdrop-image[src="tmdb-wide.jpg"]'
             )
         ).toBeTruthy();
+    });
+
+    it('renders the trailer sound toggle above the content once the trailer plays', () => {
+        fixture.componentRef.setInput('title', 'Black Harbor');
+        fixture.componentRef.setInput(
+            'trailerBackdropUrl',
+            'https://www.youtube-nocookie.com/embed/abc123'
+        );
+        fixture.detectChanges();
+        expect(host().querySelector('.hero__trailer-mute')).toBeNull();
+
+        const trailer = fixture.debugElement.query(
+            By.directive(HeroTrailerBackdropComponent)
+        ).componentInstance as HeroTrailerBackdropComponent;
+        trailer.playing.set(true);
+        fixture.detectChanges();
+        const mute = host().querySelector<HTMLButtonElement>(
+            '.hero__trailer-mute'
+        );
+        expect(mute?.getAttribute('aria-pressed')).toBe('false');
+        mute?.click();
+        fixture.detectChanges();
+        expect(trailer.muted()).toBe(false);
+        expect(mute?.getAttribute('aria-pressed')).toBe('true');
     });
 
     it('places the actions before the credits slot', () => {
