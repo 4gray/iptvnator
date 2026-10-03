@@ -192,6 +192,15 @@ export class VodDetailsMenuService {
             this.logger.error('Resetting the playback position failed', error);
             return;
         }
+        // The clear was async: the route may show another movie by now
+        // (the Similar rail reuses it), whose own state must stay.
+        if (
+            this.bindings()?.vodId() !== vodId ||
+            this.xtreamStore.currentPlaylist()?.id !== playlistId
+        ) {
+            void this.xtreamStore.loadAllPositions(playlistId);
+            return;
+        }
         // A read still in flight started from the pre-write row; letting it
         // land would bring the position back.
         this.playback.discardPendingPositionLoads();

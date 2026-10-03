@@ -156,6 +156,30 @@ describe('createStalkerVodDetailActions openExternal', () => {
         expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
     });
 
+    it('still rejects a repeat of the first movie after another one was started', async () => {
+        let selected = 42;
+        const t = setup(() => selected);
+        const other = {
+            ...MOVIE,
+            data: { id: '7' },
+        } as unknown as VodDetailsItem;
+        const launch = (item: VodDetailsItem) =>
+            t.actions.openExternal({
+                item,
+                player: 'mpv',
+                positionSeconds: null,
+            });
+        void launch(MOVIE);
+        selected = 7;
+        void launch(other);
+        selected = 42;
+        await launch(MOVIE);
+
+        // A, B, A again: the second A is a repeat of a pending launch.
+        expect(t.beginPendingStart).toHaveBeenCalledTimes(2);
+        expect(t.openExternalPlayback).not.toHaveBeenCalled();
+    });
+
     it('drops the stream once another movie was selected meanwhile', async () => {
         let selected = 42;
         const t = setup(() => selected);

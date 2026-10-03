@@ -71,10 +71,10 @@ export function createStalkerVodDetailActions(
         deps.snackBar.open(deps.translate.instant(key), undefined, {
             duration: 3000,
         });
-    // A second "Open in external player" for the SAME movie during a slow
-    // `create_link` would resolve beside the first and start a second
-    // player; another movie's launch is not held back by it.
-    let externalLaunchInFlight: string | null = null;
+    // A second "Open in external player" for a movie whose `create_link` is
+    // still resolving would resolve beside the first and start a second
+    // player; other movies' launches are not held back by it.
+    const externalLaunchesInFlight = new Set<string>();
 
     return {
         /** The inline player copied the stream URL. */
@@ -106,10 +106,10 @@ export function createStalkerVodDetailActions(
             const playlistId = deps.playlistId();
             const vodId = Number(event.item.data.id);
             const launchKey = `${playlistId}:${vodId}`;
-            if (externalLaunchInFlight === launchKey) {
+            if (externalLaunchesInFlight.has(launchKey)) {
                 return;
             }
-            externalLaunchInFlight = launchKey;
+            externalLaunchesInFlight.add(launchKey);
             const stillSelected = () =>
                 deps.selectedVodId() === vodId &&
                 deps.playlistId() === playlistId;
@@ -146,9 +146,7 @@ export function createStalkerVodDetailActions(
                     notify('PORTALS.PLAYBACK_ERROR');
                 }
             } finally {
-                if (externalLaunchInFlight === launchKey) {
-                    externalLaunchInFlight = null;
-                }
+                externalLaunchesInFlight.delete(launchKey);
                 settlePendingStart?.();
             }
         },
