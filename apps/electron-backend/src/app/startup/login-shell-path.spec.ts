@@ -90,6 +90,23 @@ describe('login shell PATH', () => {
         await expect(stuck.waitForLoginShellPath(60_000)).resolves.toBe(false);
     });
 
+    it('lets waits before the lookup is scheduled share one deadline', async () => {
+        jest.useFakeTimers();
+        try {
+            const module = loadModule();
+            const first = module.waitForLoginShellPath();
+            await jest.advanceTimersByTimeAsync(6_000);
+            const retry = module.waitForLoginShellPath();
+            await jest.advanceTimersByTimeAsync(4_000);
+            // Both end at the first wait's deadline, not 10 s after the retry.
+            await expect(first).resolves.toBe(false);
+            await expect(retry).resolves.toBe(false);
+            await expect(module.waitForLoginShellPath()).resolves.toBe(false);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('lets a launch retried within the budget wait for the PATH again', async () => {
         let resolveShell: (path: string) => void = () => undefined;
         const module = loadModule();

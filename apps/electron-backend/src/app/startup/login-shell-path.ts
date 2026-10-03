@@ -48,7 +48,8 @@ const settledOutcome = loginShellPathSettled.then(() => {
 /**
  * Resolves once the login shell PATH lookup has finished (successfully or
  * not), or when its budget is spent; immediately on Windows. Before the
- * lookup is scheduled, a wait lasts at most `limitMs`. Resolves to whether
+ * lookup is scheduled, waits end at a deadline shared from the first of
+ * them. `limitMs` caps a single wait. Resolves to whether
  * the lookup had finished: false means the caller runs on the inherited
  * PATH and should not keep a negative result.
  */
@@ -58,10 +59,10 @@ export function waitForLoginShellPath(
     if (loginShellPathHasSettled) {
         return Promise.resolve(true);
     }
-    const remainingMs =
-        loginShellPathDeadline === null
-            ? limitMs
-            : Math.min(limitMs, loginShellPathDeadline - Date.now());
+    // Waits before the lookup is scheduled share one deadline too, set by
+    // the first of them; scheduling the lookup replaces it with its budget.
+    loginShellPathDeadline ??= Date.now() + LOGIN_SHELL_PATH_WAIT_LIMIT_MS;
+    const remainingMs = Math.min(limitMs, loginShellPathDeadline - Date.now());
     if (remainingMs <= 0) {
         return Promise.resolve(false);
     }
