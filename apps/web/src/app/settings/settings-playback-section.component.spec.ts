@@ -457,6 +457,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         player: new FormControl(player),
         webPlayerSharedControls: new FormControl(false),
         playerAmbientMode: new FormControl(false),
+        detailTrailerBackdrop: new FormControl(false),
         playerUpNextRail: new FormControl(true),
         playerUpNextCard: new FormControl(true),
         fullscreenChannelPanel: new FormControl(true),

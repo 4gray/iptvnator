@@ -49,8 +49,7 @@ describe('SeasonContainerComponent season cover', () => {
         ) as HTMLImageElement | null;
 
     const coverColumnRendered = () =>
-        fixture.nativeElement.querySelector('.season-card--with-cover') !==
-        null;
+        fixture.nativeElement.querySelector('.season-strip__cover') !== null;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({

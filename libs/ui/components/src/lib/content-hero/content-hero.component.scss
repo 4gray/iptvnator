@@ -1,25 +1,33 @@
 // ============================================================================
-// Netflix-style Detail View - Cinematic Streaming Design
+// Detail hero — cinematic layout shared by movie and series pages
 // ============================================================================
-
-@use '../../../../styles/detail-view-actions' as detail-actions;
+//
+// The backdrop fills the hero; a strong scrim on the text side and a fade
+// into the page background keep the copy readable. Without a 16:9 backdrop
+// (or when the provider sent the poster twice) the blurred poster takes its
+// place. The page surface and all text colours are the app theme's, so the
+// light theme gets a light scrim with dark text and the dark theme the
+// reverse, with the same geometry.
 
 :host {
-    --poster-width: 220px;
-    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+    --poster-width: 190px;
+    --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
     --content-max-width: 1400px;
-
-    // Light theme colors (default - no .dark-theme class on body)
-    --hero-gradient-start: rgba(255, 250, 245, 0);
-    --hero-gradient-mid: rgba(255, 250, 245, 0.75);
-    --hero-gradient-end: rgba(255, 250, 245, 1);
-    --surface-bg: #fffaf5;
-    --text-primary: #1a1a1a;
-    --text-secondary: rgba(26, 26, 26, 0.75);
-    --text-muted: rgba(26, 26, 26, 0.5);
-    --accent-color: #b81d24;
-    --tag-bg: rgba(0, 0, 0, 0.06);
-    --tag-border: rgba(0, 0, 0, 0.12);
+    --surface-bg: var(--app-content-bg, #161a22);
+    --text-primary: var(--app-heading-color, #e7ecf3);
+    --text-secondary: var(--app-body-color, #9aa3b2);
+    --text-muted: var(--app-muted-color, #6b7384);
+    --accent-color: var(--app-selection-color, #78adff);
+    --tag-bg: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 10%,
+        transparent
+    );
+    --tag-border: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 14%,
+        transparent
+    );
 
     width: 100%;
     display: block;
@@ -27,19 +35,8 @@
     color: var(--text-primary);
 }
 
-// Dark theme overrides - cinematic dark mode
 :host-context(.dark-theme) {
-    --hero-gradient-start: rgba(20, 20, 20, 0);
-    --hero-gradient-mid: rgba(20, 20, 20, 0.7);
-    --hero-gradient-end: rgba(20, 20, 20, 1);
-    --surface-bg: #141414;
-    --text-primary: #fff;
-    --text-secondary: rgba(255, 255, 255, 0.7);
-    --text-muted: rgba(255, 255, 255, 0.5);
-    --accent-color: #e50914;
-    --tag-bg: rgba(255, 255, 255, 0.1);
-    --tag-border: rgba(255, 255, 255, 0.2);
-    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+    --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
 }
 
 // ============================================================================
@@ -48,23 +45,26 @@
 
 .hero {
     position: relative;
+    display: flex;
+    align-items: flex-end;
     width: 100%;
-    // Natural height: the page scroll container lives outside the hero
-    // (PortalDetailShellComponent). `overflow: hidden` clips the scaled
-    // blurred backdrop fallback.
+    // Room for a 16:9 backdrop above the content, capped so the episodes or
+    // cast row still starts inside the first screen of a desktop window.
+    min-height: min(480px, 60vh);
+    box-sizing: border-box;
+    // `overflow: hidden` clips the scaled blurred backdrop fallback.
     overflow: hidden;
-    background: var(
-        --surface-bg
-    ); // Solid background prevents any bleed-through
+    background: var(--surface-bg);
 
-    // Backdrop image layer - fixed at top, never repeats
+    // Only the poster: nothing to show above the content, so the hero is
+    // sized by its content column over the blurred wash.
+    &--compact {
+        min-height: 0;
+    }
+
     &__backdrop {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: auto; // Only use height, not bottom
-        height: 60%;
+        inset: 0;
         background-size: cover;
         background-position: center 20%;
         background-repeat: no-repeat;
@@ -79,77 +79,91 @@
             object-position: center 20%;
         }
 
-        // Fallback blur effect when using poster as backdrop
+        // Fallback: the poster, blurred and scaled past its edges.
         &--blurred {
-            filter: blur(40px) saturate(1.3);
-            transform: scale(1.4);
-            height: 65%;
+            filter: blur(22px) saturate(1.2);
+            transform: scale(1.12);
         }
     }
 
-    // Gradient overlays for text legibility
+    // The muted trailer sits over the still backdrop and under the scrim.
+    &__trailer {
+        z-index: 0;
+    }
+
+    // Its sound toggle lives above the content box (z-index 2), which would
+    // otherwise take the clicks; the top band is clear of the content.
+    &__trailer-mute {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        z-index: 3;
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 1px solid
+            color-mix(in srgb, var(--app-on-surface) 14%, transparent);
+        border-radius: 50%;
+        background: color-mix(in srgb, var(--surface-bg) 70%, transparent);
+        color: var(--app-heading-color);
+        cursor: pointer;
+
+        mat-icon {
+            width: 18px;
+            height: 18px;
+            font-size: 18px;
+            line-height: 18px;
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--app-selection-color);
+            outline-offset: 2px;
+        }
+    }
+
+    // Two scrim layers: a horizontal one for the text column, a vertical one
+    // that dissolves the artwork into the page.
     &__vignette {
         position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0; // Full height to cover everything
+        inset: 0;
         z-index: 1;
         pointer-events: none;
-        background: linear-gradient(
-            to bottom,
-            transparent 0%,
-            transparent 35%,
-            var(--surface-bg) 55%,
-            var(--surface-bg) 100%
-        );
-
-        // Top area gradient for text legibility over backdrop
-        &::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60%;
-            background: linear-gradient(
-                to top,
-                var(--hero-gradient-end) 0%,
-                var(--hero-gradient-mid) 50%,
-                var(--hero-gradient-start) 100%
+        background:
+            linear-gradient(
+                90deg,
+                color-mix(in srgb, var(--surface-bg) 97%, transparent) 0%,
+                color-mix(in srgb, var(--surface-bg) 90%, transparent) 34%,
+                color-mix(in srgb, var(--surface-bg) 45%, transparent) 64%,
+                color-mix(in srgb, var(--surface-bg) 15%, transparent) 100%
+            ),
+            linear-gradient(
+                180deg,
+                color-mix(in srgb, var(--surface-bg) 25%, transparent) 0%,
+                transparent 30%,
+                transparent 60%,
+                var(--surface-bg) 100%
             );
-        }
-
-        // Side fade for poster area
-        &::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            height: 50%;
-            width: 40%;
-            background: linear-gradient(
-                to right,
-                var(--hero-gradient-mid) 0%,
-                var(--hero-gradient-start) 100%
-            );
-        }
     }
 
-    // Content area (page scroll lives in the surrounding detail shell)
     &__content {
         position: relative;
         z-index: 2;
         display: flex;
+        align-items: flex-end;
         gap: 32px;
-        align-items: flex-start;
-        padding: 140px 40px 60px;
+        width: 100%;
         max-width: var(--content-max-width);
         margin: 0 auto;
+        padding: 48px 32px 24px;
         box-sizing: border-box;
+
+        &--skeleton {
+            align-items: flex-start;
+        }
     }
 
-    // Error state
     &__error {
         flex-direction: column;
         align-items: center;
@@ -175,39 +189,37 @@
 }
 
 // ============================================================================
-// Poster Card - Floating with shadow
+// Poster
 // ============================================================================
 
 .poster {
-    flex-shrink: 0;
+    flex: 0 0 auto;
     width: var(--poster-width);
-    align-self: flex-start;
+    aspect-ratio: 2 / 3;
+    align-self: flex-end;
 
-    &:hover .poster__image {
-        transform: scale(1.02);
+    &__image,
+    &__placeholder {
+        display: block;
+        width: 100%;
+        aspect-ratio: 2 / 3;
+        border-radius: 10px;
+        box-shadow: var(--poster-shadow);
+        box-sizing: border-box;
     }
 
     &__image {
-        width: 100%;
-        aspect-ratio: 2 / 3;
         object-fit: cover;
-        border-radius: 8px;
-        box-shadow: var(--poster-shadow);
         background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
-        transition: transform 0.3s ease;
     }
 
     &__placeholder {
-        width: 100%;
-        aspect-ratio: 2 / 3;
-        border-radius: 8px;
-        background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         color: rgba(255, 255, 255, 0.8);
-        box-shadow: var(--poster-shadow);
+        background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
         overflow: hidden;
 
         &-icon {
@@ -233,21 +245,35 @@
 }
 
 // ============================================================================
-// Details Section - Title, metadata, description
+// Details column - kind, title, chips, description, actions, credits
 // ============================================================================
 
 .details {
-    flex: 1;
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
     min-width: 0;
-    padding-bottom: 24px;
+    max-width: 620px;
+
+    &__kind {
+        margin: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1.4px;
+        line-height: 1;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
 
     &__title {
-        font-size: clamp(1.75rem, 4vw, 3rem);
+        margin: 0;
+        font-size: clamp(28px, 3.2vw, 40px);
         font-weight: 700;
-        line-height: 1.1;
-        margin: 0 0 16px 0;
-        letter-spacing: -0.02em;
-        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        line-height: 1.08;
+        letter-spacing: -0.5px;
+        text-wrap: balance;
         overflow-wrap: anywhere;
         display: -webkit-box;
         -webkit-line-clamp: 3;
@@ -258,70 +284,29 @@
     &__tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 16px;
-    }
+        gap: 6px;
+        max-width: 100%;
 
-    // These styles are for Projected Content, we need to ensure they apply
-    // using ::ng-deep or just assume the global styles will handle them?
-    // Actually, since we project content, the styles defined here might NOT apply to the projected content
-    // unless we use ::ng-deep or the content itself has these styles.
-    // However, since we are moving the "shell", the container classes (.details__tags) are here.
-    // The inner items (.details__tag) will be in the projected content.
-    // So we need ::ng-deep here for .details__tag.
-
-    ::ng-deep .details__tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 4px 12px;
-        font-size: 0.8125rem;
-        font-weight: 500;
-        background: var(--tag-bg);
-        border: 1px solid var(--tag-border);
-        border-radius: 4px;
-        backdrop-filter: blur(8px);
-
-        &--rating {
-            color: #ffd700;
-            border-color: rgba(255, 215, 0, 0.3);
-        }
-
-        // Rendered as a <button> so the facet is keyboard-operable; the
-        // UA's own font and appearance have to be neutralized to keep it
-        // visually identical to the informational chips beside it.
-        &--clickable {
-            appearance: none;
-            cursor: pointer;
-            font-family: inherit;
-            letter-spacing: inherit;
-            line-height: inherit;
-            transition:
-                border-color 0.15s ease,
-                background 0.15s ease;
-
-            &:hover {
-                background: var(--tag-border);
-                border-color: var(--text-secondary, rgba(255, 255, 255, 0.5));
-            }
-
-            &:focus-visible {
-                outline: 2px solid var(--text-primary, #fff);
-                outline-offset: 2px;
-            }
+        &:empty {
+            display: none;
         }
     }
 
     &__description {
-        font-size: 0.9375rem;
-        line-height: 1.6;
-        color: var(--text-secondary);
-        margin-bottom: 6px;
-        max-width: 600px;
+        margin: 0;
+        font-size: 13.5px;
+        line-height: 1.55;
+        color: color-mix(
+            in srgb,
+            var(--text-primary) 78%,
+            var(--text-secondary)
+        );
+        text-wrap: pretty;
+        max-width: 100%;
 
-        // Truncate long descriptions
+        // Three lines, then "More"
         display: -webkit-box;
-        -webkit-line-clamp: 4;
+        -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
 
@@ -335,40 +320,29 @@
     &__description-toggle {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        margin: 0 0 20px 0;
-        padding: 4px 0;
+        gap: 2px;
+        margin: -8px 0 0;
+        padding: 2px 0;
         background: transparent;
         border: 0;
         cursor: pointer;
         color: var(--text-secondary);
         font: inherit;
-        font-size: 0.8125rem;
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.8px;
         text-transform: uppercase;
-        transition:
-            color 180ms ease,
-            transform 180ms ease;
+        transition: color 180ms ease;
 
         mat-icon {
             font-size: 16px;
             width: 16px;
             height: 16px;
             line-height: 16px;
-            transition: transform 180ms ease;
         }
 
         &:hover {
             color: var(--text-primary);
-
-            mat-icon {
-                transform: translateY(2px);
-            }
-        }
-
-        &[aria-expanded='true']:hover mat-icon {
-            transform: translateY(-2px);
         }
 
         &:focus-visible {
@@ -378,14 +352,40 @@
         }
     }
 
+    &__progress {
+        display: block;
+        width: 260px;
+        max-width: 100%;
+        height: 3px;
+        margin-bottom: -4px;
+        border-radius: 2px;
+        overflow: hidden;
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 18%,
+            transparent
+        );
+
+        i {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: var(--accent-color);
+        }
+    }
+
     &__meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 16px 32px;
-        margin-bottom: 24px;
+        gap: 12px 32px;
+        max-width: 100%;
+
+        &:empty {
+            display: none;
+        }
     }
 
-    // Similar issue for meta items
+    // Legacy `.details__meta-item` projected by hosts not yet on credits.
     ::ng-deep .details__meta-item {
         font-size: 0.875rem;
 
@@ -405,162 +405,52 @@
 }
 
 // ============================================================================
-// Action Buttons - Play, Favorite
+// Action row - never wraps on a desktop window
 // ============================================================================
 
 .action-buttons {
     display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 0;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
 
-    // Use ::ng-deep to style the projected buttons
-    ::ng-deep .play-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 12px;
-        min-height: 64px;
-        padding: 10px 24px 10px 18px;
-        font-size: 1rem;
-        font-weight: 600;
-        background: #fff;
-        color: #141414;
-        border: none;
-        border-radius: 16px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-
-        &:hover {
-            background: rgba(255, 255, 255, 0.85);
-            transform: scale(1.02);
-        }
-
-        mat-icon {
-            font-size: 24px;
-            width: 24px;
-            height: 24px;
-        }
-
-        @include detail-actions.play-button-copy;
-    }
-
-    ::ng-deep .favorite-btn,
-    ::ng-deep .download-btn,
-    // The sources chip is a peer secondary action, so it wears the same
-    // surface, height and radius. Without this it reads as a link floating
-    // between three solid buttons.
-    ::ng-deep app-vod-sources-chip .sources-chip {
-        @include detail-actions.secondary-action-button;
-    }
-
-    // Match the chip to its neighbouring icon buttons' tag surfaces. Its own
-    // pressed state (.sources-chip--open) is more specific and still wins.
-    ::ng-deep app-vod-sources-chip .sources-chip {
-        background: var(--tag-bg);
-        border-color: var(--tag-border);
-
-        &:hover {
-            background: var(--tag-border);
-        }
-    }
-
-    ::ng-deep .favorite-btn {
-        @include detail-actions.favorite-button-state;
-    }
-
-    ::ng-deep .download-btn {
-        @include detail-actions.download-button-state;
+    &:empty {
+        display: none;
     }
 }
 
 // ============================================================================
-// Mobile Responsive - Option A: Keep poster grid layout
+// Narrow details column (beside the categories panel, phones)
 // ============================================================================
+// At a 1200px window the details pane beside the categories panel is about
+// 815px wide and must still carry the poster; the poster goes below that.
 
-@media (max-width: 800px) {
-    :host {
-        --poster-width: 120px;
-    }
-
-    .hero {
-        &__backdrop {
-            height: 45%;
-
-            &--blurred {
-                height: 50%;
-            }
-        }
-
-        &__vignette {
-            background: linear-gradient(
-                to bottom,
-                transparent 0%,
-                transparent 25%,
-                var(--surface-bg) 45%,
-                var(--surface-bg) 100%
-            );
-
-            &::before {
-                height: 50%;
-            }
-
-            &::after {
-                display: none;
-            }
-        }
-
-        &__content {
-            padding: 60px 20px 40px;
-            gap: 16px;
-        }
-    }
-
+@container detail (max-width: 760px) {
     .poster {
-        // Mobile poster adjustments - none needed
+        display: none;
+    }
+
+    .hero__content {
+        padding: 40px 20px 24px;
     }
 
     .details {
-        &__title {
-            font-size: 1.5rem;
-        }
-
-        &__description {
-            -webkit-line-clamp: 3;
-
-            &--expanded {
-                -webkit-line-clamp: unset;
-            }
-        }
-
-        &__meta {
-            gap: 12px 20px;
-        }
+        max-width: none;
     }
 
     .action-buttons {
-        width: 100%;
-
-        @include detail-actions.projected-mobile-action-buttons;
+        flex-wrap: wrap;
     }
 }
 
-// A phone cannot carry the poster and the details side by side: the details
-// column drops to ~200px, and the action buttons are then squeezed below
-// their own labels ("Play" clipped down to its icon). Stack them instead.
 @media (max-width: 640px) {
     .hero__content {
-        flex-direction: column;
-        align-items: stretch;
         padding-inline: 16px;
     }
 
-    .poster {
-        width: 140px;
-        align-self: center;
-    }
-
     .details__title {
-        text-align: center;
+        font-size: 1.5rem;
     }
 }
 
@@ -571,7 +461,7 @@
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(12px);
     }
     to {
         opacity: 1;
@@ -580,7 +470,17 @@
 }
 
 .hero__content {
-    animation: fadeInUp 0.6s ease-out 0.2s both;
+    animation: fadeInUp 0.4s ease-out 0.1s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero__content {
+        animation: none;
+    }
+
+    .details__description-toggle {
+        transition: none;
+    }
 }
 
 // Skeleton Loader Overrides
@@ -588,35 +488,13 @@ ngx-skeleton-loader {
     display: block;
     width: 100%;
 
-    // Ensure the loader inside poster takes up the correct aspect ratio space
     ::ng-deep .loader {
         display: block;
         height: 100%;
-    }
-}
-
-:host-context(.dark-theme) {
-    ngx-skeleton-loader {
-        ::ng-deep .loader {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-    }
-}
-
-.poster {
-    // ... existing styles ...
-    // Ensure poster container has height/ratio for skeleton
-    min-height: 330px; // Fallback
-    aspect-ratio: 2 / 3;
-}
-
-// After the rule above so it wins the cascade at equal specificity: that
-// 330px skeleton fallback is sized for the desktop poster width, while the
-// stacked phone hero renders the poster 140px wide — its aspect-ratio height
-// is ~210px, and the leftover minimum was pure empty space pushing the title
-// and actions ~120px down on every loaded detail page.
-@media (max-width: 640px) {
-    .poster {
-        min-height: 0;
+        background-color: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 10%,
+            transparent
+        );
     }
 }

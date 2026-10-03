@@ -1,5 +1,6 @@
 @if (detail(); as offlineDetail) {
     <app-portal-detail-shell
+        [contentKey]="heroKey()"
         [title]="title()"
         [description]="description()"
         [posterUrl]="posterUrl()"
@@ -8,111 +9,41 @@
         (backClicked)="goBack()"
     >
         <ng-template appDetailTags>
-            <span class="details__tag offline-detail__available">
+            <app-meta-chip class="offline-detail__available">
                 <mat-icon aria-hidden="true">download_done</mat-icon>
                 {{ 'DOWNLOADS.OFFLINE_DETAIL.AVAILABLE' | translate }}
-            </span>
+            </app-meta-chip>
             @if (metadata()?.year; as year) {
                 @if (positiveFinite(year)) {
-                    <span class="details__tag">{{ year }}</span>
+                    <app-meta-chip>{{ year }}</app-meta-chip>
                 }
             }
             @if (durationLabel(); as duration) {
-                <span class="details__tag">{{ duration }}</span>
+                <app-meta-chip>{{ duration }}</app-meta-chip>
             }
             @for (genre of genres(); track genre) {
-                <span class="details__tag">{{ genre }}</span>
+                <app-meta-chip>{{ genre }}</app-meta-chip>
             }
             @if (metadata()?.rating; as rating) {
                 @if (positiveFinite(rating)) {
-                    <span class="details__tag details__tag--rating">
+                    <app-meta-chip variant="rating">
                         <span aria-hidden="true">★</span> {{ rating }}
-                    </span>
+                    </app-meta-chip>
                 }
             }
             @if (metadata()?.status; as status) {
                 @if (status.trim()) {
-                    <span class="details__tag details__tag--status">
-                        {{ status }}
-                    </span>
+                    <app-meta-chip variant="status">{{ status }}</app-meta-chip>
                 }
             }
         </ng-template>
 
         <ng-template appDetailMeta>
-            @if (cast().length) {
-                <div class="details__meta-item offline-detail__people-group">
-                    <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
-                    <div class="details__cast-strip">
-                        @for (person of cast(); track personTrackKey(person)) {
-                            <span
-                                class="details__cast-chip offline-detail__person"
-                                [title]="
-                                    person.role
-                                        ? person.name + ' — ' + person.role
-                                        : person.name
-                                "
-                            >
-                                @if (person.profileUrl) {
-                                    <img
-                                        class="details__cast-avatar"
-                                        [src]="person.profileUrl"
-                                        [alt]="person.name"
-                                        loading="lazy"
-                                    />
-                                } @else {
-                                    <span
-                                        class="details__cast-avatar details__cast-avatar--fallback"
-                                        aria-hidden="true"
-                                    >
-                                        {{ person.name.charAt(0) }}
-                                    </span>
-                                }
-                                <span class="details__cast-name">{{
-                                    person.name
-                                }}</span>
-                            </span>
-                        }
-                    </div>
-                </div>
-            }
-            @if (creators().length) {
-                <div class="details__meta-item offline-detail__people-group">
-                    <span class="label">{{
-                        'XTREAM.DIRECTOR' | translate
-                    }}</span>
-                    <div class="details__cast-strip">
-                        @for (
-                            person of creators();
-                            track personTrackKey(person)
-                        ) {
-                            <span
-                                class="details__cast-chip offline-detail__person"
-                                [title]="person.name"
-                            >
-                                @if (person.profileUrl) {
-                                    <img
-                                        class="details__cast-avatar"
-                                        [src]="person.profileUrl"
-                                        [alt]="person.name"
-                                        loading="lazy"
-                                    />
-                                } @else {
-                                    <span
-                                        class="details__cast-avatar details__cast-avatar--fallback"
-                                        aria-hidden="true"
-                                    >
-                                        {{ person.name.charAt(0) }}
-                                    </span>
-                                }
-                                <span class="details__cast-name">{{
-                                    person.name
-                                }}</span>
-                            </span>
-                        }
-                    </div>
-                </div>
-            }
+            <app-detail-credits
+                [cast]="castNames()"
+                [directors]="creatorNames()"
+                (moreRequested)="scrollToCast()"
+            />
             @if (movieFileSize(); as size) {
                 <div class="details__meta-item">
                     <span class="value">
@@ -455,6 +386,14 @@
                 }
             </section>
         }
+        <div detail-extras>
+            <!-- No actor page offline: the people stay plain entries -->
+            <app-cast-crew-row
+                [cast]="castMembers()"
+                [directors]="creatorMembers()"
+                [interactive]="false"
+            />
+        </div>
     </app-portal-detail-shell>
 } @else {
     <app-portal-detail-shell

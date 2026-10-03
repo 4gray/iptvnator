@@ -132,13 +132,21 @@ discovery slides open the detail page; live slides open the channel. TMDB
 extras (backdrop, rating, genres, overview, year) come from
 `DashboardHeroTmdbService` per featured title and vanish when TMDB is off.
 
+Artwork: a title's backdrop, else its poster blurred and scaled past the
+edges (no second, sharp copy); a live channel's logo sits on the right as key
+art over its own wash. Series titles drop their season marker
+(`splitSeasonSuffix`) — the `S1·E1` chip names the season. Chips are
+`app-meta-chip`; the primary is the details pages' light primary
+(`light-primary-button` from `libs/ui/styles`).
+
 Rotation is the active dot's CSS fill animation (8 s); its `animationend`
 advances. The fill animates `transform` only (a bar sliding in under the
 pill's rounded clip), so it runs on the compositor; animating `width` there
 cost a style, layout and paint pass on every frame of an idle dashboard.
-Hover, focus inside the hero and the pause button pause it; an
-explicit Play clears the hover/focus pause until they re-arm; under
-`prefers-reduced-motion` nothing auto-advances. The active slide is tracked
+Hover, focus inside the hero, a hidden document and the pause button pause
+it; an explicit Play clears the hover/focus pause until they re-arm; under
+`prefers-reduced-motion` nothing auto-advances. The hero is a focusable
+region: ←/→ switch slides and Enter follows the primary action. The active slide is tracked
 by id, so a late live slide never moves the user off the current one. Test
 hooks: `dashboard-hero`, `dashboard-hero-slide` (`data-hero-kind`),
 `dashboard-hero-dot`, `dashboard-hero-pause`,

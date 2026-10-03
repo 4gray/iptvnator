@@ -9,8 +9,7 @@ import {
     untracked,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatIcon } from '@angular/material/icon';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import type { PlaybackFallbackRequest } from '@iptvnator/playback/util';
 import {
     enrichedCast,
@@ -24,13 +23,22 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
+    castMembersFromNames,
 } from '@iptvnator/ui/components';
+import { formatDurationLabel } from '@iptvnator/portal/shared/util';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { M3uVodMetadataService } from './m3u-vod-metadata.service';
+import {
+    M3uVodMetadataService,
+    m3uVodEntryKey,
+} from './m3u-vod-metadata.service';
 
 /**
  * VOD detail experience for an M3U entry recognized as a movie: the same
@@ -51,10 +59,13 @@ import { M3uVodMetadataService } from './m3u-vod-metadata.service';
     selector: 'app-m3u-vod-detail',
     providers: [M3uVodMetadataService],
     imports: [
+        CastCrewRowComponent,
+        DetailActionButtonComponent,
         DetailActionsTemplateDirective,
+        DetailCreditsComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
-        MatIcon,
+        MetaChipComponent,
         PortalDetailShellComponent,
         PortalInlinePlayerComponent,
         TranslatePipe,
@@ -65,6 +76,7 @@ import { M3uVodMetadataService } from './m3u-vod-metadata.service';
 })
 export class M3uVodDetailComponent {
     private readonly metadata = inject(M3uVodMetadataService);
+    private readonly translate = inject(TranslateService);
 
     readonly channel = input.required<Channel>();
     /** Parent-owned playback payload (headers/DRM already resolved). */
@@ -106,6 +118,13 @@ export class M3uVodDetailComponent {
 
     readonly tmdb = computed(() => this.metadata.state().details);
 
+    /**
+     * What the hero decides its layout for, once per entry. Keyed like the
+     * TMDB lookup, by id AND name: entries sharing an id differ by name, and
+     * the next one may have a backdrop where this one had none.
+     */
+    readonly heroKey = computed(() => `m3u:${m3uVodEntryKey(this.channel())}`);
+
     readonly title = computed(
         () => this.tmdb()?.title?.trim() || this.channel().name
     );
@@ -130,14 +149,12 @@ export class M3uVodDetailComponent {
             .join(', ')
     );
     readonly runtimeLabel = computed(() => {
-        const runtime = this.tmdb()?.runtime;
-        if (!runtime || runtime <= 0) {
-            return '';
-        }
-        const hours = Math.floor(runtime / 60);
-        const minutes = runtime % 60;
-        return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+        const label = formatDurationLabel((this.tmdb()?.runtime ?? 0) * 60);
+        return label ? this.translate.instant(label.key, label.params) : '';
     });
+    readonly kindLabel = computed(() =>
+        this.translate.instant('WORKSPACE.DASHBOARD.TYPE_MOVIE')
+    );
     readonly rating = computed(() => {
         const details = this.tmdb();
         const average = details?.vote_average ?? 0;
@@ -150,12 +167,23 @@ export class M3uVodDetailComponent {
         const credits = this.tmdb()?.credits;
         return credits ? enrichedCast(topCast(credits)) : [];
     });
-    readonly directors = computed(() =>
+    readonly directorNames = computed(() =>
         (this.tmdb()?.credits?.crew ?? [])
             .filter((member) => member.job === 'Director')
             .map((member) => member.name)
-            .join(', ')
     );
+    readonly directorMembers = computed(() =>
+        castMembersFromNames(this.directorNames())
+    );
+    readonly castNames = computed(() =>
+        this.cast().map((member) => member.name)
+    );
+
+    scrollToCast(): void {
+        document
+            .getElementById('detail-cast-crew')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     /**
      * The playback payload handed to the player. Its OBJECT IDENTITY is the

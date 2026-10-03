@@ -39,6 +39,7 @@ describe('StalkerSeriesViewComponent', () => {
     const resolveVodPlayback = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
     const openResolvedPlayback = jest.fn();
+    const openExternalPlayback = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const tmdbGetSeason = jest.fn();
     const fetchLinkToPlay = jest.fn();
@@ -52,6 +53,13 @@ describe('StalkerSeriesViewComponent', () => {
     async function stabilize(): Promise<void> {
         fixture.detectChanges();
         await fixture.whenStable();
+    }
+
+    /** Lets a start's awaited continuations run, then renders their state. */
+    async function settleStart(): Promise<void> {
+        await stabilize();
+        await new Promise((resolve) => setTimeout(resolve));
+        fixture.detectChanges();
     }
 
     beforeEach(async () => {
@@ -104,6 +112,7 @@ describe('StalkerSeriesViewComponent', () => {
         getSeriesPlaybackPositions.mockClear();
         getSeriesPlaybackPositions.mockResolvedValue([]);
         openResolvedPlayback.mockClear();
+        openExternalPlayback.mockReset();
         isEmbeddedPlayer.mockReset();
         isEmbeddedPlayer.mockReturnValue(false);
         tmdbGetSeason.mockReset();
@@ -159,6 +168,7 @@ describe('StalkerSeriesViewComponent', () => {
                     useValue: {
                         isEmbeddedPlayer,
                         openResolvedPlayback,
+                        openExternalPlayback,
                     },
                 },
                 {
@@ -247,9 +257,7 @@ describe('StalkerSeriesViewComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_FIRST_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
@@ -269,6 +277,62 @@ describe('StalkerSeriesViewComponent', () => {
             }),
             true
         );
+    });
+
+    it('holds the quick-start button until the start settles', async () => {
+        let finishResolve!: (playback: unknown) => void;
+        resolveVodPlayback.mockImplementationOnce(
+            () => new Promise((resolve) => (finishResolve = resolve))
+        );
+        await stabilize();
+        fixture.detectChanges();
+        const button = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+
+        button()?.click();
+        fixture.detectChanges();
+        // A second press could not cancel the first start.
+        expect(button()?.disabled).toBe(true);
+
+        finishResolve({ streamUrl: 'http://stalker.example/episode.mpg' });
+        await settleStart();
+        expect(button()?.disabled).toBe(false);
+        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('plays an episode chosen during a forced launch once that launch settles', async () => {
+        let finishLaunch!: () => void;
+        openExternalPlayback.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finishLaunch = resolve))
+        );
+        await stabilize();
+        const [first, second] = fixture.componentInstance.mappedSeasons()['1'];
+
+        fixture.componentInstance.onEpisodeClicked(first, undefined, 'mpv');
+        await settleStart();
+        expect(openExternalPlayback).toHaveBeenCalledTimes(1);
+
+        // The launch IPC cannot be cancelled: the choice waits for it instead
+        // of opening a second player next to the first.
+        fixture.componentInstance.onEpisodeClicked(second);
+        await settleStart();
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(1);
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+
+        finishLaunch();
+        await settleStart();
+        expect(resolveVodPlayback).toHaveBeenCalledTimes(2);
+        expect(resolveVodPlayback).toHaveBeenLastCalledWith(
+            '/media/file_30001.mpg',
+            'Regular Series',
+            'poster.jpg',
+            2,
+            expect.any(Number),
+            undefined
+        );
+        expect(openResolvedPlayback).toHaveBeenCalledTimes(1);
     });
 
     it('keeps provider episodes playable while hiding download presentation', async () => {
@@ -448,7 +512,9 @@ describe('StalkerSeriesViewComponent', () => {
         expect(
             fixture.componentInstance.quickStartAction()?.labelParams
         ).toEqual({ episode: 1 });
-        expect(button?.textContent).toContain('Play episode 1');
+        // The hero shows "Play" with the episode on the second line.
+        expect(button?.textContent).toContain('XTREAM.PLAY');
+        expect(button?.textContent).toContain('S01E01 · Pilot');
         expect(button?.textContent).not.toContain('{{episode}}');
     });
 
@@ -605,9 +671,7 @@ describe('StalkerSeriesViewComponent', () => {
 
         expect(quickStartButton).not.toBeNull();
         expect(quickStartButton?.disabled).toBe(false);
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_NEXT_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S01E01');
 
         quickStartButton?.click();
@@ -1097,9 +1161,7 @@ describe('StalkerSeriesViewComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_NEXT_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S02E01');
 
         quickStartButton?.click();

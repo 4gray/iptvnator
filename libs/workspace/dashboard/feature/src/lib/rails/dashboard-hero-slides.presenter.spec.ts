@@ -230,6 +230,38 @@ describe('DashboardHeroSlidesPresenter', () => {
         );
     });
 
+    it('drops a season marker from a series title and leaves movies and live titles alone', () => {
+        // The rotation holds four slides: only the series, the live channel
+        // and a favorite movie compete here (the finished film never does).
+        recentItems.set([{ ...series, title: 'Big Pharma (1 сезон)' }]);
+        favorites.set([
+            { ...favoriteFilm, id: 9, type: 'movie', title: 'Film Season 2' },
+        ]);
+        addedItems.set([]);
+        candidates.set([
+            { origin: 'favorite', item: { ...channel, title: 'Sport S01' } },
+        ]);
+        const presenter = create();
+        const titles = presenter.slides().map((slide) => slide.title);
+        expect(titles).toContain('Big Pharma');
+        expect(titles).not.toContain('Big Pharma (1 сезон)');
+        expect(titles).toContain('Film Season 2');
+        expect(titles).toContain('Sport S01');
+    });
+
+    it('keeps the season marker of a series that no episode badge describes', () => {
+        // A favorite with no playback row: the marker is the only thing
+        // telling two per-season catalog entries of the show apart.
+        recentItems.set([]);
+        favorites.set([{ ...favoriteFilm, title: 'Burnley (2 сезон)' }]);
+        addedItems.set([]);
+        candidates.set([]);
+        const [slide] = create().slides();
+
+        expect(slide.episodeBadge).toBeNull();
+        expect(slide.title).toBe('Burnley (2 сезон)');
+    });
+
     it('resumes an unfinished series and offers a detail-only way in', () => {
         const [resume] = create().slides();
 

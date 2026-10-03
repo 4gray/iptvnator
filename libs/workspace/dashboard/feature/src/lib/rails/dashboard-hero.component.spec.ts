@@ -277,6 +277,68 @@ describe('DashboardHeroComponent', () => {
             host().querySelector('[data-test-id=dashboard-hero]')
         ).toBeNull();
     });
+
+    it('switches slides with the arrow keys and follows Enter on the hero itself', () => {
+        render();
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        expect(section.getAttribute('tabindex')).toBe('0');
+
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })
+        );
+        fixture.detectChanges();
+        expect(activeTitle()).toBe('Second');
+
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })
+        );
+        fixture.detectChanges();
+        expect(activeTitle()).toBe('First');
+
+        const primary = host().querySelector<HTMLElement>(
+            '[data-test-id=dashboard-hero-primary-action]'
+        ) as HTMLElement;
+        const clicked = jest.fn();
+        primary.addEventListener('click', (event) => {
+            event.preventDefault();
+            clicked();
+        });
+        section.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+        expect(clicked).toHaveBeenCalledTimes(1);
+
+        // Keys pressed inside a control belong to that control.
+        const dot = dots()[0];
+        dot.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+        expect(clicked).toHaveBeenCalledTimes(1);
+    });
+
+    it('pauses the rotation while the document is hidden', () => {
+        const visibility = jest
+            .spyOn(document, 'visibilityState', 'get')
+            .mockReturnValue('visible');
+        render();
+        const section = host().querySelector(
+            '[data-test-id=dashboard-hero]'
+        ) as HTMLElement;
+        expect(section.classList).not.toContain('hero--paused');
+
+        visibility.mockReturnValue('hidden');
+        document.dispatchEvent(new Event('visibilitychange'));
+        fixture.detectChanges();
+        expect(section.classList).toContain('hero--paused');
+
+        visibility.mockReturnValue('visible');
+        document.dispatchEvent(new Event('visibilitychange'));
+        fixture.detectChanges();
+        expect(section.classList).not.toContain('hero--paused');
+        visibility.mockRestore();
+    });
 });
 
 describe('DashboardHeroComponent rotation animation', () => {

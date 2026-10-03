@@ -244,10 +244,18 @@ export async function expectSeriesSurfacesInBothThemes(
         const shell = page.locator('app-portal-detail-shell');
         await expect
             .poll(() =>
-                rasterizedBorderContrast(shell.locator('.favorite-btn').first())
+                rasterizedBorderContrast(
+                    shell
+                        .locator('[data-testid="series-favorite-toggle"]')
+                        .first()
+                )
             )
             .toBeGreaterThan(1.1);
-        for (const selector of ['.episode-card', 'mat-button-toggle-group']) {
+        // The flat card's visible edge is its artwork's hairline.
+        for (const selector of [
+            '.episode-card__thumbnail',
+            'mat-button-toggle-group',
+        ]) {
             await expect
                 .poll(
                     async () =>
@@ -277,4 +285,25 @@ export async function expectSeriesSurfacesInBothThemes(
             .getByRole('radio', { name: 'Grid view', exact: true })
             .click();
     }
+}
+
+/** Opens the series "…" menu (if closed) and returns the row with that test id. */
+export async function seriesMenuRow(page: Page, rowTestId: string) {
+    const row = page.locator(`[data-test-id="${rowTestId}"]`);
+    if (!(await row.isVisible().catch(() => false))) {
+        await page.locator('[data-testid="series-more-menu"]').click();
+    }
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    return row;
+}
+
+/** Closes an open series menu without choosing a row. */
+export async function closeSeriesMenu(page: Page): Promise<void> {
+    // The panel, not the backdrop: a backdrop locator can match a second
+    // overlay and then fail the strict check, leaving the menu open.
+    const panel = page.locator('[data-test-id="vod-more-menu"]');
+    if (await panel.isVisible().catch(() => false)) {
+        await page.keyboard.press('Escape');
+    }
+    await expect(panel).toBeHidden({ timeout: 10_000 });
 }

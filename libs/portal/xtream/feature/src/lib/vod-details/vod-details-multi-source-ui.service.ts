@@ -13,6 +13,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
+import type { VodResetTarget } from './vod-details-reset-target';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import {
     createPrimaryActionPosition,
@@ -126,6 +127,31 @@ export class VodDetailsMultiSourceUiService {
     });
 
     readonly hasPlaybackPosition = this.primaryAction.hasPosition;
+    /**
+     * The position the primary button acts on: the pinned copy's own row, or
+     * the live one while that copy plays, otherwise the route copy's.
+     */
+    readonly primaryPosition = this.primaryAction.position;
+    /** The copy whose row "Reset progress" clears: the one the button acts on. */
+    readonly primaryTarget = computed<VodResetTarget | null>(() => {
+        const pinned = this.primaryAction.foreignPin();
+        if (pinned) {
+            return {
+                playlistId: pinned.playlistId,
+                contentId: pinned.contentId,
+            };
+        }
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const contentId = this.routeContentId();
+        return playlistId && Number.isFinite(contentId) && contentId > 0
+            ? { playlistId, contentId }
+            : null;
+    });
+
+    /** After the pinned copy's row was cleared: Play, until it plays again. */
+    forgetPinnedPosition(): void {
+        this.primaryAction.forgetPinnedPosition();
+    }
 
     formatPosition(): string {
         return formatPlaybackPosition(this.primaryAction.position());

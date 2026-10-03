@@ -21,6 +21,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
+    ExternalPlayerName,
     ExternalPlayerSession,
     PlaybackPositionData,
     PlayerContentInfo,
@@ -41,6 +42,10 @@ import {
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { settleOwnedExternalLaunch } from './vod-details-external-launch';
 import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
+import {
+    hasVodResetTarget,
+    type VodResetTarget,
+} from './vod-details-reset-target';
 import { isResumablePosition } from './vod-primary-action-position';
 
 export interface VodDetailsPlaybackBindings {
@@ -56,6 +61,10 @@ export interface VodDetailsPlaybackBindings {
     activeSource?: Signal<PlayerContentInfo | null>;
     /** Retires a source resolution that the accepted fallback now supersedes. */
     supersedePendingSwitch: () => void;
+    /** An MPV/VLC launch failed while nothing superseded it; the page tells the user. */
+    reportExternalLaunchFailure?: (error: unknown) => void;
+    /** The copy the page's actions act on, for telling a pending reset's copy apart. */
+    resetTarget?: Signal<VodResetTarget | null>;
 }
 
 /**
@@ -167,15 +176,7 @@ export class VodDetailsPlaybackService {
         });
     }
 
-    private ownsContent(
-        info:
-            | {
-                  playlistId?: string;
-                  contentXtreamId?: number;
-                  contentType?: string;
-              }
-            | undefined
-    ): boolean {
+    private ownsContent(info: Parameters<typeof ownsContent>[0]): boolean {
         return ownsContent(info, {
             routePlaylistId: this.xtreamStore.currentPlaylist()?.id,
             routeContentId: this.bindings()?.vodId(),
@@ -188,68 +189,30 @@ export class VodDetailsPlaybackService {
         this.bindings.set(bindings);
     }
 
-    async playVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+    /**
+     * The playback the route copy resolves to, with the saved resume point
+     * when `resume` is set. Null when the item carries no playable source
+     * or no playlist is current.
+     */
+    buildVodPlayback(
+        vodItem: XtreamVodDetails | null,
+        resume: boolean
+    ): ResolvedPortalPlayback | null {
         if (!vodItem) {
-            return false;
+            return null;
         }
 
         const source = resolveXtreamVodPlaybackSource(vodItem);
-        if (!source) {
-            return false;
-        }
-
         const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return false;
-        }
-
-        const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
-        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
-        const routeVodId = this.bindings()?.vodId();
-        const id =
-            routeVodId != null &&
-            Number.isSafeInteger(routeVodId) &&
-            routeVodId > 0
-                ? routeVodId
-                : source.streamId;
-
-        this.logger.debug('playVod resolved ID', { id, vodItem });
-
-        const contentInfo: PlayerContentInfo = {
-            playlistId: playlist.id,
-            contentXtreamId: id,
-            contentType: 'vod',
-        };
-        const playback: ResolvedPortalPlayback = {
-            streamUrl,
-            title: presentation.title,
-            thumbnail: presentation.posterUrl,
-            contentInfo,
-        };
-
-        return await this.startPlayback(playback);
-    }
-
-    async resumeVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
-        if (!vodItem) {
-            return false;
-        }
-
-        const source = resolveXtreamVodPlaybackSource(vodItem);
-        if (!source) {
-            return false;
-        }
-
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return false;
+        if (!source || !playlist) {
+            return null;
         }
 
         const presentation = resolveXtreamVodPlaybackPresentation(vodItem);
         // Master's sparse-details fallback: a provider that omits the route
         // id still has the stream id on the resolved source.
         const routeVodId = this.bindings()?.vodId();
-        const vodId =
+        const id =
             routeVodId != null &&
             Number.isSafeInteger(routeVodId) &&
             routeVodId > 0
@@ -258,41 +221,50 @@ export class VodDetailsPlaybackService {
         // The ROUTE copy's row, not the last position seen: Resume starts the
         // route's stream, and an alternative's timecode belongs to a
         // different (playlist, stream) key.
-        const position = this.routePlaybackPosition();
-        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
+        const position = resume ? this.routePlaybackPosition() : null;
+
+        this.logger.debug('buildVodPlayback resolved ID', { id, resume });
 
         const contentInfo: PlayerContentInfo = {
             playlistId: playlist.id,
-            contentXtreamId: vodId,
+            contentXtreamId: id,
             contentType: 'vod',
         };
-        const playback: ResolvedPortalPlayback = {
-            streamUrl,
+        return {
+            streamUrl: this.xtreamStore.constructVodStreamUrl(vodItem),
             title: presentation.title,
             thumbnail: presentation.posterUrl,
-            startTime: position?.positionSeconds,
+            ...(position ? { startTime: position.positionSeconds } : {}),
             contentInfo,
         };
+    }
 
-        return await this.startPlayback(playback);
+    /** `player` forces MPV/VLC (the "…" menu); the start is route-owned either way. */
+    async playVod(
+        vodItem: XtreamVodDetails | null,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
+        const playback = this.buildVodPlayback(vodItem, false);
+        return playback ? await this.startPlayback(playback, player) : false;
+    }
+
+    async resumeVod(
+        vodItem: XtreamVodDetails | null,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
+        const playback = this.buildVodPlayback(vodItem, true);
+        return playback ? await this.startPlayback(playback, player) : false;
     }
 
     onPrimaryAction(vodItem: XtreamVodDetails | null): void {
-        if (!vodItem) {
-            return;
-        }
-
+        if (!vodItem) return;
         if (this.isExternalStopAction()) {
             void this.stopExternalPlayback().catch(() => undefined);
-            return;
-        }
-
-        if (this.hasPlaybackPosition()) {
+        } else if (this.hasPlaybackPosition()) {
             void this.resumeVod(vodItem);
-            return;
+        } else {
+            void this.playVod(vodItem);
         }
-
-        void this.playVod(vodItem);
     }
 
     stopExternalPlayback(): Promise<void> {
@@ -329,20 +301,31 @@ export class VodDetailsPlaybackService {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        request.trackLaunch(
+            this.launchExternal(request.playback, request.player)
+        );
+    }
+
+    /**
+     * Hands the playback to MPV or VLC regardless of the configured player
+     * (the inline player's fallback), owned and settled like a regular
+     * external start.
+     */
+    launchExternal(
+        playback: ResolvedPortalPlayback,
+        player: ExternalPlayerName
+    ): Promise<ExternalPlayerSession | void> {
         const routeIdentity = this.externalLaunchOwner.captureRoute();
         this.bindings()?.supersedePendingSwitch();
         const generation = ++this.startGeneration;
-        this.claimExternalLaunch(request.playback, generation);
-        const launch = this.portalPlayer.openExternalPlayback(
-            request.playback,
-            request.player
-        );
-        request.trackLaunch(launch);
+        this.claimExternalLaunch(playback, generation);
+        const launch = this.portalPlayer.openExternalPlayback(playback, player);
         void this.settleExternalLaunch(
             generation,
             () => this.externalLaunchOwner.ownsRoute(routeIdentity),
             launch
         );
+        return launch;
     }
 
     /**
@@ -415,12 +398,30 @@ export class VodDetailsPlaybackService {
     readonly playbackStartPending = computed(() =>
         this.pendingStart.isPendingFor(this.bindings()?.vodId())
     );
+    /** The copies whose rows resets are still clearing: the page can move on and come back. */
+    readonly pendingResets = signal<readonly VodResetTarget[]>([]);
+    /**
+     * A reset still writing for the copy the page acts on: a start meanwhile
+     * would resume from the row being cleared. Another movie shown on the
+     * reused page meanwhile is not held up by it.
+     */
+    readonly resetPending = computed(() =>
+        hasVodResetTarget(
+            this.pendingResets(),
+            this.bindings()?.resetTarget?.()
+        )
+    );
+    /** No start may begin: a launch awaits the player or a reset is in flight. */
+    readonly startBlocked = computed(
+        () => this.isExternalLaunchPending() || this.resetPending()
+    );
 
     async startResolvedPlayback(
         playback: ResolvedPortalPlayback,
-        isCurrent: () => boolean = () => true
+        isCurrent: () => boolean = () => true,
+        player?: ExternalPlayerName
     ): Promise<boolean> {
-        if (this.externalLaunchGeneration() !== null) {
+        if (this.externalLaunchGeneration() !== null || this.resetPending()) {
             return false;
         }
         const runningSession = runningExternalSession(
@@ -467,21 +468,26 @@ export class VodDetailsPlaybackService {
                 contentType: 'movie',
                 backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
             });
-            return await this.applyPlayback(playback, isCurrent);
+            return await this.applyPlayback(playback, isCurrent, player);
         } finally {
             this.pendingStart.settle(startId);
         }
     }
 
-    private startPlayback(playback: ResolvedPortalPlayback): Promise<boolean> {
+    private startPlayback(
+        playback: ResolvedPortalPlayback,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
         return startRouteOwnedPlayback(this.externalLaunchOwner, (isCurrent) =>
-            this.startResolvedPlayback(playback, isCurrent)
+            this.startResolvedPlayback(playback, isCurrent, player)
         );
     }
 
+    /** `player` forces MPV/VLC regardless of the configured player. */
     private async applyPlayback(
         playback: ResolvedPortalPlayback,
-        isCurrent: () => boolean = () => true
+        isCurrent: () => boolean = () => true,
+        player?: ExternalPlayerName
     ): Promise<boolean> {
         // EVERY start claims the generation, not just the switch path. Play,
         // Resume and Restart reach here directly, and a switch still waiting
@@ -489,7 +495,7 @@ export class VodDetailsPlaybackService {
         // launch on top of what the user just chose.
         const generation = ++this.startGeneration;
         this.positionWriter.reset();
-        if (this.portalPlayer.isEmbeddedPlayer()) {
+        if (!player && this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);
             this.externalLaunchOwner.clear();
             this.externalLaunchGeneration.set(null);
@@ -498,7 +504,9 @@ export class VodDetailsPlaybackService {
 
         this.closeInlinePlayer();
         this.claimExternalLaunch(playback, generation);
-        const launch = this.portalPlayer.openResolvedPlayback(playback, true);
+        const launch = player
+            ? this.portalPlayer.openExternalPlayback(playback, player)
+            : this.portalPlayer.openResolvedPlayback(playback, true);
         return await this.settleExternalLaunch(generation, isCurrent, launch);
     }
 
@@ -525,6 +533,8 @@ export class VodDetailsPlaybackService {
                     'Closing a superseded external player failed.',
                     error
                 ),
+            reportLaunchFailure: (error) =>
+                this.bindings()?.reportExternalLaunchFailure?.(error),
             clearPending: () => this.clearExternalLaunchPending(generation),
             clearOwnership: () => this.clearExternalLaunchOwnership(generation),
         });

@@ -3,6 +3,7 @@
         class="hero"
         data-test-id="dashboard-hero"
         aria-roledescription="carousel"
+        tabindex="0"
         [attr.aria-label]="'WORKSPACE.DASHBOARD.HERO_LABEL' | translate"
         [class.hero--paused]="paused()"
         [class.hero--rotating]="canRotate()"
@@ -10,6 +11,7 @@
         (mouseleave)="setHovered(false)"
         (focusin)="onFocusIn()"
         (focusout)="onFocusOut($event)"
+        (keydown)="onHeroKeydown($event)"
     >
         <!-- Every slide's backdrop stays mounted so switching crossfades
              and the next image is already decoded. -->
@@ -43,9 +45,13 @@
                             "
                             (error)="presenter.markImageFailed(backdropUrl)"
                         />
-                        <!-- No 16:9 backdrop: the sharp poster (or channel
-                             logo) becomes key art on the right. -->
-                        @if (slide.backdropSource === 'poster') {
+                        <!-- A channel logo is not a backdrop: it sits on the
+                             right as the slide's artwork. A title's poster
+                             only washes the stage, blurred. -->
+                        @if (
+                            slide.backdropSource === 'poster' &&
+                            slide.contentType === 'live'
+                        ) {
                             <img
                                 class="hero__backdrop-keyart"
                                 [src]="backdropUrl"
@@ -90,31 +96,39 @@
 
                 <p class="hero__meta" data-test-id="dashboard-hero-badges">
                     @if (slide.episodeBadge) {
-                        <span class="hero__pill">{{ slide.episodeBadge }}</span>
+                        <app-meta-chip class="hero__pill">{{
+                            slide.episodeBadge
+                        }}</app-meta-chip>
                     }
                     @if (slide.rating) {
-                        <span class="hero__pill hero__pill--rating"
-                            >★ {{ slide.rating }}</span
+                        <app-meta-chip class="hero__pill" variant="rating"
+                            >★ {{ slide.rating }}</app-meta-chip
                         >
                     }
                     @for (genre of slide.genres; track genre) {
-                        <span class="hero__pill">{{ genre }}</span>
+                        <app-meta-chip class="hero__pill">{{
+                            genre
+                        }}</app-meta-chip>
                     }
                     @if (slide.category) {
-                        <span class="hero__pill">{{ slide.category }}</span>
+                        <app-meta-chip class="hero__pill">{{
+                            slide.category
+                        }}</app-meta-chip>
                     }
                     @if (slide.timeRange) {
-                        <span class="hero__pill hero__pill--time">{{
+                        <app-meta-chip class="hero__pill hero__pill--time">{{
                             slide.timeRange
-                        }}</span>
+                        }}</app-meta-chip>
                     }
                     @if (slide.year) {
-                        <span class="hero__pill">{{ slide.year }}</span>
+                        <app-meta-chip class="hero__pill">{{
+                            slide.year
+                        }}</app-meta-chip>
                     }
                     @if (slide.source) {
-                        <span class="hero__pill hero__pill--source">{{
+                        <app-meta-chip class="hero__pill hero__pill--source">{{
                             slide.source
-                        }}</span>
+                        }}</app-meta-chip>
                     }
                 </p>
 

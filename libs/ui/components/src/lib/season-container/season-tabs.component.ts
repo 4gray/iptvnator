@@ -9,7 +9,6 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { TranslateModule } from '@ngx-translate/core';
-import { ExpandableTextComponent } from '../expandable-text/expandable-text.component';
 
 /** Above this count the pill row becomes a dropdown selector. */
 const MAX_SEASON_PILLS = 6;
@@ -34,7 +33,7 @@ const MAX_SEASON_PILLS = 6;
     templateUrl: './season-tabs.component.html',
     styleUrls: ['./season-tabs.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ExpandableTextComponent, MatIcon, MatMenuModule, TranslateModule],
+    imports: [MatIcon, MatMenuModule, TranslateModule],
 })
 export class SeasonTabsComponent {
     /** Season keys, already sorted in display order. */
@@ -43,7 +42,6 @@ export class SeasonTabsComponent {
     readonly episodeCounts = input<Record<string, number>>({});
     readonly watchedCounts = input<Record<string, number>>({});
     /** Description of the selected season (TMDB/provider), if available. */
-    readonly seasonDescription = input<string | null>(null);
     /** Season key of the episode currently playing inline, if any. */
     readonly playingSeasonKey = input<string | null>(null);
     /**

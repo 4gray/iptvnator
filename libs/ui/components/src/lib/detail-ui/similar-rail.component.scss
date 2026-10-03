@@ -1,0 +1,68 @@
+:host {
+    display: block;
+}
+
+.similar-card {
+    display: flex;
+    flex: 0 0 140px;
+    flex-direction: column;
+    gap: 2px;
+    width: 140px;
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: inherit;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover .similar-card__poster {
+        transform: scale(1.03);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 2px;
+    }
+}
+
+.similar-card__poster {
+    display: block;
+    width: 140px;
+    aspect-ratio: 2 / 3;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: color-mix(in srgb, var(--app-on-surface, #e6e1e5) 8%, transparent);
+    transition: transform 0.15s ease;
+
+    &--fallback {
+        display: grid;
+        place-items: center;
+        color: var(--app-eyebrow-color, #6b7384);
+        font-size: 2rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+}
+
+.similar-card__title {
+    overflow: hidden;
+    color: var(--app-heading-color, #e7ecf3);
+    font-size: 13px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.similar-card__year {
+    color: var(--app-eyebrow-color, #6b7384);
+    font-size: 11.5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .similar-card__poster {
+        transition: none;
+    }
+}

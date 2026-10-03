@@ -163,6 +163,73 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         });
     });
 
+    it('records the view when the menu opens the movie in MPV or VLC', async () => {
+        const movie = {
+            info: {},
+            movie_data: {
+                stream_id: ROUTE_VOD_ID,
+                name: 'Route movie',
+                container_extension: 'mkv',
+            },
+        } as never;
+        const launch = service.playVod(movie, 'vlc');
+        expect(launch).not.toBeNull();
+        await launch;
+
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'vlc'
+        );
+        expect(addRecentItem).not.toHaveBeenCalled();
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
+        expect(addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({
+                xtreamId: ROUTE_VOD_ID,
+                contentType: 'movie',
+            })
+        );
+    });
+
+    it('replaces a running external session when the menu relaunches the movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Route movie',
+            contentInfo: launched.contentInfo,
+        });
+        activeSession.set(launched);
+        closeSession.mockClear();
+        openExternalPlayback.mockClear();
+
+        await service.playVod(
+            {
+                info: {},
+                movie_data: {
+                    stream_id: ROUTE_VOD_ID,
+                    name: 'Route movie',
+                    container_extension: 'mkv',
+                },
+            } as never,
+            'mpv'
+        );
+
+        // Replaced, never doubled: the running player closes first.
+        expect(closeSession).toHaveBeenCalledWith(launched);
+        expect(closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            openExternalPlayback.mock.invocationCallOrder[0]
+        );
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'mpv'
+        );
+    });
+
     it('records the movie as recently viewed only once its stream played', async () => {
         await service.startResolvedPlayback({
             streamUrl: 'https://example.com/broken.mkv',

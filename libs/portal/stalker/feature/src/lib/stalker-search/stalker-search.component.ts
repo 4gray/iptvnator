@@ -70,6 +70,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
+import { createStalkerVodDetailActions } from '../stalker-vod-detail-actions';
 import { isStalkerSearchRequestCurrent } from './stalker-search-request.util';
 
 interface StalkerFilter {
@@ -203,8 +204,18 @@ export class StalkerSearchComponent {
         JSON.stringify([this.playbackSessionKey(), this.selectedFilterType()])
     );
     readonly selectedVodPosition = signal<PlaybackPositionData | null>(null);
+    readonly selectedVodPlaybackDuration = computed<number | null>(
+        () => this.selectedVodPosition()?.durationSeconds ?? null
+    );
+    readonly sourceLabel = computed(
+        () => this.stalkerStore.currentPlaylist()?.title ?? null
+    );
     readonly selectedVodPlaybackPosition = computed<number | null>(
         () => this.selectedVodPosition()?.positionSeconds ?? null
+    );
+    /** A Play/Resume or menu launch still resolving its stream. */
+    readonly playbackStartPending = computed(() =>
+        this.vodPlayback.playbackStartPending()
     );
     private readonly vodPlayback = new StalkerVodPlaybackController({
         inlinePlayback: this.inlinePlayback,
@@ -845,6 +856,9 @@ export class StalkerSearchComponent {
 
     private syncPlaybackOwner(ownerKey: string): void {
         if (ownerKey === this.currentPlaybackOwnerKey) return;
+        // A start the left movie still resolves no longer applies; a return
+        // to it must not find Play held by a hung request.
+        this.vodPlayback.retirePendingStart(this.currentPlaybackOwnerKey);
         this.currentPlaybackOwnerKey = ownerKey;
         this.closeInlinePlayer();
     }
@@ -891,6 +905,35 @@ export class StalkerSearchComponent {
             return relativePath;
         }
     }
+
+    readonly vodDetailActions = createStalkerVodDetailActions({
+        resolvePlayback: (cmd, title, thumbnail, startTime) =>
+            this.stalkerStore.resolveVodPlayback(
+                cmd,
+                title,
+                thumbnail,
+                undefined,
+                undefined,
+                startTime
+            ),
+        portalPlayer: this.portalPlayer,
+        externalPlayback: this.externalPlayback,
+        playbackPositions: this.playbackPositions,
+        playlistId: () => this.stalkerStore.currentPlaylist()?._id,
+        selectedVodId: () => {
+            const item = this.vodDetailsItem();
+            return item?.type === 'stalker'
+                ? Number(item.data.id) || null
+                : null;
+        },
+        selectedVodPosition: this.selectedVodPosition,
+        discardPendingPositionLoad: () =>
+            this.vodPlayback.discardPendingPositionLoad(),
+        beginPendingStart: () => this.vodPlayback.beginPendingStart(),
+        snackBar: this.snackBar,
+        translate: this.translateService,
+        logError: () => undefined,
+    });
 
     private async startStalkerVodPlayback(
         cmd?: string,

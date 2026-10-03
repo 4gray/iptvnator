@@ -12,14 +12,17 @@ import {
     untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { type SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     createLogger,
+    formatDurationLabel,
+    formatRemainingLabel,
     getPortalPlaybackProgressPercent,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
@@ -29,19 +32,18 @@ import {
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
 } from '@iptvnator/shared/interfaces';
-import { ProgressCapsuleComponent } from '../progress-capsule/progress-capsule.component';
+import { ExpandableTextComponent } from '../expandable-text/expandable-text.component';
 import {
     EPISODE_INFO_PLAY,
     EpisodeInfoDialogComponent,
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
-import { formatEpisodePositionText } from './episode-progress.util';
+import {
+    formatEpisodePositionText,
+    episodeRuntimeSeconds,
+} from './episode-progress.util';
 import { resolveAutoSelectedSeason } from './season-auto-select.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
-import {
-    type EpisodeViewMode,
-    SeasonHeaderComponent,
-} from './season-header.component';
 import { SeasonTabsComponent } from './season-tabs.component';
 import { SeasonWatchPresenter } from './season-watch-presenter';
 import {
@@ -54,6 +56,8 @@ import {
 
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
 
+export type EpisodeViewMode = 'grid' | 'list';
+
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
@@ -61,18 +65,19 @@ const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [SeasonDownloadPresenter, SeasonWatchPresenter],
     imports: [
+        ExpandableTextComponent,
         MatButtonModule,
+        MatButtonToggleModule,
         MatIcon,
         MatProgressSpinnerModule,
         MatTooltipModule,
-        ProgressCapsuleComponent,
-        SeasonHeaderComponent,
         SeasonTabsComponent,
         TranslateModule,
     ],
 })
 export class SeasonContainerComponent implements OnInit {
     private readonly dialog = inject(MatDialog);
+    private readonly translate = inject(TranslateService);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly logger = createLogger('SeasonContainer');
     private lastEmittedSeason: string | undefined;
@@ -425,6 +430,25 @@ export class SeasonContainerComponent implements OnInit {
         return getPortalPlaybackProgressPercent(
             this.getEpisodePosition(episode)
         );
+    }
+
+    /** "42 min · 18m left", "42 min · watched", "42 min" — or null. */
+    getEpisodeSubline(episode: XtreamSerieEpisode): string | null {
+        const info = this.getEpisodeInfo(episode);
+        const duration = formatDurationLabel(episodeRuntimeSeconds(info));
+        const position = this.playbackPositions().get(Number(episode.id));
+        const remaining = formatRemainingLabel(position);
+        const parts = [
+            duration
+                ? this.translate.instant(duration.key, duration.params)
+                : null,
+            this.isEpisodeWatched(episode)
+                ? this.translate.instant('PORTALS.DETAIL.WATCHED')
+                : remaining
+                  ? this.translate.instant(remaining.key, remaining.params)
+                  : this.getEpisodePositionText(episode),
+        ].filter((part): part is string => !!part);
+        return parts.length ? parts.join(' · ') : null;
     }
 
     getEpisodePositionText(episode: XtreamSerieEpisode): string | null {

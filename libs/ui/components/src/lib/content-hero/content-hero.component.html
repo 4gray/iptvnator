@@ -1,5 +1,5 @@
 <!-- Hero Section with Backdrop -->
-<section class="hero">
+<section class="hero" [class.hero--compact]="layout() === 'compact'">
     @if (errorMessage()) {
         <div class="hero__content hero__error">
             <mat-icon class="error-icon">cloud_off</mat-icon>
@@ -7,7 +7,7 @@
             <ng-content select="[hero-error-actions]"></ng-content>
         </div>
     } @else if (isLoading()) {
-        <div class="hero__content">
+        <div class="hero__content hero__content--skeleton">
             <!-- Skeleton Poster -->
             <div class="poster">
                 <ngx-skeleton-loader
@@ -15,7 +15,7 @@
                     [theme]="{
                         height: '100%',
                         width: '100%',
-                        'border-radius': '8px',
+                        'border-radius': '10px',
                         'aspect-ratio': '2/3',
                         display: 'block',
                     }"
@@ -24,59 +24,60 @@
 
             <!-- Skeleton Details -->
             <div class="details">
-                <!-- Title -->
+                <ngx-skeleton-loader
+                    count="1"
+                    [theme]="{
+                        height: '11px',
+                        width: '140px',
+                        'margin-bottom': '14px',
+                        display: 'block',
+                    }"
+                />
                 <ngx-skeleton-loader
                     count="1"
                     [theme]="{
                         height: '40px',
                         width: '60%',
-                        'margin-bottom': '16px',
+                        'margin-bottom': '14px',
                         display: 'block',
                     }"
                 />
-
-                <!-- Tags -->
-                <div style="display: flex; gap: 8px; margin-bottom: 16px">
+                <div style="display: flex; gap: 6px; margin-bottom: 14px">
                     <ngx-skeleton-loader
                         count="3"
                         [theme]="{
-                            height: '24px',
+                            height: '22px',
                             width: '60px',
+                            'border-radius': '999px',
                             display: 'block',
                         }"
                     />
                 </div>
-
-                <!-- Description -->
                 <ngx-skeleton-loader
                     count="3"
                     [theme]="{
-                        height: '16px',
+                        height: '14px',
                         'margin-bottom': '8px',
                         width: '100%',
                         display: 'block',
                     }"
                 />
-
-                <!-- Meta -->
-                <div style="margin-top: 20px; display: flex; gap: 32px">
+                <div style="margin-top: 14px; display: flex; gap: 10px">
                     <ngx-skeleton-loader
-                        count="2"
+                        count="1"
                         [theme]="{
-                            height: '40px',
-                            width: '100px',
+                            height: '44px',
+                            width: '150px',
+                            'border-radius': '10px',
                             display: 'block',
                         }"
                     />
-                </div>
-
-                <!-- Buttons -->
-                <div style="margin-top: 24px; display: flex; gap: 12px">
                     <ngx-skeleton-loader
                         count="2"
                         [theme]="{
-                            height: '48px',
-                            width: '140px',
+                            height: '44px',
+                            width: '44px',
+                            'border-radius': '10px',
                             display: 'block',
                         }"
                     />
@@ -103,7 +104,42 @@
             }
         </div>
 
-        <!-- Gradient Vignette Overlay -->
+        @if (trailerBackdropUrl(); as trailerUrl) {
+            <app-hero-trailer-backdrop
+                #trailer
+                class="hero__trailer"
+                [embedUrl]="trailerUrl"
+                [title]="formattedTitle()"
+            />
+            <!-- Above the content layer, or the content box would take the clicks -->
+            @if (trailer.playing()) {
+                <button
+                    type="button"
+                    class="hero__trailer-mute"
+                    [matTooltip]="
+                        (trailer.muted()
+                            ? 'PORTALS.DETAIL.TRAILER_UNMUTE'
+                            : 'PORTALS.DETAIL.TRAILER_MUTE'
+                        ) | translate
+                    "
+                    [attr.aria-label]="
+                        (trailer.muted()
+                            ? 'PORTALS.DETAIL.TRAILER_UNMUTE'
+                            : 'PORTALS.DETAIL.TRAILER_MUTE'
+                        ) | translate
+                    "
+                    [attr.aria-pressed]="!trailer.muted()"
+                    data-test-id="trailer-backdrop-mute"
+                    (click)="trailer.toggleMute()"
+                >
+                    <mat-icon aria-hidden="true">{{
+                        trailer.muted() ? 'volume_off' : 'volume_up'
+                    }}</mat-icon>
+                </button>
+            }
+        }
+
+        <!-- Scrim: strong on the text side, fading into the page below -->
         <div class="hero__vignette"></div>
 
         <!-- Hero Content -->
@@ -133,6 +169,12 @@
             </div>
 
             <div class="details">
+                @if (kindLabel(); as kind) {
+                    <p class="details__kind" data-test-id="detail-kind">
+                        {{ kind }}
+                    </p>
+                }
+
                 <h1 class="details__title">{{ formattedTitle() }}</h1>
 
                 <!-- Tags Slot -->
@@ -175,14 +217,27 @@
                     }
                 }
 
-                <!-- Metadata Grid Slot -->
-                <div class="details__meta">
-                    <ng-content select="[hero-meta]"></ng-content>
-                </div>
+                @if (progress() !== null) {
+                    <span
+                        class="details__progress"
+                        role="progressbar"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        [attr.aria-valuenow]="progress()"
+                        data-test-id="detail-progress"
+                    >
+                        <i [style.width.%]="progress()"></i>
+                    </span>
+                }
 
                 <!-- Action Buttons Slot -->
                 <div class="action-buttons">
                     <ng-content select="[hero-actions]"></ng-content>
+                </div>
+
+                <!-- Credits / metadata slot -->
+                <div class="details__meta">
+                    <ng-content select="[hero-meta]"></ng-content>
                 </div>
             </div>
         </div>

@@ -25,12 +25,20 @@ import {
 } from '@iptvnator/portal/shared/util';
 import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
+import {
+    DownloadsService,
+    PlaybackPositionRuntimeBridgeService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
-import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
+import { SerialDetailsMenuService } from './serial-details-menu.service';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -247,7 +255,18 @@ describe('SerialDetailsComponent', () => {
                         addRecentItem,
                         backfillContentMetadata: jest.fn(),
                         loadAllPositions,
+                        recentItems: signal([]),
+                        serialCategories: signal([]),
+                        loadRecentItems: jest.fn(),
                     },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: { player: signal(VideoPlayer.Html5Player) },
+                },
+                {
+                    provide: DownloadsService,
+                    useValue: { isAvailable: signal(false) },
                 },
                 {
                     provide: PORTAL_EXTERNAL_PLAYBACK,
@@ -555,9 +574,7 @@ describe('SerialDetailsComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
-        expect(quickStartButton?.textContent).toContain(
-            'XTREAM.PLAY_FIRST_EPISODE'
-        );
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
@@ -619,9 +636,9 @@ describe('SerialDetailsComponent', () => {
             );
 
         expect(quickStartButton?.textContent).toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
-        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
+        expect(quickStartButton?.textContent).toContain('S01E01');
 
         quickStartButton?.click();
 
@@ -657,6 +674,8 @@ describe('SerialDetailsComponent', () => {
             season: 2,
         } as never);
         await fixture.whenStable();
+        // The launch settles through its page checks before the save.
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(savePlaybackPosition).toHaveBeenCalledWith(
             'xtream-1',
@@ -671,12 +690,16 @@ describe('SerialDetailsComponent', () => {
                 updatedAt: expect.any(String),
             })
         );
+        // The launched episode's position lands two microtasks after the
+        // save: `recordExternalLaunch` awaits the launch, then the save.
+        await Promise.resolve();
+        await Promise.resolve();
         fixture.detectChanges();
         const quickStartButton: HTMLButtonElement | null =
             fixture.nativeElement.querySelector(
                 '[data-testid="series-quick-start"]'
             );
-        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY_EPISODE');
+        expect(quickStartButton?.textContent).toContain('XTREAM.PLAY');
         expect(quickStartButton?.textContent).toContain(
             'S02E01 \u00b7 Season 2 Episode 1'
         );
@@ -777,7 +800,7 @@ describe('SerialDetailsComponent', () => {
                 '[data-testid="series-quick-start"]'
             );
         expect(quickStartButton()?.textContent).not.toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
 
         positionUpdateCallback({
@@ -793,9 +816,34 @@ describe('SerialDetailsComponent', () => {
         fixture.detectChanges();
 
         expect(quickStartButton()?.textContent).toContain(
-            'XTREAM.RESUME_EPISODE'
+            'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
-        expect(quickStartButton()?.textContent).toContain('S01E01 · Episode 1');
+        expect(quickStartButton()?.textContent).toContain('S01E01');
+    });
+
+    it('records history when the menu opens the next episode in MPV', async () => {
+        const streamUrl = 'http://xtream.example/series/1001.mp4';
+        fixture.detectChanges();
+        await fixture.whenStable();
+        const menu = fixture.debugElement.injector.get(
+            SerialDetailsMenuService
+        );
+        await menu.run('external-player');
+        await fixture.whenStable();
+
+        // The regular episode start with the player forced: same history
+        // and launch-position bookkeeping as the Play button.
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({ streamUrl }),
+            'mpv'
+        );
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: [streamUrl],
+        });
+        expect(addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({ xtreamId: '103', contentType: 'series' })
+        );
     });
 
     it('persists the launched episode after an external fallback succeeds', async () => {

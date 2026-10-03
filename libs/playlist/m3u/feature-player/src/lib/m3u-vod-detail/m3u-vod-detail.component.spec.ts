@@ -3,7 +3,12 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TmdbEnrichmentService } from '@iptvnator/services';
 import { Channel, ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
-import { TranslatePipe } from '@ngx-translate/core';
+import {
+    TranslateModule,
+    TranslatePipe,
+    TranslateService,
+} from '@ngx-translate/core';
+import { CastCrewRowComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
 import type { M3uVodDetailComponent as M3uVodDetailComponentType } from './m3u-vod-detail.component';
 
@@ -25,9 +30,12 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 })
 class StubPortalDetailShellComponent {
     readonly title = input<string>();
+    readonly kindLabel = input<string | null>(null);
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    readonly contentKey = input<string | null>(null);
+    readonly progress = input<number | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     readonly backLabel = input<string>();
@@ -127,7 +135,7 @@ describe('M3uVodDetailComponent', () => {
         enrichMovie = jest.fn().mockResolvedValue(null);
 
         await TestBed.configureTestingModule({
-            imports: [M3uVodDetailComponent],
+            imports: [M3uVodDetailComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: TmdbEnrichmentService,
@@ -145,6 +153,7 @@ describe('M3uVodDetailComponent', () => {
             .overrideComponent(M3uVodDetailComponent, {
                 set: {
                     imports: [
+                        CastCrewRowComponent,
                         StubPortalDetailShellComponent,
                         StubPortalInlinePlayerComponent,
                         MockPipe(
@@ -242,6 +251,19 @@ describe('M3uVodDetailComponent', () => {
             },
         });
         await create({ channel: channel(), playback: playback() });
+        TestBed.inject(TranslateService).setTranslation(
+            'en',
+            {
+                PORTALS: {
+                    DETAIL: {
+                        DURATION_HOURS_MINUTES: '{{hours}} h {{minutes}} min',
+                        DURATION_MINUTES: '{{minutes}} min',
+                    },
+                },
+            },
+            true
+        );
+        TestBed.inject(TranslateService).use('en');
 
         const component = fixture.componentInstance;
         expect(component.title()).toBe('Dune');
@@ -250,12 +272,12 @@ describe('M3uVodDetailComponent', () => {
         expect(component.backdropUrl()).toContain('/b.jpg');
         expect(component.year()).toBe('2021');
         expect(component.genres()).toBe('Sci-Fi');
-        expect(component.runtimeLabel()).toBe('2h 35m');
+        expect(component.runtimeLabel()).toBe('2 h 35 min');
         expect(component.rating()).toBe('8.0');
         expect(component.cast().map((member) => member.name)).toEqual([
             'Timothée Chalamet',
         ]);
-        expect(component.directors()).toBe('Denis Villeneuve');
+        expect(component.directorNames()).toEqual(['Denis Villeneuve']);
     });
 
     it('keeps the provider presentation when TMDB has no match', async () => {
@@ -267,6 +289,26 @@ describe('M3uVodDetailComponent', () => {
         expect(component.posterUrl()).toBe('http://logo/dune.png');
         expect(component.backdropUrl()).toBeUndefined();
         expect(component.playbackActive()).toBe(true);
+    });
+
+    it('keys the hero by id and name, like the TMDB lookup', async () => {
+        await create({ channel: channel() });
+        const shell = fixture.debugElement.query(
+            By.directive(StubPortalDetailShellComponent)
+        ).componentInstance as StubPortalDetailShellComponent;
+        const first = shell.contentKey();
+
+        // Entries can share an id and differ by name; the next one may have
+        // a backdrop where this one had none, so the hero must decide its
+        // layout again.
+        fixture.componentRef.setInput(
+            'channel',
+            channel({ name: 'Dune Part Two (2024) 1080p' })
+        );
+        fixture.detectChanges();
+
+        expect(first).toContain('ch1');
+        expect(shell.contentKey()).not.toBe(first);
     });
 
     it('restarts the payload identity when zapping to another movie', async () => {

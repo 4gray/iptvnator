@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     input,
+    linkedSignal,
     signal,
     untracked,
     viewChild,
@@ -13,15 +14,22 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { NgxSkeletonLoaderComponent } from 'ngx-skeleton-loader';
+import { HeroTrailerBackdropComponent } from '../detail-ui/hero-trailer-backdrop.component';
+
+/** `stage` keeps room for a 16:9 backdrop; `compact` is sized by the content. */
+export type ContentHeroLayout = 'stage' | 'compact';
 
 @Component({
     selector: 'app-content-hero',
     standalone: true,
     imports: [
+        HeroTrailerBackdropComponent,
         MatIconModule,
         MatButtonModule,
+        MatTooltipModule,
         NgxSkeletonLoaderComponent,
         TranslateModule,
     ],
@@ -34,9 +42,20 @@ export class ContentHeroComponent {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly title = input<string>();
+    /** "Movie · playlist name" eyebrow above the title. */
+    readonly kindLabel = input<string | null>(null);
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    /**
+     * Stable identity of the shown title (provider + id). The layout is
+     * decided once per identity; enrichment may replace the title itself.
+     */
+    readonly contentKey = input<string | null>(null);
+    /** 0–100 watched share; renders the resume bar above the actions. */
+    readonly progress = input<number | null>(null);
+    /** With the setting on, this trailer plays muted behind the details. */
+    readonly trailerBackdropUrl = input<string | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
 
@@ -52,9 +71,35 @@ export class ContentHeroComponent {
     readonly backdropImageUrl = computed(() =>
         this.backdropError() ? undefined : this.backdropSourceUrl()
     );
-    readonly usesPosterBackdrop = computed(
-        () => !this.backdropUrl() && !!this.posterUrl() && !this.backdropError()
-    );
+    /**
+     * No 16:9 backdrop, or the provider sent the poster twice: the poster,
+     * blurred and scaled, becomes the backdrop (the sharp copy stays on the
+     * left). Common for Xtream and Stalker portals.
+     */
+    readonly usesPosterBackdrop = computed(() => {
+        const poster = this.posterUrl();
+        const backdrop = this.backdropUrl();
+        return (
+            !!poster &&
+            (!backdrop || backdrop === poster) &&
+            !this.backdropError()
+        );
+    });
+    private readonly hasRealBackdrop = computed(() => {
+        const backdrop = this.backdropUrl();
+        return !!backdrop && backdrop !== this.posterUrl();
+    });
+    /**
+     * Decided once per title: a backdrop that TMDB enrichment adds a moment
+     * later fills the compact hero instead of growing it under the user's
+     * cursor. Keyed by `contentKey`, falling back to the title for hosts
+     * without one.
+     */
+    readonly layout = linkedSignal<string | undefined, ContentHeroLayout>({
+        source: () => this.contentKey() ?? this.title(),
+        computation: () =>
+            untracked(() => this.hasRealBackdrop()) ? 'stage' : 'compact',
+    });
 
     readonly descriptionEl =
         viewChild<ElementRef<HTMLElement>>('descriptionEl');

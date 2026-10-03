@@ -86,6 +86,7 @@ export const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
     webPlayerSharedControls: true,
     playerAmbientMode: false,
+    detailTrailerBackdrop: false,
     playerUpNextRail: true,
     playerUpNextCard: true,
     fullscreenChannelPanel: true,

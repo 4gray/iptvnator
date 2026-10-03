@@ -34,3 +34,19 @@ export * from './lib/window-controls/window-controls.component';
 
 export * from './lib/channel-scroll-focus/channel-scroll-focus.directive';
 export * from './lib/category-lock-menu/category-lock-menu.component';
+
+export * from './lib/detail-ui/cast-crew.util';
+export * from './lib/detail-ui/cast-crew-row.component';
+export * from './lib/detail-ui/detail-credits.component';
+export * from './lib/detail-ui/detail-icon-button.component';
+export * from './lib/detail-ui/detail-action-button.component';
+export * from './lib/detail-ui/detail-rail.component';
+export * from './lib/detail-ui/meta-chip.component';
+export * from './lib/detail-ui/similar-rail.component';
+export * from './lib/detail-ui/trailer-dialog.component';
+export * from './lib/detail-ui/trailer-dialog.service';
+export * from './lib/detail-ui/trailer-dialog-state';
+export * from './lib/detail-ui/vod-more-menu.component';
+export * from './lib/detail-ui/vod-more-menu.model';
+export * from './lib/detail-ui/series-hero.state';
+export * from './lib/detail-ui/hero-trailer-backdrop.component';

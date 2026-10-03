@@ -150,6 +150,16 @@ html {
     );
     --app-hero-surface: rgba(47, 123, 255, 0.04);
 
+    // Detail / hero call to action. The dark theme's light primary (#f2f4f8
+    // on #0a0e14) inverts to a dark button on the light theme, so it reads as
+    // the one solid CTA on either page background.
+    --app-cta-bg: #1a1d23;
+    --app-cta-fg: #f5f6f8;
+    --app-cta-hover-bg: #2a2f3a;
+    --app-cta-meta-fg: rgba(245, 246, 248, 0.68);
+    // Star rating chip: amber on white needs a deeper tone than gold on dark.
+    --app-rating-color: #a16207;
+
     .dark-theme {
         @include mat.all-component-colors($dark-theme);
         // Only the color roles differ per theme: the elevation shadows are
@@ -242,6 +252,13 @@ html {
             rgba(92, 214, 255, 0.07) 100%
         );
         --app-hero-surface: rgba(30, 35, 48, 0.9);
+
+        // Detail / hero call to action (light primary) and rating accent
+        --app-cta-bg: #f2f4f8;
+        --app-cta-fg: #0a0e14;
+        --app-cta-hover-bg: #ffffff;
+        --app-cta-meta-fg: #5a6274;
+        --app-rating-color: #ffcf5c;
     }
 }
 

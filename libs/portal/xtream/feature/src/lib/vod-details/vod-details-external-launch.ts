@@ -5,6 +5,8 @@ interface OwnedExternalLaunchOptions {
     owns: () => boolean;
     close: (session: ExternalPlayerSession) => Promise<void>;
     warnCloseFailure: (error: unknown) => void;
+    /** The launch itself failed while nothing superseded it: the user's to hear about. */
+    reportLaunchFailure?: (error: unknown) => void;
     clearPending: () => void;
     clearOwnership: () => void;
 }
@@ -38,7 +40,10 @@ export async function settleOwnedExternalLaunch(
         options.clearPending();
         options.clearOwnership();
         return false;
-    } catch {
+    } catch (error) {
+        if (options.owns()) {
+            options.reportLaunchFailure?.(error);
+        }
         // A partial reuse can reject while Electron retains a matching
         // closable error session. Keep its credential-free identity so the
         // next source start can still find and close that exact process.

@@ -1,5 +1,10 @@
 import { type APIRequestContext, type Page } from '@playwright/test';
-import { expectSeriesSurfacesInBothThemes, setInputValue } from './e2e-helpers';
+import {
+    closeSeriesMenu,
+    expectSeriesSurfacesInBothThemes,
+    seriesMenuRow,
+    setInputValue,
+} from './e2e-helpers';
 import {
     verifyStalkerCategorySearch,
     verifyStalkerPlaybackCategoryReturn,
@@ -1110,10 +1115,9 @@ test('@stalker season watched toggle — embedded series marks and clears every 
 
     await expectSeriesSurfacesInBothThemes(page, testInfo);
 
-    // The season header's bulk toggle (data-test-id with a dash — getByTestId
+    // The hero menu's bulk toggle (data-test-id with a dash — getByTestId
     // only matches data-testid in this suite) counts every unwatched episode.
-    const seasonToggle = page.locator('[data-test-id="toggle-season-watched"]');
-    await expect(seasonToggle).toBeVisible();
+    let seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText(
         `Mark season as watched (${episodeCount})`
     );
@@ -1122,25 +1126,25 @@ test('@stalker season watched toggle — embedded series marks and clears every 
 
     await seasonToggle.click();
 
-    // All episodes get full-progress positions: the button flips and every
+    // All episodes get full-progress positions: the row flips and every
     // episode card plus per-episode toggle shows the watched state.
-    await expect(seasonToggle).toContainText('Mark season as unwatched', {
-        timeout: 15_000,
-    });
-    await expect(watchedCards).toHaveCount(episodeCount);
+    await expect(watchedCards).toHaveCount(episodeCount, { timeout: 15_000 });
     await expect(
         page.locator(
             '[data-testid="episode-watched-toggle"].episode-card__watched-toggle--watched'
         )
     ).toHaveCount(episodeCount);
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
+    await expect(seasonToggle).toContainText('Mark season as unwatched');
 
     // Second click clears every episode's position again.
     await seasonToggle.click();
+    await expect(watchedCards).toHaveCount(0, { timeout: 15_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText(
-        `Mark season as watched (${episodeCount})`,
-        { timeout: 15_000 }
+        `Mark season as watched (${episodeCount})`
     );
-    await expect(watchedCards).toHaveCount(0);
+    await closeSeriesMenu(page);
 });
 
 test('@stalker series watched toggle — embedded series marks and clears from the header menu', async ({
@@ -1179,14 +1183,10 @@ test('@stalker series watched toggle — embedded series marks and clears from t
         })
     ).toBeVisible({ timeout: 10_000 });
 
-    // The ⋮ trigger sits after the view toggle (data-test-id with a dash —
-    // getByTestId only matches data-testid in this suite; the menu item
-    // renders into the CDK overlay).
-    const menuTrigger = page.locator('[data-test-id="series-watch-menu"]');
-    await expect(menuTrigger).toBeVisible();
-    await menuTrigger.click();
-    const seriesToggle = page.locator('[data-test-id="toggle-series-watched"]');
-    await expect(seriesToggle).toBeVisible();
+    // The series row sits in the hero's "…" menu (data-test-id with a dash —
+    // getByTestId only matches data-testid in this suite; the row renders
+    // into the CDK overlay).
+    let seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`
     );
@@ -1198,12 +1198,12 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     await expect(watchedCards).toHaveCount(episodeCount, {
         timeout: 15_000,
     });
-    await menuTrigger.click();
+    seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText('Mark series as unwatched');
     await seriesToggle.click();
 
     await expect(watchedCards).toHaveCount(0, { timeout: 15_000 });
-    await menuTrigger.click();
+    seriesToggle = await seriesMenuRow(page, 'toggle-series-watched');
     await expect(seriesToggle).toContainText(
         `Mark series as watched (${episodeCount})`
     );
@@ -1211,7 +1211,7 @@ test('@stalker series watched toggle — embedded series marks and clears from t
     const detailUrl = page.url();
     await page.keyboard.press('Escape');
     await expect(seriesToggle).toBeHidden();
-    await menuTrigger.focus();
+    await page.locator('[data-testid="series-more-menu"]').focus();
     await page.keyboard.press('Escape');
     await expect(page.locator('app-portal-detail-shell')).toHaveCount(0);
     await expect(page).toHaveURL(detailUrl);

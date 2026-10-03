@@ -45,6 +45,14 @@ export const PLAYBACK_SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] =
             fallbackId: 'video-player',
         },
         {
+            id: 'detail-trailer-backdrop',
+            section: 'playback',
+            labelKey: 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND',
+            descriptionKey: 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION',
+            keywords: ['trailer', 'youtube', 'backdrop', 'details'],
+            fallbackId: 'video-player',
+        },
+        {
             id: 'player-up-next-rail',
             section: 'playback',
             labelKey: 'SETTINGS.PLAYER_UP_NEXT_RAIL',

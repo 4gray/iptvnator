@@ -1,32 +1,38 @@
-import { Location, SlicePipe } from '@angular/common';
+import { Location } from '@angular/common';
 import {
     Component,
     computed,
     effect,
     inject,
     OnDestroy,
-    OnInit,
     signal,
     untracked,
     ChangeDetectionStrategy,
+    viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
+    DetailIconButtonComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
-    ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerSeasonPlaybackToggleRequest,
     SeasonContainerSeriesPlaybackToggleRequest,
+    SimilarRailComponent,
+    ViewInPortalActionComponent,
+    VodMoreMenuComponent,
+    scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
-import type { SeasonEpisodeDownloadAdapter } from '@iptvnator/portal/shared/data-access';
 import {
     registerContentMetadataBackfill,
     XtreamStore,
@@ -38,7 +44,6 @@ import {
     type UpNextRailItem,
 } from '@iptvnator/ui/playback';
 import {
-    seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieDetails,
     XtreamSerieEpisode,
@@ -62,9 +67,10 @@ import {
 import { SerialDetailsSeasonWatchService } from './serial-details-season-watch.service';
 import { SerialDetailsSimilarService } from './serial-details-similar.service';
 import { SimilarCatalogItem } from '../tmdb-similar.util';
-import { createXtreamSeriesDownloadMetadataContext } from './serial-download-metadata';
-import { createXtreamSeriesDownloadAdapter } from './xtream-series-download.adapter';
 import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
+import { SerialDetailsHeroPresenter } from './serial-details-hero.presenter';
+import { SerialDetailsMenuService } from './serial-details-menu.service';
+import { SerialDetailsDownloadAdapterService } from './serial-details-download-adapter.service';
 
 @Component({
     selector: 'app-serial-details',
@@ -86,66 +92,56 @@ import { createSerialPlaybackSessionKey } from './serial-playback-session-key';
         SerialDetailsPlaybackService,
         SerialDetailsSeasonWatchService,
         SerialDetailsSimilarService,
+        SerialDetailsHeroPresenter,
+        SerialDetailsMenuService,
+        SerialDetailsDownloadAdapterService,
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
+        CastCrewRowComponent,
+        DetailActionButtonComponent,
         DetailActionsTemplateDirective,
+        DetailCreditsComponent,
+        DetailIconButtonComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
-        MatIcon,
+        MetaChipComponent,
         PortalDetailShellComponent,
-        ViewInPortalActionComponent,
         PortalInlinePlayerComponent,
         SeasonContainerComponent,
-        SlicePipe,
+        SimilarRailComponent,
         TranslatePipe,
+        ViewInPortalActionComponent,
+        VodMoreMenuComponent,
     ],
 })
-export class SerialDetailsComponent implements OnInit, OnDestroy {
+export class SerialDetailsComponent implements OnDestroy {
     private readonly location = inject(Location);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
 
-    /** Maps the status token to its translated label key */
-    readonly seriesStatusLabelKey = seriesStatusLabelKey;
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playback = inject(SerialDetailsPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
 
+    readonly heroPresenter = inject(SerialDetailsHeroPresenter);
+    readonly menu = inject(SerialDetailsMenuService);
+    readonly seasonContainer =
+        viewChild<SeasonContainerComponent>('seasonContainer');
+
     readonly selectedItem = signal<XtreamSerieDetailsView | null>(null);
     readonly selectedContentType = this.xtreamStore.selectedContentType;
+    readonly scrollToCast = scrollToCastCrewRow;
     readonly isFavorite = this.xtreamStore.isFavorite;
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
     readonly detailsError = this.xtreamStore.detailsError;
     readonly currentPlaylistId = signal('');
-    readonly episodeDownloadAdapter =
-        computed<SeasonEpisodeDownloadAdapter | null>(() => {
-            const playlist = this.xtreamStore.currentPlaylist();
-            const item = this.selectedItem();
-            if (!playlist || !item) {
-                return null;
-            }
-
-            return createXtreamSeriesDownloadAdapter({
-                playlistId: playlist.id,
-                seriesId: Number(item.series_id),
-                title: item.info.name,
-                serverUrl: playlist.serverUrl,
-                username: playlist.username,
-                password: playlist.password,
-                userAgent: playlist.userAgent,
-                referrer: playlist.referrer,
-                origin: playlist.origin,
-                metadataContext: createXtreamSeriesDownloadMetadataContext(
-                    item.info,
-                    this.translateService.currentLang ||
-                        this.translateService.defaultLang ||
-                        'en'
-                ),
-            });
-        });
+    private readonly downloadAdapter = inject(
+        SerialDetailsDownloadAdapterService
+    );
+    readonly episodeDownloadAdapter = this.downloadAdapter.adapter;
     /** `playlistId:categoryId:serialId` of the last initialized view */
     private readonly lastInitKey = signal<string | null>(null);
 
@@ -207,6 +203,37 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     constructor() {
         this.playback.bind({ selectedItem: this.selectedItem });
         this.similar.bind({ selectedItem: this.selectedItem });
+        this.downloadAdapter.bind(this.selectedItem);
+        this.heroPresenter.bind({
+            selectedItem: this.selectedItem,
+            quickStart: this.quickStartAction,
+            yearLabel: (releaseDate) => this.discover.yearLabel(releaseDate),
+            similarItems: this.similarItems,
+            similarInPortals: this.similarInPortals,
+            openSimilar: (item) => this.openSimilar(item),
+            openSimilarInPortals: (item) => this.openSimilarInPortals(item),
+        });
+        this.menu.bind({
+            selectedItem: this.selectedItem,
+            quickStart: this.quickStartAction,
+            seasonContainer: this.seasonContainer,
+            categoryId: computed(() =>
+                String(this.routeParams()['categoryId'] ?? '')
+            ),
+            episodePositions: this.episodePlaybackPositions,
+            playbackActive: computed(
+                () =>
+                    this.inlinePlayback() !== null ||
+                    this.playback.forcedLaunchPending() ||
+                    this.playback.openingEpisodeId() !== null ||
+                    this.playback.activeEpisodeId() !== null
+            ),
+            startPending: this.playback.forcedLaunchPending,
+            pageToken: () => this.playback.pageToken(),
+            resetProgress: () => this.resetProgress(),
+            openEpisodeExternally: (episode, player) =>
+                this.playback.playEpisode(episode, player),
+        });
 
         // TMDB season enrichment, keyed on (tmdb_id, selected season). With
         // season tabs the first seasonSelected fires as soon as seasons load —
@@ -273,11 +300,6 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         });
     }
 
-    ngOnInit(): void {
-        // Initialization is handled by the params-driven effect in the
-        // constructor; the hook remains for interface compatibility.
-    }
-
     ngOnDestroy(): void {
         this.xtreamStore.cancelDetailsRequest();
         this.playback.closeInlinePlayer();
@@ -286,6 +308,15 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
 
     openSimilarInPortals(item: CrossPortalSimilarItem): void {
         void this.router.navigate(this.crossPortalSimilar.buildLink(item));
+    }
+
+    /** Clears every saved episode position of the series. */
+    resetProgress(): Promise<void> {
+        const request =
+            this.seasonContainer()?.watchPresenter.buildResetRequest();
+        return request
+            ? this.playback.handleWatchToggleRequested(request, 'series')
+            : Promise.resolve();
     }
 
     openSimilar(item: SimilarCatalogItem): void {

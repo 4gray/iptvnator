@@ -9,9 +9,9 @@ import {
     signal,
     untracked,
     ChangeDetectionStrategy,
+    viewChild,
 } from '@angular/core';
 import { Location } from '@angular/common';
-import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -25,29 +25,39 @@ import {
     stalkerSeriesResumeKey,
 } from './stalker-series-resume';
 import {
+    CastCrewRowComponent,
+    DetailActionButtonComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
-    ViewInPortalActionComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerSeasonPlaybackToggleRequest,
     SeasonContainerSeriesPlaybackToggleRequest,
+    SimilarRailComponent,
+    ViewInPortalActionComponent,
+    VodMoreMenuComponent,
     buildSeriesWatchToggleRequest,
+    scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import {
-    pickSeasonMarkedTitle,
+    ExternalPlayerName,
+    ExternalPlayerSession,
     PlaybackPositionData,
+    PlayerContentInfo,
     ResolvedPortalPlayback,
-    seriesStatusLabelKey,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
+    pickSeasonMarkedTitle,
+    seriesStatusLabelKey,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
-import { SafePipe } from '@iptvnator/pipes';
 import {
     isLiveExternalPlayerSession,
+    replaceOwnedExternalSession,
     isPortalPlaybackWatched,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -91,6 +101,9 @@ import {
     TmdbEnrichmentService,
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
+import { StalkerSeriesHeroPresenter } from './stalker-series-hero.presenter';
+import { StalkerSeriesLaunchQueue } from './stalker-series-launch-queue';
+import { StalkerSeriesMenuService } from './stalker-series-menu.service';
 import {
     getStalkerSeriesQuickStartButton,
     type StalkerQuickStartButton,
@@ -168,22 +181,34 @@ interface StalkerSeriesPlaybackRequestContext {
     styleUrls: ['../styles/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
+        CastCrewRowComponent,
+        DetailActionButtonComponent,
         DetailActionsTemplateDirective,
+        DetailCreditsComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
+        MetaChipComponent,
         PortalDetailShellComponent,
+        SimilarRailComponent,
         ViewInPortalActionComponent,
+        VodMoreMenuComponent,
         PortalInlinePlayerComponent,
-        SafePipe,
         TranslatePipe,
         SeasonContainerComponent,
-        MatIcon,
     ],
     changeDetection: ChangeDetectionStrategy.Eager,
-    providers: [StalkerSeriesTmdbSeasonsService],
+    providers: [
+        StalkerSeriesTmdbSeasonsService,
+        StalkerSeriesHeroPresenter,
+        StalkerSeriesMenuService,
+    ],
 })
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
+    readonly heroPresenter = inject(StalkerSeriesHeroPresenter);
+    readonly menu = inject(StalkerSeriesMenuService);
+    private readonly seasonContainerRef =
+        viewChild<SeasonContainerComponent>('seasonContainer');
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly migrationPlaybackPositions = {
         savePlaybackPosition: (
@@ -261,6 +286,32 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
+    /**
+     * `playlist:series` keys of starts still resolving their stream
+     * (`create_link` round trips): only the series on screen counts as
+     * starting. Provider series ids are playlist-scoped.
+     */
+    private readonly pendingStartSeriesIds = signal<readonly string[]>([]);
+    /** Episode choices made while a forced MPV/VLC launch is mid-flight. */
+    private readonly launchQueue = new StalkerSeriesLaunchQueue();
+    /**
+     * The episode chosen while a watched/reset batch still rewrote the rows
+     * a start resumes from; the last choice plays once the batch settled,
+     * and only on the series it was made for.
+     */
+    private choiceHeldForBatch: {
+        readonly seriesKey: string;
+        readonly play: () => void;
+    } | null = null;
+    /** `playlist:series` of the series on screen; provider ids collide across playlists. */
+    readonly currentSeriesKey = computed(
+        () =>
+            `${this.stalkerStore.currentPlaylist()?._id ?? ''}:${this.displayItem()?.id ?? ''}`
+    );
+    /** A start of the series on screen that has not settled. */
+    readonly startPending = computed(() =>
+        this.pendingStartSeriesIds().includes(this.currentSeriesKey())
+    );
     readonly seasonWatchBatchRunning = signal(false);
 
     /**
@@ -362,6 +413,30 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly isSerialSeasonsLoading = this.stalkerStore.isSerialSeasonsLoading;
 
     constructor() {
+        this.heroPresenter.bind({
+            displayItem: this.displayItem,
+            quickStart: this.quickStartButton,
+            yearLabel: (releaseDate) => this.discover.yearLabel(releaseDate),
+            similarInPortals: this.similarInPortals,
+            openSimilarInPortals: (item) => this.openSimilarInPortals(item),
+        });
+        this.menu.bind({
+            quickStart: this.quickStartAction,
+            seasonContainer: this.seasonContainerRef,
+            hasProgress: computed(
+                () => this.episodePlaybackPositions().size > 0
+            ),
+            playbackActive: computed(
+                () =>
+                    this.startPending() ||
+                    this.inlinePlayback() !== null ||
+                    this.openingEpisodeId() !== null ||
+                    this.activeEpisodeId() !== null
+            ),
+            startPending: this.startPending,
+            resetProgress: () => this.resetProgress(),
+            openExternal: (player) => this.openQuickStartExternally(player),
+        });
         effect(() => {
             const ownerKey = this.seriesPlaybackOwnerKey();
             untracked(() => this.syncSeriesPlaybackOwner(ownerKey));
@@ -627,10 +702,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         return item ? normalizeStalkerVodDetailsItem(item) : null;
     });
 
-    readonly trailerEmbedUrl = computed(() =>
-        youtubeEmbedUrl(this.displayItem()?.info?.tmdb_trailer)
-    );
-
     private readonly seriesSeasonTitle = computed(() =>
         pickSeasonMarkedTitle(
             this.displayItem()?.info?.name,
@@ -707,6 +778,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             playbackPositions: this.episodePlaybackPositions(),
             vodSeriesSeasons: this.vodSeriesSeasons(),
         });
+    });
+    /** The hero's button: held while a start is pending, a second press would double it. */
+    readonly quickStartButton = computed<StalkerQuickStartButton | null>(() => {
+        const button = this.quickStartAction();
+        return button && (this.startPending() || this.seasonWatchBatchRunning())
+            ? { ...button, disabled: true }
+            : button;
     });
     readonly inlineEpisodeState = computed(() => {
         const identity = this.inlinePlaybackEpisodeIdentity();
@@ -959,7 +1037,56 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * offset for an episode whose position row the page could not attach
      * (matched by coordinates only), so it resumes where the card said.
      */
-    onEpisodeClicked(episode: XtreamSerieEpisode, startTimeOverride?: number) {
+    onEpisodeClicked(
+        episode: XtreamSerieEpisode,
+        startTimeOverride?: number,
+        forcePlayer?: ExternalPlayerName
+    ) {
+        if (this.seasonWatchBatchRunning()) {
+            // The batch rewrites the very rows a start resumes from: the
+            // choice waits for it, like the Reset and watched rows do.
+            this.choiceHeldForBatch = {
+                seriesKey: this.currentSeriesKey(),
+                play: () =>
+                    this.onEpisodeClicked(
+                        episode,
+                        startTimeOverride,
+                        forcePlayer
+                    ),
+            };
+            return;
+        }
+        const seriesKey = this.currentSeriesKey();
+        if (this.launchQueue.isLaunching(seriesKey)) {
+            // The launch cannot be cancelled: the choice replaces its player
+            // once it settled.
+            this.launchQueue.hold(seriesKey, () =>
+                this.startEpisode(episode, startTimeOverride, forcePlayer)
+            );
+            return;
+        }
+        this.startEpisode(episode, startTimeOverride, forcePlayer);
+    }
+
+    /**
+     * The batch settled: the choice held meanwhile goes through the usual
+     * gates, unless the viewer switched series since. Episode identities
+     * overlap across series, so it must never resolve against another one.
+     */
+    private endWatchBatch(): void {
+        this.seasonWatchBatchRunning.set(false);
+        const held = this.choiceHeldForBatch;
+        this.choiceHeldForBatch = null;
+        if (held && held.seriesKey === this.currentSeriesKey()) {
+            held.play();
+        }
+    }
+
+    private startEpisode(
+        episode: XtreamSerieEpisode,
+        startTimeOverride?: number,
+        forcePlayer?: ExternalPlayerName
+    ): void {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
             episodesBySeason: this.mappedSeasons(),
@@ -986,7 +1113,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             title,
             item.info.movie_image,
             episodeState,
-            startTime
+            startTime,
+            forcePlayer
         );
     }
 
@@ -1003,6 +1131,28 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
         if (quickStart.lazySeason) {
             await this.loadAndPlayVodSeriesSeason(quickStart.lazySeason);
+        }
+    }
+
+    readonly scrollToCast = scrollToCastCrewRow;
+
+    /** Clears every saved episode position of the series. */
+    async resetProgress(): Promise<void> {
+        const request =
+            this.seasonContainerRef()?.watchPresenter.buildResetRequest();
+        if (request) {
+            await this.handleSeriesPlaybackToggleRequestedFromUi(request);
+        }
+    }
+
+    /** "Open in external player": the next episode, straight to MPV/VLC. */
+    async openQuickStartExternally(player: ExternalPlayerName): Promise<void> {
+        const quickStart = this.quickStartAction();
+        const episode = quickStart?.disabled
+            ? undefined
+            : quickStart?.action?.episode;
+        if (episode) {
+            this.onEpisodeClicked(episode, undefined, player);
         }
     }
 
@@ -1147,19 +1297,93 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.playNextEpisode();
     }
 
+    /**
+     * The "…" menu's MPV/VLC launch: an episode of this series still running
+     * externally is closed first, never doubled; a failed close or a page
+     * that moved on meanwhile keeps the running player.
+     */
+    private async openEpisodeExternally(
+        playback: ResolvedPortalPlayback,
+        player: ExternalPlayerName,
+        request: StalkerSeriesPlaybackRequestContext
+    ): Promise<void> {
+        // `closeInlinePlayer()` just retired `request`'s generation; a fresh
+        // one covers the close round trip, the identity check the series.
+        const generation = this.seriesPlaybackRequestGeneration;
+        const replaced = await this.replaceOwnExternalSession(
+            playback.contentInfo
+        );
+        if (
+            !replaced ||
+            !this.isPlaybackRequestCurrent({ ...request, generation })
+        ) {
+            return;
+        }
+        let session: ExternalPlayerSession | void;
+        try {
+            session = await this.portalPlayer.openExternalPlayback(
+                playback,
+                player
+            );
+        } catch (error) {
+            // The caller's catch would read the retired generation and stay
+            // silent; the user chose this launch and gets its failure.
+            if (generation !== this.seriesPlaybackRequestGeneration) return;
+            this.logger.error('External episode launch failed', error);
+            this.snackBar.open(
+                this.translateService.instant('PORTALS.PLAYBACK_ERROR'),
+                undefined,
+                { duration: 3000 }
+            );
+            return;
+        }
+        // The viewer left the series, or started something else, while the
+        // launch sat inside the player IPC: the player it opened must not
+        // stay beside what they chose since.
+        if (
+            session &&
+            !this.isPlaybackRequestCurrent({ ...request, generation })
+        ) {
+            await this.externalPlayback
+                .closeSession(session)
+                .catch((error: unknown) =>
+                    this.logger.warn(
+                        'Closing a superseded external player failed',
+                        error
+                    )
+                );
+        }
+    }
+
+    /** Closes an episode of this series still running externally; false keeps it. */
+    private replaceOwnExternalSession(
+        own: PlayerContentInfo | undefined
+    ): Promise<boolean> {
+        return replaceOwnedExternalSession(
+            this.externalPlayback,
+            (info) =>
+                info.contentType === 'episode' &&
+                info.playlistId === own?.playlistId &&
+                info.seriesXtreamId === own?.seriesXtreamId,
+            (message, error) => this.logger.warn(message, error)
+        );
+    }
+
     private async startPlayback(
         cmd: string | undefined,
         title: string | undefined,
         thumbnail: string | undefined,
         episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode>,
-        startTime?: number
+        startTime?: number,
+        forcePlayer?: ExternalPlayerName
     ): Promise<void> {
         const generation = ++this.seriesPlaybackRequestGeneration;
         const episodeNum = episodeState.episodeNumber;
         const episodeId = Number(episodeState.episode.id);
         const request: StalkerSeriesPlaybackRequestContext = {
             generation,
-            usesEmbeddedPlayer: this.portalPlayer.isEmbeddedPlayer(),
+            usesEmbeddedPlayer:
+                !forcePlayer && this.portalPlayer.isEmbeddedPlayer(),
             identity: captureStalkerEpisodePlaybackSessionIdentity({
                 sourceId: this.stalkerStore.currentPlaylist()?._id,
                 parentSeriesId: this.displayItem()?.id,
@@ -1169,6 +1393,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         };
         if (request.usesEmbeddedPlayer && !request.identity) return;
 
+        const pendingSeriesId = this.currentSeriesKey();
+        this.pendingStartSeriesIds.update((ids) => [...ids, pendingSeriesId]);
         try {
             const playback = await this.stalkerStore.resolveVodPlayback(
                 cmd,
@@ -1199,7 +1425,32 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.closeInlinePlayer();
-            void this.portalPlayer.openResolvedPlayback(resolvedPlayback, true);
+            if (forcePlayer) {
+                // Awaited so the start stays pending through the close of the
+                // previous player and the launch itself.
+                await this.launchQueue.run(
+                    pendingSeriesId,
+                    () =>
+                        this.openEpisodeExternally(
+                            resolvedPlayback,
+                            forcePlayer,
+                            request
+                        ),
+                    {
+                        stillShown: () =>
+                            this.currentSeriesKey() === pendingSeriesId,
+                        replacePlayer: () =>
+                            this.replaceOwnExternalSession(
+                                resolvedPlayback.contentInfo
+                            ),
+                    }
+                );
+            } else {
+                void this.portalPlayer.openResolvedPlayback(
+                    resolvedPlayback,
+                    true
+                );
+            }
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
@@ -1211,6 +1462,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
             this.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
+            });
+        } finally {
+            this.pendingStartSeriesIds.update((ids) => {
+                const index = ids.indexOf(pendingSeriesId);
+                return index < 0
+                    ? ids
+                    : [...ids.slice(0, index), ...ids.slice(index + 1)];
             });
         }
     }
@@ -1323,7 +1581,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 SEASON_WATCH_FEEDBACK
             );
         } finally {
-            this.seasonWatchBatchRunning.set(false);
+            this.endWatchBatch();
         }
     }
 
@@ -1447,7 +1705,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 SERIES_WATCH_FEEDBACK
             );
         } finally {
-            this.seasonWatchBatchRunning.set(false);
+            this.endWatchBatch();
         }
     }
 

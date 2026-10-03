@@ -1,0 +1,117 @@
+<button
+    #triggerButton
+    type="button"
+    class="more-trigger"
+    cdkOverlayOrigin
+    #trigger="cdkOverlayOrigin"
+    aria-haspopup="menu"
+    [class.more-trigger--open]="isOpen()"
+    [attr.aria-expanded]="isOpen()"
+    [attr.aria-label]="label()"
+    [attr.data-testid]="testId()"
+    [matTooltip]="label()"
+    [disabled]="!hasRows()"
+    (click)="toggle()"
+    (keydown)="onTriggerKeydown($event)"
+>
+    <mat-icon aria-hidden="true">more_horiz</mat-icon>
+</button>
+
+<ng-template
+    cdkConnectedOverlay
+    [cdkConnectedOverlayOrigin]="trigger"
+    [cdkConnectedOverlayOpen]="isOpen()"
+    [cdkConnectedOverlayHasBackdrop]="true"
+    cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop"
+    [cdkConnectedOverlayPositions]="overlayPositions"
+    [cdkConnectedOverlayViewportMargin]="12"
+    [cdkConnectedOverlayFlexibleDimensions]="false"
+    (backdropClick)="close()"
+    (detach)="close()"
+    (overlayKeydown)="onOverlayKeydown($event)"
+>
+    <div
+        #panel
+        class="more-menu"
+        [class.more-menu--sources]="view() === 'sources'"
+        role="menu"
+        [attr.aria-label]="label()"
+        data-test-id="vod-more-menu"
+        (keydown)="onMenuKeydown($event)"
+    >
+        @if (view() === 'menu') {
+            @for (section of sections(); track $index) {
+                @if (section.items.length) {
+                    @if ($index > 0) {
+                        <hr class="more-menu__divider" aria-hidden="true" />
+                    }
+                    @if (section.labelKey; as groupKey) {
+                        <div class="more-menu__group" role="presentation">
+                            {{ groupKey | translate }}
+                        </div>
+                    }
+                    @for (item of section.items; track item.id) {
+                        <button
+                            type="button"
+                            role="menuitem"
+                            class="more-menu__item"
+                            [disabled]="item.disabled"
+                            [attr.data-test-id]="item.testId ?? null"
+                            [attr.data-menu-item]="item.id"
+                            (click)="select(item)"
+                        >
+                            @if (item.icon; as icon) {
+                                <mat-icon
+                                    class="more-menu__icon"
+                                    aria-hidden="true"
+                                    >{{ icon }}</mat-icon
+                                >
+                            }
+                            <span class="more-menu__label">{{
+                                item.labelKey | translate: item.labelParams
+                            }}</span>
+                            @if (item.hint !== null && item.hint !== undefined) {
+                                <span class="more-menu__hint">{{
+                                    item.hint
+                                }}</span>
+                            }
+                            @if (item.kind === 'sources') {
+                                <mat-icon
+                                    class="more-menu__chevron"
+                                    aria-hidden="true"
+                                    >chevron_right</mat-icon
+                                >
+                            }
+                        </button>
+                    }
+                }
+            }
+        } @else {
+            <button
+                type="button"
+                class="more-menu__item more-menu__back"
+                role="menuitem"
+                (click)="showMenu()"
+            >
+                <mat-icon class="more-menu__icon" aria-hidden="true"
+                    >arrow_back</mat-icon
+                >
+                <span class="more-menu__label">{{ 'BACK' | translate }}</span>
+            </button>
+            <app-vod-sources-menu
+                class="more-menu__sources"
+                [sources]="sources()"
+                [title]="sourcesTitle()"
+                [matchKind]="matchKind()"
+                [autoFailoverEnabled]="autoFailoverEnabled()"
+                [autoFailoverSupported]="autoFailoverSupported()"
+                [resumeLabel]="resumeLabel()"
+                [playbackLive]="playbackLive()"
+                (playRequested)="onSourcePlay($event)"
+                (pinRequested)="onSourcePin($event)"
+                (checkRequested)="sourceCheckRequested.emit($event)"
+                (autoFailoverToggled)="autoFailoverToggled.emit($event)"
+            />
+        }
+    </div>
+</ng-template>

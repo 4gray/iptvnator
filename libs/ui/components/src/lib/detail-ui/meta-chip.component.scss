@@ -1,0 +1,56 @@
+:host {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-sizing: border-box;
+    max-width: 100%;
+    padding: 3px 9px;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--app-on-surface, #e6e1e5) 10%, transparent);
+    color: var(--app-heading-color, #d8dce8);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+:host(.meta-chip--rating) {
+    color: var(--app-rating-color, #ffcf5c);
+    font-weight: 600;
+}
+
+// Production status is a state, not a fact about the title: the soft
+// selection tint sets it apart from the plain facts beside it.
+:host(.meta-chip--status) {
+    background: var(--app-selection-surface, rgba(152, 184, 255, 0.16));
+    color: var(--app-selection-color, #98b8ff);
+}
+
+// Facets inside one chip ("Thriller · Drama"): each genre stays a button.
+:host ::ng-deep .meta-chip__facet {
+    appearance: none;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #78adff);
+        outline-offset: 1px;
+        border-radius: 2px;
+    }
+}
+
+:host ::ng-deep .meta-chip__sep {
+    opacity: 0.55;
+}

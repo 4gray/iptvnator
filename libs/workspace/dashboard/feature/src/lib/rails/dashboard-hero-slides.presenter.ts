@@ -11,7 +11,10 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
-import { isPortalPlaybackWatched } from '@iptvnator/portal/shared/util';
+import {
+    isPortalPlaybackWatched,
+    splitSeasonSuffix,
+} from '@iptvnator/portal/shared/util';
 import {
     playlistDisplayLabel,
     resolvePortalActivityWatchKind,
@@ -223,25 +226,31 @@ export class DashboardHeroSlidesPresenter {
             this.failedImages()
         );
 
+        // Watch kind: a Stalker embedded-VOD show routes as a movie
+        const watchKind = isLive
+            ? 'live'
+            : (resolvePortalActivityWatchKind(item) ?? item.type);
+        const episodeBadge = buildDashboardEpisodeBadge(
+            item,
+            position,
+            (key, params) => this.translate.instant(key, params)
+        );
         return {
             ...artwork,
             id: `${source.kind}:${dashboardHeroItemKey(item)}`,
             kind: source.kind,
             contentType: item.type,
-            title: item.title,
-            // Watch kind: a Stalker embedded-VOD show routes as a movie
-            typeLabelKey:
-                TYPE_LABEL_KEYS[
-                    isLive
-                        ? 'live'
-                        : (resolvePortalActivityWatchKind(item) ?? item.type)
-                ],
+            // "Большая фарма (1 сезон)" → "Большая фарма" only while the
+            // episode badge names the season; without a badge the marker is
+            // the sole season identity of a per-season catalog entry. A movie
+            // keeps its name as is.
+            title:
+                watchKind === 'series' && episodeBadge
+                    ? splitSeasonSuffix(item.title).title
+                    : item.title,
+            typeLabelKey: TYPE_LABEL_KEYS[watchKind],
             reasonLabelKey: this.reasonLabelKey(source),
-            episodeBadge: buildDashboardEpisodeBadge(
-                item,
-                position,
-                (key, params) => this.translate.instant(key, params)
-            ),
+            episodeBadge,
             rating: extras?.rating ?? null,
             genres: extras?.genres ?? [],
             year: extras?.year ?? item.release_year ?? null,

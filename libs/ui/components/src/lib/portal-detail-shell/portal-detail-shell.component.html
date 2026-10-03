@@ -3,9 +3,13 @@
     <div class="shell__hero-inner">
         <app-content-hero
             [title]="title()"
+            [kindLabel]="kindLabel()"
             [description]="description()"
             [posterUrl]="posterUrl()"
             [backdropUrl]="backdropUrl()"
+            [progress]="progress()"
+            [trailerBackdropUrl]="trailerBackdropUrl()"
+            [contentKey]="contentKey()"
             [isLoading]="isLoading()"
             [errorMessage]="errorMessage()"
         >

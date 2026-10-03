@@ -1,37 +1,69 @@
 <section class="seasons-section">
-    <app-season-header
-        [downloadVisible]="downloadPresenter.presentationVisible()"
-        [batchRunning]="downloadPresenter.batchRunning()"
-        [seasonDisabled]="downloadPresenter.seasonDisabled()"
-        [eligibleEpisodeCount]="downloadPresenter.eligibleEpisodeCount()"
-        [watchToggleVisible]="watchPresenter.seasonWatchToggleVisible()"
-        [watchBatchRunning]="seasonWatchBatchRunning()"
-        [seasonFullyWatched]="watchPresenter.selectedSeasonFullyWatched()"
-        [watchEligibleCount]="watchPresenter.seasonWatchEligibleCount()"
-        [seriesMenuVisible]="watchPresenter.seriesMenuVisible()"
-        [seriesActionDisabled]="watchPresenter.seriesActionDisabled()"
-        [seriesFullyWatched]="watchPresenter.seriesFullyWatched()"
-        [seriesEligibleCount]="watchPresenter.seriesWatchEligibleCount()"
-        [seriesCountKnown]="watchPresenter.seriesCountKnown()"
-        [viewToggleVisible]="hasSeasons() && !showSeasonEmptyState()"
-        [viewMode]="viewMode()"
-        (downloadSeason)="downloadPresenter.enqueueSeason()"
-        (toggleSeasonWatched)="watchPresenter.toggleSeasonWatched()"
-        (toggleSeriesWatched)="watchPresenter.toggleSeriesWatched()"
-        (viewModeChange)="setViewMode($event)"
-    />
+    <!-- "Episodes · Season 1 · Season 2 · 8 episodes": the season pills sit
+         in the header; season and series actions live in the hero's menu. -->
+    <header class="episodes-header">
+        <h3 class="episodes-header__title" data-test-id="episodes-heading">
+            {{ 'PORTALS.DETAIL.EPISODES' | translate }}
+        </h3>
+        @if (hasSeasons()) {
+            <app-season-tabs
+                class="episodes-header__tabs"
+                [seasonKeys]="sortedSeasonKeys()"
+                [selectedSeason]="selectedSeason()"
+                [episodeCounts]="episodeCounts()"
+                [watchedCounts]="watchedCounts()"
+                [seasonPosters]="seasonPosters()"
+                [playingSeasonKey]="playingSeasonKey()"
+                (seasonSelected)="selectSeason($event)"
+                (backToPlayingRequested)="scrollToPlayingEpisode()"
+            />
+            @if (selectedSeasonEpisodes().length; as count) {
+                <span class="episodes-header__count">
+                    {{
+                        (count === 1
+                            ? 'PORTALS.EPISODE_COUNT_ONE'
+                            : 'PORTALS.EPISODE_COUNT_OTHER'
+                        ) | translate: { count }
+                    }}
+                </span>
+            }
+        }
+        @if (hasSeasons() && !showSeasonEmptyState()) {
+            <div class="view-toggle">
+                <mat-button-toggle-group
+                    [value]="viewMode()"
+                    (change)="setViewMode($event.value)"
+                    hideSingleSelectionIndicator
+                >
+                    <mat-button-toggle
+                        value="grid"
+                        [aria-label]="'PORTALS.GRID_VIEW' | translate"
+                        [matTooltip]="'PORTALS.GRID_VIEW' | translate"
+                    >
+                        <mat-icon>grid_view</mat-icon>
+                    </mat-button-toggle>
+                    <mat-button-toggle
+                        value="list"
+                        [aria-label]="'PORTALS.LIST_VIEW' | translate"
+                        [matTooltip]="'PORTALS.LIST_VIEW' | translate"
+                    >
+                        <mat-icon>view_list</mat-icon>
+                    </mat-button-toggle>
+                </mat-button-toggle-group>
+            </div>
+        }
+    </header>
 
-    @if (hasSeasons()) {
-        <!-- Season card: the selected season's own cover beside the tabs and
-             description. Without a cover the column is not rendered at all,
-             so the tabs sit exactly where they did before season posters. -->
-        <div
-            class="season-card"
-            [class.season-card--with-cover]="selectedSeasonPosterUrl()"
-        >
+    @if (
+        hasSeasons() &&
+        (selectedSeasonPosterUrl() || selectedSeasonDescription())
+    ) {
+        <!-- The selected season's own cover and synopsis, compact, under
+             the header. Without either the row is not rendered at all. -->
+        <div class="season-strip">
             @if (selectedSeasonPosterUrl(); as posterUrl) {
                 <img
-                    class="season-card__cover"
+                    class="season-strip__cover"
                     data-testid="season-cover"
                     [src]="posterUrl"
                     [alt]="
@@ -42,17 +74,14 @@
                     (error)="onSeasonPosterError(posterUrl)"
                 />
             }
-            <app-season-tabs
-                [seasonKeys]="sortedSeasonKeys()"
-                [selectedSeason]="selectedSeason()"
-                [episodeCounts]="episodeCounts()"
-                [watchedCounts]="watchedCounts()"
-                [seasonDescription]="selectedSeasonDescription()"
-                [seasonPosters]="seasonPosters()"
-                [playingSeasonKey]="playingSeasonKey()"
-                (seasonSelected)="selectSeason($event)"
-                (backToPlayingRequested)="scrollToPlayingEpisode()"
-            />
+            @if (selectedSeasonDescription(); as description) {
+                <app-expandable-text
+                    class="season-strip__description"
+                    data-testid="season-description"
+                    [text]="description"
+                    [clampLines]="3"
+                />
+            }
         </div>
     }
 
@@ -133,19 +162,16 @@
                                     </div>
                                 }
                                 @if (getEpisodeProgress(episode) > 0) {
-                                    <app-progress-capsule
-                                        [progress]="getEpisodeProgress(episode)"
-                                    />
-                                    @if (
-                                        getEpisodePositionText(episode);
-                                        as time
-                                    ) {
-                                        <div
-                                            class="episode-card__position-text"
-                                        >
-                                            {{ time }}
-                                        </div>
-                                    }
+                                    <span
+                                        class="episode-card__progress"
+                                        aria-hidden="true"
+                                    >
+                                        <i
+                                            [style.width.%]="
+                                                getEpisodeProgress(episode)
+                                            "
+                                        ></i>
+                                    </span>
                                 }
                                 <button
                                     mat-icon-button
@@ -248,9 +274,6 @@
                                         }
                                     </div>
                                 </div>
-                                <div class="episode-card__number">
-                                    {{ episode.episode_num }}
-                                </div>
                             </div>
                             <div class="episode-card__info">
                                 <div class="episode-card__title-row">
@@ -280,10 +303,10 @@
                                         {{ episodeInfo?.plot }}
                                     </p>
                                 }
-                                @if (episodeInfo?.duration) {
-                                    <span class="episode-card__duration">
-                                        {{ episodeInfo?.duration }}
-                                    </span>
+                                @if (getEpisodeSubline(episode); as subline) {
+                                    <small class="episode-card__subline">
+                                        {{ subline }}
+                                    </small>
                                 }
                             </div>
                         </article>

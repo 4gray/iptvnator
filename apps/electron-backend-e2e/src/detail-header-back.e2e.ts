@@ -21,9 +21,9 @@ import {
 // lane. Checked at a wide and a narrow desktop window and at phone width,
 // where Back takes the context drawer toggle's slot.
 //
-// The "Seasons and Episodes" heading must also stay on one line: the detail
-// pane is far narrower than the window beside the rail and category panel,
-// and the heading used to wrap beside its actions.
+// The "Episodes" heading must also stay on one line: the detail pane is far
+// narrower than the window beside the rail and category panel, and the
+// heading used to wrap beside its actions.
 // ---------------------------------------------------------------------------
 
 const widths = [1280, 780, 375];
@@ -36,8 +36,8 @@ const widestHeading = (
             join(__dirname, `../../web/src/assets/i18n/${widestLocale}.json`),
             'utf8'
         )
-    ) as { PORTALS: { SEASONS_AND_EPISODES: string } }
-).PORTALS.SEASONS_AND_EPISODES;
+    ) as { PORTALS: { DETAIL: { EPISODES: string } } }
+).PORTALS.DETAIL.EPISODES;
 
 const detailUrlPattern = /\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/;
 
@@ -47,14 +47,16 @@ function headerBack(page: Page): Locator {
 
 /** Line boxes of the heading's text; 1 means it did not wrap. */
 function headingLineCount(page: Page): Promise<number> {
-    return page.locator('.section-title').evaluate((heading) => {
-        const range = document.createRange();
-        range.selectNodeContents(heading);
-        const lines = [...range.getClientRects()]
-            .filter((rect) => rect.width > 0)
-            .map((rect) => Math.round(rect.top));
-        return new Set(lines).size;
-    });
+    return page
+        .locator('[data-test-id="episodes-heading"]')
+        .evaluate((heading) => {
+            const range = document.createRange();
+            range.selectNodeContents(heading);
+            const lines = [...range.getClientRects()]
+                .filter((rect) => rect.width > 0)
+                .map((rect) => Math.round(rect.top));
+            return new Set(lines).size;
+        });
 }
 
 /**
@@ -174,9 +176,12 @@ async function expectWidestHeadingOnOneLine(
     await saveSettings(page);
     await page.goBack();
     await page.waitForURL(detailUrl);
-    await expect(page.locator('.section-title')).toHaveText(widestHeading, {
-        timeout: 20_000,
-    });
+    await expect(page.locator('[data-test-id="episodes-heading"]')).toHaveText(
+        widestHeading,
+        {
+            timeout: 20_000,
+        }
+    );
     for (const width of [...widths, 700]) {
         await page.setViewportSize({ width, height: 800 });
         expect(
@@ -203,9 +208,11 @@ async function openFirstSeries(page: Page): Promise<string> {
     await page.getByRole('link', { name: 'Series', exact: true }).click();
     await clickFirstGridListCard(page);
     await page.waitForURL(detailUrlPattern);
-    await expect(page.locator('.section-title')).toBeVisible({
-        timeout: 20_000,
-    });
+    await expect(page.locator('[data-test-id="episodes-heading"]')).toBeVisible(
+        {
+            timeout: 20_000,
+        }
+    );
     await expect(page.locator('.episode-card').first()).toBeVisible({
         timeout: 20_000,
     });

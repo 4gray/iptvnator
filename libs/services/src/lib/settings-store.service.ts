@@ -198,6 +198,9 @@ export const SettingsStore = signalStore(
                     playerAmbientMode:
                         store.playerAmbientMode?.() ??
                         DEFAULT_SETTINGS.playerAmbientMode,
+                    detailTrailerBackdrop:
+                        store.detailTrailerBackdrop?.() ??
+                        DEFAULT_SETTINGS.detailTrailerBackdrop,
                     playerUpNextRail:
                         store.playerUpNextRail?.() ??
                         DEFAULT_SETTINGS.playerUpNextRail,

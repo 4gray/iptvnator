@@ -1,0 +1,12 @@
+@if (playing()) {
+    <iframe
+        #frame
+        class="trailer-backdrop__frame"
+        [src]="frameUrl()"
+        [title]="title()"
+        allow="autoplay; encrypted-media"
+        referrerpolicy="strict-origin-when-cross-origin"
+        tabindex="-1"
+        aria-hidden="true"
+    ></iframe>
+}

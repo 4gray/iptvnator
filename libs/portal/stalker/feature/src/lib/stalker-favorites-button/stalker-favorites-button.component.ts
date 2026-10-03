@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, of, switchMap } from 'rxjs';
 import { PlaylistsService } from '@iptvnator/services';
+import { DetailIconButtonComponent } from '@iptvnator/ui/components';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
     matchesFavoriteById,
@@ -27,7 +28,7 @@ type FavoriteButtonItem = StalkerSelectedVodItem & {
     templateUrl: './stalker-favorites-button.component.html',
     styleUrls: ['./stalker-favorites-button.component.scss'],
     changeDetection: ChangeDetectionStrategy.Eager,
-    imports: [AsyncPipe, MatIconModule, TranslateModule],
+    imports: [AsyncPipe, DetailIconButtonComponent, MatIconModule, TranslateModule],
 })
 export class FavoritesButtonComponent {
     private playlistService = inject(PlaylistsService);
@@ -35,6 +36,8 @@ export class FavoritesButtonComponent {
 
     readonly itemId = input.required<string>();
     readonly item = input.required<FavoriteButtonItem>();
+    /** `icon`: the 44px heart of the cinematic action row. */
+    readonly appearance = input<'text' | 'icon'>('text');
 
     private readonly favoritesChanged$ = new BehaviorSubject<void>(undefined);
 

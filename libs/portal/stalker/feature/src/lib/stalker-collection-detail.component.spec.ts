@@ -79,6 +79,12 @@ class StubStalkerInlineDetailComponent {
     readonly inlinePlaybackClosed = output<void>();
     readonly streamUrlCopied = output<void>();
     readonly inlineExternalFallbackRequested = output<unknown>();
+    readonly externalPlayRequested = output<{
+        item: VodDetailsItem;
+        player: 'mpv' | 'vlc';
+        positionSeconds: number | null;
+    }>();
+    readonly resetProgressRequested = output<VodDetailsItem>();
 }
 
 describe('StalkerCollectionDetailComponent', () => {
@@ -620,6 +626,45 @@ describe('StalkerCollectionDetailComponent', () => {
             undefined,
             expect.anything()
         );
+    });
+
+    it('routes the menu launch and reset through the collection actions', async () => {
+        const sourceItem = createSourceItem();
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+        await settleDetail(fixture);
+        await settleDetail(fixture);
+        const detail = fixture.debugElement.query(
+            By.directive(StubStalkerInlineDetailComponent)
+        ).componentInstance as StubStalkerInlineDetailComponent;
+        const item = createStalkerVodItem(sourceItem, playlist._id);
+
+        stalkerStore.resolveVodPlayback.mockResolvedValue({
+            streamUrl: 'http://cdn/1701.mp4',
+            title: 'Movie',
+        });
+        detail.externalPlayRequested.emit({
+            item,
+            player: 'vlc',
+            positionSeconds: null,
+        });
+        await settleDetail(fixture);
+        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({ streamUrl: 'http://cdn/1701.mp4' }),
+            'vlc'
+        );
+
+        detail.resetProgressRequested.emit(item);
+        await settleDetail(fixture);
+        expect(
+            playbackPositions.clearPlaybackPositionOrThrow
+        ).toHaveBeenCalledWith('stalker-1', 1701, 'vod');
     });
 
     it('blocks the watched toggle while a collection Play is still resolving', async () => {

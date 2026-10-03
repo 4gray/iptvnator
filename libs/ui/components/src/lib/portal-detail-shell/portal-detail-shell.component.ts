@@ -64,9 +64,17 @@ export class PortalDetailShellComponent {
     private readonly backNavigation = inject(WorkspaceBackNavigationService);
 
     readonly title = input<string>();
+    /** "Movie · playlist name" eyebrow above the hero title. */
+    readonly kindLabel = input<string | null>(null);
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    /** 0–100 watched share shown as the hero's resume bar. */
+    readonly progress = input<number | null>(null);
+    /** Trailer embed to play muted behind the hero, when the setting is on. */
+    readonly trailerBackdropUrl = input<string | null>(null);
+    /** Stable identity of the shown title; see `ContentHeroComponent.contentKey`. */
+    readonly contentKey = input<string | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();
     readonly backLabel = input<string>();

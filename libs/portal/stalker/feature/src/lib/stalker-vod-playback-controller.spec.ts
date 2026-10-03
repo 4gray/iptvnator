@@ -41,7 +41,7 @@ function createPosition(
     };
 }
 
-function createController() {
+function createController(playbackOwnerKey?: () => string) {
     const inlinePlayback = signal(null);
     const selectedVodPosition = signal<PlaybackPositionData | null>(null);
     const playbackPositions = {
@@ -79,6 +79,7 @@ function createController() {
         translateService,
         logger,
         playbackErrorLogMessage: 'Playback failed',
+        playbackOwnerKey,
     });
 
     return {
@@ -118,6 +119,24 @@ describe('StalkerVodPlaybackController', () => {
         await olderLoadPromise;
         expect(selectedVodPosition()?.contentXtreamId).toBe(202);
         expect(selectedVodPosition()?.positionSeconds).toBe(20);
+    });
+
+    it('does not hold a reopened movie with a start its earlier visit left pending', () => {
+        let owner = 'movie-a';
+        const { controller } = createController(() => owner);
+        const pending = controller.beginPendingStart();
+        expect(controller.playbackStartPending()).toBe(true);
+
+        // Back out of the movie while the portal request hangs, then
+        // reopen it: the new visit must be playable.
+        owner = '';
+        controller.retirePendingStart('movie-a');
+        owner = 'movie-a';
+        expect(controller.playbackStartPending()).toBe(false);
+        expect(pending.isCurrent()).toBe(true);
+
+        pending.settle();
+        expect(controller.playbackStartPending()).toBe(false);
     });
 
     it('does not mount playback that resolves after the detail closes', async () => {

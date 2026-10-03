@@ -96,12 +96,3 @@
         </button>
     }
 </div>
-
-@if (seasonDescription(); as description) {
-    <app-expandable-text
-        class="season-tabs__description"
-        data-testid="season-description"
-        [text]="description"
-        [clampLines]="3"
-    />
-}

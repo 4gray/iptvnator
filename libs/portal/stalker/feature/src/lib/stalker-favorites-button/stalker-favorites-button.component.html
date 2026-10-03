@@ -1,5 +1,20 @@
 @let isFavorite = isFavorite$ | async;
-@if (isFavorite === false) {
+@if (appearance() === 'icon') {
+    <app-detail-icon-button
+        [label]="
+            (isFavorite
+                ? 'PORTALS.REMOVE_FROM_FAVORITES'
+                : 'PORTALS.ADD_TO_FAVORITES'
+            ) | translate
+        "
+        [icon]="isFavorite ? 'favorite' : 'favorite_border'"
+        tone="favorite"
+        [active]="isFavorite === true"
+        [pressedState]="isFavorite === true"
+        testId="series-favorite-toggle"
+        (pressed)="isFavorite ? removeFromFavorites() : addToFavorites()"
+    />
+} @else if (isFavorite === false) {
     <button class="favorite-btn" (click)="addToFavorites()">
         <mat-icon>add</mat-icon>
         {{ 'PORTALS.ADD_TO_FAVORITES' | translate }}

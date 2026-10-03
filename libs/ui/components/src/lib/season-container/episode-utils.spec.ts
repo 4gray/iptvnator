@@ -1,7 +1,22 @@
 import {
+    episodeRuntimeSeconds,
     formatEpisodePositionText,
     parseDuration,
 } from './episode-progress.util';
+
+describe('episodeRuntimeSeconds', () => {
+    it('prefers the provider seconds over the formatted string', () => {
+        expect(episodeRuntimeSeconds({ duration_secs: 2520 })).toBe(2520);
+        expect(
+            episodeRuntimeSeconds({ duration_secs: 2520, duration: '00:10:00' })
+        ).toBe(2520);
+        expect(episodeRuntimeSeconds({ duration: '00:42:00' })).toBe(2520);
+        expect(
+            episodeRuntimeSeconds({ duration_secs: 0, duration: '00:42:00' })
+        ).toBe(2520);
+        expect(episodeRuntimeSeconds(undefined)).toBe(0);
+    });
+});
 
 describe('episode-progress.util', () => {
     it('parses duration strings', () => {
