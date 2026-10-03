@@ -291,6 +291,26 @@ describe('M3uVodDetailComponent', () => {
         expect(component.playbackActive()).toBe(true);
     });
 
+    it('keys the hero by id and name, like the TMDB lookup', async () => {
+        await create({ channel: channel() });
+        const shell = fixture.debugElement.query(
+            By.directive(StubPortalDetailShellComponent)
+        ).componentInstance as StubPortalDetailShellComponent;
+        const first = shell.contentKey();
+
+        // Entries can share an id and differ by name; the next one may have
+        // a backdrop where this one had none, so the hero must decide its
+        // layout again.
+        fixture.componentRef.setInput(
+            'channel',
+            channel({ name: 'Dune Part Two (2024) 1080p' })
+        );
+        fixture.detectChanges();
+
+        expect(first).toContain('ch1');
+        expect(shell.contentKey()).not.toBe(first);
+    });
+
     it('restarts the payload identity when zapping to another movie', async () => {
         await create({ channel: channel(), playback: playback() });
         const first = fixture.componentInstance.inlinePlayback();

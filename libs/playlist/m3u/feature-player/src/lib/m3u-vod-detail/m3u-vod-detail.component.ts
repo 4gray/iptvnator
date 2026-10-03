@@ -35,7 +35,10 @@ import {
 } from '@iptvnator/ui/components';
 import { formatDurationLabel } from '@iptvnator/portal/shared/util';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { M3uVodMetadataService } from './m3u-vod-metadata.service';
+import {
+    M3uVodMetadataService,
+    m3uVodEntryKey,
+} from './m3u-vod-metadata.service';
 
 /**
  * VOD detail experience for an M3U entry recognized as a movie: the same
@@ -114,6 +117,13 @@ export class M3uVodDetailComponent {
     }
 
     readonly tmdb = computed(() => this.metadata.state().details);
+
+    /**
+     * What the hero decides its layout for, once per entry. Keyed like the
+     * TMDB lookup, by id AND name: entries sharing an id differ by name, and
+     * the next one may have a backdrop where this one had none.
+     */
+    readonly heroKey = computed(() => `m3u:${m3uVodEntryKey(this.channel())}`);
 
     readonly title = computed(
         () => this.tmdb()?.title?.trim() || this.channel().name
