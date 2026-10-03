@@ -100,6 +100,7 @@ import {
 } from '@iptvnator/services';
 import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
 import { StalkerSeriesHeroPresenter } from './stalker-series-hero.presenter';
+import { StalkerSeriesLaunchQueue } from './stalker-series-launch-queue';
 import { StalkerSeriesMenuService } from './stalker-series-menu.service';
 import {
     getStalkerSeriesQuickStartButton,
@@ -289,13 +290,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * starting. Provider series ids are playlist-scoped.
      */
     private readonly pendingStartSeriesIds = signal<readonly string[]>([]);
-    /**
-     * `playlist:series` keys whose forced MPV/VLC launch is mid-flight. The
-     * launch IPC cannot be cancelled, so an episode chosen meanwhile waits
-     * in `queuedEpisodeChoice` instead of opening a second player.
-     */
-    private readonly launchingSeriesIds = new Set<string>();
-    private queuedEpisodeChoice: (() => void) | null = null;
+    /** Episode choices made while a forced MPV/VLC launch is mid-flight. */
+    private readonly launchQueue = new StalkerSeriesLaunchQueue();
     /** `playlist:series` of the series on screen; provider ids collide across playlists. */
     readonly currentSeriesKey = computed(
         () =>
@@ -1035,10 +1031,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         startTimeOverride?: number,
         forcePlayer?: ExternalPlayerName
     ) {
-        if (this.launchingSeriesIds.has(this.currentSeriesKey())) {
-            // The last choice made during the launch plays once it settles.
-            this.queuedEpisodeChoice = () =>
-                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer);
+        const seriesKey = this.currentSeriesKey();
+        if (this.launchQueue.isLaunching(seriesKey)) {
+            // The launch cannot be cancelled: the choice plays once it settles.
+            this.launchQueue.hold(seriesKey, () =>
+                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer)
+            );
             return;
         }
         const item = this.displayItem();
@@ -1350,17 +1348,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             if (forcePlayer) {
                 // Awaited so the start stays pending through the close of the
                 // previous player and the launch itself.
-                this.launchingSeriesIds.add(pendingSeriesId);
-                try {
-                    await this.openEpisodeExternally(
-                        resolvedPlayback,
-                        forcePlayer,
-                        request
-                    );
-                } finally {
-                    this.launchingSeriesIds.delete(pendingSeriesId);
-                    this.playQueuedEpisodeChoice(pendingSeriesId);
-                }
+                await this.launchQueue.run(
+                    pendingSeriesId,
+                    () =>
+                        this.openEpisodeExternally(
+                            resolvedPlayback,
+                            forcePlayer,
+                            request
+                        ),
+                    () => this.currentSeriesKey() === pendingSeriesId
+                );
             } else {
                 void this.portalPlayer.openResolvedPlayback(
                     resolvedPlayback,
@@ -1387,13 +1384,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     : [...ids.slice(0, index), ...ids.slice(index + 1)];
             });
         }
-    }
-
-    /** Plays the choice held during a launch, unless the page moved on meanwhile. */
-    private playQueuedEpisodeChoice(seriesKey: string): void {
-        const queued = this.queuedEpisodeChoice;
-        this.queuedEpisodeChoice = null;
-        if (queued && this.currentSeriesKey() === seriesKey) queued();
     }
 
     private isPlaybackRequestCurrent(
