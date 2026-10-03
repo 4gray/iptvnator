@@ -393,6 +393,17 @@ export class EmbeddedMpvNativeService {
         );
     }
 
+    /**
+     * Drops a cached "mpv missing" result, so the next support check probes
+     * again (a found mpv stays cached). For a probe that ran before the
+     * login shell PATH arrived.
+     */
+    forgetMissingLinuxMpvExecutable(): void {
+        if (this.cachedLinuxMpvExecutableReason) {
+            this.cachedLinuxMpvExecutableReason = undefined;
+        }
+    }
+
     getSupport(): EmbeddedMpvSupport {
         if (!SUPPORTED_EMBEDDED_MPV_PLATFORMS.has(process.platform)) {
             return {

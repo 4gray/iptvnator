@@ -9,6 +9,7 @@ const mockEmbeddedMpvService = {
     prepareAddon: jest.fn(),
     getSupport: jest.fn(),
     willProbeLinuxMpvExecutable: jest.fn(() => false),
+    forgetMissingLinuxMpvExecutable: jest.fn(),
     setPaused: jest.fn(),
 };
 const mockSessionOptions = {
@@ -23,9 +24,14 @@ jest.mock('../services/embedded-mpv-native.service', () => ({
 jest.mock('../services/embedded-mpv-session-options', () => ({
     readEmbeddedMpvSessionOptions: () => mockSessionOptions,
 }));
-const mockWaitForLoginShellPath = jest.fn(() => Promise.resolve());
+const mockWaitForLoginShellPath = jest.fn(() => Promise.resolve(true));
+let settleLookup: () => void = () => undefined;
+const mockLookupSettled = new Promise<void>((resolve) => {
+    settleLookup = resolve;
+});
 jest.mock('../startup/login-shell-path', () => ({
     waitForLoginShellPath: () => mockWaitForLoginShellPath(),
+    whenLoginShellPathSettled: () => mockLookupSettled,
 }));
 
 import { ipcMain } from 'electron';
@@ -77,9 +83,9 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
                 mockEmbeddedMpvService.willProbeLinuxMpvExecutable.mockReturnValue(
                     true
                 );
-                let settle: () => void = () => undefined;
+                let settle: (settled: boolean) => void = () => undefined;
                 mockWaitForLoginShellPath.mockReturnValueOnce(
-                    new Promise<void>((resolve) => {
+                    new Promise<boolean>((resolve) => {
                         settle = resolve;
                     })
                 );
@@ -99,10 +105,36 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
                     mockEmbeddedMpvService.prepareAddon
                 ).not.toHaveBeenCalled();
 
-                settle();
+                settle(true);
                 await expect(support).resolves.toEqual({ supported: true });
+                expect(
+                    mockEmbeddedMpvService.forgetMissingLinuxMpvExecutable
+                ).not.toHaveBeenCalled();
             }
         );
+
+        it('re-probes a missing mpv once a lookup that ran out finally answers', async () => {
+            mockEmbeddedMpvService.willProbeLinuxMpvExecutable.mockReturnValue(
+                true
+            );
+            mockWaitForLoginShellPath.mockResolvedValueOnce(false);
+            mockEmbeddedMpvService.getSupport.mockReturnValue({
+                supported: false,
+            });
+
+            await expect(
+                getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({})
+            ).resolves.toEqual({ supported: false });
+            expect(
+                mockEmbeddedMpvService.forgetMissingLinuxMpvExecutable
+            ).not.toHaveBeenCalled();
+
+            settleLookup();
+            await new Promise<void>((resolve) => setImmediate(resolve));
+            expect(
+                mockEmbeddedMpvService.forgetMissingLinuxMpvExecutable
+            ).toHaveBeenCalledTimes(1);
+        });
 
         it('does not wait when no probe runs, nor for session calls', async () => {
             mockEmbeddedMpvService.getSupport.mockReturnValue({

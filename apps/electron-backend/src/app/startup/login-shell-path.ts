@@ -39,28 +39,44 @@ const loginShellPathSettled: Promise<void> =
 export const LOGIN_SHELL_PATH_WAIT_LIMIT_MS = 10_000;
 let loginShellPathDeadline: number | null = null;
 
+let loginShellPathHasSettled = process.platform === 'win32';
+const settledOutcome = loginShellPathSettled.then(() => {
+    loginShellPathHasSettled = true;
+    return true;
+});
+
 /**
  * Resolves once the login shell PATH lookup has finished (successfully or
  * not), or when its budget is spent; immediately on Windows. Before the
- * lookup is scheduled, a wait lasts at most `limitMs`.
+ * lookup is scheduled, a wait lasts at most `limitMs`. Resolves to whether
+ * the lookup had finished: false means the caller runs on the inherited
+ * PATH and should not keep a negative result.
  */
 export function waitForLoginShellPath(
     limitMs = LOGIN_SHELL_PATH_WAIT_LIMIT_MS
-): Promise<void> {
+): Promise<boolean> {
+    if (loginShellPathHasSettled) {
+        return Promise.resolve(true);
+    }
     const remainingMs =
         loginShellPathDeadline === null
             ? limitMs
             : Math.min(limitMs, loginShellPathDeadline - Date.now());
     if (remainingMs <= 0) {
-        return Promise.resolve();
+        return Promise.resolve(false);
     }
     let timer: NodeJS.Timeout | undefined;
-    const limit = new Promise<void>((resolve) => {
-        timer = setTimeout(resolve, remainingMs);
+    const limit = new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => resolve(false), remainingMs);
     });
-    return Promise.race([loginShellPathSettled, limit]).finally(() =>
+    return Promise.race([settledOutcome, limit]).finally(() =>
         clearTimeout(timer)
     );
+}
+
+/** Resolves when the lookup finishes, however long it takes. */
+export function whenLoginShellPathSettled(): Promise<void> {
+    return loginShellPathSettled;
 }
 
 export type ReadLoginShellPath = () => Promise<string | undefined>;

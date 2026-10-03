@@ -33,7 +33,10 @@ import {
     embeddedMpvNativeService,
 } from '../services/embedded-mpv-native.service';
 import { readEmbeddedMpvSessionOptions } from '../services/embedded-mpv-session-options';
-import { waitForLoginShellPath } from '../startup/login-shell-path';
+import {
+    waitForLoginShellPath,
+    whenLoginShellPathSettled,
+} from '../startup/login-shell-path';
 
 export default class EmbeddedMpvEvents {
     static bootstrapEmbeddedMpvEvents(): Electron.IpcMain {
@@ -71,10 +74,19 @@ function handleEmbeddedMpv<Args extends unknown[]>(
  * login shell PATH. Only that probe waits; nothing else here spawns by name.
  */
 async function afterLoginShellPathIfProbing<T>(check: () => T): Promise<T> {
-    if (getService().willProbeLinuxMpvExecutable()) {
-        await waitForLoginShellPath();
+    if (
+        !getService().willProbeLinuxMpvExecutable() ||
+        (await waitForLoginShellPath())
+    ) {
+        return check();
     }
-    return check();
+    // The lookup ran out of budget, so this probe sees the inherited PATH.
+    // Once the shell does answer, a "missing" result is probed again.
+    const result = check();
+    void whenLoginShellPathSettled().then(() =>
+        getService().forgetMissingLinuxMpvExecutable()
+    );
+    return result;
 }
 
 handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () =>

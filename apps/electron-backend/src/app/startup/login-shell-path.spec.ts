@@ -84,12 +84,10 @@ describe('login shell PATH', () => {
     it('ends every wait at the lookup budget, so a hung shell delays no later launch', async () => {
         const stuck = loadModule();
         stuck.scheduleDeferredFixPath(() => new Promise(() => undefined), 20);
-        await expect(stuck.waitForLoginShellPath()).resolves.toBeUndefined();
+        await expect(stuck.waitForLoginShellPath()).resolves.toBe(false);
         // Past the budget a later launch goes at once (the test would time
         // out on this one otherwise).
-        await expect(
-            stuck.waitForLoginShellPath(60_000)
-        ).resolves.toBeUndefined();
+        await expect(stuck.waitForLoginShellPath(60_000)).resolves.toBe(false);
     });
 
     it('lets a launch retried within the budget wait for the PATH again', async () => {
@@ -110,15 +108,15 @@ describe('login shell PATH', () => {
         // ...a retry still waits, and sees the PATH once the shell answers.
         const retry = module.waitForLoginShellPath();
         resolveShell('/opt/homebrew/bin');
-        await retry;
+        await expect(retry).resolves.toBe(true);
         expect(process.env.PATH).toBe('/opt/homebrew/bin');
     });
 
     it('lets spawns go immediately on Windows', async () => {
         Object.defineProperty(process, 'platform', { value: 'win32' });
-        await expect(
-            loadModule().waitForLoginShellPath(60_000)
-        ).resolves.toBeUndefined();
+        await expect(loadModule().waitForLoginShellPath(60_000)).resolves.toBe(
+            true
+        );
     });
 
     it('falls back to the paths fix-path used when the shell reports none', async () => {
