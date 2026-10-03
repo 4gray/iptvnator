@@ -198,7 +198,12 @@ export class VodDetailsMenuService {
             this.bindings()?.vodId() !== vodId ||
             this.xtreamStore.currentPlaylist()?.id !== playlistId
         ) {
-            void this.xtreamStore.loadAllPositions(playlistId);
+            // Another movie of the same playlist still gets fresh store
+            // badges; another playlist's store must not be replaced by the
+            // old playlist's positions.
+            if (this.xtreamStore.currentPlaylist()?.id === playlistId) {
+                void this.xtreamStore.loadAllPositions(playlistId);
+            }
             return;
         }
         // A read still in flight started from the pre-write row; letting it
