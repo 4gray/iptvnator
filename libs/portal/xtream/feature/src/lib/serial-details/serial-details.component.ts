@@ -229,6 +229,7 @@ export class SerialDetailsComponent implements OnDestroy {
                     this.playback.activeEpisodeId() !== null
             ),
             startPending: this.playback.forcedLaunchPending,
+            pageToken: () => this.playback.pageToken(),
             resetProgress: () => this.resetProgress(),
             openEpisodeExternally: (episode, player) =>
                 this.playback.playEpisode(episode, player),

@@ -40,6 +40,8 @@ interface SerialDetailsMenuBindings {
     /** A forced launch has not published its session yet: bulk watched actions would include it. */
     readonly startPending: Signal<boolean>;
     readonly resetProgress: () => Promise<void>;
+    /** Series and visit on screen; a launch's failure is reported to that page only. */
+    readonly pageToken: () => string;
     /** The regular episode start forced to MPV/VLC, so history and the launch position are recorded. */
     readonly openEpisodeExternally: (
         episode: XtreamSerieEpisode,
@@ -242,8 +244,7 @@ export class SerialDetailsMenuService {
         if (!bindings || !episode) {
             return;
         }
-        const seriesId = this.seriesId();
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const token = bindings.pageToken();
         try {
             await bindings.openEpisodeExternally(
                 episode,
@@ -251,12 +252,10 @@ export class SerialDetailsMenuService {
             );
         } catch (error) {
             this.logger.warn('External episode launch failed', error);
-            // The page is reused across series: a failure that lands after
-            // the viewer moved on is not the new title's problem.
-            if (
-                this.seriesId() === seriesId &&
-                this.xtreamStore.currentPlaylist()?.id === playlistId
-            ) {
+            // The page is reused across series and visits: a failure that
+            // lands after the viewer moved on (or came back) is not the
+            // current visit's problem.
+            if (bindings.pageToken() === token) {
                 this.notify('PORTALS.PLAYBACK_ERROR');
             }
         }

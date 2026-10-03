@@ -413,7 +413,7 @@ export class SerialDetailsPlaybackService {
      * only while the page still shows what it showed when the launch
      * started, not after leaving and coming back.
      */
-    private pageToken(): string {
+    pageToken(): string {
         return `${this.launchOwner()}#${this.pageGeneration}`;
     }
 
