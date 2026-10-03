@@ -213,6 +213,11 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
             const playbackOwnerKey = this.playbackSessionKey();
             untracked(() => {
                 if (playbackOwnerKey !== this.currentPlaybackOwnerKey) {
+                    // A start the left item still resolves no longer
+                    // applies; a return to it must not find Play held.
+                    this.playback.retirePendingStart(
+                        this.currentPlaybackOwnerKey
+                    );
                     this.currentPlaybackOwnerKey = playbackOwnerKey;
                     this.closeInlinePlayer();
                 }

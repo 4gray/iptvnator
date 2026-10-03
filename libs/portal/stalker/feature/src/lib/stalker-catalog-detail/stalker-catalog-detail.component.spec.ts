@@ -380,6 +380,41 @@ describe('StalkerCatalogDetailComponent provider presentation', () => {
         expect(fixture.componentInstance.playbackStartPending()).toBe(false);
     });
 
+    it('does not hold a reopened movie with a start its earlier visit left pending', async () => {
+        const original = selectedItem();
+        let resolve: (value: unknown) => void = () => undefined;
+        resolveVodPlayback.mockReturnValueOnce(
+            new Promise((resolvePromise) => {
+                resolve = resolvePromise;
+            })
+        );
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.componentInstance.onVodPlay({
+            type: 'stalker',
+            cmd: '/media/42',
+            data: original,
+        } as never);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(true);
+
+        // Back out to another movie while the portal request hangs, then
+        // reopen the first one: its Play must not wait for that request.
+        selectedItem.set({
+            id: '99',
+            cmd: '/media/99',
+            info: { name: 'Replacement movie' },
+        });
+        fixture.detectChanges();
+        selectedItem.set(original);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+
+        resolve({ streamUrl: 'https://stale.example/movie.mpg' });
+        await fixture.whenStable();
+        expect(fixture.componentInstance.playbackStartPending()).toBe(false);
+    });
+
     it('does not mount a VOD resolution after the catalog owner changes', async () => {
         let resolve!: (value: { streamUrl: string }) => void;
         resolveVodPlayback.mockReturnValueOnce(

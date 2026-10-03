@@ -38,6 +38,11 @@ export class StalkerVodPlaybackController {
     readonly playbackStartPending = computed(() =>
         this.pendingStart.isPendingFor(this.config.playbackOwnerKey?.())
     );
+
+    /** The page left `owner`: a start it still resolves no longer holds a return to it. */
+    retirePendingStart(owner: string | undefined): void {
+        this.pendingStart.retire(owner);
+    }
     private lastInlineSaveTime = 0;
     private loadSelectedVodPositionRequestId = 0;
     private playbackRequestId = 0;

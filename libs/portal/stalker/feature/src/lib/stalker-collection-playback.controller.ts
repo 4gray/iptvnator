@@ -175,6 +175,11 @@ export class StalkerCollectionPlaybackController {
         this.vodPlayback.handleInlineTimeUpdate(event);
     }
 
+    /** The page left `owner`: a start it still resolves no longer holds a return to it. */
+    retirePendingStart(owner: string): void {
+        this.vodPlayback.retirePendingStart(owner);
+    }
+
     closeInlinePlayer(): void {
         this.vodPlayback.closeInlinePlayer();
     }

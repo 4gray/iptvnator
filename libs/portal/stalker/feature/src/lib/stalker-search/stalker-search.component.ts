@@ -856,6 +856,9 @@ export class StalkerSearchComponent {
 
     private syncPlaybackOwner(ownerKey: string): void {
         if (ownerKey === this.currentPlaybackOwnerKey) return;
+        // A start the left movie still resolves no longer applies; a return
+        // to it must not find Play held by a hung request.
+        this.vodPlayback.retirePendingStart(this.currentPlaybackOwnerKey);
         this.currentPlaybackOwnerKey = ownerKey;
         this.closeInlinePlayer();
     }

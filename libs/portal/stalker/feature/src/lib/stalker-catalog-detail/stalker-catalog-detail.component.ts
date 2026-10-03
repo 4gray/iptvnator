@@ -216,6 +216,9 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         effect(() => {
             const ownerKey = this.playbackOwnerKey();
             if (ownerKey === this.currentPlaybackOwnerKey) return;
+            // A start the left movie still resolves no longer applies; a
+            // return to it must not find Play held by a hung request.
+            this.pendingStart.retire(this.currentPlaybackOwnerKey);
             this.currentPlaybackOwnerKey = ownerKey;
             this.closeInlinePlayer();
         });
