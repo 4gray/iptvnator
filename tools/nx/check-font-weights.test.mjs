@@ -7,6 +7,7 @@ import {
     describeFinding,
     findIndirectWeights,
     findOffScaleWeights,
+    findWorkspaceWeights,
     isScannedFile,
     nearestScaleWeight,
     scanWeights,
@@ -17,6 +18,14 @@ import { decodeEscapes } from './font-weight-lexer.mjs';
 const offScale = (file, source) =>
     findOffScaleWeights(file, source).findings.map(
         ({ line, name, value }) => `${line} ${name}: ${value}`
+    );
+
+/** The findings across `files` (`{ path: source }`), scanned together. */
+const workspace = (files) =>
+    findWorkspaceWeights(
+        Object.entries(files).map(([file, source]) => ({ file, source }))
+    ).findings.map(
+        ({ file, line, name, value }) => `${file}:${line} ${name}: ${value}`
     );
 
 test('flags an off-scale font-weight with its line number', () => {
@@ -3960,6 +3969,331 @@ test('reads mixin weights where they land, through nested includes', () => {
     ]) {
         assert.deepEqual(report(source), expected, source);
     }
+});
+
+test("lands another module's mixin weights where they are included", () => {
+    const mono = "'JetBrains Mono'";
+    const type = [
+        '@mixin heavy {',
+        '    font-weight: 700;',
+        '}',
+        '@mixin light { font-weight: 400; }',
+        '@mixin firm { font-weight: 700 !important; }',
+        '@mixin settled { font-weight: 700; font-weight: 500; }',
+    ].join('\n');
+    const report = (rules) =>
+        workspace({
+            'libs/w1/_type.scss': type,
+            'libs/w1/c.scss': `@use 'type';\n${rules}`,
+        });
+    const heavy = ['libs/w1/_type.scss:2 font-weight: 700'];
+    for (const [rules, expected] of [
+        [`.x { font-family: ${mono}; @include type.heavy; }`, heavy],
+        [`.x { font-family: Roboto; @include type.heavy; }`, []],
+        // At the `@include`, in Sass's output order with the rule's own.
+        [
+            `.x { font-family: ${mono}; @include type.heavy; font-weight: 500; }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; font-weight: 500; @include type.heavy; }`,
+            heavy,
+        ],
+        [`.x { @include type.heavy; font-family: ${mono}; }`, heavy],
+        [
+            `.x { font-family: ${mono}; @include type.heavy; @include type.light; }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; @include type.firm; font-weight: 500; }`,
+            ['libs/w1/_type.scss:5 font-weight: 700'],
+        ],
+        // And in its order within the mixin.
+        [`.x { font-family: ${mono}; @include type.settled; }`, []],
+        // A nested rule inherits the family; one named through a variable
+        // is resolved once the workspace is scanned.
+        [`.x { font-family: ${mono}; .y { @include type.heavy; } }`, heavy],
+        [
+            `:root { --face: ${mono}; } .x { font-family: var(--face); @include type.heavy; }`,
+            heavy,
+        ],
+    ]) {
+        assert.deepEqual(report(rules), expected, rules);
+    }
+});
+
+test("reports another module's mixin weight once, at its own line", () => {
+    const mono = "'JetBrains Mono'";
+    const users = {
+        'libs/w2/a.scss': `@use 'type'; .a { font-family: ${mono}; @include type.heavy; }`,
+        'libs/w2/b.scss': [
+            "@use 'type';",
+            `:root { --face: ${mono}; }`,
+            '.b { font-family: var(--face); @include type.heavy; }',
+        ].join('\n'),
+    };
+    const heavy = ['libs/w2/_type.scss:1 font-weight: 700'];
+    assert.deepEqual(
+        workspace({
+            'libs/w2/_type.scss': '@mixin heavy { font-weight: 700; }',
+            ...users,
+        }),
+        heavy
+    );
+    // Its own module includes it in a JetBrains Mono rule too.
+    assert.deepEqual(
+        workspace({
+            'libs/w2/_type.scss': `@mixin heavy { font-weight: 700; } .own { font-family: ${mono}; @include heavy; }`,
+            ...users,
+        }),
+        heavy
+    );
+});
+
+test("gives a rule the family another module's mixin sets there", () => {
+    const mono = "'JetBrains Mono'";
+    const report = (rules, face = `${mono}, monospace`) =>
+        workspace({
+            'libs/w3/_mono.scss': `$face: ${mono}, monospace;\n@mixin face {\n    font-family: ${face};\n}`,
+            'libs/w3/_other.scss': '@mixin face { font-family: Roboto; }',
+            'libs/w3/c.scss': `@use 'mono';\n@use 'other';\n${rules}`,
+        });
+    const heavy = ['libs/w3/c.scss:3 font-weight: 700'];
+    for (const [rules, expected, face] of [
+        [`.x { @include mono.face; font-weight: 700; }`, heavy],
+        [
+            `.x { @include mono.face; font-family: Roboto; font-weight: 700; }`,
+            [],
+        ],
+        [
+            `.x { font-family: Roboto; @include mono.face; font-weight: 700; }`,
+            heavy,
+        ],
+        [`.x { @include mono.face; .y { font-weight: 700; } }`, heavy],
+        [
+            `.x { @include mono.face; &:hover { font-weight: 600; } }`,
+            ['libs/w3/c.scss:3 font-weight: 600'],
+        ],
+        // Named through its own module's variable, resolved there.
+        [`.x { @include mono.face; font-weight: 700; }`, heavy, '$face'],
+        // A namesake in another module is not the mixin included.
+        [`.x { @include other.face; font-weight: 700; }`, []],
+    ]) {
+        assert.deepEqual(report(rules, face), expected, rules);
+    }
+});
+
+test('reads a mixin another module includes where it lands', () => {
+    const mono = "'JetBrains Mono'";
+    const report = (rules) =>
+        workspace({
+            'libs/w4/_badge.scss': `@mixin badge {\n    font-family: ${mono};\n    font-weight: 700;\n}`,
+            'libs/w4/c.scss': `@use 'badge';\n${rules}`,
+        });
+    const heavy = ['libs/w4/_badge.scss:3 font-weight: 700'];
+    assert.deepEqual(
+        report('.x { @include badge.badge; font-family: Roboto; }'),
+        []
+    );
+    assert.deepEqual(report('.x { @include badge.badge; }'), heavy);
+    // Included nowhere, it is read where it is written.
+    assert.deepEqual(report('.x { color: red; }'), heavy);
+});
+
+test("resolves another module's mixin as Sass does", () => {
+    const mono = "'JetBrains Mono'";
+    // A bare name a mixin of the file has is its own.
+    assert.deepEqual(
+        scanWeights(
+            'libs/w5/a.scss',
+            '@mixin m_a { color: red; } .x { @include m-a; @include n_b; @include t.c_d; }'
+        ).includes.map(({ callee }) => callee),
+        [
+            { name: 'n-b', namespace: null },
+            { name: 'c-d', namespace: 't' },
+        ]
+    );
+    const type = { 'libs/w5/_type.scss': '@mixin heavy { font-weight: 700; }' };
+    const heavy = ['libs/w5/_type.scss:1 font-weight: 700'];
+    // Through a `@forward` prefix, and as a bare name `as *` or `@import`
+    // brings in.
+    assert.deepEqual(
+        workspace({
+            ...type,
+            'libs/w5/_theme.scss': "@forward 'type' as type-*;",
+            'libs/w5/c.scss': `@use 'theme'; .x { font-family: ${mono}; @include theme.type-heavy; }`,
+        }),
+        heavy
+    );
+    for (const load of ["@use 'type' as *;", "@import 'type';"]) {
+        assert.deepEqual(
+            workspace({
+                ...type,
+                'libs/w5/c.scss': `${load} .x { font-family: ${mono}; @include heavy; }`,
+            }),
+            heavy,
+            load
+        );
+    }
+    // A mixin that `hide` leaves out is not the one included.
+    assert.deepEqual(
+        workspace({
+            ...type,
+            'libs/w5/_quiet.scss': '@mixin heavy { font-weight: 400; }',
+            'libs/w5/_theme.scss':
+                "@forward 'type' hide heavy;\n@forward 'quiet';",
+            'libs/w5/c.scss': `@use 'theme'; .x { font-family: ${mono}; @include theme.heavy; }`,
+        }),
+        []
+    );
+    // Nor one declared in a rule, which is local to it.
+    assert.deepEqual(
+        workspace({
+            'libs/w5/_type.scss':
+                '@mixin heavy { font-weight: 400; } .p { @mixin heavy { font-weight: 700; } @include heavy; }',
+            'libs/w5/c.scss': `@use 'type'; .x { font-family: ${mono}; @include type.heavy; }`,
+        }),
+        []
+    );
+    // Two `@import`ed files that define it: Sass includes the later one,
+    // which the scan does not order, so neither lands.
+    assert.deepEqual(
+        workspace({
+            'libs/w5/_a.scss': '\n\n@mixin heavy { font-weight: 700; }',
+            'libs/w5/_b.scss': '@mixin heavy { font-weight: 400; }',
+            'libs/w5/c.scss': `@import 'a'; @import 'b'; .x { font-family: ${mono}; @include heavy; }`,
+        }),
+        []
+    );
+});
+
+test("follows another module's mixin through the mixins it includes", () => {
+    const mono = "'JetBrains Mono'";
+    for (const [files, expected] of [
+        // Its family, from a mixin it includes from a third module or its
+        // own.
+        [
+            {
+                'libs/w6/_inner.scss': `@mixin face { font-family: ${mono}; }`,
+                'libs/w6/_outer.scss':
+                    "@use 'inner'; @mixin title { @include inner.face; }",
+                'libs/w6/c.scss':
+                    "@use 'outer'; .x { @include outer.title; font-weight: 700; }",
+            },
+            ['libs/w6/c.scss:1 font-weight: 700'],
+        ],
+        [
+            {
+                'libs/w6/_outer.scss': `@mixin face { font-family: ${mono}; } @mixin title { @include face; }`,
+                'libs/w6/c.scss':
+                    "@use 'outer'; .x { @include outer.title; font-weight: 700; }",
+            },
+            ['libs/w6/c.scss:1 font-weight: 700'],
+        ],
+        // In the order Sass writes them out, wherever each is declared.
+        [
+            {
+                'libs/w6/_outer.scss': `@mixin title { @include face; font-family: ${mono}; } @mixin face { font-family: Roboto; }`,
+                'libs/w6/c.scss':
+                    "@use 'outer'; .x { @include outer.title; font-weight: 700; }",
+            },
+            ['libs/w6/c.scss:1 font-weight: 700'],
+        ],
+        // Its weight, from a third module's mixin.
+        [
+            {
+                'libs/w6/_inner.scss': '@mixin heavy { font-weight: 700; }',
+                'libs/w6/_outer.scss':
+                    "@use 'inner'; @mixin title { @include inner.heavy; }",
+                'libs/w6/c.scss': `@use 'outer'; .x { font-family: ${mono}; @include outer.title; }`,
+            },
+            ['libs/w6/_inner.scss:1 font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(workspace(files), expected, JSON.stringify(files));
+    }
+});
+
+test("reads another module's mixin while its animation runs and after", () => {
+    const mono = "'JetBrains Mono'";
+    const anim = {
+        'libs/w8/_anim.scss': [
+            `@keyframes face { from { font-family: ${mono}; } }`,
+            '@keyframes swap { from { font-family: Roboto; } }',
+            '@keyframes heavy { from { font-weight: 700; } }',
+            '@mixin mono-hold { animation: face 1s forwards; }',
+            '@mixin roboto-while { animation: swap 1s; }',
+            '@mixin heavy { animation: heavy 1s; }',
+            `@mixin mono { font-family: ${mono}; }`,
+        ].join('\n'),
+        'libs/w8/_outer.scss':
+            "@use 'anim'; @mixin title { @include anim.roboto-while; }",
+    };
+    const report = (rules) =>
+        workspace({ ...anim, 'libs/w8/c.scss': `@use 'anim';\n${rules}` });
+    const own = ['libs/w8/c.scss:2 font-weight: 700'];
+    for (const [rules, expected] of [
+        // A frame it holds sets the family over the rule's own.
+        [
+            `.x { font-family: Roboto; @include anim.mono-hold; font-weight: 700; }`,
+            own,
+        ],
+        // One it only runs leaves the rule its own family after, also
+        // through a third module's mixin.
+        [
+            `.x { font-family: ${mono}; @include anim.roboto-while; font-weight: 700; }`,
+            own,
+        ],
+        [
+            `.x { font-family: Roboto; @include anim.roboto-while; font-weight: 700; }`,
+            [],
+        ],
+        // Its family in a keyframe here outranks the rule's own too.
+        [
+            `@keyframes k { from { @include anim.mono; } } .x { animation: k 1s forwards; font-family: Roboto; font-weight: 700; }`,
+            own,
+        ],
+        [
+            `@use 'outer'; .x { font-family: ${mono}; @include outer.title; font-weight: 700; }`,
+            own,
+        ],
+        // A keyframe's weight outranks the rule's own while it runs, a
+        // later one too.
+        [
+            `.x { font-family: ${mono}; font-weight: 500; @include anim.heavy; }`,
+            ['libs/w8/_anim.scss:3 font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; @include anim.heavy; font-weight: 500; }`,
+            ['libs/w8/_anim.scss:3 font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(report(rules), expected, rules);
+    }
+});
+
+test("caps a named argument another module's mixin sets a weight from", () => {
+    const mono = "'JetBrains Mono'";
+    const report = (mixin, rules) =>
+        workspace({
+            'libs/w7/_type.scss': mixin,
+            'libs/w7/c.scss': `@use 'type';\n${rules}`,
+        });
+    assert.deepEqual(
+        report(
+            '@mixin heavy($w: 400) { font-weight: $w; }',
+            `.x {\n    font-family: ${mono};\n    @include type.heavy($w: 700);\n}`
+        ),
+        ['libs/w7/c.scss:4 $w: 700']
+    );
+    // Its default, where the call leaves it out.
+    assert.deepEqual(
+        report(
+            '@mixin heavy($w: 700) { font-weight: $w; }',
+            `.x { font-family: ${mono}; @include type.heavy; }`
+        ),
+        ['libs/w7/_type.scss:1 $w: 700']
+    );
 });
 
 test("inherits the document root's family", () => {
