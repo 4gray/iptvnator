@@ -756,7 +756,7 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         // nothing about the pinned one.
         expect(pinnedPlay).toHaveBeenCalledWith(
             component['msUi'].resumeSecondsFor,
-            'mpv'
+            { player: 'mpv', replacePlaying: true }
         );
         expect(routePlay).not.toHaveBeenCalled();
     });
@@ -784,8 +784,10 @@ describe('VodDetailsRouteComponent — playback actions', () => {
         } as never);
 
         expect(pinnedPlay).toHaveBeenCalled();
-        // Restart means zero, whichever copy it starts.
-        const resumeFor = pinnedPlay.mock.calls[0][0];
+        // Restart means zero, whichever copy it starts — including the
+        // pinned copy that is playing right now.
+        const [resumeFor, options] = pinnedPlay.mock.calls[0];
         await expect(resumeFor?.({} as never)).resolves.toBe(0);
+        expect(options).toEqual({ replacePlaying: true });
     });
 });

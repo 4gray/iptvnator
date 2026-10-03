@@ -126,6 +126,11 @@ export class VodDetailsMultiSourceUiService {
     });
 
     readonly hasPlaybackPosition = this.primaryAction.hasPosition;
+    /**
+     * The position the primary button acts on: the pinned copy's own row, or
+     * the live one while that copy plays, otherwise the route copy's.
+     */
+    readonly primaryPosition = this.primaryAction.position;
 
     formatPosition(): string {
         return formatPlaybackPosition(this.primaryAction.position());

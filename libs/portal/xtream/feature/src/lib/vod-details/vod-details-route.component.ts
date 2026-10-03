@@ -498,7 +498,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.watched.bind(this.selectedVodId);
         this.hero.bind({
             info: this.selectedVodInfo,
-            position: this.routePlaybackPosition,
+            // The copy the button starts, so the progress bar and the
+            // remaining time describe that copy, not the route's row.
+            position: this.msUi.primaryPosition,
             hasPlaybackPosition: this.hasPlaybackPosition,
             isOfflinePrimary: this.isOfflinePrimary,
             externalLabel: this.externalPrimaryLabel,
@@ -642,8 +644,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         if (this.msUi.primaryIsPinnedCopy()) {
-            const outcome = await this.multiSource.playPinnedSource(async () =>
-                Promise.resolve(0)
+            const outcome = await this.multiSource.playPinnedSource(
+                async () => Promise.resolve(0),
+                { replacePlaying: true }
             );
             if (outcome !== 'unavailable') {
                 return;
@@ -713,9 +716,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             return;
         }
         if (this.msUi.primaryIsPinnedCopy()) {
+            // Also while that copy already plays: the viewer's chosen source
+            // is relaunched, never swapped for the route's copy.
             const outcome = await this.multiSource.playPinnedSource(
                 this.msUi.resumeSecondsFor,
-                player
+                { player, replacePlaying: true }
             );
             if (outcome !== 'unavailable') {
                 return;

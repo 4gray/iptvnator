@@ -65,6 +65,14 @@ import {
  * reaches into the route component.
  */
 
+/** How a pinned play starts. */
+export interface PinnedPlayOptions {
+    /** Forces MPV/VLC instead of the host's inline-or-external choice. */
+    readonly player?: ExternalPlayerName;
+    /** Honour the pin even while its copy already plays: a restart or a forced relaunch replaces it. */
+    readonly replacePlaying?: boolean;
+}
+
 export interface VodMultiSourceBindings {
     /**
      * Applies a playback — inline swap or external launch, host's choice,
@@ -382,11 +390,13 @@ export class VodMultiSourceHostService {
     /**
      * Start from the pinned source if there is one. `unavailable` means there
      * is nothing pinned to honour, leaving the caller's own Play path in
-     * charge; a superseded attempt must NOT fall through that way.
+     * charge; a superseded attempt must NOT fall through that way. A pin
+     * whose copy already plays counts as nothing to honour, unless
+     * `replacePlaying` says the caller means to restart or relaunch it.
      */
     playPinnedSource(
         resumeFor?: (source: VodSourceCandidate) => Promise<number | null>,
-        player?: ExternalPlayerName
+        options: PinnedPlayOptions = {}
     ): Promise<PinnedPlayOutcome> {
         const session = this.sessionToken;
         // Claim a switch generation up front. The discovery wait and the
@@ -397,10 +407,13 @@ export class VodMultiSourceHostService {
         return startPinnedSource({
             controller: this.controller,
             loadInFlight: this.loadInFlight,
-            pinnedSourceId: () => this.pendingPinnedSourceId(),
+            pinnedSourceId: () =>
+                options.replacePlaying
+                    ? pinnedSourceAwaitingPlay(this._sources(), false)
+                    : this.pendingPinnedSourceId(),
             resumeFor,
             isCurrent: () => this.isCurrentSwitch(session, attempt),
-            play: (sourceId) => this.runPlay(sourceId, player),
+            play: (sourceId) => this.runPlay(sourceId, options.player),
         });
     }
 
