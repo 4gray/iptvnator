@@ -89,7 +89,14 @@ main-process counters below, which exist only with `IPTVNATOR_PERF_CAPTURE=1`:
   show a blank window and freeze its `ready-to-show` counter before its own
   document exists. Electron emits the event again for the real document's
   first paint because the window is still hidden, which is the moment
-  production sees. The gate also keeps the listener the app registers with
+  production sees. The app also shows its window at the main frame's
+  `did-finish-load` when that comes first (see
+  [When the window is shown](#when-the-window-is-shown)), so the gate keeps
+  the `did-finish-load` listeners registered before the gated load (the
+  app's) away from the `about:blank` load as well
+  (`evidence.rendererGateDidFinishLoadHeldOnBlank`, 1 per launch); Electron's
+  own listener that resolves `loadURL('about:blank')` is registered later
+  and still runs. The gate also keeps the listener the app registers with
   `ipcMain.handle('performance:read-counters')`, so the test can call it from
   the main process.
 - `journey-renderer-probe.ts` is registered with `addInitScript` on that
@@ -198,6 +205,12 @@ including a live candidate's first programme answer for at most 2 s
 the playlist inventory has loaded. After the fix (macOS, 2026-09-30): both
 counters were 0 in all 12 iterations of two runs, every window closed on
 `quiet` and `lateShifts` was empty.
+
+On the runner the flicker was only visible on J1's fast path: on the slow
+path the window got its first frame only after the hero had already
+changed, so the settle window opened after the shifts (see
+[When the window is shown](#when-the-window-is-shown)). With both fixes,
+all 18 iterations of three runner runs read 0 (`stable: true`).
 
 #### Idle window
 
@@ -469,6 +482,66 @@ waits for the playlist migrations, the inventory read and
 `reconcileEpgSources`. No baseline yet: the counter is promoted only after a
 PR that lowers it also lowers `spawnToFirstCardMs` (Principle 3).
 
+### When the window is shown
+
+J1 on the CI runner was bimodal from the first runner measurements (#1717)
+until 2026-10-01: 6 of 14 `master` runs between 2026-09-30 and 2026-10-01
+mixed two paths. On the slow path the first card came with 18 bridge
+calls and 1,018 DOM mutations, about 940 ms after the load event. On the
+fast path it came with 15 calls and 559 mutations, 280-500 ms after it.
+The race also marked `renderer.ipcSerialDepthToFirstCard` (9 vs 6),
+`renderer.cdTicksToFirstCard` (31 vs 21), `renderer.cdTicksIdle30s`,
+`main.sqlStatementsBeforeReadyToShow` (119 vs 93) and
+`renderer.layoutShiftScoreSettled` as `stable: false`.
+
+The three extra calls (`downloadsGetDefaultFolder` and two
+`dbGetGlobalRecentlyAdded`, after `dbGetAllGlobalFavorites`) were not what
+the card waited for. They only had time to finish before the card. What
+ordered the card was when the hidden window got a frame. In every one of
+the 48 iterations of those eight runs (two of them #1782's), `ready-to-show`
+came within 180 ms of the load event on the fast path (usually about 15 ms),
+and 4-5 ms after the first card on the slow path. The app showed its window only on
+`ready-to-show`, and `main.ts` removes the splash in a
+`requestAnimationFrame`, which the journey's end condition waits for. On
+the slow path the dashboard had rendered and its data had arrived, but the
+window was still hidden, no frame came, and the splash stayed.
+
+A minimal Electron 43.3.0 app under Xvfb in a Debian container reproduces
+it deterministically. It has the same hidden window, splash and
+`requestAnimationFrame` removal, plus a 3.5 MB module script before the
+first frame. Its window got no frame for about a second after load, and the
+`requestAnimationFrame` and `ready-to-show` both landed at about 1.25 s, in
+5 of 5 launches. Without the large script, `ready-to-show` came at load. A
+`backgroundColor` alone changed nothing. Showing the window at
+`did-finish-load` made the `requestAnimationFrame` run on time in 5 of 5.
+#1782's skeleton gates do not touch this ordering: its own run 36917107231
+still had one fast iteration among slow ones.
+
+The fix is in the app, so it applies to users and not only to the
+journey. `apps/electron-backend/src/app/services/main-window-first-show.ts`
+shows the window at `ready-to-show` or the main frame's `did-finish-load`,
+whichever comes first. The window's `backgroundColor` is the splash colour,
+so showing it before the first paint does not flash. `ready-to-show` still
+fires after the early show (on the runner 10-190 ms after load), so
+`main.sqlStatementsBeforeReadyToShow` keeps its meaning.
+
+Validation (Principle 3, the same journey on the same runner): three
+dispatched runs of the fix (36928706097, 36928716010, 36928725392) and the
+run of the commit that added the baselines (36930457538) took the fast path
+in all 24 iterations, with 15 calls and 559 mutations each.
+
+| Runs                                                        | Slow iterations | `spawnToFirstCardMs.p50`  | load → card                   |
+| ----------------------------------------------------------- | --------------- | ------------------------- | ----------------------------- |
+| `master` and #1782, 2026-09-30 to 10-01 (8 runs, see above) | 29 of 40        | 1,478-1,613 ms (one 760)  | ~940 ms slow, 280-500 ms fast |
+| this fix (4 runs)                                           | 0 of 20         | 988, 1,139, 923, 1,205 ms | 360-515 ms                    |
+
+The eight earlier runs are `master` 36768881838, 36814964563, 36842198653,
+36861129953, 36861409057 and 36915979562, and #1782's 36816552353 and
+36917107231. The runner's own speed moves `spawnToDidFinishLoadMs.p50` between 430 and
+710 ms from run to run, so compare load → card rather than absolute numbers.
+The one fast master run (36915979562, P50 760 ms) had a fast runner and four
+fast iterations.
+
 ### Summary schema
 
 ```json
@@ -545,8 +618,9 @@ numbers so `tools/performance/check-journey-ratchet.mjs` can compare them with
 `tools/performance/journey-baselines.json`. The summary writer checks only
 that every measured iteration reports the same counter names with finite
 values, so a new counter needs no schema change. A J1 runtime baseline is added
-once its counter is deterministic on the CI runner; the launch counters are
-not yet (see [Ratchet](#ratchet)), so the summary is evidence only.
+once its counter is deterministic on the CI runner. Two are enforced
+(`renderer.ipcCallsToFirstCard` and `renderer.domMutationsToFirstCard`, see
+[Ratchet](#ratchet)); the other runtime counters are evidence only.
 
 J3 adds the `journeys.playback` entry with the same shape and no schema
 version change: `counters` and `wallClock` hold only plain numbers, and its
@@ -957,25 +1031,45 @@ Pushes to `master` and manual dispatches always run it. The job is warn-only (`c
 weeks (plan item B3): a regression marks the job failed without failing the
 workflow. Making it required is a maintainer decision.
 
-No J1 runtime counter is enforced yet. Three dispatched runs on 2026-09-27
-(CI runs 36271875209, 36271879955 and 36271884616) reported the same summary
-values, `renderer.ipcCallsToFirstCard` 16 and
-`renderer.domMutationsToFirstCard` 939, but the third run marked both
-`stable: false`: its warm-up and one measured iteration reached the first
-card in about 750 ms with 13 bridge calls and 576 mutations, the others in
-about 1,400 ms with 16 and 939. The three extra calls
-(`downloadsGetDefaultFolder` and two `dbGetGlobalRecentlyAdded`) land before
-or after the first card depending on that race, so neither counter is
-promoted until the race is understood and the counters are deterministic.
-`renderer.layoutShiftScore` (0) and `renderer.longTasks` (2) were identical
-in all eighteen runner iterations; the `spawnToFirstCardMs` P50 ranged from
-1,401 to 1,674 ms. All four stay evidence for now. Runner counters also
-differ from a Mac (12 and 571 there, the fast path without the Linux-only
-`getWindowState` call), so take J1 baseline values from the runner only.
-`renderer.layoutShiftScoreSettled` has no baseline either: the runner read
-it as `stable: false` because the dashboard hero flicker it reported was a
-race there (see [Settle window](#settle-window)). That flicker is fixed; add
-the runner's number once runner runs read it as `stable` too.
+The job enforces two J1 runtime counters: `renderer.ipcCallsToFirstCard`
+(15 calls) and `renderer.domMutationsToFirstCard` (559 mutations). After the
+`Run the performance journeys` step it runs
+`check-journey-ratchet.mjs --only launch/renderer.ipcCallsToFirstCard --only launch/renderer.domMutationsToFirstCard`
+on the summary that step wrote. Both entries have `slack` 0 and
+`evidenceRun` 36928706097, and were identical and `stable: true` in all
+three dispatched runs of the fix that removed the launch race (see
+[When the window is shown](#when-the-window-is-shown)). The step is in the
+job, not in the composite action, so the weekly tightening still measures a
+run that would fail it. While the job is warn-only, a regression fails the
+job and not the workflow. The two summaries of #1782 before that fix (18
+and 1,018) fail the check.
+
+Until that fix, J1 had two paths on the runner and no runtime counter could
+be enforced. Three dispatched runs on 2026-09-27 (36271875209, 36271879955
+and 36271884616) already showed both paths (16 calls / 939 mutations against
+13 / 576 at the time), and later `master` runs mixed them more often.
+
+The other J1 counters in the same three runs:
+
+| Counter                               | Value | `stable` in all three runs                                                |
+| ------------------------------------- | ----- | ------------------------------------------------------------------------- |
+| `main.modulesRegisteredBeforeWindow`  | 2     | yes                                                                       |
+| `renderer.ipcSerialDepthToFirstCard`  | 6     | yes (was unstable through the race)                                       |
+| `renderer.cdTicksIdle30s`             | 4     | yes (was unstable through the race)                                       |
+| `renderer.layoutShiftScore`           | 0     | yes                                                                       |
+| `renderer.layoutShiftScoreSettled`    | 0     | yes (#1782's hero fix plus this one)                                      |
+| `renderer.longTasks`                  | 2     | yes                                                                       |
+| `renderer.cdTicksToFirstCard`         | 21    | no: one iteration of 36928725392 read 22 (and one of 36930457538 read 20) |
+| `main.sqlStatementsBeforeReadyToShow` | 95    | no: 93 or 95 in every run                                                 |
+
+`renderer.cdTicksToFirstCard` keeps the one-tick race described under
+[change detection](#change-detection-ticks), which the Mac shows too (20 or
+21). `main.sqlStatementsBeforeReadyToShow` keeps the download and recording
+recovery racing `ready-to-show` (plan item A2). The six stable counters are
+candidates for further baselines once more runs agree. Wall-clock entries
+stay evidence. Runner counters still differ from a Mac (14 calls and 554
+mutations there; the missing call is the Linux-only `getWindowState`), so
+take J1 baseline values from the runner only.
 
 ### Weekly tightening
 

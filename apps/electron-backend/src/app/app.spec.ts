@@ -75,11 +75,14 @@ type MockMainWindow = {
     maximize: jest.Mock<void, []>;
     on: jest.Mock<void, [string, (...args: unknown[]) => void]>;
     once: jest.Mock<void, [string, (...args: unknown[]) => void]>;
+    removeListener: jest.Mock<void, [string, (...args: unknown[]) => void]>;
     setFullScreen: jest.Mock<void, [boolean]>;
     setMenu: jest.Mock<void, [unknown]>;
     show: jest.Mock<void, []>;
     webContents: {
         on: jest.Mock<void, [string, (...args: unknown[]) => void]>;
+        once: jest.Mock<void, [string, (...args: unknown[]) => void]>;
+        removeListener: jest.Mock<void, [string, (...args: unknown[]) => void]>;
         openDevTools: jest.Mock<void, []>;
         setWindowOpenHandler: jest.Mock<void, [unknown]>;
         getZoomLevel: jest.Mock<number, []>;
@@ -98,12 +101,18 @@ function createMockMainWindow(): MockMainWindow {
         maximize: jest.fn<void, []>(),
         on: jest.fn<void, [string, (...args: unknown[]) => void]>(),
         once: jest.fn<void, [string, (...args: unknown[]) => void]>(),
+        removeListener: jest.fn<void, [string, (...args: unknown[]) => void]>(),
         isDestroyed: jest.fn<boolean, []>().mockReturnValue(false),
         setFullScreen: jest.fn<void, [boolean]>(),
         setMenu: jest.fn<void, [unknown]>(),
         show: jest.fn<void, []>(),
         webContents: {
             on: jest.fn<void, [string, (...args: unknown[]) => void]>(),
+            once: jest.fn<void, [string, (...args: unknown[]) => void]>(),
+            removeListener: jest.fn<
+                void,
+                [string, (...args: unknown[]) => void]
+            >(),
             openDevTools: jest.fn<void, []>(),
             setWindowOpenHandler: jest.fn<void, [unknown]>(),
             getZoomLevel: jest.fn<number, []>().mockReturnValue(0),
@@ -364,6 +373,30 @@ describe('Electron app security helpers', () => {
             expect(mainWindow.maximize).not.toHaveBeenCalled();
             expect(mainWindow.setFullScreen).not.toHaveBeenCalled();
             expect(mainWindow.show).toHaveBeenCalledTimes(1);
+        });
+
+        it('shows the window at did-finish-load when ready-to-show has not come yet', () => {
+            storeStartupWindowMode('maximized');
+            const mainWindow = createWindowViaOnReady();
+
+            expect(BrowserWindow).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    show: false,
+                    backgroundColor: '#1f1f23',
+                })
+            );
+            const [loadHandler] = mainWindow.webContents.once.mock.calls
+                .filter(([eventName]) => eventName === 'did-finish-load')
+                .map(([, handler]) => handler);
+            loadHandler();
+
+            expect(mainWindow.maximize).toHaveBeenCalledTimes(1);
+            expect(mainWindow.show).toHaveBeenCalledTimes(1);
+
+            // The later ready-to-show is a no-op.
+            fireReadyToShow(mainWindow);
+            expect(mainWindow.show).toHaveBeenCalledTimes(1);
+            expect(mainWindow.maximize).toHaveBeenCalledTimes(1);
         });
 
         it('creates the window fullscreen when the stored mode says so', () => {

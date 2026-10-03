@@ -27,8 +27,9 @@ const setWindowState = (
     );
 
 /**
- * The app creates its window with `show: false` and shows it on
- * `ready-to-show`; a `hide()` sent earlier would be undone by that `show()`.
+ * The app creates its window with `show: false` and shows it at
+ * `ready-to-show` or `did-finish-load`, whichever comes first; a `hide()`
+ * sent earlier would be undone by that `show()`.
  */
 async function waitUntilShown(app: UnautomatedElectronApp): Promise<void> {
     await expect
