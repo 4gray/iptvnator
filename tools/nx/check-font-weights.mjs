@@ -73,7 +73,9 @@ import {
  * the callables their named arguments go to are followed by name (`-` and `_`
  * alike), through `@forward … as prefix-*` and its `show`/`hide` lists too.
  * A parameter default counts where a call leaves it out, or when no call is
- * in sight. A weight set from code is read per value it can take, so a
+ * in sight; against the JetBrains Mono cap, only a call that meets that
+ * family passes a weight (one in a mixin another module includes always
+ * may). A weight set from code is read per value it can take, so a
  * condition's numbers are not weights, a template literal as each text its
  * literal `${…}` parts produce (`` `65${0}` `` is 650; a weight it builds
  * around another value is computed), and CSS text that a string leaves to
@@ -95,10 +97,11 @@ import {
  * written out or through variables, or one a nested rule inherits; see
  * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A mixin's top-level
  * declarations land where it is included, in the order Sass writes them
- * out: in its own file, or in another module that includes it by a name
- * Sass resolves to it (`ns.m`, through `@forward` prefixes and
- * `show`/`hide`, or a bare `m` that `@use … as *` or `@import` brings in;
- * see `scanWorkspace`). There its weights meet the including rule's family,
+ * out: in its own file, as the definition in scope there (a rule's
+ * declared before it, a mixin body's any), or in another module that
+ * includes its last definition by a name Sass resolves to it (`ns.m`,
+ * through `@forward` prefixes and `show`/`hide`, or a bare `m` that
+ * `@use … as *` or `@import` brings in; see `scanWorkspace`). There its weights meet the including rule's family,
  * reported once at the mixin's own line, and its family becomes that
  * rule's. A content block lands too where a mixin of the same file places
  * `@content` at its top level, a rule this file `@extend`s whole applies to
@@ -936,6 +939,20 @@ export function scanWeights(file, written, modules = {}) {
         ...running,
         findings: union(running.findings, after.findings),
         deferred: union(running.deferred, after.deferred),
+        // A call meets the families of either reading.
+        includeCalls: new Map(
+            [...running.includeCalls].map(([index, call]) => {
+                const other = after.includeCalls.get(index);
+                return [
+                    index,
+                    {
+                        ...call,
+                        mono: call.mono || Boolean(other?.mono),
+                        families: union(call.families, other?.families ?? []),
+                    },
+                ];
+            })
+        ),
         mixins: new Map(
             [...running.mixins].map(([name, mixin]) => [
                 name,
@@ -1126,6 +1143,7 @@ function scanPass(
         : Object.assign(() => ({ mono: false, refs: [] }), {
               ...{ landings: () => [], landingsAt: () => [] },
               ...{ memberOf: () => null, exported: new Map() },
+              ...{ definitionsAt: () => [], callAt: () => null },
           });
     // Where a family declaration sits, for its variables to resolve later
     // there; one from another module's mixin carries its own.
@@ -1678,27 +1696,38 @@ function scanPass(
             weight: own ? (weightAt.get(id)?.() ?? null) : weight,
         });
     }
-    // Where it includes another module's mixin (see `INCLUDE`).
-    const ownMixins = new Set(
-        blocks
-            .filter((b) => b.kind === 'callable')
-            .filter((b) => /^@mixin\b/i.test(b.prelude))
-            .map((b) => b.name)
-    );
+    // Where it includes another module's mixin (see `INCLUDE`): a bare
+    // name runs one of this file's own where one is in scope there.
     const includes = [];
     for (const match of stylesheet ? text.matchAll(INCLUDE) : []) {
         if (inString(match.index)) continue;
         const namespace = match[1] ?? null;
         const name = match[2].replace(/_/g, '-');
-        if (namespace === null && ownMixins.has(name)) continue;
+        const own = monoAt.definitionsAt(name, match.index).length > 0;
+        if (namespace === null && own) continue;
         includes.push({ index: match.index, callee: { name, namespace } });
     }
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
     const calls = callSitesOf(text, blocks);
     const invocations = stylesheet ? invocationsOf(lexed) : [];
+    // Each `@include` here, by position, with the families it meets (see
+    // `callAt` in `familiesOf`): a parameter capped for JetBrains Mono takes
+    // only the arguments of a call that meets one.
+    const includeCalls = new Map();
+    for (const { index, paren } of invocations) {
+        if (!/^@include\b/.test(text.slice(index, index + 8))) continue;
+        const { mono, families } = monoAt.callAt(index);
+        includeCalls.set(index, {
+            ...{ paren, mono },
+            families: families.map((entry) => ({
+                ...{ text: entry.text, shorthand: entry.shorthand },
+                at: siteOf(entry),
+            })),
+        });
+    }
     return {
         ...{ file, loads, declarations, findings, references, definitions },
-        ...{ calls, invocations, deferred, mixins, includes },
+        ...{ calls, invocations, deferred, mixins, includes, includeCalls },
         transient: Boolean(monoAt.transient),
     };
 }
@@ -1749,9 +1778,36 @@ export function findIndirectWeights(scans) {
     const invocations = scans.flatMap(({ file, invocations: calls = [] }) =>
         calls.map((call) => ({ ...call, file }))
     );
+    // A parameter that a JetBrains Mono rule caps (`capped`) takes only the
+    // arguments, or default, of an `@include` that meets one (see
+    // `includeCalls` in `scanWeights`); any other call is read as before.
+    const includeCalls = new Map(
+        scans.map(({ file, includeCalls: calls = new Map() }) => [file, calls])
+    );
+    const monoCalls = new Map();
+    const meetsMono = (call) => {
+        if (!call) return true;
+        if (!monoCalls.has(call)) {
+            monoCalls.set(
+                call,
+                call.mono ||
+                    call.families.some((f) =>
+                        familyIsMono(f.text, f.at, new Set(), f.shorthand)
+                    )
+            );
+        }
+        return monoCalls.get(call);
+    };
+    const includeAt = (file, paren) =>
+        [...(includeCalls.get(file)?.values() ?? [])].find(
+            (call) => call.paren === paren
+        );
     const defaultUsed = new Map();
-    const usesDefault = (definition) => {
-        if (defaultUsed.has(definition)) return defaultUsed.get(definition);
+    const usesDefault = (definition, capped = false) => {
+        const id = `${capped}`;
+        if (!defaultUsed.has(definition)) defaultUsed.set(definition, {});
+        const cached = defaultUsed.get(definition);
+        if (id in cached) return cached[id];
         const callable = definition.callee.name;
         const calls = invocations.filter(
             (call) =>
@@ -1766,8 +1822,13 @@ export function findIndirectWeights(scans) {
                     d.callee?.paren === call.paren &&
                     d.key === definition.key
             );
-        const used = calls.length === 0 || calls.some((call) => !names(call));
-        defaultUsed.set(definition, used);
+        const counted = capped
+            ? calls.filter((call) =>
+                  meetsMono(includeCalls.get(call.file)?.get(call.index))
+              )
+            : calls;
+        const used = calls.length === 0 || counted.some((call) => !names(call));
+        cached[id] = used;
         return used;
     };
     // A partial runs only where it is loaded, so its `!default` for a name
@@ -1966,10 +2027,19 @@ export function findIndirectWeights(scans) {
                 if (!visible) return false;
             }
             if (scope) {
+                const capped = Boolean(reference.cap);
                 const passed =
                     definition.key === name &&
                     passedTo(definition, file, reference.callable) &&
-                    (!definition.callee.signature || usesDefault(definition));
+                    (definition.callee.signature
+                        ? usesDefault(definition, capped)
+                        : !capped ||
+                          meetsMono(
+                              includeAt(
+                                  definition.file,
+                                  definition.callee.paren
+                              )
+                          ));
                 const configured = configures(access, definition, name);
                 // A textual importer's later code has not run when this
                 // file's rules render, unless they sit in a mixin body.
