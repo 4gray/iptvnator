@@ -57,9 +57,11 @@ export interface SeriesExternalLaunchHost {
     >;
     /** `playlist:series` on screen, null once the page is gone. */
     launchOwner(): string | null;
+    /** Owner plus visit: a reopened series is a new page for the duplicate guard. */
+    pageToken(): string;
 }
 
-/** `owner:episode` keys of launches that have not settled yet. */
+/** `page:episode` keys of launches that have not settled yet. */
 const launchesInFlight = new Set<string>();
 /** Per owner, the tail of its launch chain: a second episode waits its turn. */
 const launchChains = new Map<string, Promise<unknown>>();
@@ -144,7 +146,10 @@ export async function openEpisodeExternally(
     if (!owner) {
         return;
     }
-    const key = `${owner}:${playback.contentInfo?.contentXtreamId ?? playback.streamUrl}`;
+    // Keyed by the visit, not the owner: a launch left behind by an earlier
+    // visit of the same series must not swallow the reopened page's click,
+    // which instead queues behind it on the owner's chain.
+    const key = `${host.pageToken()}:${playback.contentInfo?.contentXtreamId ?? playback.streamUrl}`;
     if (launchesInFlight.has(key)) {
         return;
     }

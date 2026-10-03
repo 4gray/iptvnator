@@ -81,10 +81,12 @@ describe('openEpisodeExternally', () => {
         const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
         const closeSession = jest.fn().mockResolvedValue(undefined);
         const launchOwner = jest.fn().mockReturnValue('xtream-1:103');
+        const pageToken = jest.fn().mockReturnValue('xtream-1:103#1');
         return {
             openExternalPlayback,
             closeSession,
             launchOwner,
+            pageToken,
             host: {
                 portalPlayer: { openExternalPlayback },
                 externalPlayback: {
@@ -92,6 +94,7 @@ describe('openEpisodeExternally', () => {
                     closeSession,
                 },
                 launchOwner,
+                pageToken,
             },
         };
     }
@@ -253,6 +256,27 @@ describe('openEpisodeExternally', () => {
         expect(startOld).not.toHaveBeenCalled();
         expect(startNew).toHaveBeenCalledTimes(1);
         expect(startNew).toHaveBeenCalledWith('episode-2');
+    });
+
+    it('lets a reopened series launch the episode an earlier visit still settles', async () => {
+        const first = host(session());
+        let settleClose: () => void = () => undefined;
+        first.closeSession.mockImplementation(
+            () => new Promise<void>((resolve) => (settleClose = resolve))
+        );
+        const stale = openEpisodeExternally(first.host, PLAYBACK, 'mpv');
+        // The viewer left; this visit's page is gone.
+        first.launchOwner.mockReturnValue(null);
+
+        const reopened = host(null);
+        reopened.pageToken.mockReturnValue('xtream-1:103#2');
+        const fresh = openEpisodeExternally(reopened.host, PLAYBACK, 'mpv');
+        settleClose();
+        await stale;
+        await fresh;
+
+        expect(first.openExternalPlayback).not.toHaveBeenCalled();
+        expect(reopened.openExternalPlayback).toHaveBeenCalledTimes(1);
     });
 
     it('keeps the running player when closing it fails', async () => {
