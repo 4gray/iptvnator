@@ -307,25 +307,19 @@ export class VodDetailsPlaybackService {
     }
 
     /**
-     * The "…" menu's explicit MPV/VLC launch. It counts as a view like any
-     * start; `launchExternal` alone serves the inline player's fallback,
-     * whose start already recorded the item.
+     * The "…" menu's explicit MPV/VLC launch: a regular route-owned start
+     * with the player forced, so the view is recorded and a running
+     * session is replaced rather than doubled.
      */
     openInExternalPlayer(
         vodItem: XtreamVodDetails | null,
         resume: boolean,
         player: ExternalPlayerName
-    ): Promise<ExternalPlayerSession | void> | null {
+    ): Promise<boolean> {
         const playback = this.buildVodPlayback(vodItem, resume);
-        if (!playback) {
-            return null;
-        }
-        this.recordRecentItem(playback.streamUrl, {
-            xtreamId: this.bindings()?.vodId() ?? NaN,
-            contentType: 'movie',
-            backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
-        });
-        return this.launchExternal(playback, player);
+        return playback
+            ? this.startPlayback(playback, player)
+            : Promise.resolve(false);
     }
 
     /**
@@ -423,7 +417,8 @@ export class VodDetailsPlaybackService {
 
     async startResolvedPlayback(
         playback: ResolvedPortalPlayback,
-        isCurrent: () => boolean = () => true
+        isCurrent: () => boolean = () => true,
+        player?: ExternalPlayerName
     ): Promise<boolean> {
         if (this.externalLaunchGeneration() !== null) {
             return false;
@@ -472,21 +467,26 @@ export class VodDetailsPlaybackService {
                 contentType: 'movie',
                 backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
             });
-            return await this.applyPlayback(playback, isCurrent);
+            return await this.applyPlayback(playback, isCurrent, player);
         } finally {
             this.pendingStart.settle(startId);
         }
     }
 
-    private startPlayback(playback: ResolvedPortalPlayback): Promise<boolean> {
+    private startPlayback(
+        playback: ResolvedPortalPlayback,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
         return startRouteOwnedPlayback(this.externalLaunchOwner, (isCurrent) =>
-            this.startResolvedPlayback(playback, isCurrent)
+            this.startResolvedPlayback(playback, isCurrent, player)
         );
     }
 
+    /** `player` forces MPV/VLC regardless of the configured player. */
     private async applyPlayback(
         playback: ResolvedPortalPlayback,
-        isCurrent: () => boolean = () => true
+        isCurrent: () => boolean = () => true,
+        player?: ExternalPlayerName
     ): Promise<boolean> {
         // EVERY start claims the generation, not just the switch path. Play,
         // Resume and Restart reach here directly, and a switch still waiting
@@ -494,7 +494,7 @@ export class VodDetailsPlaybackService {
         // launch on top of what the user just chose.
         const generation = ++this.startGeneration;
         this.positionWriter.reset();
-        if (this.portalPlayer.isEmbeddedPlayer()) {
+        if (!player && this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlayback.set(playback);
             this.externalLaunchOwner.clear();
             this.externalLaunchGeneration.set(null);
@@ -503,7 +503,9 @@ export class VodDetailsPlaybackService {
 
         this.closeInlinePlayer();
         this.claimExternalLaunch(playback, generation);
-        const launch = this.portalPlayer.openResolvedPlayback(playback, true);
+        const launch = player
+            ? this.portalPlayer.openExternalPlayback(playback, player)
+            : this.portalPlayer.openResolvedPlayback(playback, true);
         return await this.settleExternalLaunch(generation, isCurrent, launch);
     }
 

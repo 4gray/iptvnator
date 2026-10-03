@@ -136,7 +136,7 @@ export class VodDetailsMenuService {
                         this.msUi.hasPlaybackPosition(),
                         this.externalPlayer()
                     )
-                    ?.catch((error) =>
+                    .catch((error) =>
                         this.logger.warn('External launch failed', error)
                     );
                 return;

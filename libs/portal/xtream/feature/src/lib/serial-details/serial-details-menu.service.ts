@@ -63,8 +63,6 @@ export class SerialDetailsMenuService {
     private readonly translate = inject(TranslateService);
     private readonly logger = createLogger('SerialDetailsMenu');
     private readonly bindings = signal<SerialDetailsMenuBindings | null>(null);
-    /** Set once "Hide from Continue Watching" ran for the current series. */
-    private readonly hiddenSeriesIds = signal<ReadonlySet<number>>(new Set());
 
     bind(bindings: SerialDetailsMenuBindings): void {
         this.bindings.set(bindings);
@@ -111,18 +109,20 @@ export class SerialDetailsMenuService {
     /** Whether the series row sits in this playlist's recently viewed list. */
     private readonly inContinueWatching = computed(() => {
         const seriesId = this.seriesId();
-        if (
-            !seriesId ||
-            !this.dataSource ||
-            this.hiddenSeriesIds().has(seriesId)
-        ) {
+        if (!seriesId || !this.dataSource) {
             return false;
         }
+        // Xtream ids collide across live, movies and series: the row has to
+        // be the series' own.
         return (
             this.hasProgress() &&
             this.xtreamStore
                 .recentItems()
-                .some((item) => Number(item.xtream_id) === seriesId)
+                .some(
+                    (item) =>
+                        item.type === 'series' &&
+                        Number(item.xtream_id) === seriesId
+                )
         );
     });
 
@@ -281,7 +281,8 @@ export class SerialDetailsMenuService {
                 return;
             }
             await this.dataSource.removeRecentItem(content.id, playlistId);
-            this.hiddenSeriesIds.update((ids) => new Set(ids).add(seriesId));
+            // The refreshed list drops the row, and brings it back once the
+            // series is played again.
             this.xtreamStore.loadRecentItems({ id: playlistId });
             this.notify('PORTALS.DETAIL.HIDDEN_FROM_CONTINUE_WATCHING');
         } catch (error) {

@@ -194,6 +194,43 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         );
     });
 
+    it('replaces a running external session when the menu relaunches the movie', async () => {
+        const launched = sessionFor(ROUTE_PLAYLIST, ROUTE_VOD_ID);
+        await service.startResolvedPlayback({
+            streamUrl: 'https://example.com/route.mkv',
+            title: 'Route movie',
+            contentInfo: launched.contentInfo,
+        });
+        activeSession.set(launched);
+        closeSession.mockClear();
+        openExternalPlayback.mockClear();
+
+        await service.openInExternalPlayer(
+            {
+                info: {},
+                movie_data: {
+                    stream_id: ROUTE_VOD_ID,
+                    name: 'Route movie',
+                    container_extension: 'mkv',
+                },
+            } as never,
+            false,
+            'mpv'
+        );
+
+        // Replaced, never doubled: the running player closes first.
+        expect(closeSession).toHaveBeenCalledWith(launched);
+        expect(closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            openExternalPlayback.mock.invocationCallOrder[0]
+        );
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'mpv'
+        );
+    });
+
     it('records the movie as recently viewed only once its stream played', async () => {
         await service.startResolvedPlayback({
             streamUrl: 'https://example.com/broken.mkv',

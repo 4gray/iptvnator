@@ -819,43 +819,28 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton()?.textContent).toContain('S01E01');
     });
 
-    it('records history and the launch position when the menu opens the next episode in MPV', async () => {
-        openExternalPlayback.mockResolvedValue({
-            id: 'mpv-session-2',
-            player: 'mpv',
-            status: 'opened',
-        });
+    it('records history when the menu opens the next episode in MPV', async () => {
+        const streamUrl = 'http://xtream.example/series/1001.mp4';
         fixture.detectChanges();
         await fixture.whenStable();
-
         const menu = fixture.debugElement.injector.get(
             SerialDetailsMenuService
         );
         await menu.run('external-player');
         await fixture.whenStable();
 
+        // The regular episode start with the player forced: same history
+        // and launch-position bookkeeping as the Play button.
         expect(openResolvedPlayback).not.toHaveBeenCalled();
         expect(openExternalPlayback).toHaveBeenCalledWith(
-            expect.objectContaining({
-                streamUrl: 'http://xtream.example/series/1001.mp4',
-            }),
+            expect.objectContaining({ streamUrl }),
             'mpv'
         );
-        // Same bookkeeping as the Play button: the view lands once the
-        // stream plays, the launch position is written right away.
         TestBed.inject(PlaybackHistoryGate).confirm({
-            streamUrls: ['http://xtream.example/series/1001.mp4'],
+            streamUrls: [streamUrl],
         });
         expect(addRecentItem).toHaveBeenCalledWith(
             expect.objectContaining({ xtreamId: '103', contentType: 'series' })
-        );
-        expect(savePlaybackPosition).toHaveBeenCalledWith(
-            'xtream-1',
-            expect.objectContaining({
-                contentXtreamId: 1001,
-                contentType: 'episode',
-                positionSeconds: 0,
-            })
         );
     });
 

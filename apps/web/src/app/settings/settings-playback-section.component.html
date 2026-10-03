@@ -116,33 +116,6 @@
 
         <div
             class="setting-item"
-            data-setting-id="detail-trailer-backdrop"
-            data-test-id="detail-trailer-backdrop-setting"
-        >
-            <div class="setting-item__meta">
-                <h4>
-                    {{ 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND' | translate }}
-                </h4>
-                <p>
-                    {{
-                        'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION'
-                            | translate
-                    }}
-                </p>
-            </div>
-            <div class="setting-item__control setting-item__toggle">
-                <mat-checkbox
-                    [aria-label]="
-                        'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND' | translate
-                    "
-                    formControlName="detailTrailerBackdrop"
-                    data-test-id="detail-trailer-backdrop-toggle"
-                ></mat-checkbox>
-            </div>
-        </div>
-
-        <div
-            class="setting-item"
             data-setting-id="player-up-next-rail"
             data-test-id="player-up-next-rail-setting"
         >
@@ -163,6 +136,34 @@
             </div>
         </div>
     }
+
+    <!-- A details-page feature: shown for every player, not only the web ones. -->
+    <div
+        class="setting-item"
+        data-setting-id="detail-trailer-backdrop"
+        data-test-id="detail-trailer-backdrop-setting"
+    >
+        <div class="setting-item__meta">
+            <h4>
+                {{ 'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND' | translate }}
+            </h4>
+            <p>
+                {{
+                    'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND_DESCRIPTION'
+                        | translate
+                }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox
+                [aria-label]="
+                    'SETTINGS.PLAY_TRAILERS_IN_BACKGROUND' | translate
+                "
+                formControlName="detailTrailerBackdrop"
+                data-test-id="detail-trailer-backdrop-toggle"
+            ></mat-checkbox>
+        </div>
+    </div>
 
     @if (supportsUpNextCard()) {
         <div
