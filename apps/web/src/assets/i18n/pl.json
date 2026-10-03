@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "Odtwórz pokaz"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Pulpit",
-            "OPEN_DASHBOARD": "Otwórz pulpit",
             "RAIL_SOURCES": "Źródła",
-            "OPEN_SOURCES": "Otwórz źródła",
             "RAIL_GLOBAL_FAVORITES": "Ulubione",
             "RAIL_GLOBAL_RECENT": "Ostatnio oglądane",
             "RAIL_GLOBAL_SEARCH": "Wyszukiwanie globalne",

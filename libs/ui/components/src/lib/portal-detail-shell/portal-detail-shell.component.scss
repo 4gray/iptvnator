@@ -13,13 +13,6 @@
     --tag-border: color-mix(in srgb, var(--app-on-surface, #1d1b1e) 14%, transparent);
     --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
     --content-max-width: 1400px;
-    // The sticky Back control floats over the scroll owner. While it is shown,
-    // every content column (hero, player, episodes, About, extras) starts
-    // after its lane — inset + button + the same inset again — so nothing
-    // scrolls beneath it. content-hero and content-about read the lane too.
-    --shell-back-inset: 16px;
-    --shell-back-size: 40px;
-    --detail-back-lane: 0px;
 
     display: block;
     height: 100%;
@@ -40,56 +33,8 @@
     }
 }
 
-:host(.shell-host--back) {
-    --detail-back-lane: calc(
-        2 * var(--shell-back-inset) + var(--shell-back-size)
-    );
-}
-
 :host-context(.dark-theme) {
     --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
-}
-
-.shell__navigation {
-    // Direct child of the scroll owner: sticky lasts through the entire page.
-    position: sticky;
-    top: var(--shell-back-inset);
-    height: 0;
-    z-index: 10;
-    pointer-events: none;
-}
-
-.shell__back-button {
-    position: absolute;
-    inset-inline-start: var(--shell-back-inset);
-    pointer-events: auto;
-    app-region: no-drag;
-    -webkit-app-region: no-drag;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--shell-back-size);
-    height: var(--shell-back-size);
-    border-radius: 50%;
-    background: var(--app-widget-bg, var(--surface-bg));
-    color: var(--app-on-surface, var(--text-primary));
-    border: 1px solid var(--app-separator, var(--tag-border));
-    cursor: pointer;
-
-    &:hover {
-        background: var(--app-card-hover-bg, var(--surface-bg));
-    }
-
-    &:focus-visible {
-        outline: 2px solid var(--app-selection-color);
-        outline-offset: 2px;
-    }
-
-    mat-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-    }
 }
 
 // ============================================================================
@@ -132,7 +77,6 @@
 
     &--active {
         padding: 16px 40px 0;
-        padding-inline-start: max(40px, var(--detail-back-lane));
         animation: shell-fade-in 300ms ease 50ms both;
     }
 }
@@ -141,7 +85,6 @@
     max-width: var(--content-max-width);
     margin: 0 auto;
     padding: 0 32px;
-    padding-inline-start: max(32px, var(--detail-back-lane));
 
     &:empty {
         display: none;
@@ -162,7 +105,6 @@
     max-width: var(--content-max-width);
     margin: 0 auto;
     padding: 8px 32px 40px;
-    padding-inline-start: max(32px, var(--detail-back-lane));
 
     &:empty {
         display: none;
@@ -183,38 +125,14 @@
 @media (max-width: 800px) {
     .shell__player--active {
         padding: 8px 12px 0;
-        padding-inline-start: max(12px, var(--detail-back-lane));
     }
 
     .shell__episodes {
         padding: 0 20px;
-        padding-inline-start: max(20px, var(--detail-back-lane));
     }
 
     .shell__extras {
         padding: 0 20px 32px;
-        padding-inline-start: max(20px, var(--detail-back-lane));
-    }
-}
-
-// A pane too narrow to spare a 72px column (a phone, or a desktop pane beside
-// the context panel; the component sets the class from the pane's width)
-// would clip the player's controls. There the control takes a row instead —
-// an opaque sticky bar in flow that content scrolls beneath, never alongside.
-:host(.shell-host--compact) {
-    --detail-back-lane: 0px;
-
-    .shell__navigation {
-        top: 0;
-        height: calc(var(--shell-back-size) + 16px);
-        background: var(--app-header-bg);
-        // The bar hides what scrolls beneath it, so it must not let taps
-        // through to that hidden content either.
-        pointer-events: auto;
-    }
-
-    .shell__back-button {
-        top: 8px;
     }
 }
 

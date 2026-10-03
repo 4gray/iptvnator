@@ -1156,7 +1156,11 @@ for (const theme of ['light', 'dark']) {
                 .click();
             await page.locator('app-grid-list mat-card').first().click();
             const shell = page.locator('app-portal-detail-shell');
-            await expect(shell).toBeVisible();
+            // The loading skeleton is a scrollable shell of its own; a key
+            // sent to it is lost when the loaded shell replaces it.
+            await expect(
+                shell.getByRole('heading', { level: 1 })
+            ).toBeVisible();
             await page.evaluate(
                 (dark) => document.body.classList.toggle('dark-theme', dark),
                 theme === 'dark'
@@ -1178,7 +1182,7 @@ for (const theme of ['light', 'dark']) {
                 .toBeGreaterThan(0);
         });
 
-        test(`@xtream sticky detail Back ${section} (${theme})`, async ({
+        test(`@xtream header detail Back ${section} (${theme})`, async ({
             page,
         }, testInfo) => {
             await page.setViewportSize({ width: 1200, height: 540 });
@@ -1196,30 +1200,28 @@ for (const theme of ['light', 'dark']) {
                 (dark) => document.body.classList.toggle('dark-theme', dark),
                 theme === 'dark'
             );
-            const back = shell.getByRole('button', {
-                name: 'Back',
-                exact: true,
-            });
+            // Back is the header's leading control, not a page overlay.
+            const back = page.locator(
+                'app-workspace-shell-header [data-test-id="workspace-header-back"]'
+            );
             await expect(back).toBeVisible();
-            const backOffset = () =>
-                back.evaluate((el) => {
-                    const owner = el.closest('app-portal-detail-shell');
-                    return owner
-                        ? el.getBoundingClientRect().top -
-                              owner.getBoundingClientRect().top
-                        : NaN;
-                });
-            await expect.poll(backOffset).toBeCloseTo(16, 0);
+            await expect(back).toHaveAccessibleName('Back');
+            await expect(
+                shell.getByRole('button', { name: 'Back', exact: true })
+            ).toHaveCount(0);
+            const backTop = () =>
+                back.evaluate((el) => el.getBoundingClientRect().top);
+            const initialTop = await backTop();
             await page.keyboard.press('End');
             await expect
                 .poll(() => shell.evaluate((el) => el.scrollTop))
                 .toBeGreaterThan(0);
             await waitForScrollIdle(shell);
-            await expect.poll(backOffset).toBeCloseTo(16, 0);
+            expect(await backTop()).toBe(initialTop);
             await expect(back).toBeInViewport();
-            await shell.screenshot({
+            await page.screenshot({
                 path: testInfo.outputPath(
-                    `sticky-back-${section}-${theme}.png`
+                    `header-back-${section}-${theme}.png`
                 ),
             });
             await back.click();
@@ -1230,7 +1232,8 @@ for (const theme of ['light', 'dark']) {
             ).toBeVisible();
             await shell.focus();
             await page.keyboard.press('End');
-            // Hover/focus must not make a tooltip consume the advertised Esc.
+            // Hover/focus must not make a tooltip consume the advertised Esc,
+            // even with focus on the header rather than inside the page.
             await page.clock.install();
             await back.focus();
             await back.hover();

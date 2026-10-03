@@ -68,6 +68,16 @@ describe('SettingsUnsavedChangesDialogComponent', () => {
         expect(save.hasAttribute('cdkFocusInitial')).toBe(false);
     });
 
+    it('marks only Discard as destructive: it throws away the edits', async () => {
+        await render({ canSave: true });
+
+        expect(
+            actionButtons().map((button) =>
+                button.classList.contains('app-destructive-button')
+            )
+        ).toEqual([false, true, false]);
+    });
+
     it('disables save while the form cannot be saved', async () => {
         await render({ canSave: false });
 

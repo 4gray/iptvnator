@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "Play slideshow"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Dashboard",
-            "OPEN_DASHBOARD": "Open dashboard",
             "RAIL_SOURCES": "Sources",
-            "OPEN_SOURCES": "Open sources",
             "RAIL_GLOBAL_FAVORITES": "Favorites",
             "RAIL_GLOBAL_RECENT": "Recently viewed",
             "RAIL_GLOBAL_SEARCH": "Global search",

@@ -439,4 +439,264 @@ describe('DashboardRailComponent', () => {
             ).toHaveLength(1);
         });
     });
+
+    describe('focus reveal', () => {
+        beforeEach(() => {
+            (
+                globalThis as unknown as { ResizeObserver: unknown }
+            ).ResizeObserver = class {
+                observe = jest.fn();
+                unobserve = jest.fn();
+                disconnect = jest.fn();
+            };
+        });
+
+        const rect = (left: number, width: number) =>
+            ({ left, right: left + width, top: 0, bottom: 100 }) as DOMRect;
+
+        /**
+         * Lays the cards out at `stride` px intervals in a 1000px viewport
+         * (jsdom has no layout) and records the track's `scrollTo` calls.
+         */
+        const renderRail = async (options: {
+            count: number;
+            width: number;
+            stride: number;
+            scrollLeft?: number;
+        }) => {
+            await TestBed.configureTestingModule({
+                imports: [DashboardRailComponent, TranslateModule.forRoot()],
+                providers: [
+                    provideRouter([]),
+                    {
+                        provide: SettingsStore,
+                        useValue: { stripCountryPrefix: signal(false) },
+                    },
+                ],
+            }).compileComponents();
+            const fixture = TestBed.createComponent(DashboardRailComponent);
+            fixture.componentRef.setInput('label', 'Sources');
+            fixture.componentRef.setInput(
+                'items',
+                Array.from({ length: options.count }, (_, index) =>
+                    card({
+                        id: `card-${index}`,
+                        actions: [
+                            { id: 'edit', labelKey: 'EDIT', icon: 'edit' },
+                        ],
+                    })
+                )
+            );
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const element = fixture.nativeElement as HTMLElement;
+            const scrollLeft = options.scrollLeft ?? 0;
+            const track = element.querySelector('.rail__track') as HTMLElement;
+            const contentWidth =
+                (options.count - 1) * options.stride + options.width;
+            Object.defineProperties(track, {
+                scrollLeft: { configurable: true, value: scrollLeft },
+                clientWidth: { configurable: true, value: 1000 },
+                scrollWidth: { configurable: true, value: contentWidth },
+            });
+            const scrollTo = jest.fn();
+            track.scrollTo = scrollTo;
+            jest.spyOn(
+                element.querySelector('.rail__viewport') as HTMLElement,
+                'getBoundingClientRect'
+            ).mockReturnValue(rect(0, 1000));
+            element
+                .querySelectorAll<HTMLElement>('.rail__card')
+                .forEach((cardElement, index) =>
+                    jest
+                        .spyOn(cardElement, 'getBoundingClientRect')
+                        .mockReturnValue(
+                            rect(
+                                index * options.stride - scrollLeft,
+                                options.width
+                            )
+                        )
+                );
+            const focusLink = (index: number) =>
+                element
+                    .querySelectorAll<HTMLElement>('.rail__card-link')
+                    [index].focus();
+            return { element, scrollTo, focusLink };
+        };
+
+        it('scrolls to the end when the last card is cut off by an overflow smaller than a card', async () => {
+            // Max scroll 102px: the last card shows 70px, which Chromium
+            // already treats as visible enough to skip its focus scroll.
+            const { scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            focusLink(5);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 102,
+                behavior: 'auto',
+            });
+        });
+
+        it('moves to the next snap position that reveals the card rather than the nearest one', async () => {
+            // A "nearest" scroll would need 264px, which mandatory snapping
+            // rounds back to 0 — leaving the card cut off.
+            const { scrollTo, focusLink } = await renderRail({
+                count: 5,
+                width: 306,
+                stride: 316,
+            });
+
+            focusLink(3);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 316,
+                behavior: 'auto',
+            });
+        });
+
+        it('keeps a card wider than the visible area at its own start instead of skipping past it', async () => {
+            // The 1000px viewport cannot hold a 1200px card, so the next
+            // card's snap point (2420) would move the focused one offscreen.
+            const { scrollTo, focusLink } = await renderRail({
+                count: 3,
+                width: 1200,
+                stride: 1210,
+                scrollLeft: 1210,
+            });
+
+            focusLink(1);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 1210,
+                behavior: 'auto',
+            });
+        });
+
+        it('aligns a card cut off on the left with the start edge', async () => {
+            const { scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+                scrollLeft: 100,
+            });
+
+            focusLink(0);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 0,
+                behavior: 'auto',
+            });
+        });
+
+        it('reveals the card when its actions button gains focus', async () => {
+            const { element, scrollTo } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            element
+                .querySelectorAll<HTMLElement>('.rail__action-trigger')[5]
+                .focus();
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 102,
+                behavior: 'auto',
+            });
+        });
+
+        /**
+         * Presses a card link: a pointerdown (jsdom has no PointerEvent),
+         * followed for a mouse by its mousedown. A tap's compatibility
+         * mousedown only comes once the finger lifts.
+         */
+        const pressCard = (
+            element: HTMLElement,
+            index: number,
+            pointerType: 'mouse' | 'touch'
+        ) => {
+            const link = element.querySelectorAll('.rail__card-link')[index];
+            const press = new MouseEvent('pointerdown', { bubbles: true });
+            Object.defineProperty(press, 'pointerType', { value: pointerType });
+            link.dispatchEvent(press);
+            if (pointerType === 'mouse') {
+                link.dispatchEvent(
+                    new MouseEvent('mousedown', {
+                        bubbles: true,
+                        buttons: 1,
+                        detail: 1,
+                    })
+                );
+            }
+        };
+        // Waits out a press's focus window. The rail's first-render reset to
+        // the start lands meanwhile, so its scrollTo call is forgotten.
+        const wait = async (ms: number, scrollTo: jest.Mock) => {
+            await new Promise((resolve) => setTimeout(resolve, ms));
+            scrollTo.mockClear();
+        };
+
+        it('keeps the rail still when a mouse press focuses a partly hidden card', async () => {
+            // Scrolling on mousedown would move the card from under the
+            // pointer, so the click would land elsewhere.
+            const { element, scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            pressCard(element, 5, 'mouse');
+            focusLink(5);
+
+            expect(scrollTo).not.toHaveBeenCalled();
+        });
+
+        it('keeps the rail still when a tap focuses the card after the finger lifts', async () => {
+            const { element, scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            pressCard(element, 5, 'touch');
+            await wait(150, scrollTo);
+            focusLink(5);
+
+            expect(scrollTo).not.toHaveBeenCalled();
+        });
+
+        it('still reveals a card focused from script after an earlier mouse press', async () => {
+            const { element, scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            pressCard(element, 0, 'mouse');
+            await wait(150, scrollTo);
+            focusLink(5);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 102,
+                behavior: 'auto',
+            });
+        });
+
+        it('leaves the scroll position alone for a fully visible card', async () => {
+            const { scrollTo, focusLink } = await renderRail({
+                count: 6,
+                width: 172,
+                stride: 186,
+            });
+
+            focusLink(4);
+
+            expect(scrollTo).not.toHaveBeenCalled();
+        });
+    });
 });

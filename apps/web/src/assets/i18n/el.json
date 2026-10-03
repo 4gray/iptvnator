@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "Αναπαραγωγή προβολής"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Πίνακας ελέγχου",
-            "OPEN_DASHBOARD": "Άνοιγμα πίνακα ελέγχου",
             "RAIL_SOURCES": "Πηγές",
-            "OPEN_SOURCES": "Άνοιγμα πηγών",
             "RAIL_GLOBAL_FAVORITES": "Αγαπημένα",
             "RAIL_GLOBAL_RECENT": "Πρόσφατα προβληθέντα",
             "RAIL_GLOBAL_SEARCH": "Καθολική αναζήτηση",

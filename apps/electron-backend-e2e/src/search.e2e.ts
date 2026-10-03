@@ -1540,12 +1540,9 @@ async function addCurrentDetailToFavorites(page: Page): Promise<void> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: the shell's sticky Back is route-level in browse
-    // and watch alike (closing the player is the bar's own Close button).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
+    // Return to the list: the header's Back is route-level in browse and
+    // watch alike (closing the player is the bar's own Close button).
+    const backButton = page.getByTestId('workspace-header-back');
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     await backButton.click();

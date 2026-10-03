@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "播放輪播"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "儀表板",
-            "OPEN_DASHBOARD": "開啟儀表板",
             "RAIL_SOURCES": "來源",
-            "OPEN_SOURCES": "開啟來源",
             "RAIL_GLOBAL_FAVORITES": "我的最愛",
             "RAIL_GLOBAL_RECENT": "最近觀看",
             "RAIL_GLOBAL_SEARCH": "全域搜尋",

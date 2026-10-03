@@ -345,17 +345,15 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     ).toEqual(['app-html-video-player']);
 
     // Metadata patches the mounted view asynchronously. The shell stamps the
-    // host templates into BOTH the hero and the watch-state About block, so
-    // every metadata string legitimately resolves twice.
+    // host templates into BOTH the hero and the watch-state About block, but
+    // the collapsed hero turns `visibility: hidden` 300ms after mount,
+    // sometimes before TMDB answers. Assert the copy a watching user sees.
+    const about = detail(page).locator('app-content-about');
     await expect(
-        detail(page).getByText('Paul Atreides arrives on Arrakis.').first()
+        about.getByText('Paul Atreides arrives on Arrakis.')
     ).toBeVisible();
-    await expect(
-        detail(page).getByText('Denis Villeneuve').first()
-    ).toBeVisible();
-    await expect(
-        detail(page).getByText('Science Fiction').first()
-    ).toBeVisible();
+    await expect(about.getByText('Denis Villeneuve')).toBeVisible();
+    await expect(about.getByText('Science Fiction')).toBeVisible();
 
     // A live channel keeps the classic layout.
     await sidebarEntry(page, 'Live One').click();
@@ -406,19 +404,19 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
-    // M3U has no browse Back target, so the shell shows no arrow in either
+    // M3U has no browse Back target, so the header shows no arrow in either
     // state; the now-playing bar's own Close button returns to browse.
     const shell = detail(page).locator('app-portal-detail-shell');
-    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
+    const headerBack = page.locator('[data-test-id="workspace-header-back"]');
+    await expect(headerBack).toHaveCount(0);
     await shell
         .locator('app-portal-inline-player')
         .getByRole('button', { name: 'Close player', exact: true })
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
-    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
-    // Without the arrow there is no lane to reserve: the hero keeps its own
-    // inset (32px, or 20px in a pane narrower than 760px) instead of the
-    // 72px column portal details give the Back control.
+    await expect(headerBack).toHaveCount(0);
+    // The hero keeps its own inset (32px, or 20px in a pane narrower than
+    // 760px) in both states.
     expect(
         await shell
             .locator('.hero__content')

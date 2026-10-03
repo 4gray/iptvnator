@@ -14,9 +14,6 @@
     <app-workspace-shell-rail
         [attr.inert]="contextDrawer.isOpen() ? '' : null"
         [isMacOS]="facade.isMacOS"
-        [brandLink]="facade.brandLink()"
-        [brandTooltipKey]="facade.brandTooltipKey()"
-        [brandAriaLabelKey]="facade.brandAriaLabelKey()"
         [workspaceLinks]="facade.workspaceLinks()"
         [primaryContextLinks]="facade.primaryContextLinks()"
         [secondaryContextLinks]="facade.secondaryContextLinks()"
@@ -28,6 +25,7 @@
     <app-workspace-shell-header
         #workspaceHeader
         [attr.inert]="contextDrawer.isOpen() ? '' : null"
+        [backTarget]="facade.backTarget()"
         [playlistTitle]="facade.playlistTitle()"
         [playlistSubtitle]="facade.playlistSubtitle()"
         [canOpenPlaylistInfo]="facade.canOpenPlaylistInfo()"
@@ -52,6 +50,7 @@
         [isContextDrawerOpen]="contextDrawer.isOpen()"
         [contextDrawerToggleAriaKey]="facade.contextDrawerLabelKeys().aria"
         [contextDrawerTooltipKey]="facade.contextDrawerLabelKeys().tooltip"
+        (backRequested)="facade.goBack()"
         (contextDrawerToggleRequested)="contextDrawer.toggle()"
         (refreshPlaylistRequested)="facade.refreshCurrentPlaylist()"
         (searchChanged)="facade.onSearchInput($event)"

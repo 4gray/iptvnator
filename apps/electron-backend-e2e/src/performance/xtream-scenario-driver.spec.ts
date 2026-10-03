@@ -157,10 +157,15 @@ describe('Xtream Playwright scenario driver', () => {
     });
 
     it('does not require a misleading portal-status badge before refresh or delete', async () => {
-        for (const [scenarioId, selector] of [
-            [XTREAM_SCENARIO_ID.REFRESH_LARGE, '.refresh-btn'],
-            [XTREAM_SCENARIO_ID.DELETE_LARGE, '.delete-btn'],
+        for (const [scenarioId, selector, confirmLabel] of [
+            [
+                XTREAM_SCENARIO_ID.REFRESH_LARGE,
+                '.refresh-btn',
+                'Refresh playlist',
+            ],
+            [XTREAM_SCENARIO_ID.DELETE_LARGE, '.delete-btn', 'Remove playlist'],
         ] as const) {
+            const confirmClick = `name=${confirmLabel};exact=true`;
             const fake = new FakePage();
             const prepared = await prepareXtreamScenario(
                 fake.asPage(),
@@ -168,7 +173,7 @@ describe('Xtream Playwright scenario driver', () => {
             );
 
             assert.equal(fake.clicksMatching(selector), 1);
-            assert.equal(fake.clicksMatching('name=Yes;exact=true'), 0);
+            assert.equal(fake.clicksMatching(confirmClick), 0);
             const portalReadyIndex = fake.log.findIndex((entry) =>
                 entry.includes('[aria-label="Portal status: active"]:visible')
             );
@@ -179,7 +184,7 @@ describe('Xtream Playwright scenario driver', () => {
             assert.equal(portalReadyIndex, -1);
             assert.ok(sourceActionIndex >= 0);
             await prepared.trigger();
-            assert.equal(fake.clicksMatching('name=Yes;exact=true'), 1);
+            assert.equal(fake.clicksMatching(confirmClick), 1);
         }
     });
 

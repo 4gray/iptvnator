@@ -157,8 +157,6 @@
         max-width: var(--content-max-width);
         margin: 0 auto;
         padding: 48px 32px 24px;
-        // Reserved by the detail shell while its sticky Back control shows.
-        padding-inline-start: max(32px, var(--detail-back-lane, 0px));
         box-sizing: border-box;
 
         &--skeleton {
@@ -435,7 +433,6 @@
 
     .hero__content {
         padding: 40px 20px 24px;
-        padding-inline-start: max(20px, var(--detail-back-lane, 0px));
     }
 
     .details {
@@ -450,7 +447,6 @@
 @media (max-width: 640px) {
     .hero__content {
         padding-inline: 16px;
-        padding-inline-start: max(16px, var(--detail-back-lane, 0px));
     }
 
     .details__title {

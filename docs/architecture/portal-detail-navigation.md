@@ -23,30 +23,29 @@ do not reach global player shortcuts. Descendant controls retain their native
 keys and Tab order. Entering watch still scrolls to the top; Back and saved
 catalog scroll positions retain the existing navigation contract below.
 
-The shell owns a single sticky Back control, outside the collapsing hero. Its
-zero-height wrapper is a direct child of the scroll owner, so the control stays
-16 px from the top throughout long episode lists without shifting the hero.
-The button has an opaque app-themed surface, visible keyboard focus, an Escape
-shortcut hint via native `title` and Electron `no-drag` hit testing. The hint
-does not create an overlay that could consume the first Escape press.
+The shell owns the page's Back action, but the workspace header renders it.
+While `backAvailable()` is true, the shell registers a target with
+`WorkspaceBackNavigationService` (`@iptvnator/portal/shared/data-access`). The
+target, the `WorkspaceBackTarget` contract in `@iptvnator/portal/shared/util`,
+carries a label (the host's `backLabel`, else the translated "Back"), whether
+Escape currently runs it, and `run()`, which emits `backClicked`. The service
+keeps a stack in which the newest registration wins, and each release removes
+only its own target. A loading shell replaced by the loaded one therefore
+cannot clear its successor, whichever is destroyed first. The header shows the target as an `arrow_back`
+icon button in its leading slot (`data-test-id="workspace-header-back"`), to
+the right of the macOS traffic lights. That is where desktop apps and Material's
+top app bar keep navigation. The header never scrolls, so the control stays
+visible over long episode lists, and nothing floats over the scroll owner:
+detail columns keep symmetric insets and their full width. The button has
+Electron `no-drag` hit testing. In browse its tooltip and `aria-keyshortcuts`
+advertise Escape, and an Escape pressed on the focused button runs Back
+itself, because the shell's browse Escape requires focus inside the page. At
+≤640 px Back takes the context drawer toggle's slot (one navigation icon); the
+list it returns to shows the toggle again. This replaced #1763's 72 px lane
+reserved beside a sticky in-page arrow, along with its phone bar. Electron E2E
+`detail-header-back.e2e.ts` covers 1280, 780 and 375 px in browse and watch.
 
-The control floats, so the content makes room for it: while it is shown, every
-content column (hero content, watch-state player, episodes, About and extras)
-starts after a 72 px lane — 16 px inset, 40 px button, 16 px gap — and no scroll
-position puts the arrow over a heading or the player. The shell derives the lane
-from the button's geometry and publishes it as `--detail-back-lane`, which
-`content-hero` and `content-about` read too; hosts with `backAvailable=false`
-keep their own inset. The lane is horizontal because watch state is short of
-height, not width. A pane narrower than 400 px is the exception — a phone, or a
-desktop pane beside the context panel — because a 72 px column there would clip
-the player's controls. The pane decides, not the viewport: a `ResizeObserver`
-on the shell's border box (scrollbar-independent) sets `shell-host--compact`,
-and the wrapper becomes an in-flow 56 px sticky bar on `--app-header-bg` that
-content scrolls beneath and that takes the taps over it. Electron E2E
-(`detail-back-lane.e2e.ts`) sweeps both states with the lane at 1280 and
-780 px and with the bar at 700 and 375 px.
-
-The sticky control is route-level Back in both states: it emits `backClicked`
+The header Back is route-level in both states: it emits `backClicked`
 whether or not inline playback is active, so the arrow keeps one meaning and
 the list is one click away while watching. Only Escape unwinds one level: watch
 emits `closePlayerRequested`, browse emits `backClicked`. Hosts retain their
@@ -61,13 +60,13 @@ Escape bubbles through the shell before Material's body-level tooltip dispatcher
 so focused detail actions return with one press even while their tooltip is open.
 The document listener remains the outside-shell watch fallback; `defaultPrevented`
 prevents duplicate actions and preserves descendant handlers' priority.
-After Escape closes a player, lost focus moves to the sticky control (or the
-shell when there is no browse Back), without scrolling or stealing existing
-focus.
+After Escape closes a player, lost focus moves to the shell itself, without
+scrolling or stealing existing focus, so the next Escape and the scroll keys
+keep working on the page.
 
 Hosts without browse navigation set `backAvailable=false`: M3U uses its channel
 sidebar, and collection bootstrap placeholders have no return handler. They
-render no sticky arrow in either state and have no browse Escape action; their
+register no header Back in either state and have no browse Escape action; their
 watch exits are the bar's Close player button and Escape. Loading/error shells
 with a return handler keep Back available.
 
@@ -77,8 +76,8 @@ with a return handler keep Back available.
 - Stalker uses an inline/store-state detail model.
 - Detail pages themselves are two-state (browse ↔ watch) inside
   `PortalDetailShellComponent`; entering/leaving watch is a layout state,
-  not a navigation. Route-level back semantics are unchanged; the one
-  sticky arrow returns to the list from either state, while Escape and the
+  not a navigation. Route-level back semantics are unchanged; the header's
+  one Back arrow returns to the list from either state, while Escape and the
   now-playing bar's Close button close the inline player. See
   [Embedded Inline Playback](./embedded-inline-playback.md).
 - Favorites and recently viewed collections now use collection-owned inline detail

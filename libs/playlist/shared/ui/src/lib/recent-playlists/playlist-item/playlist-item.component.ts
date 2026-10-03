@@ -1,6 +1,11 @@
 import { Injector } from '@angular/core';
 import { SourceHealthService } from '@iptvnator/portal/shared/data-access';
-import { sourceHealthType } from '@iptvnator/shared/interfaces';
+import {
+    PlaylistSourceIconKey,
+    resolvePlaylistSourceIconKey,
+    SOURCE_TYPE_ICONS,
+    sourceHealthType,
+} from '@iptvnator/shared/interfaces';
 import { SourceHealthIndicatorComponent } from '../../source-health/source-health-indicator.component';
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
@@ -68,6 +73,30 @@ export class PlaylistItemComponent implements OnInit {
     portalStatus: PortalStatus = 'unavailable';
     private readonly portalStatusService = inject(PortalStatusService);
     readonly runtime = inject(RuntimeCapabilitiesService);
+    readonly sourceIcons = SOURCE_TYPE_ICONS;
+
+    get sourceIconKey(): PlaylistSourceIconKey {
+        return resolvePlaylistSourceIconKey(this.item);
+    }
+
+    /** Without source health, Xtream rows badge the portal status instead. */
+    get showsPortalStatusDot(): boolean {
+        return (
+            this.sourceIconKey === 'xtream' &&
+            !this.runtime.supportsSourceHealth
+        );
+    }
+
+    /**
+     * Auto-refresh re-fetches a URL or a local file, so any row with a URL
+     * keeps the badge, whichever provider icon it shows.
+     */
+    get showsAutoRefresh(): boolean {
+        return (
+            !!this.item.autoRefresh &&
+            (!!this.item.url || this.sourceIconKey === 'm3u-local')
+        );
+    }
     private readonly translate = inject(TranslateService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),

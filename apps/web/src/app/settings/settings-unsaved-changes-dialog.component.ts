@@ -82,6 +82,7 @@ export interface SettingsUnsavedChangesDialogData {
             </button>
             <button
                 mat-button
+                class="app-destructive-button"
                 [mat-dialog-close]="'discard'"
                 data-test-id="unsaved-dialog-discard"
             >

@@ -725,6 +725,27 @@ Settings use the same system but are flatter than content-heavy views.
   `EpgProgrammeDialogService` opens the programme dialog at 540px from the
   timeline, list, guide and channel rows, with a panel class that scopes its
   surface overrides.
+- **Destructive actions.** Material only emits `warn` button colors for M2
+  themes, so the `color` input is a no-op here. A button that removes or
+  discards user data uses the global `.app-destructive-button` class from
+  `m3-theme.scss` (error/on-error tokens per theme, for filled, text,
+  outlined and icon buttons), as the unsaved-changes dialog's Discard does.
+  Confirmations go through `DialogService.openConfirmDialog` with a
+  translated verb as the required `confirmLabel` ("Remove playlist",
+  "Clear") and `tone: 'destructive'` when the action loses data; the dismiss
+  defaults to "Cancel". Never confirm with "Yes"/"No". When the verb itself
+  is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
+  alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
+  themes.
+
+## Source Type Icons
+
+`SOURCE_TYPE_ICONS` in `@iptvnator/shared/interfaces` is the only source of
+provider icons: Xtream `cloud`, Stalker `cast`, the M3U family
+`playlist_play`, and per playlist `link` (URL), `description` (local file or
+text) and `subject` (pasted text in the add flow). Use
+`getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
+providers, and the Dashboard rail icon is never a provider icon.
 
 ## Phone Layout
 

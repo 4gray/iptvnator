@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "Diashow abspielen"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Dashboard",
-            "OPEN_DASHBOARD": "Dashboard öffnen",
             "RAIL_SOURCES": "Quellen",
-            "OPEN_SOURCES": "Quellen öffnen",
             "RAIL_GLOBAL_FAVORITES": "Favoriten",
             "RAIL_GLOBAL_RECENT": "Zuletzt angesehen",
             "RAIL_GLOBAL_SEARCH": "Globale Suche",

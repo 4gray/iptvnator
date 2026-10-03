@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "Diavoorstelling afspelen"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Dashboard",
-            "OPEN_DASHBOARD": "Open dashboard",
             "RAIL_SOURCES": "Bronnen",
-            "OPEN_SOURCES": "Open bronnen",
             "RAIL_GLOBAL_FAVORITES": "Favorieten",
             "RAIL_GLOBAL_RECENT": "Recent bekeken",
             "RAIL_GLOBAL_SEARCH": "Globaal zoeken",

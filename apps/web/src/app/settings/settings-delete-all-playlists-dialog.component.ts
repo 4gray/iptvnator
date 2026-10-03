@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialogModule, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 
 export interface SettingsDeleteAllPlaylistsDialogData {
     summary: {
@@ -48,19 +49,19 @@ export class SettingsDeleteAllPlaylistsDialogComponent {
         {
             id: 'm3u',
             count: this.dialogData.summary.m3u,
-            icon: 'playlist_play',
+            icon: SOURCE_TYPE_ICONS.m3u,
             labelKey: 'HOME.PLAYLIST_TYPES.M3U',
         },
         {
             id: 'xtream',
             count: this.dialogData.summary.xtream,
-            icon: 'cloud',
+            icon: SOURCE_TYPE_ICONS.xtream,
             labelKey: 'HOME.PLAYLIST_TYPES.XTREAM',
         },
         {
             id: 'stalker',
             count: this.dialogData.summary.stalker,
-            icon: 'router',
+            icon: SOURCE_TYPE_ICONS.stalker,
             labelKey: 'HOME.PLAYLIST_TYPES.STALKER',
         },
     ]);

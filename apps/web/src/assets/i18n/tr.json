@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "Slayt gösterisini oynat"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Pano",
-            "OPEN_DASHBOARD": "Panoyu aç",
             "RAIL_SOURCES": "Kaynaklar",
-            "OPEN_SOURCES": "Kaynakları aç",
             "RAIL_GLOBAL_FAVORITES": "Favoriler",
             "RAIL_GLOBAL_RECENT": "Son izlenenler",
             "RAIL_GLOBAL_SEARCH": "Genel arama",

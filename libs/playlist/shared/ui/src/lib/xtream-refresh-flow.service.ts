@@ -109,6 +109,7 @@ export class XtreamRefreshFlowService {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.MESSAGE'
             ),
+            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REFRESH'),
             width: '400px',
             onConfirm: () => this.runRefresh(item, reporter),
         });

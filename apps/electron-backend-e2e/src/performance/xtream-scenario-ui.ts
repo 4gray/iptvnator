@@ -83,7 +83,10 @@ export async function prepareXtreamSourceActionTrigger(
     const dialog = page.locator('mat-dialog-container').last();
     await dialog.waitFor({ state: 'visible' });
     const confirmation = dialog
-        .getByRole('button', { name: 'Yes', exact: true })
+        .getByRole('button', {
+            name: action === 'refresh' ? 'Refresh playlist' : 'Remove playlist',
+            exact: true,
+        })
         .last();
     await assertTriggerReady(confirmation, `xtream-source-${action}-confirm`);
     return confirmation;

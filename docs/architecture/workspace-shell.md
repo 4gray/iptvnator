@@ -90,12 +90,18 @@ The shell is intentionally split into four persistent regions:
        because its data source is the SQLite worker bridge.
     2. Provider-aware context links derived from the active or current playlist.
     3. Settings remains a persistent footer shortcut in the rail.
+    4. No brand mark: it only repeated the first workspace link (Dashboard,
+       or Sources when the dashboard is off).
 2. Top header:
-    1. Playlist switcher.
-    2. Route-aware search input and command palette trigger.
-    3. Add source action.
-    4. Optional playlist refresh and route-specific shortcut actions.
-    5. Downloads shortcut in Electron.
+    1. Leading Back slot, shown while the current page registers a target
+       with `WorkspaceBackNavigationService` (detail pages today). At
+       ≤640 px it takes the context drawer toggle's place. See
+       [Portal Detail Navigation](./portal-detail-navigation.md).
+    2. Playlist switcher.
+    3. Route-aware search input and command palette trigger.
+    4. Add source action.
+    5. Optional playlist refresh and route-specific shortcut actions.
+    6. Downloads shortcut in Electron.
 3. Main body:
     1. Optional left context panel.
     2. Main router outlet content.

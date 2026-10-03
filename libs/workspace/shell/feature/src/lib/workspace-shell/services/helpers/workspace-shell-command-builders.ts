@@ -8,6 +8,7 @@ import {
     WorkspacePortalContext,
     WorkspaceShellRoute,
 } from '@iptvnator/workspace/shell/util';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 import { TranslateFn } from './workspace-shell-search-labels';
 
 export interface CommandBuilderActions {
@@ -275,7 +276,7 @@ export function getGlobalCommandDefinitions(
         {
             id: 'add-playlist-m3u',
             group: 'global',
-            icon: 'folder_open',
+            icon: SOURCE_TYPE_ICONS.m3u,
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_M3U_LABEL',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_M3U_DESCRIPTION',
@@ -286,7 +287,7 @@ export function getGlobalCommandDefinitions(
         {
             id: 'add-playlist-xtream',
             group: 'global',
-            icon: 'cloud',
+            icon: SOURCE_TYPE_ICONS.xtream,
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_XTREAM_LABEL',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_XTREAM_DESCRIPTION',
@@ -297,7 +298,7 @@ export function getGlobalCommandDefinitions(
         {
             id: 'add-playlist-stalker',
             group: 'global',
-            icon: 'cast',
+            icon: SOURCE_TYPE_ICONS.stalker,
             labelKey: 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_STALKER_LABEL',
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.ADD_PLAYLIST_STALKER_DESCRIPTION',

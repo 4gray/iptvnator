@@ -1614,11 +1614,8 @@
             "HERO_PLAY": "شغّل العرض"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "لوحة التحكم",
-            "OPEN_DASHBOARD": "حل لوحة التحكم",
             "RAIL_SOURCES": "المصادر",
-            "OPEN_SOURCES": "حل المصادر",
             "RAIL_GLOBAL_FAVORITES": "المفضلة",
             "RAIL_GLOBAL_RECENT": "متشافين مؤخراً",
             "RAIL_GLOBAL_SEARCH": "بحث عام",
