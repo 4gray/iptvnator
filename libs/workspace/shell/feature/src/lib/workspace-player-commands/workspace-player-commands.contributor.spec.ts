@@ -53,7 +53,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
     let electronStub:
         | {
               getEmbeddedMpvSupport: jest.Mock<
-                  Promise<{ supported: boolean }>,
+                  Promise<{ supported: boolean; inconclusive?: boolean }>,
                   []
               >;
           }
@@ -63,7 +63,10 @@ describe('WorkspacePlayerCommandsContributor', () => {
     function bootstrap(options: {
         supportsManagedExternalPlayers: boolean;
         supportsEmbeddedMpv?: boolean;
-        embeddedMpvSupportResult?: { supported: boolean } | null;
+        embeddedMpvSupportResult?: {
+            supported: boolean;
+            inconclusive?: boolean;
+        } | null;
     }) {
         viewCommands = {
             registerCommand: jest.fn().mockReturnValue(() => undefined),
@@ -198,6 +201,50 @@ describe('WorkspacePlayerCommandsContributor', () => {
             (c) => c.id === 'switch-player-embedded-mpv'
         );
         expect(resolveBoolean(embedded?.visible)).toBe(false);
+    });
+
+    it('keeps a final unsupported answer, but asks again after an inconclusive one', async () => {
+        const contributor = bootstrap({
+            supportsManagedExternalPlayers: true,
+            supportsEmbeddedMpv: true,
+            // A slow login shell: mpv was looked up before its PATH arrived.
+            embeddedMpvSupportResult: { supported: false, inconclusive: true },
+        });
+        const embedded = getRegistered(viewCommands).find(
+            (c) => c.id === 'switch-player-embedded-mpv'
+        );
+
+        await contributor.ensureEmbeddedMpvSupportLoaded();
+        expect(resolveBoolean(embedded?.visible)).toBe(false);
+
+        // The shell answered without mpv: that answer is final.
+        electronStub?.getEmbeddedMpvSupport.mockResolvedValue({
+            supported: false,
+        });
+        await contributor.ensureEmbeddedMpvSupportLoaded();
+        expect(resolveBoolean(embedded?.visible)).toBe(false);
+        expect(contributor.ensureEmbeddedMpvSupportLoaded()).toBeUndefined();
+        expect(electronStub?.getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+    });
+
+    it('shows embedded MPV once an inconclusive answer turns into supported', async () => {
+        const contributor = bootstrap({
+            supportsManagedExternalPlayers: true,
+            supportsEmbeddedMpv: true,
+            embeddedMpvSupportResult: { supported: false, inconclusive: true },
+        });
+        const embedded = getRegistered(viewCommands).find(
+            (c) => c.id === 'switch-player-embedded-mpv'
+        );
+        await contributor.ensureEmbeddedMpvSupportLoaded();
+
+        electronStub?.getEmbeddedMpvSupport.mockResolvedValue({
+            supported: true,
+        });
+        await contributor.ensureEmbeddedMpvSupportLoaded();
+
+        expect(resolveBoolean(embedded?.visible)).toBe(true);
+        expect(contributor.ensureEmbeddedMpvSupportLoaded()).toBeUndefined();
     });
 
     it('switches to embedded MPV on run', () => {

@@ -142,6 +142,7 @@ describe('SettingsSearchService', () => {
 
         function probeWith(support: {
             supported: boolean;
+            inconclusive?: boolean;
             frameCopyAvailable?: boolean;
         }) {
             const getEmbeddedMpvSupport = jest
@@ -184,6 +185,32 @@ describe('SettingsSearchService', () => {
             expect(service.visibleEntries().map(({ id }) => id)).toContain(
                 'embedded-mpv-frame-copy'
             );
+        });
+
+        it('asks again after an inconclusive answer and keeps the final one', async () => {
+            // A slow login shell: mpv was looked up before its PATH arrived.
+            const getEmbeddedMpvSupport = probeWith({
+                supported: false,
+                inconclusive: true,
+            });
+            const { service } = setup({
+                ...DESKTOP,
+                supportsEmbeddedMpv: true,
+            });
+            const entries = () => service.visibleEntries().map(({ id }) => id);
+
+            await service.ensureEmbeddedMpvSupportLoaded();
+            expect(entries()).not.toContain('embedded-mpv-extra-options');
+
+            // The shell answered meanwhile, and mpv is there.
+            getEmbeddedMpvSupport.mockResolvedValue({
+                platform: 'linux',
+                supported: true,
+            });
+            await service.ensureEmbeddedMpvSupportLoaded();
+            expect(entries()).toContain('embedded-mpv-extra-options');
+            expect(service.ensureEmbeddedMpvSupportLoaded()).toBeUndefined();
+            expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
         });
 
         it('does not probe where the runtime has no embedded MPV bridge', () => {
