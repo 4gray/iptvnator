@@ -97,9 +97,10 @@ import {
  * written out or through variables, or one a nested rule inherits; see
  * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A mixin's top-level
  * declarations land where it is included, in the order Sass writes them
- * out: in its own file, as the definition in scope there (a rule's
- * declared before it, a mixin body's any), or in another module that
- * includes its last definition by a name Sass resolves to it (`ns.m`,
+ * out: in its own file, as the definition in scope when the include runs
+ * (a rule's declared before it, a mixin body's where that mixin is
+ * included), or in another module that includes its last definition by a
+ * name Sass resolves to it (`ns.m`,
  * through `@forward` prefixes and `show`/`hide`, or a bare `m` that
  * `@use … as *` or `@import` brings in; see `scanWorkspace`). There its weights meet the including rule's family,
  * reported once at the mixin's own line, and its family becomes that
@@ -126,13 +127,14 @@ import {
  * Not traced: global styles in another file, a weight inherited from another
  * rule, a mixin's nested rules and at-rules (and a `@content` placed in one,
  * or in another module's mixin), a mixin name that two `@import`ed files
- * define (the later wins), a family set on an element from code, and one
- * that reaches only some of a rule's elements (a more specific `.x.active`,
- * or `@extend .m` into `.m.active`). Animations are read as a whole: a
- * keyframe's steps cascade as one rule rather than as states in turn, a
- * rule's last `animation` runs whatever an earlier `!important` one sets,
- * one layer holding a frame holds all of them, and a quoted name is read
- * word by word.
+ * define (the later wins), a custom property a mixin's family reads
+ * (resolved where the mixin is written, not on the rule that includes it),
+ * a family set on an element from code, and one that reaches only some of a
+ * rule's elements (a more specific `.x.active`, or `@extend .m` into
+ * `.m.active`). Animations are read as a whole: a keyframe's steps cascade
+ * as one rule rather than as states in turn, a rule's last `animation` runs
+ * whatever an earlier `!important` one sets, one layer holding a frame
+ * holds all of them, and a quoted name is read word by word.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
@@ -1143,7 +1145,8 @@ function scanPass(
         : Object.assign(() => ({ mono: false, refs: [] }), {
               ...{ landings: () => [], landingsAt: () => [] },
               ...{ memberOf: () => null, exported: new Map() },
-              ...{ definitionsAt: () => [], callAt: () => null },
+              ...{ definitionsAt: () => ({ defs: [], open: true }) },
+              callAt: () => null,
           });
     // Where a family declaration sits, for its variables to resolve later
     // there; one from another module's mixin carries its own.
@@ -1189,7 +1192,8 @@ function scanPass(
     // weight, where a rule runs it, outranks the rule's own (`animated`, on
     // the way to a mixin another module includes, or here).
     const setAt = (id, important, landings, weight = null, ran = false) => {
-        for (const { rules, key, scope, animated: here } of landings) {
+        for (const landing of landings) {
+            const { rules, key, scope, animated: here } = landing;
             const animated = ran || Boolean(here);
             for (const rule of rules) {
                 if (!setters.has(rule)) setters.set(rule, []);
@@ -1197,7 +1201,7 @@ function scanPass(
                 setters.get(rule).push({ key, index: id, level });
             }
             const mixin = monoAt.memberOf(scope);
-            if (mixin !== null) {
+            if (mixin !== null && landing.external !== false) {
                 setInMixins.push({
                     ...{ mixin, key, id },
                     ...{ important, animated, weight },
@@ -1703,8 +1707,8 @@ function scanPass(
         if (inString(match.index)) continue;
         const namespace = match[1] ?? null;
         const name = match[2].replace(/_/g, '-');
-        const own = monoAt.definitionsAt(name, match.index).length > 0;
-        if (namespace === null && own) continue;
+        const { defs, open } = monoAt.definitionsAt(name, match.index);
+        if (namespace === null && defs.length > 0 && !open) continue;
         includes.push({ index: match.index, callee: { name, namespace } });
     }
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
@@ -2386,11 +2390,14 @@ export function scanWorkspace(sources) {
     for (const scan of first.values()) {
         for (const { index, callee } of scan.includes ?? []) {
             const call = { callee, file: scan.file };
-            const found = providers.flatMap(({ file, mixins }) =>
-                [...mixins.keys()]
-                    .filter((name) => reaches(call, file, name))
-                    .map((name) => ({ file, name }))
-            );
+            // A file's own definitions land through `familiesOf`.
+            const found = providers
+                .filter(({ file }) => file !== scan.file)
+                .flatMap(({ file, mixins }) =>
+                    [...mixins.keys()]
+                        .filter((name) => reaches(call, file, name))
+                        .map((name) => ({ file, name }))
+                );
             // Only `@import`s can bring in two mixins of one name (anything
             // else is a Sass error), and the later one wins; the scan does
             // not order them, so it leaves such an include out.
