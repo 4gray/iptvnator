@@ -1140,6 +1140,24 @@ describe('StalkerPortalImportComponent form', () => {
         expect(toggle.getAttribute('aria-pressed')).toBe('true');
     });
 
+    it('masks the password again when the form is cleared', () => {
+        const { fixture, root, component } = render();
+        const password = root.querySelector('#password') as HTMLInputElement;
+        const toggle = password
+            .closest('mat-form-field')
+            ?.querySelector('button') as HTMLButtonElement;
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(password.type).toBe('text');
+
+        component.clearForm();
+        fixture.detectChanges();
+
+        expect(password.type).toBe('password');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    });
+
     it('shows a refusal inline under the portal URL and scrolls it into view', async () => {
         const scrollIntoView = jest.fn();
         Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {

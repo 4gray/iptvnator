@@ -56,6 +56,24 @@ describe('PasswordVisibilityToggleDirective', () => {
         expect(button.getAttribute('aria-pressed')).toBe('false');
     });
 
+    it('masks again on hide()', () => {
+        const fixture = TestBed.createComponent(HostComponent);
+        fixture.detectChanges();
+        const root = fixture.nativeElement as HTMLElement;
+        const button = root.querySelector('button') as HTMLButtonElement;
+        button.click();
+        fixture.detectChanges();
+
+        fixture.debugElement
+            .query((node) => node.name === 'button')
+            .injector.get(PasswordVisibilityToggleDirective)
+            .hide();
+        fixture.detectChanges();
+
+        expect(root.querySelector('input')?.type).toBe('password');
+        expect(button.getAttribute('aria-pressed')).toBe('false');
+    });
+
     it('does not submit the surrounding form', () => {
         const form = document.createElement('form');
         const submit = jest.fn((event: Event) => event.preventDefault());

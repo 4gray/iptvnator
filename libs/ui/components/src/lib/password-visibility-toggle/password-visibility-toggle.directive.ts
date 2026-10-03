@@ -29,4 +29,9 @@ export class PasswordVisibilityToggleDirective {
     toggle(): void {
         this.visible.update((visible) => !visible);
     }
+
+    /** Masks the field again, e.g. when its form is cleared for a new entry. */
+    hide(): void {
+        this.visible.set(false);
+    }
 }

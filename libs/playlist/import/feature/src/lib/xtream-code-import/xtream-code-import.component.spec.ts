@@ -260,6 +260,24 @@ describe('XtreamCodeImportComponent form', () => {
         expect(toggle.getAttribute('aria-pressed')).toBe('false');
     });
 
+    it('masks the password again when the form is cleared', () => {
+        const { fixture, root, component } = render();
+        const password = root.querySelector('#password') as HTMLInputElement;
+        const toggle = password
+            .closest('mat-form-field')
+            ?.querySelector('button') as HTMLButtonElement;
+
+        toggle.click();
+        fixture.detectChanges();
+        expect(password.type).toBe('text');
+
+        component.clearForm();
+        fixture.detectChanges();
+
+        expect(password.type).toBe('password');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    });
+
     it('shows a neutral server hint until the URL is invalid', () => {
         const { fixture, root, component } = render();
 

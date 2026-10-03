@@ -149,6 +149,9 @@ export class StalkerPortalImportComponent {
     readonly feedback = signal<StalkerImportFeedback | null>(null);
     private readonly feedbackMessage =
         viewChild<ElementRef<HTMLElement>>('feedbackMessage');
+    private readonly passwordToggle = viewChild(
+        PasswordVisibilityToggleDirective
+    );
 
     /** Whether the device IDs are being generated from the MAC. */
     readonly derivesDeviceIds = signal(false);
@@ -347,6 +350,8 @@ export class StalkerPortalImportComponent {
         this.invalidatePendingDerivation();
         this.derivesDeviceIds.set(false);
         this.feedback.set(null);
+        // A cleared form is a fresh entry: the next password starts masked.
+        this.passwordToggle()?.hide();
         this.form.controls.deviceId1.enable();
         this.form.controls.deviceId2.enable();
         this.form.reset({

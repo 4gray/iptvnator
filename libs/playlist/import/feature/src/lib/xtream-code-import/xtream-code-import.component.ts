@@ -3,6 +3,7 @@ import {
     EventEmitter,
     Output,
     inject,
+    viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import {
@@ -93,6 +94,9 @@ export class XtreamCodeImportComponent {
 
     readonly store = inject(Store);
     readonly connectionTest = createXtreamConnectionTestState(this.form);
+    private readonly passwordToggle = viewChild(
+        PasswordVisibilityToggleDirective
+    );
 
     get isTestingConnection(): boolean {
         return this.connectionTest.testing();
@@ -103,6 +107,8 @@ export class XtreamCodeImportComponent {
     }
 
     clearForm(): void {
+        // A cleared form is a fresh entry: the next password starts masked.
+        this.passwordToggle()?.hide();
         this.form.reset({
             _id: createRandomId(),
             title: '',
