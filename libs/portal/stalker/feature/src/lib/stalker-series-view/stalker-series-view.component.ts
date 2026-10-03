@@ -293,6 +293,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly pendingStartSeriesIds = signal<readonly string[]>([]);
     /** Episode choices made while a forced MPV/VLC launch is mid-flight. */
     private readonly launchQueue = new StalkerSeriesLaunchQueue();
+    /**
+     * The episode chosen while a watched/reset batch still rewrote the rows
+     * a start resumes from; the last choice plays once the batch settled.
+     */
+    private choiceHeldForBatch: (() => void) | null = null;
     /** `playlist:series` of the series on screen; provider ids collide across playlists. */
     readonly currentSeriesKey = computed(
         () =>
@@ -772,7 +777,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     /** The hero's button: held while a start is pending, a second press would double it. */
     readonly quickStartButton = computed<StalkerQuickStartButton | null>(() => {
         const button = this.quickStartAction();
-        return button && this.startPending()
+        return button && (this.startPending() || this.seasonWatchBatchRunning())
             ? { ...button, disabled: true }
             : button;
     });
@@ -1032,6 +1037,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         startTimeOverride?: number,
         forcePlayer?: ExternalPlayerName
     ) {
+        if (this.seasonWatchBatchRunning()) {
+            // The batch rewrites the very rows a start resumes from: the
+            // choice waits for it, like the Reset and watched rows do.
+            this.choiceHeldForBatch = () =>
+                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer);
+            return;
+        }
         const seriesKey = this.currentSeriesKey();
         if (this.launchQueue.isLaunching(seriesKey)) {
             // The launch cannot be cancelled: the choice replaces its player
@@ -1042,6 +1054,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             return;
         }
         this.startEpisode(episode, startTimeOverride, forcePlayer);
+    }
+
+    /** The batch settled: the choice held meanwhile goes through the usual gates. */
+    private endWatchBatch(): void {
+        this.seasonWatchBatchRunning.set(false);
+        const choice = this.choiceHeldForBatch;
+        this.choiceHeldForBatch = null;
+        choice?.();
     }
 
     private startEpisode(
@@ -1522,7 +1542,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 SEASON_WATCH_FEEDBACK
             );
         } finally {
-            this.seasonWatchBatchRunning.set(false);
+            this.endWatchBatch();
         }
     }
 
@@ -1646,7 +1666,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 SERIES_WATCH_FEEDBACK
             );
         } finally {
-            this.seasonWatchBatchRunning.set(false);
+            this.endWatchBatch();
         }
     }
 
