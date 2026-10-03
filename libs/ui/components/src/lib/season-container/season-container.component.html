@@ -2,7 +2,7 @@
     <!-- "Episodes · Season 1 · Season 2 · 8 episodes": the season pills sit
          in the header; season and series actions live in the hero's menu. -->
     <header class="episodes-header">
-        <h3 class="episodes-header__title">
+        <h3 class="episodes-header__title" data-test-id="episodes-heading">
             {{ 'PORTALS.DETAIL.EPISODES' | translate }}
         </h3>
         @if (hasSeasons()) {
@@ -54,7 +54,10 @@
         }
     </header>
 
-    @if (hasSeasons() && (selectedSeasonPosterUrl() || selectedSeasonDescription())) {
+    @if (
+        hasSeasons() &&
+        (selectedSeasonPosterUrl() || selectedSeasonDescription())
+    ) {
         <!-- The selected season's own cover and synopsis, compact, under
              the header. Without either the row is not rendered at all. -->
         <div class="season-strip">

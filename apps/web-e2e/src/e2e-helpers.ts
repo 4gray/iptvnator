@@ -245,11 +245,17 @@ export async function expectSeriesSurfacesInBothThemes(
         await expect
             .poll(() =>
                 rasterizedBorderContrast(
-                    shell.locator('[data-testid="series-favorite-toggle"]').first()
+                    shell
+                        .locator('[data-testid="series-favorite-toggle"]')
+                        .first()
                 )
             )
             .toBeGreaterThan(1.1);
-        for (const selector of ['.episode-card', 'mat-button-toggle-group']) {
+        // The flat card's visible edge is its artwork's hairline.
+        for (const selector of [
+            '.episode-card__thumbnail',
+            'mat-button-toggle-group',
+        ]) {
             await expect
                 .poll(
                     async () =>

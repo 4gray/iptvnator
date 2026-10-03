@@ -393,7 +393,7 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
 
     await page.keyboard.press('Escape');
     await expect(inlineVideo(page)).toHaveCount(0);
-    const playButton = page.locator('[data-test-id="m3u-vod-play"]');
+    const playButton = page.locator('[data-testid="m3u-vod-play"]');
     await expect(playButton).toBeVisible();
 
     // Browse → Play remounts the engine without a channel change.
@@ -417,12 +417,13 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
     await expect(inlineVideo(page)).toHaveCount(0);
     await expect(shell.locator('.shell__back-button')).toHaveCount(0);
     // Without the arrow there is no lane to reserve: the hero keeps its own
-    // inset instead of the 72px column portal details give the Back control.
+    // inset (32px, or 20px in a pane narrower than 760px) instead of the
+    // 72px column portal details give the Back control.
     expect(
         await shell
             .locator('.hero__content')
             .evaluate((el) => getComputedStyle(el).paddingInlineStart)
-    ).toBe('40px');
+    ).toMatch(/^(20|32)px$/);
     await shell.focus();
     await page.keyboard.press('Escape');
     await expect(playButton).toBeVisible();

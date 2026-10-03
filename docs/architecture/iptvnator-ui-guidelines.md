@@ -666,8 +666,8 @@ and drive the season container's presenters; the container's header is
 toggle. The checked toggle uses `--app-selection-surface` and
 `--app-selection-color`; hover uses the app's neutral surface treatment.
 
-Episode cards are flat: a 16:9 thumbnail with a 3px watched bar at its
-bottom edge, "N. Title", the plot clamped to two lines and a "42 min ·
+Episode cards are flat: a 16:9 thumbnail (with a light hairline so its edge
+survives the light theme) and a 3px watched bar at its bottom edge, "N. Title", the plot clamped to two lines and a "42 min ·
 18m left / watched" line. List rows keep a subtle neutral fill. The selected
 season's cover and synopsis sit in a compact strip under the header only
 when present. Keep these treatments in the shared season components so

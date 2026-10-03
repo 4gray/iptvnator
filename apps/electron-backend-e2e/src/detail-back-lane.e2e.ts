@@ -17,8 +17,8 @@ import {
 // ---------------------------------------------------------------------------
 // The detail shell's sticky Back control floats over its scroll owner. While
 // it is shown, every content column reserves the control's lane, so no
-// scroll position may put it over the "Seasons and Episodes" heading or the
-// inline player's top-left corner. Tested at a wide and a narrow window; the
+// scroll position may put it over the "Episodes" heading or the inline
+// player's top-left corner. Tested at a wide and a narrow window; the
 // workspace rail and category panel leave the detail pane far narrower than
 // either, and the heading used to wrap beside its actions (two lines at
 // 1280px, three at 780px) with its first word under the arrow.
@@ -40,8 +40,8 @@ const widestHeading = (
             join(__dirname, `../../web/src/assets/i18n/${widestLocale}.json`),
             'utf8'
         )
-    ) as { PORTALS: { SEASONS_AND_EPISODES: string } }
-).PORTALS.SEASONS_AND_EPISODES;
+    ) as { PORTALS: { DETAIL: { EPISODES: string } } }
+).PORTALS.DETAIL.EPISODES;
 
 type Sweep = {
     overlaps: string[];
@@ -68,7 +68,7 @@ function sweepDetail(shell: Locator): Promise<Sweep> {
             element.scrollTop = top;
             const arrow = back.getBoundingClientRect();
             const title = element
-                .querySelector('.section-title')
+                .querySelector('[data-test-id="episodes-heading"]')
                 ?.getBoundingClientRect();
             const player = element
                 .querySelector('app-portal-inline-player')
@@ -127,7 +127,7 @@ function sweepBar(shell: Locator): Promise<BarSweep> {
             element.scrollTop = top;
             const band = bar.getBoundingClientRect();
             const title = element
-                .querySelector('.section-title')
+                .querySelector('[data-test-id="episodes-heading"]')
                 ?.getBoundingClientRect();
             const player = element
                 .querySelector('app-portal-inline-player')
@@ -166,14 +166,16 @@ function sweepBar(shell: Locator): Promise<BarSweep> {
 
 /** Line boxes of the heading's text; 1 means it did not wrap. */
 function headingLineCount(page: Page): Promise<number> {
-    return page.locator('.section-title').evaluate((heading) => {
-        const range = document.createRange();
-        range.selectNodeContents(heading);
-        const lines = [...range.getClientRects()]
-            .filter((rect) => rect.width > 0)
-            .map((rect) => Math.round(rect.top));
-        return new Set(lines).size;
-    });
+    return page
+        .locator('[data-test-id="episodes-heading"]')
+        .evaluate((heading) => {
+            const range = document.createRange();
+            range.selectNodeContents(heading);
+            const lines = [...range.getClientRects()]
+                .filter((rect) => rect.width > 0)
+                .map((rect) => Math.round(rect.top));
+            return new Set(lines).size;
+        });
 }
 
 /**
@@ -263,9 +265,12 @@ async function expectWidestHeadingOnOneLine(
     await saveSettings(page);
     await page.goBack();
     await page.waitForURL(detailUrl);
-    await expect(page.locator('.section-title')).toHaveText(widestHeading, {
-        timeout: 20_000,
-    });
+    await expect(page.locator('[data-test-id="episodes-heading"]')).toHaveText(
+        widestHeading,
+        {
+            timeout: 20_000,
+        }
+    );
     for (const width of [...widths, ...compactWidths]) {
         await page.setViewportSize({ width, height: 800 });
         expect(
@@ -312,7 +317,9 @@ test.describe('Portal detail Back lane', () => {
             const detailUrl = page.url();
             const shell = page.locator('app-portal-detail-shell');
             const episodes = page.locator('.episode-card');
-            await expect(page.locator('.section-title')).toBeVisible({
+            await expect(
+                page.locator('[data-test-id="episodes-heading"]')
+            ).toBeVisible({
                 timeout: 20_000,
             });
             await expect(episodes.first()).toBeVisible({ timeout: 20_000 });

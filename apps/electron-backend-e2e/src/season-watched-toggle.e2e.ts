@@ -107,10 +107,9 @@ async function openSeriesDetail(
     return clickedTitle;
 }
 
-
 /** Opens the series "…" menu and returns the row with the given test id. */
 async function seriesMenuRow(page: Page, rowTestId: string) {
-    const trigger = page.getByTestId('series-more-menu');
+    const trigger = page.locator('[data-testid="series-more-menu"]');
     await expect(trigger).toBeVisible({ timeout: 20_000 });
     const row = page.locator(`[data-test-id="${rowTestId}"]`);
     if (!(await row.isVisible().catch(() => false))) {
@@ -122,9 +121,13 @@ async function seriesMenuRow(page: Page, rowTestId: string) {
 
 /** Closes an open menu without choosing a row. */
 async function closeSeriesMenu(page: Page): Promise<void> {
-    if (await page.locator('.cdk-overlay-backdrop').isVisible().catch(() => false)) {
+    // The panel, not the backdrop: a backdrop locator can match a second
+    // overlay and then fail the strict check, leaving the menu open.
+    const panel = page.locator('[data-test-id="vod-more-menu"]');
+    if (await panel.isVisible().catch(() => false)) {
         await page.keyboard.press('Escape');
     }
+    await expect(panel).toBeHidden({ timeout: 10_000 });
 }
 
 test.describe('Electron Season Watched Toggle', () => {
@@ -338,15 +341,15 @@ test.describe('Electron Season Watched Toggle', () => {
                 app.mainWindow,
                 playlistId
             );
-            expect(
-                new Set(seriesRows.map((row) => row.seasonNumber))
-            ).toEqual(new Set([1, 2, 3]));
-            expect(
-                seriesRows.every((row) => row.positionSeconds > 0)
-            ).toBe(true);
+            expect(new Set(seriesRows.map((row) => row.seasonNumber))).toEqual(
+                new Set([1, 2, 3])
+            );
+            expect(seriesRows.every((row) => row.positionSeconds > 0)).toBe(
+                true
+            );
 
             // Unwatch-all clears all 24 rows again through the clear batch.
-            await seriesMenuTrigger.click();
+            await seriesMenuRow(app.mainWindow, 'toggle-series-watched');
             await expect(seriesToggle).toContainText(
                 'Mark series as unwatched'
             );

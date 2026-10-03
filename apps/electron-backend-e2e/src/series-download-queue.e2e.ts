@@ -160,7 +160,9 @@ test.describe('Electron Series Download Queue', () => {
                 })
                 .toEqual(expectedEpisodeQueue.slice(0, 2));
 
-            await app.mainWindow.getByTestId('series-more-menu').click();
+            await app.mainWindow
+                .locator('[data-testid="series-more-menu"]')
+                .click();
             const seasonAction = app.mainWindow.locator(
                 '[data-test-id="download-season"]'
             );
@@ -180,8 +182,13 @@ test.describe('Electron Series Download Queue', () => {
                 })
                 .toEqual(expectedEpisodeQueue);
 
+            // Choosing the row closed the menu; reopen it to read the row.
+            await app.mainWindow
+                .locator('[data-testid="series-more-menu"]')
+                .click();
             await expect(seasonAction).toBeDisabled();
             await expect(seasonAction).toContainText('Download season (0)');
+            await app.mainWindow.keyboard.press('Escape');
 
             await waitForQueueStabilityInterval();
             expect(await readEpisodeQueue(app.mainWindow)).toEqual(
