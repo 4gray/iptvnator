@@ -35,11 +35,10 @@ describe('VodDetailsMenuService', () => {
     const loadAllPositions = jest.fn().mockResolvedValue(undefined);
     const routePlaybackPosition = signal<PlaybackPositionData | null>(null);
     const vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
-    const pendingReset = signal<{
-        playlistId: string;
-        contentId: number;
-    } | null>(null);
-    const resetPending = computed(() => pendingReset() !== null);
+    const pendingResets = signal<
+        readonly { playlistId: string; contentId: number }[]
+    >([]);
+    const resetPending = computed(() => pendingResets().length > 0);
     const openExternal = jest.fn().mockResolvedValue(undefined);
     let service: VodDetailsMenuService;
 
@@ -51,7 +50,7 @@ describe('VodDetailsMenuService', () => {
         primaryIsPinnedCopy.set(false);
         routePlaybackPosition.set(null);
         vodPlaybackPosition.set(null);
-        pendingReset.set(null);
+        pendingResets.set([]);
         jest.clearAllMocks();
         TestBed.configureTestingModule({
             providers: [
@@ -70,7 +69,7 @@ describe('VodDetailsMenuService', () => {
                         vodPlaybackPosition,
                         playbackStartPending,
                         isExternalLaunchPending,
-                        pendingReset,
+                        pendingResets,
                         resetPending,
                         startBlocked: computed(
                             () => isExternalLaunchPending() || resetPending()
@@ -187,18 +186,53 @@ describe('VodDetailsMenuService', () => {
 
         const reset = service.run(VOD_MENU_ACTION.ResetProgress);
         // A start made now would resume from the row being cleared.
-        expect(pendingReset()).toEqual({
-            playlistId: 'playlist-1',
-            contentId: 7,
-        });
+        expect(pendingResets()).toEqual([
+            { playlistId: 'playlist-1', contentId: 7 },
+        ]);
         expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBe(true);
         expect(row(VOD_MENU_ACTION.StartOver)?.disabled).toBe(true);
         expect(row(VOD_MENU_ACTION.ResetProgress)?.disabled).toBe(true);
 
         finishClear();
         await reset;
-        expect(pendingReset()).toBeNull();
+        expect(pendingResets()).toEqual([]);
         expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBe(false);
+    });
+
+    it('keeps an earlier reset pending while a later one finishes first', async () => {
+        const clears: Array<() => void> = [];
+        clearPlaybackPositionOrThrow.mockImplementation(
+            () => new Promise<void>((resolve) => clears.push(resolve))
+        );
+        primaryPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 7,
+            contentType: 'vod',
+            positionSeconds: 2538,
+            durationSeconds: 7200,
+        });
+
+        // Movie A's reset, then the page moves on to B and resets it too.
+        const resetA = service.run(VOD_MENU_ACTION.ResetProgress);
+        primaryTarget.set({ playlistId: 'playlist-1', contentId: 8 });
+        const resetB = service.run(VOD_MENU_ACTION.ResetProgress);
+        expect(pendingResets()).toEqual([
+            { playlistId: 'playlist-1', contentId: 7 },
+            { playlistId: 'playlist-1', contentId: 8 },
+        ]);
+
+        // B's write lands first: A is still being cleared, so coming back
+        // to A must still hold its starts.
+        clears[1]();
+        await resetB;
+        expect(pendingResets()).toEqual([
+            { playlistId: 'playlist-1', contentId: 7 },
+        ]);
+
+        clears[0]();
+        await resetA;
+        expect(pendingResets()).toEqual([]);
+        clearPlaybackPositionOrThrow.mockResolvedValue(undefined);
     });
 
     it('hides the reset while the copy the button acts on has no row', () => {

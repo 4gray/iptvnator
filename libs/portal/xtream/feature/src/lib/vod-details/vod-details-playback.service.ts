@@ -43,7 +43,7 @@ import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { settleOwnedExternalLaunch } from './vod-details-external-launch';
 import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
 import {
-    sameVodResetTarget,
+    hasVodResetTarget,
     type VodResetTarget,
 } from './vod-details-reset-target';
 import { isResumablePosition } from './vod-primary-action-position';
@@ -398,16 +398,16 @@ export class VodDetailsPlaybackService {
     readonly playbackStartPending = computed(() =>
         this.pendingStart.isPendingFor(this.bindings()?.vodId())
     );
-    /** The copy whose row a reset is still clearing, if any. */
-    readonly pendingReset = signal<VodResetTarget | null>(null);
+    /** The copies whose rows resets are still clearing: the page can move on and come back. */
+    readonly pendingResets = signal<readonly VodResetTarget[]>([]);
     /**
      * A reset still writing for the copy the page acts on: a start meanwhile
      * would resume from the row being cleared. Another movie shown on the
      * reused page meanwhile is not held up by it.
      */
     readonly resetPending = computed(() =>
-        sameVodResetTarget(
-            this.pendingReset(),
+        hasVodResetTarget(
+            this.pendingResets(),
             this.bindings()?.resetTarget?.()
         )
     );

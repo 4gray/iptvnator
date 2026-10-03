@@ -204,10 +204,9 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
             supersedePendingSwitch: jest.fn(),
             resetTarget,
         });
-        service.pendingReset.set({
-            playlistId: ROUTE_PLAYLIST,
-            contentId: ROUTE_VOD_ID,
-        });
+        service.pendingResets.set([
+            { playlistId: ROUTE_PLAYLIST, contentId: ROUTE_VOD_ID },
+        ]);
 
         // The row is being cleared: a start now would resume from it and
         // the clear would then report no progress for a resumed stream.
@@ -231,7 +230,7 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
             })
         ).resolves.toBe(true);
 
-        service.pendingReset.set(null);
+        service.pendingResets.set([]);
     });
 
     it('rejects a handoff when the external player launch fails', async () => {

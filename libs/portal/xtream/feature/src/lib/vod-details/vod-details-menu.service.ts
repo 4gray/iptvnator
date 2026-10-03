@@ -17,7 +17,7 @@ import {
 import type { VodMoreMenuSection } from '@iptvnator/ui/components';
 import { VodDetailsMultiSourceUiService } from './vod-details-multi-source-ui.service';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
-import { sameVodResetTarget } from './vod-details-reset-target';
+import { withoutVodResetTarget } from './vod-details-reset-target';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 
 export const VOD_MENU_ACTION = {
@@ -192,7 +192,7 @@ export class VodDetailsMenuService {
         const { playlistId, contentId } = target;
         // Every start of this copy is refused until the write landed: one
         // made meanwhile would resume from the very row being cleared.
-        this.playback.pendingReset.set(target);
+        this.playback.pendingResets.update((pending) => [...pending, target]);
         try {
             await this.playbackPositions.clearPlaybackPositionOrThrow(
                 playlistId,
@@ -203,9 +203,11 @@ export class VodDetailsMenuService {
             this.logger.error('Resetting the playback position failed', error);
             return;
         } finally {
-            if (sameVodResetTarget(this.playback.pendingReset(), target)) {
-                this.playback.pendingReset.set(null);
-            }
+            // Only this reset's entry: another copy's, or an overlapping
+            // reset of the same copy, keeps holding its starts.
+            this.playback.pendingResets.update((pending) =>
+                withoutVodResetTarget(pending, target)
+            );
         }
         // The clear was async: the route may show another movie by now
         // (the Similar rail reuses it), or the pin may have moved, and that
