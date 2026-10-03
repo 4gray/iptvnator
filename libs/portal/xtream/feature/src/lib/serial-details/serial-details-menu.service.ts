@@ -242,6 +242,8 @@ export class SerialDetailsMenuService {
         if (!bindings || !episode) {
             return;
         }
+        const seriesId = this.seriesId();
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
         try {
             await bindings.openEpisodeExternally(
                 episode,
@@ -249,7 +251,14 @@ export class SerialDetailsMenuService {
             );
         } catch (error) {
             this.logger.warn('External episode launch failed', error);
-            this.notify('PORTALS.PLAYBACK_ERROR');
+            // The page is reused across series: a failure that lands after
+            // the viewer moved on is not the new title's problem.
+            if (
+                this.seriesId() === seriesId &&
+                this.xtreamStore.currentPlaylist()?.id === playlistId
+            ) {
+                this.notify('PORTALS.PLAYBACK_ERROR');
+            }
         }
     }
 
