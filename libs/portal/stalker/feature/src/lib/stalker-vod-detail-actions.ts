@@ -141,6 +141,10 @@ export function createStalkerVodDetailActions(
                 deps.playlistId() === playlistId;
             const pending = deps.beginPendingStart?.();
             const superseded = () => pending?.isCurrent() === false;
+            // Set once this launch is the one running: the host's inline
+            // teardown before it retires the request id as well, which is
+            // not a newer start.
+            let launched = false;
             try {
                 const playback = await deps.resolvePlayback(
                     event.item.cmd,
@@ -163,6 +167,7 @@ export function createStalkerVodDetailActions(
                     return;
                 }
                 deps.beforeExternalLaunch?.();
+                launched = true;
                 await deps.portalPlayer.openExternalPlayback(
                     playback,
                     event.player
@@ -170,7 +175,7 @@ export function createStalkerVodDetailActions(
             } catch (error) {
                 // A launch a newer start superseded fails on its own; the
                 // newer one reports for the movie now.
-                if (!stillSelected() || superseded()) {
+                if (!stillSelected() || (!launched && superseded())) {
                     return;
                 }
                 deps.logError('External VOD playback failed', error);

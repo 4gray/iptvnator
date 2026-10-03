@@ -227,6 +227,28 @@ describe('createStalkerVodDetailActions openExternal', () => {
         expect(t.logError).not.toHaveBeenCalled();
     });
 
+    it('reports a failed launch although its own teardown retired the request', async () => {
+        const t = setup(() => 42);
+        // The host closes the inline player before the launch, bumping its
+        // request id like a start would.
+        t.beforeExternalLaunch.mockImplementation(() => t.supersede());
+        t.openExternalPlayback.mockRejectedValue(new Error('no player'));
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.resolveLink();
+        await launch;
+
+        expect(t.logError).toHaveBeenCalledTimes(1);
+        expect(t.open).toHaveBeenCalledWith(
+            'PORTALS.PLAYBACK_ERROR',
+            undefined,
+            expect.anything()
+        );
+    });
+
     it('drops the stream once another movie was selected meanwhile', async () => {
         let selected = 42;
         const t = setup(() => selected);

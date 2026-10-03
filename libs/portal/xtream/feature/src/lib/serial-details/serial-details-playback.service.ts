@@ -21,6 +21,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     ExternalPlayerName,
+    ExternalPlayerSession,
     PlaybackPositionData,
     PlayerContentInfo,
     ResolvedPortalPlayback,
@@ -426,6 +427,18 @@ export class SerialDetailsPlaybackService {
         isEpisodeLaunchPending(this.launchOwner())
     );
 
+    /**
+     * The launch's bookkeeping applies only while the page still shows the
+     * series it started on; a session that lands after a navigation is not
+     * written into the next series' position map.
+     */
+    private ownedLaunch(launch: Promise<ExternalPlayerSession | void>) {
+        const owner = this.launchOwner();
+        return launch.then((session) =>
+            this.launchOwner() === owner ? session : undefined
+        );
+    }
+
     /** `playlist:series` of the page, null once it is gone or shows another series. */
     launchOwner(): string | null {
         const seriesId = this.selectedItem()?.series_id;
@@ -447,9 +460,11 @@ export class SerialDetailsPlaybackService {
         this.closeInlinePlayer();
         void this.playbackPositionState.recordExternalLaunch(
             playback,
-            player
-                ? openEpisodeExternally(this, playback, player)
-                : this.portalPlayer.openResolvedPlayback(playback, true),
+            this.ownedLaunch(
+                player
+                    ? openEpisodeExternally(this, playback, player)
+                    : this.portalPlayer.openResolvedPlayback(playback, true)
+            ),
             this.savePosition
         );
     }
