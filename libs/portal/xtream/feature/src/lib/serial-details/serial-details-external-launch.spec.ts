@@ -287,6 +287,38 @@ describe('openEpisodeExternally', () => {
         expect(isEpisodeLaunchPending('xtream-1:103')).toBe(false);
     });
 
+    it('starts only the choice made while the opened player closed', async () => {
+        const t = host(null);
+        const opened = session({ id: 'mpv-2' });
+        t.openExternalPlayback.mockImplementation(async () => {
+            t.host.externalPlayback.activeSession.set(opened);
+            return opened;
+        });
+        let settleClose: () => void = () => undefined;
+        t.closeSession.mockImplementation(
+            () => new Promise<void>((resolve) => (settleClose = resolve))
+        );
+        const launch = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        const earlier = jest.fn();
+        const latest = jest.fn();
+        queueEpisodeChoice(t.host, 'xtream-1:103', 'episode-3', earlier);
+        await launch;
+        await flush();
+        expect(t.closeSession).toHaveBeenCalledTimes(1);
+
+        // Still pending while the player closes: the newer choice replaces
+        // the queued one instead of starting beside it afterwards.
+        expect(isEpisodeLaunchPending('xtream-1:103')).toBe(true);
+        queueEpisodeChoice(t.host, 'xtream-1:103', 'episode-4', latest);
+
+        settleClose();
+        await flush();
+        expect(earlier).not.toHaveBeenCalled();
+        expect(latest).toHaveBeenCalledTimes(1);
+        expect(latest).toHaveBeenCalledWith('episode-4');
+        expect(t.closeSession).toHaveBeenCalledTimes(1);
+    });
+
     it('drops the queued choice when the opened player cannot be closed', async () => {
         const t = host(null);
         const opened = session({ id: 'mpv-2' });

@@ -13,6 +13,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    createLogger,
     getSeriesQuickStartAction,
     inlineProgressPosition,
 } from '@iptvnator/portal/shared/util';
@@ -82,6 +83,7 @@ export class SerialDetailsPlaybackService {
     private readonly recordRecentItem = injectXtreamRecentHistory();
     private readonly resumeTarget = inject(XTREAM_SERIES_RESUME_TARGET);
     private readonly seasonWatch = inject(SerialDetailsSeasonWatchService);
+    private readonly logger = createLogger('SerialDetailsPlayback');
     private readonly savePosition = (
         playlistId: string,
         position: PlaybackPositionData
@@ -380,10 +382,7 @@ export class SerialDetailsPlaybackService {
         } catch (error) {
             // The toggle itself succeeded; a failed refresh keeps the store
             // populated-but-stale, which beats wiping it with a bad read.
-            console.warn(
-                '[SerialDetailsPlayback] Store position refresh failed',
-                error
-            );
+            this.logger.warn('Store position refresh failed', error);
         }
     }
 
@@ -449,10 +448,7 @@ export class SerialDetailsPlaybackService {
         const token = this.pageToken();
         const stillShown = () => this.pageToken() === token;
         const settled = launch.catch((error) => {
-            console.warn(
-                '[SerialDetailsPlayback] External launch failed',
-                error
-            );
+            this.logger.warn('External launch failed', error);
             return undefined;
         });
         void this.playbackPositionState.recordExternalLaunch(

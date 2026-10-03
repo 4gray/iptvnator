@@ -8,8 +8,13 @@ import type {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { isLiveExternalPlayerSession } from '@iptvnator/portal/shared/util';
+import {
+    createLogger,
+    isLiveExternalPlayerSession,
+} from '@iptvnator/portal/shared/util';
 import { closeRunningExternalSession } from '../vod-details/vod-details-external-session';
+
+const logger = createLogger('SerialDetailsPlayback');
 
 /** The episode ids an external session contributes to the series page. */
 export interface ExternalEpisodeSessionIds {
@@ -139,8 +144,11 @@ export function queueEpisodeChoice<TEpisode>(
  */
 async function replayQueuedChoice(owner: string): Promise<void> {
     const queued = queuedChoices.get(owner);
-    queuedChoices.delete(owner);
-    if (!queued || queued.host.launchOwner() !== owner) {
+    if (!queued) {
+        return;
+    }
+    if (queued.host.launchOwner() !== owner) {
+        queuedChoices.delete(owner);
         return;
     }
     countPending(owner, 1);
@@ -150,8 +158,13 @@ async function replayQueuedChoice(owner: string): Promise<void> {
     } finally {
         countPending(owner, -1);
     }
-    if (replaced && queued.host.launchOwner() === owner) {
-        queued.start(queued.episode as never);
+    // The entry stayed in the map while the player closed, so a choice made
+    // meanwhile replaced it instead of registering a second replay: the
+    // latest choice wins.
+    const latest = queuedChoices.get(owner);
+    queuedChoices.delete(owner);
+    if (latest && replaced && latest.host.launchOwner() === owner) {
+        latest.start(latest.episode as never);
     }
 }
 
@@ -176,8 +189,7 @@ function closeOwnedEpisodeSession(
     return closeRunningExternalSession(
         ownSession,
         (running) => host.externalPlayback.closeSession(running),
-        (message, error) =>
-            console.warn(`[SerialDetailsPlayback] ${message}`, error)
+        (message, error) => logger.warn(message, error)
     );
 }
 

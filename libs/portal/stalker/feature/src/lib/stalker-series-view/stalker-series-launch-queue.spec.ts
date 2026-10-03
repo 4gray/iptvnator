@@ -72,6 +72,32 @@ describe('StalkerSeriesLaunchQueue', () => {
         expect(queue.isLaunching(A)).toBe(false);
     });
 
+    it('starts the choice held while the player closed, not the earlier one', async () => {
+        const queue = new StalkerSeriesLaunchQueue();
+        const replace = deferred<boolean>();
+        const run = queue.run(
+            A,
+            () => Promise.resolve(),
+            release({ replacePlayer: () => replace.promise })
+        );
+        const earlier = jest.fn();
+        const latest = jest.fn();
+        queue.hold(A, earlier);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // Still launching while the player closes: the viewer's newer pick
+        // must not be stranded behind the one that triggered the close.
+        expect(queue.isLaunching(A)).toBe(true);
+        queue.hold(A, latest);
+
+        replace.settle(true);
+        await run;
+        expect(earlier).not.toHaveBeenCalled();
+        expect(latest).toHaveBeenCalledTimes(1);
+        expect(queue.isLaunching(A)).toBe(false);
+    });
+
     it('keeps the player and drops the choice when it cannot be replaced', async () => {
         const queue = new StalkerSeriesLaunchQueue();
         const choice = jest.fn();

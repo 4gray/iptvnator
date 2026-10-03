@@ -59,10 +59,16 @@ export class StalkerSeriesLaunchQueue {
         seriesKey: string,
         release: StalkerSeriesLaunchRelease
     ): Promise<void> {
+        if (!this.choices.has(seriesKey)) return;
+        if (!release.stillShown()) {
+            this.choices.delete(seriesKey);
+            return;
+        }
+        const replaced = await release.replacePlayer();
+        // The latest choice wins, including one held while the player closed.
         const choice = this.choices.get(seriesKey);
         this.choices.delete(seriesKey);
-        if (!choice || !release.stillShown()) return;
-        if ((await release.replacePlayer()) && release.stillShown()) choice();
+        if (replaced && release.stillShown()) choice?.();
     }
 
     private count(seriesKey: string, delta: number): void {
