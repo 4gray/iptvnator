@@ -39,6 +39,13 @@ export interface EmbeddedMpvSupport {
     supported: boolean;
     platform: string;
     reason?: string;
+    /**
+     * True when `supported: false` is not a verdict on this machine yet: the
+     * Linux native-view `mpv` executable was looked up before the login shell
+     * PATH arrived, and is looked up again once the shell answers. Never
+     * persist a decision made from such an answer; ask again later.
+     */
+    inconclusive?: boolean;
     capabilities?: EmbeddedMpvCapabilities;
     /**
      * Rendering engine the main process will use for new sessions.

@@ -185,6 +185,21 @@ support API from global workspace startup paths; use an explicit user action
 or idle preparation path when a renderer surface only needs to reveal optional
 Embedded MPV UI.
 
+An unsupported answer can be `inconclusive`. The Linux native-view `mpv`
+executable check runs `mpv --version` by bare name, so the support and prepare
+handlers wait for the login shell PATH lookup (`startup/login-shell-path.ts`)
+first. When that lookup runs out of its budget, the check runs on the
+inherited PATH: `EmbeddedMpvNativeService` then reports a missing `mpv` as
+`supported: false` with `inconclusive: true`, keeps doing so while the cached
+result stands, and probes again once the shell answers. Every other answer,
+including a missing `mpv` after the shell answered, is final. An inconclusive
+answer is not a verdict on the machine: never persist a decision made from it.
+The settings store resets a saved Embedded MPV selection only on a final
+unsupported answer; on an inconclusive one the selection stays, and the player
+asks again when playback starts. The command palette and the settings search
+keep a final answer for the session, but probe again on their next use after
+an inconclusive one.
+
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
 For the native-view engine, the MPV video surface is a platform view/window,

@@ -338,14 +338,15 @@ export const SettingsStore = signalStore(
                 try {
                     const support =
                         await window.electron.getEmbeddedMpvSupport();
-                    if (!support.supported) {
+                    if (support.supported) {
+                        scheduleEmbeddedMpvPrepare();
+                    } else if (!support.inconclusive) {
+                        // An inconclusive answer is no verdict on this
+                        // machine: the saved player stays as it is.
                         await this.updateSettings({
                             player: DEFAULT_SETTINGS.player,
                         });
-                        return;
                     }
-
-                    scheduleEmbeddedMpvPrepare();
                 } catch (error) {
                     console.warn(
                         'Failed to verify embedded MPV support; reverting to the default inline player.',

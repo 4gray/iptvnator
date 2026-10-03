@@ -66,7 +66,8 @@ export class SettingsSearchService {
      * searchable. Returns the pending probe, or `undefined` when there is
      * nothing to wait for. Call it lazily (palette open, settings page),
      * never from shell bootstrap: supported desktop builds may load the
-     * native addon while answering.
+     * native addon while answering. An inconclusive answer is used until
+     * the next call, which probes again.
      */
     ensureEmbeddedMpvSupportLoaded(): Promise<void> | undefined {
         if (this.embeddedMpvSupportChecked) {
@@ -88,7 +89,9 @@ export class SettingsSearchService {
             .then((support) => this.embeddedMpvSupport.set(support))
             .catch(() => this.embeddedMpvSupport.set(null))
             .finally(() => {
-                this.embeddedMpvSupportChecked = true;
+                this.embeddedMpvSupportChecked =
+                    !this.embeddedMpvSupport()?.inconclusive;
+                this.embeddedMpvSupportLoad = undefined;
             });
         return this.embeddedMpvSupportLoad;
     }
