@@ -34,6 +34,9 @@ function session(
     } as ExternalPlayerSession;
 }
 
+/** Lets the launch chain's microtasks run up to the player call. */
+const flush = () => new Promise((resolve) => setTimeout(resolve));
+
 describe('openEpisodeExternally', () => {
     function host(active: ExternalPlayerSession | null) {
         const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
@@ -100,10 +103,45 @@ describe('openEpisodeExternally', () => {
         );
         const first = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
         await openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        await flush();
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
         settleLaunch();
         await first;
 
         expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('queues another episode behind the first launch instead of dropping it', async () => {
+        const t = host(null);
+        let settleLaunch: () => void = () => undefined;
+        t.openExternalPlayback.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (settleLaunch = resolve))
+        );
+        const first = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        const second = openEpisodeExternally(
+            t.host,
+            {
+                ...PLAYBACK,
+                streamUrl: 'http://xtream.example/series/1003.mp4',
+                contentInfo: {
+                    ...PLAYBACK.contentInfo!,
+                    contentXtreamId: 1003,
+                },
+            },
+            'mpv'
+        );
+        await flush();
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+
+        settleLaunch();
+        await first;
+        await second;
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(2);
+        expect(t.openExternalPlayback.mock.calls[1][0]).toEqual(
+            expect.objectContaining({
+                streamUrl: 'http://xtream.example/series/1003.mp4',
+            })
+        );
     });
 
     it('keeps the running player when closing it fails', async () => {

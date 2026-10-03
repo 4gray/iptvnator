@@ -20,16 +20,20 @@ export interface SeriesExternalLaunchHost {
     launchOwner(): string | null;
 }
 
-/** Owners (`playlist:series`) whose launch has not settled yet. */
+/** `owner:episode` keys of launches that have not settled yet. */
 const launchesInFlight = new Set<string>();
+/** Per owner, the tail of its launch chain: a second episode waits its turn. */
+const launchChains = new Map<string, Promise<unknown>>();
 
 /**
  * The "…" menu's MPV/VLC launch of an episode. An episode of this series
  * still running externally is closed first: with instance reuse off a
  * second detached player would start beside it. When that close fails, or
  * the user moved on while it ran, the running player stays and nothing new
- * launches. A repeat before the first launch settled (Electron publishes
- * the session only afterwards) is ignored.
+ * launches. A repeat of the same episode before its launch settled
+ * (Electron publishes the session only afterwards) is ignored; another
+ * episode of the series waits for that launch to settle and then replaces
+ * it like any later start.
  */
 export async function openEpisodeExternally(
     host: SeriesExternalLaunchHost,
@@ -37,14 +41,27 @@ export async function openEpisodeExternally(
     player: ExternalPlayerName
 ): Promise<ExternalPlayerSession | void> {
     const owner = host.launchOwner();
-    if (!owner || launchesInFlight.has(owner)) {
+    if (!owner) {
         return;
     }
-    launchesInFlight.add(owner);
+    const key = `${owner}:${playback.contentInfo?.contentXtreamId ?? playback.streamUrl}`;
+    if (launchesInFlight.has(key)) {
+        return;
+    }
+    launchesInFlight.add(key);
+    const previous = launchChains.get(owner) ?? Promise.resolve();
+    const run = previous.then(() =>
+        launchEpisode(host, owner, playback, player)
+    );
+    const tail = run.catch(() => undefined);
+    launchChains.set(owner, tail);
     try {
-        return await launchEpisode(host, owner, playback, player);
+        return await run;
     } finally {
-        launchesInFlight.delete(owner);
+        launchesInFlight.delete(key);
+        if (launchChains.get(owner) === tail) {
+            launchChains.delete(owner);
+        }
     }
 }
 
