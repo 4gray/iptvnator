@@ -113,7 +113,7 @@ export class EpgWorkerService {
         // to `fetchedUrls` while its worker is still terminating, and callers
         // must keep awaiting that termination window.
         if (force) {
-            return this.forceFetch(url, options);
+            return this.forceFetch(url, options, generation);
         }
         const inFlight = this.inFlightFetches.get(url);
         if (inFlight) {
@@ -143,16 +143,31 @@ export class EpgWorkerService {
      * reported completion (and is only terminating): it would never get a
      * completion update of its own. Let any in-flight fetch finish, then
      * start a new one, so two workers never run for one URL. Concurrent
-     * forced requests share the same pending refresh.
+     * forced requests share the same pending refresh, and a source removed
+     * while the refresh waits is not imported again.
      */
     private forceFetch(
         url: string,
-        options: ElectronBridgeTrustOptions
+        options: ElectronBridgeTrustOptions,
+        generation: number
     ): Promise<void> {
         const pending = this.forcedFetches.get(url);
         if (pending) return pending;
         const refresh = (async () => {
             await this.inFlightFetches.get(url)?.catch(() => undefined);
+            if (generation !== epgSourceGeneration(url)) {
+                this.sendProgressToRenderer(
+                    url,
+                    'cancelled',
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    generation
+                );
+                return;
+            }
             this.fetchedUrls.delete(url);
             await this.fetchEpgFromUrl(url, options);
         })().finally(() => {

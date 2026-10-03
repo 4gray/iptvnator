@@ -367,6 +367,40 @@ describe('EpgEvents', () => {
         expect(mockWorkerInstances).toHaveLength(2);
     });
 
+    it('does not re-import a source removed while a forced refresh waits', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://removed.example/guide.xml';
+        const { retireEpgSource } = await import('./epg-source-generation');
+        const progress = jest.spyOn(workerService, 'sendProgressToRenderer');
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+
+        const forced = workerService.fetchEpgFromUrl(url, {}, { force: true });
+        retireEpgSource(url);
+
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await firstPromise.catch(() => undefined);
+        await expect(forced).resolves.toBeUndefined();
+        expect(mockWorkerInstances).toHaveLength(1);
+        expect(progress).toHaveBeenCalledWith(
+            url,
+            'cancelled',
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            expect.any(Number)
+        );
+        progress.mockRestore();
+    });
+
     it('does not resolve clearEpgData until interrupted fetch workers have terminated', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
 
