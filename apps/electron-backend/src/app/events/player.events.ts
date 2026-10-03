@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import {
     CLOSE_EXTERNAL_PLAYER_SESSION,
+    type ExternalPlayerName,
     PLAYBACK_SET_KEEP_AWAKE,
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
@@ -12,10 +13,8 @@ import {
     VLC_PLAYER_PATH,
 } from '../services/store.service';
 import {
-    getDefaultMpvPath,
-    getDefaultVlcPath,
-    normalizeCustomPlayerPath,
     normalizePlayerPathForStore,
+    resolveExternalPlayerLaunchContext as resolveLaunchContext,
 } from './external-player-launch-context';
 import {
     externalPlayerSessions,
@@ -43,10 +42,16 @@ export {
 /**
  * A player resolved to a bare name (no configured path, no well-known
  * install found) is looked up through PATH, so it waits for the login shell
- * PATH; a path to an executable starts right away.
+ * PATH; a path to an executable starts right away. So does a Flatpak host
+ * launch: `flatpak-spawn --host` resolves the name with the host's PATH,
+ * which the sandbox's login shell lookup cannot change.
  */
-async function waitForPathIfBareName(playerPath: string): Promise<void> {
-    if (!/[\\/]/.test(playerPath)) {
+async function waitForPathIfBareName(
+    player: ExternalPlayerName,
+    configuredPath: string | undefined
+): Promise<void> {
+    const context = resolveLaunchContext(player, configuredPath);
+    if (context.mode !== 'flatpak-host' && !/[\\/]/.test(context.playerPath)) {
         await waitForLoginShellPath();
     }
 }
@@ -71,10 +76,7 @@ ipcMain.handle(
         startTime?: number,
         headers?: Record<string, string>
     ) => {
-        await waitForPathIfBareName(
-            normalizeCustomPlayerPath(store.get(MPV_PLAYER_PATH)) ??
-                getDefaultMpvPath()
-        );
+        await waitForPathIfBareName('mpv', store.get(MPV_PLAYER_PATH));
         return openMpvPlayer({
             url,
             title,
@@ -118,10 +120,7 @@ ipcMain.handle(
         startTime?: number,
         headers?: Record<string, string>
     ) => {
-        await waitForPathIfBareName(
-            normalizeCustomPlayerPath(store.get(VLC_PLAYER_PATH)) ??
-                getDefaultVlcPath()
-        );
+        await waitForPathIfBareName('vlc', store.get(VLC_PLAYER_PATH));
         return openVlcPlayer({
             url,
             title,

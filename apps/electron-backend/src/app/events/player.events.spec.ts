@@ -4,6 +4,11 @@ jest.mock('electron', () => ({
     },
 }));
 
+jest.mock('fs', () => {
+    const actual = jest.requireActual<typeof import('fs')>('fs');
+    return { ...actual, existsSync: jest.fn(actual.existsSync) };
+});
+
 jest.mock('child_process', () => ({
     spawn: jest.fn(),
 }));
@@ -37,6 +42,7 @@ jest.mock('../services/stalker-playback-context.service', () => ({
 import { ipcMain } from 'electron';
 import { spawn, type ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
+import * as fs from 'fs';
 import {
     MPV_PLAYER_PATH,
     store,
@@ -525,6 +531,39 @@ describe('external player launch handlers', () => {
                 settle();
                 await waitForSpawnCallCount(1);
             });
+        }
+    );
+
+    it.each(['OPEN_MPV_PLAYER', 'OPEN_VLC_PLAYER'])(
+        '%s does not wait for a Flatpak host launch of a bare name',
+        async (channel) => {
+            const originalPlatform = process.platform;
+            const existsSync = fs.existsSync as unknown as jest.Mock;
+            existsSync.mockImplementation(
+                (candidate: unknown) => String(candidate) === '/.flatpak-info'
+            );
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            configurePlayerPath(channel, 'player-on-host-path');
+            try {
+                await launchUntilSpawn(
+                    channel,
+                    new Promise<void>(() => undefined),
+                    async () => {
+                        await waitForSpawnCallCount(1);
+                        expect(waitForLoginShellPath).not.toHaveBeenCalled();
+                        expect(
+                            (spawn as unknown as jest.Mock).mock.calls[0][0]
+                        ).toBe('flatpak-spawn');
+                    }
+                );
+            } finally {
+                existsSync.mockImplementation(
+                    jest.requireActual<typeof import('fs')>('fs').existsSync
+                );
+                Object.defineProperty(process, 'platform', {
+                    value: originalPlatform,
+                });
+            }
         }
     );
 
