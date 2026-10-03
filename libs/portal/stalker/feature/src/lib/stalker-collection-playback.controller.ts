@@ -3,6 +3,7 @@ import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
 import type {
     Logger,
+    PortalExternalPlayback,
     PortalPlaybackPositions,
     PortalPlayer,
     UnifiedCollectionItem,
@@ -18,6 +19,7 @@ import {
     ResolvedPortalPlayback,
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
+import { createStalkerVodDetailActions } from './stalker-vod-detail-actions';
 import { StalkerVodPlaybackController } from './stalker-vod-playback-controller';
 import { createStalkerVodWatchedToggle } from './stalker-vod-watched-toggle';
 
@@ -32,6 +34,10 @@ interface StalkerCollectionPlaybackControllerConfig {
     stalkerStore: InstanceType<typeof StalkerStore>;
     playbackPositions: PortalPlaybackPositions;
     portalPlayer: PortalPlayer;
+    externalPlayback: Pick<
+        PortalExternalPlayback,
+        'activeSession' | 'closeSession'
+    >;
     snackBar: MatSnackBar;
     translateService: TranslateService;
     logger: Logger;
@@ -106,6 +112,32 @@ export class StalkerCollectionPlaybackController {
             playbackOwnerKey: () => this.playbackSessionKey(),
         });
     }
+
+    /** The "…" menu's external launch and progress reset of the shown movie. */
+    readonly vodDetailActions = createStalkerVodDetailActions({
+        resolvePlayback: (cmd, title, thumbnail, startTime) =>
+            this.config.stalkerStore.resolveVodPlayback(
+                cmd,
+                title,
+                thumbnail,
+                undefined,
+                undefined,
+                startTime
+            ),
+        portalPlayer: this.config.portalPlayer,
+        externalPlayback: this.config.externalPlayback,
+        playbackPositions: this.config.playbackPositions,
+        playlistId: () => this.playbackOwner()?.sourceId,
+        selectedVodId: () => Number(this.playbackOwner()?.contentId) || null,
+        selectedVodPosition: this.selectedVodPosition,
+        discardPendingPositionLoad: () =>
+            this.vodPlayback.discardPendingPositionLoad(),
+        beginPendingStart: () => this.vodPlayback.beginPendingStart(),
+        beforeExternalLaunch: () => this.closeInlinePlayer(),
+        snackBar: this.config.snackBar,
+        translate: this.config.translateService,
+        logError: (message, error) => this.config.logger.error(message, error),
+    });
 
     onVodPlay(item: VodDetailsItem): void {
         if (item.type === 'stalker') {

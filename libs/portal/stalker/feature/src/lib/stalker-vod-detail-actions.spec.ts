@@ -30,13 +30,13 @@ describe('createStalkerVodDetailActions openExternal', () => {
         const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
         const beforeExternalLaunch = jest.fn();
         const closeSession = jest.fn().mockResolvedValue(undefined);
-        let running: ExternalPlayerSession | null = null;
+        const running = signal<ExternalPlayerSession | null>(null);
         const settlePendingStart = jest.fn();
         const beginPendingStart = jest.fn().mockReturnValue(settlePendingStart);
         const actions = createStalkerVodDetailActions({
             resolvePlayback: resolvePlayback as never,
             portalPlayer: { openExternalPlayback },
-            externalPlayback: { activeSession: () => running, closeSession },
+            externalPlayback: { activeSession: running, closeSession },
             beginPendingStart,
             playbackPositions: { clearPlaybackPositionOrThrow: jest.fn() },
             playlistId: () => 'portal-1',
@@ -55,7 +55,7 @@ describe('createStalkerVodDetailActions openExternal', () => {
             beginPendingStart,
             settlePendingStart,
             setRunning: (session: ExternalPlayerSession | null) =>
-                (running = session),
+                running.set(session),
             resolveLink: () => resolveLink({ streamUrl: 'http://cdn/42.mp4' }),
         };
     }
@@ -146,7 +146,7 @@ describe('createStalkerVodDetailActions resetProgress', () => {
             resolvePlayback: jest.fn(),
             portalPlayer: { openExternalPlayback: jest.fn() },
             externalPlayback: {
-                activeSession: () => null,
+                activeSession: signal(null),
                 closeSession: jest.fn(),
             },
             playbackPositions: { clearPlaybackPositionOrThrow },

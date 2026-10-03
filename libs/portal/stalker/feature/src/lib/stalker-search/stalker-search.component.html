@@ -28,6 +28,7 @@
             [sourceLabel]="sourceLabel()"
             [inlinePlayback]="inlinePlayback()"
             [externalPlayback]="externalPlayback.activeSession()"
+            [playbackStartPending]="playbackStartPending()"
             (playClicked)="onVodPlay($event)"
             (resumeClicked)="onVodResume($event)"
             (inlineTimeUpdated)="handleInlineTimeUpdate($event)"

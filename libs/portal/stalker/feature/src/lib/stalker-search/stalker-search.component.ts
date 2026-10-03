@@ -213,6 +213,10 @@ export class StalkerSearchComponent {
     readonly selectedVodPlaybackPosition = computed<number | null>(
         () => this.selectedVodPosition()?.positionSeconds ?? null
     );
+    /** A Play/Resume or menu launch still resolving its stream. */
+    readonly playbackStartPending = computed(() =>
+        this.vodPlayback.playbackStartPending()
+    );
     private readonly vodPlayback = new StalkerVodPlaybackController({
         inlinePlayback: this.inlinePlayback,
         selectedVodPosition: this.selectedVodPosition,

@@ -1247,7 +1247,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         ) {
             return;
         }
-        await this.portalPlayer.openExternalPlayback(playback, player);
+        try {
+            await this.portalPlayer.openExternalPlayback(playback, player);
+        } catch (error) {
+            // The caller's catch would read the retired generation and stay
+            // silent; the user chose this launch and gets its failure.
+            if (generation !== this.seriesPlaybackRequestGeneration) return;
+            this.logger.error('External episode launch failed', error);
+            this.snackBar.open(
+                this.translateService.instant('PORTALS.PLAYBACK_ERROR'),
+                undefined,
+                { duration: 3000 }
+            );
+        }
     }
 
     private async startPlayback(

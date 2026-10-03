@@ -89,6 +89,12 @@ import {
                 (inlineExternalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "
+                (externalPlayRequested)="
+                    playback.vodDetailActions.openExternal($event)
+                "
+                (resetProgressRequested)="
+                    playback.vodDetailActions.resetProgress($event)
+                "
             />
         } @else {
             <app-portal-detail-shell
@@ -152,6 +158,7 @@ export class StalkerCollectionDetailComponent implements ViewInPortalHandoff {
         stalkerStore: this.stalkerStore,
         playbackPositions: this.playbackPositions,
         portalPlayer: this.portalPlayer,
+        externalPlayback: this.externalPlayback,
         snackBar: this.snackBar,
         translateService: this.translateService,
         logger: this.logger,

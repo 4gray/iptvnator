@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import type { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { replaceOwnedExternalSession } from './replace-owned-external-session';
 
@@ -21,7 +22,7 @@ function session(
 describe('replaceOwnedExternalSession', () => {
     function playback(active: ExternalPlayerSession | null) {
         return {
-            activeSession: () => active,
+            activeSession: signal(active),
             closeSession: jest.fn().mockResolvedValue(undefined),
         };
     }

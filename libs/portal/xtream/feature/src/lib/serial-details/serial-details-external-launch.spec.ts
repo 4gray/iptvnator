@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import type {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
@@ -45,7 +46,7 @@ describe('openEpisodeExternally', () => {
             host: {
                 portalPlayer: { openExternalPlayback },
                 externalPlayback: {
-                    activeSession: () => active,
+                    activeSession: signal(active),
                     closeSession,
                 },
                 launchOwner,
