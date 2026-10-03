@@ -3,7 +3,10 @@ import type {
     PlayerContentInfo,
 } from '@iptvnator/shared/interfaces';
 import { isLiveExternalPlayerSession } from './external-playback-button-state';
+import { createLogger } from './logger';
 import type { PortalExternalPlayback } from './portal-external-playback';
+
+const logger = createLogger('ExternalPlayback');
 
 /**
  * Closes the external session a page owns before it launches a replacement
@@ -19,7 +22,7 @@ export async function replaceOwnedExternalSession(
     >,
     owns: (info: PlayerContentInfo) => boolean,
     warn: (message: string, error: unknown) => void = (message, error) =>
-        console.warn(message, error)
+        logger.warn(message, error)
 ): Promise<boolean> {
     const session: ExternalPlayerSession | null =
         externalPlayback.activeSession();
