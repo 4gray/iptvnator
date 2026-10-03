@@ -61,14 +61,14 @@ interface SerialDetailsPlaybackBindings {
     readonly selectedItem: Signal<XtreamSerieDetailsView | null>;
 }
 
+/** Page instances created so far: a recreated page must not reuse a token. */
+let pageInstances = 0;
+
 /**
  * Component-provided service that owns the episode playback concern of the
  * serial details view: inline playback state, per-episode playback
  * positions, external-player session tracking, and playback orchestration.
  */
-/** Page instances created so far: a recreated page must not reuse a token. */
-let pageInstances = 0;
-
 @Injectable()
 export class SerialDetailsPlaybackService {
     private readonly route = inject(ActivatedRoute);
