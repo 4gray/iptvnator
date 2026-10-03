@@ -44,6 +44,7 @@ export * from './lib/detail-ui/meta-chip.component';
 export * from './lib/detail-ui/similar-rail.component';
 export * from './lib/detail-ui/trailer-dialog.component';
 export * from './lib/detail-ui/trailer-dialog.service';
+export * from './lib/detail-ui/trailer-dialog-state';
 export * from './lib/detail-ui/vod-more-menu.component';
 export * from './lib/detail-ui/vod-more-menu.model';
 export * from './lib/detail-ui/series-hero.state';

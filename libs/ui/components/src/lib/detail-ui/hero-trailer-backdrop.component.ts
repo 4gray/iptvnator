@@ -13,6 +13,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { DomSanitizer, type SafeResourceUrl } from '@angular/platform-browser';
+import { TrailerDialogState } from './trailer-dialog-state';
 
 /** Idle time on the page before the trailer takes over the backdrop. */
 export const TRAILER_BACKDROP_IDLE_MS = 3000;
@@ -21,8 +22,9 @@ export const TRAILER_BACKDROP_IDLE_MS = 3000;
  * Plays a title's trailer, muted and looping, as the hero backdrop after a
  * few idle seconds (`Settings → Playback → Play trailers in details
  * background`). It stops when the hero scrolls out of view, the window
- * loses focus or the document is hidden, and never starts under
- * `prefers-reduced-motion` or on a metered connection. `toggleMute()`
+ * loses focus, the document is hidden or the trailer modal opens (which
+ * plays its own copy), and never starts under `prefers-reduced-motion` or
+ * on a metered connection. `toggleMute()`
  * drives the sound through the YouTube IFrame API (`enablejsapi`); the hero
  * renders that control itself, above its content layer.
  */
@@ -43,6 +45,7 @@ export class HeroTrailerBackdropComponent {
 
     private readonly sanitizer = inject(DomSanitizer);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly trailerDialog = inject(TrailerDialogState);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly frame = viewChild<ElementRef<HTMLIFrameElement>>('frame');
     private readonly inView = signal(true);
@@ -63,7 +66,10 @@ export class HeroTrailerBackdropComponent {
             // autoplay the next URL at once).
             this.embedUrl();
             const visible =
-                this.inView() && this.windowFocused() && this.documentVisible();
+                this.inView() &&
+                this.windowFocused() &&
+                this.documentVisible() &&
+                !this.trailerDialog.dialogOpen();
             untracked(() => {
                 this.clearIdleTimer();
                 this.playing.set(false);

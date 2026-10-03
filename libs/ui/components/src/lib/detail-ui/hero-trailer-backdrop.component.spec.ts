@@ -6,6 +6,7 @@ import {
     HeroTrailerBackdropComponent,
     TRAILER_BACKDROP_IDLE_MS,
 } from './hero-trailer-backdrop.component';
+import { TrailerDialogState } from './trailer-dialog-state';
 
 const EMBED = 'https://www.youtube-nocookie.com/embed/abc123def';
 
@@ -117,6 +118,28 @@ describe('HeroTrailerBackdropComponent', () => {
         fixture.detectChanges();
         expect(host().querySelector('iframe')).toBeNull();
         visibility.mockRestore();
+    });
+
+    it('stops while the trailer modal is open and waits again afterwards', () => {
+        renderFocused();
+        jest.advanceTimersByTime(TRAILER_BACKDROP_IDLE_MS);
+        fixture.detectChanges();
+        expect(host().querySelector('iframe')).not.toBeNull();
+
+        // The modal plays its own copy; an unmuted backdrop would sound
+        // underneath it.
+        const dialogs = TestBed.inject(TrailerDialogState);
+        dialogs.opened();
+        fixture.detectChanges();
+        expect(host().querySelector('iframe')).toBeNull();
+
+        dialogs.closed();
+        fixture.detectChanges();
+        expect(host().querySelector('iframe')).toBeNull();
+        jest.advanceTimersByTime(TRAILER_BACKDROP_IDLE_MS);
+        fixture.detectChanges();
+        expect(host().querySelector('iframe')).not.toBeNull();
+        expect(fixture.componentInstance.muted()).toBe(true);
     });
 
     it('stops when the window loses focus', () => {
