@@ -70,10 +70,37 @@ export function shortCountryName(
     return trimmed || (code ?? '').trim().toUpperCase();
 }
 
-/** First country of a comma-separated provider list, shortened. */
+/** Canonical names that carry a comma themselves ("Korea, Republic of"). */
+const COMMA_NAMES = new Set(
+    Object.keys(SHORT_BY_NAME).filter((name) => name.includes(','))
+);
+
+/** Every country of a provider list, shortened. */
 export function shortCountryList(value: string | null | undefined): string[] {
-    return (value ?? '')
-        .split(/[,;/]/)
+    const parts: string[] = [];
+    for (const group of (value ?? '').split(/[;/]/)) {
+        parts.push(...splitCommaList(group));
+    }
+    return parts
         .map((part) => shortCountryName(part))
         .filter((part) => part.length > 0);
+}
+
+/** Splits on commas but keeps a known comma-bearing country name whole. */
+function splitCommaList(value: string): string[] {
+    const segments = value
+        .split(',')
+        .map((segment) => segment.trim())
+        .filter((segment) => segment.length > 0);
+    const parts: string[] = [];
+    for (let index = 0; index < segments.length; index++) {
+        const joined = `${segments[index]}, ${segments[index + 1] ?? ''}`;
+        if (COMMA_NAMES.has(joined.toLowerCase())) {
+            parts.push(joined);
+            index++;
+        } else {
+            parts.push(segments[index]);
+        }
+    }
+    return parts;
 }

@@ -31,10 +31,14 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import { PlaybackHistoryGate } from '@iptvnator/playback/data-access';
-import { PlaybackPositionData, VideoPlayer } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { BehaviorSubject, EMPTY, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
+import { SerialDetailsMenuService } from './serial-details-menu.service';
 import { SerialDetailsPlaybackService } from './serial-details-playback.service';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
@@ -813,6 +817,46 @@ describe('SerialDetailsComponent', () => {
             'WORKSPACE.DASHBOARD.HERO_CONTINUE'
         );
         expect(quickStartButton()?.textContent).toContain('S01E01');
+    });
+
+    it('records history and the launch position when the menu opens the next episode in MPV', async () => {
+        openExternalPlayback.mockResolvedValue({
+            id: 'mpv-session-2',
+            player: 'mpv',
+            status: 'opened',
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const menu = fixture.debugElement.injector.get(
+            SerialDetailsMenuService
+        );
+        await menu.run('external-player');
+        await fixture.whenStable();
+
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'http://xtream.example/series/1001.mp4',
+            }),
+            'mpv'
+        );
+        // Same bookkeeping as the Play button: the view lands once the
+        // stream plays, the launch position is written right away.
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['http://xtream.example/series/1001.mp4'],
+        });
+        expect(addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({ xtreamId: '103', contentType: 'series' })
+        );
+        expect(savePlaybackPosition).toHaveBeenCalledWith(
+            'xtream-1',
+            expect.objectContaining({
+                contentXtreamId: 1001,
+                contentType: 'episode',
+                positionSeconds: 0,
+            })
+        );
     });
 
     it('persists the launched episode after an external fallback succeeds', async () => {

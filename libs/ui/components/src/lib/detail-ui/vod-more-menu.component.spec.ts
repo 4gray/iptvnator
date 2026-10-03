@@ -65,13 +65,17 @@ describe('VodMoreMenuComponent', () => {
         expect(overlay.querySelector('[role="menu"]')).toBeTruthy();
         expect(overlay.textContent).toContain('Watching');
         expect(overlay.textContent).toContain('Other sources');
-        expect(overlay.querySelector('.more-menu__hint')?.textContent?.trim()).toBe('2');
+        expect(
+            overlay.querySelector('.more-menu__hint')?.textContent?.trim()
+        ).toBe('2');
         const reset = rows().find((row) => row.textContent?.includes('Reset'))!;
         expect(reset.disabled).toBe(true);
 
         const spy = jest.fn();
         fixture.componentInstance.selected.subscribe(spy);
-        overlay.querySelector<HTMLButtonElement>('[data-test-id="menu-copy"]')!.click();
+        overlay
+            .querySelector<HTMLButtonElement>('[data-test-id="menu-copy"]')!
+            .click();
         fixture.detectChanges();
         expect(spy).toHaveBeenCalledWith('copy');
         expect(overlay.querySelector('[role="menu"]')).toBeNull();
@@ -99,7 +103,7 @@ describe('VodMoreMenuComponent', () => {
         expect(fixture.componentInstance.isOpen()).toBe(false);
     });
 
-    it('switches to the sources panel and back', () => {
+    it('switches to the sources panel, moves focus into it, and back', async () => {
         fixture.componentRef.setInput('sources', []);
         trigger().click();
         fixture.detectChanges();
@@ -109,6 +113,11 @@ describe('VodMoreMenuComponent', () => {
         fixture.detectChanges();
         expect(fixture.componentInstance.view()).toBe('sources');
         expect(overlay.querySelector('app-vod-sources-menu')).toBeTruthy();
+        // The focused row is gone; keyboard focus lands on the panel's first control.
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(document.activeElement).toBe(
+            overlay.querySelector('.more-menu__back')
+        );
         overlay.querySelector<HTMLButtonElement>('.more-menu__back')!.click();
         fixture.detectChanges();
         expect(fixture.componentInstance.view()).toBe('menu');

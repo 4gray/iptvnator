@@ -34,7 +34,11 @@ interface StalkerVodDetailActionsDeps {
         'clearPlaybackPositionOrThrow'
     >;
     readonly playlistId: () => string | undefined;
+    /** The movie on screen now; a reset finished for another one leaves it alone. */
+    readonly selectedVodId: () => number | null;
     readonly selectedVodPosition: WritableSignal<PlaybackPositionData | null>;
+    /** Retires a stored-position read in flight, which would restore the row. */
+    readonly discardPendingPositionLoad?: () => void;
     readonly beforeExternalLaunch?: () => void;
     readonly afterProgressReset?: (playlistId: string) => void;
     readonly snackBar: Pick<MatSnackBar, 'open'>;
@@ -47,7 +51,9 @@ interface StalkerVodDetailActionsDeps {
  * external player" resolves the stream (a `create_link` round trip) and
  * hands it to MPV/VLC; "Reset progress" clears the saved position.
  */
-export function createStalkerVodDetailActions(deps: StalkerVodDetailActionsDeps) {
+export function createStalkerVodDetailActions(
+    deps: StalkerVodDetailActionsDeps
+) {
     const notify = (key: string) =>
         deps.snackBar.open(deps.translate.instant(key), undefined, {
             duration: 3000,
@@ -111,7 +117,15 @@ export function createStalkerVodDetailActions(deps: StalkerVodDetailActionsDeps)
                 deps.logError('Resetting the VOD position failed', error);
                 return;
             }
-            deps.selectedVodPosition.set(null);
+            // The clear was async: only the movie still on screen loses its
+            // shown progress, and no older read may put it back.
+            if (
+                deps.selectedVodId() === vodId &&
+                deps.playlistId() === playlistId
+            ) {
+                deps.discardPendingPositionLoad?.();
+                deps.selectedVodPosition.set(null);
+            }
             deps.afterProgressReset?.(playlistId);
             notify('PORTALS.DETAIL.PROGRESS_RESET');
         },

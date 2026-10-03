@@ -226,21 +226,22 @@ export class DashboardHeroSlidesPresenter {
             this.failedImages()
         );
 
+        // Watch kind: a Stalker embedded-VOD show routes as a movie
+        const watchKind = isLive
+            ? 'live'
+            : (resolvePortalActivityWatchKind(item) ?? item.type);
         return {
             ...artwork,
             id: `${source.kind}:${dashboardHeroItemKey(item)}`,
             kind: source.kind,
             contentType: item.type,
             // "Большая фарма (1 сезон)" → "Большая фарма": the episode badge
-            // already names the season.
-            title: isLive ? item.title : splitSeasonSuffix(item.title).title,
-            // Watch kind: a Stalker embedded-VOD show routes as a movie
-            typeLabelKey:
-                TYPE_LABEL_KEYS[
-                    isLive
-                        ? 'live'
-                        : (resolvePortalActivityWatchKind(item) ?? item.type)
-                ],
+            // already names the season. A movie keeps its name as is.
+            title:
+                watchKind === 'series'
+                    ? splitSeasonSuffix(item.title).title
+                    : item.title,
+            typeLabelKey: TYPE_LABEL_KEYS[watchKind],
             reasonLabelKey: this.reasonLabelKey(source),
             episodeBadge: buildDashboardEpisodeBadge(
                 item,

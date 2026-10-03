@@ -19,6 +19,7 @@ import {
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
+    ExternalPlayerName,
     PlaybackPositionData,
     PlayerContentInfo,
     ResolvedPortalPlayback,
@@ -204,7 +205,11 @@ export class SerialDetailsPlaybackService {
         this.activeEpisodeId.set(null);
     }
 
-    playEpisode(episode: XtreamSerieEpisode): void {
+    /** `player` forces MPV/VLC (the "…" menu); history and the launch position are recorded either way. */
+    playEpisode(
+        episode: XtreamSerieEpisode,
+        player?: ExternalPlayerName
+    ): void {
         const playlist = this.xtreamStore.currentPlaylist();
         const selectedItem = this.selectedItem();
         if (!playlist || !selectedItem) {
@@ -244,7 +249,7 @@ export class SerialDetailsPlaybackService {
             fallbackSeasonNumber: Number(episode.season),
             fallbackEpisodeNumber: Number(episode.episode_num),
         });
-        this.startPlayback(playback, episodeState);
+        this.startPlayback(playback, episodeState, player);
     }
 
     playQuickStartEpisode(): void {
@@ -411,10 +416,11 @@ export class SerialDetailsPlaybackService {
 
     private startPlayback(
         playback: ResolvedPortalPlayback,
-        episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null
+        episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null,
+        player?: ExternalPlayerName
     ): void {
         this.lastSaveTime = 0;
-        if (this.portalPlayer.isEmbeddedPlayer()) {
+        if (!player && this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlaybackSessionEpisodeState.set(episodeState);
             this.inlinePlayback.set(playback);
             return;
@@ -423,7 +429,9 @@ export class SerialDetailsPlaybackService {
         this.closeInlinePlayer();
         void this.playbackPositionState.recordExternalLaunch(
             playback,
-            this.portalPlayer.openResolvedPlayback(playback, true),
+            player
+                ? this.portalPlayer.openExternalPlayback(playback, player)
+                : this.portalPlayer.openResolvedPlayback(playback, true),
             (playlistId, position) =>
                 this.playbackPositions.savePlaybackPosition(
                     playlistId,

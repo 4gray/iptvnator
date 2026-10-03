@@ -163,6 +163,37 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         });
     });
 
+    it('records the view when the menu opens the movie in MPV or VLC', async () => {
+        const movie = {
+            info: {},
+            movie_data: {
+                stream_id: ROUTE_VOD_ID,
+                name: 'Route movie',
+                container_extension: 'mkv',
+            },
+        } as never;
+        const launch = service.openInExternalPlayer(movie, false, 'vlc');
+        expect(launch).not.toBeNull();
+        await launch;
+
+        expect(openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/route.mkv',
+            }),
+            'vlc'
+        );
+        expect(addRecentItem).not.toHaveBeenCalled();
+        TestBed.inject(PlaybackHistoryGate).confirm({
+            streamUrls: ['https://example.com/route.mkv'],
+        });
+        expect(addRecentItem).toHaveBeenCalledWith(
+            expect.objectContaining({
+                xtreamId: ROUTE_VOD_ID,
+                contentType: 'movie',
+            })
+        );
+    });
+
     it('records the movie as recently viewed only once its stream played', async () => {
         await service.startResolvedPlayback({
             streamUrl: 'https://example.com/broken.mkv',

@@ -912,7 +912,10 @@ export class StalkerSearchComponent {
         portalPlayer: this.portalPlayer,
         playbackPositions: this.playbackPositions,
         playlistId: () => this.stalkerStore.currentPlaylist()?._id,
+        selectedVodId: () => Number(this.itemDetails()?.id) || null,
         selectedVodPosition: this.selectedVodPosition,
+        discardPendingPositionLoad: () =>
+            this.vodPlayback.discardPendingPositionLoad(),
         snackBar: this.snackBar,
         translate: this.translateService,
         logError: () => undefined,

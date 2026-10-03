@@ -230,10 +230,10 @@ describe('DashboardHeroSlidesPresenter', () => {
         );
     });
 
-    it('drops a season marker from a series title and leaves live titles alone', () => {
+    it('drops a season marker from a series title and leaves movies and live titles alone', () => {
         recentItems.set([
             { ...series, title: 'Big Pharma (1 сезон)' },
-            watchedMovie,
+            { ...watchedMovie, title: 'Film Season 2' },
         ]);
         candidates.set([
             { origin: 'favorite', item: { ...channel, title: 'Sport S01' } },
@@ -242,6 +242,7 @@ describe('DashboardHeroSlidesPresenter', () => {
         const titles = presenter.slides().map((slide) => slide.title);
         expect(titles).toContain('Big Pharma');
         expect(titles).not.toContain('Big Pharma (1 сезон)');
+        expect(titles).toContain('Film Season 2');
         expect(titles).toContain('Sport S01');
     });
 

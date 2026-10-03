@@ -706,19 +706,23 @@ test('@xtream season watched toggle — marks a season, survives reload, and cle
         seasonTabs.first().locator('.season-tabs__done')
     ).toBeVisible();
 
-    // Season 1 itself still holds the 8 persisted rows.
+    // Season 1 itself still holds the 8 persisted rows. The row lives in
+    // the overlay, so it is reacquired after every close.
     await seasonTabs.first().click();
+    await expect(watchedCards).toHaveCount(8, { timeout: 10_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText('Mark season as unwatched', {
         timeout: 15_000,
     });
-    await expect(watchedCards).toHaveCount(8, { timeout: 10_000 });
 
     // Second click clears every episode's position again.
     await seasonToggle.click();
+    await expect(watchedCards).toHaveCount(0, { timeout: 15_000 });
+    seasonToggle = await seriesMenuRow(page, 'toggle-season-watched');
     await expect(seasonToggle).toContainText('Mark season as watched (8)', {
         timeout: 15_000,
     });
-    await expect(watchedCards).toHaveCount(0);
+    await closeSeriesMenu(page);
     await expect(page.locator('.season-tabs__done')).toHaveCount(0);
 });
 
@@ -798,7 +802,6 @@ test('@xtream season cover — shows the provider season cover and follows the s
 // unwatch-all once the whole series is watched, and survives a reload.
 // ---------------------------------------------------------------------------
 
-
 /** Opens the series "…" menu (if closed) and returns the row with that test id. */
 async function seriesMenuRow(page: Page, rowTestId: string) {
     const row = page.locator(`[data-test-id="${rowTestId}"]`);
@@ -810,9 +813,13 @@ async function seriesMenuRow(page: Page, rowTestId: string) {
 }
 
 async function closeSeriesMenu(page: Page): Promise<void> {
-    if (await page.locator('.cdk-overlay-backdrop').isVisible().catch(() => false)) {
+    // The panel, not the backdrop: a backdrop locator can match a second
+    // overlay and then fail the strict check, leaving the menu open.
+    const panel = page.locator('[data-test-id="vod-more-menu"]');
+    if (await panel.isVisible().catch(() => false)) {
         await page.keyboard.press('Escape');
     }
+    await expect(panel).toBeHidden({ timeout: 10_000 });
 }
 
 test('@xtream series watched toggle — marks every season from the header menu, survives reload, and clears again', async ({
@@ -875,9 +882,9 @@ test('@xtream series watched toggle — marks every season from the header menu,
     // PWA persistence: positions live in localStorage, so a reload must come
     // back fully watched across all seasons.
     await page.reload();
-    await expect(page.locator('[data-testid="series-more-menu"]')).toBeVisible(
-        { timeout: 20_000 }
-    );
+    await expect(page.locator('[data-testid="series-more-menu"]')).toBeVisible({
+        timeout: 20_000,
+    });
     await expect(page.locator('.season-tabs__done')).toHaveCount(3, {
         timeout: 10_000,
     });
@@ -1011,6 +1018,8 @@ for (const theme of ['light', 'dark']) {
             .locator('[data-testid="series-favorite-toggle"]')
             .first();
         const card = shell.locator('.episode-card').first();
+        // The card is flat; its visible edge is the artwork's hairline.
+        const artwork = card.locator('.episode-card__thumbnail');
         const toggle = shell.locator('mat-button-toggle-group');
         await expect(card).toBeVisible();
         await expect(shell.locator('.hero__content')).toHaveCSS('opacity', '1');
@@ -1020,7 +1029,7 @@ for (const theme of ['light', 'dark']) {
         await expect
             .poll(() => rasterizedBorderContrast(favorite))
             .toBeGreaterThan(1.1);
-        for (const surface of [card, toggle]) {
+        for (const surface of [artwork, toggle]) {
             await expect
                 .poll(async () => (await surfaceContrast(surface)).border)
                 .toBeGreaterThan(1.15);
@@ -1035,7 +1044,7 @@ for (const theme of ['light', 'dark']) {
         });
         await card.hover();
         await expect
-            .poll(async () => (await surfaceContrast(card)).border)
+            .poll(async () => (await surfaceContrast(artwork)).border)
             .toBeGreaterThan(1.15);
         await page
             .getByRole('radio', { name: 'List view', exact: true })

@@ -5,7 +5,6 @@ import { TranslateService } from '@ngx-translate/core';
 import {
     createLogger,
     formatSeriesEpisodeCode,
-    PORTAL_PLAYER,
     type SeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -19,6 +18,7 @@ import {
     type PlayerContentInfo,
     type ResolvedPortalPlayback,
     type XtreamCategory,
+    type XtreamSerieEpisode,
 } from '@iptvnator/shared/interfaces';
 import {
     buildSeriesMenuSections,
@@ -36,6 +36,11 @@ interface SerialDetailsMenuBindings {
     readonly categoryId: Signal<string>;
     readonly episodePositions: Signal<ReadonlyMap<number, unknown>>;
     readonly resetProgress: () => Promise<void>;
+    /** The regular episode start forced to MPV/VLC, so history and the launch position are recorded. */
+    readonly openEpisodeExternally: (
+        episode: XtreamSerieEpisode,
+        player: ExternalPlayerName
+    ) => void;
 }
 
 /**
@@ -48,8 +53,9 @@ interface SerialDetailsMenuBindings {
 export class SerialDetailsMenuService {
     private readonly xtreamStore = inject(XtreamStore);
     /** Optional: hosts without the data source simply get no history row. */
-    private readonly dataSource = inject(XTREAM_DATA_SOURCE, { optional: true });
-    private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly dataSource = inject(XTREAM_DATA_SOURCE, {
+        optional: true,
+    });
     private readonly downloadsService = inject(DownloadsService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
@@ -88,10 +94,11 @@ export class SerialDetailsMenuService {
         if (!categoryId) {
             return null;
         }
-        const categories = this.xtreamStore.serialCategories() as ReadonlyArray<{
-            category_id?: string | number;
-            category_name?: string;
-        }>;
+        const categories =
+            this.xtreamStore.serialCategories() as ReadonlyArray<{
+                category_id?: string | number;
+                category_name?: string;
+            }>;
         const found = categories.find(
             (candidate) => String(candidate.category_id) === categoryId
         );
@@ -104,7 +111,11 @@ export class SerialDetailsMenuService {
     /** Whether the series row sits in this playlist's recently viewed list. */
     private readonly inContinueWatching = computed(() => {
         const seriesId = this.seriesId();
-        if (!seriesId || !this.dataSource || this.hiddenSeriesIds().has(seriesId)) {
+        if (
+            !seriesId ||
+            !this.dataSource ||
+            this.hiddenSeriesIds().has(seriesId)
+        ) {
             return false;
         }
         return (
@@ -174,7 +185,7 @@ export class SerialDetailsMenuService {
                 await container?.downloadPresenter.enqueueSeason();
                 return;
             case SERIES_MENU_ACTION.ExternalPlayer:
-                await this.openExternal();
+                this.openExternal();
                 return;
             case SERIES_MENU_ACTION.CopyUrl:
                 await this.copyStreamUrl();
@@ -217,20 +228,13 @@ export class SerialDetailsMenuService {
         };
     }
 
-    private async openExternal(): Promise<void> {
-        const playback = this.buildEpisodePlayback();
-        if (!playback) {
+    private openExternal(): void {
+        const bindings = this.bindings();
+        const episode = bindings?.quickStart()?.episode;
+        if (!bindings || !episode) {
             return;
         }
-        try {
-            await this.portalPlayer.openExternalPlayback(
-                playback,
-                this.externalPlayer()
-            );
-        } catch (error) {
-            this.logger.warn('External episode launch failed', error);
-            this.notify('PORTALS.PLAYBACK_ERROR');
-        }
+        bindings.openEpisodeExternally(episode, this.externalPlayer());
     }
 
     private async copyStreamUrl(): Promise<void> {

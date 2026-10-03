@@ -17,6 +17,17 @@ describe('shortCountryName', () => {
         expect(shortCountryName('', 'xx')).toBe('XX');
     });
 
+    it('keeps a comma-bearing country name whole inside a list', () => {
+        expect(shortCountryList('Korea, Republic of, Japan')).toEqual([
+            'South Korea',
+            'Japan',
+        ]);
+        expect(shortCountryList('France, Taiwan, Province of China')).toEqual([
+            'France',
+            'Taiwan',
+        ]);
+    });
+
     it('splits provider lists', () => {
         expect(shortCountryList('United States, Canada / France')).toEqual([
             'USA',

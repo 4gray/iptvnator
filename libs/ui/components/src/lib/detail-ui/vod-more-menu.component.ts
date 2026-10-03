@@ -21,7 +21,10 @@ import type {
     VodSourceMatchKind,
 } from '@iptvnator/shared/interfaces';
 import { VodSourcesMenuComponent } from '../vod-sources/vod-sources-menu.component';
-import type { VodMoreMenuItem, VodMoreMenuSection } from './vod-more-menu.model';
+import type {
+    VodMoreMenuItem,
+    VodMoreMenuSection,
+} from './vod-more-menu.model';
 
 type MenuView = 'menu' | 'sources';
 
@@ -129,6 +132,7 @@ export class VodMoreMenuComponent {
         }
         if (item.kind === 'sources') {
             this.view.set('sources');
+            this.focusFirstControl();
             return;
         }
         this.close(true);
@@ -206,5 +210,16 @@ export class VodMoreMenuComponent {
     private focusRow(index: number): void {
         // The overlay attaches after this change detection pass.
         setTimeout(() => this.rows()[index]?.focus());
+    }
+
+    /** The sources panel replaces the focused row; focus follows into it. */
+    private focusFirstControl(): void {
+        setTimeout(() =>
+            this.panel()
+                ?.nativeElement.querySelector<HTMLElement>(
+                    'button:not([disabled])'
+                )
+                ?.focus()
+        );
     }
 }

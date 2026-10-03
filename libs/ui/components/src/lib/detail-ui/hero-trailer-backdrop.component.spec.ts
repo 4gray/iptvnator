@@ -83,6 +83,49 @@ describe('HeroTrailerBackdropComponent', () => {
         expect(host().querySelector('iframe')).toBeNull();
     });
 
+    it('drops the frame and waits again, muted, when the trailer changes', () => {
+        renderFocused();
+        jest.advanceTimersByTime(TRAILER_BACKDROP_IDLE_MS);
+        fixture.detectChanges();
+        host()
+            .querySelector<HTMLButtonElement>(
+                '[data-test-id="trailer-backdrop-mute"]'
+            )
+            ?.click();
+        fixture.detectChanges();
+        expect(fixture.componentInstance.muted()).toBe(false);
+
+        fixture.componentRef.setInput(
+            'embedUrl',
+            'https://www.youtube-nocookie.com/embed/next456'
+        );
+        fixture.detectChanges();
+        // No mounted frame may autoplay the next URL at once.
+        expect(host().querySelector('iframe')).toBeNull();
+
+        jest.advanceTimersByTime(TRAILER_BACKDROP_IDLE_MS);
+        fixture.detectChanges();
+        expect(host().querySelector('iframe')?.getAttribute('src')).toContain(
+            'playlist=next456'
+        );
+        expect(fixture.componentInstance.muted()).toBe(true);
+    });
+
+    it('stops while the document is hidden', () => {
+        renderFocused();
+        jest.advanceTimersByTime(TRAILER_BACKDROP_IDLE_MS);
+        fixture.detectChanges();
+        expect(host().querySelector('iframe')).not.toBeNull();
+
+        const visibility = jest
+            .spyOn(document, 'visibilityState', 'get')
+            .mockReturnValue('hidden');
+        document.dispatchEvent(new Event('visibilitychange'));
+        fixture.detectChanges();
+        expect(host().querySelector('iframe')).toBeNull();
+        visibility.mockRestore();
+    });
+
     it('stops when the window loses focus', () => {
         renderFocused();
         jest.advanceTimersByTime(TRAILER_BACKDROP_IDLE_MS);

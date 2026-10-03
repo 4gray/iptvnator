@@ -145,7 +145,9 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     readonly selectedVodPlaybackDuration = computed<number | null>(
         () => this.selectedVodPosition()?.durationSeconds ?? null
     );
-    readonly sourceLabel = computed(() => this.catalog.playlist()?.title ?? null);
+    readonly sourceLabel = computed(
+        () => this.catalog.playlist()?.title ?? null
+    );
     readonly selectedVodPlaybackPosition = computed<number | null>(
         () => this.selectedVodPosition()?.positionSeconds ?? null
     );
@@ -281,7 +283,9 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         portalPlayer: this.portalPlayer,
         playbackPositions: this.playbackPositions,
         playlistId: () => this.catalog.playlist()?.id,
+        selectedVodId: () => Number(this.selectedItem()?.id) || null,
         selectedVodPosition: this.selectedVodPosition,
+        discardPendingPositionLoad: () => ++this.positionLoadGeneration,
         beforeExternalLaunch: () => this.closeInlinePlayer(),
         afterProgressReset: (playlistId) =>
             void this.catalog.refreshPositions(playlistId),

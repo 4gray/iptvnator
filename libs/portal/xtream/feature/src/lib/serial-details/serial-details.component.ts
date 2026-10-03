@@ -217,9 +217,13 @@ export class SerialDetailsComponent implements OnDestroy {
             selectedItem: this.selectedItem,
             quickStart: this.quickStartAction,
             seasonContainer: this.seasonContainer,
-            categoryId: computed(() => String(this.routeParams()['categoryId'] ?? '')),
+            categoryId: computed(() =>
+                String(this.routeParams()['categoryId'] ?? '')
+            ),
             episodePositions: this.episodePlaybackPositions,
             resetProgress: () => this.resetProgress(),
+            openEpisodeExternally: (episode, player) =>
+                this.playback.playEpisode(episode, player),
         });
 
         // TMDB season enrichment, keyed on (tmdb_id, selected season). With
@@ -299,7 +303,8 @@ export class SerialDetailsComponent implements OnDestroy {
 
     /** Clears every saved episode position of the series. */
     resetProgress(): Promise<void> {
-        const request = this.seasonContainer()?.watchPresenter.buildResetRequest();
+        const request =
+            this.seasonContainer()?.watchPresenter.buildResetRequest();
         return request
             ? this.playback.handleWatchToggleRequested(request, 'series')
             : Promise.resolve();

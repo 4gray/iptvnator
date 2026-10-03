@@ -129,20 +129,17 @@ export class VodDetailsMenuService {
     async run(actionId: string): Promise<void> {
         const item = this.bindings()?.item() ?? null;
         switch (actionId) {
-            case VOD_MENU_ACTION.ExternalPlayer: {
-                const playback = this.playback.buildVodPlayback(
-                    item,
-                    this.msUi.hasPlaybackPosition()
-                );
-                if (playback) {
-                    await this.playback
-                        .launchExternal(playback, this.externalPlayer())
-                        .catch((error) =>
-                            this.logger.warn('External launch failed', error)
-                        );
-                }
+            case VOD_MENU_ACTION.ExternalPlayer:
+                await this.playback
+                    .openInExternalPlayer(
+                        item,
+                        this.msUi.hasPlaybackPosition(),
+                        this.externalPlayer()
+                    )
+                    ?.catch((error) =>
+                        this.logger.warn('External launch failed', error)
+                    );
                 return;
-            }
             case VOD_MENU_ACTION.CopyUrl:
                 await this.copyStreamUrl(item);
                 return;

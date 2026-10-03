@@ -23,9 +23,9 @@ export const TRAILER_BACKDROP_IDLE_MS = 3000;
 /**
  * Plays a title's trailer, muted and looping, as the hero backdrop after a
  * few idle seconds (`Settings → Playback → Play trailers in details
- * background`). It stops when the hero scrolls out of view or the window
- * loses focus, and never starts under `prefers-reduced-motion` or on a
- * metered connection. The 32px button in the corner toggles the sound
+ * background`). It stops when the hero scrolls out of view, the window
+ * loses focus or the document is hidden, and never starts under
+ * `prefers-reduced-motion` or on a metered connection. The 32px button in the corner toggles the sound
  * through the YouTube IFrame API (`enablejsapi`).
  */
 @Component({
@@ -50,6 +50,7 @@ export class HeroTrailerBackdropComponent {
     private readonly frame = viewChild<ElementRef<HTMLIFrameElement>>('frame');
     private readonly inView = signal(true);
     private readonly windowFocused = signal(true);
+    private readonly documentVisible = signal(true);
     private idleTimer: ReturnType<typeof setTimeout> | null = null;
 
     readonly frameUrl = computed<SafeResourceUrl>(() =>
@@ -60,17 +61,19 @@ export class HeroTrailerBackdropComponent {
 
     constructor() {
         effect(() => {
-            // A new trailer or a hero that left the screen resets the idle wait.
+            // A new trailer, a hero off screen or a hidden window: the frame
+            // goes away and the idle wait starts over (a mounted frame would
+            // autoplay the next URL at once).
             this.embedUrl();
-            const visible = this.inView() && this.windowFocused();
+            const visible =
+                this.inView() && this.windowFocused() && this.documentVisible();
             untracked(() => {
                 this.clearIdleTimer();
-                if (!visible) {
-                    this.playing.set(false);
-                    return;
-                }
-                if (canAutoplayTrailer()) {
+                this.playing.set(false);
+                if (visible && canAutoplayTrailer()) {
                     this.idleTimer = setTimeout(() => {
+                        // Every frame mounts with `mute=1`.
+                        this.muted.set(true);
                         this.playing.set(true);
                         this.idleTimer = null;
                     }, TRAILER_BACKDROP_IDLE_MS);
@@ -109,12 +112,17 @@ export class HeroTrailerBackdropComponent {
         }
         const onFocus = () => this.windowFocused.set(true);
         const onBlur = () => this.windowFocused.set(false);
+        const onVisibility = () =>
+            this.documentVisible.set(document.visibilityState !== 'hidden');
         this.windowFocused.set(document.hasFocus());
+        onVisibility();
         window.addEventListener('focus', onFocus);
         window.addEventListener('blur', onBlur);
+        document.addEventListener('visibilitychange', onVisibility);
         this.destroyRef.onDestroy(() => {
             window.removeEventListener('focus', onFocus);
             window.removeEventListener('blur', onBlur);
+            document.removeEventListener('visibilitychange', onVisibility);
         });
     }
 

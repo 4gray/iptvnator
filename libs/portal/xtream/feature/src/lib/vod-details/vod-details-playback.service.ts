@@ -307,9 +307,31 @@ export class VodDetailsPlaybackService {
     }
 
     /**
+     * The "…" menu's explicit MPV/VLC launch. It counts as a view like any
+     * start; `launchExternal` alone serves the inline player's fallback,
+     * whose start already recorded the item.
+     */
+    openInExternalPlayer(
+        vodItem: XtreamVodDetails | null,
+        resume: boolean,
+        player: ExternalPlayerName
+    ): Promise<ExternalPlayerSession | void> | null {
+        const playback = this.buildVodPlayback(vodItem, resume);
+        if (!playback) {
+            return null;
+        }
+        this.recordRecentItem(playback.streamUrl, {
+            xtreamId: this.bindings()?.vodId() ?? NaN,
+            contentType: 'movie',
+            backdropUrl: this.bindings()?.vodInfo()?.backdrop_path?.[0],
+        });
+        return this.launchExternal(playback, player);
+    }
+
+    /**
      * Hands the playback to MPV or VLC regardless of the configured player
-     * (the "Open in external player" action and the inline player's
-     * fallback), owned and settled like a regular external start.
+     * (the inline player's fallback), owned and settled like a regular
+     * external start.
      */
     launchExternal(
         playback: ResolvedPortalPlayback,
