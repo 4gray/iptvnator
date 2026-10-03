@@ -9,7 +9,9 @@
         [posterUrl]="info.cover"
         [backdropUrl]="getBackdropUrl(info)"
         [trailerBackdropUrl]="heroPresenter.trailerBackdropUrl()"
-        [contentKey]="'xtream-series:' + item.series_id"
+        [contentKey]="
+            'xtream-series:' + currentPlaylistId() + ':' + item.series_id
+        "
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"

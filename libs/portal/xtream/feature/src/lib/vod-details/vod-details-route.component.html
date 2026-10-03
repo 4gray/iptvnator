@@ -241,7 +241,7 @@
         [backdropUrl]="getBackdropUrl(info)"
         [progress]="hero.progress()"
         [trailerBackdropUrl]="trailerBackdropUrl()"
-        [contentKey]="'xtream-vod:' + selectedVodId()"
+        [contentKey]="contentKey()"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"

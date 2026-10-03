@@ -7,7 +7,7 @@
         [posterUrl]="serial.info.movie_image"
         [backdropUrl]="serial.info.tmdb_backdrop"
         [trailerBackdropUrl]="heroPresenter.trailerBackdropUrl()"
-        [contentKey]="'stalker-series:' + serial.id"
+        [contentKey]="'stalker-series:' + currentSeriesKey()"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"

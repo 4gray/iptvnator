@@ -284,10 +284,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
     /**
-     * Series ids of starts still resolving their stream (`create_link`
-     * round trips): only the series on screen counts as starting.
+     * `playlist:series` keys of starts still resolving their stream
+     * (`create_link` round trips): only the series on screen counts as
+     * starting. Provider series ids are playlist-scoped.
      */
     private readonly pendingStartSeriesIds = signal<readonly string[]>([]);
+    /** `playlist:series` of the series on screen; provider ids collide across playlists. */
+    readonly currentSeriesKey = computed(
+        () =>
+            `${this.stalkerStore.currentPlaylist()?._id ?? ''}:${this.displayItem()?.id ?? ''}`
+    );
     readonly seasonWatchBatchRunning = signal(false);
 
     /**
@@ -405,7 +411,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             playbackActive: computed(
                 () =>
                     this.pendingStartSeriesIds().includes(
-                        String(this.displayItem()?.id ?? '')
+                        this.currentSeriesKey()
                     ) ||
                     this.inlinePlayback() !== null ||
                     this.openingEpisodeId() !== null ||
@@ -1286,7 +1292,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         };
         if (request.usesEmbeddedPlayer && !request.identity) return;
 
-        const pendingSeriesId = String(this.displayItem()?.id ?? '');
+        const pendingSeriesId = this.currentSeriesKey();
         this.pendingStartSeriesIds.update((ids) => [...ids, pendingSeriesId]);
         try {
             const playback = await this.stalkerStore.resolveVodPlayback(

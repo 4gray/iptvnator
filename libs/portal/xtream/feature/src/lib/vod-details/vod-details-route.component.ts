@@ -381,6 +381,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
     );
+    /** `playlist:vod`: the hero keys its one-time layout decision on it. */
+    readonly contentKey = computed(
+        () =>
+            `xtream-vod:${this.xtreamStore.currentPlaylist()?.id ?? ''}:${this.selectedVodId()}`
+    );
     /** Settings → Playback → Play trailers in details background. */
     readonly trailerBackdropUrl = computed(() =>
         this.settingsStore.detailTrailerBackdrop?.() === true
