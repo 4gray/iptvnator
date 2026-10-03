@@ -325,7 +325,7 @@ export class VodDetailsComponent {
         formattedPosition: this.formattedPosition,
         isWatched: this.isWatched,
         isElectron: this.isElectron,
-        providerOnly: this.providerOnly,
+        playbackStartPending: this.playbackStartPending,
         isOfflinePrimary: this.isOfflinePrimary,
         externalLabel: this.externalPrimaryLabel,
         externalIcon: this.externalPrimaryIcon,

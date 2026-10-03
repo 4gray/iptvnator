@@ -32,7 +32,8 @@ export interface VodDetailsHeroStateDeps {
     readonly formattedPosition: Signal<string>;
     readonly isWatched: Signal<boolean>;
     readonly isElectron: Signal<boolean>;
-    readonly providerOnly: Signal<boolean>;
+    /** Play/Resume clicked, stream still resolving (Stalker `create_link`). */
+    readonly playbackStartPending: Signal<boolean>;
     readonly isOfflinePrimary: Signal<boolean>;
     readonly externalLabel: Signal<string | null>;
     readonly externalIcon: Signal<string>;
@@ -108,15 +109,19 @@ export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
         externalPlayer,
         menuSections: computed(() =>
             buildVodMenuSections({
-                externalPlayerAvailable:
-                    deps.isElectron() && !deps.providerOnly(),
+                // Provider-only mode hides local/download controls, not the
+                // provider's own stream in MPV/VLC.
+                externalPlayerAvailable: deps.isElectron(),
                 externalPlayerHint: externalPlayer() === 'vlc' ? 'VLC' : 'MPV',
                 hasPlaybackPosition: deps.hasPlaybackPosition(),
                 hasStoredProgress:
                     (deps.playbackPosition() ?? 0) > 0 || deps.isWatched(),
-                // Inline playback collapses the hero; only an external
-                // player can still own the row while the menu is reachable.
-                playbackActive: deps.externalState() !== 'idle',
+                // Inline playback collapses the hero; an external player, or
+                // a start still resolving its stream, can still own the row
+                // while the menu is reachable.
+                playbackActive:
+                    deps.externalState() !== 'idle' ||
+                    deps.playbackStartPending(),
             })
         ),
     };

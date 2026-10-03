@@ -283,6 +283,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
+    /** Starts still resolving their stream (`create_link` round trips). */
+    private readonly pendingStartCount = signal(0);
     readonly seasonWatchBatchRunning = signal(false);
 
     /**
@@ -399,6 +401,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             ),
             playbackActive: computed(
                 () =>
+                    this.pendingStartCount() > 0 ||
                     this.inlinePlayback() !== null ||
                     this.openingEpisodeId() !== null ||
                     this.activeEpisodeId() !== null
@@ -1266,6 +1269,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         };
         if (request.usesEmbeddedPlayer && !request.identity) return;
 
+        this.pendingStartCount.update((count) => count + 1);
         try {
             const playback = await this.stalkerStore.resolveVodPlayback(
                 cmd,
@@ -1318,6 +1322,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             this.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
             });
+        } finally {
+            this.pendingStartCount.update((count) => count - 1);
         }
     }
 
