@@ -69,6 +69,11 @@ export class VodDetailsMenuService {
         const item = this.bindings()?.item() ?? null;
         const category = this.bindings()?.category() ?? null;
         const started = this.playback.routePlaybackPosition() !== null;
+        // A start still resolving or a launch still inside the player IPC:
+        // another start would be refused, so the row would do nothing.
+        const startPending =
+            this.playback.playbackStartPending() ||
+            this.playback.isExternalLaunchPending();
         const sourceRows: VodMoreMenuSection['items'][number][] = [];
         if (this.multiSource.hasAlternatives()) {
             sourceRows.push({
@@ -86,6 +91,7 @@ export class VodDetailsMenuService {
                 labelKey: 'PORTALS.DETAIL.OPEN_IN_EXTERNAL_PLAYER',
                 icon: 'open_in_new',
                 hint: this.externalPlayer() === 'vlc' ? 'VLC' : 'MPV',
+                disabled: startPending,
                 testId: 'vod-menu-external',
             });
         }
@@ -103,6 +109,7 @@ export class VodDetailsMenuService {
                 id: VOD_MENU_ACTION.StartOver,
                 labelKey: 'XTREAM.RESTART',
                 icon: 'replay',
+                disabled: startPending,
                 testId: 'vod-menu-start-over',
             });
         }
