@@ -104,6 +104,9 @@ html {
         var(--app-selection-color) 34%,
         transparent
     );
+    // Watch progress in app chrome (rail cards, catalog capsules, the hero).
+    // Over video the player's fixed `--pc-progress` applies instead.
+    --app-progress-color: var(--app-selection-color);
 
     // Live / on-air accent (broadcast indicator)
     --app-live-color: #d12c2c;
@@ -190,6 +193,9 @@ html {
             var(--app-selection-color) 44%,
             transparent
         );
+        // Re-declared so it resolves against this context's selection colour
+        // rather than inheriting the light value computed on `html`.
+        --app-progress-color: var(--app-selection-color);
 
         // Live / on-air accent (broadcast indicator)
         --app-live-color: #ff8f8f;

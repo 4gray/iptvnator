@@ -63,7 +63,7 @@
 
 .player-controls__timeline-fill {
     height: 100%;
-    background: var(--pc-accent-blue);
+    background: var(--pc-progress);
     border-radius: inherit;
 }
 
@@ -75,7 +75,8 @@
     margin: -7px 0 0 -7px;
     border-radius: 50%;
     background: #ffffff;
-    box-shadow: 0 0 0 5px rgba(79, 142, 255, 0.3);
+    box-shadow: 0 0 0 5px
+        color-mix(in srgb, var(--pc-progress) 30%, transparent);
     pointer-events: none;
     transition: transform 120ms ease-out;
 }
@@ -228,6 +229,7 @@
         width: 11px;
         height: 11px;
         margin: -5.5px 0 0 -5.5px;
-        box-shadow: 0 0 0 4px rgba(79, 142, 255, 0.3);
+        box-shadow: 0 0 0 4px
+            color-mix(in srgb, var(--pc-progress) 30%, transparent);
     }
 }

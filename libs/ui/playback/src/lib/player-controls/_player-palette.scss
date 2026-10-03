@@ -1,0 +1,19 @@
+// Player colours that surfaces outside the controls host need too. The
+// controls declare their `--pc-*` palette on `app-player-controls`' `:host`;
+// the Up Next rail and the fullscreen episode panel render beside that host,
+// not inside it, so they include `progress-token` on their own `:host` to
+// draw watch progress in the same colour as the dock.
+//
+// ArtPlayer's vendor chrome takes the same value as a string at construction:
+// `PLAYER_PROGRESS_COLOR` in `player-palette.ts`, pinned to `$accent-blue` by
+// `player-progress.palette.spec.ts`.
+
+// Accent blue: the primary action and watch progress over video.
+$accent-blue: #4f8eff;
+
+// `--pc-progress`, the watch-progress fill over video. Literal like the rest
+// of the overlay palette: the player is theme-independent, and the app's
+// selection blue would change with the theme and fight the video.
+@mixin progress-token {
+    --pc-progress: #{$accent-blue};
+}

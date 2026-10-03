@@ -1,7 +1,12 @@
+@use '../player-controls/player-palette' as palette;
+
 // Stamped into the fullscreen panel's body, which is its single flex child;
 // the list below is the body's only scroll owner. The panel wears the
 // `dark-theme` context class, so the light-on-dark palette here is fixed.
+// The panel sits beside the controls host, outside its `--pc-*` scope, so it
+// declares the player's progress colour itself.
 :host {
+    @include palette.progress-token;
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -238,7 +243,7 @@
 .episode-panel__progress-bar {
     display: block;
     height: 100%;
-    background: #e50914;
+    background: var(--pc-progress);
 }
 
 // ─── Text ────────────────────────────────────────────────────────────────────
