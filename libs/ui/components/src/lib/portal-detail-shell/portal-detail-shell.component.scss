@@ -9,8 +9,16 @@
     --text-primary: var(--app-heading-color, #1a1d23);
     --text-secondary: var(--app-body-color, #4a5060);
     --text-muted: var(--app-muted-color, #8891a4);
-    --tag-bg: color-mix(in srgb, var(--app-on-surface, #1d1b1e) 10%, transparent);
-    --tag-border: color-mix(in srgb, var(--app-on-surface, #1d1b1e) 14%, transparent);
+    --tag-bg: color-mix(
+        in srgb,
+        var(--app-on-surface, #1d1b1e) 10%,
+        transparent
+    );
+    --tag-border: color-mix(
+        in srgb,
+        var(--app-on-surface, #1d1b1e) 14%,
+        transparent
+    );
     --poster-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
     --content-max-width: 1400px;
 
