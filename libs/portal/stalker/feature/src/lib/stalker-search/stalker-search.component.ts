@@ -913,7 +913,12 @@ export class StalkerSearchComponent {
         externalPlayback: this.externalPlayback,
         playbackPositions: this.playbackPositions,
         playlistId: () => this.stalkerStore.currentPlaylist()?._id,
-        selectedVodId: () => Number(this.itemDetails()?.id) || null,
+        selectedVodId: () => {
+            const item = this.vodDetailsItem();
+            return item?.type === 'stalker'
+                ? Number(item.data.id) || null
+                : null;
+        },
         selectedVodPosition: this.selectedVodPosition,
         discardPendingPositionLoad: () =>
             this.vodPlayback.discardPendingPositionLoad(),

@@ -54,7 +54,9 @@ export interface SeriesHeroStateDeps {
     readonly country?: Signal<string | undefined>;
     readonly tmdbCast: Signal<readonly TmdbEnrichedCastMember[] | undefined>;
     readonly cast: Signal<string | undefined>;
-    readonly tmdbDirectors: Signal<readonly TmdbEnrichedCastMember[] | undefined>;
+    readonly tmdbDirectors: Signal<
+        readonly TmdbEnrichedCastMember[] | undefined
+    >;
     readonly director: Signal<string | undefined>;
     readonly quickStart: Signal<SeriesHeroQuickStart | null>;
     readonly translate: Pick<TranslateService, 'instant'>;
@@ -130,7 +132,10 @@ export function createSeriesHeroState(deps: SeriesHeroStateDeps) {
             }
             if (quickStart.kind === 'completed') {
                 return {
-                    label: translate(quickStart.labelKey, quickStart.labelParams),
+                    label: translate(
+                        quickStart.labelKey,
+                        quickStart.labelParams
+                    ),
                     meta: quickStart.episodeLabel,
                     icon: quickStart.icon,
                     disabled: true,
@@ -140,11 +145,15 @@ export function createSeriesHeroState(deps: SeriesHeroStateDeps) {
                 const remaining = formatRemainingLabel(quickStart.position);
                 const parts = [
                     quickStart.episodeCode,
-                    remaining ? translate(remaining.key, remaining.params) : null,
+                    remaining
+                        ? translate(remaining.key, remaining.params)
+                        : null,
                 ].filter((part): part is string => !!part);
                 return {
                     label: translate('WORKSPACE.DASHBOARD.HERO_CONTINUE'),
-                    meta: parts.length ? parts.join(' · ') : quickStart.episodeLabel,
+                    meta: parts.length
+                        ? parts.join(' · ')
+                        : quickStart.episodeLabel,
                     icon: quickStart.icon,
                     disabled: quickStart.disabled,
                 };
@@ -182,6 +191,8 @@ export interface SeriesMenuInput {
     readonly seriesCountKnown: boolean;
     readonly seriesActionDisabled: boolean;
     readonly hasProgress: boolean;
+    /** An episode plays or launches: its next position tick would undo a reset. */
+    readonly playbackActive: boolean;
     readonly sourcesCount: number;
     readonly externalPlayerHint: 'MPV' | 'VLC' | null;
     readonly copyUrlEpisodeCode: string | null;
@@ -194,7 +205,9 @@ export interface SeriesMenuInput {
 }
 
 /** Rows of the series "…" menu. Rows a provider cannot serve are left out. */
-export function buildSeriesMenuSections(input: SeriesMenuInput): VodMoreMenuSection[] {
+export function buildSeriesMenuSections(
+    input: SeriesMenuInput
+): VodMoreMenuSection[] {
     const watching: VodMoreMenuSection['items'][number][] = [];
     if (input.seasonWatchVisible) {
         watching.push({
@@ -227,7 +240,7 @@ export function buildSeriesMenuSections(input: SeriesMenuInput): VodMoreMenuSect
             id: SERIES_MENU_ACTION.ResetProgress,
             labelKey: 'PORTALS.DETAIL.RESET_PROGRESS',
             icon: 'history_toggle_off',
-            disabled: input.seriesActionDisabled,
+            disabled: input.playbackActive,
             testId: 'vod-menu-reset-progress',
         });
     }

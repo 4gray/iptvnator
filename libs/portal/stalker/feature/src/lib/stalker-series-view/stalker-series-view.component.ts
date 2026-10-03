@@ -397,6 +397,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             hasProgress: computed(
                 () => this.episodePlaybackPositions().size > 0
             ),
+            playbackActive: computed(
+                () =>
+                    this.inlinePlayback() !== null ||
+                    this.openingEpisodeId() !== null ||
+                    this.activeEpisodeId() !== null
+            ),
             resetProgress: () => this.resetProgress(),
             openExternal: (player) => this.openQuickStartExternally(player),
         });
@@ -1215,6 +1221,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         player: ExternalPlayerName,
         request: StalkerSeriesPlaybackRequestContext
     ): Promise<void> {
+        // `closeInlinePlayer()` just retired `request`'s generation; a fresh
+        // one covers the close round trip, the identity check the series.
+        const generation = this.seriesPlaybackRequestGeneration;
         const own = playback.contentInfo;
         const replaced = await replaceOwnedExternalSession(
             this.externalPlayback,
@@ -1224,7 +1233,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 info.seriesXtreamId === own?.seriesXtreamId,
             (message, error) => this.logger.warn(message, error)
         );
-        if (!replaced || !this.isPlaybackRequestCurrent(request)) return;
+        if (
+            !replaced ||
+            !this.isPlaybackRequestCurrent({ ...request, generation })
+        ) {
+            return;
+        }
         await this.portalPlayer.openExternalPlayback(playback, player);
     }
 

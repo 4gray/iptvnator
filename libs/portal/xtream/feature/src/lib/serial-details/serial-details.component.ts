@@ -221,6 +221,12 @@ export class SerialDetailsComponent implements OnDestroy {
                 String(this.routeParams()['categoryId'] ?? '')
             ),
             episodePositions: this.episodePlaybackPositions,
+            playbackActive: computed(
+                () =>
+                    this.inlinePlayback() !== null ||
+                    this.playback.openingEpisodeId() !== null ||
+                    this.playback.activeEpisodeId() !== null
+            ),
             resetProgress: () => this.resetProgress(),
             openEpisodeExternally: (episode, player) =>
                 this.playback.playEpisode(episode, player),

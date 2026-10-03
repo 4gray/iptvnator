@@ -16,6 +16,8 @@ interface StalkerSeriesMenuBindings {
     readonly quickStart: Signal<StalkerQuickStartButton | null>;
     readonly seasonContainer: Signal<SeasonContainerComponent | undefined>;
     readonly hasProgress: Signal<boolean>;
+    /** An episode plays or launches: its next tick would undo a reset. */
+    readonly playbackActive: Signal<boolean>;
     readonly resetProgress: () => Promise<void>;
     readonly openExternal: (player: ExternalPlayerName) => Promise<void>;
 }
@@ -57,6 +59,7 @@ export class StalkerSeriesMenuService {
             seriesCountKnown: watch?.seriesCountKnown() ?? true,
             seriesActionDisabled: watch?.seriesActionDisabled() ?? true,
             hasProgress: this.bindings()?.hasProgress() ?? false,
+            playbackActive: this.bindings()?.playbackActive() ?? false,
             sourcesCount: 0,
             externalPlayerHint:
                 quickStart?.action && this.downloadsService.isAvailable()

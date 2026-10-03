@@ -278,7 +278,10 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         externalPlayback: this.externalPlayback,
         playbackPositions: this.playbackPositions,
         playlistId: () => this.catalog.playlist()?.id,
-        selectedVodId: () => Number(this.selectedItem()?.id) || null,
+        selectedVodId: () =>
+            this.contentType() === 'vod' && !this.isSeriesDetail()
+                ? Number(this.selectedItem()?.id) || null
+                : null,
         selectedVodPosition: this.selectedVodPosition,
         discardPendingPositionLoad: () => ++this.positionLoadGeneration,
         beforeExternalLaunch: () => this.closeInlinePlayer(),

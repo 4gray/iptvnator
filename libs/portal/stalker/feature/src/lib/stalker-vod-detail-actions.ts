@@ -41,7 +41,11 @@ interface StalkerVodDetailActionsDeps {
         'clearPlaybackPositionOrThrow'
     >;
     readonly playlistId: () => string | undefined;
-    /** The movie on screen now; a reset finished for another one leaves it alone. */
+    /**
+     * The movie on screen now, null while a series or nothing is selected:
+     * Stalker movie and series ids collide, so the type matters as much as
+     * the number. A reset or a launch finished for another one leaves it alone.
+     */
     readonly selectedVodId: () => number | null;
     readonly selectedVodPosition: WritableSignal<PlaybackPositionData | null>;
     /** Retires a stored-position read in flight, which would restore the row. */

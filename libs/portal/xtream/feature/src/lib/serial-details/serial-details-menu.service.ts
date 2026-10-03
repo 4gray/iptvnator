@@ -35,6 +35,8 @@ interface SerialDetailsMenuBindings {
     /** The route's category id; the name comes from the store's list. */
     readonly categoryId: Signal<string>;
     readonly episodePositions: Signal<ReadonlyMap<number, unknown>>;
+    /** An episode plays or launches: its next tick would undo a reset. */
+    readonly playbackActive: Signal<boolean>;
     readonly resetProgress: () => Promise<void>;
     /** The regular episode start forced to MPV/VLC, so history and the launch position are recorded. */
     readonly openEpisodeExternally: (
@@ -152,6 +154,7 @@ export class SerialDetailsMenuService {
             seriesCountKnown: watch?.seriesCountKnown() ?? true,
             seriesActionDisabled: watch?.seriesActionDisabled() ?? true,
             hasProgress: this.hasProgress(),
+            playbackActive: this.bindings()?.playbackActive() ?? false,
             sourcesCount: 0,
             externalPlayerHint:
                 quickStart && this.downloadsService.isAvailable()
