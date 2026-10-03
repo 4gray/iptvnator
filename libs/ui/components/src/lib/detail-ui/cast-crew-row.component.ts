@@ -22,7 +22,7 @@ export function scrollToCastCrewRow(): void {
  * "Cast & crew" row under the hero: 72px round avatars with the full name
  * and the character (or "Director"), the director first, initials when a
  * person has no photo. A click on a person with a TMDB id opens the actor
- * page through the host.
+ * page through the host; a host without one renders plain entries.
  */
 @Component({
     selector: 'app-cast-crew-row',
@@ -35,6 +35,8 @@ export class CastCrewRowComponent {
     readonly cast = input<readonly TmdbEnrichedCastMember[]>([]);
     readonly directors = input<readonly TmdbEnrichedCastMember[]>([]);
     readonly headingId = input<string | null>('detail-cast-crew');
+    /** False when the host has no actor page: nobody becomes a button that does nothing. */
+    readonly interactive = input(true);
 
     readonly personSelected = output<TmdbEnrichedCastMember>();
 
@@ -49,7 +51,7 @@ export class CastCrewRowComponent {
     );
 
     isClickable(entry: CastCrewEntry): boolean {
-        return !!entry.member.tmdbPersonId;
+        return this.interactive() && !!entry.member.tmdbPersonId;
     }
 
     select(entry: CastCrewEntry): void {

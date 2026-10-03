@@ -56,6 +56,11 @@
     }
 
     <div detail-extras>
-        <app-cast-crew-row [cast]="cast()" [directors]="directorMembers()" />
+        <!-- M3U has no actor page: the people stay plain entries -->
+        <app-cast-crew-row
+            [cast]="cast()"
+            [directors]="directorMembers()"
+            [interactive]="false"
+        />
     </div>
 </app-portal-detail-shell>
