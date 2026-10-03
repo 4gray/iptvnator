@@ -249,6 +249,19 @@ describe('DashboardHeroSlidesPresenter', () => {
         expect(titles).toContain('Sport S01');
     });
 
+    it('keeps the season marker of a series that no episode badge describes', () => {
+        // A favorite with no playback row: the marker is the only thing
+        // telling two per-season catalog entries of the show apart.
+        recentItems.set([]);
+        favorites.set([{ ...favoriteFilm, title: 'Burnley (2 сезон)' }]);
+        addedItems.set([]);
+        candidates.set([]);
+        const [slide] = create().slides();
+
+        expect(slide.episodeBadge).toBeNull();
+        expect(slide.title).toBe('Burnley (2 сезон)');
+    });
+
     it('resumes an unfinished series and offers a detail-only way in', () => {
         const [resume] = create().slides();
 

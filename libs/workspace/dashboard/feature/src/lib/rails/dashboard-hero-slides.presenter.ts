@@ -230,24 +230,27 @@ export class DashboardHeroSlidesPresenter {
         const watchKind = isLive
             ? 'live'
             : (resolvePortalActivityWatchKind(item) ?? item.type);
+        const episodeBadge = buildDashboardEpisodeBadge(
+            item,
+            position,
+            (key, params) => this.translate.instant(key, params)
+        );
         return {
             ...artwork,
             id: `${source.kind}:${dashboardHeroItemKey(item)}`,
             kind: source.kind,
             contentType: item.type,
-            // "Большая фарма (1 сезон)" → "Большая фарма": the episode badge
-            // already names the season. A movie keeps its name as is.
+            // "Большая фарма (1 сезон)" → "Большая фарма" only while the
+            // episode badge names the season; without a badge the marker is
+            // the sole season identity of a per-season catalog entry. A movie
+            // keeps its name as is.
             title:
-                watchKind === 'series'
+                watchKind === 'series' && episodeBadge
                     ? splitSeasonSuffix(item.title).title
                     : item.title,
             typeLabelKey: TYPE_LABEL_KEYS[watchKind],
             reasonLabelKey: this.reasonLabelKey(source),
-            episodeBadge: buildDashboardEpisodeBadge(
-                item,
-                position,
-                (key, params) => this.translate.instant(key, params)
-            ),
+            episodeBadge,
             rating: extras?.rating ?? null,
             genres: extras?.genres ?? [],
             year: extras?.year ?? item.release_year ?? null,
