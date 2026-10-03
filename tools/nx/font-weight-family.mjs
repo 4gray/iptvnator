@@ -856,6 +856,40 @@ const CONTENT = /@content\b/g;
 const KEYFRAMES = /^@(?:-[a-z]+-)?keyframes\s+(\S+)/i;
 /** An `animation` or `animation-name` declaration. */
 const ANIMATION = /(?<![\w$-])animation(?:-name)?\s*:/gi;
+/** An animation value that keeps a frame once it runs. */
+const HOLDS = /(?<![\w-])(?:forwards|both|infinite)(?![\w-])/i;
+/** A block's own longhand that keeps an animation's frame. */
+const HELD =
+    /(?<![\w-])animation-(?:fill-mode\s*:[^;}]*(?<![\w-])(?:forwards|both)|iteration-count\s*:[^;}]*infinite)(?![\w-])/i;
+/** A keyframe declaration that sets a font. */
+const FONT_IN_FRAMES = /(?<![\w$-])(?:font(?:-family|-weight)?|all)\s*:/i;
+/** A token of the `animation` shorthand that is no name. */
+const ANIMATION_KEYWORD =
+    /^(?:none|linear|ease(?:-in|-out|-in-out)?|step-(?:start|end)|infinite|normal|reverse|alternate(?:-reverse)?|forwards|backwards|both|running|paused|initial|inherit|unset|revert(?:-layer)?)$/i;
+const unquoted = (name) => name.replace(/^(['"])(.*)\1$/, '$2');
+
+/**
+ * The keyframe names an `animation` (one per layer: the token that is no
+ * keyword, time, number or function) or `animation-name` value runs; a
+ * name the scan cannot read (`var(--n)`, `$n`) is `null`, any of them.
+ */
+function animationNames(value, longhand) {
+    return selectorsOf(value.replace(IMPORTANT, '')).flatMap((layer) => {
+        const tokens = layer.trim().split(/\s+/).filter(Boolean);
+        if (tokens.some((token) => /var\(|\$|#\{/.test(token))) return [null];
+        const names = tokens
+            .map(unquoted)
+            .filter(
+                (token) =>
+                    longhand ||
+                    !(
+                        ANIMATION_KEYWORD.test(token) ||
+                        /^[\d.+-]|[(),]/.test(token)
+                    )
+            );
+        return longhand ? names : names.slice(0, 1);
+    });
+}
 
 /** The combinators a selector's one allows across in a narrower one. */
 const ACROSS = { ' ': [' ', '>'], '~': ['~', '+'] };
@@ -885,7 +919,7 @@ export function keyOrder(a, b) {
 export function familiesOf(
     lexed,
     blocks,
-    { inString, placeOf, refsIn, rulesOf }
+    { inString, placeOf, refsIn, rulesOf, transient = true }
 ) {
     const family = new Map();
     // This file's `@include` sites, by mixin: a declaration in a mixin's
@@ -1040,15 +1074,19 @@ export function familiesOf(
     // one rule included, is a landing of its own. A landing's `key` is its
     // place at each level, outermost first (see `keyOrder`): in the rule,
     // then in each mixin included and at each `@content` it goes through.
-    // Each `@keyframes` name, and where a rule's `animation` or
-    // `animation-name` runs it: a keyframe's declarations apply to that
-    // rule's elements while it runs (and after, held by `forwards`), over
-    // the rule's own (as `!important` is read here).
-    const keyframes = new Map();
+    // Each `@keyframes` name and the block defining it last (a later one
+    // replaces it), and where a rule's last `animation`/`animation-name`
+    // runs it (`hold`: it keeps a frame, by `forwards`, `both` or
+    // `infinite`). A keyframe's declarations apply to that rule's elements
+    // while it runs, over the rule's own; one that does not hold applies
+    // only while it runs, so `transient: false` reads the rule after it.
+    const definedLast = new Map();
     for (const block of blocks) {
         const named = KEYFRAMES.exec(block.prelude);
-        if (named) keyframes.set(named[1].replace(/^(['"])(.*)\1$/, '$2'), []);
+        if (named) definedLast.set(unquoted(named[1]), block.start);
     }
+    const runs = new Map([...definedLast.keys()].map((name) => [name, []]));
+    const lastRun = new Map();
     for (const match of lexed.text.matchAll(ANIMATION)) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
@@ -1056,21 +1094,40 @@ export function familiesOf(
         if (!startsDeclaration(lexed.text, match.index)) continue;
         const start = match.index + match[0].length;
         const { value, selector } = declarationText(lexed, start);
-        if (selector || framesOf(placeOf(blocks, match.index).scope)) continue;
-        for (const token of value.split(/[\s,]+/)) {
-            const name = token.replace(/^(['"])(.*)\1$/, '$2');
-            keyframes.get(name)?.push(match.index);
+        const { scope } = placeOf(blocks, match.index);
+        if (selector || scope === null || framesOf(scope)) continue;
+        const longhand = /-name\s*:$/i.test(match[0]);
+        lastRun.set(scope, { index: match.index, value, longhand });
+    }
+    for (const [scope, { index, value, longhand }] of lastRun) {
+        const block = blocks.find((b) => b.start === scope);
+        const own = lexed.text.slice(block.start, block.end);
+        const hold = HOLDS.test(value) || HELD.test(own);
+        for (const name of animationNames(value, longhand)) {
+            const lists = name === null ? [...runs.values()] : [runs.get(name)];
+            for (const list of lists) list?.push({ index, hold });
         }
     }
-    // The `@keyframes` name a block (one of its steps) sits in, if any.
+    // The `@keyframes` a block (one of its steps) sits in, if any.
     function framesOf(scope) {
         const frame = blocks
             .filter((b) => b.start <= scope && scope < b.end)
             .find((b) => KEYFRAMES.test(b.prelude));
-        return frame
-            ? KEYFRAMES.exec(frame.prelude)[1].replace(/^(['"])(.*)\1$/, '$2')
-            : null;
+        if (!frame) return null;
+        const name = unquoted(KEYFRAMES.exec(frame.prelude)[1]);
+        return { name, live: definedLast.get(name) === frame.start };
     }
+    const framesText = (start) => {
+        const block = blocks.find((b) => b.start === start);
+        return block ? lexed.text.slice(block.start, block.end) : '';
+    };
+    // The rules running a keyframe, in the reading `transient` asks for.
+    const runsOf = (frames) =>
+        frames.live
+            ? (runs.get(frames.name) ?? []).filter(
+                  (run) => transient || run.hold
+              )
+            : [];
     const landingsOf = (scope, at, path = [], inner = []) => {
         if (path.includes(scope)) return [];
         const next = [...path, scope];
@@ -1081,7 +1138,7 @@ export function familiesOf(
         if (frames) {
             return [
                 { at, scope, rules: rulesOf(scope), key },
-                ...(keyframes.get(frames) ?? []).flatMap((site) =>
+                ...runsOf(frames).flatMap(({ index: site }) =>
                     landingsOf(
                         placeOf(blocks, site).scope,
                         site,
@@ -1475,9 +1532,10 @@ export function familiesOf(
         if (content) return familyAt(content.site, keep, seen);
         const frames = scope === null ? null : framesOf(scope);
         if (frames) {
+            if (!frames.live) return [];
             return [
                 ...(keep(scope) ? [lookup(index)] : []),
-                ...(keyframes.get(frames) ?? []).flatMap((site) =>
+                ...runsOf(frames).flatMap(({ index: site }) =>
                     familyAt(site, keep, seen)
                 ),
             ];
@@ -1506,6 +1564,13 @@ export function familiesOf(
     };
     // Where a declaration at `index` lands (`{ at, scope, rules }`, see
     // `landingsOf`), for the weights in effect.
+    // Whether a rule runs a keyframe that sets a font only for a while,
+    // so the rule after it needs reading too (`transient: false`).
+    monoAt.transient = [...runs].some(
+        ([name, list]) =>
+            list.some((run) => !run.hold) &&
+            FONT_IN_FRAMES.test(framesText(definedLast.get(name)))
+    );
     monoAt.landings = (index) => {
         const place = placeOf(blocks, index);
         const scope = fontNamespaceRule(blocks, place) ?? place.scope;

@@ -4297,6 +4297,54 @@ test('reads a keyframe where a rule runs it, over its own', () => {
             `.x { ${run} } .x.y { font-family: Roboto !important; font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
             [],
         ],
+        // One that does not hold a frame is read both while it runs and after.
+        [
+            `.x { font-family: ${mono}; font-weight: 700; animation: k 1ms; } @keyframes k { to { font-family: Roboto; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: Roboto; font-weight: 700; animation: k 1ms; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; font-weight: 500; animation: k 1ms; } @keyframes k { to { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        // The keyframes it runs: the last definition, the last declaration,
+        // a name rather than a keyword, and any for one read from a variable.
+        [
+            `@keyframes k { to { font-family: ${mono}; } } @keyframes k { to { opacity: 0.5; } } .x { ${run} font-weight: 700; }`,
+            [],
+        ],
+        [
+            `@keyframes k { to { opacity: 0.5; } } @keyframes k { to { font-family: ${mono}; } } .x { ${run} font-weight: 700; }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { ${run} animation: fade 1ms forwards; font-weight: 700; } @keyframes k { to { font-family: ${mono}; } } @keyframes fade { to { opacity: 0.5; } }`,
+            [],
+        ],
+        [
+            `@keyframes linear { to { font-family: ${mono}; } } .x { animation: fade 1ms linear forwards; font-weight: 700; } @keyframes fade { to { opacity: 0.5; } }`,
+            [],
+        ],
+        [
+            `.x { --n: k; animation: var(--n) 1ms forwards; font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `@keyframes linear { to { font-family: ${mono}; } } .x { animation: linear fade 1ms forwards; font-weight: 700; } @keyframes fade { to { opacity: 0.5; } }`,
+            [],
+        ],
+        [
+            `@keyframes k { to { font-family: ${mono}; font-weight: 600; } } @keyframes k { to { opacity: 0.5; } }`,
+            [],
+        ],
+        // One that holds its frame replaces the rule's own after it, too.
+        [
+            `.x { font-family: ${mono}; font-weight: 700; ${run} } @keyframes k { to { font-family: Roboto; } }`,
+            [],
+        ],
         // Only the keyframes it names; a step's own family meets its weight,
         // wherever it is run from.
         [

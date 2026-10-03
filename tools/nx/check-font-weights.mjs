@@ -97,18 +97,20 @@ import {
  * declarations land where this file includes it, in the order Sass writes
  * them out, a content block's too where the mixin places `@content` at its
  * top level, a rule this file `@extend`s whole applies to its extenders, and
- * a keyframe's declarations apply where a rule's `animation` runs it, over
- * the rule's own and under `!important` ones. An `:is()` or `:where()` reads
- * as the selectors it holds (`:where(.p) .c` is `.p .c`). A rule also sets
- * the family of the narrower selectors it reaches (`.x` for `.x:hover`, `.p
- * .x` for `.w .p .x:hover`), compound by compound across what its
- * combinators allow; of those, the element's own rule and `*`, the cascade
- * winner counts (`!important`, layer, specificity, source order; a `@layer`
- * always applies, and `revert-layer` falls back past its own). Without a
- * family of its own, a rule takes one from an ancestor its compiled selector
- * names (an `@at-root` rule's as Sass writes it out), else from the document
- * root (`:host`, `body`, `html`, `:root`) in its file; a family applies
- * under conditions (`@media`, `@supports`, `@if`) that the reader shares, or
+ * a keyframe's declarations (of its last definition) apply where a rule's
+ * last `animation` runs it, over the rule's own and under `!important` ones,
+ * while it runs and, unless it holds a frame (`forwards`, `both`,
+ * `infinite`), the rule's own after. An `:is()` or `:where()` reads as the
+ * selectors it holds (`:where(.p) .c` is `.p .c`). A rule also sets the
+ * family of the narrower selectors it reaches (`.x` for `.x:hover`, `.p .x`
+ * for `.w .p .x:hover`), compound by compound across what its combinators
+ * allow; of those, the element's own rule and `*`, the cascade winner counts
+ * (`!important`, layer, specificity, source order; a `@layer` always
+ * applies, and `revert-layer` falls back past its own). Without a family of
+ * its own, a rule takes one from an ancestor its compiled selector names (an
+ * `@at-root` rule's as Sass writes it out), else from the document root
+ * (`:host`, `body`, `html`, `:root`) in its file; a family applies under
+ * conditions (`@media`, `@supports`, `@if`) that the reader shares, or
  * always. Sass conditions are not evaluated: each `@if`/`@else` branch
  * counts as one that may run, in a rule, a mixin or a content block alike.
  *
@@ -884,8 +886,25 @@ function callSitesOf(text, blocks) {
  * One file's weight declarations: off-scale findings, the custom properties
  * and Sass variables its weights refer to, and every such variable it defines
  * (checked later, once the whole workspace has named what it refers to).
+ * A keyframe that sets a font only while it runs is read both ways: its
+ * frames over the rule that runs it, and that rule after it.
  */
 export function scanWeights(file, written) {
+    const running = scanPass(file, written, true);
+    if (!running.transient) return running;
+    const after = scanPass(file, written, false);
+    const keyOf = (item) => JSON.stringify(item);
+    const union = (a, b) => [
+        ...new Map([...a, ...b].map((item) => [keyOf(item), item])).values(),
+    ];
+    return {
+        ...running,
+        findings: union(running.findings, after.findings),
+        deferred: union(running.deferred, after.deferred),
+    };
+}
+
+function scanPass(file, written, transient) {
     // Read as the browser reads it (markup references and CSS escapes
     // decoded); lines are the file's own.
     const { text: source, origin } = decodeSource(file, written);
@@ -1044,7 +1063,9 @@ export function scanWeights(file, written) {
             selectors: selectorsOf(place.scopes),
         });
     const monoAt = stylesheet
-        ? familiesOf(lexed, blocks, { inString, placeOf, refsIn, rulesOf })
+        ? familiesOf(lexed, blocks, {
+              ...{ inString, placeOf, refsIn, rulesOf, transient },
+          })
         : Object.assign(() => ({ mono: false, refs: [] }), {
               landings: () => [],
           });
@@ -1498,6 +1519,7 @@ export function scanWeights(file, written) {
     return {
         ...{ file, loads, declarations, findings, references, definitions },
         ...{ calls, invocations, deferred },
+        transient: Boolean(monoAt.transient),
     };
 }
 
