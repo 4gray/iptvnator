@@ -317,6 +317,10 @@ record glyph and the recording status (6.2:1 on the glass over a black
 frame). They are literal on purpose: the overlay is
 theme-independent (see the UI guidelines' player theme boundary), and the
 app's `--app-selection-color` is a different blue that would fight the video.
+Watch progress reads `--pc-progress`, the accent blue declared by the
+`progress-token` mixin of `_player-palette.scss`; the Up Next rail and the
+fullscreen episode panel include the same mixin, so one episode's bar has
+one colour in every player surface (UI guidelines, "Watch progress colour").
 
 - **Timeline row**: current time (`--pc-font-mono`, tabular) · drawn track
   (`.player-controls__timeline-track` with one segment and an accent fill,
@@ -406,7 +410,7 @@ the native-view legacy dock keeps its plain slider.
 Near the end of a series episode the dock shows an **"Up next" card**
 (`app-player-up-next-card`, `data-test-id="player-controls-up-next"`) in the
 bottom-right corner above the controls: the next episode's still (or its
-`S01E03` label as a tile), a 3px accent progress line when it was partly
+`S01E03` label as a tile), a 3px `--pc-progress` line when it was partly
 watched, "Up next · in 7 min" and the title. The host supplies the item
 through the optional `upNext` input (`PlayerUpNextItem { label, title,
 thumbnailUrl, progressPercent }`); `ControlsUpNext` decides when it shows —
@@ -879,7 +883,7 @@ be.
   rows: a 16:9 still or, without one, a large numeral tile so the no-TMDB
   case still looks designed; the `S01E03` label, runtime, watched check or
   "Now playing" marker; the title (label as fallback); a 3-line clamped
-  overview when there is one; a progress bar on the thumbnail. Rows are
+  overview when there is one; a `--pc-progress` bar on the thumbnail. Rows are
   buttons inside `<li>`s of a `<ul>`, so their button role survives for
   assistive technology. A loading season shows a spinner row, a loaded empty
   one the season-empty copy, and an unanswered one a "could not be loaded"
@@ -1652,6 +1656,8 @@ libs/ui/playback/src/lib/player-controls/
 ├── player-controls.component.ts
 ├── player-controls.component.html
 ├── player-controls.component.scss
+├── _player-palette.scss
+├── player-palette.ts
 ├── controls-feedback.ts
 ├── controls-format.utils.ts
 ├── controls-layout.ts

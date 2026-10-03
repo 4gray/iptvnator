@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Elige cómo quieres conectar. Puedes renombrarla más tarde.",
+            "METHOD_GROUP_LABEL": "Método de conexión",
             "METHOD_URL_LABEL": "URL de M3U",
             "METHOD_URL_SUB": "Pega un enlace a un archivo .m3u o .m3u8 remoto",
             "METHOD_FILE_LABEL": "Archivo M3U",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "URL de la lista de reproducción (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "Introduce una URL válida que empiece por http:// o https://.",
             "ADD_PLAYLIST": "Añadir lista",
             "CORS_NOTE": "Nota: para evitar problemas de CORS, la aplicación usa un servicio público de proxy CORS. Si quieres cargar una lista de reproducción con datos sensibles, es más seguro importarla desde un archivo.",
             "ERROR_FETCH_FAILED": "No se pudo obtener la lista de reproducción. Verifica la URL e inténtalo de nuevo.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Continúa solo si confías en este host de la lista de reproducción. IPTVnator permitirá certificados TLS no válidos para este host, pero seguirá exigiendo certificados válidos para los demás."
         },
         "TEXT_IMPORT": {
-            "LABEL": "Inserte la playlist m3u(8) como texto",
-            "BUTTON_LABEL": "Importar"
+            "LABEL": "Inserte la playlist m3u(8) como texto"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Título de la lista",
             "SERVER_URL": "URL del servidor",
             "USERNAME": "Nombre de usuario",
             "PASSWORD": "Contraseña",
-            "ADD": "Agregar",
             "TEST_CREDENTIALS": "Probar credenciales",
-            "URL_VALIDATION_ERROR": "Debe ser una URL válida con protocolo (por ejemplo, http://example.com o https://example.com:4324).",
+            "URL_VALIDATION_ERROR": "Introduce una URL válida que empiece por http:// o https://.",
+            "URL_HINT": "Dirección del servidor, por ejemplo http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "Introduce un nombre de usuario y una contraseña para probar la conexión.",
                 "TESTING": "Probando conexión…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Título",
-            "MAC_ADDRESS": "Dirección Mac",
+            "MAC_ADDRESS": "Dirección MAC",
             "MAC_ADDRESS_HINT": "Formato 00:1A:79:XX:XX:XX. Los guiones, los puntos y las minúsculas se corrigen automáticamente.",
             "MAC_ADDRESS_OUI_HINT": "Esta dirección está fuera del rango 00:1A:79 de Infomir. La mayoría de los portales solo aceptan ese rango y rechazan cualquier otro sin indicar el motivo.",
             "MAC_ADDRESS_ERROR": "Ingresa una dirección MAC de 12 dígitos, por ejemplo 00:1A:79:12:34:56.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "URL del servidor",
             "URL_HINT": "Introduce un host o una dirección que termine en /c, portal.php o server/load.php.",
             "URL_VALIDATION_ERROR": "Introduce una URL válida que empiece por http:// o https://.",
-            "ADD": "Agregar",
             "VALIDATING": "Validando portal…",
+            "VALIDATED_EXPIRES": "Portal validado. Caduca el {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "El portal no respondió. Se agregó sin validación.",
             "CREDENTIALS_HINT": "Solo es necesario cuando el portal pide usuario y contraseña",
             "AUTH_FAILED": "No se pudo autenticar con el portal. Verifica la URL y la dirección MAC.",
             "EDIT_UNREACHABLE": "El portal no respondió. No se guardaron los cambios. Comprueba la URL e inténtalo de nuevo.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "El portal tiene registrado un ID de dispositivo distinto para esta dirección MAC.",
             "PORTAL_MESSAGE": "El portal informó: {{message}}"
         },
+        "SHOW_PASSWORD": "Mostrar contraseña",
         "FILTER_BY_NAME": "Filtrar por nombre",
         "FILTER_AND_SORT": "Filtrar y ordenar",
         "SORT_PLAYLISTS": "Ordenar listas",

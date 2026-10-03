@@ -16,10 +16,10 @@
             formControlName="serverUrl"
             (input)="extractParams(form.value.serverUrl ?? '')"
         />
-        <mat-hint>{{
+        <mat-hint>{{ 'HOME.XTREAM_PLAYLIST.URL_HINT' | translate }}</mat-hint>
+        <mat-error>{{
             'HOME.XTREAM_PLAYLIST.URL_VALIDATION_ERROR' | translate
-        }}</mat-hint>
-        <mat-error>{{ 'SETTINGS.EPG_URL_ERROR' | translate }}</mat-error>
+        }}</mat-error>
     </mat-form-field>
     @if (connectionTest.messageKey()) {
         <p role="status" aria-live="polite">
@@ -39,6 +39,20 @@
         <mat-label for="password">{{
             'HOME.XTREAM_PLAYLIST.PASSWORD' | translate
         }}</mat-label>
-        <input matInput type="text" id="password" formControlName="password" />
+        <input
+            matInput
+            [type]="passwordToggle.inputType()"
+            id="password"
+            formControlName="password"
+        />
+        <button
+            mat-icon-button
+            matSuffix
+            appPasswordVisibilityToggle
+            #passwordToggle="appPasswordVisibilityToggle"
+            [attr.aria-label]="'HOME.SHOW_PASSWORD' | translate"
+        >
+            <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
+        </button>
     </mat-form-field>
 </form>

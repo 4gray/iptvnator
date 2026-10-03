@@ -100,6 +100,7 @@ function measurement(
         },
     };
     const ipc: JourneyMainIpcCaptureState = {
+        ambiguousTimelineCompletions: 0,
         callsAfterSentinel: 3,
         callsBeforeStart: 6,
         callsBeforeSentinel: 4,
@@ -116,6 +117,16 @@ function measurement(
         senderIds: [1],
         sentinel: { occurrences: 1, receivedEpochMs: 10_351 },
         start: { occurrences: 1, receivedEpochMs: 10_001 },
+        timeline: [
+            { method: 'setUserAgent', phase: 'start' },
+            { method: 'setUserAgent', phase: 'end' },
+            { method: 'xtreamRequest', phase: 'start' },
+            { method: 'getEpgMapping', phase: 'start' },
+            { method: 'getEpgMapping', phase: 'end' },
+            { method: 'updateRemoteControlStatus', phase: 'start' },
+            { method: 'updateRemoteControlStatus', phase: 'end' },
+            { method: 'xtreamRequest', phase: 'end' },
+        ],
         unmatchedCompletions: 0,
     };
     return {

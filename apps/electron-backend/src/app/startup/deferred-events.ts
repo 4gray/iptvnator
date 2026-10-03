@@ -6,7 +6,7 @@
  * main.ts loads this module through a dynamic import inside the main
  * window's `did-start-loading` listener (see deferred-bootstrap.ts), so the
  * heavy dependencies it pulls in (axios, drizzle-orm, better-sqlite3,
- * electron-updater, fix-path) are evaluated while the renderer parses and
+ * electron-updater) are evaluated while the renderer parses and
  * runs its own bundle instead of before the window can load at all.
  *
  * Keep `bootstrapDeferredEvents()` synchronous: the guarantee that no
@@ -51,6 +51,9 @@ import {
 } from '../services/app-update-channel';
 import { databaseWorkerClient } from '../services/database-worker-client';
 import type { bootstrapWindowCloseGuard } from '../services/window-close-guard.service';
+import { scheduleDeferredFixPath } from './login-shell-path';
+
+export { scheduleDeferredFixPath };
 
 export interface DeferredEventsContext {
     readonly appVersion: string;
@@ -124,35 +127,6 @@ export async function finishStartupAfterFirstLoad(): Promise<void> {
     await reconcileStaleRecordings();
 
     traceStartupPhase('reconcile-stale-recordings:done');
-}
-
-let fixPathScheduled = false;
-
-/**
- * Update process.env.PATH from the user's interactive login shell so that
- * spawned external players (MPV/VLC) can be resolved by binary name.
- *
- * Runs after window creation + IPC handler registration so the 50-300 ms
- * shell-spawn cost (bash/zsh -ilc env) doesn't block startup. Idempotent:
- * subsequent calls are no-ops. fix-path itself is imported here, on demand,
- * so its module evaluation stays off the launch path as well.
- */
-export function scheduleDeferredFixPath(): void {
-    if (fixPathScheduled || process.platform === 'win32') {
-        return;
-    }
-
-    fixPathScheduled = true;
-    setImmediate(() => {
-        import('fix-path')
-            .then(({ default: fixPath }) => {
-                fixPath();
-                traceStartupPhase('fix-path:done');
-            })
-            .catch((error) => {
-                console.warn('fix-path failed:', error);
-            });
-    });
 }
 
 /** Tears down sessions and the DB worker; safe when nothing was started. */

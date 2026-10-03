@@ -552,6 +552,39 @@ a cache read open and checks text contrast across live theme changes.
 
 Channel preview progress and EPG current-program progress should stay visually aligned.
 
+### Watch progress colour
+
+A title's watch progress (its resume share, `progressPercent`) has exactly one
+colour per context, and never a literal of its own:
+
+- **App chrome** — dashboard rail cards and the hero, catalog grids and season
+  episodes (`app-progress-capsule`, and the season list rows' own fill):
+  `--app-progress-color`, declared per theme in `apps/web/src/m3-theme.scss`
+  as that theme's `--app-selection-color`, and declared again inside
+  `.dark-theme` because a derived custom property resolves where it is
+  declared. The capsule's green from 90 % marks a finished title; it is a
+  status, not progress.
+- **Over video** — the dock timeline, the Up next card, the Up Next rail and
+  the fullscreen episode panel: the player's fixed `--pc-progress` (accent
+  blue `#4f8eff`), never an app token, because the player palette is
+  theme-independent (see Player And EPG Theme Boundaries). An episode
+  therefore reads the same in every player surface. The rail and the episode
+  panel render beside the controls host, outside its `--pc-*` scope, so they
+  declare the token on their own `:host` with the `progress-token` mixin of
+  `libs/ui/playback/src/lib/player-controls/_player-palette.scss`.
+- ArtPlayer's legacy skin takes a colour string, not a custom property, so it
+  gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
+  Sass value.
+- Live programme progress next to a LIVE marker (the dashboard's live rail and
+  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  fill described below.
+
+Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
+in both theme contexts), `player-progress.palette.spec.ts` (ui-playback),
+`progress-capsule.component.spec.ts` and
+`season-container.progress-colour.spec.ts` (components) and
+`dashboard-progress-colour.spec.ts` (workspace-dashboard-feature).
+
 ### Track
 
 - Height:
@@ -737,6 +770,28 @@ Settings use the same system but are flatter than content-heavy views.
   is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
   alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
   themes.
+
+## Forms
+
+The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
+vocabulary, so a field reads the same wherever it appears:
+
+- **Name.** The source name is labelled "Playlist title"
+  (`HOME.XTREAM_PLAYLIST.TITLE`) in every add form. Every add form submits
+  with "Add playlist" (`HOME.URL_UPLOAD.ADD_PLAYLIST`).
+- **Passwords.** A password input is masked and has a `mat-icon-button`
+  suffix with `PasswordVisibilityToggleDirective`
+  (`@iptvnator/ui/components/password-visibility-toggle`). The input binds
+  `[type]="toggle.inputType()"`; the button keeps one translated label
+  ("Show password", `HOME.SHOW_PASSWORD`) and exposes its state through
+  `aria-pressed`, as an ARIA toggle button does.
+- **URLs.** A URL field has a neutral `mat-hint` where the format is not
+  obvious, and its own `mat-error`. Never borrow another field's message.
+- **Feedback.** While the dialog stays open, a check or refusal is shown
+  inline under the URL field in a `role="status"` paragraph. The message is
+  translated in the template and cleared by any edit. Use a snackbar only for
+  outcomes that close the dialog. `add-source-forms.e2e.ts` in `web-e2e`
+  covers the shared labels, the toggle and the URL errors.
 
 ## Source Type Icons
 

@@ -245,7 +245,10 @@ async function addStalkerPortal(
     await setInputValue(dialog.locator('input#portalUrl'), PORTAL_URL);
     await setInputValue(dialog.locator('input#macAddress'), mac);
 
-    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    const addButton = dialog.getByRole('button', {
+        name: 'Add playlist',
+        exact: true,
+    });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();
@@ -289,7 +292,10 @@ async function addFullStalkerPortal(
         await setInputValue(dialog.locator('input#password'), password);
     }
 
-    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    const addButton = dialog.getByRole('button', {
+        name: 'Add playlist',
+        exact: true,
+    });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();
@@ -1387,15 +1393,17 @@ test.describe('@stalker full portal authentication', () => {
         await setInputValue(dialog.locator('input#macAddress'), mac);
 
         const addButton = dialog.getByRole('button', {
-            name: 'Add',
+            name: 'Add playlist',
             exact: true,
         });
         await expect(addButton).toBeEnabled({ timeout: 10_000 });
         await addButton.click();
 
-        await expect(
-            page.getByText(/requires a login and password/i)
-        ).toBeVisible({ timeout: 15_000 });
+        // Inline under the portal URL, like the Xtream connection test.
+        await expect(dialog.getByRole('status')).toContainText(
+            /requires a login and password/i,
+            { timeout: 15_000 }
+        );
         // The dialog stays open so the user can add the credentials.
         await expect(dialog).toBeVisible();
 
@@ -1508,7 +1516,7 @@ test.describe('@stalker full portal authentication', () => {
         );
 
         const addButton = dialog.getByRole('button', {
-            name: 'Add',
+            name: 'Add playlist',
             exact: true,
         });
         await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -1518,9 +1526,10 @@ test.describe('@stalker full portal authentication', () => {
         // stop there instead of persisting a portal that can never load. (It
         // used to be treated as success whenever the portal sent no msg text,
         // which imported a dead source.)
-        await expect(page.getByText(/refused access/i)).toBeVisible({
-            timeout: 15_000,
-        });
+        await expect(dialog.getByRole('status')).toContainText(
+            /refused access/i,
+            { timeout: 15_000 }
+        );
         await expect(dialog).toBeVisible();
         await expect(page).not.toHaveURL(/stalker/);
 
@@ -1570,7 +1579,7 @@ test.describe('@stalker full portal authentication', () => {
         );
 
         const addButton = dialog.getByRole('button', {
-            name: 'Add',
+            name: 'Add playlist',
             exact: true,
         });
         await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -1579,12 +1588,13 @@ test.describe('@stalker full portal authentication', () => {
         // The conflict gets its own headline. Asserting the generic one is
         // ABSENT is what makes this test fail if the classification is
         // removed — `blocked` would still surface the portal's text.
-        await expect(
-            page.getByText(/different device ID registered/i)
-        ).toBeVisible({ timeout: 15_000 });
+        const status = dialog.getByRole('status');
+        await expect(status).toContainText(/different device ID registered/i, {
+            timeout: 15_000,
+        });
         await expect(page.getByText(/refused access/i)).toHaveCount(0);
         // The portal's own words still travel with it, markup stripped.
-        await expect(page.getByText(/device_id mismatch/i)).toBeVisible();
+        await expect(status).toContainText(/device_id mismatch/i);
         await expect(page.locator('body')).not.toContainText('<br/>');
 
         await expect(dialog).toBeVisible();

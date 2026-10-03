@@ -3,6 +3,7 @@ import {
     EventEmitter,
     Output,
     inject,
+    viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import {
@@ -14,12 +15,15 @@ import {
     ValidationErrors,
     Validators,
 } from '@angular/forms';
+import { MatIconButton } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { createXtreamConnectionTestState } from '@iptvnator/services';
+import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import {
     createRandomId,
     extractXtreamCredentialsFromUrl,
@@ -47,7 +51,10 @@ function xtreamServerUrlValidator(
     imports: [
         FormsModule,
         MatFormFieldModule,
+        MatIcon,
+        MatIconButton,
         MatInputModule,
+        PasswordVisibilityToggleDirective,
         ReactiveFormsModule,
         TranslatePipe,
     ],
@@ -87,6 +94,9 @@ export class XtreamCodeImportComponent {
 
     readonly store = inject(Store);
     readonly connectionTest = createXtreamConnectionTestState(this.form);
+    private readonly passwordToggle = viewChild(
+        PasswordVisibilityToggleDirective
+    );
 
     get isTestingConnection(): boolean {
         return this.connectionTest.testing();
@@ -97,6 +107,8 @@ export class XtreamCodeImportComponent {
     }
 
     clearForm(): void {
+        // A cleared form is a fresh entry: the next password starts masked.
+        this.passwordToggle()?.hide();
         this.form.reset({
             _id: createRandomId(),
             title: '',

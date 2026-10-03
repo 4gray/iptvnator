@@ -36,7 +36,9 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await dialog.locator('#username').fill('user1');
     await dialog.locator('#password').fill('pass1');
 
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await expect(dialog).toBeHidden();
     await page.waitForURL(/xtreams.*vod/);
 }
@@ -73,7 +75,10 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await setInputValue(dialog.locator('input#portalUrl'), STALKER_PORTAL_URL);
     await setInputValue(dialog.locator('input#macAddress'), DEFAULT_MAC);
 
-    const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
+    const addButton = dialog.getByRole('button', {
+        name: 'Add playlist',
+        exact: true,
+    });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
     await expect(dialog).toBeHidden();

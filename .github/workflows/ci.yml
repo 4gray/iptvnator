@@ -390,8 +390,12 @@ jobs:
             - name: Typecheck Jest spec programs
               run: pnpm run typecheck:spec:test && pnpm run typecheck:spec
 
-            - name: Check i18n drift
-              run: pnpm run i18n:check
+            # Fails on missing or extra keys and on values identical to
+            # English that tools/i18n/identical-en-baseline.json does not list.
+            # The baseline only changes through a reviewed
+            # `pnpm run i18n:baseline:update`; CI never rewrites it.
+            - name: Check i18n drift and untranslated values
+              run: pnpm run i18n:validate
 
             # Node specs for the benchmark and journey harness (about ten
             # seconds). They live in the E2E app, which the unit coverage scope

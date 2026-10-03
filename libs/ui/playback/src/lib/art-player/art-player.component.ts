@@ -15,6 +15,7 @@ import {
 import Artplayer from 'artplayer';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import { releaseVideoPictureInPicture } from '../player-controls/web-video-picture-in-picture-lifecycle';
+import { PLAYER_PROGRESS_COLOR } from '../player-controls/player-palette';
 import type { PlaybackDiagnostic } from '@iptvnator/playback/util';
 import {
     type LegacyPlayerShortcuts,
@@ -179,7 +180,9 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             playsInline: true,
             backdrop: true,
             mutex: true,
-            theme: '#ff0000',
+            // Colours the vendor chrome (legacy skin only; shared controls
+            // hide it) with the player's progress colour, not a stray red.
+            theme: PLAYER_PROGRESS_COLOR,
             ...buildArtPlayerChrome(this.sharedControls),
             customType: sourceSession.customType,
         });
