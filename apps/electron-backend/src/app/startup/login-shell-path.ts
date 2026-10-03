@@ -30,29 +30,33 @@ const loginShellPathSettled: Promise<void> =
               settleLoginShellPath = resolve;
           });
 
-/** Upper bound for a waiting spawn when the login shell never returns. */
+/**
+ * Time budget of the lookup, counted from its start. A shell that has not
+ * answered by then is treated as hung: waits end at this shared deadline,
+ * so a broken profile cannot delay every launch by the full budget, while a
+ * launch retried within the budget still waits for the PATH.
+ */
 export const LOGIN_SHELL_PATH_WAIT_LIMIT_MS = 10_000;
-// Set once a wait has run out: a shell that hung that long is not waited
-// for again, so one broken profile delays one launch, not every launch.
-let loginShellPathWaitExpired = false;
+let loginShellPathDeadline: number | null = null;
 
 /**
  * Resolves once the login shell PATH lookup has finished (successfully or
- * not), at the latest after `limitMs`; immediately on Windows and after a
- * previous wait has run out.
+ * not), or when its budget is spent; immediately on Windows. Before the
+ * lookup is scheduled, a wait lasts at most `limitMs`.
  */
 export function waitForLoginShellPath(
     limitMs = LOGIN_SHELL_PATH_WAIT_LIMIT_MS
 ): Promise<void> {
-    if (loginShellPathWaitExpired) {
+    const remainingMs =
+        loginShellPathDeadline === null
+            ? limitMs
+            : Math.min(limitMs, loginShellPathDeadline - Date.now());
+    if (remainingMs <= 0) {
         return Promise.resolve();
     }
     let timer: NodeJS.Timeout | undefined;
     const limit = new Promise<void>((resolve) => {
-        timer = setTimeout(() => {
-            loginShellPathWaitExpired = true;
-            resolve();
-        }, limitMs);
+        timer = setTimeout(resolve, remainingMs);
     });
     return Promise.race([loginShellPathSettled, limit]).finally(() =>
         clearTimeout(timer)
@@ -81,13 +85,15 @@ export async function hydratePathFromLoginShell(
 }
 
 export function scheduleDeferredFixPath(
-    readPath: ReadLoginShellPath = readLoginShellPath
+    readPath: ReadLoginShellPath = readLoginShellPath,
+    budgetMs = LOGIN_SHELL_PATH_WAIT_LIMIT_MS
 ): void {
     if (loginShellPathScheduled || process.platform === 'win32') {
         return;
     }
 
     loginShellPathScheduled = true;
+    loginShellPathDeadline = Date.now() + budgetMs;
     setImmediate(() => {
         hydratePathFromLoginShell(readPath)
             .then(() => {

@@ -79,16 +79,39 @@ describe('login shell PATH', () => {
         resolveShell('/opt/homebrew/bin');
         await wait;
         expect(process.env.PATH).toBe('/opt/homebrew/bin');
+    });
 
-        // A shell that never returns cannot block a launch forever.
+    it('ends every wait at the lookup budget, so a hung shell delays no later launch', async () => {
         const stuck = loadModule();
-        stuck.scheduleDeferredFixPath(() => new Promise(() => undefined));
-        await expect(stuck.waitForLoginShellPath(5)).resolves.toBeUndefined();
-        // Later spawns do not wait out the limit again (the test would time
+        stuck.scheduleDeferredFixPath(() => new Promise(() => undefined), 20);
+        await expect(stuck.waitForLoginShellPath()).resolves.toBeUndefined();
+        // Past the budget a later launch goes at once (the test would time
         // out on this one otherwise).
         await expect(
             stuck.waitForLoginShellPath(60_000)
         ).resolves.toBeUndefined();
+    });
+
+    it('lets a launch retried within the budget wait for the PATH again', async () => {
+        let resolveShell: (path: string) => void = () => undefined;
+        const module = loadModule();
+        module.scheduleDeferredFixPath(
+            () =>
+                new Promise((resolve) => {
+                    resolveShell = resolve;
+                }),
+            60_000
+        );
+        await flushScheduled();
+        // The first launch gives up on its own, shorter limit...
+        await module.waitForLoginShellPath(5);
+        expect(process.env.PATH).toBe('/usr/bin:/bin');
+
+        // ...a retry still waits, and sees the PATH once the shell answers.
+        const retry = module.waitForLoginShellPath();
+        resolveShell('/opt/homebrew/bin');
+        await retry;
+        expect(process.env.PATH).toBe('/opt/homebrew/bin');
     });
 
     it('lets spawns go immediately on Windows', async () => {
