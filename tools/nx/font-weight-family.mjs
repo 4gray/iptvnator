@@ -33,6 +33,8 @@ export function fontNamespaceRule(blocks, { scope, scopes }) {
 /** At-rules whose body styles the enclosing rule's own element. */
 const SAME_ELEMENT = /^@(?:media|supports|container|layer|include)\b/i;
 const NONE = Object.freeze({ mono: false, refs: [] });
+/** A family met in another module, which the scan of this one cannot read. */
+const OUTSIDE = Object.freeze({ mono: false, refs: [] });
 
 /**
  * A declaration's whole value, to its `;`: a family list is comma-separated.
@@ -915,13 +917,116 @@ export function keyOrder(a, b) {
  * `monoAt(index)`: the family in effect for a declaration there, from the
  * innermost rule that sets one and that the declaration's rule inherits
  * from. `@font-face` describes a face, so nothing in it is capped.
+ *
+ * Another module's mixin lands too: `included` gives, by the position of
+ * each `@include` of one, the families its top-level declarations set
+ * (`{ key, entry }`, `key` its place in that mixin), and `elsewhere` names
+ * this file's module mixins that another module includes, which style
+ * nothing where they are written (see `scanWorkspace`).
  */
 export function familiesOf(
     lexed,
     blocks,
-    { inString, placeOf, refsIn, rulesOf, transient = true }
+    { inString, placeOf, refsIn, rulesOf, transient = true },
+    { included = new Map(), elsewhere = new Set() } = {}
 ) {
     const family = new Map();
+    // This file's mixins, in source order, with the scope each is declared
+    // in (`null` for the module; one declared in a rule is local to it).
+    const mixins = blocks.filter(
+        (b) => b.kind === 'callable' && /^@mixin\b/i.test(b.prelude)
+    );
+    const declaredIn = new Map(
+        mixins.map((b) => [b.start, placeOf(blocks, b.start).scope])
+    );
+    const named = (name, scope) =>
+        mixins.filter(
+            (b) => b.name === name && declaredIn.get(b.start) === scope
+        );
+    // The outermost callable body between `scope` and `site`, if any: a
+    // site in one runs where that callable is included, not where it is.
+    const deferredBy = (scope, site) =>
+        blocks.find(
+            (b) =>
+                b.kind === 'callable' &&
+                b.start < site &&
+                site < b.end &&
+                (scope === null || b.start > scope)
+        ) ?? null;
+    // When a site runs, as places in the module's own run: itself outside
+    // any mixin body, else where each `@include` of the mixin it sits in
+    // runs, and the module's end (`Infinity`) where another module includes
+    // it or nothing here does.
+    const runsAt = (site, seen = new Set()) => {
+        const callable = deferredBy(null, site);
+        if (!callable) return [site];
+        if (seen.has(callable.start)) return [];
+        const scope = declaredIn.get(callable.start);
+        if (scope === undefined) return [Infinity];
+        const next = new Set([...seen, callable.start]);
+        const sites = (includes.get(callable.name) ?? []).filter((t) =>
+            placeOf(blocks, t).scopes.includes(scope)
+        );
+        const outside =
+            elsewhere.has(memberOf(callable.start)) ||
+            (sites.length === 0 && scope === null);
+        return [
+            ...sites.flatMap((t) => runsAt(t, next)),
+            ...(outside ? [Infinity] : []),
+        ];
+    };
+    // The definition of `name` an `@include` at `site` runs when the module
+    // has run to `point` (see `runsAt`), as Sass resolves it: in the
+    // innermost scope around the site that has declared one by then, the
+    // last; in a mixin body declared in a rule or another mixin, any.
+    const resolveAt = (name, site, point) => {
+        for (const scope of placeOf(blocks, site).scopes) {
+            const declared = named(name, scope);
+            if (declared.length === 0) continue;
+            const deferred = deferredBy(scope, site) !== null;
+            if (deferred && scope !== null) return declared;
+            const by = deferred ? point : site;
+            const ran = declared.filter((b) => b.start < by).slice(-1);
+            if (ran.length > 0) return ran;
+        }
+        return [];
+    };
+    // The definitions an `@include` of `name` at `site` can run, wherever
+    // it runs (`defs`), and whether somewhere none of this file's is in
+    // scope (`open`), so one another module brings in runs.
+    const definitions = new Map();
+    const definitionsAt = (name, site) => {
+        const id = `${name} ${site}`;
+        if (!definitions.has(id)) {
+            const each = runsAt(site).map((point) =>
+                resolveAt(name, site, point)
+            );
+            definitions.set(id, {
+                defs: [...new Set(each.flat())],
+                open: each.some((found) => found.length === 0),
+            });
+        }
+        return definitions.get(id);
+    };
+    // Whether the definitions a landing went through (`{ name, site, def }`,
+    // `def` `null` for another module's) are the ones that run when the
+    // module has run to `point`.
+    const ranAt = (checks, point) =>
+        checks.every(({ name, site, def }) => {
+            const found = resolveAt(name, site, point);
+            return def === null ? found.length === 0 : found.includes(def);
+        });
+    // A module mixin's name, for its last module-level definition: the one
+    // another module includes (one declared in a rule never is).
+    const memberOf = (scope) => {
+        const block = mixins.find((b) => b.start === scope);
+        if (!block) return null;
+        const last = mixins
+            .filter((b) => b.name === block.name)
+            .filter((b) => declaredIn.get(b.start) === null)
+            .at(-1);
+        return last === block ? block.name : null;
+    };
     // This file's `@include` sites, by mixin: a declaration in a mixin's
     // body lands in the rule that includes it, at the `@include`.
     const includes = new Map();
@@ -931,12 +1036,14 @@ export function familiesOf(
         if (!includes.has(name)) includes.set(name, []);
         includes.get(name).push(match.index);
     }
+    // Only a mixin is included (a function's body sets nothing), where the
+    // name runs this definition of it.
     const sitesOf = (scope) => {
-        const block = blocks.find((b) => b.start === scope);
-        // Only a mixin is included (a function's body sets nothing).
-        return block?.kind === 'callable'
-            ? (includes.get(block.name) ?? [])
-            : [];
+        const block = mixins.find((b) => b.start === scope);
+        if (!block) return [];
+        return (includes.get(block.name) ?? []).filter((site) =>
+            definitionsAt(block.name, site).defs.includes(block)
+        );
     };
     // A content block (`@include m { … }`) passed to a mixin of this file
     // that places `@content` at its top level is the including rule's
@@ -945,24 +1052,24 @@ export function familiesOf(
     // `@media`) is not traced, as the mixin's own nested blocks are not.
     const contentOf = (scope) => {
         const block = blocks.find((b) => b.start === scope);
-        const named = /^@include\s+([\w-]+)/i.exec(block?.prelude ?? '');
+        const named = /^@include\s+([\w-]+)(?![\w.-])/i.exec(
+            block?.prelude ?? ''
+        );
         if (!named) return null;
         const name = named[1].replace(/_/g, '-');
-        const places = blocks
-            .filter((b) => b.kind === 'callable' && b.name === name)
-            .filter((b) => /^@mixin\b/i.test(b.prelude))
-            .flatMap((mixin) =>
-                [...lexed.text.slice(mixin.start, mixin.end).matchAll(CONTENT)]
-                    .map((match) => mixin.start + match.index)
-                    .filter((index) => !inString(index))
-                    .filter(
-                        (index) => placeOf(blocks, index).scope === mixin.start
-                    )
-            );
         const site = Math.max(
             ...(includes.get(name) ?? []).filter((index) => index < scope)
         );
-        return places.length && Number.isFinite(site) ? { places, site } : null;
+        if (!Number.isFinite(site)) return null;
+        // Each place with the definition it sits in, as that runs there.
+        const places = definitionsAt(name, site).defs.flatMap((mixin) =>
+            [...lexed.text.slice(mixin.start, mixin.end).matchAll(CONTENT)]
+                .map((match) => mixin.start + match.index)
+                .filter((index) => !inString(index))
+                .filter((index) => placeOf(blocks, index).scope === mixin.start)
+                .map((index) => ({ index, check: { name, site, def: mixin } }))
+        );
+        return places.length ? { places, site } : null;
     };
     // Cascade layers in declared order within their parent layer: as
     // `@layer a, b;` names them, or as a `@layer name { … }` block first
@@ -1128,22 +1235,33 @@ export function familiesOf(
                   (run) => transient || run.hold
               )
             : [];
-    const landingsOf = (scope, at, path = [], inner = []) => {
+    const landingsOf = (scope, at, path = [], inner = [], checks = []) => {
         if (path.includes(scope)) return [];
         const next = [...path, scope];
         const key = [at, ...inner];
+        // Outside any mixin body it runs at `at`, where each definition it
+        // went through must be the one that runs; a module mixin runs for
+        // another module once the module has run (`external`).
+        if (!deferredBy(null, at) && !ranAt(checks, at)) return [];
+        const own = {
+            ...{ at, scope, rules: rulesOf(scope), key },
+            ...(memberOf(scope) === null
+                ? {}
+                : { external: ranAt(checks, Infinity) }),
+        };
         // A keyframe's declarations meet each other in its step, and run
         // from elsewhere too (another file, unseen here).
         const frames = scope === null ? null : framesOf(scope);
         if (frames) {
             return [
-                { at, scope, rules: rulesOf(scope), key },
+                own,
                 ...runsOf(frames).flatMap(({ index: site }) =>
                     landingsOf(
                         placeOf(blocks, site).scope,
                         site,
                         next,
-                        key
+                        key,
+                        checks
                     ).map((landing) => ({ ...landing, animated: true }))
                 ),
             ];
@@ -1151,22 +1269,44 @@ export function familiesOf(
         const content = contentOf(scope);
         if (content) {
             const { places, site } = content;
-            return places.flatMap((place) =>
-                landingsOf(placeOf(blocks, site).scope, site, next, [
-                    place,
-                    ...key,
-                ])
+            return places.flatMap(({ index: place, check }) =>
+                landingsOf(
+                    placeOf(blocks, site).scope,
+                    site,
+                    next,
+                    [place, ...key],
+                    [...checks, check]
+                )
             );
         }
+        const block = mixins.find((b) => b.start === scope);
         return [
-            { at, scope, rules: rulesOf(scope), key },
+            own,
             ...sitesOf(scope).flatMap((site) =>
-                landingsOf(placeOf(blocks, site).scope, site, next, key)
+                landingsOf(placeOf(blocks, site).scope, site, next, key, [
+                    ...checks,
+                    { name: block.name, site, def: block },
+                ])
             ),
             ...extendersOf(scope).flatMap((extender) =>
-                landingsOf(extender.scope, at, next, inner)
+                landingsOf(extender.scope, at, next, inner, checks)
             ),
         ];
+    };
+
+    // Where a declaration at `key` in another module's mixin lands through
+    // the `@include` at `site`: as one written there, its key that place's
+    // followed by `key`.
+    const landingsAt = (site, key) => {
+        // A bare name lands another module's only where none of this file's
+        // runs there.
+        const bare = /^@include\s+([\w-]+)(?![\w.-])/i.exec(
+            lexed.text.slice(site, site + 256)
+        );
+        const checks = bare
+            ? [{ name: bare[1].replace(/_/g, '-'), site, def: null }]
+            : [];
+        return landingsOf(placeOf(blocks, site).scope, site, [], key, checks);
     };
     // Each declaration, where it applies, in source order.
     const applied = [];
@@ -1229,6 +1369,27 @@ export function familiesOf(
                 entry: landing.animated ? { ...entry, animated: true } : entry,
             });
         }
+    }
+    for (const [site, families] of included) {
+        for (const { key, entry } of families) {
+            for (const landing of landingsAt(site, key)) {
+                applied.push({
+                    ...landing,
+                    entry: landing.animated
+                        ? { ...entry, animated: true }
+                        : entry,
+                });
+            }
+        }
+    }
+    // What each module mixin sets at its top level, for the modules that
+    // include it: its own declarations and those landing in it.
+    const exported = new Map();
+    for (const { scope, key, entry, external } of applied) {
+        const name = memberOf(scope);
+        if (name === null || external === false) continue;
+        if (!exported.has(name)) exported.set(name, []);
+        exported.get(name).push({ key, entry });
     }
     // Keyed by rule, so a later block with one of its selectors wins.
     applied.sort((a, b) => keyOrder(a.key, b.key));
@@ -1520,47 +1681,76 @@ export function familiesOf(
     // family where it lands: each rule that includes or extends it (whose
     // own later family wins), of those `keep` accepts (where the weight is
     // in effect). A mixin's body, or a placeholder (`%x`), styles nothing
-    // where it is written.
-    const familyAt = (index, keep, seen = new Set()) => {
+    // where it is written; one another module includes meets the family
+    // there instead.
+    const familyAt = (index, keep, seen = new Set(), checks = []) => {
         const place = placeOf(blocks, index);
         const scope = fontNamespaceRule(blocks, place) ?? place.scope;
         if (seen.has(scope)) return [];
         seen.add(scope);
+        // Read where it runs, if the definitions on the way run there (see
+        // `landingsOf`); a mixin body included nowhere, once the module ran.
+        const runs = ranAt(checks, deferredBy(null, index) ? Infinity : index);
         // A content block's declaration meets the family at its `@include`,
         // a keyframe's where a rule runs it.
         const content = contentOf(scope);
-        if (content) return familyAt(content.site, keep, seen);
+        if (content) return familyAt(content.site, keep, seen, checks);
         const frames = scope === null ? null : framesOf(scope);
         if (frames) {
             if (!frames.live) return [];
             return [
-                ...(keep(scope) ? [lookup(index)] : []),
+                ...(keep(scope) && runs ? [lookup(index)] : []),
                 ...runsOf(frames).flatMap(({ index: site }) =>
-                    familyAt(site, keep, seen)
+                    familyAt(site, keep, seen, checks)
                 ),
             ];
         }
         const block = blocks.find((b) => b.start === scope);
         const includes = sitesOf(scope);
         const extended = extendersOf(scope).map((extender) => extender.index);
+        // Where another module includes it, it meets families unseen here.
+        const outside =
+            elsewhere.has(memberOf(scope)) && ranAt(checks, Infinity);
         const silent =
             includes.length > 0 ||
+            elsewhere.has(memberOf(scope)) ||
             (extended.length > 0 && /^%/.test(block?.prelude ?? ''));
         return [
-            ...(silent || !keep(scope) ? [] : [lookup(index)]),
-            ...[...includes, ...extended].flatMap((site) =>
-                familyAt(site, keep, seen)
+            ...(silent || !keep(scope) || !runs ? [] : [lookup(index)]),
+            ...(outside ? [OUTSIDE] : []),
+            ...includes.flatMap((site) =>
+                familyAt(site, keep, seen, [
+                    ...checks,
+                    { name: block.name, site, def: block },
+                ])
             ),
+            ...extended.flatMap((site) => familyAt(site, keep, seen, checks)),
         ];
     };
+
     const monoAt = (index, keep = () => true) => {
-        const found = familyAt(index, keep).filter((entry) => entry !== NONE);
+        const found = familyAt(index, keep).filter(
+            (entry) => entry !== NONE && entry !== OUTSIDE
+        );
         return (
             found.find((entry) => entry.mono) ??
             found.find((entry) => entry.refs.length > 0) ??
             found[0] ??
             NONE
         );
+    };
+    // The families an `@include` at `site` meets, wherever it lands:
+    // whether one renders JetBrains Mono (`mono`, also when the mixin it
+    // sits in lands in another module, unseen here), and those named
+    // through variables (`families`), resolved later.
+    monoAt.callAt = (site) => {
+        const found = familyAt(site, () => true);
+        return {
+            mono: found.some((entry) => entry.mono || entry === OUTSIDE),
+            families: found.filter(
+                (entry) => !entry.mono && entry.refs.length > 0
+            ),
+        };
     };
     // Where a declaration at `index` lands (`{ at, scope, rules }`, see
     // `landingsOf`), for the weights in effect.
@@ -1576,5 +1766,10 @@ export function familiesOf(
         const scope = fontNamespaceRule(blocks, place) ?? place.scope;
         return scope === null ? [] : landingsOf(scope, index);
     };
+    monoAt.landingsAt = landingsAt;
+    monoAt.memberOf = memberOf;
+    monoAt.definitionsAt = definitionsAt;
+    // Each module mixin's top-level families, by name (`{ key, entry }`).
+    monoAt.exported = exported;
     return monoAt;
 }
