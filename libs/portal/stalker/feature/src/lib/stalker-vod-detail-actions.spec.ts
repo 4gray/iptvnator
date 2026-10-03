@@ -24,9 +24,16 @@ const POSITION = {
 describe('createStalkerVodDetailActions openExternal', () => {
     function setup(selectedVodId: () => number | null) {
         let resolveLink: (playback: unknown) => void = () => undefined;
+        let rejectLink: (error: unknown) => void = () => undefined;
         const resolvePlayback = jest.fn(
-            () => new Promise((resolve) => (resolveLink = resolve))
+            () =>
+                new Promise((resolve, reject) => {
+                    resolveLink = resolve;
+                    rejectLink = reject;
+                })
         );
+        const open = jest.fn();
+        const logError = jest.fn();
         const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
         const beforeExternalLaunch = jest.fn();
         const closeSession = jest.fn().mockResolvedValue(undefined);
@@ -47,15 +54,18 @@ describe('createStalkerVodDetailActions openExternal', () => {
             selectedVodId,
             selectedVodPosition: signal(null),
             beforeExternalLaunch,
-            snackBar: { open: jest.fn() },
+            snackBar: { open },
             translate: { instant: (key: string) => key },
-            logError: jest.fn(),
+            logError,
         });
         return {
             actions,
             openExternalPlayback,
             beforeExternalLaunch,
             closeSession,
+            open,
+            logError,
+            rejectLink: (error: unknown) => rejectLink(error),
             beginPendingStart,
             settlePendingStart,
             supersede: () => (launchCurrent = false),
@@ -200,6 +210,21 @@ describe('createStalkerVodDetailActions openExternal', () => {
         expect(t.beforeExternalLaunch).not.toHaveBeenCalled();
         expect(t.openExternalPlayback).not.toHaveBeenCalled();
         expect(t.settlePendingStart).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays silent when a superseded launch fails', async () => {
+        const t = setup(() => 42);
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.supersede();
+        t.rejectLink(new Error('create_link timed out'));
+        await launch;
+
+        expect(t.open).not.toHaveBeenCalled();
+        expect(t.logError).not.toHaveBeenCalled();
     });
 
     it('drops the stream once another movie was selected meanwhile', async () => {

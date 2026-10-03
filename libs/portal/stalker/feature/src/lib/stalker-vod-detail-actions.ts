@@ -168,10 +168,13 @@ export function createStalkerVodDetailActions(
                     event.player
                 );
             } catch (error) {
-                deps.logError('External VOD playback failed', error);
-                if (stillSelected()) {
-                    notify('PORTALS.PLAYBACK_ERROR');
+                // A launch a newer start superseded fails on its own; the
+                // newer one reports for the movie now.
+                if (!stillSelected() || superseded()) {
+                    return;
                 }
+                deps.logError('External VOD playback failed', error);
+                notify('PORTALS.PLAYBACK_ERROR');
             } finally {
                 externalLaunchesInFlight.delete(launchKey);
                 pending?.settle();

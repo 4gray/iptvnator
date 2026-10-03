@@ -20,12 +20,16 @@ export interface SeriesExternalLaunchHost {
     launchOwner(): string | null;
 }
 
+/** Owners (`playlist:series`) whose launch has not settled yet. */
+const launchesInFlight = new Set<string>();
+
 /**
  * The "…" menu's MPV/VLC launch of an episode. An episode of this series
  * still running externally is closed first: with instance reuse off a
  * second detached player would start beside it. When that close fails, or
  * the user moved on while it ran, the running player stays and nothing new
- * launches.
+ * launches. A repeat before the first launch settled (Electron publishes
+ * the session only afterwards) is ignored.
  */
 export async function openEpisodeExternally(
     host: SeriesExternalLaunchHost,
@@ -33,9 +37,23 @@ export async function openEpisodeExternally(
     player: ExternalPlayerName
 ): Promise<ExternalPlayerSession | void> {
     const owner = host.launchOwner();
-    if (!owner) {
+    if (!owner || launchesInFlight.has(owner)) {
         return;
     }
+    launchesInFlight.add(owner);
+    try {
+        return await launchEpisode(host, owner, playback, player);
+    } finally {
+        launchesInFlight.delete(owner);
+    }
+}
+
+async function launchEpisode(
+    host: SeriesExternalLaunchHost,
+    owner: string,
+    playback: ResolvedPortalPlayback,
+    player: ExternalPlayerName
+): Promise<ExternalPlayerSession | void> {
     const session = host.externalPlayback.activeSession();
     const info = session?.contentInfo;
     const ownSession =

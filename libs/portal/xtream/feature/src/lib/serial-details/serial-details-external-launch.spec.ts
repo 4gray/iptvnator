@@ -92,6 +92,20 @@ describe('openEpisodeExternally', () => {
         expect(t.openExternalPlayback).not.toHaveBeenCalled();
     });
 
+    it('ignores a repeat before the first launch settled', async () => {
+        const t = host(null);
+        let settleLaunch: () => void = () => undefined;
+        t.openExternalPlayback.mockImplementation(
+            () => new Promise<void>((resolve) => (settleLaunch = resolve))
+        );
+        const first = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        await openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        settleLaunch();
+        await first;
+
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps the running player when closing it fails', async () => {
         const t = host(session());
         t.closeSession.mockRejectedValue(new Error('still busy'));
