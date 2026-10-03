@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import type {
+    ExternalPlayerSession,
     PlaybackPositionData,
     VodDetailsItem,
 } from '@iptvnator/shared/interfaces';
@@ -28,9 +29,12 @@ describe('createStalkerVodDetailActions openExternal', () => {
         );
         const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
         const beforeExternalLaunch = jest.fn();
+        const closeSession = jest.fn().mockResolvedValue(undefined);
+        let running: ExternalPlayerSession | null = null;
         const actions = createStalkerVodDetailActions({
             resolvePlayback: resolvePlayback as never,
             portalPlayer: { openExternalPlayback },
+            externalPlayback: { activeSession: () => running, closeSession },
             playbackPositions: { clearPlaybackPositionOrThrow: jest.fn() },
             playlistId: () => 'portal-1',
             selectedVodId,
@@ -44,9 +48,40 @@ describe('createStalkerVodDetailActions openExternal', () => {
             actions,
             openExternalPlayback,
             beforeExternalLaunch,
+            closeSession,
+            setRunning: (session: ExternalPlayerSession | null) =>
+                (running = session),
             resolveLink: () => resolveLink({ streamUrl: 'http://cdn/42.mp4' }),
         };
     }
+
+    it('closes the movie that is already playing externally before relaunching', async () => {
+        const t = setup(() => 42);
+        const running = {
+            id: 'mpv-1',
+            player: 'mpv',
+            status: 'opened',
+            canClose: true,
+            contentInfo: {
+                playlistId: 'portal-1',
+                contentXtreamId: 42,
+                contentType: 'vod',
+            },
+        } as ExternalPlayerSession;
+        t.setRunning(running);
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.resolveLink();
+        await launch;
+
+        expect(t.closeSession).toHaveBeenCalledWith(running);
+        expect(t.closeSession.mock.invocationCallOrder[0]).toBeLessThan(
+            t.openExternalPlayback.mock.invocationCallOrder[0]
+        );
+    });
 
     it('launches the resolved stream while the movie is still selected', async () => {
         const t = setup(() => 42);
@@ -98,6 +133,10 @@ describe('createStalkerVodDetailActions resetProgress', () => {
         const actions = createStalkerVodDetailActions({
             resolvePlayback: jest.fn(),
             portalPlayer: { openExternalPlayback: jest.fn() },
+            externalPlayback: {
+                activeSession: () => null,
+                closeSession: jest.fn(),
+            },
             playbackPositions: { clearPlaybackPositionOrThrow },
             playlistId: () => 'portal-1',
             selectedVodId,

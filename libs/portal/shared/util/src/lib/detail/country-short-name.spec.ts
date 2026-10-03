@@ -26,6 +26,11 @@ describe('shortCountryName', () => {
             'France',
             'Taiwan',
         ]);
+        expect(
+            shortCountryList(
+                'Iran, Islamic Republic of, Moldova, Republic of; Bolivia, Plurinational State of'
+            )
+        ).toEqual(['Iran', 'Moldova', 'Bolivia']);
     });
 
     it('splits provider lists', () => {

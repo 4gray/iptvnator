@@ -1,9 +1,11 @@
 import type { WritableSignal } from '@angular/core';
 import type { MatSnackBar } from '@angular/material/snack-bar';
 import type { TranslateService } from '@ngx-translate/core';
-import type {
-    PortalPlaybackPositions,
-    PortalPlayer,
+import {
+    replaceOwnedExternalSession,
+    type PortalExternalPlayback,
+    type PortalPlaybackPositions,
+    type PortalPlayer,
 } from '@iptvnator/portal/shared/util';
 import type {
     ExternalPlayerName,
@@ -27,6 +29,11 @@ interface StalkerVodDetailActionsDeps {
         startTime: number | undefined
     ) => Promise<ResolvedPortalPlayback>;
     readonly portalPlayer: Pick<PortalPlayer, 'openExternalPlayback'>;
+    /** The running external session; this movie's own is replaced, never doubled. */
+    readonly externalPlayback: Pick<
+        PortalExternalPlayback,
+        'activeSession' | 'closeSession'
+    >;
     /** Download of the movie file; absent for hosts without downloads. */
     readonly download?: (item: VodDetailsItem) => Promise<void>;
     readonly playbackPositions: Pick<
@@ -99,6 +106,17 @@ export function createStalkerVodDetailActions(
                     event.positionSeconds ?? undefined
                 );
                 if (!stillSelected()) {
+                    return;
+                }
+                const replaced = await replaceOwnedExternalSession(
+                    deps.externalPlayback,
+                    (info) =>
+                        info.contentType === 'vod' &&
+                        info.playlistId === playlistId &&
+                        Number(info.contentXtreamId) === vodId,
+                    deps.logError
+                );
+                if (!replaced || !stillSelected()) {
                     return;
                 }
                 deps.beforeExternalLaunch?.();

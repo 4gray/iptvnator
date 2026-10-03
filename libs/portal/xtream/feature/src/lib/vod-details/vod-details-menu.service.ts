@@ -111,6 +111,11 @@ export class VodDetailsMenuService {
                 id: VOD_MENU_ACTION.ResetProgress,
                 labelKey: 'PORTALS.DETAIL.RESET_PROGRESS',
                 icon: 'history_toggle_off',
+                // A running player would write the position right back.
+                disabled:
+                    this.playback.isExternalStopAction() ||
+                    this.playback.playbackStartPending() ||
+                    this.playback.inlinePlayback() !== null,
                 testId: 'vod-menu-reset-progress',
             });
         }

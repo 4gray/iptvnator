@@ -231,10 +231,13 @@ describe('DashboardHeroSlidesPresenter', () => {
     });
 
     it('drops a season marker from a series title and leaves movies and live titles alone', () => {
-        recentItems.set([
-            { ...series, title: 'Big Pharma (1 сезон)' },
-            { ...watchedMovie, title: 'Film Season 2' },
+        // The rotation holds four slides: only the series, the live channel
+        // and a favorite movie compete here (the finished film never does).
+        recentItems.set([{ ...series, title: 'Big Pharma (1 сезон)' }]);
+        favorites.set([
+            { ...favoriteFilm, id: 9, type: 'movie', title: 'Film Season 2' },
         ]);
+        addedItems.set([]);
         candidates.set([
             { origin: 'favorite', item: { ...channel, title: 'Sport S01' } },
         ]);

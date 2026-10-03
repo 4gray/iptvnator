@@ -910,6 +910,7 @@ export class StalkerSearchComponent {
                 startTime
             ),
         portalPlayer: this.portalPlayer,
+        externalPlayback: this.externalPlayback,
         playbackPositions: this.playbackPositions,
         playlistId: () => this.stalkerStore.currentPlaylist()?._id,
         selectedVodId: () => Number(this.itemDetails()?.id) || null,

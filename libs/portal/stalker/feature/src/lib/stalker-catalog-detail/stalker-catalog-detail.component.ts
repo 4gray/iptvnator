@@ -234,12 +234,13 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             ) ?? null;
     }
 
-    onVodPlay(item: VodDetailsItem): void {
+    onVodPlay(item: VodDetailsItem, positionSeconds?: number): void {
         if (item.type === 'stalker') {
             void this.startStalkerVodPlayback(
                 item.cmd,
                 item.data.info?.name,
-                item.data.info?.movie_image
+                item.data.info?.movie_image,
+                positionSeconds
             );
         }
     }
@@ -248,14 +249,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         item: VodDetailsItem;
         positionSeconds: number;
     }): void {
-        if (event.item.type === 'stalker') {
-            void this.startStalkerVodPlayback(
-                event.item.cmd,
-                event.item.data.info?.name,
-                event.item.data.info?.movie_image,
-                event.positionSeconds
-            );
-        }
+        this.onVodPlay(event.item, event.positionSeconds);
     }
 
     onVodFavoriteToggled(event: {
@@ -281,6 +275,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         resolvePlayback: (cmd, title, thumbnail, startTime) =>
             this.catalog.resolveVodPlayback(cmd, title, thumbnail, startTime),
         portalPlayer: this.portalPlayer,
+        externalPlayback: this.externalPlayback,
         playbackPositions: this.playbackPositions,
         playlistId: () => this.catalog.playlist()?.id,
         selectedVodId: () => Number(this.selectedItem()?.id) || null,

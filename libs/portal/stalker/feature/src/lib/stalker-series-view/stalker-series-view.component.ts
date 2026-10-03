@@ -55,6 +55,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     isLiveExternalPlayerSession,
+    replaceOwnedExternalSession,
     isPortalPlaybackWatched,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -393,7 +394,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.menu.bind({
             quickStart: this.quickStartAction,
             seasonContainer: this.seasonContainerRef,
-            hasProgress: computed(() => this.episodePlaybackPositions().size > 0),
+            hasProgress: computed(
+                () => this.episodePlaybackPositions().size > 0
+            ),
             resetProgress: () => this.resetProgress(),
             openExternal: (player) => this.openQuickStartExternally(player),
         });
@@ -1202,6 +1205,29 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.playNextEpisode();
     }
 
+    /**
+     * The "…" menu's MPV/VLC launch: an episode of this series still running
+     * externally is closed first, never doubled; a failed close or a page
+     * that moved on meanwhile keeps the running player.
+     */
+    private async openEpisodeExternally(
+        playback: ResolvedPortalPlayback,
+        player: ExternalPlayerName,
+        request: StalkerSeriesPlaybackRequestContext
+    ): Promise<void> {
+        const own = playback.contentInfo;
+        const replaced = await replaceOwnedExternalSession(
+            this.externalPlayback,
+            (info) =>
+                info.contentType === 'episode' &&
+                info.playlistId === own?.playlistId &&
+                info.seriesXtreamId === own?.seriesXtreamId,
+            (message, error) => this.logger.warn(message, error)
+        );
+        if (!replaced || !this.isPlaybackRequestCurrent(request)) return;
+        await this.portalPlayer.openExternalPlayback(playback, player);
+    }
+
     private async startPlayback(
         cmd: string | undefined,
         title: string | undefined,
@@ -1257,11 +1283,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
             this.closeInlinePlayer();
             void (forcePlayer
-                ? this.portalPlayer.openExternalPlayback(
+                ? this.openEpisodeExternally(
                       resolvedPlayback,
-                      forcePlayer
+                      forcePlayer,
+                      request
                   )
-                : this.portalPlayer.openResolvedPlayback(resolvedPlayback, true));
+                : this.portalPlayer.openResolvedPlayback(
+                      resolvedPlayback,
+                      true
+                  ));
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);

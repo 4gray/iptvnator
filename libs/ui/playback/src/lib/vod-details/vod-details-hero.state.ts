@@ -114,6 +114,9 @@ export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
                 hasPlaybackPosition: deps.hasPlaybackPosition(),
                 hasStoredProgress:
                     (deps.playbackPosition() ?? 0) > 0 || deps.isWatched(),
+                // Inline playback collapses the hero; only an external
+                // player can still own the row while the menu is reachable.
+                playbackActive: deps.externalState() !== 'idle',
             })
         ),
     };

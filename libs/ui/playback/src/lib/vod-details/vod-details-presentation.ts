@@ -164,6 +164,8 @@ export function buildVodMenuSections(input: {
     externalPlayerHint: 'MPV' | 'VLC';
     hasPlaybackPosition: boolean;
     hasStoredProgress: boolean;
+    /** An external player owns the row: its next tick would undo a reset. */
+    playbackActive: boolean;
 }): VodMoreMenuSection[] {
     const sourceRows: VodMoreMenuSection['items'][number][] = [];
     if (input.externalPlayerAvailable) {
@@ -189,6 +191,7 @@ export function buildVodMenuSections(input: {
             id: VOD_DETAILS_MENU_ACTION.ResetProgress,
             labelKey: 'PORTALS.DETAIL.RESET_PROGRESS',
             icon: 'history_toggle_off',
+            disabled: input.playbackActive,
             testId: 'vod-menu-reset-progress',
         });
     }
