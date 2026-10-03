@@ -86,7 +86,7 @@
                 "SERVER_URL": "URL du serveur",
                 "USERNAME": "Nom d'utilisateur",
                 "PASSWORD": "Mot de passe",
-                "MAC_ADDRESS": "Adresse Mac",
+                "MAC_ADDRESS": "Adresse MAC",
                 "PLAYLIST_EXPORT_SUCCESS": "La liste de lecture a été exportée avec succès.",
                 "PLAYLIST_EXPORT_ERROR": "Erreur : Échec de l'exportation de la liste de lecture.",
                 "COPY_URL": "Copier l'URL dans le presse-papiers",
@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Choisissez comment vous souhaitez vous connecter. Vous pourrez renommer la liste plus tard.",
+            "METHOD_GROUP_LABEL": "Méthode de connexion",
             "METHOD_URL_LABEL": "URL M3U",
             "METHOD_URL_SUB": "Collez un lien vers un fichier .m3u ou .m3u8 distant",
             "METHOD_FILE_LABEL": "Fichier M3U",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "URL de la playlist (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "Saisissez une URL valide commençant par http:// ou https://.",
             "ADD_PLAYLIST": "Ajouter la liste de lecture",
             "CORS_NOTE": "Remarque : Pour éviter les problèmes CORS, l'application utilise un service proxy CORS public. Si vous souhaitez télécharger une liste avec des données sensibles, il est plus sûr de l'importer depuis un fichier.",
             "ERROR_FETCH_FAILED": "Échec de la récupération de la liste de lecture. Veuillez vérifier l'URL et réessayer.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Continuez uniquement si vous faites confiance à cet hôte de playlist. IPTVnator autorisera les certificats TLS invalides pour cet hôte, mais les autres hôtes devront toujours présenter des certificats valides."
         },
         "TEXT_IMPORT": {
-            "LABEL": "Insérer la liste m3u(8) sous forme de texte",
-            "BUTTON_LABEL": "Importer"
+            "LABEL": "Insérer la liste m3u(8) sous forme de texte"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Titre de la liste",
             "SERVER_URL": "URL du serveur",
             "USERNAME": "Nom d'utilisateur",
             "PASSWORD": "Mot de passe",
-            "ADD": "Ajouter",
             "TEST_CREDENTIALS": "Tester les identifiants",
-            "URL_VALIDATION_ERROR": "Doit être une URL valide avec un protocole (par exemple http://example.com ou https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "Saisissez une URL valide commençant par http:// ou https://.",
+            "URL_HINT": "Adresse du serveur, par exemple http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "Saisissez un nom d’utilisateur et un mot de passe pour tester la connexion.",
                 "TESTING": "Test de la connexion…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Titre",
-            "MAC_ADDRESS": "Adresse Mac",
+            "MAC_ADDRESS": "Adresse MAC",
             "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Les tirets, les points et les minuscules sont corrigés automatiquement.",
             "MAC_ADDRESS_OUI_HINT": "Cette adresse ne fait pas partie de la plage 00:1A:79 d'Infomir. La plupart des portails n'acceptent que cette plage et rejettent toute autre adresse sans en indiquer la raison.",
             "MAC_ADDRESS_ERROR": "Saisissez une adresse MAC de 12 caractères hexadécimaux, par exemple 00:1A:79:12:34:56.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "URL du serveur",
             "URL_HINT": "Saisissez un hôte ou une adresse se terminant par /c, portal.php ou server/load.php.",
             "URL_VALIDATION_ERROR": "Saisissez une URL valide commençant par http:// ou https://.",
-            "ADD": "Ajouter",
             "VALIDATING": "Validation du portail…",
+            "VALIDATED_EXPIRES": "Portail validé. Expire le {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "Le portail n'a pas répondu. Il a été ajouté sans validation.",
             "CREDENTIALS_HINT": "Nécessaire uniquement lorsque le portail demande un identifiant et un mot de passe",
             "AUTH_FAILED": "Échec de l'authentification auprès du portail. Vérifiez l'URL et l'adresse MAC.",
             "EDIT_UNREACHABLE": "Le portail n'a pas répondu. Aucune modification n'a été enregistrée. Vérifiez l'URL et réessayez.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "Le portail a enregistré un autre ID d'appareil pour cette adresse MAC.",
             "PORTAL_MESSAGE": "Le portail a signalé : {{message}}"
         },
+        "SHOW_PASSWORD": "Afficher le mot de passe",
         "FILTER_BY_NAME": "Filtrer par nom",
         "FILTER_AND_SORT": "Filtrer et trier",
         "SORT_PLAYLISTS": "Trier les listes",

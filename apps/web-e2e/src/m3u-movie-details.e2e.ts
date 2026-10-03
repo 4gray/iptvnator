@@ -123,7 +123,9 @@ async function importPlaylist(
     await dialog.getByLabel('Insert m3u(8) playlist as text').fill(content);
     await Promise.all([
         page.waitForURL(/\/workspace\/playlists\/.+\/all$/),
-        dialog.getByRole('button', { name: 'Import', exact: true }).click(),
+        dialog
+            .getByRole('button', { name: 'Add playlist', exact: true })
+            .click(),
     ]);
     await expect(page.getByText(`${count} channels`)).toBeVisible();
 }

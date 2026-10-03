@@ -52,6 +52,7 @@ import {
     normalizeEpgUrls,
     resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
+import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import {
     hasStalkerConnectionChanged,
     omitStalkerConnection,
@@ -175,6 +176,7 @@ type DesktopFileSaveBridge = Pick<
         MatIconButton,
         MatInputModule,
         MatTooltip,
+        PasswordVisibilityToggleDirective,
         ReactiveFormsModule,
         TranslatePipe,
     ],

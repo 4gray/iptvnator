@@ -714,6 +714,28 @@ Settings use the same system but are flatter than content-heavy views.
   alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
   themes.
 
+## Forms
+
+The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
+vocabulary, so a field reads the same wherever it appears:
+
+- **Name.** The source name is labelled "Playlist title"
+  (`HOME.XTREAM_PLAYLIST.TITLE`) in every add form. Every add form submits
+  with "Add playlist" (`HOME.URL_UPLOAD.ADD_PLAYLIST`).
+- **Passwords.** A password input is masked and has a `mat-icon-button`
+  suffix with `PasswordVisibilityToggleDirective`
+  (`@iptvnator/ui/components/password-visibility-toggle`). The input binds
+  `[type]="toggle.inputType()"`; the button keeps one translated label
+  ("Show password", `HOME.SHOW_PASSWORD`) and exposes its state through
+  `aria-pressed`, as an ARIA toggle button does.
+- **URLs.** A URL field has a neutral `mat-hint` where the format is not
+  obvious, and its own `mat-error`. Never borrow another field's message.
+- **Feedback.** While the dialog stays open, a check or refusal is shown
+  inline under the URL field in a `role="status"` paragraph. The message is
+  translated in the template and cleared by any edit. Use a snackbar only for
+  outcomes that close the dialog. `add-source-forms.e2e.ts` in `web-e2e`
+  covers the shared labels, the toggle and the URL errors.
+
 ## Source Type Icons
 
 `SOURCE_TYPE_ICONS` in `@iptvnator/shared/interfaces` is the only source of

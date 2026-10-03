@@ -75,7 +75,9 @@ export async function addXtreamPortal(
     await setInputValue(dialog.locator('#username'), username);
     await setInputValue(dialog.locator('#password'), password);
 
-    await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
     await page.waitForURL(/xtreams.*vod/);
 }

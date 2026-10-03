@@ -462,7 +462,10 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await dialog.locator('#portalUrl').fill(STALKER_FIXTURE_PORTAL_URL);
     await dialog.locator('#macAddress').fill(STALKER_FIXTURE_MAC);
     // Endpoint discovery probes the mock before the row is written.
-    await dialog.getByRole('button', { name: /^add$/i }).last().click();
+    await dialog
+        .getByRole('button', { name: /^(add|add playlist)$/i })
+        .last()
+        .click();
     await dialog.waitFor({ state: 'detached', timeout: 60_000 });
     await page.waitForURL(/\/workspace\/stalker\/[^/]+\/vod/, {
         timeout: 60_000,

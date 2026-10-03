@@ -86,7 +86,7 @@
                 "SERVER_URL": "URL do servidor",
                 "USERNAME": "Nome de usuário",
                 "PASSWORD": "Senha",
-                "MAC_ADDRESS": "Endereço Mac",
+                "MAC_ADDRESS": "Endereço MAC",
                 "PLAYLIST_EXPORT_SUCCESS": "Playlist foi exportada com sucesso.",
                 "PLAYLIST_EXPORT_ERROR": "Erro: Falha ao exportar a playlist.",
                 "COPY_URL": "Copiar URL para a área de transferência",
@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Escolha como você quer se conectar. Você pode renomeá-la depois.",
+            "METHOD_GROUP_LABEL": "Forma de conexão",
             "METHOD_URL_LABEL": "URL M3U",
             "METHOD_URL_SUB": "Cole um link para um arquivo .m3u ou .m3u8 remoto",
             "METHOD_FILE_LABEL": "Arquivo M3U",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "URL da playlist (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "Introduza um URL válido que comece por http:// ou https://.",
             "ADD_PLAYLIST": "Adicionar playlist",
             "CORS_NOTE": "Nota: Para evitar problemas de CORS neste ponto, o aplicativo usa um serviço de Proxy CORS público. Se você deseja enviar uma playlist com dados confidenciais, é mais seguro importá-la de um arquivo.",
             "ERROR_FETCH_FAILED": "Falha ao buscar a playlist. Verifique a URL e tente novamente.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Continue somente se você confiar neste host da playlist. O IPTVnator permitirá certificados TLS inválidos para este host, mas outros hosts ainda exigem certificados válidos."
         },
         "TEXT_IMPORT": {
-            "LABEL": "Inserir playlist m3u(8) como texto",
-            "BUTTON_LABEL": "Importar"
+            "LABEL": "Inserir playlist m3u(8) como texto"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Título da playlist",
             "SERVER_URL": "URL do servidor",
             "USERNAME": "Nome de usuário",
             "PASSWORD": "Senha",
-            "ADD": "Adicionar",
             "TEST_CREDENTIALS": "Testar credenciais",
-            "URL_VALIDATION_ERROR": "Deve ser uma URL válida com protocolo (por exemplo, http://example.com ou https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "Introduza um URL válido que comece por http:// ou https://.",
+            "URL_HINT": "Endereço do servidor, por exemplo, http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "Introduza um nome de utilizador e uma palavra-passe para testar a ligação.",
                 "TESTING": "A testar ligação…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Título",
-            "MAC_ADDRESS": "Endereço Mac",
+            "MAC_ADDRESS": "Endereço MAC",
             "MAC_ADDRESS_HINT": "Formato 00:1A:79:XX:XX:XX. Hífens, pontos e letras minúsculas são corrigidos automaticamente.",
             "MAC_ADDRESS_OUI_HINT": "Este endereço está fora da faixa 00:1A:79 da Infomir. A maioria dos portais aceita apenas essa faixa e rejeita qualquer outra sem informar o motivo.",
             "MAC_ADDRESS_ERROR": "Digite um endereço MAC de 12 dígitos, por exemplo 00:1A:79:12:34:56.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "URL do servidor",
             "URL_HINT": "Introduza um host ou endereço terminado em /c, portal.php ou server/load.php.",
             "URL_VALIDATION_ERROR": "Introduza um URL válido que comece por http:// ou https://.",
-            "ADD": "Adicionar",
-            "VALIDATING": "Validando portal...",
+            "VALIDATING": "Validando portal…",
+            "VALIDATED_EXPIRES": "Portal validado. Expira em {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "O portal não respondeu. Foi adicionado sem validação.",
             "CREDENTIALS_HINT": "Necessário apenas quando o portal exige login e senha",
             "AUTH_FAILED": "Falha na autenticação com o portal. Verifique a URL e o endereço MAC.",
             "EDIT_UNREACHABLE": "O portal não respondeu. Nenhuma alteração foi guardada. Verifique o URL e tente novamente.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "O portal tem um ID de dispositivo diferente registrado para este endereço MAC.",
             "PORTAL_MESSAGE": "O portal informou: {{message}}"
         },
+        "SHOW_PASSWORD": "Mostrar senha",
         "FILTER_BY_NAME": "Filtrar por nome",
         "FILTER_AND_SORT": "Filtrar e ordenar",
         "SORT_PLAYLISTS": "Ordenar playlists",
