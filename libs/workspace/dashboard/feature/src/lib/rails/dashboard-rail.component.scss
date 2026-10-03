@@ -689,18 +689,8 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-family: var(
-        --font-mono,
-        ui-monospace,
-        'SF Mono',
-        'JetBrains Mono',
-        Menlo,
-        monospace
-    );
     font-size: 0.6rem;
-    // Off macOS this renders in JetBrains Mono, bundled up to 500; 700 would
-    // be faked.
-    font-weight: 500;
+    font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--app-live-color, #ff8f8f);
     text-transform: uppercase;
