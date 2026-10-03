@@ -34,11 +34,7 @@ import {
 
                 &__fill {
                     height: 100%;
-                    background: linear-gradient(
-                        90deg,
-                        #e50914 0%,
-                        #ff4d4d 100%
-                    );
+                    background: var(--app-progress-color);
                     transition: width 0.3s ease-out;
                     border-radius: 0 2px 2px 0;
                 }

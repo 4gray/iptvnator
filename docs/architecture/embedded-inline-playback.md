@@ -211,7 +211,8 @@ becomes an "Up Next" episode rail (`app-up-next-rail`,
 `libs/ui/playback/src/lib/portal-inline-player/up-next-rail.component.ts`).
 The rail lists the currently playing episode (highlighted, click-inert)
 followed by the rest of its season and a spillover into the following
-seasons, with per-episode watch-progress bars from playback positions.
+seasons, with per-episode watch-progress bars from playback positions,
+drawn in the player's `--pc-progress` like the dock's Up next card.
 
 - Data flow: the hosts (Xtream `SerialDetailsComponent`, Stalker
   `StalkerSeriesViewComponent`) build the entries with
