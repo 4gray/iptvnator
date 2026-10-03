@@ -66,23 +66,23 @@ function handleEmbeddedMpv<Args extends unknown[]>(
 }
 
 /**
- * On Linux, support (and prepare, which checks support first) runs
- * `mpv --version` by bare name and caches the result, so it must see the
- * login shell PATH. Nothing else here spawns by name.
+ * On Linux, support (and prepare, which checks support first) may run
+ * `mpv --version` by bare name and cache the result, so it must see the
+ * login shell PATH. Only that probe waits; nothing else here spawns by name.
  */
-async function afterLinuxLoginShellPath<T>(check: () => T): Promise<T> {
-    if (process.platform === 'linux') {
+async function afterLoginShellPathIfProbing<T>(check: () => T): Promise<T> {
+    if (getService().willProbeLinuxMpvExecutable()) {
         await waitForLoginShellPath();
     }
     return check();
 }
 
 handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () =>
-    afterLinuxLoginShellPath(() => getService().getSupport())
+    afterLoginShellPathIfProbing(() => getService().getSupport())
 );
 
 handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () =>
-    afterLinuxLoginShellPath(() => getService().prepareAddon())
+    afterLoginShellPathIfProbing(() => getService().prepareAddon())
 );
 
 handleEmbeddedMpv(

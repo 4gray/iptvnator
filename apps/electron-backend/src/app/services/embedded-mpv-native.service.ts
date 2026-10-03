@@ -377,6 +377,22 @@ export class EmbeddedMpvNativeService {
         };
     }
 
+    /**
+     * Whether `getSupport()` would now run the uncached Linux bare-name
+     * `mpv --version` probe, i.e. reach the native-engine checks: no
+     * frame-copy engine, a usable display server and the feature enabled.
+     * The IPC layer waits for the login shell PATH only then.
+     */
+    willProbeLinuxMpvExecutable(): boolean {
+        return (
+            process.platform === 'linux' &&
+            this.cachedLinuxMpvExecutableReason === undefined &&
+            !this.isUnsupportedLinuxDisplayServer() &&
+            isEmbeddedMpvFeatureEnabled() &&
+            !this.isFrameCopyEngineActive()
+        );
+    }
+
     getSupport(): EmbeddedMpvSupport {
         if (!SUPPORTED_EMBEDDED_MPV_PLATFORMS.has(process.platform)) {
             return {

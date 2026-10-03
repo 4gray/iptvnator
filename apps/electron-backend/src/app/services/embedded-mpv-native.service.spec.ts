@@ -375,6 +375,40 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect(support.frameCopyAvailable).toBe(true);
         });
 
+        it('predicts the bare-name mpv probe exactly when getSupport runs it', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockClear();
+            mockSpawnSync.mockReturnValue({ status: 0 });
+            mockRuntimeUsable();
+
+            expect(service.willProbeLinuxMpvExecutable()).toBe(true);
+            service.getSupport();
+            expect(mockSpawnSync).toHaveBeenCalledWith(
+                'mpv',
+                ['--version'],
+                expect.anything()
+            );
+            // Cached afterwards: no further probe, so no further wait.
+            expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+        });
+
+        it('predicts no probe for the frame-copy engine or native Wayland', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            process.env.WAYLAND_DISPLAY = 'wayland-0';
+            mockSpawnSync.mockClear();
+            mockRuntimeUsable();
+            expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+
+            delete process.env.WAYLAND_DISPLAY;
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+            service.getSupport();
+            expect(mockSpawnSync).not.toHaveBeenCalled();
+        });
+
         it('keeps frame-copy supported on Linux without a system mpv executable', () => {
             // The helper links libmpv itself; the mpv-on-PATH probe only
             // binds the native --wid engine.
