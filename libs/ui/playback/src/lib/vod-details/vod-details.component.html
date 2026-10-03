@@ -8,6 +8,7 @@
     [backdropUrl]="meta.backdropUrl"
     [progress]="hero.progress()"
     [trailerBackdropUrl]="trailerBackdropUrl()"
+    [contentKey]="contentKey()"
     [playbackActive]="!!inlinePlayback()"
     (backClicked)="goBack()"
     (closePlayerRequested)="closeInlinePlayback()"
@@ -68,7 +69,9 @@
             </app-meta-chip>
         }
         @if (meta.ratingImdb) {
-            <app-meta-chip variant="rating">★ {{ meta.ratingImdb }}</app-meta-chip>
+            <app-meta-chip variant="rating"
+                >★ {{ meta.ratingImdb }}</app-meta-chip
+            >
         }
         @if (isDownloaded()) {
             <app-meta-chip variant="status">
@@ -150,7 +153,9 @@
             @if (isDownloaded()) {
                 @if (externalPrimaryButtonState() === 'idle') {
                     <app-detail-icon-button
-                        [label]="'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate"
+                        [label]="
+                            'PORTALS.MULTI_SOURCE.PLAY_FROM_SOURCE' | translate
+                        "
                         icon="play_arrow"
                         testId="vod-play-provider"
                         (pressed)="onProviderAction()"

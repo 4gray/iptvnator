@@ -32,7 +32,11 @@ describe('createStalkerVodDetailActions openExternal', () => {
         const closeSession = jest.fn().mockResolvedValue(undefined);
         const running = signal<ExternalPlayerSession | null>(null);
         const settlePendingStart = jest.fn();
-        const beginPendingStart = jest.fn().mockReturnValue(settlePendingStart);
+        let launchCurrent = true;
+        const beginPendingStart = jest.fn().mockReturnValue({
+            settle: settlePendingStart,
+            isCurrent: () => launchCurrent,
+        });
         const actions = createStalkerVodDetailActions({
             resolvePlayback: resolvePlayback as never,
             portalPlayer: { openExternalPlayback },
@@ -54,6 +58,7 @@ describe('createStalkerVodDetailActions openExternal', () => {
             closeSession,
             beginPendingStart,
             settlePendingStart,
+            supersede: () => (launchCurrent = false),
             setRunning: (session: ExternalPlayerSession | null) =>
                 running.set(session),
             resolveLink: () => resolveLink({ streamUrl: 'http://cdn/42.mp4' }),
@@ -178,6 +183,23 @@ describe('createStalkerVodDetailActions openExternal', () => {
         // A, B, A again: the second A is a repeat of a pending launch.
         expect(t.beginPendingStart).toHaveBeenCalledTimes(2);
         expect(t.openExternalPlayback).not.toHaveBeenCalled();
+    });
+
+    it('drops the launch once a newer start superseded it', async () => {
+        const t = setup(() => 42);
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        // Play/Resume (or another launch) began while the link resolved.
+        t.supersede();
+        t.resolveLink();
+        await launch;
+
+        expect(t.beforeExternalLaunch).not.toHaveBeenCalled();
+        expect(t.openExternalPlayback).not.toHaveBeenCalled();
+        expect(t.settlePendingStart).toHaveBeenCalledTimes(1);
     });
 
     it('drops the stream once another movie was selected meanwhile', async () => {

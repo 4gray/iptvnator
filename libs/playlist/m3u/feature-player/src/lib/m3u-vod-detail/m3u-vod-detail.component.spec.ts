@@ -34,6 +34,7 @@ class StubPortalDetailShellComponent {
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    readonly contentKey = input<string | null>(null);
     readonly progress = input<number | null>(null);
     readonly isLoading = input(false);
     readonly errorMessage = input<string>();

@@ -215,6 +215,10 @@ export class VodDetailsComponent {
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.normalizedMeta().youtubeTrailer)
     );
+    /** Provider + id: the hero keys its one-time layout decision on it. */
+    readonly contentKey = computed(
+        () => `${this.item().type}:${getVodNumericId(this.item())}`
+    );
     /** Settings → Playback → Play trailers in details background. */
     readonly trailerBackdropUrl = computed(() =>
         this.settingsStore.detailTrailerBackdrop?.() === true

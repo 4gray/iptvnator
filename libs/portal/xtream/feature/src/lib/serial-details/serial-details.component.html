@@ -9,6 +9,7 @@
         [posterUrl]="info.cover"
         [backdropUrl]="getBackdropUrl(info)"
         [trailerBackdropUrl]="heroPresenter.trailerBackdropUrl()"
+        [contentKey]="'xtream-series:' + item.series_id"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"
@@ -20,13 +21,19 @@
                 </app-meta-chip>
             }
             @if (hero.statusLabel(); as status) {
-                <app-meta-chip variant="status" data-test-id="series-status-chip">
+                <app-meta-chip
+                    variant="status"
+                    data-test-id="series-status-chip"
+                >
                     {{ status }}
                 </app-meta-chip>
             }
             @if (hero.year(); as year) {
                 <app-meta-chip>
-                    @if (info.releaseDate && discover.canOpenYear(info.releaseDate)) {
+                    @if (
+                        info.releaseDate &&
+                        discover.canOpenYear(info.releaseDate)
+                    ) {
                         <button
                             type="button"
                             class="meta-chip__facet"
@@ -43,7 +50,9 @@
                 <app-meta-chip>
                     @for (genre of hero.genreChips(); track genre.label) {
                         @if (!$first) {
-                            <span class="meta-chip__sep" aria-hidden="true">·</span>
+                            <span class="meta-chip__sep" aria-hidden="true"
+                                >·</span
+                            >
                         }
                         @if (genre.facet; as facet) {
                             <button
@@ -60,7 +69,9 @@
                 </app-meta-chip>
             }
             @if (info.episode_run_time) {
-                <app-meta-chip>{{ info.episode_run_time }} min/ep</app-meta-chip>
+                <app-meta-chip
+                    >{{ info.episode_run_time }} min/ep</app-meta-chip
+                >
             }
             @for (country of hero.countryChips(); track country.label) {
                 <app-meta-chip>
@@ -78,7 +89,9 @@
                 </app-meta-chip>
             }
             @if (info.rating) {
-                <app-meta-chip variant="rating">★ {{ info.rating }}</app-meta-chip>
+                <app-meta-chip variant="rating"
+                    >★ {{ info.rating }}</app-meta-chip
+                >
             }
         </ng-template>
 

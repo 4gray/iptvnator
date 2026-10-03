@@ -38,8 +38,10 @@
             />
             <app-detail-icon-button
                 [label]="
-                    (isWatched() ? 'XTREAM.MARK_UNWATCHED' : 'XTREAM.MARK_WATCHED')
-                        | translate
+                    (isWatched()
+                        ? 'XTREAM.MARK_UNWATCHED'
+                        : 'XTREAM.MARK_WATCHED'
+                    ) | translate
                 "
                 [icon]="isWatched() ? 'check_circle' : 'check_circle_outline'"
                 tone="watched"
@@ -173,12 +175,13 @@
             @if (multiSource.hasAlternatives()) {
                 <span class="source-caption__extra">
                     @if (caption.alternativeCount === 1) {
-                        {{ 'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE' | translate }}
+                        {{
+                            'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_ONE' | translate
+                        }}
                     } @else {
                         {{
                             'PORTALS.MULTI_SOURCE.ALSO_FOUND_IN_OTHER'
-                                | translate
-                                    : { count: caption.alternativeCount }
+                                | translate: { count: caption.alternativeCount }
                         }}
                     }
                 </span>
@@ -192,7 +195,9 @@
     />
     @if (selectedVodInfo()?.rating_kinopoisk; as kinopoisk) {
         <div class="details__meta-item">
-            <span class="label">{{ 'XTREAM.KINOPOISK_RATING' | translate }}</span>
+            <span class="label">{{
+                'XTREAM.KINOPOISK_RATING' | translate
+            }}</span>
             <span class="value">{{ kinopoisk }}</span>
         </div>
     }
@@ -236,6 +241,7 @@
         [backdropUrl]="getBackdropUrl(info)"
         [progress]="hero.progress()"
         [trailerBackdropUrl]="trailerBackdropUrl()"
+        [contentKey]="'xtream-vod:' + selectedVodId()"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"
@@ -300,7 +306,9 @@
                 </app-meta-chip>
             }
             @if (info.rating_imdb) {
-                <app-meta-chip variant="rating">★ {{ info.rating_imdb }}</app-meta-chip>
+                <app-meta-chip variant="rating"
+                    >★ {{ info.rating_imdb }}</app-meta-chip
+                >
             }
             @if (isDownloaded()) {
                 <app-meta-chip variant="status">
@@ -351,7 +359,9 @@
                 <app-meta-chip>{{ fallback.year }}</app-meta-chip>
             }
             @if (fallback.rating) {
-                <app-meta-chip variant="rating">★ {{ fallback.rating }}</app-meta-chip>
+                <app-meta-chip variant="rating"
+                    >★ {{ fallback.rating }}</app-meta-chip
+                >
             }
             @if (fallback.added) {
                 <app-meta-chip>{{ fallback.added }}</app-meta-chip>

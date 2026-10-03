@@ -12,6 +12,7 @@ import {
     PlaybackPositionData,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import type { PendingExternalLaunch } from './stalker-vod-detail-actions';
 
 interface StalkerVodPlaybackControllerConfig {
     inlinePlayback: WritableSignal<ResolvedPortalPlayback | null>;
@@ -43,12 +44,19 @@ export class StalkerVodPlaybackController {
 
     constructor(private readonly config: StalkerVodPlaybackControllerConfig) {}
 
-    /** An explicit launch resolving its stream; the closure settles it. */
-    beginPendingStart(): () => void {
-        const startId = this.pendingStart.begin(
-            this.config.playbackOwnerKey?.()
-        );
-        return () => this.pendingStart.settle(startId);
+    /**
+     * An explicit launch as one of this controller's starts: it supersedes
+     * an earlier start and is dropped once a later one begins.
+     */
+    beginPendingStart(): PendingExternalLaunch {
+        const requestId = ++this.playbackRequestId;
+        const playbackOwnerKey = this.config.playbackOwnerKey?.();
+        const startId = this.pendingStart.begin(playbackOwnerKey);
+        return {
+            settle: () => this.pendingStart.settle(startId),
+            isCurrent: () =>
+                this.isPlaybackRequestCurrent(requestId, playbackOwnerKey),
+        };
     }
 
     async startVodPlayback(

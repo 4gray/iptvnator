@@ -49,7 +49,10 @@ import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-serie
 
 import { startStalkerVodDownload } from './stalker-vod-download';
 import { createStalkerVodWatchedToggle } from '../stalker-vod-watched-toggle';
-import { createStalkerVodDetailActions } from '../stalker-vod-detail-actions';
+import {
+    createStalkerVodDetailActions,
+    beginTrackedExternalLaunch,
+} from '../stalker-vod-detail-actions';
 import { createPlaybackSessionKey } from '@iptvnator/playback/util';
 
 @Component({
@@ -83,7 +86,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     private readonly downloadsService = inject(DownloadsService);
     private readonly logger = createLogger('StalkerCatalogDetail');
     private readonly favoritesRefresh = createRefreshTrigger();
-    private playbackRequestId = 0;
+    playbackRequestId = 0;
     private currentPlaybackOwnerKey = '';
 
     readonly contentType = this.catalog.contentType;
@@ -101,7 +104,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             ? createPlaybackSessionKey({ kind: 'vod', sourceId, contentId })
             : '';
     });
-    private readonly playbackOwnerKey = computed(() =>
+    readonly playbackOwnerKey = computed(() =>
         JSON.stringify([this.playbackSessionKey(), this.contentType()])
     );
     private readonly selectedVodPosition = signal<PlaybackPositionData | null>(
@@ -116,7 +119,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
      * keyed by its owner: a stale resolution for the previous movie must not
      * hold the next movie's toggle hostage.
      */
-    private readonly pendingStart = createPendingPlaybackStart<string>();
+    readonly pendingStart = createPendingPlaybackStart<string>();
     readonly playbackStartPending = computed(() =>
         this.pendingStart.isPendingFor(this.playbackOwnerKey())
     );
@@ -278,10 +281,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         selectedVodPosition: this.selectedVodPosition,
         discardPendingPositionLoad: () => ++this.positionLoadGeneration,
         beforeExternalLaunch: () => this.closeInlinePlayer(),
-        beginPendingStart: () => {
-            const startId = this.pendingStart.begin(this.playbackOwnerKey());
-            return () => this.pendingStart.settle(startId);
-        },
+        beginPendingStart: () => beginTrackedExternalLaunch(this),
         afterProgressReset: (playlistId) =>
             void this.catalog.refreshPositions(playlistId),
         download: (item) =>

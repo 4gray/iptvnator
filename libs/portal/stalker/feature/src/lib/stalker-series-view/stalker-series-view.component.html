@@ -7,6 +7,7 @@
         [posterUrl]="serial.info.movie_image"
         [backdropUrl]="serial.info.tmdb_backdrop"
         [trailerBackdropUrl]="heroPresenter.trailerBackdropUrl()"
+        [contentKey]="'stalker-series:' + serial.id"
         [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"
@@ -18,7 +19,10 @@
                 </app-meta-chip>
             }
             @if (hero.statusLabel(); as status) {
-                <app-meta-chip variant="status" data-test-id="series-status-chip">
+                <app-meta-chip
+                    variant="status"
+                    data-test-id="series-status-chip"
+                >
                     {{ status }}
                 </app-meta-chip>
             }
@@ -44,7 +48,9 @@
                 <app-meta-chip>
                     @for (genre of hero.genreChips(); track genre.label) {
                         @if (!$first) {
-                            <span class="meta-chip__sep" aria-hidden="true">·</span>
+                            <span class="meta-chip__sep" aria-hidden="true"
+                                >·</span
+                            >
                         }
                         @if (genre.facet; as facet) {
                             <button
@@ -76,10 +82,14 @@
                 </app-meta-chip>
             }
             @if (serial.info.rating_imdb) {
-                <app-meta-chip variant="rating">★ {{ serial.info.rating_imdb }}</app-meta-chip>
+                <app-meta-chip variant="rating"
+                    >★ {{ serial.info.rating_imdb }}</app-meta-chip
+                >
             }
             @if (serial.info.rating_kinopoisk) {
-                <app-meta-chip>KP {{ serial.info.rating_kinopoisk }}</app-meta-chip>
+                <app-meta-chip
+                    >KP {{ serial.info.rating_kinopoisk }}</app-meta-chip
+                >
             }
         </ng-template>
 

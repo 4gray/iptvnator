@@ -231,6 +231,24 @@ describe('ContentHeroComponent cinematic layout', () => {
         expect(mute?.getAttribute('aria-pressed')).toBe('true');
     });
 
+    it('keys the layout on the content identity when enrichment renames the title', () => {
+        fixture.componentRef.setInput('contentKey', 'm3u:42');
+        fixture.componentRef.setInput('title', 'Channel name');
+        fixture.componentRef.setInput('posterUrl', 'poster.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeTruthy();
+
+        // TMDB replaces the title and brings a backdrop: same content.
+        fixture.componentRef.setInput('title', 'Proper Title (2021)');
+        fixture.componentRef.setInput('backdropUrl', 'wide.jpg');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeTruthy();
+
+        fixture.componentRef.setInput('contentKey', 'm3u:43');
+        fixture.detectChanges();
+        expect(host().querySelector('.hero--compact')).toBeNull();
+    });
+
     it('places the actions before the credits slot', () => {
         fixture.componentRef.setInput('title', 'Black Harbor');
         fixture.detectChanges();

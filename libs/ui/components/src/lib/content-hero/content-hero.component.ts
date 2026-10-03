@@ -47,6 +47,11 @@ export class ContentHeroComponent {
     readonly description = input<string>();
     readonly posterUrl = input<string>();
     readonly backdropUrl = input<string>();
+    /**
+     * Stable identity of the shown title (provider + id). The layout is
+     * decided once per identity; enrichment may replace the title itself.
+     */
+    readonly contentKey = input<string | null>(null);
     /** 0–100 watched share; renders the resume bar above the actions. */
     readonly progress = input<number | null>(null);
     /** With the setting on, this trailer plays muted behind the details. */
@@ -87,10 +92,11 @@ export class ContentHeroComponent {
     /**
      * Decided once per title: a backdrop that TMDB enrichment adds a moment
      * later fills the compact hero instead of growing it under the user's
-     * cursor. The title survives the merge; the poster may not.
+     * cursor. Keyed by `contentKey`, falling back to the title for hosts
+     * without one.
      */
     readonly layout = linkedSignal<string | undefined, ContentHeroLayout>({
-        source: () => this.title(),
+        source: () => this.contentKey() ?? this.title(),
         computation: () =>
             untracked(() => this.hasRealBackdrop()) ? 'stage' : 'compact',
     });

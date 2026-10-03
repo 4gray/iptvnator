@@ -15,6 +15,32 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 
+/** A start the explicit launch joins: superseded by, and superseding, every other start of its host. */
+export interface PendingExternalLaunch {
+    settle(): void;
+    isCurrent(): boolean;
+}
+
+/** Builds a `PendingExternalLaunch` on a host that tracks its own request ids. */
+export function beginTrackedExternalLaunch(host: {
+    readonly pendingStart: {
+        begin(owner: string): number;
+        settle(startId: number): void;
+    };
+    playbackOwnerKey(): string;
+    playbackRequestId: number;
+}): PendingExternalLaunch {
+    const requestId = ++host.playbackRequestId;
+    const ownerKey = host.playbackOwnerKey();
+    const startId = host.pendingStart.begin(ownerKey);
+    return {
+        settle: () => host.pendingStart.settle(startId),
+        isCurrent: () =>
+            requestId === host.playbackRequestId &&
+            host.playbackOwnerKey() === ownerKey,
+    };
+}
+
 export interface StalkerVodExternalPlayEvent {
     readonly item: VodDetailsItem;
     readonly player: ExternalPlayerName;
@@ -51,8 +77,8 @@ interface StalkerVodDetailActionsDeps {
     /** Retires a stored-position read in flight, which would restore the row. */
     readonly discardPendingPositionLoad?: () => void;
     readonly beforeExternalLaunch?: () => void;
-    /** Marks the movie's start pending while the stream resolves; returns the settle. */
-    readonly beginPendingStart?: () => () => void;
+    /** The explicit launch as one of the host's starts: pending while it resolves, dropped once superseded. */
+    readonly beginPendingStart?: () => PendingExternalLaunch;
     readonly afterProgressReset?: (playlistId: string) => void;
     readonly snackBar: Pick<MatSnackBar, 'open'>;
     readonly translate: Pick<TranslateService, 'instant'>;
@@ -113,7 +139,8 @@ export function createStalkerVodDetailActions(
             const stillSelected = () =>
                 deps.selectedVodId() === vodId &&
                 deps.playlistId() === playlistId;
-            const settlePendingStart = deps.beginPendingStart?.();
+            const pending = deps.beginPendingStart?.();
+            const superseded = () => pending?.isCurrent() === false;
             try {
                 const playback = await deps.resolvePlayback(
                     event.item.cmd,
@@ -121,7 +148,7 @@ export function createStalkerVodDetailActions(
                     event.item.data.info?.movie_image,
                     event.positionSeconds ?? undefined
                 );
-                if (!stillSelected()) {
+                if (!stillSelected() || superseded()) {
                     return;
                 }
                 const replaced = await replaceOwnedExternalSession(
@@ -132,7 +159,7 @@ export function createStalkerVodDetailActions(
                         Number(info.contentXtreamId) === vodId,
                     deps.logError
                 );
-                if (!replaced || !stillSelected()) {
+                if (!replaced || !stillSelected() || superseded()) {
                     return;
                 }
                 deps.beforeExternalLaunch?.();
@@ -147,7 +174,7 @@ export function createStalkerVodDetailActions(
                 }
             } finally {
                 externalLaunchesInFlight.delete(launchKey);
-                settlePendingStart?.();
+                pending?.settle();
             }
         },
 
