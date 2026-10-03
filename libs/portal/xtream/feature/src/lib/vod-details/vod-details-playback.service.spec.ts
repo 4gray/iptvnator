@@ -172,7 +172,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                 container_extension: 'mkv',
             },
         } as never;
-        const launch = service.openInExternalPlayer(movie, false, 'vlc');
+        const launch = service.playVod(movie, 'vlc');
         expect(launch).not.toBeNull();
         await launch;
 
@@ -205,7 +205,7 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
         closeSession.mockClear();
         openExternalPlayback.mockClear();
 
-        await service.openInExternalPlayer(
+        await service.playVod(
             {
                 info: {},
                 movie_data: {
@@ -214,7 +214,6 @@ describe('VodDetailsPlaybackService — external session ownership', () => {
                     container_extension: 'mkv',
                 },
             } as never,
-            false,
             'mpv'
         );
 

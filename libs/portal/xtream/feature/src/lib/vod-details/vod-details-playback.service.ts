@@ -241,14 +241,21 @@ export class VodDetailsPlaybackService {
         };
     }
 
-    async playVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+    /** `player` forces MPV/VLC (the "…" menu); the start is route-owned either way. */
+    async playVod(
+        vodItem: XtreamVodDetails | null,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
         const playback = this.buildVodPlayback(vodItem, false);
-        return playback ? await this.startPlayback(playback) : false;
+        return playback ? await this.startPlayback(playback, player) : false;
     }
 
-    async resumeVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+    async resumeVod(
+        vodItem: XtreamVodDetails | null,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
         const playback = this.buildVodPlayback(vodItem, true);
-        return playback ? await this.startPlayback(playback) : false;
+        return playback ? await this.startPlayback(playback, player) : false;
     }
 
     onPrimaryAction(vodItem: XtreamVodDetails | null): void {
@@ -306,22 +313,6 @@ export class VodDetailsPlaybackService {
         request.trackLaunch(
             this.launchExternal(request.playback, request.player)
         );
-    }
-
-    /**
-     * The "…" menu's explicit MPV/VLC launch: a regular route-owned start
-     * with the player forced, so the view is recorded and a running
-     * session is replaced rather than doubled.
-     */
-    openInExternalPlayer(
-        vodItem: XtreamVodDetails | null,
-        resume: boolean,
-        player: ExternalPlayerName
-    ): Promise<boolean> {
-        const playback = this.buildVodPlayback(vodItem, resume);
-        return playback
-            ? this.startPlayback(playback, player)
-            : Promise.resolve(false);
     }
 
     /**

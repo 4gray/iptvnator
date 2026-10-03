@@ -48,6 +48,27 @@ describe('VodMultiSourceHostService — pinning', () => {
         expect(rowFor(ALT_TWO.id)?.isActive).toBe(true);
     });
 
+    it('launches the pinned copy in the forced player', async () => {
+        pins.get.mockResolvedValue({
+            matchKey: 'title:the matrix:1999',
+            playlistId: ALT_TWO.playlistId,
+            contentId: ALT_TWO.contentId,
+            portalType: 'xtream',
+        });
+        await loadMovie([ALT_TWO]);
+
+        // The "…" menu's MPV/VLC launch honours the pin like Play does, so
+        // the two never start different copies of the film.
+        await expect(service.playPinnedSource(undefined, 'vlc')).resolves.toBe(
+            'played'
+        );
+        expect(startPlayback).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.any(Function),
+            'vlc'
+        );
+    });
+
     it('resumes the pinned source from the stored position', async () => {
         pins.get.mockResolvedValue({
             matchKey: 'title:the matrix:1999',

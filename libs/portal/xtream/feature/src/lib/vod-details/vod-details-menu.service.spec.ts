@@ -22,6 +22,7 @@ describe('VodDetailsMenuService', () => {
     const playbackStartPending = signal(false);
     const isExternalLaunchPending = signal(false);
     const hasPlaybackPosition = signal(true);
+    const openExternal = jest.fn().mockResolvedValue(undefined);
     let service: VodDetailsMenuService;
 
     beforeEach(() => {
@@ -75,6 +76,7 @@ describe('VodDetailsMenuService', () => {
             vodId: signal(7),
             category: signal(null),
             restart: jest.fn(),
+            openExternal,
         });
     });
 
@@ -88,6 +90,13 @@ describe('VodDetailsMenuService', () => {
     it('offers the external player and Start over rows while nothing starts', () => {
         expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBeFalsy();
         expect(row(VOD_MENU_ACTION.StartOver)?.disabled).toBeFalsy();
+    });
+
+    it('hands the external launch to the host with the configured player', async () => {
+        // The host honours a pinned copy and its resume point; the menu
+        // must not resolve the route copy on its own.
+        await service.run(VOD_MENU_ACTION.ExternalPlayer);
+        expect(openExternal).toHaveBeenCalledWith('mpv');
     });
 
     it('holds both rows while a start resolves or a launch awaits the player', () => {

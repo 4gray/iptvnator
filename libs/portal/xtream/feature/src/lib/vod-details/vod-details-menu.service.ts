@@ -34,6 +34,8 @@ interface VodDetailsMenuBindings {
     readonly category: Signal<Partial<XtreamCategory> | null>;
     /** Start over honours a pinned copy, so the host owns it. */
     readonly restart: () => Promise<void>;
+    /** The MPV/VLC launch honours the pinned copy and its resume point too. */
+    readonly openExternal: (player: ExternalPlayerName) => Promise<void>;
 }
 
 /**
@@ -142,15 +144,7 @@ export class VodDetailsMenuService {
         const item = this.bindings()?.item() ?? null;
         switch (actionId) {
             case VOD_MENU_ACTION.ExternalPlayer:
-                await this.playback
-                    .openInExternalPlayer(
-                        item,
-                        this.msUi.hasPlaybackPosition(),
-                        this.externalPlayer()
-                    )
-                    .catch((error) =>
-                        this.logger.warn('External launch failed', error)
-                    );
+                await this.bindings()?.openExternal(this.externalPlayer());
                 return;
             case VOD_MENU_ACTION.CopyUrl:
                 await this.copyStreamUrl(item);

@@ -65,6 +65,7 @@ import {
     XtreamVodInfo,
     XtreamVodStream,
     youtubeEmbedUrl,
+    type ExternalPlayerName,
     type PlaybackPositionData,
     type VodSourceCandidate,
     type VodSourceDescriptor,
@@ -454,10 +455,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.multiSource.bind({
             // Route every switch through the same inline-vs-external fork a
             // normal Play uses, so the two paths cannot drift apart.
-            startPlayback: async (playback, isCurrent) => {
+            startPlayback: async (playback, isCurrent, player) => {
                 const started = await this.playback.startResolvedPlayback(
                     playback,
-                    isCurrent
+                    isCurrent,
+                    player
                 );
                 if (started) {
                     // A switch mounts a DIFFERENT stream in the same host, so
@@ -511,6 +513,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             vodId: this.selectedVodId,
             category: this.selectedCategory,
             restart: () => this.restartVod(this.playableVodItem()),
+            openExternal: (player) =>
+                this.openInExternalPlayer(this.playableVodItem(), player),
         });
 
         registerContentMetadataBackfill({
@@ -606,9 +610,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.xtreamStore.setSelectedItem(null);
     }
 
-    async playVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+    async playVod(
+        vodItem: XtreamVodDetails | null,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
         this.multiSource.supersedePendingSwitch();
-        const started = await this.playback.playVod(vodItem);
+        const started = await this.playback.playVod(vodItem, player);
         if (!started) {
             return false;
         }
@@ -646,9 +653,12 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         await this.playVod(vodItem);
     }
 
-    async resumeVod(vodItem: XtreamVodDetails | null): Promise<boolean> {
+    async resumeVod(
+        vodItem: XtreamVodDetails | null,
+        player?: ExternalPlayerName
+    ): Promise<boolean> {
         this.multiSource.supersedePendingSwitch();
-        const started = await this.playback.resumeVod(vodItem);
+        const started = await this.playback.resumeVod(vodItem, player);
         if (!started) {
             return false;
         }
@@ -687,6 +697,35 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         await this.playFromProviderSource(vodItem);
+    }
+
+    /**
+     * The "…" menu's MPV/VLC launch: the copy the primary button acts on,
+     * from where it would resume. A pinned copy outranks the route's, as it
+     * does for Play and Restart, so the launch and the button never disagree
+     * about the source or the position.
+     */
+    async openInExternalPlayer(
+        vodItem: XtreamVodDetails | null,
+        player: ExternalPlayerName
+    ): Promise<void> {
+        if (this.isExternalLaunchPending()) {
+            return;
+        }
+        if (this.msUi.primaryIsPinnedCopy()) {
+            const outcome = await this.multiSource.playPinnedSource(
+                this.msUi.resumeSecondsFor,
+                player
+            );
+            if (outcome !== 'unavailable') {
+                return;
+            }
+        }
+        if (this.playback.hasPlaybackPosition()) {
+            await this.resumeVod(vodItem, player);
+            return;
+        }
+        await this.playVod(vodItem, player);
     }
 
     async playFromProviderSource(
