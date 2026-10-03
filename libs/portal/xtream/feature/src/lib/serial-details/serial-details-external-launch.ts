@@ -52,26 +52,38 @@ export function whenEpisodeLaunchesSettle(owner: string | null): Promise<void> {
     return tail ? tail.then(() => undefined) : Promise.resolve();
 }
 
+interface QueuedEpisodeChoice {
+    readonly episode: unknown;
+    readonly start: (episode: never) => void;
+}
+
 /** Per owner, the latest Play/episode choice made while its forced launch settled. */
-const queuedChoices = new Map<string, unknown>();
+const queuedChoices = new Map<string, QueuedEpisodeChoice>();
 
 /**
  * Keeps the latest choice made while the owner's forced launch settles and
- * hands it to `start` once that launch settled; the caller decides whether
- * the page still shows the owner by then.
+ * hands it to the `start` that came with it once that launch settled; the
+ * caller decides whether its page still shows the owner by then. One settle
+ * handler per owner: a page reopened meanwhile queues with its own `start`,
+ * and that one runs, not the handler of the page the viewer left.
  */
 export function queueEpisodeChoice<TEpisode>(
     owner: string,
     episode: TEpisode,
     start: (episode: TEpisode) => void
 ): void {
-    queuedChoices.set(owner, episode);
+    const handlerRegistered = queuedChoices.has(owner);
+    queuedChoices.set(owner, {
+        episode,
+        start: start as (episode: never) => void,
+    });
+    if (handlerRegistered) {
+        return;
+    }
     void whenEpisodeLaunchesSettle(owner).then(() => {
-        const queued = queuedChoices.get(owner) as TEpisode | undefined;
-        if (queued !== undefined) {
-            queuedChoices.delete(owner);
-            start(queued);
-        }
+        const queued = queuedChoices.get(owner);
+        queuedChoices.delete(owner);
+        queued?.start(queued.episode as never);
     });
 }
 

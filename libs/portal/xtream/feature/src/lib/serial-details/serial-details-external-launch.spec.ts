@@ -203,17 +203,21 @@ describe('openEpisodeExternally', () => {
             () => new Promise<void>((resolve) => (settleLaunch = resolve))
         );
         const launch = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
-        const start = jest.fn();
-        queueEpisodeChoice('xtream-1:103', 'episode-1', start);
-        queueEpisodeChoice('xtream-1:103', 'episode-2', start);
+        // The first page queues, the viewer reopens the series and queues
+        // again: the reopened page's start runs, with its episode.
+        const startOld = jest.fn();
+        const startNew = jest.fn();
+        queueEpisodeChoice('xtream-1:103', 'episode-1', startOld);
+        queueEpisodeChoice('xtream-1:103', 'episode-2', startNew);
         await flush();
-        expect(start).not.toHaveBeenCalled();
+        expect(startOld).not.toHaveBeenCalled();
 
         settleLaunch();
         await launch;
         await flush();
-        expect(start).toHaveBeenCalledTimes(1);
-        expect(start).toHaveBeenCalledWith('episode-2');
+        expect(startOld).not.toHaveBeenCalled();
+        expect(startNew).toHaveBeenCalledTimes(1);
+        expect(startNew).toHaveBeenCalledWith('episode-2');
     });
 
     it('keeps the running player when closing it fails', async () => {
