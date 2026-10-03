@@ -45,6 +45,7 @@ import {
 } from '@iptvnator/ui/components';
 import {
     ExternalPlayerName,
+    ExternalPlayerSession,
     PlaybackPositionData,
     PlayerContentInfo,
     ResolvedPortalPlayback,
@@ -295,9 +296,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly launchQueue = new StalkerSeriesLaunchQueue();
     /**
      * The episode chosen while a watched/reset batch still rewrote the rows
-     * a start resumes from; the last choice plays once the batch settled.
+     * a start resumes from; the last choice plays once the batch settled,
+     * and only on the series it was made for.
      */
-    private choiceHeldForBatch: (() => void) | null = null;
+    private choiceHeldForBatch: {
+        readonly seriesKey: string;
+        readonly play: () => void;
+    } | null = null;
     /** `playlist:series` of the series on screen; provider ids collide across playlists. */
     readonly currentSeriesKey = computed(
         () =>
@@ -1040,8 +1045,15 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (this.seasonWatchBatchRunning()) {
             // The batch rewrites the very rows a start resumes from: the
             // choice waits for it, like the Reset and watched rows do.
-            this.choiceHeldForBatch = () =>
-                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer);
+            this.choiceHeldForBatch = {
+                seriesKey: this.currentSeriesKey(),
+                play: () =>
+                    this.onEpisodeClicked(
+                        episode,
+                        startTimeOverride,
+                        forcePlayer
+                    ),
+            };
             return;
         }
         const seriesKey = this.currentSeriesKey();
@@ -1056,12 +1068,18 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         this.startEpisode(episode, startTimeOverride, forcePlayer);
     }
 
-    /** The batch settled: the choice held meanwhile goes through the usual gates. */
+    /**
+     * The batch settled: the choice held meanwhile goes through the usual
+     * gates, unless the viewer switched series since. Episode identities
+     * overlap across series, so it must never resolve against another one.
+     */
     private endWatchBatch(): void {
         this.seasonWatchBatchRunning.set(false);
-        const choice = this.choiceHeldForBatch;
+        const held = this.choiceHeldForBatch;
         this.choiceHeldForBatch = null;
-        choice?.();
+        if (held && held.seriesKey === this.currentSeriesKey()) {
+            held.play();
+        }
     }
 
     private startEpisode(
@@ -1301,8 +1319,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         ) {
             return;
         }
+        let session: ExternalPlayerSession | void;
         try {
-            await this.portalPlayer.openExternalPlayback(playback, player);
+            session = await this.portalPlayer.openExternalPlayback(
+                playback,
+                player
+            );
         } catch (error) {
             // The caller's catch would read the retired generation and stay
             // silent; the user chose this launch and gets its failure.
@@ -1313,6 +1335,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 undefined,
                 { duration: 3000 }
             );
+            return;
+        }
+        // The viewer left the series, or started something else, while the
+        // launch sat inside the player IPC: the player it opened must not
+        // stay beside what they chose since.
+        if (
+            session &&
+            !this.isPlaybackRequestCurrent({ ...request, generation })
+        ) {
+            await this.externalPlayback
+                .closeSession(session)
+                .catch((error: unknown) =>
+                    this.logger.warn(
+                        'Closing a superseded external player failed',
+                        error
+                    )
+                );
         }
     }
 

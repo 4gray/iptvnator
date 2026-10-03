@@ -420,6 +420,79 @@ describe('StalkerSeriesViewComponent season watched toggle', () => {
         expect(resolvePlayback).toHaveBeenCalledTimes(1);
     });
 
+    it('drops an episode held during a batch once the viewer switched series', async () => {
+        const [firstId, secondId] = await startWithTwoLoadedEpisodes();
+        const store = TestBed.inject(StalkerStore);
+        const resolvePlayback = jest
+            .spyOn(store, 'resolveVodPlayback')
+            .mockResolvedValue(null as never);
+        let finishSave: () => void = () => undefined;
+        savePlaybackPositionOrThrow.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finishSave = resolve))
+        );
+        const batch =
+            fixture.componentInstance.handleSeasonPlaybackToggleRequested(
+                seasonToggleRequest([firstId, secondId], true)
+            );
+        await Promise.resolve();
+        const [first] = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(first);
+
+        // Episode identities overlap across series: the held choice must
+        // not resolve against the series now on screen.
+        selectedItem.set(createVodItem(SERIES_B_ID));
+        await settle();
+        finishSave();
+        await batch;
+
+        expect(resolvePlayback).not.toHaveBeenCalled();
+    });
+
+    it('closes the player a forced launch opened after the viewer left the series', async () => {
+        await startWithTwoLoadedEpisodes();
+        const store = TestBed.inject(StalkerStore);
+        jest.spyOn(store, 'resolveVodPlayback').mockResolvedValue({
+            streamUrl: 'http://stalker.example/episode.mpg',
+            title: 'Episode',
+            contentInfo: {
+                playlistId: PLAYLIST_ID,
+                contentXtreamId: 1,
+                contentType: 'episode',
+                seriesXtreamId: SERIES_A_ID,
+            },
+        } as never);
+        const player = TestBed.inject(PORTAL_PLAYER) as unknown as {
+            openExternalPlayback: jest.Mock;
+        };
+        const external = TestBed.inject(
+            PORTAL_EXTERNAL_PLAYBACK
+        ) as unknown as { closeSession?: jest.Mock };
+        external.closeSession = jest.fn().mockResolvedValue(undefined);
+        const opened = { id: 'mpv-9', status: 'launching' };
+        let finishLaunch: () => void = () => undefined;
+        player.openExternalPlayback.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finishLaunch = () => resolve(opened);
+                })
+        );
+        const [first] = fixture.componentInstance.mappedSeasons()['1'];
+        fixture.componentInstance.onEpisodeClicked(first, undefined, 'mpv');
+        await settle();
+        await new Promise((resolve) => setTimeout(resolve));
+        expect(player.openExternalPlayback).toHaveBeenCalledTimes(1);
+
+        // The viewer opens another series while the launch sits inside the
+        // player IPC: the player it opens must not stay beside that one.
+        selectedItem.set(createVodItem(SERIES_B_ID));
+        await settle();
+        finishLaunch();
+        await settle();
+        await new Promise((resolve) => setTimeout(resolve));
+
+        expect(external.closeSession).toHaveBeenCalledWith(opened);
+    });
+
     it('keeps surviving clears and reports a partial season unwatch failure', async () => {
         const [firstId, secondId] = await startWithTwoLoadedEpisodes();
         repositoryRows = [firstId, secondId].map((contentXtreamId, index) =>

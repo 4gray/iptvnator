@@ -253,5 +253,20 @@ async function launchEpisode(
     if (!replaced || host.launchOwner() !== owner) {
         return;
     }
-    return host.portalPlayer.openExternalPlayback(playback, player);
+    const session = await host.portalPlayer.openExternalPlayback(
+        playback,
+        player
+    );
+    // The page moved on while the launch sat inside the player IPC: pending
+    // launches are owner-scoped, so the new title may already play, and the
+    // player this one opened must not stay beside it.
+    if (session && host.launchOwner() !== owner) {
+        try {
+            await host.externalPlayback.closeSession(session);
+        } catch (error) {
+            logger.warn('Closing a superseded external player failed', error);
+        }
+        return;
+    }
+    return session;
 }

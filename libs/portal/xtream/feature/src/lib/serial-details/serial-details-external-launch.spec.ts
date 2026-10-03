@@ -137,6 +137,23 @@ describe('openEpisodeExternally', () => {
         expect(t.openExternalPlayback).not.toHaveBeenCalled();
     });
 
+    it('closes the player a launch opened after the page moved on', async () => {
+        const t = host(null);
+        const opened = session({ id: 'mpv-2', status: 'launching' });
+        t.openExternalPlayback.mockImplementation(async () => {
+            // The viewer opens another title while the launch sits inside
+            // the player IPC.
+            t.launchOwner.mockReturnValue('xtream-1:999');
+            return opened;
+        });
+
+        await expect(
+            openEpisodeExternally(t.host, PLAYBACK, 'mpv')
+        ).resolves.toBeUndefined();
+
+        expect(t.closeSession).toHaveBeenCalledWith(opened);
+    });
+
     it('ignores a repeat before the first launch settled', async () => {
         const t = host(null);
         let settleLaunch: () => void = () => undefined;
