@@ -1586,11 +1586,8 @@
             "HERO_PLAY": "슬라이드쇼 재생"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "대시보드",
-            "OPEN_DASHBOARD": "대시보드 열기",
             "RAIL_SOURCES": "소스",
-            "OPEN_SOURCES": "소스 열기",
             "RAIL_GLOBAL_FAVORITES": "즐겨찾기",
             "RAIL_GLOBAL_RECENT": "최근 본 항목",
             "RAIL_GLOBAL_SEARCH": "전역 검색",

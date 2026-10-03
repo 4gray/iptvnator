@@ -1586,11 +1586,8 @@
             "HERO_PLAY": "Возобновить показ"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Панель",
-            "OPEN_DASHBOARD": "Открыть панель",
             "RAIL_SOURCES": "Источники",
-            "OPEN_SOURCES": "Открыть источники",
             "RAIL_GLOBAL_FAVORITES": "Избранное",
             "RAIL_GLOBAL_RECENT": "Недавно просмотренные",
             "RAIL_GLOBAL_SEARCH": "Глобальный поиск",

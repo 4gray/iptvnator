@@ -33,9 +33,6 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 })
 class MockWorkspaceShellRailComponent {
     readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = input<unknown[]>([]);
     readonly primaryContextLinks = input<unknown[]>([]);
     readonly secondaryContextLinks = input<unknown[]>([]);
@@ -51,6 +48,7 @@ class MockWorkspaceShellRailComponent {
     standalone: true,
 })
 class MockWorkspaceShellHeaderComponent {
+    readonly backTarget = input<unknown>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
     readonly canOpenPlaylistInfo = input(false);
@@ -75,6 +73,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly headerSidebarToggle = input<unknown>(null);
     readonly parentalLockState = input<'off' | 'locked' | 'unlocked'>('off');
+    readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
@@ -152,9 +151,8 @@ class MockWorkspaceKeyboardShortcutsService {
 }
 
 class MockWorkspaceShellFacade {
-    readonly brandLink = signal('/workspace/dashboard');
-    readonly brandTooltipKey = signal('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = signal('WORKSPACE.SHELL.OPEN_DASHBOARD');
+    readonly backTarget = signal(null);
+    goBack = jest.fn();
     readonly workspaceLinks = signal([]);
     readonly primaryContextLinks = signal([]);
     readonly secondaryContextLinks = signal([]);

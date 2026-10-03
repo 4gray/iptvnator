@@ -12,7 +12,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
-import { WorkspaceHeaderAction } from '@iptvnator/portal/shared/util';
+import {
+    WorkspaceBackTarget,
+    WorkspaceHeaderAction,
+} from '@iptvnator/portal/shared/util';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     WorkspaceHeaderBulkAction,
@@ -46,6 +49,8 @@ export class WorkspaceShellHeaderComponent {
         /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
     readonly commandShortcutLabel = this.isMac ? '⌘K' : 'Ctrl+K';
 
+    /** The current page's Back action; null when the page has none. */
+    readonly backTarget = input<WorkspaceBackTarget | null>(null);
     readonly playlistTitle = input('');
     readonly playlistSubtitle = input('');
     readonly canOpenPlaylistInfo = input(false);
@@ -105,6 +110,7 @@ export class WorkspaceShellHeaderComponent {
         'WORKSPACE.SHELL.CONTEXT_DRAWER_CATEGORIES_TOOLTIP'
     );
 
+    readonly backRequested = output<void>();
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
@@ -146,6 +152,27 @@ export class WorkspaceShellHeaderComponent {
     onSearchEnter(event: Event): void {
         const target = event.target as HTMLInputElement | null;
         this.searchSubmitted.emit(target?.value ?? this.searchQuery());
+    }
+
+    /**
+     * The tooltip advertises Escape for Back. The page only handles it with
+     * focus inside the page, so the button keeps that promise itself.
+     */
+    onBackEscape(event: Event): void {
+        const keyboard = event as KeyboardEvent;
+        if (
+            !this.backTarget()?.escapeShortcut() ||
+            keyboard.defaultPrevented ||
+            keyboard.repeat ||
+            keyboard.altKey ||
+            keyboard.ctrlKey ||
+            keyboard.metaKey ||
+            keyboard.shiftKey
+        ) {
+            return;
+        }
+        keyboard.preventDefault();
+        this.backRequested.emit();
     }
 
     onPlaylistInfoRequested(): void {

@@ -1586,11 +1586,8 @@
             "HERO_PLAY": "Diavetítés lejátszása"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Vezérlőpult",
-            "OPEN_DASHBOARD": "Vezérlőpult megnyitása",
             "RAIL_SOURCES": "Források",
-            "OPEN_SOURCES": "Források megnyitása",
             "RAIL_GLOBAL_FAVORITES": "Kedvencek",
             "RAIL_GLOBAL_RECENT": "Megtekintési előzmények",
             "RAIL_GLOBAL_SEARCH": "Globális keresés",

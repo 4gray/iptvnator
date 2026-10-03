@@ -10,6 +10,7 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import type { WorkspaceNavigationTarget } from '@iptvnator/portal/shared/util';
 import { BehaviorSubject } from 'rxjs';
 import type {
@@ -1076,11 +1077,10 @@ describe('DownloadOfflineDetailComponent', () => {
             router.url = detailUrl;
             await render([download(17)]);
 
-            (
-                (fixture.nativeElement as HTMLElement).querySelector(
-                    '.shell__back-button'
-                ) as HTMLButtonElement
-            ).click();
+            // The workspace header renders the page's Back.
+            expect(
+                TestBed.inject(WorkspaceBackNavigationService).goBack()
+            ).toBe(true);
             await fixture.whenStable();
 
             expect(location.back).toHaveBeenCalledTimes(1);
@@ -1096,11 +1096,9 @@ describe('DownloadOfflineDetailComponent', () => {
         router.url = '/workspace/stalker/playlist-a/downloads/17';
         await render([download(17)]);
 
-        (
-            (fixture.nativeElement as HTMLElement).querySelector(
-                '.shell__back-button'
-            ) as HTMLButtonElement
-        ).click();
+        expect(TestBed.inject(WorkspaceBackNavigationService).goBack()).toBe(
+            true
+        );
         await fixture.whenStable();
 
         expect(location.back).not.toHaveBeenCalled();

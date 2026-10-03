@@ -4,6 +4,7 @@ import {
     Component,
     input,
     output,
+    signal,
     ChangeDetectionStrategy,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -14,6 +15,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
+import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 import { WorkspaceShellHeaderComponent } from './workspace-shell-header.component';
 
 @Component({
@@ -374,6 +376,109 @@ describe('WorkspaceShellHeaderComponent', () => {
                 '[data-test-id="context-drawer-toggle"]'
             )
         );
+    });
+
+    describe('page Back', () => {
+        const backButton = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="workspace-header-back"]'
+            );
+
+        function setBackTarget(
+            label: string | null,
+            escapeShortcut: boolean
+        ): WorkspaceBackTarget {
+            const target: WorkspaceBackTarget = {
+                label: signal(label),
+                escapeShortcut: signal(escapeShortcut),
+                run: jest.fn(),
+            };
+            fixture.componentRef.setInput('backTarget', target);
+            fixture.detectChanges();
+            return target;
+        }
+
+        it('renders nothing while the page has no Back', () => {
+            expect(backButton()).toBeNull();
+        });
+
+        it('leads the header and emits Back requests', () => {
+            const requested = jest.fn();
+            component.backRequested.subscribe(requested);
+            setBackTarget('Back to Downloads', true);
+
+            const button = backButton();
+            expect(
+                fixture.nativeElement.querySelector('header')?.firstElementChild
+            ).toBe(button);
+            expect(button?.type).toBe('button');
+            button?.click();
+
+            expect(requested).toHaveBeenCalledTimes(1);
+        });
+
+        it('names the page Back and announces Escape only while it applies', () => {
+            setBackTarget('Back to Downloads', true);
+            expect(backButton()?.getAttribute('aria-label')).toBe(
+                'Back to Downloads'
+            );
+            expect(backButton()?.getAttribute('aria-keyshortcuts')).toBe(
+                'Escape'
+            );
+
+            setBackTarget(null, false);
+            // No host label: the generic translated Back.
+            expect(backButton()?.getAttribute('aria-label')).toBe('BACK');
+            expect(backButton()?.hasAttribute('aria-keyshortcuts')).toBe(false);
+        });
+
+        it('runs the advertised Escape from the focused Back only while it applies', () => {
+            const requested = jest.fn();
+            component.backRequested.subscribe(requested);
+            const press = (init: KeyboardEventInit = {}) => {
+                const event = new KeyboardEvent('keydown', {
+                    key: 'Escape',
+                    bubbles: true,
+                    cancelable: true,
+                    ...init,
+                });
+                backButton()?.dispatchEvent(event);
+                return event;
+            };
+
+            setBackTarget(null, true);
+            press({ repeat: true });
+            press({ shiftKey: true });
+            expect(requested).not.toHaveBeenCalled();
+            expect(press().defaultPrevented).toBe(true);
+            expect(requested).toHaveBeenCalledTimes(1);
+
+            // In watch, Escape belongs to the player's close shortcut.
+            setBackTarget(null, false);
+            expect(press().defaultPrevented).toBe(false);
+            expect(requested).toHaveBeenCalledTimes(1);
+        });
+
+        it('takes the drawer toggle slot while the page offers Back', () => {
+            fixture.componentRef.setInput('showContextDrawerToggle', true);
+            setBackTarget(null, true);
+
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="context-drawer-toggle"]'
+                )
+            ).toBeNull();
+
+            fixture.componentRef.setInput('backTarget', null);
+            fixture.detectChanges();
+
+            expect(backButton()).toBeNull();
+            expect(
+                fixture.nativeElement.querySelector(
+                    '[data-test-id="context-drawer-toggle"]'
+                )
+            ).not.toBeNull();
+        });
     });
 
     it('uses the paired Material primary tokens for the download badge', () => {

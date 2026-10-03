@@ -606,12 +606,9 @@ async function addCurrentDetailToFavorites(page: Page): Promise<void> {
 }
 
 async function goBackFromDetail(page: Page): Promise<void> {
-    // Return to the list: the shell's sticky Back is route-level in browse
-    // and watch alike (closing the player is the bar's own Close button).
-    const backButton = page
-        .locator('app-portal-detail-shell')
-        .first()
-        .getByRole('button', { name: 'Back', exact: true });
+    // Return to the list: the header's Back is route-level in browse and
+    // watch alike (closing the player is the bar's own Close button).
+    const backButton = page.getByTestId('workspace-header-back');
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     try {
@@ -637,9 +634,9 @@ async function expectInlineCollectionDetail(
     );
     await expect(page.locator('app-workspace-context-panel')).toHaveCount(0);
     await expect(page.locator('app-content-hero')).toContainText(params.title);
-    await expect(
-        page.locator('app-portal-detail-shell .shell__back-button').first()
-    ).toBeVisible({ timeout: 20000 });
+    await expect(page.getByTestId('workspace-header-back')).toBeVisible({
+        timeout: 20000,
+    });
 }
 
 async function expectInlinePlayerWithoutDialog(page: Page): Promise<void> {

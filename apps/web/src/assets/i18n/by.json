@@ -1586,11 +1586,8 @@
             "HERO_PLAY": "Аднавіць паказ"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Панэль",
-            "OPEN_DASHBOARD": "Адкрыць панэль",
             "RAIL_SOURCES": "Крыніцы",
-            "OPEN_SOURCES": "Адкрыць крыніцы",
             "RAIL_GLOBAL_FAVORITES": "Выбранае",
             "RAIL_GLOBAL_RECENT": "Нядаўна праглянутае",
             "RAIL_GLOBAL_SEARCH": "Глабальны пошук",

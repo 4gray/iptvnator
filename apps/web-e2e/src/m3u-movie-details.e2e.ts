@@ -404,18 +404,18 @@ test('@web @m3u @tmdb browse and watch keep the adjusted volume', async ({
             )
         )
         .toBe(0.25);
-    // M3U has no browse Back target, so the shell shows no arrow in either
+    // M3U has no browse Back target, so the header shows no arrow in either
     // state; the now-playing bar's own Close button returns to browse.
     const shell = detail(page).locator('app-portal-detail-shell');
-    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
+    const headerBack = page.locator('[data-test-id="workspace-header-back"]');
+    await expect(headerBack).toHaveCount(0);
     await shell
         .locator('app-portal-inline-player')
         .getByRole('button', { name: 'Close player', exact: true })
         .click();
     await expect(inlineVideo(page)).toHaveCount(0);
-    await expect(shell.locator('.shell__back-button')).toHaveCount(0);
-    // Without the arrow there is no lane to reserve: the hero keeps its own
-    // inset instead of the 72px column portal details give the Back control.
+    await expect(headerBack).toHaveCount(0);
+    // The hero keeps its own inset.
     expect(
         await shell
             .locator('.hero__content')

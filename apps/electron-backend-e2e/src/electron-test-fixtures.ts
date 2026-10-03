@@ -1013,7 +1013,7 @@ export async function saveSettings(page: Page): Promise<void> {
 
 export async function goToDashboard(page: Page): Promise<void> {
     const dashboardLink = page
-        .locator('a.brand[href$="/workspace/dashboard"]')
+        .locator('app-workspace-shell-rail a[href$="/workspace/dashboard"]')
         .first();
 
     await expect(dashboardLink).toBeVisible();

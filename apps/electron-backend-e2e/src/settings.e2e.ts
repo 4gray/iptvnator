@@ -657,10 +657,11 @@ test.describe('Electron Settings', () => {
                     exact: true,
                 })
             ).toHaveCount(0);
-            await expect(secondLaunch.mainWindow.locator('a.brand')).toHaveAttribute(
-                'href',
-                /\/workspace\/sources$/
-            );
+            await expect(
+                secondLaunch.mainWindow
+                    .locator('app-workspace-shell-rail a.nav-item')
+                    .first()
+            ).toHaveAttribute('href', /\/workspace\/sources$/);
         } finally {
             await closeElectronApp(secondLaunch);
         }

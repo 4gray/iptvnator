@@ -2,7 +2,6 @@ import { NgTemplateOutlet } from '@angular/common';
 import {
     afterNextRender,
     Component,
-    DestroyRef,
     ElementRef,
     Injector,
     computed,
@@ -11,11 +10,10 @@ import {
     inject,
     input,
     output,
-    viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { TranslateModule } from '@ngx-translate/core';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 import { ContentHeroComponent } from '../content-hero/content-hero.component';
 import { ContentAboutComponent } from './content-about.component';
 import {
@@ -23,14 +21,6 @@ import {
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
 } from './detail-template.directives';
-
-/**
- * Below this pane width the Back lane (16 + 40 + 16px) would leave the player
- * card under ~316px, where its control row clips, so the control takes a
- * sticky bar instead. The pane decides, not the viewport: beside the context
- * panel a desktop pane can be narrower than a phone.
- */
-const COMPACT_SHELL_WIDTH = 400;
 
 /**
  * Two-state layout shell for portal VOD/series detail pages.
@@ -41,22 +31,17 @@ const COMPACT_SHELL_WIDTH = 400;
  * About block below the episodes slot.
  *
  * The shell owns the page scroll, the browse↔watch animation, Escape
- * handling, the one sticky Back control (route-level in both states; closing
- * the player is the player's own Close button and Escape), and never
- * conditionally wraps the `[detail-player]` slot — the
- * host's own `@if (inlinePlayback())` is the only thing that creates or
- * destroys the player, so shell state changes cannot recreate it.
+ * handling and the page's Back action, which the workspace header renders in
+ * its leading slot (route-level in both states; closing the player is the
+ * player's own Close button and Escape). It never conditionally wraps the
+ * `[detail-player]` slot — the host's own `@if (inlinePlayback())` is the
+ * only thing that creates or destroys the player, so shell state changes
+ * cannot recreate it.
  */
 @Component({
     selector: 'app-portal-detail-shell',
     standalone: true,
-    imports: [
-        ContentHeroComponent,
-        ContentAboutComponent,
-        NgTemplateOutlet,
-        MatIconModule,
-        TranslateModule,
-    ],
+    imports: [ContentHeroComponent, ContentAboutComponent, NgTemplateOutlet],
     templateUrl: './portal-detail-shell.component.html',
     styleUrls: ['./portal-detail-shell.component.scss'],
     // eslint-disable-next-line @angular-eslint/prefer-on-push-component-change-detection -- Preserve pre-Angular 22 eager checking during the framework upgrade.
@@ -70,17 +55,13 @@ const COMPACT_SHELL_WIDTH = 400;
         // on body, while preserving already-handled events and overlay guards.
         '(keydown.escape)': 'onEscape($event)',
         '[class.shell-host--watch]': 'isWatch()',
-        // Content columns reserve the sticky Back control's lane.
-        '[class.shell-host--back]': 'backAvailable()',
         '(document:keydown.escape)': 'onEscape($event)',
     },
 })
 export class PortalDetailShellComponent {
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly injector = inject(Injector);
-    private readonly destroyRef = inject(DestroyRef);
-    private readonly backButton =
-        viewChild<ElementRef<HTMLButtonElement>>('backButton');
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
 
     readonly title = input<string>();
     readonly description = input<string>();
@@ -94,7 +75,7 @@ export class PortalDetailShellComponent {
     /** True while inline playback is active — flips the layout to watch state. */
     readonly playbackActive = input(false);
 
-    /** The sticky control in either state, or Escape in browse. */
+    /** The header's Back in either state, or Escape in browse. */
     readonly backClicked = output<void>();
     /** Emitted by Escape during inline playback. */
     readonly closePlayerRequested = output<void>();
@@ -106,6 +87,12 @@ export class PortalDetailShellComponent {
     );
 
     readonly isWatch = computed(() => this.playbackActive());
+
+    private readonly backTarget: WorkspaceBackTarget = {
+        label: computed(() => this.backLabel() || null),
+        escapeShortcut: computed(() => !this.isWatch()),
+        run: () => this.backClicked.emit(),
+    };
 
     constructor() {
         afterNextRender(() => {
@@ -120,7 +107,10 @@ export class PortalDetailShellComponent {
                 element.focus({ preventScroll: true });
             }
         });
-        this.observeCompactWidth();
+        effect((onCleanup) => {
+            if (!this.backAvailable()) return;
+            onCleanup(this.backNavigation.register(this.backTarget));
+        });
         let wasWatch = false;
         effect(() => {
             const watch = this.isWatch();
@@ -227,15 +217,15 @@ export class PortalDetailShellComponent {
         afterNextRender(
             () => {
                 const element = this.host.nativeElement;
+                // The page keeps focus, so the next Escape still unwinds it
+                // and the arrow keys still scroll it.
                 if (
                     element.isConnected &&
                     !element.closest('[inert]') &&
                     element.ownerDocument.activeElement ===
                         element.ownerDocument.body
                 ) {
-                    (this.backButton()?.nativeElement ?? element).focus({
-                        preventScroll: true,
-                    });
+                    element.focus({ preventScroll: true });
                 }
             },
             { injector: this.injector }
@@ -253,25 +243,5 @@ export class PortalDetailShellComponent {
             return;
         }
         element.scrollTo({ top: 0, behavior: 'auto' });
-    }
-
-    /**
-     * Toggles `shell-host--compact` straight on the host, so the class lands
-     * in the same frame as the resize instead of after a change-detection
-     * pass. The border box keeps the threshold independent of scrollbar width.
-     */
-    private observeCompactWidth(): void {
-        if (typeof ResizeObserver === 'undefined') return;
-        const element = this.host.nativeElement;
-        const observer = new ResizeObserver(([entry]) => {
-            const width =
-                entry?.borderBoxSize?.[0]?.inlineSize ?? element.offsetWidth;
-            element.classList.toggle(
-                'shell-host--compact',
-                width < COMPACT_SHELL_WIDTH
-            );
-        });
-        observer.observe(element);
-        this.destroyRef.onDestroy(() => observer.disconnect());
     }
 }
