@@ -196,6 +196,32 @@ describe('createStalkerVodDetailActions openExternal', () => {
         expect(t.openExternalPlayback).not.toHaveBeenCalled();
     });
 
+    it('closes the player a launch opened after the page moved on', async () => {
+        let selected = 42;
+        const t = setup(() => selected);
+        const opened = {
+            id: 'mpv-7',
+            status: 'launching',
+        } as ExternalPlayerSession;
+        t.openExternalPlayback.mockResolvedValue(opened);
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.resolveLink();
+        await Promise.resolve();
+        await Promise.resolve();
+        // The launch is inside the player IPC when the viewer opens another
+        // movie: its player must not open beside that one.
+        selected = 43;
+        await launch;
+
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+        expect(t.closeSession).toHaveBeenCalledWith(opened);
+        expect(t.open).not.toHaveBeenCalled();
+    });
+
     it('drops the launch once a newer start superseded it', async () => {
         const t = setup(() => 42);
         const launch = t.actions.openExternal({
@@ -301,6 +327,12 @@ describe('createStalkerVodDetailActions resetProgress', () => {
         const discardPendingPositionLoad = jest.fn();
         const afterProgressReset = jest.fn();
         const open = jest.fn();
+        const settlePendingStart = jest.fn();
+        const beginPendingStart = jest.fn().mockReturnValue({
+            settle: settlePendingStart,
+            isCurrent: () => true,
+            rebase: jest.fn(),
+        });
         const actions = createStalkerVodDetailActions({
             resolvePlayback: jest.fn(),
             portalPlayer: { openExternalPlayback: jest.fn() },
@@ -313,6 +345,7 @@ describe('createStalkerVodDetailActions resetProgress', () => {
             selectedVodId,
             selectedVodPosition,
             discardPendingPositionLoad,
+            beginPendingStart,
             afterProgressReset,
             snackBar: { open },
             translate: { instant: (key: string) => key },
@@ -325,8 +358,28 @@ describe('createStalkerVodDetailActions resetProgress', () => {
             discardPendingPositionLoad,
             afterProgressReset,
             open,
+            beginPendingStart,
+            settlePendingStart,
         };
     }
+
+    it("holds the movie's starts until the clear landed", async () => {
+        const t = setup(() => 42);
+        let finishClear: () => void = () => undefined;
+        t.clearPlaybackPositionOrThrow.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finishClear = resolve))
+        );
+
+        const reset = t.actions.resetProgress(MOVIE);
+        // A start made now would resume from the row being cleared.
+        expect(t.beginPendingStart).toHaveBeenCalledTimes(1);
+        expect(t.settlePendingStart).not.toHaveBeenCalled();
+
+        finishClear();
+        await reset;
+        expect(t.settlePendingStart).toHaveBeenCalledTimes(1);
+        expect(t.selectedVodPosition()).toBeNull();
+    });
 
     it('clears the shown position of the movie that is still selected', async () => {
         const t = setup(() => 42);

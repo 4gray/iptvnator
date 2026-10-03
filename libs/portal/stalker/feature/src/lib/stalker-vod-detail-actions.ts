@@ -171,10 +171,16 @@ export function createStalkerVodDetailActions(
                 // The host's inline teardown retired the request id too;
                 // only a start made after this point supersedes the launch.
                 pending?.rebase();
-                await deps.portalPlayer.openExternalPlayback(
+                const session = await deps.portalPlayer.openExternalPlayback(
                     playback,
                     event.player
                 );
+                // The page moved on, or a newer start took over, while the
+                // launch sat inside the player IPC: the player it opened
+                // must not stay beside what the viewer chose since.
+                if (session && (!stillSelected() || superseded())) {
+                    await deps.externalPlayback.closeSession(session);
+                }
             } catch (error) {
                 // A launch a newer start superseded fails on its own; the
                 // newer one reports for the movie now.
@@ -195,6 +201,10 @@ export function createStalkerVodDetailActions(
             if (!playlistId || !Number.isFinite(vodId) || vodId <= 0) {
                 return;
             }
+            // Counted as a pending start of this movie: its Play, Start over
+            // and launches are held until the write landed, or one made
+            // meanwhile would resume from the very row being cleared.
+            const pending = deps.beginPendingStart?.();
             try {
                 await deps.playbackPositions.clearPlaybackPositionOrThrow(
                     playlistId,
@@ -204,6 +214,8 @@ export function createStalkerVodDetailActions(
             } catch (error) {
                 deps.logError('Resetting the VOD position failed', error);
                 return;
+            } finally {
+                pending?.settle();
             }
             // The clear was async: only the movie still on screen loses its
             // shown progress, and no older read may put it back.
