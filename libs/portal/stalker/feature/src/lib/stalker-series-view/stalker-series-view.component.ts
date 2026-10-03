@@ -46,6 +46,7 @@ import {
 import {
     ExternalPlayerName,
     PlaybackPositionData,
+    PlayerContentInfo,
     ResolvedPortalPlayback,
     TmdbEnrichedCastMember,
     XtreamSerieEpisode,
@@ -1033,12 +1034,21 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     ) {
         const seriesKey = this.currentSeriesKey();
         if (this.launchQueue.isLaunching(seriesKey)) {
-            // The launch cannot be cancelled: the choice plays once it settles.
+            // The launch cannot be cancelled: the choice replaces its player
+            // once it settled.
             this.launchQueue.hold(seriesKey, () =>
-                this.onEpisodeClicked(episode, startTimeOverride, forcePlayer)
+                this.startEpisode(episode, startTimeOverride, forcePlayer)
             );
             return;
         }
+        this.startEpisode(episode, startTimeOverride, forcePlayer);
+    }
+
+    private startEpisode(
+        episode: XtreamSerieEpisode,
+        startTimeOverride?: number,
+        forcePlayer?: ExternalPlayerName
+    ): void {
         const item = this.displayItem();
         const episodeState = resolveSelectedStalkerEpisodeState({
             episodesBySeason: this.mappedSeasons(),
@@ -1259,14 +1269,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         // `closeInlinePlayer()` just retired `request`'s generation; a fresh
         // one covers the close round trip, the identity check the series.
         const generation = this.seriesPlaybackRequestGeneration;
-        const own = playback.contentInfo;
-        const replaced = await replaceOwnedExternalSession(
-            this.externalPlayback,
-            (info) =>
-                info.contentType === 'episode' &&
-                info.playlistId === own?.playlistId &&
-                info.seriesXtreamId === own?.seriesXtreamId,
-            (message, error) => this.logger.warn(message, error)
+        const replaced = await this.replaceOwnExternalSession(
+            playback.contentInfo
         );
         if (
             !replaced ||
@@ -1287,6 +1291,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 { duration: 3000 }
             );
         }
+    }
+
+    /** Closes an episode of this series still running externally; false keeps it. */
+    private replaceOwnExternalSession(
+        own: PlayerContentInfo | undefined
+    ): Promise<boolean> {
+        return replaceOwnedExternalSession(
+            this.externalPlayback,
+            (info) =>
+                info.contentType === 'episode' &&
+                info.playlistId === own?.playlistId &&
+                info.seriesXtreamId === own?.seriesXtreamId,
+            (message, error) => this.logger.warn(message, error)
+        );
     }
 
     private async startPlayback(
@@ -1356,7 +1374,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                             forcePlayer,
                             request
                         ),
-                    () => this.currentSeriesKey() === pendingSeriesId
+                    {
+                        stillShown: () =>
+                            this.currentSeriesKey() === pendingSeriesId,
+                        replacePlayer: () =>
+                            this.replaceOwnExternalSession(
+                                resolvedPlayback.contentInfo
+                            ),
+                    }
                 );
             } else {
                 void this.portalPlayer.openResolvedPlayback(

@@ -92,7 +92,14 @@ export function whenEpisodeLaunchesSettle(owner: string | null): Promise<void> {
     return tail ? tail.then(() => undefined) : Promise.resolve();
 }
 
+/** What replaying a queued choice reads from the page that made it. */
+type QueuedChoiceHost = Pick<
+    SeriesExternalLaunchHost,
+    'externalPlayback' | 'launchOwner'
+>;
+
 interface QueuedEpisodeChoice {
+    readonly host: QueuedChoiceHost;
     readonly episode: unknown;
     readonly start: (episode: never) => void;
 }
@@ -102,29 +109,76 @@ const queuedChoices = new Map<string, QueuedEpisodeChoice>();
 
 /**
  * Keeps the latest choice made while the owner's forced launch settles and
- * hands it to the `start` that came with it once that launch settled; the
- * caller decides whether its page still shows the owner by then. One settle
- * handler per owner: a page reopened meanwhile queues with its own `start`,
- * and that one runs, not the handler of the page the viewer left.
+ * hands it to the `start` that came with it once that launch settled. One
+ * settle handler per owner: a page reopened meanwhile queues with its own
+ * `host` and `start`, and those run, not the ones of the page the viewer left.
  */
 export function queueEpisodeChoice<TEpisode>(
+    host: QueuedChoiceHost,
     owner: string,
     episode: TEpisode,
     start: (episode: TEpisode) => void
 ): void {
     const handlerRegistered = queuedChoices.has(owner);
     queuedChoices.set(owner, {
+        host,
         episode,
         start: start as (episode: never) => void,
     });
     if (handlerRegistered) {
         return;
     }
-    void whenEpisodeLaunchesSettle(owner).then(() => {
-        const queued = queuedChoices.get(owner);
-        queuedChoices.delete(owner);
-        queued?.start(queued.episode as never);
-    });
+    void whenEpisodeLaunchesSettle(owner).then(() => replayQueuedChoice(owner));
+}
+
+/**
+ * The settled launch opened a player for the series; the queued choice
+ * replaces it, never plays beside it. The owner stays pending while that
+ * player closes so no other start slips in between. The choice is dropped
+ * when the page moved on meanwhile or the player has to stay.
+ */
+async function replayQueuedChoice(owner: string): Promise<void> {
+    const queued = queuedChoices.get(owner);
+    queuedChoices.delete(owner);
+    if (!queued || queued.host.launchOwner() !== owner) {
+        return;
+    }
+    countPending(owner, 1);
+    let replaced = false;
+    try {
+        replaced = await closeOwnedEpisodeSession(queued.host, owner);
+    } finally {
+        countPending(owner, -1);
+    }
+    if (replaced && queued.host.launchOwner() === owner) {
+        queued.start(queued.episode as never);
+    }
+}
+
+/**
+ * Closes the external session when it plays an episode of `owner`; false
+ * when it has to stay (the close failed) and nothing may start beside it.
+ */
+function closeOwnedEpisodeSession(
+    host: Pick<SeriesExternalLaunchHost, 'externalPlayback'>,
+    owner: string
+): Promise<boolean> {
+    const session = host.externalPlayback.activeSession();
+    const info = session?.contentInfo;
+    const ownSession =
+        session &&
+        info &&
+        session.status !== 'closed' &&
+        info.contentType === 'episode' &&
+        `${info.playlistId}:${info.seriesXtreamId}` === owner
+            ? session
+            : null;
+    return closeRunningExternalSession(
+        ownSession,
+        (running) => host.externalPlayback.closeSession(running),
+        (message, error) =>
+            console.warn(`[SerialDetailsPlayback] ${message}`, error)
+    );
 }
 
 /**
@@ -183,22 +237,7 @@ async function launchEpisode(
     if (host.launchOwner() !== owner) {
         return;
     }
-    const session = host.externalPlayback.activeSession();
-    const info = session?.contentInfo;
-    const ownSession =
-        session &&
-        info &&
-        session.status !== 'closed' &&
-        info.contentType === 'episode' &&
-        `${info.playlistId}:${info.seriesXtreamId}` === owner
-            ? session
-            : null;
-    const replaced = await closeRunningExternalSession(
-        ownSession,
-        (running) => host.externalPlayback.closeSession(running),
-        (message, error) =>
-            console.warn(`[SerialDetailsPlayback] ${message}`, error)
-    );
+    const replaced = await closeOwnedEpisodeSession(host, owner);
     if (!replaced || host.launchOwner() !== owner) {
         return;
     }

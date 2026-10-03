@@ -1,9 +1,25 @@
-import { StalkerSeriesLaunchQueue } from './stalker-series-launch-queue';
+import {
+    StalkerSeriesLaunchQueue,
+    type StalkerSeriesLaunchRelease,
+} from './stalker-series-launch-queue';
 
-function deferred(): { promise: Promise<void>; settle: () => void } {
-    let settle!: () => void;
-    const promise = new Promise<void>((resolve) => (settle = resolve));
+function deferred<T = void>(): {
+    promise: Promise<T>;
+    settle: (value: T) => void;
+} {
+    let settle!: (value: T) => void;
+    const promise = new Promise<T>((resolve) => (settle = resolve));
     return { promise, settle };
+}
+
+function release(
+    overrides: Partial<StalkerSeriesLaunchRelease> = {}
+): StalkerSeriesLaunchRelease {
+    return {
+        stillShown: () => true,
+        replacePlayer: () => Promise.resolve(true),
+        ...overrides,
+    };
 }
 
 describe('StalkerSeriesLaunchQueue', () => {
@@ -13,11 +29,7 @@ describe('StalkerSeriesLaunchQueue', () => {
     it('plays the last choice held during a launch once it settles', async () => {
         const queue = new StalkerSeriesLaunchQueue();
         const launch = deferred();
-        const run = queue.run(
-            A,
-            () => launch.promise,
-            () => true
-        );
+        const run = queue.run(A, () => launch.promise, release());
         const first = jest.fn();
         const second = jest.fn();
 
@@ -34,6 +46,47 @@ describe('StalkerSeriesLaunchQueue', () => {
         expect(second).toHaveBeenCalledTimes(1);
     });
 
+    it('replaces the player the launch opened before the held choice starts', async () => {
+        const queue = new StalkerSeriesLaunchQueue();
+        const replace = deferred<boolean>();
+        const replacePlayer = jest.fn().mockReturnValue(replace.promise);
+        const run = queue.run(
+            A,
+            () => Promise.resolve(),
+            release({ replacePlayer })
+        );
+        const choice = jest.fn();
+        queue.hold(A, choice);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        // The choice must not play beside the opened player, and nothing
+        // else may start while that player closes.
+        expect(replacePlayer).toHaveBeenCalledTimes(1);
+        expect(choice).not.toHaveBeenCalled();
+        expect(queue.isLaunching(A)).toBe(true);
+
+        replace.settle(true);
+        await run;
+        expect(choice).toHaveBeenCalledTimes(1);
+        expect(queue.isLaunching(A)).toBe(false);
+    });
+
+    it('keeps the player and drops the choice when it cannot be replaced', async () => {
+        const queue = new StalkerSeriesLaunchQueue();
+        const choice = jest.fn();
+        const run = queue.run(
+            A,
+            () => Promise.resolve(),
+            release({ replacePlayer: () => Promise.resolve(false) })
+        );
+        queue.hold(A, choice);
+
+        await run;
+        expect(choice).not.toHaveBeenCalled();
+        expect(queue.isLaunching(A)).toBe(false);
+    });
+
     it('keeps a choice for one series when a launch of another settles first', async () => {
         const queue = new StalkerSeriesLaunchQueue();
         const launchA = deferred();
@@ -41,13 +94,9 @@ describe('StalkerSeriesLaunchQueue', () => {
         const runA = queue.run(
             A,
             () => launchA.promise,
-            () => false
+            release({ stillShown: () => false })
         );
-        const runB = queue.run(
-            B,
-            () => launchB.promise,
-            () => true
-        );
+        const runB = queue.run(B, () => launchB.promise, release());
         const choiceB = jest.fn();
         queue.hold(B, choiceB);
 
@@ -65,14 +114,16 @@ describe('StalkerSeriesLaunchQueue', () => {
     it('drops the choice when the page moved on, even if the launch failed', async () => {
         const queue = new StalkerSeriesLaunchQueue();
         const choice = jest.fn();
+        const replacePlayer = jest.fn();
         const run = queue.run(
             A,
             () => Promise.reject(new Error('launch failed')),
-            () => false
+            release({ stillShown: () => false, replacePlayer })
         );
         queue.hold(A, choice);
 
         await expect(run).rejects.toThrow('launch failed');
+        expect(replacePlayer).not.toHaveBeenCalled();
         expect(choice).not.toHaveBeenCalled();
         expect(queue.isLaunching(A)).toBe(false);
     });

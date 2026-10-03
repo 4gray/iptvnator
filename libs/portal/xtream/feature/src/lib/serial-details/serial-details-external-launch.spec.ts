@@ -245,8 +245,8 @@ describe('openEpisodeExternally', () => {
         // again: the reopened page's start runs, with its episode.
         const startOld = jest.fn();
         const startNew = jest.fn();
-        queueEpisodeChoice('xtream-1:103', 'episode-1', startOld);
-        queueEpisodeChoice('xtream-1:103', 'episode-2', startNew);
+        queueEpisodeChoice(t.host, 'xtream-1:103', 'episode-1', startOld);
+        queueEpisodeChoice(t.host, 'xtream-1:103', 'episode-2', startNew);
         await flush();
         expect(startOld).not.toHaveBeenCalled();
 
@@ -256,6 +256,55 @@ describe('openEpisodeExternally', () => {
         expect(startOld).not.toHaveBeenCalled();
         expect(startNew).toHaveBeenCalledTimes(1);
         expect(startNew).toHaveBeenCalledWith('episode-2');
+    });
+
+    it('closes the player the launch opened before the queued choice starts', async () => {
+        const t = host(null);
+        const opened = session({ id: 'mpv-2', status: 'launching' });
+        t.openExternalPlayback.mockImplementation(async () => {
+            t.host.externalPlayback.activeSession.set(opened);
+            return opened;
+        });
+        let settleClose: () => void = () => undefined;
+        t.closeSession.mockImplementation(
+            () => new Promise<void>((resolve) => (settleClose = resolve))
+        );
+        const launch = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        const start = jest.fn();
+        queueEpisodeChoice(t.host, 'xtream-1:103', 'episode-3', start);
+
+        await launch;
+        await flush();
+        // The choice must not play beside the player that just opened, and
+        // nothing else may start while that player closes.
+        expect(t.closeSession).toHaveBeenCalledWith(opened);
+        expect(start).not.toHaveBeenCalled();
+        expect(isEpisodeLaunchPending('xtream-1:103')).toBe(true);
+
+        settleClose();
+        await flush();
+        expect(start).toHaveBeenCalledWith('episode-3');
+        expect(isEpisodeLaunchPending('xtream-1:103')).toBe(false);
+    });
+
+    it('drops the queued choice when the opened player cannot be closed', async () => {
+        const t = host(null);
+        const opened = session({ id: 'mpv-2' });
+        t.openExternalPlayback.mockImplementation(async () => {
+            t.host.externalPlayback.activeSession.set(opened);
+            return opened;
+        });
+        t.closeSession.mockRejectedValue(new Error('busy'));
+        jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const launch = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        const start = jest.fn();
+        queueEpisodeChoice(t.host, 'xtream-1:103', 'episode-3', start);
+
+        await launch;
+        await flush();
+        expect(t.closeSession).toHaveBeenCalledWith(opened);
+        expect(start).not.toHaveBeenCalled();
+        expect(isEpisodeLaunchPending('xtream-1:103')).toBe(false);
     });
 
     it('lets a reopened series launch the episode an earlier visit still settles', async () => {

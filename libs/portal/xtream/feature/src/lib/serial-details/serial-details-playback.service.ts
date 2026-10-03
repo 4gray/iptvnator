@@ -207,12 +207,12 @@ export class SerialDetailsPlaybackService {
         player?: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void> | void {
         // A forced launch still settling owns the next start: the latest
-        // choice made meanwhile starts once it settled, never beside it.
+        // choice made meanwhile replaces its player once it settled.
         const owner = this.launchOwner();
         if (!player && owner && this.forcedLaunchPending()) {
-            queueEpisodeChoice(owner, episode, (queued) => {
-                if (this.launchOwner() === owner) this.playEpisode(queued);
-            });
+            queueEpisodeChoice(this, owner, episode, (queued) =>
+                this.playEpisode(queued)
+            );
             return;
         }
         const playlist = this.xtreamStore.currentPlaylist();
