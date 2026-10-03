@@ -97,7 +97,8 @@ export async function checkEpgFreshness(
  */
 export async function handleFetchEpg(
     urls: string[],
-    options: ElectronBridgeTrustOptions = {}
+    options: ElectronBridgeTrustOptions = {},
+    { force = false }: { force?: boolean } = {}
 ): Promise<EpgFetchResult> {
     const validUrls = urls
         .filter((url) => url?.trim())
@@ -110,10 +111,11 @@ export async function handleFetchEpg(
         return { success: false, message: 'No valid URLs provided' };
     }
 
-    const { staleUrls, freshUrls } = await checkEpgFreshness(
-        validUrls,
-        EPG_FRESHNESS_MAX_AGE_HOURS
-    );
+    // A forced refresh (Settings → Refresh EPG) must bypass the freshness
+    // window, otherwise the button is a no-op for 12 hours after a fetch.
+    const { staleUrls, freshUrls } = force
+        ? { staleUrls: validUrls, freshUrls: [] as string[] }
+        : await checkEpgFreshness(validUrls, EPG_FRESHNESS_MAX_AGE_HOURS);
 
     if (staleUrls.length === 0) {
         return {

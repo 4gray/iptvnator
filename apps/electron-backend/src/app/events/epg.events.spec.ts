@@ -363,6 +363,51 @@ describe('EpgEvents', () => {
         }
     );
 
+    describe('forced refresh vs the freshness window', () => {
+        const url = 'https://fresh.example/guide.xml';
+
+        function mockFreshSource(): void {
+            const fresh = [{ updatedAt: new Date().toISOString() }];
+            getDatabase.mockResolvedValue({
+                select: () => ({
+                    from: () => ({
+                        where: () => ({ limit: async () => fresh }),
+                    }),
+                }),
+            });
+        }
+
+        it('skips a source fetched within the freshness window', async () => {
+            mockFreshSource();
+            const { handleFetchEpg } = await import('./epg-fetch.service');
+            const { epgWorkerService } = await import('./epg-worker.service');
+            const fetch = jest
+                .spyOn(epgWorkerService, 'fetchEpgFromUrl')
+                .mockResolvedValue(undefined);
+            const result = await handleFetchEpg([url]);
+            expect(fetch).not.toHaveBeenCalled();
+            expect(result.skipped).toEqual([url]);
+            fetch.mockRestore();
+        });
+
+        it('EPG_FORCE_FETCH re-downloads a source that is still fresh', async () => {
+            mockFreshSource();
+            const { ipcMain } = jest.requireMock('electron');
+            const { epgWorkerService } = await import('./epg-worker.service');
+            const fetch = jest
+                .spyOn(epgWorkerService, 'fetchEpgFromUrl')
+                .mockResolvedValue(undefined);
+            EpgEvents.bootstrapEpgEvents();
+            const [, forceFetch] = ipcMain.handle.mock.calls.find(
+                ([channel]: [string]) => channel === 'EPG_FORCE_FETCH'
+            );
+            await forceFetch({}, { url, options: {} });
+            expect(fetch).toHaveBeenCalledTimes(1);
+            expect(fetch).toHaveBeenCalledWith(url, {});
+            fetch.mockRestore();
+        });
+    });
+
     it('does not start a queued source removed while an earlier source imports', async () => {
         getDatabase.mockRejectedValue(new Error('force stale for test'));
         const { handleFetchEpg } = await import('./epg-fetch.service');
