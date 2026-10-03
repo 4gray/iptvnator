@@ -232,6 +232,33 @@ describe('createPrimaryActionPosition', () => {
         expect(api.hasPosition()).toBe(false);
     });
 
+    it('forgets the pinned row after a reset and drops a lookup still in flight', async () => {
+        let resolveLookup: (
+            value: PlaybackPositionData | null
+        ) => void = () => {
+            /* replaced below */
+        };
+        const load = jest.fn().mockImplementation(
+            () =>
+                new Promise<PlaybackPositionData | null>((resolve) => {
+                    resolveLookup = resolve;
+                })
+        );
+        const { api } = setup([source(), ALT], position(2538), load);
+        TestBed.tick();
+
+        // "Reset progress" cleared the pinned copy's row while its lookup
+        // was still out: the button must read Play, not the row that the
+        // lookup brings back afterwards.
+        api.forgetPinnedPosition();
+        resolveLookup(position(4200));
+        await Promise.resolve();
+        TestBed.tick();
+
+        expect(api.position()).toBeNull();
+        expect(api.hasPosition()).toBe(false);
+    });
+
     it('drops a lookup the pin outran', async () => {
         let resolveFirst: (value: PlaybackPositionData | null) => void = () => {
             /* replaced below */

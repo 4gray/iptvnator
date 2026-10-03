@@ -8,6 +8,7 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
+    type PlaybackPositionData,
     type XtreamVodDetails,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -22,29 +23,61 @@ describe('VodDetailsMenuService', () => {
     const playbackStartPending = signal(false);
     const isExternalLaunchPending = signal(false);
     const hasPlaybackPosition = signal(true);
+    const primaryPosition = signal<PlaybackPositionData | null>(null);
+    const primaryTarget = signal<{
+        playlistId: string;
+        contentId: number;
+    } | null>({ playlistId: 'playlist-1', contentId: 7 });
+    const primaryIsPinnedCopy = signal(false);
+    const forgetPinnedPosition = jest.fn();
+    const clearPlaybackPositionOrThrow = jest.fn().mockResolvedValue(undefined);
+    const discardPendingPositionLoads = jest.fn();
+    const loadAllPositions = jest.fn().mockResolvedValue(undefined);
+    const routePlaybackPosition = signal<PlaybackPositionData | null>(null);
+    const vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
     const openExternal = jest.fn().mockResolvedValue(undefined);
     let service: VodDetailsMenuService;
 
     beforeEach(() => {
         playbackStartPending.set(false);
         isExternalLaunchPending.set(false);
+        primaryPosition.set(null);
+        primaryTarget.set({ playlistId: 'playlist-1', contentId: 7 });
+        primaryIsPinnedCopy.set(false);
+        routePlaybackPosition.set(null);
+        vodPlaybackPosition.set(null);
+        jest.clearAllMocks();
         TestBed.configureTestingModule({
             providers: [
                 VodDetailsMenuService,
-                { provide: XtreamStore, useValue: {} },
+                {
+                    provide: XtreamStore,
+                    useValue: {
+                        currentPlaylist: signal({ id: 'playlist-1' }),
+                        loadAllPositions,
+                    },
+                },
                 {
                     provide: VodDetailsPlaybackService,
                     useValue: {
-                        routePlaybackPosition: signal(null),
+                        routePlaybackPosition,
+                        vodPlaybackPosition,
                         playbackStartPending,
                         isExternalLaunchPending,
                         isExternalStopAction: signal(false),
                         inlinePlayback: signal(null),
+                        discardPendingPositionLoads,
                     },
                 },
                 {
                     provide: VodDetailsMultiSourceUiService,
-                    useValue: { hasPlaybackPosition },
+                    useValue: {
+                        hasPlaybackPosition,
+                        primaryPosition,
+                        primaryTarget,
+                        primaryIsPinnedCopy,
+                        forgetPinnedPosition,
+                    },
                 },
                 {
                     provide: VodMultiSourceHostService,
@@ -53,7 +86,10 @@ describe('VodDetailsMenuService', () => {
                         alternativeCount: signal(0),
                     },
                 },
-                { provide: PORTAL_PLAYBACK_POSITIONS, useValue: {} },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: { clearPlaybackPositionOrThrow },
+                },
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: { supportsManagedExternalPlayers: true },
@@ -97,6 +133,44 @@ describe('VodDetailsMenuService', () => {
         // must not resolve the route copy on its own.
         await service.run(VOD_MENU_ACTION.ExternalPlayer);
         expect(openExternal).toHaveBeenCalledWith('mpv');
+    });
+
+    it('offers and performs the reset for the pinned copy the button acts on', async () => {
+        // Only the pinned copy has progress: the hero shows it, so the menu
+        // must offer to reset it, and clear THAT row rather than the route's.
+        primaryIsPinnedCopy.set(true);
+        primaryTarget.set({ playlistId: 'playlist-2', contentId: 991 });
+        primaryPosition.set({
+            playlistId: 'playlist-2',
+            contentXtreamId: 991,
+            contentType: 'vod',
+            positionSeconds: 2538,
+            durationSeconds: 7200,
+        });
+        expect(row(VOD_MENU_ACTION.ResetProgress)).toBeDefined();
+
+        await service.run(VOD_MENU_ACTION.ResetProgress);
+
+        expect(clearPlaybackPositionOrThrow).toHaveBeenCalledWith(
+            'playlist-2',
+            991,
+            'vod'
+        );
+        expect(forgetPinnedPosition).toHaveBeenCalledTimes(1);
+        expect(discardPendingPositionLoads).not.toHaveBeenCalled();
+        expect(vodPlaybackPosition()).toBeNull();
+    });
+
+    it('hides the reset while the copy the button acts on has no row', () => {
+        routePlaybackPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 7,
+            contentType: 'vod',
+            positionSeconds: 100,
+            durationSeconds: 7200,
+        });
+        // The route copy's row says nothing about an unwatched pinned copy.
+        expect(row(VOD_MENU_ACTION.ResetProgress)).toBeUndefined();
     });
 
     it('holds both rows while a start resolves or a launch awaits the player', () => {

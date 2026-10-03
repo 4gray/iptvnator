@@ -41,6 +41,12 @@ export interface PrimaryActionPosition {
     hasPosition: Signal<boolean>;
     /** The pinned copy the button acts on, when it is not the route's own. */
     foreignPin: Signal<VodSourceDescriptor | null>;
+    /**
+     * The pinned copy's row was cleared: the button reads Play until that
+     * copy plays again, and a lookup still in flight must not bring the
+     * old row back.
+     */
+    forgetPinnedPosition: () => void;
 }
 
 /**
@@ -77,6 +83,8 @@ export function createPrimaryActionPosition(
     const pinnedPosition = signal<PlaybackPositionData | null>(null);
     /** Distinguishes "not looked up yet" from "looked up, never watched". */
     const pinnedLoadedFor = signal<string | null>(null);
+    /** Bumped by a reset so a lookup that started before it lands as stale. */
+    let loadGeneration = 0;
 
     effect(() => {
         const pinned = foreignPin();
@@ -90,10 +98,14 @@ export function createPrimaryActionPosition(
             return;
         }
 
+        const generation = ++loadGeneration;
         void deps.load(pinned).then((position) => {
             // The pin can change across the lookup — applying a stale answer
             // would describe a copy the button no longer plays.
-            if (foreignPin()?.id !== pinned.id) {
+            if (
+                foreignPin()?.id !== pinned.id ||
+                generation !== loadGeneration
+            ) {
                 return;
             }
 
@@ -132,7 +144,16 @@ export function createPrimaryActionPosition(
 
     const hasPosition = computed(() => isResumablePosition(position()));
 
-    return { position, hasPosition, foreignPin };
+    const forgetPinnedPosition = (): void => {
+        loadGeneration += 1;
+        pinnedPosition.set(null);
+        const pinned = foreignPin();
+        if (pinned) {
+            pinnedLoadedFor.set(pinned.id);
+        }
+    };
+
+    return { position, hasPosition, foreignPin, forgetPinnedPosition };
 }
 
 /** `01:02:03`, or `02:03` for anything under an hour. */

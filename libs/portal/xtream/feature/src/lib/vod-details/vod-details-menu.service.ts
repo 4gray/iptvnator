@@ -70,7 +70,8 @@ export class VodDetailsMenuService {
     readonly sections = computed<VodMoreMenuSection[]>(() => {
         const item = this.bindings()?.item() ?? null;
         const category = this.bindings()?.category() ?? null;
-        const started = this.playback.routePlaybackPosition() !== null;
+        // The copy the primary button acts on: a pinned copy's own row.
+        const started = this.msUi.primaryPosition() !== null;
         // A start still resolving or a launch still inside the player IPC:
         // another start would be refused, so the row would do nothing.
         const startPending =
@@ -176,17 +177,20 @@ export class VodDetailsMenuService {
         }
     }
 
-    /** Clears the saved position: the next Play starts from the beginning. */
+    /**
+     * Clears the saved position of the copy the primary button acts on (a
+     * pinned copy has its own row): the next Play starts from the beginning.
+     */
     private async resetProgress(): Promise<void> {
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-        const vodId = this.bindings()?.vodId() ?? NaN;
-        if (!playlistId || !Number.isFinite(vodId) || vodId <= 0) {
+        const target = this.msUi.primaryTarget();
+        if (!target) {
             return;
         }
+        const { playlistId, contentId } = target;
         try {
             await this.playbackPositions.clearPlaybackPositionOrThrow(
                 playlistId,
-                vodId,
+                contentId,
                 'vod'
             );
         } catch (error) {
@@ -194,10 +198,12 @@ export class VodDetailsMenuService {
             return;
         }
         // The clear was async: the route may show another movie by now
-        // (the Similar rail reuses it), whose own state must stay.
+        // (the Similar rail reuses it), or the pin may have moved, and that
+        // state must stay.
+        const current = this.msUi.primaryTarget();
         if (
-            this.bindings()?.vodId() !== vodId ||
-            this.xtreamStore.currentPlaylist()?.id !== playlistId
+            current?.playlistId !== playlistId ||
+            current.contentId !== contentId
         ) {
             // Another movie of the same playlist still gets fresh store
             // badges; another playlist's store must not be replaced by the
@@ -209,10 +215,16 @@ export class VodDetailsMenuService {
         }
         // A read still in flight started from the pre-write row; letting it
         // land would bring the position back.
-        this.playback.discardPendingPositionLoads();
-        this.playback.routePlaybackPosition.set(null);
+        if (this.msUi.primaryIsPinnedCopy()) {
+            this.msUi.forgetPinnedPosition();
+        } else {
+            this.playback.discardPendingPositionLoads();
+            this.playback.routePlaybackPosition.set(null);
+        }
         this.playback.vodPlaybackPosition.set(null);
-        void this.xtreamStore.loadAllPositions(playlistId);
+        if (this.xtreamStore.currentPlaylist()?.id === playlistId) {
+            void this.xtreamStore.loadAllPositions(playlistId);
+        }
         this.notify('PORTALS.DETAIL.PROGRESS_RESET');
     }
 
