@@ -194,15 +194,22 @@ inherited PATH: `EmbeddedMpvNativeService` then reports a missing `mpv` as
 result stands, and probes again once the shell answers. Every other answer,
 including a missing `mpv` after the shell answered, is final. An inconclusive
 answer is not a verdict on the machine: never persist a decision made from it.
-The settings store resets a saved Embedded MPV selection only on a final
-unsupported answer; on an inconclusive one the selection stays. Surfaces that
-stay mounted on one answer, the player (`EmbeddedMpvSessionController`) and the
-settings page, load support through `watchEmbeddedMpvSupport()`
-(`@iptvnator/shared/interfaces`), which asks again every
-`EMBEDDED_MPV_SUPPORT_RECHECK_MS` until the answer is final: a player mounted
-in that window starts playback by itself once `mpv` is found. The command
-palette and the settings search ask on demand; they keep a final answer for
-the session, but probe again on their next use after an inconclusive one.
+Whatever holds on to one answer follows it through `watchEmbeddedMpvSupport()`
+(`@iptvnator/shared/interfaces`), which asks again after
+`EMBEDDED_MPV_SUPPORT_RECHECK_MS`, backing off to
+`EMBEDDED_MPV_SUPPORT_RECHECK_MAX_MS`, until the answer is final:
+
+- The settings store keeps a saved Embedded MPV selection while the answer is
+  inconclusive, falls back to the default player only on a final unsupported
+  answer, and never overwrites a player the user picked meanwhile.
+- The player (`EmbeddedMpvSessionController`) and the settings page stay
+  mounted on one answer: a player mounted in that window starts playback by
+  itself once `mpv` is found, and the option appears without reopening the
+  page.
+
+The command palette and the settings search ask on demand; they keep a final
+answer for the session, but probe again on their next use after an
+inconclusive one.
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 

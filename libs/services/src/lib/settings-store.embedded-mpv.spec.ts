@@ -2,6 +2,7 @@ import { Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { of } from 'rxjs';
 import {
+    EMBEDDED_MPV_SUPPORT_RECHECK_MS,
     EmbeddedMpvSupport,
     Settings,
     STORE_KEY,
@@ -18,35 +19,44 @@ const MPV_MISSING: EmbeddedMpvSupport = {
     frameCopyAvailable: false,
     frameCopyUnavailableReason: 'helper-probe-failed',
 };
+/** A slow login shell: mpv was looked up before its PATH arrived. */
+const INCONCLUSIVE: EmbeddedMpvSupport = { ...MPV_MISSING, inconclusive: true };
+const SUPPORTED: EmbeddedMpvSupport = {
+    supported: true,
+    platform: 'linux',
+    engine: 'native',
+};
 
 describe('SettingsStore saved Embedded MPV selection', () => {
     const testWindow = window as unknown as {
         electron?: { getEmbeddedMpvSupport: jest.Mock };
     };
     const originalElectron = testWindow.electron;
+    let getEmbeddedMpvSupport: jest.Mock;
     let storage: { get: jest.Mock; set: jest.Mock };
     let injector: Injector;
 
-    /** Loads settings as on startup and lets the support check finish. */
-    async function startWithSavedEmbeddedMpv(
-        support: EmbeddedMpvSupport
-    ): Promise<InstanceType<typeof SettingsStore>> {
-        testWindow.electron = {
-            getEmbeddedMpvSupport: jest.fn().mockResolvedValue(support),
-        };
+    /** Loads settings as on startup and lets the first answer be handled. */
+    async function start(): Promise<InstanceType<typeof SettingsStore>> {
         const store = injector.get(SettingsStore);
         await store.loadSettings();
-        await new Promise((resolve) => setTimeout(resolve));
-        expect(testWindow.electron.getEmbeddedMpvSupport).toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(0);
+        expect(getEmbeddedMpvSupport).toHaveBeenCalled();
         return store;
     }
 
+    const persistedPlayers = () =>
+        storage.set.mock.calls.map(([, settings]) => settings.player);
+
     beforeEach(() => {
+        jest.useFakeTimers();
         const saved: Partial<Settings> = { player: VideoPlayer.EmbeddedMpv };
         storage = {
             get: jest.fn(() => of(saved)),
             set: jest.fn(() => of(undefined)),
         };
+        getEmbeddedMpvSupport = jest.fn();
+        testWindow.electron = { getEmbeddedMpvSupport };
         injector = Injector.create({
             providers: [
                 SettingsStore,
@@ -61,22 +71,24 @@ describe('SettingsStore saved Embedded MPV selection', () => {
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         testWindow.electron = originalElectron;
     });
 
-    it('keeps the saved player when the support check is inconclusive', async () => {
-        // A slow login shell: mpv was looked up before its PATH arrived.
-        const store = await startWithSavedEmbeddedMpv({
-            ...MPV_MISSING,
-            inconclusive: true,
-        });
+    it('keeps the saved player while the support check is inconclusive', async () => {
+        getEmbeddedMpvSupport.mockResolvedValue(INCONCLUSIVE);
+
+        const store = await start();
+        await jest.advanceTimersByTimeAsync(EMBEDDED_MPV_SUPPORT_RECHECK_MS);
 
         expect(store.player()).toBe(VideoPlayer.EmbeddedMpv);
         expect(storage.set).not.toHaveBeenCalled();
     });
 
     it('falls back to the default player on a final unsupported answer', async () => {
-        const store = await startWithSavedEmbeddedMpv(MPV_MISSING);
+        getEmbeddedMpvSupport.mockResolvedValue(MPV_MISSING);
+
+        const store = await start();
 
         expect(store.player()).toBe(VideoPlayer.VideoJs);
         expect(storage.set).toHaveBeenCalledWith(
@@ -86,13 +98,93 @@ describe('SettingsStore saved Embedded MPV selection', () => {
     });
 
     it('keeps the saved player when Embedded MPV is supported', async () => {
-        const store = await startWithSavedEmbeddedMpv({
-            supported: true,
-            platform: 'linux',
-            engine: 'native',
-        });
+        getEmbeddedMpvSupport.mockResolvedValue(SUPPORTED);
+
+        const store = await start();
+        await jest.advanceTimersByTimeAsync(
+            EMBEDDED_MPV_SUPPORT_RECHECK_MS * 3
+        );
 
         expect(store.player()).toBe(VideoPlayer.EmbeddedMpv);
         expect(storage.set).not.toHaveBeenCalled();
+        expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(1);
+    });
+
+    it('follows an inconclusive answer and falls back once mpv is finally missing', async () => {
+        getEmbeddedMpvSupport
+            .mockResolvedValueOnce(INCONCLUSIVE)
+            .mockResolvedValue(MPV_MISSING);
+
+        const store = await start();
+        expect(store.player()).toBe(VideoPlayer.EmbeddedMpv);
+
+        // The login shell answered: mpv really is not installed.
+        await jest.advanceTimersByTimeAsync(EMBEDDED_MPV_SUPPORT_RECHECK_MS);
+
+        expect(store.player()).toBe(VideoPlayer.VideoJs);
+        expect(persistedPlayers()).toEqual([VideoPlayer.VideoJs]);
+    });
+
+    it('follows an inconclusive answer and keeps the player once mpv is found', async () => {
+        getEmbeddedMpvSupport
+            .mockResolvedValueOnce(INCONCLUSIVE)
+            .mockResolvedValue(SUPPORTED);
+
+        const store = await start();
+        await jest.advanceTimersByTimeAsync(
+            EMBEDDED_MPV_SUPPORT_RECHECK_MS * 20
+        );
+
+        expect(store.player()).toBe(VideoPlayer.EmbeddedMpv);
+        expect(storage.set).not.toHaveBeenCalled();
+        // The final answer ended the checks.
+        expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves a player the user picked meanwhile alone and stops checking', async () => {
+        getEmbeddedMpvSupport
+            .mockResolvedValueOnce(INCONCLUSIVE)
+            .mockResolvedValue(MPV_MISSING);
+        const store = await start();
+
+        await store.updateSettings({ player: VideoPlayer.MPV });
+        await jest.advanceTimersByTimeAsync(
+            EMBEDDED_MPV_SUPPORT_RECHECK_MS * 20
+        );
+
+        expect(store.player()).toBe(VideoPlayer.MPV);
+        expect(persistedPlayers()).toEqual([VideoPlayer.MPV]);
+        expect(getEmbeddedMpvSupport).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves a player picked while the first answer was pending alone', async () => {
+        let answer: (support: EmbeddedMpvSupport) => void = () => undefined;
+        getEmbeddedMpvSupport.mockReturnValue(
+            new Promise<EmbeddedMpvSupport>((resolve) => {
+                answer = resolve;
+            })
+        );
+        const store = await start();
+
+        await store.updateSettings({ player: VideoPlayer.VLC });
+        answer(MPV_MISSING);
+        await jest.advanceTimersByTimeAsync(0);
+
+        expect(store.player()).toBe(VideoPlayer.VLC);
+        expect(persistedPlayers()).toEqual([VideoPlayer.VLC]);
+    });
+
+    it('falls back to the default player when the support check fails', async () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        getEmbeddedMpvSupport.mockRejectedValue(new Error('bridge failed'));
+
+        try {
+            const store = await start();
+
+            expect(store.player()).toBe(VideoPlayer.VideoJs);
+            expect(persistedPlayers()).toEqual([VideoPlayer.VideoJs]);
+        } finally {
+            warn.mockRestore();
+        }
     });
 });

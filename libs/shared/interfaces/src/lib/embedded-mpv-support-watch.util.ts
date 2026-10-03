@@ -8,13 +8,20 @@ import type { EmbeddedMpvSupport } from './embedded-mpv-session.interface';
 export const EMBEDDED_MPV_SUPPORT_RECHECK_MS = 3000;
 
 /**
+ * Each further recheck waits twice as long, up to this: a login shell that
+ * never answers must not keep the app polling at the first rate for good.
+ */
+export const EMBEDDED_MPV_SUPPORT_RECHECK_MAX_MS = 30_000;
+
+/**
  * Asks for embedded MPV support and hands every answer to `onAnswer`. An
  * `inconclusive` answer is not final, so it is asked for again until a final
  * one arrives or the returned function is called. A failed request ends the
  * watch through `onError`, as a final answer would.
  *
- * For surfaces that stay mounted on one answer (the player, the settings
- * page). A surface that asks on demand simply asks again the next time.
+ * For whatever holds on to one answer: the surfaces that stay mounted on it
+ * (the player, the settings page) and the settings store, which has to reach
+ * a decision. A surface that asks on demand simply asks again the next time.
  */
 export function watchEmbeddedMpvSupport(
     getSupport: () => Promise<EmbeddedMpvSupport>,
@@ -23,6 +30,7 @@ export function watchEmbeddedMpvSupport(
 ): () => void {
     let stopped = false;
     let recheck: ReturnType<typeof setTimeout> | undefined;
+    let recheckMs = EMBEDDED_MPV_SUPPORT_RECHECK_MS;
 
     const ask = async (): Promise<void> => {
         let support: EmbeddedMpvSupport;
@@ -38,10 +46,12 @@ export function watchEmbeddedMpvSupport(
             return;
         }
         onAnswer(support);
-        if (support.inconclusive) {
-            recheck = setTimeout(
-                () => void ask(),
-                EMBEDDED_MPV_SUPPORT_RECHECK_MS
+        // `onAnswer` may have stopped the watch.
+        if (support.inconclusive && !stopped) {
+            recheck = setTimeout(() => void ask(), recheckMs);
+            recheckMs = Math.min(
+                recheckMs * 2,
+                EMBEDDED_MPV_SUPPORT_RECHECK_MAX_MS
             );
         }
     };
