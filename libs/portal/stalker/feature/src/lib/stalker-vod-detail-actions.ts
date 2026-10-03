@@ -71,9 +71,10 @@ export function createStalkerVodDetailActions(
         deps.snackBar.open(deps.translate.instant(key), undefined, {
             duration: 3000,
         });
-    // A second "Open in external player" during a slow `create_link` would
-    // resolve beside the first and start a second player.
-    let externalLaunchInFlight = false;
+    // A second "Open in external player" for the SAME movie during a slow
+    // `create_link` would resolve beside the first and start a second
+    // player; another movie's launch is not held back by it.
+    let externalLaunchInFlight: string | null = null;
 
     return {
         /** The inline player copied the stream URL. */
@@ -96,15 +97,19 @@ export function createStalkerVodDetailActions(
         },
 
         async openExternal(event: StalkerVodExternalPlayEvent): Promise<void> {
-            if (event.item.type !== 'stalker' || externalLaunchInFlight) {
+            if (event.item.type !== 'stalker') {
                 return;
             }
-            externalLaunchInFlight = true;
             // The `create_link` round trip may outlive the selection: a
             // stream resolved for a movie the user left is dropped, and its
             // failure is not reported over the new one.
             const playlistId = deps.playlistId();
             const vodId = Number(event.item.data.id);
+            const launchKey = `${playlistId}:${vodId}`;
+            if (externalLaunchInFlight === launchKey) {
+                return;
+            }
+            externalLaunchInFlight = launchKey;
             const stillSelected = () =>
                 deps.selectedVodId() === vodId &&
                 deps.playlistId() === playlistId;
@@ -141,7 +146,9 @@ export function createStalkerVodDetailActions(
                     notify('PORTALS.PLAYBACK_ERROR');
                 }
             } finally {
-                externalLaunchInFlight = false;
+                if (externalLaunchInFlight === launchKey) {
+                    externalLaunchInFlight = null;
+                }
                 settlePendingStart?.();
             }
         },

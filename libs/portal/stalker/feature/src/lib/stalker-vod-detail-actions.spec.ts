@@ -131,6 +131,31 @@ describe('createStalkerVodDetailActions openExternal', () => {
         expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
     });
 
+    it('still launches another movie while the first link resolves', async () => {
+        let selected = 42;
+        const t = setup(() => selected);
+        void t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        selected = 7;
+        const other = {
+            ...MOVIE,
+            data: { id: '7' },
+        } as unknown as VodDetailsItem;
+        const second = t.actions.openExternal({
+            item: other,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.resolveLink();
+        await second;
+
+        expect(t.beginPendingStart).toHaveBeenCalledTimes(2);
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+    });
+
     it('drops the stream once another movie was selected meanwhile', async () => {
         let selected = 42;
         const t = setup(() => selected);
