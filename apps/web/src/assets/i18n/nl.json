@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Kies hoe je verbinding wilt maken. Je kunt het later hernoemen.",
+            "METHOD_GROUP_LABEL": "Verbindingsmethode",
             "METHOD_URL_LABEL": "M3U-URL",
             "METHOD_URL_SUB": "Plak een link naar een externe .m3u of .m3u8",
             "METHOD_FILE_LABEL": "M3U-bestand",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Afspeellijst-URL (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "Voer een geldige URL in die begint met http:// of https://.",
             "ADD_PLAYLIST": "Afspeellijst toevoegen",
             "CORS_NOTE": "Opmerking: om CORS-problemen te voorkomen, gebruikt de app een openbare CORS-proxyservice. Voor gevoelige gegevens is het veiliger om de afspeellijst via een bestand te importeren.",
             "ERROR_FETCH_FAILED": "Ophalen van afspeellijst mislukt. Controleer de URL en probeer het opnieuw.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Ga alleen verder als u deze afspeellijsthost vertrouwt. IPTVnator staat ongeldige TLS-certificaten voor deze host toe, maar andere hosts moeten nog steeds geldige certificaten gebruiken."
         },
         "TEXT_IMPORT": {
-            "LABEL": "Voer een m3u(8)-afspeellijst in als tekst",
-            "BUTTON_LABEL": "Importeren"
+            "LABEL": "Voer een m3u(8)-afspeellijst in als tekst"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Afspeellijst titel",
             "SERVER_URL": "Server URL",
             "USERNAME": "Gebruikersnaam",
             "PASSWORD": "Wachtwoord",
-            "ADD": "Toevoegen",
             "TEST_CREDENTIALS": "Test de inloggegevens",
-            "URL_VALIDATION_ERROR": "Moet een geldige URL zijn met protocol (bijv. http://example.com of https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "Voer een geldige URL in die begint met http:// of https://.",
+            "URL_HINT": "Serveradres, bijv. http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "Voer een gebruikersnaam en wachtwoord in om de verbinding te testen.",
                 "TESTING": "Verbinding testen…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Titel",
-            "MAC_ADDRESS": "Mac adres",
+            "MAC_ADDRESS": "MAC-adres",
             "MAC_ADDRESS_HINT": "Formaat 00:1A:79:XX:XX:XX. Streepjes, punten en kleine letters worden automatisch voor je gecorrigeerd.",
             "MAC_ADDRESS_OUI_HINT": "Dit adres valt buiten het 00:1A:79-bereik van Infomir. De meeste portalen accepteren alleen dat bereik en weigeren al het andere zonder uitleg.",
             "MAC_ADDRESS_ERROR": "Voer een MAC-adres van 12 hex-tekens in, bijvoorbeeld 00:1A:79:12:34:56.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "Server URL",
             "URL_HINT": "Voer een host of adres in dat eindigt op /c, portal.php of server/load.php.",
             "URL_VALIDATION_ERROR": "Voer een geldige URL in die begint met http:// of https://.",
-            "ADD": "Toevoegen",
-            "VALIDATING": "Portaal valideren...",
+            "VALIDATING": "Portaal valideren…",
+            "VALIDATED_EXPIRES": "Portaal gevalideerd. Verloopt op {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "Het portaal reageerde niet. Het is toegevoegd zonder validatie.",
             "CREDENTIALS_HINT": "Alleen nodig als het portaal om een gebruikersnaam en wachtwoord vraagt",
             "AUTH_FAILED": "Aanmelden bij het portaal is mislukt. Controleer de URL en het MAC-adres.",
             "EDIT_UNREACHABLE": "Het portaal reageerde niet. Er zijn geen wijzigingen opgeslagen. Controleer de URL en probeer het opnieuw.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "Het portaal heeft een andere apparaat-ID geregistreerd voor dit MAC-adres.",
             "PORTAL_MESSAGE": "Het portaal meldde: {{message}}"
         },
+        "SHOW_PASSWORD": "Toon wachtwoord",
         "FILTER_BY_NAME": "Filter op naam",
         "FILTER_AND_SORT": "Filteren & sorteren",
         "SORT_PLAYLISTS": "Sorteer afspeellijsten",

@@ -1,10 +1,14 @@
 import {
+    afterRenderEffect,
     Component,
+    ElementRef,
     inject,
     output,
     signal,
+    viewChild,
     ChangeDetectionStrategy,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     FormControl,
     FormGroup,
@@ -12,15 +16,16 @@ import {
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
+import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
-    asStalkerPortalError,
     legacyTransformStalkerPortalUrl,
     normalizeStalkerPortalInputUrl,
     STALKER_WATCHDOG_DEFAULT_PERIOD_SECONDS,
@@ -38,8 +43,10 @@ import {
     type StalkerDerivedDeviceIds,
     validateStalkerMacAddressControl,
 } from '@iptvnator/shared/interfaces';
+import { PasswordVisibilityToggleDirective } from '@iptvnator/ui/components/password-visibility-toggle';
 import {
-    STALKER_IMPORT_ERROR_KEY_BY_KIND,
+    type StalkerImportFeedback,
+    toStalkerImportFeedback,
     toStalkerPlaylistIdentityFields,
 } from './stalker-import-identity';
 
@@ -59,7 +66,10 @@ interface StalkerSettledIdentity {
         FormsModule,
         MatCheckboxModule,
         MatFormFieldModule,
+        MatIcon,
+        MatIconButton,
         MatInputModule,
+        PasswordVisibilityToggleDirective,
         ReactiveFormsModule,
         TranslatePipe,
     ],
@@ -130,11 +140,42 @@ export class StalkerPortalImportComponent {
 
     readonly isLoading = signal(false);
 
+    /**
+     * Why the last import was refused, shown under the portal URL the same
+     * way the Xtream form shows its connection test. Outcomes that close the
+     * dialog (added, added without validation) use a snackbar instead,
+     * because an inline message would vanish with the form.
+     */
+    readonly feedback = signal<StalkerImportFeedback | null>(null);
+    private readonly feedbackMessage =
+        viewChild<ElementRef<HTMLElement>>('feedbackMessage');
+    private readonly passwordToggle = viewChild(
+        PasswordVisibilityToggleDirective
+    );
+
     /** Whether the device IDs are being generated from the MAC. */
     readonly derivesDeviceIds = signal(false);
 
     /** Stamps each derivation so a late one cannot overwrite a newer one. */
     private deriveGeneration = 0;
+
+    constructor() {
+        // Like the Xtream connection test: a message describes the values it
+        // was produced for, so any edit makes it stale.
+        this.form.valueChanges
+            .pipe(takeUntilDestroyed())
+            .subscribe(() => this.feedback.set(null));
+
+        // The form is long and Add sits in the dialog footer, so the user is
+        // usually scrolled to the credentials when a refusal comes back.
+        afterRenderEffect(() => {
+            if (this.feedback()) {
+                this.feedbackMessage()?.nativeElement.scrollIntoView?.({
+                    block: 'nearest',
+                });
+            }
+        });
+    }
 
     /**
      * A MAC outside Infomir's range is imported anyway — plenty of resellers
@@ -308,6 +349,9 @@ export class StalkerPortalImportComponent {
         // resolve into the freshly cleared form.
         this.invalidatePendingDerivation();
         this.derivesDeviceIds.set(false);
+        this.feedback.set(null);
+        // A cleared form is a fresh entry: the next password starts masked.
+        this.passwordToggle()?.hide();
         this.form.controls.deviceId1.enable();
         this.form.controls.deviceId2.enable();
         this.form.reset({
@@ -333,6 +377,7 @@ export class StalkerPortalImportComponent {
         }
 
         this.isLoading.set(true);
+        this.feedback.set(null);
         // The identity is frozen for the duration: an edit made now cannot
         // reach the portal (discovery has the snapshot) and cannot be undone
         // on it either (`get_profile` pins what it was sent), so the fields
@@ -422,7 +467,10 @@ export class StalkerPortalImportComponent {
                         stalkerAccountInfo.expireDate * 1000
                     );
                     this.snackBar.open(
-                        `Portal validated. Expires: ${expireDate.toLocaleDateString()}`,
+                        this.translate.instant(
+                            'HOME.STALKER_PORTAL.VALIDATED_EXPIRES',
+                            { date: expireDate.toLocaleDateString() }
+                        ),
                         undefined,
                         { duration: 3000 }
                     );
@@ -435,11 +483,7 @@ export class StalkerPortalImportComponent {
                 // The portal explains its own refusals — a demanded login, a
                 // rejected one, a device conflict — so relay those words
                 // instead of the generic "check URL and MAC".
-                this.snackBar.open(
-                    this.buildAuthErrorMessage(discovery.error),
-                    undefined,
-                    { duration: 8000 }
-                );
+                this.feedback.set(toStalkerImportFeedback(discovery.error));
                 if (discovery.abandonedInFlight) {
                     // The bounded error may arrive while get_profile is still
                     // on the wire. Keep Add and every identity field locked
@@ -457,11 +501,7 @@ export class StalkerPortalImportComponent {
                 // Unreachable host on a canonical-portal URL shape: the old
                 // flow aborted here too (its mandatory handshake could not
                 // succeed either).
-                this.snackBar.open(
-                    'Failed to authenticate with portal. Please check URL and MAC address.',
-                    undefined,
-                    { duration: 5000 }
-                );
+                this.feedback.set({ key: 'HOME.STALKER_PORTAL.AUTH_FAILED' });
                 return;
             } else {
                 // Unreachable host on a panel-style URL: import with the
@@ -475,7 +515,9 @@ export class StalkerPortalImportComponent {
                 );
                 isFullStalkerPortal = false;
                 this.snackBar.open(
-                    'Portal did not respond; added without validation.',
+                    this.translate.instant(
+                        'HOME.STALKER_PORTAL.ADDED_WITHOUT_VALIDATION'
+                    ),
                     undefined,
                     { duration: 5000 }
                 );
@@ -536,29 +578,5 @@ export class StalkerPortalImportComponent {
             }
             this.isLoading.set(false);
         }
-    }
-
-    /**
-     * Turns an authentication failure into a message the user can act on.
-     * The portal explains refusals itself (`msg`/`block_msg`, or one of the
-     * documented plain-text bodies); its own words are appended verbatim.
-     */
-    private buildAuthErrorMessage(error: unknown): string {
-        const portalError = asStalkerPortalError(error);
-        const base = this.translate.instant(
-            portalError
-                ? STALKER_IMPORT_ERROR_KEY_BY_KIND[portalError.kind]
-                : 'HOME.STALKER_PORTAL.AUTH_FAILED'
-        );
-
-        if (portalError?.portalText) {
-            const detail = this.translate.instant(
-                'HOME.STALKER_PORTAL.PORTAL_MESSAGE',
-                { message: portalError.portalText }
-            );
-            return `${base} ${detail}`;
-        }
-
-        return base;
     }
 }

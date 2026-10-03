@@ -126,7 +126,7 @@ export async function addXtreamPortal(
     await setInputValue(dialog.locator('#password'), 'pass1');
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add',
+        name: 'Add playlist',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
@@ -172,7 +172,7 @@ export async function addStalkerPortal(
     await setInputValue(dialog.locator('input#macAddress'), DEFAULT_MAC);
 
     const addButton = dialog.getByRole('button', {
-        name: 'Add',
+        name: 'Add playlist',
         exact: true,
     });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });

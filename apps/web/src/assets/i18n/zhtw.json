@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "請選擇您要使用的連線方式，之後仍可重新命名。",
+            "METHOD_GROUP_LABEL": "連線方式",
             "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "貼上遠端 .m3u 或 .m3u8 的連結",
             "METHOD_FILE_LABEL": "M3U 檔案",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "播放清單 URL（m3u、m3u8）",
+            "URL_VALIDATION_ERROR": "請輸入以 http:// 或 https:// 開頭的有效網址。",
             "ADD_PLAYLIST": "新增播放清單",
             "CORS_NOTE": "為了避免 CORS 問題，此應用程式目前使用了一個公開的 CORS 代理服務。如果您要上傳包含敏感資料的播放清單，建議在相鄰的分頁中將其作為檔案匯入。",
             "ERROR_FETCH_FAILED": "無法擷取播放清單。請檢查網址後重試。",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "僅在您信任此播放清單主機時繼續。IPTVnator 將允許此主機使用無效 TLS 憑證，但其他主機仍需要有效憑證。"
         },
         "TEXT_IMPORT": {
-            "LABEL": "將 m3u（8）播放清單以純文字的方式插入",
-            "BUTTON_LABEL": "匯入"
+            "LABEL": "將 m3u（8）播放清單以純文字的方式插入"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "播放清單標題",
             "SERVER_URL": "伺服器網址",
             "USERNAME": "使用者名稱",
             "PASSWORD": "密碼",
-            "ADD": "新增",
             "TEST_CREDENTIALS": "測試憑證",
-            "URL_VALIDATION_ERROR": "必須是有效的網址並包含協定（例如 http://example.com 或 https://example.com:4324）",
+            "URL_VALIDATION_ERROR": "請輸入以 http:// 或 https:// 開頭的有效網址。",
+            "URL_HINT": "伺服器位址，例如 http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "請輸入使用者名稱和密碼以測試連線。",
                 "TESTING": "正在測試連線…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "標題",
-            "MAC_ADDRESS": "Mac 位址",
+            "MAC_ADDRESS": "MAC 位址",
             "MAC_ADDRESS_HINT": "格式為 00:1A:79:XX:XX:XX。連字號、點號與小寫字母會自動為您修正。",
             "MAC_ADDRESS_OUI_HINT": "此位址不在 Infomir 的 00:1A:79 範圍內。多數入口網站只接受該範圍的位址，並會在不說明原因的情況下拒絕其他位址。",
             "MAC_ADDRESS_ERROR": "請輸入 12 位十六進位數字的 MAC 位址，例如 00:1A:79:12:34:56。",
@@ -218,8 +218,9 @@
             "SERVER_URL": "伺服器網址",
             "URL_HINT": "請輸入主機或以 /c、portal.php、server/load.php 結尾的位址。",
             "URL_VALIDATION_ERROR": "請輸入以 http:// 或 https:// 開頭的有效網址。",
-            "ADD": "新增",
-            "VALIDATING": "正在驗證入口網站...",
+            "VALIDATING": "正在驗證入口網站…",
+            "VALIDATED_EXPIRES": "入口網站已驗證。到期日：{{date}}。",
+            "ADDED_WITHOUT_VALIDATION": "入口網站沒有回應。已在未驗證的情況下新增。",
             "CREDENTIALS_HINT": "僅在入口網站要求登入名稱與密碼時才需填寫",
             "AUTH_FAILED": "入口網站驗證失敗。請檢查網址與 MAC 位址。",
             "EDIT_UNREACHABLE": "入口網站沒有回應。未儲存任何變更。請檢查網址後再試一次。",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "入口網站為此 MAC 位址註冊的是另一組裝置 ID。",
             "PORTAL_MESSAGE": "入口網站回報：{{message}}"
         },
+        "SHOW_PASSWORD": "顯示密碼",
         "FILTER_BY_NAME": "依名稱篩選",
         "FILTER_AND_SORT": "篩選與排序",
         "SORT_PLAYLISTS": "排序播放清單",

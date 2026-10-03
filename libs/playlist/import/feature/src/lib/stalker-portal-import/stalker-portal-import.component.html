@@ -1,7 +1,7 @@
 <form [formGroup]="form">
     <mat-form-field class="w-full">
         <mat-label for="title">{{
-            'HOME.STALKER_PORTAL.TITLE' | translate
+            'HOME.XTREAM_PLAYLIST.TITLE' | translate
         }}</mat-label>
         <input matInput type="text" id="title" formControlName="title" />
     </mat-form-field>
@@ -20,6 +20,17 @@
             'HOME.STALKER_PORTAL.URL_VALIDATION_ERROR' | translate
         }}</mat-error>
     </mat-form-field>
+    @if (feedback(); as message) {
+        <p #feedbackMessage role="status" aria-live="polite">
+            {{ message.key | translate }}
+            @if (message.portalText) {
+                {{
+                    'HOME.STALKER_PORTAL.PORTAL_MESSAGE'
+                        | translate: { message: message.portalText }
+                }}
+            }
+        </p>
+    }
     <mat-form-field class="w-full" subscriptSizing="dynamic">
         <mat-label for="macAddress">{{
             'HOME.STALKER_PORTAL.MAC_ADDRESS' | translate
@@ -142,10 +153,19 @@
         }}</mat-label>
         <input
             matInput
-            type="password"
+            [type]="passwordToggle.inputType()"
             id="password"
             formControlName="password"
         />
+        <button
+            mat-icon-button
+            matSuffix
+            appPasswordVisibilityToggle
+            #passwordToggle="appPasswordVisibilityToggle"
+            [attr.aria-label]="'HOME.SHOW_PASSWORD' | translate"
+        >
+            <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
+        </button>
         <mat-hint>{{
             'HOME.STALKER_PORTAL.CREDENTIALS_HINT' | translate
         }}</mat-hint>

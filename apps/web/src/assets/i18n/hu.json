@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Válassza ki, hogyan szeretne csatlakozni. A megnevezést később módosíthatja.",
+            "METHOD_GROUP_LABEL": "Csatlakozási mód",
             "METHOD_URL_LABEL": "M3U URL-címe",
             "METHOD_URL_SUB": "Illesszen be egy távoli .m3u- vagy .m3u8-fájlra mutató hivatkozást",
             "METHOD_FILE_LABEL": "M3U-fájl",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Lejátszási lista URL-címe (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "Adjon meg egy http:// vagy https:// kezdetű érvényes URL-címet.",
             "ADD_PLAYLIST": "Lejátszási lista hozzáadása",
             "CORS_NOTE": "Megjegyzés: a CORS-problémák elkerülésére az alkalmazás jelenleg nyilvános CORS-proxyszolgáltatást használ. Ha a lejátszási lista bizalmas adatokat tartalmaz, biztonságosabb fájlból importálni.",
             "ERROR_FETCH_FAILED": "Nem sikerült lekérni a lejátszási listát. Ellenőrizze az URL-címet, majd próbálja újra.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Csak akkor folytassa, ha megbízik a lejátszási lista kiszolgálójában. Az IPTVnator ennél a kiszolgálónál engedélyezi az érvénytelen TLS-tanúsítványokat, más kiszolgálóknál azonban továbbra is érvényes tanúsítványt követel meg."
         },
         "TEXT_IMPORT": {
-            "LABEL": "M3U/M3U8-lejátszási lista beillesztése szövegként",
-            "BUTTON_LABEL": "Importálás"
+            "LABEL": "M3U/M3U8-lejátszási lista beillesztése szövegként"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Lejátszási lista címe",
             "SERVER_URL": "Kiszolgáló URL-címe",
             "USERNAME": "Felhasználónév",
             "PASSWORD": "Jelszó",
-            "ADD": "Hozzáadás",
             "TEST_CREDENTIALS": "Hitelesítési adatok ellenőrzése",
-            "URL_VALIDATION_ERROR": "Adjon meg protokollt is tartalmazó, érvényes URL-címet (például http://example.com vagy https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "Adjon meg egy http:// vagy https:// kezdetű érvényes URL-címet.",
+            "URL_HINT": "Kiszolgáló címe, pl. http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "A kapcsolat teszteléséhez adjon meg egy felhasználónevet és jelszót.",
                 "TESTING": "Kapcsolat tesztelése…",
@@ -199,7 +200,6 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Cím",
             "MAC_ADDRESS": "MAC-cím",
             "MAC_ADDRESS_HINT": "Formátum: 00:1A:79:XX:XX:XX. A kötőjeleket, a pontokat és a kisbetűket az alkalmazás automatikusan kijavítja.",
             "MAC_ADDRESS_OUI_HINT": "Ez a cím az Infomir 00:1A:79 tartományán kívül esik. A legtöbb portál csak ezt a tartományt fogadja el, minden mást indoklás nélkül elutasít.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "Kiszolgáló URL-címe",
             "URL_HINT": "Adjon meg egy gazdagépet vagy /c, portal.php vagy server/load.php végű címet.",
             "URL_VALIDATION_ERROR": "Adjon meg egy http:// vagy https:// kezdetű érvényes URL-címet.",
-            "ADD": "Hozzáadás",
             "VALIDATING": "Portál ellenőrzése…",
+            "VALIDATED_EXPIRES": "A portál ellenőrzése sikerült. Lejárat: {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "A portál nem válaszolt. Ellenőrzés nélkül lett hozzáadva.",
             "CREDENTIALS_HINT": "Csak akkor szükséges, ha a portál felhasználónevet és jelszót kér",
             "AUTH_FAILED": "Nem sikerült a hitelesítés a portálon. Ellenőrizze az URL-címet és a MAC-címet.",
             "EDIT_UNREACHABLE": "A portál nem válaszolt. A módosítások nem lettek mentve. Ellenőrizze az URL-címet, és próbálja újra.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "A portálon más eszközazonosító van regisztrálva ehhez a MAC-címhez.",
             "PORTAL_MESSAGE": "A portál a következőt jelezte: {{message}}"
         },
+        "SHOW_PASSWORD": "Jelszó megjelenítése",
         "FILTER_BY_NAME": "Szűrés név alapján",
         "FILTER_AND_SORT": "Szűrés és rendezés",
         "SORT_PLAYLISTS": "Lejátszási listák rendezése",

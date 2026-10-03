@@ -743,8 +743,13 @@ otherwise throws `StalkerPortalError('auth-failed')` carrying the body.
 ### Error surfacing
 
 `StalkerPortalError.portalText` holds the portal's own words. The import
-dialog shows them in its failure snackbar (with kind-specific i18n headlines,
-`HOME.STALKER_PORTAL.*`); the workspace context panel replaces the generic
+dialog shows them inline under the portal URL, in the same `role="status"`
+paragraph the Xtream form uses for its connection test, after a kind-specific
+i18n headline (`HOME.STALKER_PORTAL.*`, mapped by `toStalkerImportFeedback`).
+The template translates both parts, and any edit clears the message. Outcomes
+that close the dialog (validated with an expiry date, or added without
+validation) use translated snackbars instead. The workspace context panel
+replaces the generic
 "could not load categories" hint with the portal text (or the login-required
 guidance) when category loading failed with a portal refusal
 (`stalkerCategoryErrorDescription` in `workspace-context-panel.component.ts`).

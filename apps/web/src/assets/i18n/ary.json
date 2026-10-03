@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "اختار كيفاش بغيتي تربط. تقدر تبدل الاسم من بعد.",
+            "METHOD_GROUP_LABEL": "طريقة الربط",
             "METHOD_URL_LABEL": "رابط M3U",
             "METHOD_URL_SUB": "لصق رابط ل ملف .m3u ولا .m3u8 بعيد",
             "METHOD_FILE_LABEL": "ملف M3U",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "رابط قائمة التشغيل (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "دخل رابط صحيح كيبدا بـ http:// ولا https://.",
             "ADD_PLAYLIST": "زيد قائمة التشغيل",
             "CORS_NOTE": "ملاحظة: باش نتفاداو مشاكل CORS فهاد المرحلة، التطبيق كيستعمل خدمة وكيل CORS عامة. إلى بغيتي ترفع قائمة تشغيل فيها بيانات حساسة، من الأحسن تستوردها من ملف.",
             "ERROR_FETCH_FAILED": "فشل جلب قائمة التشغيل. عفاك تحقق من الرابط وحاول مرة أخرى.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "كمل غير إلا كنتي كتوثق فهاد مضيف قائمة التشغيل. IPTVnator غادي يسمح بشهادات TLS ما صالحةش لهد المضيف، ولكن باقي المضيفين خاصهم شهادات صالحة."
         },
         "TEXT_IMPORT": {
-            "LABEL": "دخل قائمة تشغيل m3u(8) على شكل نص",
-            "BUTTON_LABEL": "استورد"
+            "LABEL": "دخل قائمة تشغيل m3u(8) على شكل نص"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "عنوان قائمة التشغيل",
             "SERVER_URL": "رابط الخادم",
             "USERNAME": "اسم المستخدم",
             "PASSWORD": "كلمة المرور",
-            "ADD": "زيد",
             "TEST_CREDENTIALS": "جرب بيانات الاعتماد",
-            "URL_VALIDATION_ERROR": "خاص يكون رابط صحيح مع البروتوكول (مثلا http://example.com ولا https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "دخل رابط صحيح كيبدا بـ http:// ولا https://.",
+            "URL_HINT": "عنوان الخادم، مثلا http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "دخل اسم المستخدم وكلمة السر باش تجرّب الاتصال.",
                 "TESTING": "كنجرّبو الاتصال…",
@@ -199,7 +200,6 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "العنوان",
             "MAC_ADDRESS": "عنوان MAC",
             "MAC_ADDRESS_HINT": "الصيغة 00:1A:79:XX:XX:XX. الشرطات والنقط والحروف الصغيرة كيتصلحو ليك أوتوماتيكياً.",
             "MAC_ADDRESS_OUI_HINT": "هاد العنوان خارج المجال 00:1A:79 ديال Infomir. أغلب البوابات كتقبل غير هاد المجال وكترفض أي شي آخر بلا ما تقول علاش.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "رابط الخادم",
             "URL_HINT": "دخل الهوست ولا عنوان كيسالي بـ /c ولا portal.php ولا server/load.php.",
             "URL_VALIDATION_ERROR": "دخل رابط صحيح كيبدا بـ http:// ولا https://.",
-            "ADD": "زيد",
-            "VALIDATING": "جاري التحقق من البوابة...",
+            "VALIDATING": "جاري التحقق من البوابة…",
+            "VALIDATED_EXPIRES": "البوابة تحققات. كتسالي ف {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "البوابة ما جاوباتش. تزادت بلا تحقق.",
             "CREDENTIALS_HINT": "خاصين غير إذا البوابة كتطلب اسم المستخدم وكلمة المرور",
             "AUTH_FAILED": "فشل تسجيل الدخول للبوابة. تحقق من الرابط وعنوان MAC.",
             "EDIT_UNREACHABLE": "البوابة ما جاوباتش. ما تحفظ حتى تغيير. تأكد من الرابط وعاود المحاولة.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "البوابة عندها معرف جهاز آخر مسجل لهاد عنوان MAC.",
             "PORTAL_MESSAGE": "البوابة قالت: {{message}}"
         },
+        "SHOW_PASSWORD": "وري كلمة المرور",
         "FILTER_BY_NAME": "فلتر بالاسم",
         "FILTER_AND_SORT": "فلتر وترتيب",
         "SORT_PLAYLISTS": "رتب قوائم التشغيل",
