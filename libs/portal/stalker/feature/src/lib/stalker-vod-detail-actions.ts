@@ -19,6 +19,8 @@ import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 export interface PendingExternalLaunch {
     settle(): void;
     isCurrent(): boolean;
+    /** Re-anchors to the host's current request id after the host's own teardown bumped it. */
+    rebase(): void;
 }
 
 /** Builds a `PendingExternalLaunch` on a host that tracks its own request ids. */
@@ -30,7 +32,7 @@ export function beginTrackedExternalLaunch(host: {
     playbackOwnerKey(): string;
     playbackRequestId: number;
 }): PendingExternalLaunch {
-    const requestId = ++host.playbackRequestId;
+    let requestId = ++host.playbackRequestId;
     const ownerKey = host.playbackOwnerKey();
     const startId = host.pendingStart.begin(ownerKey);
     return {
@@ -38,6 +40,9 @@ export function beginTrackedExternalLaunch(host: {
         isCurrent: () =>
             requestId === host.playbackRequestId &&
             host.playbackOwnerKey() === ownerKey,
+        rebase: () => {
+            requestId = host.playbackRequestId;
+        },
     };
 }
 
@@ -141,10 +146,6 @@ export function createStalkerVodDetailActions(
                 deps.playlistId() === playlistId;
             const pending = deps.beginPendingStart?.();
             const superseded = () => pending?.isCurrent() === false;
-            // Set once this launch is the one running: the host's inline
-            // teardown before it retires the request id as well, which is
-            // not a newer start.
-            let launched = false;
             try {
                 const playback = await deps.resolvePlayback(
                     event.item.cmd,
@@ -167,7 +168,9 @@ export function createStalkerVodDetailActions(
                     return;
                 }
                 deps.beforeExternalLaunch?.();
-                launched = true;
+                // The host's inline teardown retired the request id too;
+                // only a start made after this point supersedes the launch.
+                pending?.rebase();
                 await deps.portalPlayer.openExternalPlayback(
                     playback,
                     event.player
@@ -175,7 +178,7 @@ export function createStalkerVodDetailActions(
             } catch (error) {
                 // A launch a newer start superseded fails on its own; the
                 // newer one reports for the movie now.
-                if (!stillSelected() || (!launched && superseded())) {
+                if (!stillSelected() || superseded()) {
                     return;
                 }
                 deps.logError('External VOD playback failed', error);

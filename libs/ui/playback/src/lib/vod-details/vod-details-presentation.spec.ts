@@ -39,6 +39,13 @@ describe('buildVodMenuSections', () => {
         expect(reset?.disabled).toBeFalsy();
     });
 
+    it('disables Start Over while a start still resolves', () => {
+        const restart = rows({ startPending: true }).find(
+            (row) => row.id === VOD_DETAILS_MENU_ACTION.StartOver
+        );
+        expect(restart?.disabled).toBe(true);
+    });
+
     it('disables the external launch while a start still resolves', () => {
         const external = rows({ startPending: true }).find(
             (row) => row.id === VOD_DETAILS_MENU_ACTION.ExternalPlayer

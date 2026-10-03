@@ -51,3 +51,13 @@ export function formatEpisodePositionText(
         .join(':');
     return `${formatted}${suffix}`;
 }
+
+/** The episode runtime: the provider's `duration_secs` first, then its formatted `duration`. */
+export function episodeRuntimeSeconds(
+    info: { duration_secs?: number; duration?: string } | null | undefined
+): number {
+    const seconds = Number(info?.duration_secs);
+    return Number.isFinite(seconds) && seconds > 0
+        ? Math.floor(seconds)
+        : parseDuration(info?.duration);
+}

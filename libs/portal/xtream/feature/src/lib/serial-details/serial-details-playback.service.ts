@@ -10,7 +10,6 @@ import {
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import {
-    isLiveExternalPlayerSession,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -43,6 +42,7 @@ import {
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 import {
+    externalEpisodeSessionIds,
     isEpisodeLaunchPending,
     openEpisodeExternally,
     queueEpisodeChoice,
@@ -131,38 +131,13 @@ export class SerialDetailsPlaybackService {
         // A launch still closing its predecessor must not outlive the page.
         inject(DestroyRef).onDestroy(() => this.bindings.set(null));
         effect(() => {
-            const session = this.externalPlayback.activeSession();
-            const selectedItem = this.selectedItem();
-            const playlistId = this.currentPlaylistId();
-
-            if (
-                !session?.contentInfo ||
-                !selectedItem?.series_id ||
-                !playlistId ||
-                session.contentInfo.contentType !== 'episode' ||
-                session.contentInfo.playlistId !== playlistId ||
-                session.contentInfo.seriesXtreamId !==
-                    Number(selectedItem.series_id)
-            ) {
-                this.openingEpisodeId.set(null);
-                this.activeEpisodeId.set(null);
-                return;
-            }
-
-            if (session.status === 'launching') {
-                this.openingEpisodeId.set(session.contentInfo.contentXtreamId);
-                this.activeEpisodeId.set(null);
-                return;
-            }
-
-            if (isLiveExternalPlayerSession(session)) {
-                this.openingEpisodeId.set(null);
-                this.activeEpisodeId.set(session.contentInfo.contentXtreamId);
-                return;
-            }
-
-            this.openingEpisodeId.set(null);
-            this.activeEpisodeId.set(null);
+            const ids = externalEpisodeSessionIds(
+                this.externalPlayback.activeSession(),
+                this.selectedItem()?.series_id,
+                this.currentPlaylistId()
+            );
+            this.openingEpisodeId.set(ids.opening);
+            this.activeEpisodeId.set(ids.active);
         });
 
         effect(() => {
@@ -216,6 +191,7 @@ export class SerialDetailsPlaybackService {
 
     /** Clears all playback state when switching to another series. */
     resetForNewSeries(): void {
+        this.pageGeneration += 1;
         this.closeInlinePlayer();
         this.playbackPositionState.reset();
         this.openingEpisodeId.set(null);
@@ -226,7 +202,7 @@ export class SerialDetailsPlaybackService {
     playEpisode(
         episode: XtreamSerieEpisode,
         player?: ExternalPlayerName
-    ): void {
+    ): Promise<ExternalPlayerSession | void> | void {
         // A forced launch still settling owns the next start: the latest
         // choice made meanwhile starts once it settled, never beside it.
         const owner = this.launchOwner();
@@ -275,7 +251,7 @@ export class SerialDetailsPlaybackService {
             fallbackSeasonNumber: Number(episode.season),
             fallbackEpisodeNumber: Number(episode.episode_num),
         });
-        this.startPlayback(playback, episodeState, player);
+        return this.startPlayback(playback, episodeState, player);
     }
 
     playQuickStartEpisode(): void {
@@ -332,10 +308,12 @@ export class SerialDetailsPlaybackService {
             request.player
         );
         request.trackLaunch(launch);
+        const token = this.pageToken();
         void this.playbackPositionState.recordExternalLaunch(
             request.playback,
             launch,
-            this.savePosition
+            this.savePosition,
+            () => this.pageToken() === token
         );
     }
 
@@ -427,16 +405,16 @@ export class SerialDetailsPlaybackService {
         isEpisodeLaunchPending(this.launchOwner())
     );
 
+    /** Bumped for every series the page shows: a return to the same series is a new visit. */
+    private pageGeneration = 0;
+
     /**
-     * The launch's bookkeeping applies only while the page still shows the
-     * series it started on; a session that lands after a navigation is not
-     * written into the next series' position map.
+     * Identifies the series AND the visit: a launch's bookkeeping applies
+     * only while the page still shows what it showed when the launch
+     * started, not after leaving and coming back.
      */
-    private ownedLaunch(launch: Promise<ExternalPlayerSession | void>) {
-        const owner = this.launchOwner();
-        return launch.then((session) =>
-            this.launchOwner() === owner ? session : undefined
-        );
+    private pageToken(): string {
+        return `${this.launchOwner()}#${this.pageGeneration}`;
     }
 
     /** `playlist:series` of the page, null once it is gone or shows another series. */
@@ -449,7 +427,7 @@ export class SerialDetailsPlaybackService {
         playback: ResolvedPortalPlayback,
         episodeState: SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null,
         player?: ExternalPlayerName
-    ): void {
+    ): Promise<ExternalPlayerSession | void> | void {
         this.lastSaveTime = 0;
         if (!player && this.portalPlayer.isEmbeddedPlayer()) {
             this.inlinePlaybackSessionEpisodeState.set(episodeState);
@@ -458,14 +436,26 @@ export class SerialDetailsPlaybackService {
         }
 
         this.closeInlinePlayer();
+        const launch = player
+            ? openEpisodeExternally(this, playback, player)
+            : this.portalPlayer.openResolvedPlayback(playback, true);
+        // The bookkeeping never rejects; a forced launch's failure is the
+        // menu's to report, which awaits the launch it asked for.
+        const token = this.pageToken();
+        const stillShown = () => this.pageToken() === token;
+        const settled = launch.catch((error) => {
+            console.warn(
+                '[SerialDetailsPlayback] External launch failed',
+                error
+            );
+            return undefined;
+        });
         void this.playbackPositionState.recordExternalLaunch(
             playback,
-            this.ownedLaunch(
-                player
-                    ? openEpisodeExternally(this, playback, player)
-                    : this.portalPlayer.openResolvedPlayback(playback, true)
-            ),
-            this.savePosition
+            settled.then((session) => (stillShown() ? session : undefined)),
+            this.savePosition,
+            stillShown
         );
+        return launch;
     }
 }

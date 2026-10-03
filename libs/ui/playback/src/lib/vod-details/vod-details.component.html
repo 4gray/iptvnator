@@ -105,7 +105,7 @@
             [meta]="primary.meta"
             [icon]="primary.icon"
             [state]="primary.state"
-            [disabled]="isExternalLaunchPending()"
+            [disabled]="isExternalLaunchPending() || playbackStartPending()"
             testId="vod-primary-action"
             (pressed)="onPrimaryAction()"
         />

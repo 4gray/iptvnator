@@ -43,6 +43,7 @@ describe('createStalkerVodDetailActions openExternal', () => {
         const beginPendingStart = jest.fn().mockReturnValue({
             settle: settlePendingStart,
             isCurrent: () => launchCurrent,
+            rebase: () => (launchCurrent = true),
         });
         const actions = createStalkerVodDetailActions({
             resolvePlayback: resolvePlayback as never,
@@ -225,6 +226,27 @@ describe('createStalkerVodDetailActions openExternal', () => {
 
         expect(t.open).not.toHaveBeenCalled();
         expect(t.logError).not.toHaveBeenCalled();
+    });
+
+    it('stays silent when a newer start superseded a launch already running', async () => {
+        const t = setup(() => 42);
+        let rejectLaunch: (error: unknown) => void = () => undefined;
+        t.openExternalPlayback.mockImplementation(
+            () => new Promise((_, reject) => (rejectLaunch = reject))
+        );
+        const launch = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.resolveLink();
+        await new Promise((resolve) => setTimeout(resolve));
+        // Play pressed while the IPC was pending, then the old launch fails.
+        t.supersede();
+        rejectLaunch(new Error('no player'));
+        await launch;
+
+        expect(t.open).not.toHaveBeenCalled();
     });
 
     it('reports a failed launch although its own teardown retired the request', async () => {

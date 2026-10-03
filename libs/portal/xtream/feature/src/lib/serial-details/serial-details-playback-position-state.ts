@@ -151,7 +151,9 @@ export class SerialDetailsPlaybackPositionState {
         save: (
             playlistId: string,
             position: PlaybackPositionData
-        ) => Promise<void>
+        ) => Promise<void>,
+        /** The page still shows the series; checked again after the save. */
+        stillShown: () => boolean = () => true
     ): Promise<void> {
         const session = await launch;
         if (!session) {
@@ -178,6 +180,9 @@ export class SerialDetailsPlaybackPositionState {
         };
 
         await save(contentInfo.playlistId, position);
+        if (!stillShown()) {
+            return;
+        }
         this.update(position);
     }
 

@@ -44,7 +44,7 @@ interface SerialDetailsMenuBindings {
     readonly openEpisodeExternally: (
         episode: XtreamSerieEpisode,
         player: ExternalPlayerName
-    ) => void;
+    ) => Promise<unknown> | void;
 }
 
 /**
@@ -193,7 +193,7 @@ export class SerialDetailsMenuService {
                 await container?.downloadPresenter.enqueueSeason();
                 return;
             case SERIES_MENU_ACTION.ExternalPlayer:
-                this.openExternal();
+                await this.openExternal();
                 return;
             case SERIES_MENU_ACTION.CopyUrl:
                 await this.copyStreamUrl();
@@ -236,13 +236,21 @@ export class SerialDetailsMenuService {
         };
     }
 
-    private openExternal(): void {
+    private async openExternal(): Promise<void> {
         const bindings = this.bindings();
         const episode = bindings?.quickStart()?.episode;
         if (!bindings || !episode) {
             return;
         }
-        bindings.openEpisodeExternally(episode, this.externalPlayer());
+        try {
+            await bindings.openEpisodeExternally(
+                episode,
+                this.externalPlayer()
+            );
+        } catch (error) {
+            this.logger.warn('External episode launch failed', error);
+            this.notify('PORTALS.PLAYBACK_ERROR');
+        }
     }
 
     private async copyStreamUrl(): Promise<void> {

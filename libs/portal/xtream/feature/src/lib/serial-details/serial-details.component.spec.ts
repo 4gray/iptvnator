@@ -674,8 +674,8 @@ describe('SerialDetailsComponent', () => {
             season: 2,
         } as never);
         await fixture.whenStable();
-        // One more hop: the launch's owner check runs before the save.
-        await Promise.resolve();
+        // The launch settles through its page checks before the save.
+        await new Promise((resolve) => setTimeout(resolve));
 
         expect(savePlaybackPosition).toHaveBeenCalledWith(
             'xtream-1',

@@ -4,10 +4,45 @@ import type {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
+    externalEpisodeSessionIds,
     isEpisodeLaunchPending,
     openEpisodeExternally,
     queueEpisodeChoice,
 } from './serial-details-external-launch';
+
+describe('externalEpisodeSessionIds', () => {
+    it('reports the launching or playing episode of the shown series only', () => {
+        expect(externalEpisodeSessionIds(null, '103', 'xtream-1')).toEqual({
+            opening: null,
+            active: null,
+        });
+        expect(
+            externalEpisodeSessionIds(
+                session({ status: 'launching' }),
+                '103',
+                'xtream-1'
+            )
+        ).toEqual({ opening: 1001, active: null });
+        expect(externalEpisodeSessionIds(session(), '103', 'xtream-1')).toEqual(
+            {
+                opening: null,
+                active: 1001,
+            }
+        );
+        expect(externalEpisodeSessionIds(session(), '104', 'xtream-1')).toEqual(
+            {
+                opening: null,
+                active: null,
+            }
+        );
+        expect(externalEpisodeSessionIds(session(), '103', 'xtream-2')).toEqual(
+            {
+                opening: null,
+                active: null,
+            }
+        );
+    });
+});
 
 const PLAYBACK: ResolvedPortalPlayback = {
     streamUrl: 'http://xtream.example/series/1002.mp4',

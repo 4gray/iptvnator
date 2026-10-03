@@ -26,7 +26,6 @@ import {
     getPortalPlaybackProgressPercent,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
-    parseDurationSeconds,
 } from '@iptvnator/portal/shared/util';
 import {
     PlaybackPositionData,
@@ -39,7 +38,10 @@ import {
     EpisodeInfoDialogComponent,
     buildEpisodeInfoDialogData,
 } from './episode-info-dialog.component';
-import { formatEpisodePositionText } from './episode-progress.util';
+import {
+    formatEpisodePositionText,
+    episodeRuntimeSeconds,
+} from './episode-progress.util';
 import { resolveAutoSelectedSeason } from './season-auto-select.util';
 import { SeasonDownloadPresenter } from './season-download-presenter';
 import { SeasonTabsComponent } from './season-tabs.component';
@@ -433,8 +435,7 @@ export class SeasonContainerComponent implements OnInit {
     /** "42 min · 18m left", "42 min · watched", "42 min" — or null. */
     getEpisodeSubline(episode: XtreamSerieEpisode): string | null {
         const info = this.getEpisodeInfo(episode);
-        const seconds = parseDurationSeconds(info?.duration);
-        const duration = formatDurationLabel(seconds);
+        const duration = formatDurationLabel(episodeRuntimeSeconds(info));
         const position = this.playbackPositions().get(Number(episode.id));
         const remaining = formatRemainingLabel(position);
         const parts = [

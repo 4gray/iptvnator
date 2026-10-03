@@ -8,7 +8,45 @@ import type {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { isLiveExternalPlayerSession } from '@iptvnator/portal/shared/util';
 import { closeRunningExternalSession } from '../vod-details/vod-details-external-session';
+
+/** The episode ids an external session contributes to the series page. */
+export interface ExternalEpisodeSessionIds {
+    readonly opening: number | null;
+    readonly active: number | null;
+}
+
+/**
+ * Which episode of the shown series the active external session is
+ * opening or playing; both null when the session belongs to something
+ * else or has ended.
+ */
+export function externalEpisodeSessionIds(
+    session: ExternalPlayerSession | null,
+    seriesXtreamId: string | number | undefined,
+    playlistId: string
+): ExternalEpisodeSessionIds {
+    const info = session?.contentInfo;
+    if (
+        !session ||
+        !info ||
+        !seriesXtreamId ||
+        !playlistId ||
+        info.contentType !== 'episode' ||
+        info.playlistId !== playlistId ||
+        info.seriesXtreamId !== Number(seriesXtreamId)
+    ) {
+        return { opening: null, active: null };
+    }
+    if (session.status === 'launching') {
+        return { opening: info.contentXtreamId, active: null };
+    }
+    if (isLiveExternalPlayerSession(session)) {
+        return { opening: null, active: info.contentXtreamId };
+    }
+    return { opening: null, active: null };
+}
 
 /** What a forced MPV/VLC episode launch reads from the series page. */
 export interface SeriesExternalLaunchHost {

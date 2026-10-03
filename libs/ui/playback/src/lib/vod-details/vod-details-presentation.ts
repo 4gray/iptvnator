@@ -200,6 +200,7 @@ export function buildVodMenuSections(input: {
             id: VOD_DETAILS_MENU_ACTION.StartOver,
             labelKey: 'XTREAM.RESTART',
             icon: 'replay',
+            disabled: input.startPending,
             testId: 'vod-menu-start-over',
         });
     }

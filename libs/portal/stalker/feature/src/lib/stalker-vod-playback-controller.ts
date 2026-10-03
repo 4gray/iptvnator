@@ -49,13 +49,16 @@ export class StalkerVodPlaybackController {
      * an earlier start and is dropped once a later one begins.
      */
     beginPendingStart(): PendingExternalLaunch {
-        const requestId = ++this.playbackRequestId;
+        let requestId = ++this.playbackRequestId;
         const playbackOwnerKey = this.config.playbackOwnerKey?.();
         const startId = this.pendingStart.begin(playbackOwnerKey);
         return {
             settle: () => this.pendingStart.settle(startId),
             isCurrent: () =>
                 this.isPlaybackRequestCurrent(requestId, playbackOwnerKey),
+            rebase: () => {
+                requestId = this.playbackRequestId;
+            },
         };
     }
 
