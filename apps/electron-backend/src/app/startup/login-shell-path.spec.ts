@@ -84,6 +84,11 @@ describe('login shell PATH', () => {
         const stuck = loadModule();
         stuck.scheduleDeferredFixPath(() => new Promise(() => undefined));
         await expect(stuck.waitForLoginShellPath(5)).resolves.toBeUndefined();
+        // Later spawns do not wait out the limit again (the test would time
+        // out on this one otherwise).
+        await expect(
+            stuck.waitForLoginShellPath(60_000)
+        ).resolves.toBeUndefined();
     });
 
     it('lets spawns go immediately on Windows', async () => {

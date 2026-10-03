@@ -32,17 +32,27 @@ const loginShellPathSettled: Promise<void> =
 
 /** Upper bound for a waiting spawn when the login shell never returns. */
 export const LOGIN_SHELL_PATH_WAIT_LIMIT_MS = 10_000;
+// Set once a wait has run out: a shell that hung that long is not waited
+// for again, so one broken profile delays one launch, not every launch.
+let loginShellPathWaitExpired = false;
 
 /**
  * Resolves once the login shell PATH lookup has finished (successfully or
- * not), at the latest after `limitMs`; immediately on Windows.
+ * not), at the latest after `limitMs`; immediately on Windows and after a
+ * previous wait has run out.
  */
 export function waitForLoginShellPath(
     limitMs = LOGIN_SHELL_PATH_WAIT_LIMIT_MS
 ): Promise<void> {
+    if (loginShellPathWaitExpired) {
+        return Promise.resolve();
+    }
     let timer: NodeJS.Timeout | undefined;
     const limit = new Promise<void>((resolve) => {
-        timer = setTimeout(resolve, limitMs);
+        timer = setTimeout(() => {
+            loginShellPathWaitExpired = true;
+            resolve();
+        }, limitMs);
     });
     return Promise.race([loginShellPathSettled, limit]).finally(() =>
         clearTimeout(timer)
