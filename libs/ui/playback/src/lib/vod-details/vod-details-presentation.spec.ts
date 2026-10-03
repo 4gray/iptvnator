@@ -20,6 +20,7 @@ const BASE = {
     hasPlaybackPosition: true,
     hasStoredProgress: true,
     playbackActive: false,
+    startPending: false,
 };
 
 function rows(input: Partial<typeof BASE>) {
@@ -36,6 +37,18 @@ describe('buildVodMenuSections', () => {
             (row) => row.id === VOD_DETAILS_MENU_ACTION.ResetProgress
         );
         expect(reset?.disabled).toBeFalsy();
+    });
+
+    it('disables the external launch while a start still resolves', () => {
+        const external = rows({ startPending: true }).find(
+            (row) => row.id === VOD_DETAILS_MENU_ACTION.ExternalPlayer
+        );
+        expect(external?.disabled).toBe(true);
+        expect(
+            rows({}).find(
+                (row) => row.id === VOD_DETAILS_MENU_ACTION.ExternalPlayer
+            )?.disabled
+        ).toBeFalsy();
     });
 
     it('disables the progress reset while playback owns the position', () => {

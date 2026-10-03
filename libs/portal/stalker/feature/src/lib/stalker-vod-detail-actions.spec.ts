@@ -112,6 +112,25 @@ describe('createStalkerVodDetailActions openExternal', () => {
         );
     });
 
+    it('ignores a second launch while the first is still resolving', async () => {
+        const t = setup(() => 42);
+        const first = t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        await t.actions.openExternal({
+            item: MOVIE,
+            player: 'mpv',
+            positionSeconds: null,
+        });
+        t.resolveLink();
+        await first;
+
+        expect(t.beginPendingStart).toHaveBeenCalledTimes(1);
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+    });
+
     it('drops the stream once another movie was selected meanwhile', async () => {
         let selected = 42;
         const t = setup(() => selected);

@@ -125,6 +125,7 @@ export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
                 playbackActive:
                     deps.externalState() !== 'idle' ||
                     deps.playbackStartPending(),
+                startPending: deps.playbackStartPending(),
             })
         ),
     };

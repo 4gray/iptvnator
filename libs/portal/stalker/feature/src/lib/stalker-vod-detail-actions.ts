@@ -71,6 +71,9 @@ export function createStalkerVodDetailActions(
         deps.snackBar.open(deps.translate.instant(key), undefined, {
             duration: 3000,
         });
+    // A second "Open in external player" during a slow `create_link` would
+    // resolve beside the first and start a second player.
+    let externalLaunchInFlight = false;
 
     return {
         /** The inline player copied the stream URL. */
@@ -93,9 +96,10 @@ export function createStalkerVodDetailActions(
         },
 
         async openExternal(event: StalkerVodExternalPlayEvent): Promise<void> {
-            if (event.item.type !== 'stalker') {
+            if (event.item.type !== 'stalker' || externalLaunchInFlight) {
                 return;
             }
+            externalLaunchInFlight = true;
             // The `create_link` round trip may outlive the selection: a
             // stream resolved for a movie the user left is dropped, and its
             // failure is not reported over the new one.
@@ -137,6 +141,7 @@ export function createStalkerVodDetailActions(
                     notify('PORTALS.PLAYBACK_ERROR');
                 }
             } finally {
+                externalLaunchInFlight = false;
                 settlePendingStart?.();
             }
         },

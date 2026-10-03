@@ -180,6 +180,8 @@ export function buildVodMenuSections(input: {
     hasStoredProgress: boolean;
     /** An external player owns the row: its next tick would undo a reset. */
     playbackActive: boolean;
+    /** A start still resolving its stream: a second launch would double it. */
+    startPending: boolean;
 }): VodMoreMenuSection[] {
     const sourceRows: VodMoreMenuSection['items'][number][] = [];
     if (input.externalPlayerAvailable) {
@@ -188,6 +190,7 @@ export function buildVodMenuSections(input: {
             labelKey: 'PORTALS.DETAIL.OPEN_IN_EXTERNAL_PLAYER',
             icon: 'open_in_new',
             hint: input.externalPlayerHint,
+            disabled: input.startPending,
             testId: 'vod-menu-external',
         });
     }
