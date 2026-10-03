@@ -128,7 +128,12 @@ export class StalkerCollectionPlaybackController {
         externalPlayback: this.config.externalPlayback,
         playbackPositions: this.config.playbackPositions,
         playlistId: () => this.playbackOwner()?.sourceId,
-        selectedVodId: () => Number(this.playbackOwner()?.contentId) || null,
+        // Movie and series ids collide: a series now on screen must not
+        // pass as the movie whose link is still resolving.
+        selectedVodId: () =>
+            this.config.item()?.contentType === 'movie'
+                ? Number(this.playbackOwner()?.contentId) || null
+                : null,
         selectedVodPosition: this.selectedVodPosition,
         discardPendingPositionLoad: () =>
             this.vodPlayback.discardPendingPositionLoad(),
