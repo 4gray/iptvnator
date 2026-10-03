@@ -160,9 +160,7 @@ describe('VodDetailsComponent offline playback', () => {
     };
 
     const closeMenu = async (): Promise<void> => {
-        document
-            .querySelector<HTMLElement>('.cdk-overlay-backdrop')
-            ?.click();
+        document.querySelector<HTMLElement>('.cdk-overlay-backdrop')?.click();
         fixture.detectChanges();
         await fixture.whenStable();
     };
@@ -418,6 +416,23 @@ describe('VodDetailsComponent offline playback', () => {
         expect(playClicked).toHaveBeenCalledWith(STALKER_VOD);
         expect(resumeClicked).not.toHaveBeenCalled();
         expect(playDownload).not.toHaveBeenCalled();
+    });
+
+    it('holds the downloaded provider action while a start is pending', async () => {
+        completeDownload();
+        await render();
+        expect(providerPlayButton()?.disabled).toBe(false);
+
+        // Same window as the primary action: a second start could not cancel
+        // a launch already inside the player IPC.
+        fixture.componentRef.setInput('playbackStartPending', true);
+        fixture.detectChanges();
+        expect(providerPlayButton()?.disabled).toBe(true);
+
+        providerPlayButton()?.click();
+        await fixture.whenStable();
+        expect(playClicked).not.toHaveBeenCalled();
+        expect(resumeClicked).not.toHaveBeenCalled();
     });
 
     it('resumes the provider source from the downloaded secondary action', async () => {

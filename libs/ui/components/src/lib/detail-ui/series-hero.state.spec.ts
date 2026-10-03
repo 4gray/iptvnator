@@ -16,6 +16,7 @@ const BASE = {
     hasProgress: true,
     playbackActive: false,
     startPending: false,
+    watchBatchRunning: false,
     sourcesCount: 0,
     externalPlayerHint: 'MPV' as const,
     copyUrlEpisodeCode: null,
@@ -47,6 +48,12 @@ describe('buildSeriesMenuSections', () => {
         expect(resetRow({ playbackActive: true })?.disabled).toBe(true);
         // Independent of the bulk watched action's own state.
         expect(resetRow({ seriesActionDisabled: true })?.disabled).toBeFalsy();
+    });
+
+    it('disables the progress reset while a watched batch persists', () => {
+        // The hosts refuse the reset request meanwhile; an enabled row
+        // would close the menu and do nothing.
+        expect(resetRow({ watchBatchRunning: true })?.disabled).toBe(true);
     });
 
     it('hides the reset once every episode is watched', () => {

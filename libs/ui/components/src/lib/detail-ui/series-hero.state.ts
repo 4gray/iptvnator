@@ -195,6 +195,8 @@ export interface SeriesMenuInput {
     readonly playbackActive: boolean;
     /** A start has not settled: another launch would double it. */
     readonly startPending: boolean;
+    /** A season/series watched batch still persists: a reset request is refused meanwhile. */
+    readonly watchBatchRunning: boolean;
     readonly sourcesCount: number;
     readonly externalPlayerHint: 'MPV' | 'VLC' | null;
     readonly copyUrlEpisodeCode: string | null;
@@ -242,7 +244,7 @@ export function buildSeriesMenuSections(
             id: SERIES_MENU_ACTION.ResetProgress,
             labelKey: 'PORTALS.DETAIL.RESET_PROGRESS',
             icon: 'history_toggle_off',
-            disabled: input.playbackActive,
+            disabled: input.playbackActive || input.watchBatchRunning,
             testId: 'vod-menu-reset-progress',
         });
     }

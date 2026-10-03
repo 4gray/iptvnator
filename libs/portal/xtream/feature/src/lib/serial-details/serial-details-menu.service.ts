@@ -163,6 +163,7 @@ export class SerialDetailsMenuService {
             hasProgress: this.hasProgress(),
             playbackActive: this.bindings()?.playbackActive() ?? false,
             startPending: this.bindings()?.startPending() ?? false,
+            watchBatchRunning: container?.seasonWatchBatchRunning() ?? false,
             sourcesCount: 0,
             externalPlayerHint:
                 quickStart && this.runtime.supportsManagedExternalPlayers

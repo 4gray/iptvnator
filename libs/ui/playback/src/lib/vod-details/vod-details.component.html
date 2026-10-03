@@ -158,6 +158,9 @@
                         "
                         icon="play_arrow"
                         testId="vod-play-provider"
+                        [disabled]="
+                            isExternalLaunchPending() || playbackStartPending()
+                        "
                         (pressed)="onProviderAction()"
                     />
                 }
