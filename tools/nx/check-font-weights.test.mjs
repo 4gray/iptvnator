@@ -4242,6 +4242,76 @@ test('reads a complex rule as a base of the narrower ones it reaches', () => {
     }
 });
 
+test('reads a keyframe where a rule runs it, over its own', () => {
+    const mono = "'JetBrains Mono'";
+    const run = 'animation: k 1ms steps(1) forwards;';
+    const report = (body) =>
+        findOffScaleWeights('libs/s11/f.scss', body).findings.map(
+            ({ name, value }) => `${name}: ${value}`
+        );
+    for (const [source, expected] of [
+        // A family or weight a keyframe sets, where a rule runs it.
+        [
+            `.x { ${run} font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; ${run} } @keyframes k { to { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { animation-name: k; font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.p { ${run} } .p .x { font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        // Over the rule's own declarations, under `!important` ones.
+        [
+            `.x { font-family: Roboto; ${run} font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: Roboto !important; ${run} font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            [],
+        ],
+        [
+            `.x { font-family: ${mono}; font-weight: 500 !important; ${run} } @keyframes k { to { font-weight: 700; } }`,
+            [],
+        ],
+        // Whatever the order or specificity of the rule's own.
+        [
+            `.x { ${run} font-family: Roboto; font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { font-family: ${mono}; ${run} font-weight: 500; } @keyframes k { to { font-weight: 700; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { ${run} } .x.y { font-family: Roboto; font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            ['font-weight: 700'],
+        ],
+        [
+            `.x { ${run} } .x.y { font-family: Roboto !important; font-weight: 700; } @keyframes k { to { font-family: ${mono}; } }`,
+            [],
+        ],
+        // Only the keyframes it names; a step's own family meets its weight,
+        // wherever it is run from.
+        [
+            `.x { animation: fade 1ms; font-weight: 700; } @keyframes fade { to { opacity: 0.5; } } @keyframes k { to { font-family: ${mono}; } }`,
+            [],
+        ],
+        [
+            `@keyframes k { to { font-family: ${mono}; font-weight: 600; } }`,
+            ['font-weight: 600'],
+        ],
+    ]) {
+        assert.deepEqual(report(source), expected, source);
+    }
+});
+
 test('reads an `@at-root` rule where Sass writes it out', () => {
     const mono = "'JetBrains Mono'";
     const media = '@media (min-width: 1px)';

@@ -567,11 +567,19 @@ export function specificityOf(selector) {
     return total;
 }
 
+/** A declaration's importance: an animation's outranks a normal one. */
+const IMPORTANT_LEVEL = 2;
+export function levelOf(declaration) {
+    if (!declaration) return -1;
+    if (declaration.important) return IMPORTANT_LEVEL;
+    return declaration.animated ? 1 : 0;
+}
+
 /** Whether cascade rank `a` beats `b` (a later equal rank wins). */
 function rankAbove(a, b) {
-    if (a.important !== b.important) return a.important;
+    if (a.important !== b.important) return a.important > b.important;
     const layer = ordered(a.layer, b.layer);
-    if (layer) return a.important ? layer < 0 : layer > 0;
+    if (layer) return a.important === IMPORTANT_LEVEL ? layer < 0 : layer > 0;
     const specificity = compare(a.specificity, b.specificity);
     if (specificity) return specificity > 0;
     return a.order > b.order;
@@ -844,6 +852,10 @@ export function startsDeclaration(text, index) {
 /** An `@include` of a mixin in this file (`ns.mixin` is another file's). */
 const INCLUDE = /@include\s+([\w-]+)(?![\w.-])/g;
 const CONTENT = /@content\b/g;
+/** A `@keyframes` block's prelude, with its name. */
+const KEYFRAMES = /^@(?:-[a-z]+-)?keyframes\s+(\S+)/i;
+/** An `animation` or `animation-name` declaration. */
+const ANIMATION = /(?<![\w$-])animation(?:-name)?\s*:/gi;
 
 /** The combinators a selector's one allows across in a narrower one. */
 const ACROSS = { ' ': [' ', '>'], '~': ['~', '+'] };
@@ -1028,10 +1040,57 @@ export function familiesOf(
     // one rule included, is a landing of its own. A landing's `key` is its
     // place at each level, outermost first (see `keyOrder`): in the rule,
     // then in each mixin included and at each `@content` it goes through.
+    // Each `@keyframes` name, and where a rule's `animation` or
+    // `animation-name` runs it: a keyframe's declarations apply to that
+    // rule's elements while it runs (and after, held by `forwards`), over
+    // the rule's own (as `!important` is read here).
+    const keyframes = new Map();
+    for (const block of blocks) {
+        const named = KEYFRAMES.exec(block.prelude);
+        if (named) keyframes.set(named[1].replace(/^(['"])(.*)\1$/, '$2'), []);
+    }
+    for (const match of lexed.text.matchAll(ANIMATION)) {
+        if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
+            continue;
+        }
+        if (!startsDeclaration(lexed.text, match.index)) continue;
+        const start = match.index + match[0].length;
+        const { value, selector } = declarationText(lexed, start);
+        if (selector || framesOf(placeOf(blocks, match.index).scope)) continue;
+        for (const token of value.split(/[\s,]+/)) {
+            const name = token.replace(/^(['"])(.*)\1$/, '$2');
+            keyframes.get(name)?.push(match.index);
+        }
+    }
+    // The `@keyframes` name a block (one of its steps) sits in, if any.
+    function framesOf(scope) {
+        const frame = blocks
+            .filter((b) => b.start <= scope && scope < b.end)
+            .find((b) => KEYFRAMES.test(b.prelude));
+        return frame
+            ? KEYFRAMES.exec(frame.prelude)[1].replace(/^(['"])(.*)\1$/, '$2')
+            : null;
+    }
     const landingsOf = (scope, at, path = [], inner = []) => {
         if (path.includes(scope)) return [];
         const next = [...path, scope];
         const key = [at, ...inner];
+        // A keyframe's declarations meet each other in its step, and run
+        // from elsewhere too (another file, unseen here).
+        const frames = scope === null ? null : framesOf(scope);
+        if (frames) {
+            return [
+                { at, scope, rules: rulesOf(scope), key },
+                ...(keyframes.get(frames) ?? []).flatMap((site) =>
+                    landingsOf(
+                        placeOf(blocks, site).scope,
+                        site,
+                        next,
+                        key
+                    ).map((landing) => ({ ...landing, animated: true }))
+                ),
+            ];
+        }
         const content = contentOf(scope);
         if (content) {
             const { places, site } = content;
@@ -1087,7 +1146,10 @@ export function familiesOf(
             namespace ?? place.scope,
             match.index
         )) {
-            applied.push({ ...landing, entry });
+            applied.push({
+                ...landing,
+                entry: landing.animated ? { ...entry, animated: true } : entry,
+            });
         }
     }
     for (const match of lexed.text.matchAll(ALL_RESET)) {
@@ -1105,7 +1167,10 @@ export function familiesOf(
             at: { index: match.index, ...place },
         };
         for (const landing of landingsOf(place.scope, match.index)) {
-            applied.push({ ...landing, entry });
+            applied.push({
+                ...landing,
+                entry: landing.animated ? { ...entry, animated: true } : entry,
+            });
         }
     }
     // Keyed by rule, so a later block with one of its selectors wins.
@@ -1114,7 +1179,7 @@ export function familiesOf(
     const orderOf = new Map();
     for (const { rules, entry, at } of applied) {
         for (const rule of rules) {
-            if (family.get(rule)?.important && !entry.important) continue;
+            if (levelOf(family.get(rule)) > levelOf(entry)) continue;
             family.set(rule, entry);
             orderOf.set(rule, at);
         }
@@ -1207,7 +1272,7 @@ export function familiesOf(
     // (see `layerPlace`; `!important` turns the order round), then
     // specificity, then source order.
     const rankOf = (entry, { selector, layer = [] }, order = 0) => ({
-        important: Boolean(entry.important),
+        important: levelOf(entry),
         layer: layerPlace(layer),
         specificity: specificityOf(selector),
         order,
@@ -1404,9 +1469,19 @@ export function familiesOf(
         const scope = fontNamespaceRule(blocks, place) ?? place.scope;
         if (seen.has(scope)) return [];
         seen.add(scope);
-        // A content block's declaration meets the family at its `@include`.
+        // A content block's declaration meets the family at its `@include`,
+        // a keyframe's where a rule runs it.
         const content = contentOf(scope);
         if (content) return familyAt(content.site, keep, seen);
+        const frames = scope === null ? null : framesOf(scope);
+        if (frames) {
+            return [
+                ...(keep(scope) ? [lookup(index)] : []),
+                ...(keyframes.get(frames) ?? []).flatMap((site) =>
+                    familyAt(site, keep, seen)
+                ),
+            ];
+        }
         const block = blocks.find((b) => b.start === scope);
         const includes = sitesOf(scope);
         const extended = extendersOf(scope).map((extender) => extender.index);
