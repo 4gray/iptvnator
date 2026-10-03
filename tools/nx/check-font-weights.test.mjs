@@ -4339,6 +4339,82 @@ test('runs the definition of a mixin Sass resolves at each include', () => {
             },
             [],
         ],
+        // A mixin body runs the definition in scope where it is included.
+        [
+            {
+                'libs/w9/c.scss': `@mixin m { font-weight: 700 !important; }\n@mixin m { font-weight: 400; }\n@mixin outer { @include m; }\n.x { font-family: ${mono}; @include outer; }`,
+            },
+            [],
+        ],
+        [
+            {
+                'libs/w9/c.scss': `@mixin m { font-weight: 700; }\n@mixin outer { @include m; }\n.x { font-family: ${mono}; @include outer; }\n@mixin m { font-weight: 400; }\n.y { font-family: Roboto; @include outer; }`,
+            },
+            ['libs/w9/c.scss:1 font-weight: 700'],
+        ],
+        [
+            {
+                ...heavy,
+                'libs/w9/c.scss': `@use 'type' as *;\n@mixin outer { @include heavy; }\n.x { font-family: ${mono}; @include outer; }\n@mixin heavy { font-weight: 400; }`,
+            },
+            imported,
+        ],
+        [
+            {
+                ...heavy,
+                'libs/w9/c.scss': `@use 'type' as *;\n@mixin outer { @include heavy; }\n@mixin heavy { font-weight: 400; }\n.x { font-family: ${mono}; @include outer; }`,
+            },
+            [],
+        ],
+        // Where it is included both before and after a local definition,
+        // each include runs its own.
+        [
+            {
+                ...heavy,
+                'libs/w9/c.scss': `@use 'type' as *;\n@mixin outer { @include heavy; }\n.x { font-family: ${mono}; @include outer; }\n@mixin heavy { font-weight: 400; }\n.y { font-family: Roboto; @include outer; }`,
+            },
+            imported,
+        ],
+        [
+            {
+                'libs/w9/_firm.scss':
+                    '@mixin heavy { font-weight: 700 !important; }',
+                'libs/w9/c.scss': `@use 'firm' as *;\n@mixin outer { @include heavy; }\n.x { font-family: Roboto; @include outer; }\n@mixin heavy { font-weight: 400; }\n.y { font-family: ${mono}; @include outer; }`,
+            },
+            [],
+        ],
+        [
+            {
+                'libs/w9/c.scss': `@mixin w { @content; font-weight: 400; }\n@mixin outer { @include w { font-weight: 700; } }\n.x { font-family: ${mono}; @include outer; }\n@mixin w { font-weight: 400; @content; }\n.y { font-family: Roboto; @include outer; }`,
+            },
+            [],
+        ],
+        // A call in a definition that does not run passes nothing.
+        [
+            {
+                'libs/w9/c.scss': `@mixin w($weight) { font-weight: $weight; }\n@mixin m { @include w($weight: 700); }\n@mixin outer { @include m; }\n.x { font-family: Roboto; @include outer; }\n@mixin m { @include w($weight: 400); }\n.y { font-family: ${mono}; @include outer; }`,
+            },
+            [],
+        ],
+        // Included from another module, once its own module has run.
+        [
+            {
+                ...heavy,
+                'libs/w9/_c.scss':
+                    "@use 'type' as *;\n@mixin outer { @include heavy; }\n@mixin heavy { font-weight: 400; }",
+                'libs/w9/d.scss': `@use 'c'; .x { font-family: ${mono}; @include c.outer; }`,
+            },
+            [],
+        ],
+        [
+            {
+                ...heavy,
+                'libs/w9/_c.scss':
+                    "@use 'type' as *;\n@mixin outer { @include heavy; }",
+                'libs/w9/d.scss': `@use 'c'; .x { font-family: ${mono}; @include c.outer; }`,
+            },
+            imported,
+        ],
         // A content block goes where that definition places `@content`.
         [
             {
@@ -4369,6 +4445,14 @@ test('runs the definition of a mixin Sass resolves at each include', () => {
                 'libs/w9/c.scss': `@use 't'; .x { font-family: ${mono}; @include t.m; }`,
             },
             ['libs/w9/_t.scss:2 font-weight: 700'],
+        ],
+        [
+            {
+                'libs/w9/_p.scss':
+                    '@mixin m { font-weight: 700 !important; }\n@mixin outer { @include m; }\n.p { @include outer; }\n@mixin m { font-weight: 400; }',
+                'libs/w9/d.scss': `@use 'p'; .x { font-family: ${mono}; @include p.outer; }`,
+            },
+            [],
         ],
     ]) {
         assert.deepEqual(workspace(files), expected, JSON.stringify(files));
