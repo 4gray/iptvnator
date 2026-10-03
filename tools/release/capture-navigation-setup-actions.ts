@@ -63,17 +63,31 @@ async function openAddPlaylistXtream(page: Page): Promise<void> {
     await dialog.locator('#serverUrl').fill(XTREAM_MOCK_ORIGIN);
     await dialog.locator('#username').fill(XTREAM_FIXTURE_CREDENTIALS.username);
     await dialog.locator('#password').fill(XTREAM_FIXTURE_CREDENTIALS.password);
-    // The status probe only talks to the local mock, so the frame can
-    // show the successful "portal is active" verdict the guide explains.
+    // The server URL is plain http://, so the probe never tries HTTPS and
+    // only talks to the local mock; the frame can show the successful
+    // "portal is active" verdict the guide explains.
     await dialog
-        .getByRole('button', { name: /test connection/i })
-        .first()
+        .getByRole('button', { name: 'Test HTTPS and HTTP', exact: true })
         .click();
-    const status = dialog.locator('.connection-status');
-    await status.waitFor({ state: 'visible', timeout: 30_000 });
-    // The dialog body scrolls; bring the verdict the guide explains
-    // into frame together with the credential fields above it.
-    await status.scrollIntoViewIfNeeded();
+    // The status line first reads "Testing connection…"; wait for the
+    // verdict itself, so a refused account fails the shot instead of
+    // publishing a frame that contradicts the guide.
+    const status = dialog.getByRole('status');
+    await status
+        .filter({ hasText: /portal is active/i })
+        .waitFor({ state: 'visible', timeout: 30_000 })
+        .catch(async () => {
+            const shown = await status
+                .textContent({ timeout: 1_000 })
+                .catch(() => null);
+            throw new Error(
+                `Xtream connection test did not report an active portal within 30s (status: ${shown?.trim() || 'none'})`
+            );
+        });
+    // The dialog body scrolls. The verdict sits under the server URL,
+    // above the credentials, so scrolling to the last field frames the
+    // whole filled form together with the verdict the guide explains.
+    await dialog.locator('#password').scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
 }
 
