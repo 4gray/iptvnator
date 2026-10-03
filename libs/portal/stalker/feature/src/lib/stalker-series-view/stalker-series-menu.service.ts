@@ -68,8 +68,11 @@ export class StalkerSeriesMenuService {
             startPending: this.bindings()?.startPending() ?? false,
             watchBatchRunning: container?.seasonWatchBatchRunning() ?? false,
             sourcesCount: 0,
+            // A completed series keeps a disabled quick start naming the
+            // last episode: nothing to launch there.
             externalPlayerHint:
                 quickStart?.action &&
+                !quickStart.disabled &&
                 this.runtime.supportsManagedExternalPlayers
                     ? this.externalPlayer() === 'vlc'
                         ? 'VLC'

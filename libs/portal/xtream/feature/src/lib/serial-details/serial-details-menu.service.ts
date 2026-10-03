@@ -88,6 +88,16 @@ export class SerialDetailsMenuService {
         Number(this.bindings()?.selectedItem()?.series_id ?? 0)
     );
 
+    /**
+     * The episode the menu's rows act on. A completed series has a quick
+     * start too, a disabled one naming the last episode: nothing to launch
+     * or copy there.
+     */
+    private readonly startableQuickStart = computed(() => {
+        const quickStart = this.bindings()?.quickStart() ?? null;
+        return quickStart && !quickStart.disabled ? quickStart : null;
+    });
+
     /** Any episode with a saved position: "Reset progress" applies. */
     private readonly hasProgress = computed(
         () => (this.bindings()?.episodePositions().size ?? 0) > 0
@@ -136,7 +146,7 @@ export class SerialDetailsMenuService {
         const container = this.bindings()?.seasonContainer();
         const watch = container?.watchPresenter;
         const download = container?.downloadPresenter;
-        const quickStart = this.bindings()?.quickStart() ?? null;
+        const quickStart = this.startableQuickStart();
         const category = this.category();
         const episodeCode = quickStart
             ? formatSeriesEpisodeCode(
@@ -213,7 +223,7 @@ export class SerialDetailsMenuService {
 
     /** The next episode, resolved the way the inline player would play it. */
     private buildEpisodePlayback(): ResolvedPortalPlayback | null {
-        const quickStart = this.bindings()?.quickStart();
+        const quickStart = this.startableQuickStart();
         const item = this.bindings()?.selectedItem();
         const playlist = this.xtreamStore.currentPlaylist();
         if (!quickStart || !item || !playlist) {
@@ -242,7 +252,7 @@ export class SerialDetailsMenuService {
 
     private async openExternal(): Promise<void> {
         const bindings = this.bindings();
-        const episode = bindings?.quickStart()?.episode;
+        const episode = this.startableQuickStart()?.episode;
         if (!bindings || !episode) {
             return;
         }

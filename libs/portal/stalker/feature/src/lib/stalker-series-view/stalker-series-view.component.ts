@@ -1109,7 +1109,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     /** "Open in external player": the next episode, straight to MPV/VLC. */
     async openQuickStartExternally(player: ExternalPlayerName): Promise<void> {
-        const episode = this.quickStartAction()?.action?.episode;
+        const quickStart = this.quickStartAction();
+        const episode = quickStart?.disabled
+            ? undefined
+            : quickStart?.action?.episode;
         if (episode) {
             this.onEpisodeClicked(episode, undefined, player);
         }
