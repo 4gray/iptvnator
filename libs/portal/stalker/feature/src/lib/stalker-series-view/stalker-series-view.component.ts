@@ -417,6 +417,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                     this.openingEpisodeId() !== null ||
                     this.activeEpisodeId() !== null
             ),
+            startPending: computed(() =>
+                this.pendingStartSeriesIds().includes(this.currentSeriesKey())
+            ),
             resetProgress: () => this.resetProgress(),
             openExternal: (player) => this.openQuickStartExternally(player),
         });

@@ -286,3 +286,24 @@ export async function expectSeriesSurfacesInBothThemes(
             .click();
     }
 }
+
+/** Opens the series "…" menu (if closed) and returns the row with that test id. */
+export async function seriesMenuRow(page: Page, rowTestId: string) {
+    const row = page.locator(`[data-test-id="${rowTestId}"]`);
+    if (!(await row.isVisible().catch(() => false))) {
+        await page.locator('[data-testid="series-more-menu"]').click();
+    }
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    return row;
+}
+
+/** Closes an open series menu without choosing a row. */
+export async function closeSeriesMenu(page: Page): Promise<void> {
+    // The panel, not the backdrop: a backdrop locator can match a second
+    // overlay and then fail the strict check, leaving the menu open.
+    const panel = page.locator('[data-test-id="vod-more-menu"]');
+    if (await panel.isVisible().catch(() => false)) {
+        await page.keyboard.press('Escape');
+    }
+    await expect(panel).toBeHidden({ timeout: 10_000 });
+}

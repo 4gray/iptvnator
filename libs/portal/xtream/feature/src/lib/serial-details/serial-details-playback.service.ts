@@ -34,6 +34,7 @@ import {
 import {
     getSeriesEpisodeMetadata,
     getSeriesPlaybackNavigation,
+    inlineSeriesEpisodeState,
     type PlaybackFallbackRequest,
     resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
@@ -43,6 +44,7 @@ import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.toke
 import {
     isEpisodeLaunchPending,
     openEpisodeExternally,
+    whenEpisodeLaunchesSettle,
 } from './serial-details-external-launch';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 import {
@@ -112,7 +114,10 @@ export class SerialDetailsPlaybackService {
     });
     readonly inlineEpisodeState =
         computed<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(() =>
-            this.getInlineEpisodeState()
+            inlineSeriesEpisodeState(
+                this.inlinePlayback(),
+                this.selectedItem()?.episodes
+            )
         );
     readonly inlineEpisodeMetadata = computed(() =>
         getSeriesEpisodeMetadata(this.inlineEpisodeState())
@@ -221,9 +226,13 @@ export class SerialDetailsPlaybackService {
         episode: XtreamSerieEpisode,
         player?: ExternalPlayerName
     ): void {
-        // A forced launch still settling owns the next start; a different
-        // episode launched the same way is queued behind it instead.
+        // A forced launch still settling owns the next start: the latest
+        // choice made meanwhile starts once it settled, never beside it.
         if (!player && this.forcedLaunchPending()) {
+            this.queuedEpisode = episode;
+            void whenEpisodeLaunchesSettle(this.launchOwner()).then(() =>
+                this.playQueuedEpisode()
+            );
             return;
         }
         const playlist = this.xtreamStore.currentPlaylist();
@@ -416,6 +425,16 @@ export class SerialDetailsPlaybackService {
     readonly forcedLaunchPending = computed(() =>
         isEpisodeLaunchPending(this.launchOwner())
     );
+    /** The choice made while a forced launch settled; only the latest one starts. */
+    private queuedEpisode: XtreamSerieEpisode | null = null;
+
+    private playQueuedEpisode(): void {
+        const episode = this.queuedEpisode;
+        this.queuedEpisode = null;
+        if (episode && !this.forcedLaunchPending()) {
+            this.playEpisode(episode);
+        }
+    }
 
     /** `playlist:series` of the page, null once it is gone or shows another series. */
     launchOwner(): string | null {
@@ -443,26 +462,5 @@ export class SerialDetailsPlaybackService {
                 : this.portalPlayer.openResolvedPlayback(playback, true),
             this.savePosition
         );
-    }
-
-    private getInlineEpisodeState(): SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null {
-        const playback = this.inlinePlayback();
-        const episodesBySeason = this.selectedItem()?.episodes;
-        const currentEpisodeId = playback?.contentInfo?.contentXtreamId;
-
-        if (
-            !episodesBySeason ||
-            playback?.contentInfo?.contentType !== 'episode' ||
-            currentEpisodeId === undefined
-        ) {
-            return null;
-        }
-
-        return resolveSeriesPlaybackEpisodeState({
-            episodesBySeason,
-            currentEpisodeId,
-            fallbackSeasonNumber: playback.contentInfo.seasonNumber,
-            fallbackEpisodeNumber: playback.contentInfo.episodeNumber,
-        });
     }
 }

@@ -164,6 +164,37 @@ describe('openEpisodeExternally', () => {
         expect(isEpisodeLaunchPending('xtream-1:103')).toBe(false);
     });
 
+    it('leaves the player alone when the page moved on before a queued launch ran', async () => {
+        const running = session();
+        const t = host(running);
+        let settleLaunch: () => void = () => undefined;
+        t.openExternalPlayback.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (settleLaunch = resolve))
+        );
+        const first = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        const second = openEpisodeExternally(
+            t.host,
+            {
+                ...PLAYBACK,
+                contentInfo: {
+                    ...PLAYBACK.contentInfo!,
+                    contentXtreamId: 1003,
+                },
+            },
+            'mpv'
+        );
+        await flush();
+        t.closeSession.mockClear();
+        // The viewer left the series before the queued launch's turn.
+        t.launchOwner.mockReturnValue('xtream-1:999');
+        settleLaunch();
+        await first;
+        await second;
+
+        expect(t.closeSession).not.toHaveBeenCalled();
+        expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+    });
+
     it('keeps the running player when closing it fails', async () => {
         const t = host(session());
         t.closeSession.mockRejectedValue(new Error('still busy'));

@@ -18,6 +18,8 @@ interface StalkerSeriesMenuBindings {
     readonly hasProgress: Signal<boolean>;
     /** An episode plays or launches: its next tick would undo a reset. */
     readonly playbackActive: Signal<boolean>;
+    /** A start has not published its session yet: bulk watched actions would include it. */
+    readonly startPending: Signal<boolean>;
     readonly resetProgress: () => Promise<void>;
     readonly openExternal: (player: ExternalPlayerName) => Promise<void>;
 }
@@ -50,6 +52,7 @@ export class StalkerSeriesMenuService {
             seasonFullyWatched: watch?.selectedSeasonFullyWatched() ?? false,
             seasonEligibleCount: watch?.seasonWatchEligibleCount() ?? 0,
             seasonActionDisabled:
+                (this.bindings()?.startPending() ?? false) ||
                 (container?.seasonWatchBatchRunning() ?? false) ||
                 (!(watch?.selectedSeasonFullyWatched() ?? false) &&
                     (watch?.seasonWatchEligibleCount() ?? 0) === 0),
@@ -57,7 +60,9 @@ export class StalkerSeriesMenuService {
             seriesFullyWatched: watch?.seriesFullyWatched() ?? false,
             seriesEligibleCount: watch?.seriesWatchEligibleCount() ?? 0,
             seriesCountKnown: watch?.seriesCountKnown() ?? true,
-            seriesActionDisabled: watch?.seriesActionDisabled() ?? true,
+            seriesActionDisabled:
+                (this.bindings()?.startPending() ?? false) ||
+                (watch?.seriesActionDisabled() ?? true),
             hasProgress: this.bindings()?.hasProgress() ?? false,
             playbackActive: this.bindings()?.playbackActive() ?? false,
             sourcesCount: 0,

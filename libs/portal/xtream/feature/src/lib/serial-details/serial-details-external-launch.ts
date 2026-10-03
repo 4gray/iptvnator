@@ -46,6 +46,12 @@ export function isEpisodeLaunchPending(owner: string | null): boolean {
     return !!owner && (pendingOwners().get(owner) ?? 0) > 0;
 }
 
+/** Resolves once every queued launch of the owner settled (at once when none is pending). */
+export function whenEpisodeLaunchesSettle(owner: string | null): Promise<void> {
+    const tail = owner ? launchChains.get(owner) : undefined;
+    return tail ? tail.then(() => undefined) : Promise.resolve();
+}
+
 /**
  * The "…" menu's MPV/VLC launch of an episode. An episode of this series
  * still running externally is closed first: with instance reuse off a
@@ -94,6 +100,11 @@ async function launchEpisode(
     playback: ResolvedPortalPlayback,
     player: ExternalPlayerName
 ): Promise<ExternalPlayerSession | void> {
+    // Queued behind another launch: the page may have moved on meanwhile,
+    // and the running player then belongs to a series the viewer left.
+    if (host.launchOwner() !== owner) {
+        return;
+    }
     const session = host.externalPlayback.activeSession();
     const info = session?.contentInfo;
     const ownSession =

@@ -1,5 +1,10 @@
 import { type APIRequestContext, type Page } from '@playwright/test';
-import { expectSeriesSurfacesInBothThemes, setInputValue } from './e2e-helpers';
+import {
+    closeSeriesMenu,
+    expectSeriesSurfacesInBothThemes,
+    seriesMenuRow,
+    setInputValue,
+} from './e2e-helpers';
 import {
     verifyStalkerCategorySearch,
     verifyStalkerPlaybackCategoryReturn,
@@ -1135,23 +1140,6 @@ test('@stalker season watched toggle — embedded series marks and clears every 
     );
     await closeSeriesMenu(page);
 });
-
-
-/** Opens the series "…" menu (if closed) and returns the row with that test id. */
-async function seriesMenuRow(page: Page, rowTestId: string) {
-    const row = page.locator(`[data-test-id="${rowTestId}"]`);
-    if (!(await row.isVisible().catch(() => false))) {
-        await page.locator('[data-testid="series-more-menu"]').click();
-    }
-    await expect(row).toBeVisible({ timeout: 15_000 });
-    return row;
-}
-
-async function closeSeriesMenu(page: Page): Promise<void> {
-    if (await page.locator('.cdk-overlay-backdrop').isVisible().catch(() => false)) {
-        await page.keyboard.press('Escape');
-    }
-}
 
 test('@stalker series watched toggle — embedded series marks and clears from the header menu', async ({
     page,

@@ -37,6 +37,8 @@ interface SerialDetailsMenuBindings {
     readonly episodePositions: Signal<ReadonlyMap<number, unknown>>;
     /** An episode plays or launches: its next tick would undo a reset. */
     readonly playbackActive: Signal<boolean>;
+    /** A forced launch has not published its session yet: bulk watched actions would include it. */
+    readonly startPending: Signal<boolean>;
     readonly resetProgress: () => Promise<void>;
     /** The regular episode start forced to MPV/VLC, so history and the launch position are recorded. */
     readonly openEpisodeExternally: (
@@ -145,6 +147,7 @@ export class SerialDetailsMenuService {
             seasonFullyWatched: watch?.selectedSeasonFullyWatched() ?? false,
             seasonEligibleCount: watch?.seasonWatchEligibleCount() ?? 0,
             seasonActionDisabled:
+                (this.bindings()?.startPending() ?? false) ||
                 (container?.seasonWatchBatchRunning() ?? false) ||
                 (!(watch?.selectedSeasonFullyWatched() ?? false) &&
                     (watch?.seasonWatchEligibleCount() ?? 0) === 0),
@@ -152,7 +155,9 @@ export class SerialDetailsMenuService {
             seriesFullyWatched: watch?.seriesFullyWatched() ?? false,
             seriesEligibleCount: watch?.seriesWatchEligibleCount() ?? 0,
             seriesCountKnown: watch?.seriesCountKnown() ?? true,
-            seriesActionDisabled: watch?.seriesActionDisabled() ?? true,
+            seriesActionDisabled:
+                (this.bindings()?.startPending() ?? false) ||
+                (watch?.seriesActionDisabled() ?? true),
             hasProgress: this.hasProgress(),
             playbackActive: this.bindings()?.playbackActive() ?? false,
             sourcesCount: 0,

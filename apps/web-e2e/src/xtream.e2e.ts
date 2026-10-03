@@ -1,8 +1,10 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
 import {
+    closeSeriesMenu,
     pressTab,
     rasterizedBorderContrast,
+    seriesMenuRow,
     setInputValue,
     surfaceContrast,
     waitForScrollIdle,
@@ -801,26 +803,6 @@ test('@xtream season cover — shows the provider season cover and follows the s
 // in one action (default scenario: 3 seasons × 8 episodes = 24), flips to
 // unwatch-all once the whole series is watched, and survives a reload.
 // ---------------------------------------------------------------------------
-
-/** Opens the series "…" menu (if closed) and returns the row with that test id. */
-async function seriesMenuRow(page: Page, rowTestId: string) {
-    const row = page.locator(`[data-test-id="${rowTestId}"]`);
-    if (!(await row.isVisible().catch(() => false))) {
-        await page.locator('[data-testid="series-more-menu"]').click();
-    }
-    await expect(row).toBeVisible({ timeout: 15_000 });
-    return row;
-}
-
-async function closeSeriesMenu(page: Page): Promise<void> {
-    // The panel, not the backdrop: a backdrop locator can match a second
-    // overlay and then fail the strict check, leaving the menu open.
-    const panel = page.locator('[data-test-id="vod-more-menu"]');
-    if (await panel.isVisible().catch(() => false)) {
-        await page.keyboard.press('Escape');
-    }
-    await expect(panel).toBeHidden({ timeout: 10_000 });
-}
 
 test('@xtream series watched toggle — marks every season from the header menu, survives reload, and clears again', async ({
     page,
