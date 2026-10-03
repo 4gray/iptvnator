@@ -275,7 +275,10 @@ on `master`; before that, see the temporary-trigger note under Weekly
 tightening in the performance journeys document. `perf:journeys` builds the `electron-performance` configuration and runs every
 journey spec against the Xtream mock: J1 launch, then J2 open-source (a
 second set of launches, each followed by the click on the portal card), both
-written to the same summary file; its probe specs run with
+written to the same summary file. The `Performance journeys` job of `ci.yml`
+(warn-only) checks `renderer.ipcCallsToFirstCard` and
+`renderer.domMutationsToFirstCard` of that summary against the baselines;
+its probe specs run with
 `pnpm nx run electron-backend-e2e:test-performance-harness`, which CI runs in
 the `Unit Tests and Typechecks` job of `ci.yml` on every run. The
 `electron-backend-e2e` command targets call `tsx` and `playwright` directly,
