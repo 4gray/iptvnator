@@ -12,10 +12,14 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import {
+    CastCrewRowComponent,
     DetailActionsTemplateDirective,
+    DetailCreditsComponent,
     DetailMetaTemplateDirective,
     DetailTagsTemplateDirective,
+    MetaChipComponent,
     PortalDetailShellComponent,
+    scrollToCastCrewRow,
 } from '@iptvnator/ui/components';
 import { DownloadLibraryNavigationService } from '../download-library-navigation.service';
 import { DownloadManagerActionsService } from '../download-manager-actions.service';
@@ -32,7 +36,7 @@ import {
     offlineEpisodeTitle,
     offlineFileByteCount,
     offlineMetadataResolutionKey,
-    offlinePersonTrackKey,
+    offlinePeopleAsCast,
     offlinePositiveFinite,
     offlineSeasonTestId,
     type OfflineDetailItem,
@@ -47,9 +51,12 @@ import { DownloadOfflineSeasonSelectionService } from './download-offline-season
 @Component({
     selector: 'app-download-offline-detail',
     imports: [
+        CastCrewRowComponent,
         DetailActionsTemplateDirective,
+        DetailCreditsComponent,
         DetailMetaTemplateDirective,
         DetailTagsTemplateDirective,
+        MetaChipComponent,
         MatButtonModule,
         MatIconModule,
         MatMenuModule,
@@ -156,6 +163,21 @@ export class DownloadOfflineDetailComponent {
     readonly creators = computed(() =>
         boundedOfflinePeople(this.metadata()?.creators)
     );
+    readonly castMembers = computed(() => offlinePeopleAsCast(this.cast()));
+    readonly creatorMembers = computed(() =>
+        offlinePeopleAsCast(this.creators())
+    );
+    readonly castNames = computed(() =>
+        this.cast().map((person) => person.name)
+    );
+    readonly creatorNames = computed(() =>
+        this.creators().map((person) => person.name)
+    );
+    /** The hero decides its layout once per download, not per title: two downloads can share one. */
+    readonly heroKey = computed(() => {
+        const downloadId = this.downloadId();
+        return downloadId === undefined ? null : `download:${downloadId}`;
+    });
     readonly providerState = this.providerCoordinator.state;
     readonly canOpenInPortal = computed(
         () => this.providerState().status === 'available'
@@ -208,7 +230,7 @@ export class DownloadOfflineDetailComponent {
     readonly episodeCoordinate = offlineEpisodeCoordinate;
     readonly episodeTitle = offlineEpisodeTitle;
     readonly positiveFinite = offlinePositiveFinite;
-    readonly personTrackKey = offlinePersonTrackKey;
+    readonly scrollToCast = scrollToCastCrewRow;
 
     constructor() {
         void this.downloadsService.loadDownloads();

@@ -317,6 +317,12 @@ describe('DownloadOfflineDetailComponent', () => {
         expect(text()).toContain('Released');
         expect(text()).toContain('Ada Actor');
         expect(text()).toContain('Cora Creator');
+        // No actor page offline: the shared cast row renders plain entries.
+        const person = (fixture.nativeElement as HTMLElement).querySelector(
+            'app-cast-crew-row .person'
+        );
+        expect(person).not.toBeNull();
+        expect(person?.getAttribute('role')).toBeNull();
         expect(text()).toContain('2 KB');
         expect(text()).not.toContain('{{size}}');
         expect(downloads.formatBytes).toHaveBeenCalledWith(2_048);
