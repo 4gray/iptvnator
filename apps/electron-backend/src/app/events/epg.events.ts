@@ -132,7 +132,9 @@ export default class EpgEvents {
                 const options =
                     typeof args === 'string' ? undefined : args.options;
                 epgWorkerService.deleteFetchedUrl(url);
-                return await this.handleFetchEpg([url], options);
+                return await this.handleFetchEpg([url], options, {
+                    force: true,
+                });
             }
         );
 
@@ -255,9 +257,10 @@ export default class EpgEvents {
 
     private static async handleFetchEpg(
         urls: string[],
-        options: ElectronBridgeTrustOptions = {}
+        options: ElectronBridgeTrustOptions = {},
+        fetchOptions: { force?: boolean } = {}
     ): Promise<EpgFetchResult> {
-        return handleFetchEpg(urls, options);
+        return handleFetchEpg(urls, options, fetchOptions);
     }
 
     private static async fetchEpgFromUrl(
