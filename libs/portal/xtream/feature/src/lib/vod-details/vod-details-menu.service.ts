@@ -72,11 +72,12 @@ export class VodDetailsMenuService {
         const category = this.bindings()?.category() ?? null;
         // The copy the primary button acts on: a pinned copy's own row.
         const started = this.msUi.primaryPosition() !== null;
-        // A start still resolving or a launch still inside the player IPC:
-        // another start would be refused, so the row would do nothing.
+        // A start still resolving, a launch still inside the player IPC or
+        // a reset still writing: another start would be refused (or resume
+        // from the row being cleared), so the row would mislead.
         const startPending =
             this.playback.playbackStartPending() ||
-            this.playback.isExternalLaunchPending();
+            this.playback.startBlocked();
         const sourceRows: VodMoreMenuSection['items'][number][] = [];
         if (this.multiSource.hasAlternatives()) {
             sourceRows.push({
@@ -125,6 +126,7 @@ export class VodDetailsMenuService {
                 disabled:
                     this.playback.isExternalStopAction() ||
                     this.playback.playbackStartPending() ||
+                    this.playback.resetPending() ||
                     this.playback.inlinePlayback() !== null,
                 testId: 'vod-menu-reset-progress',
             });
@@ -187,6 +189,9 @@ export class VodDetailsMenuService {
             return;
         }
         const { playlistId, contentId } = target;
+        // Every start is refused until the write landed: one made meanwhile
+        // would resume from the very row being cleared.
+        this.playback.resetPending.set(true);
         try {
             await this.playbackPositions.clearPlaybackPositionOrThrow(
                 playlistId,
@@ -196,6 +201,8 @@ export class VodDetailsMenuService {
         } catch (error) {
             this.logger.error('Resetting the playback position failed', error);
             return;
+        } finally {
+            this.playback.resetPending.set(false);
         }
         // The clear was async: the route may show another movie by now
         // (the Similar rail reuses it), or the pin may have moved, and that

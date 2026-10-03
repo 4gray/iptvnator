@@ -407,13 +407,19 @@ export class VodDetailsPlaybackService {
     readonly playbackStartPending = computed(() =>
         this.pendingStart.isPendingFor(this.bindings()?.vodId())
     );
+    /** A progress reset still writing: a start meanwhile would resume from the row being cleared. */
+    readonly resetPending = signal(false);
+    /** No start may begin: a launch awaits the player or a reset is in flight. */
+    readonly startBlocked = computed(
+        () => this.isExternalLaunchPending() || this.resetPending()
+    );
 
     async startResolvedPlayback(
         playback: ResolvedPortalPlayback,
         isCurrent: () => boolean = () => true,
         player?: ExternalPlayerName
     ): Promise<boolean> {
-        if (this.externalLaunchGeneration() !== null) {
+        if (this.externalLaunchGeneration() !== null || this.resetPending()) {
             return false;
         }
         const runningSession = runningExternalSession(

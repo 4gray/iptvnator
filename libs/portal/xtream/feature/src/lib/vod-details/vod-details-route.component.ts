@@ -343,6 +343,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     readonly externalPrimaryLabel = this.playback.externalPrimaryLabel;
     readonly externalPrimaryIcon = this.playback.externalPrimaryIcon;
     readonly isExternalLaunchPending = this.playback.isExternalLaunchPending;
+    readonly startBlocked = this.playback.startBlocked;
     readonly isExternalStopAction = this.playback.isExternalStopAction;
     readonly externalPrimaryButtonState =
         this.playback.externalPrimaryButtonState;
@@ -470,7 +471,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             },
             movie: this.multiSourceMovie,
             playbackLive: this.playbackLive,
-            playbackStartBlocked: this.playback.isExternalLaunchPending,
+            playbackStartBlocked: this.playback.startBlocked,
         });
 
         // Initializes on first render and RE-initializes when the route
@@ -639,7 +640,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
      * user to the route's playlist.
      */
     async restartVod(vodItem: XtreamVodDetails | null): Promise<void> {
-        if (this.isExternalLaunchPending()) {
+        if (this.startBlocked()) {
             return;
         }
 
@@ -712,7 +713,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         vodItem: XtreamVodDetails | null,
         player: ExternalPlayerName
     ): Promise<void> {
-        if (this.isExternalLaunchPending()) {
+        if (this.startBlocked()) {
             return;
         }
         if (this.msUi.primaryIsPinnedCopy()) {
@@ -737,7 +738,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         vodItem: XtreamVodDetails | null
     ): Promise<void> {
         if (
-            this.isExternalLaunchPending() ||
+            this.startBlocked() ||
             this.externalPrimaryButtonState() !== 'idle'
         ) {
             return;

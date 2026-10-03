@@ -191,6 +191,25 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
         expect(openResolvedPlayback).not.toHaveBeenCalled();
     });
 
+    it('refuses a start while a progress reset is still writing', async () => {
+        openResolvedPlayback.mockClear();
+        service.resetPending.set(true);
+
+        // The row is being cleared: a start now would resume from it and
+        // the clear would then report no progress for a resumed stream.
+        await expect(
+            service.startResolvedPlayback({
+                streamUrl: 'https://example.com/route.mkv',
+                title: 'Example Movie',
+            })
+        ).resolves.toBe(false);
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+        expect(service.startBlocked()).toBe(true);
+
+        service.resetPending.set(false);
+        expect(service.startBlocked()).toBe(false);
+    });
+
     it('rejects a handoff when the external player launch fails', async () => {
         openResolvedPlayback.mockRejectedValueOnce(
             new Error('previous player is still shutting down')

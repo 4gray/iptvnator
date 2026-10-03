@@ -7,7 +7,7 @@
             [meta]="primary.meta"
             [icon]="primary.icon"
             [state]="primary.state"
-            [disabled]="isExternalLaunchPending()"
+            [disabled]="startBlocked()"
             testId="vod-primary-action"
             (pressed)="onPrimaryAction(playableItem)"
         />
@@ -72,7 +72,7 @@
                                     | translate
                             "
                             icon="play_arrow"
-                            [disabled]="isExternalLaunchPending()"
+                            [disabled]="startBlocked()"
                             testId="vod-play-provider"
                             (pressed)="playFromProviderSource(playableItem)"
                         />

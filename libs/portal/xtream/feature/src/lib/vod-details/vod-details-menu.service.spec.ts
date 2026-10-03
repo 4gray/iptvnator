@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
@@ -35,6 +35,7 @@ describe('VodDetailsMenuService', () => {
     const loadAllPositions = jest.fn().mockResolvedValue(undefined);
     const routePlaybackPosition = signal<PlaybackPositionData | null>(null);
     const vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
+    const resetPending = signal(false);
     const openExternal = jest.fn().mockResolvedValue(undefined);
     let service: VodDetailsMenuService;
 
@@ -46,6 +47,7 @@ describe('VodDetailsMenuService', () => {
         primaryIsPinnedCopy.set(false);
         routePlaybackPosition.set(null);
         vodPlaybackPosition.set(null);
+        resetPending.set(false);
         jest.clearAllMocks();
         TestBed.configureTestingModule({
             providers: [
@@ -64,6 +66,10 @@ describe('VodDetailsMenuService', () => {
                         vodPlaybackPosition,
                         playbackStartPending,
                         isExternalLaunchPending,
+                        resetPending,
+                        startBlocked: computed(
+                            () => isExternalLaunchPending() || resetPending()
+                        ),
                         isExternalStopAction: signal(false),
                         inlinePlayback: signal(null),
                         discardPendingPositionLoads,
@@ -159,6 +165,32 @@ describe('VodDetailsMenuService', () => {
         expect(forgetPinnedPosition).toHaveBeenCalledTimes(1);
         expect(discardPendingPositionLoads).not.toHaveBeenCalled();
         expect(vodPlaybackPosition()).toBeNull();
+    });
+
+    it('holds every start while the reset is still writing', async () => {
+        primaryPosition.set({
+            playlistId: 'playlist-1',
+            contentXtreamId: 7,
+            contentType: 'vod',
+            positionSeconds: 2538,
+            durationSeconds: 7200,
+        });
+        let finishClear: () => void = () => undefined;
+        clearPlaybackPositionOrThrow.mockImplementationOnce(
+            () => new Promise<void>((resolve) => (finishClear = resolve))
+        );
+
+        const reset = service.run(VOD_MENU_ACTION.ResetProgress);
+        // A start made now would resume from the row being cleared.
+        expect(resetPending()).toBe(true);
+        expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBe(true);
+        expect(row(VOD_MENU_ACTION.StartOver)?.disabled).toBe(true);
+        expect(row(VOD_MENU_ACTION.ResetProgress)?.disabled).toBe(true);
+
+        finishClear();
+        await reset;
+        expect(resetPending()).toBe(false);
+        expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBe(false);
     });
 
     it('hides the reset while the copy the button acts on has no row', () => {
