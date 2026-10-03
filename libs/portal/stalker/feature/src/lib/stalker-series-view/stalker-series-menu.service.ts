@@ -65,6 +65,7 @@ export class StalkerSeriesMenuService {
                 (watch?.seriesActionDisabled() ?? true),
             hasProgress: this.bindings()?.hasProgress() ?? false,
             playbackActive: this.bindings()?.playbackActive() ?? false,
+            startPending: this.bindings()?.startPending() ?? false,
             sourcesCount: 0,
             externalPlayerHint:
                 quickStart?.action &&

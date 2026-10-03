@@ -162,6 +162,7 @@ export class SerialDetailsMenuService {
                 (watch?.seriesActionDisabled() ?? true),
             hasProgress: this.hasProgress(),
             playbackActive: this.bindings()?.playbackActive() ?? false,
+            startPending: this.bindings()?.startPending() ?? false,
             sourcesCount: 0,
             externalPlayerHint:
                 quickStart && this.runtime.supportsManagedExternalPlayers

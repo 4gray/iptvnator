@@ -193,6 +193,8 @@ export interface SeriesMenuInput {
     readonly hasProgress: boolean;
     /** An episode plays or launches: its next position tick would undo a reset. */
     readonly playbackActive: boolean;
+    /** A start has not settled: another launch would double it. */
+    readonly startPending: boolean;
     readonly sourcesCount: number;
     readonly externalPlayerHint: 'MPV' | 'VLC' | null;
     readonly copyUrlEpisodeCode: string | null;
@@ -261,6 +263,7 @@ export function buildSeriesMenuSections(
             labelKey: 'PORTALS.DETAIL.OPEN_IN_EXTERNAL_PLAYER',
             icon: 'open_in_new',
             hint: input.externalPlayerHint,
+            disabled: input.startPending,
             testId: 'vod-menu-external',
         });
     }

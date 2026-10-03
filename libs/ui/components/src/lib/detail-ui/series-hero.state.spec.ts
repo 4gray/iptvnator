@@ -15,8 +15,9 @@ const BASE = {
     seriesActionDisabled: false,
     hasProgress: true,
     playbackActive: false,
+    startPending: false,
     sourcesCount: 0,
-    externalPlayerHint: null,
+    externalPlayerHint: 'MPV' as const,
     copyUrlEpisodeCode: null,
     downloadVisible: false,
     downloadCount: 0,
@@ -26,10 +27,14 @@ const BASE = {
     inContinueWatching: false,
 };
 
-function resetRow(input: Partial<typeof BASE>) {
+function row(input: Partial<typeof BASE>, id: string) {
     return buildSeriesMenuSections({ ...BASE, ...input })
         .flatMap((section) => section.items)
-        .find((row) => row.id === SERIES_MENU_ACTION.ResetProgress);
+        .find((item) => item.id === id);
+}
+
+function resetRow(input: Partial<typeof BASE>) {
+    return row(input, SERIES_MENU_ACTION.ResetProgress);
 }
 
 describe('buildSeriesMenuSections', () => {
@@ -46,5 +51,12 @@ describe('buildSeriesMenuSections', () => {
 
     it('hides the reset once every episode is watched', () => {
         expect(resetRow({ seriesFullyWatched: true })).toBeUndefined();
+    });
+
+    it('holds the external-player row while a start has not settled', () => {
+        const external = SERIES_MENU_ACTION.ExternalPlayer;
+        expect(row({}, external)?.disabled).toBeFalsy();
+        // A second launch could not cancel the first: both players would open.
+        expect(row({ startPending: true }, external)?.disabled).toBe(true);
     });
 });
