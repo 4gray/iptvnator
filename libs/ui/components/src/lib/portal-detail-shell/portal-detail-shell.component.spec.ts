@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     DetailActionsTemplateDirective,
     DetailMetaTemplateDirective,

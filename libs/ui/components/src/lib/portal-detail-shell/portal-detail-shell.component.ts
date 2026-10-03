@@ -12,10 +12,8 @@ import {
     output,
     ChangeDetectionStrategy,
 } from '@angular/core';
-import {
-    WorkspaceBackNavigationService,
-    WorkspaceBackTarget,
-} from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 import { ContentHeroComponent } from '../content-hero/content-hero.component';
 import { ContentAboutComponent } from './content-about.component';
 import {

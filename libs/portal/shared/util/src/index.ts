@@ -23,7 +23,7 @@ export * from './lib/category-sort-state.service';
 export * from './lib/keyboard';
 export * from './lib/keyboard-shortcuts';
 export * from './lib/remote-channel-navigation';
-export * from './lib/workspace-back-navigation.service';
+export * from './lib/workspace-back-target';
 export * from './lib/workspace-header-context.service';
 export * from './lib/workspace-view-command.types';
 export * from './lib/workspace-view-command.service';

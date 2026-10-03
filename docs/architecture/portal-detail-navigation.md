@@ -25,12 +25,13 @@ catalog scroll positions retain the existing navigation contract below.
 
 The shell owns the page's Back action, but the workspace header renders it.
 While `backAvailable()` is true, the shell registers a target with
-`WorkspaceBackNavigationService` (`@iptvnator/portal/shared/util`): a label (the
-host's `backLabel`, else the translated "Back"), whether Escape currently runs
-it, and `run()`, which emits `backClicked`. The service keeps a stack in which
-the newest registration wins, and each release removes only its own target. A
-loading shell replaced by the loaded one therefore cannot clear its successor,
-whichever is destroyed first. The header shows the target as an `arrow_back`
+`WorkspaceBackNavigationService` (`@iptvnator/portal/shared/data-access`). The
+target, the `WorkspaceBackTarget` contract in `@iptvnator/portal/shared/util`,
+carries a label (the host's `backLabel`, else the translated "Back"), whether
+Escape currently runs it, and `run()`, which emits `backClicked`. The service
+keeps a stack in which the newest registration wins, and each release removes
+only its own target. A loading shell replaced by the loaded one therefore
+cannot clear its successor, whichever is destroyed first. The header shows the target as an `arrow_back`
 icon button in its leading slot (`data-test-id="workspace-header-back"`), to
 the right of the macOS traffic lights. That is where desktop apps and Material's
 top app bar keep navigation. The header never scrolls, so the control stays

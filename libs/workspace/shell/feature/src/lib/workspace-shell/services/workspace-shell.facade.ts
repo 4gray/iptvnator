@@ -3,9 +3,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
-    WorkspaceBackNavigationService,
     WorkspaceHeaderContextService,
     WorkspaceResolvedCommandItem,
 } from '@iptvnator/portal/shared/util';

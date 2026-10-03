@@ -1,9 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-    WorkspaceBackNavigationService,
-    WorkspaceBackTarget,
-} from './workspace-back-navigation.service';
+import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from './workspace-back-navigation.service';
 
 describe('WorkspaceBackNavigationService', () => {
     function createService(): WorkspaceBackNavigationService {

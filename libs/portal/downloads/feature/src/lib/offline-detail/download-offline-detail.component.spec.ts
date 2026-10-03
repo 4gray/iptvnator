@@ -10,10 +10,8 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import type { DownloadMetadataSnapshot } from '@iptvnator/shared/interfaces';
-import {
-    WorkspaceBackNavigationService,
-    type WorkspaceNavigationTarget,
-} from '@iptvnator/portal/shared/util';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
+import type { WorkspaceNavigationTarget } from '@iptvnator/portal/shared/util';
 import { BehaviorSubject } from 'rxjs';
 import type {
     DownloadActionResult,
