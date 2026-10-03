@@ -66,6 +66,9 @@ interface SerialDetailsPlaybackBindings {
  * serial details view: inline playback state, per-episode playback
  * positions, external-player session tracking, and playback orchestration.
  */
+/** Page instances created so far: a recreated page must not reuse a token. */
+let pageInstances = 0;
+
 @Injectable()
 export class SerialDetailsPlaybackService {
     private readonly route = inject(ActivatedRoute);
@@ -405,6 +408,8 @@ export class SerialDetailsPlaybackService {
         isEpisodeLaunchPending(this.launchOwner())
     );
 
+    /** Distinguishes this page instance from one that replaced it. */
+    private readonly pageInstance = ++pageInstances;
     /** Bumped for every series the page shows: a return to the same series is a new visit. */
     private pageGeneration = 0;
 
@@ -414,7 +419,7 @@ export class SerialDetailsPlaybackService {
      * started, not after leaving and coming back.
      */
     pageToken(): string {
-        return `${this.launchOwner()}#${this.pageGeneration}`;
+        return `${this.launchOwner()}#${this.pageInstance}.${this.pageGeneration}`;
     }
 
     /** `playlist:series` of the page, null once it is gone or shows another series. */
