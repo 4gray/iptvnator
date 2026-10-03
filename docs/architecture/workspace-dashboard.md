@@ -158,11 +158,18 @@ and that pause holds the slide.
    hover lift are not clipped; the fades are offset by the same variable so
    they reach the track's clipping edge and no card strip shows beyond them.
 4. Cards are keyboard-focusable router links; `scroll-snap-align: start`
-   means arrow-key nav lands on card boundaries.
+   means arrow-key nav lands on card boundaries. A card that receives
+   keyboard or script focus scrolls fully into the viewport: Chromium skips
+   its own focus scroll once 32px of an element shows, so the track's
+   `focusin` handler moves to the first card-start snap position revealing
+   the whole card (a card wider than the viewport aligns at its own start).
+   Focus caused by a press inside the track (within 100ms of `pointerdown`,
+   650ms for touch) leaves the rail still, so the card does not slide from
+   under the pointer before the click.
 5. Image handling: `loading="lazy"`, `decoding="async"`, fallback icon tile
    when `imageUrl` is missing or `error` fires.
-6. Dashboard hero, rail containers, rail cards, and "Manage all" links expose
-   stable `data-test-id` hooks. Treat these as the supported Electron E2E
+6. Dashboard hero, rail containers, rail viewports and tracks, rail cards and
+   their links, and "Manage all" links expose stable `data-test-id` hooks. Treat these as the supported Electron E2E
    selector surface; do not target internal CSS class names.
 
 ## Data Flow
