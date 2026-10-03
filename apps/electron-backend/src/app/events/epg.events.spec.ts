@@ -285,6 +285,54 @@ describe('EpgEvents', () => {
         expect(secondResolved).toBe(true);
     });
 
+    it('starts a new fetch after a completed one terminates when forced', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://example.com/guide.xml';
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+
+        let releaseTerminate!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                releaseTerminate = resolve;
+            })
+        );
+
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await flushPromises();
+
+        // A forced refresh in the terminating window must not reuse the
+        // completed fetch (no completion update would follow), nor start a
+        // second worker while the first is still alive.
+        const forcedPromise = workerService.fetchEpgFromUrl(
+            url,
+            {},
+            { force: true }
+        );
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(1);
+
+        releaseTerminate();
+        await expect(firstPromise).resolves.toBeUndefined();
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+
+        const refetchWorker = mockWorkerInstances[1];
+        refetchWorker.emit('message', { type: 'READY' });
+        await flushPromises();
+        refetchWorker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 3 },
+        });
+        await expect(forcedPromise).resolves.toBeUndefined();
+    });
+
     it('does not resolve clearEpgData until interrupted fetch workers have terminated', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
 
@@ -403,7 +451,7 @@ describe('EpgEvents', () => {
             );
             await forceFetch({}, { url, options: {} });
             expect(fetch).toHaveBeenCalledTimes(1);
-            expect(fetch).toHaveBeenCalledWith(url, {});
+            expect(fetch).toHaveBeenCalledWith(url, {}, { force: true });
             fetch.mockRestore();
         });
     });

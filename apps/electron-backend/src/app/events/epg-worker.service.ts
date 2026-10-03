@@ -81,7 +81,8 @@ export class EpgWorkerService {
 
     async fetchEpgFromUrl(
         url: string,
-        options: ElectronBridgeTrustOptions = {}
+        options: ElectronBridgeTrustOptions = {},
+        { force = false }: { force?: boolean } = {}
     ): Promise<void> {
         url = url.trim();
         const generation = requestEpgSource(url);
@@ -101,7 +102,7 @@ export class EpgWorkerService {
                 );
                 return;
             }
-            return this.fetchEpgFromUrl(url, options);
+            return this.fetchEpgFromUrl(url, options, { force });
         }
         // A second request for an URL that is already being fetched must not
         // spawn a competing worker: both would parse and write the same EPG
@@ -111,12 +112,21 @@ export class EpgWorkerService {
         // to `fetchedUrls` while its worker is still terminating, and callers
         // must keep awaiting that termination window.
         const inFlight = this.inFlightFetches.get(url);
+        if (inFlight && force) {
+            // A forced refresh must not piggyback on a fetch that may already
+            // have reported completion (and is only terminating): it would
+            // never get a completion update of its own. Let it finish, then
+            // start a new fetch, so two workers never run for one URL.
+            await inFlight.catch(() => undefined);
+            this.fetchedUrls.delete(url);
+            return this.fetchEpgFromUrl(url, options, { force });
+        }
         if (inFlight) {
             epgLogger.log(this.loggerLabel, 'Reusing in-flight EPG fetch');
             return inFlight;
         }
 
-        if (this.fetchedUrls.has(url)) {
+        if (!force && this.fetchedUrls.has(url)) {
             epgLogger.log(
                 this.loggerLabel,
                 'Skipping already fetched EPG source'

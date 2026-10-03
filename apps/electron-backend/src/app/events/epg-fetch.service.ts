@@ -131,7 +131,7 @@ export async function handleFetchEpg(
     const urlsToFetch = staleUrls.filter(
         (url) =>
             generations.get(url) === epgSourceGeneration(url) &&
-            !epgWorkerService.hasFetchedUrl(url)
+            (force || !epgWorkerService.hasFetchedUrl(url))
     );
 
     if (urlsToFetch.length === 0) {
@@ -168,7 +168,7 @@ export async function handleFetchEpg(
                 );
                 continue;
             }
-            await epgWorkerService.fetchEpgFromUrl(url, options);
+            await epgWorkerService.fetchEpgFromUrl(url, options, { force });
         } catch (error) {
             epgLogger.error(loggerLabel, 'Error fetching EPG source:', error);
             errors.push(error instanceof Error ? error.message : String(error));
