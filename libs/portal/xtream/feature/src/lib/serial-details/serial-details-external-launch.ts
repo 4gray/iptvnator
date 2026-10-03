@@ -52,6 +52,29 @@ export function whenEpisodeLaunchesSettle(owner: string | null): Promise<void> {
     return tail ? tail.then(() => undefined) : Promise.resolve();
 }
 
+/** Per owner, the latest Play/episode choice made while its forced launch settled. */
+const queuedChoices = new Map<string, unknown>();
+
+/**
+ * Keeps the latest choice made while the owner's forced launch settles and
+ * hands it to `start` once that launch settled; the caller decides whether
+ * the page still shows the owner by then.
+ */
+export function queueEpisodeChoice<TEpisode>(
+    owner: string,
+    episode: TEpisode,
+    start: (episode: TEpisode) => void
+): void {
+    queuedChoices.set(owner, episode);
+    void whenEpisodeLaunchesSettle(owner).then(() => {
+        const queued = queuedChoices.get(owner) as TEpisode | undefined;
+        if (queued !== undefined) {
+            queuedChoices.delete(owner);
+            start(queued);
+        }
+    });
+}
+
 /**
  * The "…" menu's MPV/VLC launch of an episode. An episode of this series
  * still running externally is closed first: with instance reuse off a

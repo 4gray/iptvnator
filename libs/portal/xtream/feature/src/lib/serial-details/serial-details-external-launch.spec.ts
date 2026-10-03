@@ -6,6 +6,7 @@ import type {
 import {
     isEpisodeLaunchPending,
     openEpisodeExternally,
+    queueEpisodeChoice,
 } from './serial-details-external-launch';
 
 const PLAYBACK: ResolvedPortalPlayback = {
@@ -193,6 +194,26 @@ describe('openEpisodeExternally', () => {
 
         expect(t.closeSession).not.toHaveBeenCalled();
         expect(t.openExternalPlayback).toHaveBeenCalledTimes(1);
+    });
+
+    it('starts only the latest queued choice once the launch settled', async () => {
+        const t = host(null);
+        let settleLaunch: () => void = () => undefined;
+        t.openExternalPlayback.mockImplementation(
+            () => new Promise<void>((resolve) => (settleLaunch = resolve))
+        );
+        const launch = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        const start = jest.fn();
+        queueEpisodeChoice('xtream-1:103', 'episode-1', start);
+        queueEpisodeChoice('xtream-1:103', 'episode-2', start);
+        await flush();
+        expect(start).not.toHaveBeenCalled();
+
+        settleLaunch();
+        await launch;
+        await flush();
+        expect(start).toHaveBeenCalledTimes(1);
+        expect(start).toHaveBeenCalledWith('episode-2');
     });
 
     it('keeps the running player when closing it fails', async () => {
