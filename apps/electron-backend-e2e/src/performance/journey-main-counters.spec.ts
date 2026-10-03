@@ -159,13 +159,13 @@ test('only the launch journey opts into SQL statement counting', () => {
     assert.equal(launchApp.match(/mainCounters:\s*true/g)?.length, 1);
     assert.match(
         launchApp,
-        /export async function measureLaunchJourney\([\s\S]*?\{ mainCounters: true \}[\s\S]*?\n\}/
+        /export async function measureLaunchJourney\([\s\S]*?\{ idleWindowMs: JOURNEY_IDLE_WINDOW_MS, mainCounters: true \}[\s\S]*?\n\}/
     );
     assert.match(
         readFileSync(
             join(sourceRoot, 'journeys', 'open-source.journey.ts'),
             'utf8'
         ),
-        /\{ mainCounters: false \}/
+        /\{ idleWindowMs: null, mainCounters: false \}/
     );
 });

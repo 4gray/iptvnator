@@ -193,7 +193,9 @@ async function importDashPlaylistFromText(
     const dialog = app.mainWindow.locator('mat-dialog-container').last();
     await dialog.getByRole('radio', { name: /Raw m3u text/i }).click();
     await dialog.locator('textarea').fill(playlist);
-    await dialog.getByRole('button', { name: 'Import', exact: true }).click();
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
     await dialog.waitFor({ state: 'detached' });
     await waitForM3uCatalog(app.mainWindow);
 }

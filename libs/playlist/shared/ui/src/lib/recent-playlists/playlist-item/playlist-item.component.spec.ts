@@ -221,4 +221,41 @@ describe('PlaylistItemComponent', () => {
         ).toContain('42%');
         expect(nativeElement.querySelector('.cancel-btn')).not.toBeNull();
     });
+
+    it.each([
+        [
+            { macAddress: '00:1A:79:00:00:01', url: 'http://portal.test' },
+            'cast',
+            true,
+        ],
+        [{ macAddress: '00:1A:79:00:00:01' }, 'cast', false],
+        [{ serverUrl: 'http://xtream.test' }, 'cloud', false],
+        [{ url: 'http://list.test/playlist.m3u' }, 'link', true],
+        [{}, 'description', true],
+    ])(
+        'shows one provider icon for %o (%s) and keeps the auto-refresh badge: %s',
+        (source, icon, autoRefreshBadge) => {
+            fixture.destroy();
+            fixture = TestBed.createComponent(PlaylistItemComponent);
+            fixture.componentInstance.item = {
+                title: 'Source',
+                _id: 'source',
+                count: 10,
+                importDate: Date.now().toString(),
+                autoRefresh: true,
+                ...source,
+            };
+            fixture.detectChanges();
+
+            const row = fixture.nativeElement as HTMLElement;
+            const icons = Array.from(
+                row.querySelectorAll('.upload-type-icon'),
+                (element) => element.textContent?.trim()
+            );
+            expect(icons).toEqual([icon]);
+            expect(row.querySelector('.auto-refresh-indicator') !== null).toBe(
+                autoRefreshBadge
+            );
+        }
+    );
 });

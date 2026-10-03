@@ -2,6 +2,9 @@
     <mat-form-field class="w-full">
         <mat-label>{{ 'HOME.URL_UPLOAD.PLAYLIST_URL' | translate }}</mat-label>
         <input type="url" matInput formControlName="playlistUrl" />
+        <mat-error>{{
+            'HOME.URL_UPLOAD.URL_VALIDATION_ERROR' | translate
+        }}</mat-error>
     </mat-form-field>
     <mat-form-field class="w-full">
         <mat-label>{{ 'HOME.XTREAM_PLAYLIST.TITLE' | translate }}</mat-label>

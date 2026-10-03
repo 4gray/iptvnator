@@ -163,7 +163,10 @@ test.describe('Live channel rail collapse (#1458)', () => {
             await app.mainWindow
                 .getByRole('button', { name: 'Clear recently viewed Live TV' })
                 .click();
-            await app.mainWindow.getByRole('button', { name: 'Yes' }).click();
+            await app.mainWindow
+                .locator('mat-dialog-container')
+                .getByRole('button', { name: 'Clear', exact: true })
+                .click();
             await expect(
                 channelItemByTitle(app.mainWindow, 'Channel Alpha')
             ).toHaveCount(0);

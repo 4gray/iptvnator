@@ -49,7 +49,11 @@
     <button mat-button mat-dialog-close cdkFocusInitial>
         {{ 'CANCEL' | translate }}
     </button>
-    <button mat-flat-button [mat-dialog-close]="true" color="warn">
+    <button
+        mat-flat-button
+        class="app-destructive-button"
+        [mat-dialog-close]="true"
+    >
         {{ 'SETTINGS.REMOVE_DIALOG.CONFIRM' | translate }}
     </button>
 </mat-dialog-actions>

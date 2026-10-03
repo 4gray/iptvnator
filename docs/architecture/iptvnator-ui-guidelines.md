@@ -68,14 +68,26 @@ in `apps/web/src/m3-theme.scss`):
 
 Angular Material mixins and Material-component overrides may use the tokens
 owned by that component. Outside a Material-owned component, prefer the
-app-owned tokens above. A `--mat-sys-*` reference is acceptable there only
-after the built light and dark theme contexts both prove that it is emitted,
-and it must still have a real app-token or literal fallback, for example:
-`var(--mat-sys-surface-container, var(--app-widget-bg))`.
+app-owned tokens above.
 
-Several existing app surfaces still reference Material system tokens without
-that proof or use hard-coded layout/selection colors. Treat those references
-as migration debt, not patterns to copy.
+Both themes are built with the legacy `mat.define-theme` config, whose
+component mixins never declare the `--mat-sys-*` system variables. The theme
+therefore adds the `mat.system-level-*` mixins for the light (`html`) and dark
+(`.dark-theme`) contexts, and `apps/electron-backend-e2e/src/theme-tokens.e2e.ts`
+asserts they resolve in both. Use a `--mat-sys-*` token for Material-derived
+roles that have no app token (error, outline, surface containers); keep app
+chrome on `--app-*`.
+
+Set Material component tokens through the component's `mat.*-overrides()`
+mixin: it rejects unknown names at build time, where a hand-written `--mat-*`
+declaration with a typo fails silently. Material 22 reads only `--mat-*`
+tokens, so the retired `--mdc-*` names compile but do nothing;
+`pnpm run styles:material-tokens:validate` (CI) rejects them. A stylesheet that
+a spec loads as raw CSS cannot use Sass modules; it declares the `--mat-*`
+token directly and says why.
+
+Existing hard-coded layout and selection colors are migration debt, not
+patterns to copy.
 
 Do not hardcode unrelated accent colors for selected state when these tokens already exist.
 
@@ -513,6 +525,39 @@ a cache read open and checks text contrast across live theme changes.
 
 Channel preview progress and EPG current-program progress should stay visually aligned.
 
+### Watch progress colour
+
+A title's watch progress (its resume share, `progressPercent`) has exactly one
+colour per context, and never a literal of its own:
+
+- **App chrome** — dashboard rail cards and the hero, catalog grids and season
+  episodes (`app-progress-capsule`, and the season list rows' own fill):
+  `--app-progress-color`, declared per theme in `apps/web/src/m3-theme.scss`
+  as that theme's `--app-selection-color`, and declared again inside
+  `.dark-theme` because a derived custom property resolves where it is
+  declared. The capsule's green from 90 % marks a finished title; it is a
+  status, not progress.
+- **Over video** — the dock timeline, the Up next card, the Up Next rail and
+  the fullscreen episode panel: the player's fixed `--pc-progress` (accent
+  blue `#4f8eff`), never an app token, because the player palette is
+  theme-independent (see Player And EPG Theme Boundaries). An episode
+  therefore reads the same in every player surface. The rail and the episode
+  panel render beside the controls host, outside its `--pc-*` scope, so they
+  declare the token on their own `:host` with the `progress-token` mixin of
+  `libs/ui/playback/src/lib/player-controls/_player-palette.scss`.
+- ArtPlayer's legacy skin takes a colour string, not a custom property, so it
+  gets `PLAYER_PROGRESS_COLOR` (`player-palette.ts`), which a spec pins to the
+  Sass value.
+- Live programme progress next to a LIVE marker (the dashboard's live rail and
+  live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
+  fill described below.
+
+Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
+in both theme contexts), `player-progress.palette.spec.ts` (ui-playback),
+`progress-capsule.component.spec.ts` and
+`season-container.progress-colour.spec.ts` (components) and
+`dashboard-progress-colour.spec.ts` (workspace-dashboard-feature).
+
 ### Track
 
 - Height:
@@ -568,8 +613,9 @@ launch with sources). Rail skeletons are gated per rail
 
 The top block (the dashboard hero) keeps its immediate skeleton: it reserves
 the space above everything else, where a late insertion would push the whole
-page down. Use the same rules for any page that stacks independently loading
-blocks.
+page down. For the same reason it stays until every source that can fill it
+has loaded, not only the first one. Use the same rules for any page that
+stacks independently loading blocks.
 
 ### Reload with content on screen: non-destructive indicator
 
@@ -631,8 +677,8 @@ partial so Xtream and Stalker share the same behavior.
 
 The season header's actions wrap onto their own row, starting under the
 "Seasons and Episodes" heading, before the heading itself would wrap. The
-detail pane is narrower than the window (context panel, the sticky Back lane),
-so the header's own width decides, not a viewport breakpoint. A translation
+detail pane is narrower than the window (rail and context panel), so the
+header's own width decides, not a viewport breakpoint. A translation
 wider than the pane itself wraps rather than ellipsizing: unlike a fixed-height
 panel title, a content heading has room to wrap and should not lose words.
 
@@ -688,6 +734,49 @@ Settings use the same system but are flatter than content-heavy views.
   `EpgProgrammeDialogService` opens the programme dialog at 540px from the
   timeline, list, guide and channel rows, with a panel class that scopes its
   surface overrides.
+- **Destructive actions.** Material only emits `warn` button colors for M2
+  themes, so the `color` input is a no-op here. A button that removes or
+  discards user data uses the global `.app-destructive-button` class from
+  `m3-theme.scss` (error/on-error tokens per theme, for filled, text,
+  outlined and icon buttons), as the unsaved-changes dialog's Discard does.
+  Confirmations go through `DialogService.openConfirmDialog` with a
+  translated verb as the required `confirmLabel` ("Remove playlist",
+  "Clear") and `tone: 'destructive'` when the action loses data; the dismiss
+  defaults to "Cancel". Never confirm with "Yes"/"No". When the verb itself
+  is "Cancel …", pass `cancelLabel` "Close" so the two buttons do not read
+  alike. `theme-tokens.e2e.ts` checks the label and the error fill in both
+  themes.
+
+## Forms
+
+The add-source forms (M3U URL, Xtream, Stalker) and the edit dialog share one
+vocabulary, so a field reads the same wherever it appears:
+
+- **Name.** The source name is labelled "Playlist title"
+  (`HOME.XTREAM_PLAYLIST.TITLE`) in every add form. Every add form submits
+  with "Add playlist" (`HOME.URL_UPLOAD.ADD_PLAYLIST`).
+- **Passwords.** A password input is masked and has a `mat-icon-button`
+  suffix with `PasswordVisibilityToggleDirective`
+  (`@iptvnator/ui/components/password-visibility-toggle`). The input binds
+  `[type]="toggle.inputType()"`; the button keeps one translated label
+  ("Show password", `HOME.SHOW_PASSWORD`) and exposes its state through
+  `aria-pressed`, as an ARIA toggle button does.
+- **URLs.** A URL field has a neutral `mat-hint` where the format is not
+  obvious, and its own `mat-error`. Never borrow another field's message.
+- **Feedback.** While the dialog stays open, a check or refusal is shown
+  inline under the URL field in a `role="status"` paragraph. The message is
+  translated in the template and cleared by any edit. Use a snackbar only for
+  outcomes that close the dialog. `add-source-forms.e2e.ts` in `web-e2e`
+  covers the shared labels, the toggle and the URL errors.
+
+## Source Type Icons
+
+`SOURCE_TYPE_ICONS` in `@iptvnator/shared/interfaces` is the only source of
+provider icons: Xtream `cloud`, Stalker `cast`, the M3U family
+`playlist_play`, and per playlist `link` (URL), `description` (local file or
+text) and `subject` (pasted text in the add flow). Use
+`getPlaylistSourceIcon()` for a stored playlist. An icon never stands for two
+providers, and the Dashboard rail icon is never a provider icon.
 
 ## Phone Layout
 

@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Wählen Sie aus, wie Sie sich verbinden möchten. Sie können den Namen später ändern.",
+            "METHOD_GROUP_LABEL": "Verbindungsart",
             "METHOD_URL_LABEL": "M3U-URL",
             "METHOD_URL_SUB": "Fügen Sie einen Link zu einer .m3u- oder .m3u8-Datei ein",
             "METHOD_FILE_LABEL": "M3U-Datei",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Wiedergabelisten-URL (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "Geben Sie eine gültige URL mit http:// oder https:// ein.",
             "ADD_PLAYLIST": "Playlist hinzufügen",
             "CORS_NOTE": "Hinweis: Um CORS-Probleme zu vermeiden, verwendet die Anwendung an dieser Stelle einen öffentlichen CORS-Proxy-Dienst. Wenn Sie eine Playlist mit sensiblen Daten hochladen möchten, ist es sicherer, sie aus einer Datei zu importieren.",
             "ERROR_FETCH_FAILED": "Playlist konnte nicht abgerufen werden. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Fahre nur fort, wenn du diesem Wiedergabelisten-Host vertraust. IPTVnator erlaubt ungültige TLS-Zertifikate für diesen Host, für andere Hosts sind weiterhin gültige Zertifikate erforderlich."
         },
         "TEXT_IMPORT": {
-            "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein",
-            "BUTTON_LABEL": "Importieren"
+            "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Playlist Titel",
             "SERVER_URL": "Server URL",
             "USERNAME": "Nutzername",
             "PASSWORD": "Passwort",
-            "ADD": "Hinzufügen",
             "TEST_CREDENTIALS": "Verbindung testen",
-            "URL_VALIDATION_ERROR": "Sollte eine gültige URL mit Protokoll sein (z. B. http://example.com oder https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "Geben Sie eine gültige URL mit http:// oder https:// ein.",
+            "URL_HINT": "Serveradresse, z. B. http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "Gib einen Benutzernamen und ein Passwort ein, um die Verbindung zu testen.",
                 "TESTING": "Verbindung wird geprüft…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Titel",
-            "MAC_ADDRESS": "Mac-Adresse",
+            "MAC_ADDRESS": "MAC-Adresse",
             "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Bindestriche, Punkte und Kleinbuchstaben werden automatisch korrigiert.",
             "MAC_ADDRESS_OUI_HINT": "Diese Adresse liegt außerhalb des Infomir-Bereichs 00:1A:79. Die meisten Portale akzeptieren nur diesen Bereich und lehnen alles andere ohne Begründung ab.",
             "MAC_ADDRESS_ERROR": "Geben Sie eine 12-stellige MAC-Adresse ein, zum Beispiel 00:1A:79:12:34:56.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "Server-URL",
             "URL_HINT": "Geben Sie einen Host oder eine Adresse mit /c, portal.php oder server/load.php ein.",
             "URL_VALIDATION_ERROR": "Geben Sie eine gültige URL mit http:// oder https:// ein.",
-            "ADD": "Hinzufügen",
             "VALIDATING": "Portal wird überprüft …",
+            "VALIDATED_EXPIRES": "Portal überprüft. Läuft am {{date}} ab.",
+            "ADDED_WITHOUT_VALIDATION": "Das Portal hat nicht geantwortet. Es wurde ohne Überprüfung hinzugefügt.",
             "CREDENTIALS_HINT": "Nur erforderlich, wenn das Portal Benutzername und Passwort verlangt",
             "AUTH_FAILED": "Authentifizierung am Portal fehlgeschlagen. Überprüfen Sie die URL und die MAC-Adresse.",
             "EDIT_UNREACHABLE": "Das Portal hat nicht geantwortet. Es wurden keine Änderungen gespeichert. Prüfen Sie die URL und versuchen Sie es erneut.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "Für diese MAC-Adresse ist im Portal eine andere Geräte-ID registriert.",
             "PORTAL_MESSAGE": "Das Portal meldet: {{message}}"
         },
+        "SHOW_PASSWORD": "Passwort anzeigen",
         "FILTER_BY_NAME": "Nach Namen filtern",
         "FILTER_AND_SORT": "Filtern & Sortieren",
         "SORT_PLAYLISTS": "Playlisten sortieren",
@@ -1586,11 +1588,8 @@
             "HERO_PLAY": "Diashow abspielen"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Dashboard",
-            "OPEN_DASHBOARD": "Dashboard öffnen",
             "RAIL_SOURCES": "Quellen",
-            "OPEN_SOURCES": "Quellen öffnen",
             "RAIL_GLOBAL_FAVORITES": "Favoriten",
             "RAIL_GLOBAL_RECENT": "Zuletzt angesehen",
             "RAIL_GLOBAL_SEARCH": "Globale Suche",
@@ -1936,6 +1935,8 @@
             "NO_RECOVERY": "Eine vergessene PIN kann nicht wiederhergestellt werden – nur das Zurücksetzen der App-Daten entfernt sie.",
             "SAVE": "PIN speichern",
             "UNLOCK": "Entsperren",
+            "CONFIRM": "Bestätigen",
+            "TURN_OFF": "Deaktivieren",
             "CONFIRM_TITLE": "Kindersicherungs-PIN bestätigen",
             "CONFIRM_DESCRIPTION": "Gib die aktuelle PIN ein, um diese Einstellung zu ändern."
         },

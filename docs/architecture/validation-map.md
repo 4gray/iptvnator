@@ -197,6 +197,13 @@ and JSON summary output. CI uploads the merged Tier A report to Codecov with the
 Use atomized E2E targets when available, for example
 `pnpm nx run web-e2e:e2e-ci--src/xtream.e2e.ts`.
 
+After changing a Playwright config's `webServer` list, `nx.json` target
+defaults or an E2E project's `dependsOn`, run
+`pnpm run e2e:task-graphs:validate`. It builds every Playwright target's task
+graph with and without `CI` and fails on the graphs Nx refuses to run; CI runs
+it in the `unit-and-typecheck` job. See
+[Xtream mock Playwright integration](xtream-mock-server.md#playwright-integration).
+
 Inside `expect.poll`, read a changing list in one DOM snapshot
 (`allTextContents()` or `evaluateAll()`, as in
 `apps/electron-backend-e2e/src/sidebar-categories.e2e-support.ts`), not by
@@ -235,14 +242,32 @@ pnpm run coverage:e2e:v8:web
 ## I18n
 
 ```bash
-pnpm run i18n:check
+pnpm run i18n:validate          # checker unit tests, then the check (CI)
+pnpm run i18n:check             # the check only
+pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical baseline
 ```
 
 The i18n check is non-mutating. It compares every locale file in
 `apps/web/src/assets/i18n/` against `en.json` and fails on missing or extra keys.
-Identical English fallback values are reported as warnings by default; use
-`node tools/i18n/check-drift.mjs --fail-on-identical` for a stricter translation
-audit.
+It also fails on a locale value that is identical to English unless
+`tools/i18n/identical-en-baseline.json` records that exact English text for the
+same locale and key. The baseline holds values that are legitimately the same
+in a language (brand and technical names, language autonyms, loanwords such as
+"PIN") and the untranslated debt that existed when the guard was added, so new
+keys must ship translated. An entry stops covering its key once the English
+text changes, so copying reworded English into a locale fails as well.
+
+Baseline entries that are no longer English-identical (translated, removed, or
+reworded) are reported but do not fail. `pnpm run i18n:baseline:update`
+rewrites the baseline from the current locale files, dropping those entries
+and printing every added one; it writes nothing while any locale is unreadable
+or has missing or extra keys. Run it only after translating, or for a value
+that is legitimately identical in that language; review the diff, and never
+run it in CI. A new locale starts with no baseline entries, so it has to
+record its legitimate identical values the same way.
+`node tools/i18n/check-drift.mjs --fail-on-identical` ignores the baseline for
+a full translation audit. CI runs `pnpm run i18n:validate` in the unit test
+job.
 
 ## Performance
 

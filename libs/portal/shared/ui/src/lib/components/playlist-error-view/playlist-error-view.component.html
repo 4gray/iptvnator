@@ -36,7 +36,11 @@
                 <mat-icon>settings</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.PLAYLIST_SETTINGS' | translate }}
             </button>
-            <button mat-stroked-button color="warn" (click)="removeClicked()">
+            <button
+                mat-stroked-button
+                class="app-destructive-button"
+                (click)="removeClicked()"
+            >
                 <mat-icon>delete</mat-icon>
                 {{ 'PORTALS.ERROR_VIEW.DELETE' | translate }}
             </button>

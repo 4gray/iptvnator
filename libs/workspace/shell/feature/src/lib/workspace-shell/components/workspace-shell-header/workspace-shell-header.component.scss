@@ -20,6 +20,14 @@
     app-region: no-drag;
 }
 
+// Pulled toward the edge so the arrow glyph, not the button's padding, sits
+// on the header's inset.
+.header-back {
+    flex-shrink: 0;
+    margin-inline-start: -8px;
+    app-region: no-drag;
+}
+
 // Above the phone breakpoint the context panel is always visible beside the
 // content, so its drawer toggle would open nothing — it exists only at ≤640px.
 .context-drawer-toggle {

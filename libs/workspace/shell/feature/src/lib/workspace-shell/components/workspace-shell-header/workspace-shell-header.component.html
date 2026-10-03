@@ -1,8 +1,31 @@
 <header class="workspace-header" [class.is-settings-route]="isSettingsRoute()">
+    <!-- The page's Back, at the leading edge where desktop apps and Material's
+         top app bar keep navigation (beside the macOS traffic lights). The
+         header never scrolls, so the control stays put over long pages. -->
+    @if (backTarget(); as back) {
+        @let backLabel = back.label() || ('BACK' | translate);
+        <button
+            type="button"
+            class="header-back"
+            mat-icon-button
+            data-test-id="workspace-header-back"
+            (click)="backRequested.emit()"
+            (keydown.escape)="onBackEscape($event)"
+            [matTooltip]="
+                back.escapeShortcut() ? backLabel + ' (Esc)' : backLabel
+            "
+            [attr.aria-label]="backLabel"
+            [attr.aria-keyshortcuts]="back.escapeShortcut() ? 'Escape' : null"
+        >
+            <mat-icon>arrow_back</mat-icon>
+        </button>
+    }
+
     <!-- Phone-only (≤640px, CSS-hidden above): on phones the context panel
          is an off-canvas drawer, and this button is the only way to open
-         it, so it must never be dropped while the route has a panel. -->
-    @if (showContextDrawerToggle()) {
+         it. A page with Back takes its slot (one navigation icon, as in
+         Material's top app bar); the list Back returns to shows it again. -->
+    @if (showContextDrawerToggle() && !backTarget()) {
         <button
             #contextDrawerToggle
             type="button"

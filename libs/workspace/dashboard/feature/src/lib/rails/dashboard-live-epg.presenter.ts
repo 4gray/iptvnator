@@ -149,6 +149,11 @@ export class DashboardLiveEpgPresenter {
         )
     );
 
+    /** The lookup groups the XMLTV batch below last answered. */
+    private readonly answeredLookupGroups = signal<
+        readonly DashboardLiveEpgLookupGroup[] | null
+    >(null);
+
     private readonly offsetMinutes = computed(() =>
         this.settingsStore.resolvedEpgOffsetMinutes()
     );
@@ -174,6 +179,7 @@ export class DashboardLiveEpgPresenter {
         ]).pipe(
             switchMap(([groups, offsetMinutes]) => {
                 if (groups.length === 0) {
+                    this.answeredLookupGroups.set(groups);
                     return of(new Map<string, EpgProgram | null>());
                 }
                 let answers: ReadonlyMap<string, EpgProgram | null> | null =
@@ -200,6 +206,7 @@ export class DashboardLiveEpgPresenter {
                     tap((merged) => {
                         answers = merged;
                         answeredAt = Date.now();
+                        this.answeredLookupGroups.set(groups);
                     }),
                     distinctUntilChanged(sameLiveEpgAnswers)
                 );
@@ -271,6 +278,26 @@ export class DashboardLiveEpgPresenter {
             };
         });
     }
+
+    /**
+     * True while a hero live candidate may still get its first programme:
+     * its portal has not answered yet, or the XMLTV batch has not answered
+     * the current lookups. A live slide exists only once a programme is on
+     * air, so the hero keeps its skeleton meanwhile instead of inserting
+     * the slide late.
+     */
+    readonly heroLiveAwaitingFirstAnswer = computed(() => {
+        const cards = this.heroLiveCards();
+        if (cards.length === 0) {
+            return false;
+        }
+        return (
+            this.answeredLookupGroups() !== this.lookupGroups() ||
+            cards.some((card) =>
+                this.portal.awaitsFirstAnswer(card.liveEpgSourceKey)
+            )
+        );
+    });
 
     /** Current programme of a hero live candidate, or `null`. */
     heroDetailsFor(item: PortalActivityItem): DashboardLiveEpgDetails | null {

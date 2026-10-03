@@ -189,6 +189,13 @@
     }
 }
 
+// The action buttons inherit the row color, including the selected row's,
+// which masks the .app-destructive-button token on the cancel action.
+.playlist-item .action-buttons .cancel-btn,
+.playlist-item.selected .action-buttons .cancel-btn {
+    color: var(--mat-sys-error);
+}
+
 .action-spinner {
     display: block;
     margin: 0 auto;

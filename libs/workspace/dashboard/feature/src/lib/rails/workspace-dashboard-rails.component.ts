@@ -9,6 +9,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { startWith } from 'rxjs';
 import {
+    getPlaylistSourceIcon,
     isStalkerAccountPlaylist,
     isXtreamAccountPlaylist,
     normalizeDashboardRailsSettings,
@@ -286,11 +287,7 @@ export class WorkspaceDashboardRailsComponent {
                 playlist.filename ||
                 this.t('WORKSPACE.DASHBOARD.UNTITLED_SOURCE'),
             subtitle: this.data.getPlaylistProvider(playlist),
-            icon: playlist.serverUrl
-                ? 'cloud'
-                : playlist.macAddress
-                  ? 'cast'
-                  : 'folder_open',
+            icon: getPlaylistSourceIcon(playlist),
             link: this.data.getPlaylistLink(playlist),
             actions: buildDashboardSourceActions(
                 playlist,
@@ -675,6 +672,8 @@ export class WorkspaceDashboardRailsComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
+            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
+            tone: 'destructive',
             onConfirm: () => {
                 void this.removePlaylist(playlist);
             },

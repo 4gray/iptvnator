@@ -313,6 +313,8 @@ describe('DashboardPortalLiveEpgService', () => {
         // PWA: the collection resolver is gated on the desktop XMLTV bridge
         // and answers nothing, so no request is worth queuing.
         supportsEpgProgramLookup = false;
+        // Callers must not wait for an answer that never comes.
+        expect(service.answersPortals).toBe(false);
 
         service.sync([entry(1), entry(2)]);
         await step(3);

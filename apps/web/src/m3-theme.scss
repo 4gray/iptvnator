@@ -6,8 +6,16 @@
 @include mat.app-background();
 
 // ─── Typography ─────────────────────────────────────────────────────────────
-$app-font-stack:
+// The stack is declared once on html; every Material typography token and the
+// typography hierarchy read it through the variable. Inlined, the 103-char
+// stack was copied into ~90 declarations (about 7 KB of the initial CSS).
+$app-font-stack-value:
     "'DM Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
+$app-font-stack: var(--app-font-family);
+
+html {
+    --app-font-family: #{$app-font-stack-value};
+}
 
 $my-typography: mat.m2-define-typography-config(
     $font-family: $app-font-stack,
@@ -53,6 +61,17 @@ $dark-theme: mat.define-theme(
 html {
     @include mat.all-component-themes($light-theme);
 
+    // The theme is built with the legacy `define-theme` config, whose
+    // component mixins emit resolved component tokens but never declare the
+    // `--mat-sys-*` system variables. App styles reference those variables
+    // directly, so declare them explicitly for each theme context; without
+    // this every such reference silently resolves to nothing.
+    @include mat.system-level-colors($light-theme);
+    @include mat.system-level-typography($light-theme);
+    @include mat.system-level-elevation($light-theme);
+    @include mat.system-level-shape($light-theme);
+    @include mat.system-level-state($light-theme);
+
     // ── Light theme design tokens ─────────────────────────────────────────
     --app-shell-bg: #eef0f3;
     --app-rail-bg: #eef0f3;
@@ -85,6 +104,9 @@ html {
         var(--app-selection-color) 34%,
         transparent
     );
+    // Watch progress in app chrome (rail cards, catalog capsules, the hero).
+    // Over video the player's fixed `--pc-progress` applies instead.
+    --app-progress-color: var(--app-selection-color);
 
     // Live / on-air accent (broadcast indicator)
     --app-live-color: #d12c2c;
@@ -130,6 +152,9 @@ html {
 
     .dark-theme {
         @include mat.all-component-colors($dark-theme);
+        // Only the color roles differ per theme: the elevation shadows are
+        // the same black in both, so html's declarations already apply here.
+        @include mat.system-level-colors($dark-theme);
 
         // ── Dark graphite theme ────────────────────────────────────────────
         // Inspired by both Slack (sidebar distinction) and GitButler (data density)
@@ -168,6 +193,9 @@ html {
             var(--app-selection-color) 44%,
             transparent
         );
+        // Re-declared so it resolves against this context's selection colour
+        // rather than inheriting the light value computed on `html`.
+        --app-progress-color: var(--app-selection-color);
 
         // Live / on-air accent (broadcast indicator)
         --app-live-color: #ff8f8f;
@@ -228,16 +256,26 @@ $app-refined-input-density: mat.define-theme((
 html {
     @include mat.form-field-density($app-refined-input-density);
 
+    // Declared on the field itself (not on html) so the var(--app-*) values
+    // resolve inside .dark-theme instead of being inherited as light values.
+    // The resting and hover outlines keep the theme's outline roles: the app
+    // hairline tokens fall far under the 3:1 boundary contrast a field needs.
+    // Labels use the body token, which clears 4.5:1 in both themes.
+    // Text sizes stay on the theme defaults: this theme leaves the floated
+    // label's size token undeclared, so it inherits the field's text size and
+    // scales it to 75%; a 13px field would float a 10px label.
     .mat-mdc-form-field {
-        --mdc-outlined-text-field-outline-color: var(--app-widget-header-border);
-        --mdc-outlined-text-field-hover-outline-color: var(--app-muted-color);
-        --mdc-outlined-text-field-focus-outline-color: var(--app-selection-color);
-        --mdc-outlined-text-field-container-shape: 10px;
-        --mdc-outlined-text-field-label-text-color: var(--app-muted-color);
-        --mdc-outlined-text-field-input-text-color: var(--app-heading-color);
-        --mdc-outlined-text-field-caret-color: var(--app-selection-color);
-        --mdc-outlined-text-field-label-text-size: 13px;
-        --mdc-outlined-text-field-input-text-size: 13.5px;
+        @include mat.form-field-overrides(
+            (
+                outlined-focus-outline-color: var(--app-selection-color),
+                outlined-container-shape: 10px,
+                outlined-label-text-color: var(--app-body-color),
+                outlined-hover-label-text-color: var(--app-body-color),
+                outlined-focus-label-text-color: var(--app-selection-color),
+                outlined-input-text-color: var(--app-heading-color),
+                outlined-caret-color: var(--app-selection-color),
+            )
+        );
     }
 
     // Inputs sit slightly above the surrounding surface. color-mix is inlined
@@ -252,6 +290,41 @@ html {
     .mat-mdc-form-field .mat-mdc-input-element,
     .mat-mdc-form-field .mat-mdc-select-value {
         font-size: 13.5px;
+    }
+
+    // ─── Destructive actions ───────────────────────────────────────────────
+    // Material only emits `.mat-warn` button colors for M2 themes, so the
+    // `warn` color input is a no-op with this M3 theme. Buttons that remove or
+    // discard user data opt in with this class instead; the error tokens are
+    // declared per theme context above, so light and dark each get their own
+    // error/on-error pair.
+    .app-destructive-button {
+        @include mat.button-overrides(
+            (
+                filled-container-color: var(--mat-sys-error),
+                filled-label-text-color: var(--mat-sys-on-error),
+                filled-state-layer-color: var(--mat-sys-on-error),
+                filled-ripple-color:
+                    color-mix(in srgb, var(--mat-sys-on-error) 12%, transparent),
+                text-label-text-color: var(--mat-sys-error),
+                text-state-layer-color: var(--mat-sys-error),
+                text-ripple-color:
+                    color-mix(in srgb, var(--mat-sys-error) 12%, transparent),
+                outlined-label-text-color: var(--mat-sys-error),
+                outlined-outline-color: var(--mat-sys-error),
+                outlined-state-layer-color: var(--mat-sys-error),
+                outlined-ripple-color:
+                    color-mix(in srgb, var(--mat-sys-error) 12%, transparent),
+            )
+        );
+        @include mat.icon-button-overrides(
+            (
+                icon-color: var(--mat-sys-error),
+                state-layer-color: var(--mat-sys-error),
+                ripple-color:
+                    color-mix(in srgb, var(--mat-sys-error) 12%, transparent),
+            )
+        );
     }
 
     .mat-mdc-form-field-subscript-wrapper {

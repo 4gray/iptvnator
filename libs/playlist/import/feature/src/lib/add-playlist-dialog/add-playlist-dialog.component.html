@@ -12,7 +12,9 @@
         <div
             class="apd-method-grid"
             role="radiogroup"
-            aria-label="Source method"
+            [attr.aria-label]="
+                'HOME.ADD_PLAYLIST.METHOD_GROUP_LABEL' | translate
+            "
         >
             @for (opt of methodOptions; track opt.value) {
                 <button
@@ -128,7 +130,7 @@
                             )
                         "
                     >
-                        {{ 'HOME.TEXT_IMPORT.BUTTON_LABEL' | translate }}
+                        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
                     </button>
                 }
                 @case ('xtream') {
@@ -159,7 +161,7 @@
                         "
                         (click)="xtreamImport()?.addPlaylist()"
                     >
-                        {{ 'HOME.XTREAM_PLAYLIST.ADD' | translate }}
+                        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
                     </button>
                 }
                 @case ('stalker') {
@@ -170,9 +172,7 @@
                             type="button"
                             disabled
                         >
-                            {{
-                                'HOME.STALKER_PORTAL.VALIDATING' | translate
-                            }}...
+                            {{ 'HOME.STALKER_PORTAL.VALIDATING' | translate }}
                         </button>
                     } @else {
                         <button
@@ -182,7 +182,7 @@
                             [disabled]="!stalkerImport()?.form?.valid"
                             (click)="stalkerImport()?.addPlaylist()"
                         >
-                            {{ 'HOME.STALKER_PORTAL.ADD' | translate }}
+                            {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
                         </button>
                     }
                 }

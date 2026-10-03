@@ -1,10 +1,15 @@
+@use 'player-palette' as palette;
+
 :host {
     // Overlay palette. Deliberately literal and theme-independent: the shared
     // controls always sit on video, and the UI guidelines keep them on one
     // light-on-dark palette in both app themes. The values are the design
     // tokens of the "Hybrid" controls concept (accent blue = primary action
     // and progress; cyan = something is on; violet = a value was changed).
-    --pc-accent-blue: #4f8eff;
+    // Accent blue and the progress fill come from the shared player palette,
+    // which the Up Next rail and the fullscreen episode panel also read.
+    --pc-accent-blue: #{palette.$accent-blue};
+    @include palette.progress-token;
     // Fills that carry a white glyph (play, active tune) use deeper blues:
     // white on #4f8eff is only 3.2:1, too close to the 3:1 floor once a
     // 1x display antialiases the glyph. These give 4.4:1 and 5.3:1.

@@ -82,14 +82,17 @@ test('@web @auto-detect pasted provider message prefills the Xtream form', async
         'http://tv.example.com:8080'
     );
     await expect(dialog.getByLabel('Username')).toHaveValue('e2euser');
-    await expect(dialog.getByLabel('Password')).toHaveValue('e2epass');
+    // Exact: the show/hide toggle beside it is labelled "Show password".
+    await expect(dialog.getByLabel('Password', { exact: true })).toHaveValue(
+        'e2epass'
+    );
     await expect(dialog.getByLabel('Playlist title')).toHaveValue(
         'tv.example.com'
     );
 
     // Detection only proposes: the regular Add action stays in charge.
     await expect(
-        dialog.getByRole('button', { name: 'Add', exact: true })
+        dialog.getByRole('button', { name: 'Add playlist', exact: true })
     ).toBeEnabled();
 });
 
@@ -114,9 +117,9 @@ test('@web @auto-detect keeps the pasted message when switching methods', async 
     ).toBeChecked();
     // Exact: the derive-device-IDs checkbox is labelled "Generate device IDs
     // from the MAC address", which a substring match would also resolve to.
-    await expect(
-        dialog.getByLabel('Mac Address', { exact: true })
-    ).toHaveValue('00:1A:79:12:34:56');
+    await expect(dialog.getByLabel('MAC address', { exact: true })).toHaveValue(
+        '00:1A:79:12:34:56'
+    );
 
     // Returning to auto-detect must not cost the user their paste.
     await dialog.getByRole('radio', { name: /Auto-detect/i }).click();

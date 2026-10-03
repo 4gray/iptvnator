@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "接続方法を選択してください。名前は後から変更できます。",
+            "METHOD_GROUP_LABEL": "接続方法",
             "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "リモートの.m3uまたは.m3u8へのリンクを貼り付け",
             "METHOD_FILE_LABEL": "M3Uファイル",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "プレイリスト URL（m3u、m3u8）",
+            "URL_VALIDATION_ERROR": "http:// または https:// で始まる有効なURLを入力してください。",
             "ADD_PLAYLIST": "プレイリストを追加",
             "CORS_NOTE": "注意：CORSの問題を回避するため、現時点ではパブリックCORSプロキシサービスを使用しています。機密データを含むプレイリストをアップロードする場合は、ファイルからインポートする方が安全です。",
             "ERROR_FETCH_FAILED": "プレイリストを取得できませんでした。URLを確認してもう一度お試しください。",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "このプレイリストホストを信頼できる場合のみ続行してください。IPTVnator はこのホストの無効な TLS 証明書を許可しますが、他のホストには引き続き有効な証明書が必要です。"
         },
         "TEXT_IMPORT": {
-            "LABEL": "m3u(8)プレイリストをテキストとして挿入",
-            "BUTTON_LABEL": "インポート"
+            "LABEL": "m3u(8)プレイリストをテキストとして挿入"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "プレイリストタイトル",
             "SERVER_URL": "サーバーURL",
             "USERNAME": "ユーザー名",
             "PASSWORD": "パスワード",
-            "ADD": "追加",
             "TEST_CREDENTIALS": "認証情報をテスト",
-            "URL_VALIDATION_ERROR": "プロトコルを含む有効なURLである必要があります（例：http://example.com または https://example.com:4324）",
+            "URL_VALIDATION_ERROR": "http:// または https:// で始まる有効なURLを入力してください。",
+            "URL_HINT": "サーバーアドレス（例：http://host:port）",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "接続をテストするには、ユーザー名とパスワードを入力してください。",
                 "TESTING": "接続をテスト中…",
@@ -199,7 +200,6 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "タイトル",
             "MAC_ADDRESS": "MACアドレス",
             "MAC_ADDRESS_HINT": "形式は00:1A:79:XX:XX:XXです。ハイフンやドット、小文字は自動的に修正されます。",
             "MAC_ADDRESS_OUI_HINT": "このアドレスはInfomirの00:1A:79の範囲外です。ほとんどのポータルはこの範囲のみを受け付け、それ以外は理由を示さずに拒否します。",
@@ -218,8 +218,9 @@
             "SERVER_URL": "サーバーURL",
             "URL_HINT": "ホスト、または /c、portal.php、server/load.php で終わるアドレスを入力してください。",
             "URL_VALIDATION_ERROR": "http:// または https:// で始まる有効なURLを入力してください。",
-            "ADD": "追加",
-            "VALIDATING": "ポータルを検証中...",
+            "VALIDATING": "ポータルを検証中…",
+            "VALIDATED_EXPIRES": "ポータルを検証しました。有効期限は{{date}}です。",
+            "ADDED_WITHOUT_VALIDATION": "ポータルが応答しませんでした。検証せずに追加しました。",
             "CREDENTIALS_HINT": "ポータルがユーザー名とパスワードを要求する場合のみ必要",
             "AUTH_FAILED": "ポータルでの認証に失敗しました。URLとMACアドレスを確認してください。",
             "EDIT_UNREACHABLE": "ポータルが応答しませんでした。変更は保存されていません。URLを確認して再試行してください。",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "このMACアドレスには、別のデバイスIDがポータルに登録されています。",
             "PORTAL_MESSAGE": "ポータルからの報告：{{message}}"
         },
+        "SHOW_PASSWORD": "パスワードを表示",
         "FILTER_BY_NAME": "名前でフィルター",
         "FILTER_AND_SORT": "フィルターと並び替え",
         "SORT_PLAYLISTS": "プレイリストを並び替え",
@@ -1586,11 +1588,8 @@
             "HERO_PLAY": "スライドショーを再生"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "ダッシュボード",
-            "OPEN_DASHBOARD": "ダッシュボードを開く",
             "RAIL_SOURCES": "ソース",
-            "OPEN_SOURCES": "ソースを開く",
             "RAIL_GLOBAL_FAVORITES": "お気に入り",
             "RAIL_GLOBAL_RECENT": "最近表示した項目",
             "RAIL_GLOBAL_SEARCH": "グローバル検索",
@@ -1936,6 +1935,8 @@
             "NO_RECOVERY": "忘れた PIN を復元する方法はありません。PIN を削除するには、アプリのデータをリセットするしかありません。",
             "SAVE": "PIN を保存",
             "UNLOCK": "ロック解除",
+            "CONFIRM": "確認",
+            "TURN_OFF": "無効化",
             "CONFIRM_TITLE": "ペアレンタル PIN を確認",
             "CONFIRM_DESCRIPTION": "この設定を変更するには、現在の PIN を入力してください。"
         },

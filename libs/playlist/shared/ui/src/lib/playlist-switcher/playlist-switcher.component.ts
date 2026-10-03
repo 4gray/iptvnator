@@ -39,6 +39,7 @@ import {
     PortalStatusService,
 } from '@iptvnator/services';
 import {
+    getPlaylistSourceIcon,
     isPortalAccountPlaylist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
@@ -330,6 +331,8 @@ export class PlaylistSwitcherComponent {
             message: this.translate.instant(
                 'HOME.PLAYLISTS.REMOVE_DIALOG.MESSAGE'
             ),
+            confirmLabel: this.translate.instant('HOME.PLAYLISTS.REMOVE'),
+            tone: 'destructive',
             onConfirm: () => this.removePlaylistConfirmed(playlist),
         });
     }
@@ -357,16 +360,7 @@ export class PlaylistSwitcherComponent {
     }
 
     getPlaylistIcon(playlist: PlaylistMeta): string {
-        if (playlist.macAddress) {
-            return 'dashboard';
-        }
-        if (playlist.serverUrl) {
-            return 'public';
-        }
-        if (playlist.url) {
-            return 'cloud';
-        }
-        return 'folder';
+        return getPlaylistSourceIcon(playlist);
     }
 
     getPlaylistTypeLabel(playlist: PlaylistMeta): string {

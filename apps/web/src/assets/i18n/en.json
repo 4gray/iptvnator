@@ -86,7 +86,7 @@
                 "SERVER_URL": "Server URL",
                 "USERNAME": "Username",
                 "PASSWORD": "Password",
-                "MAC_ADDRESS": "Mac Address",
+                "MAC_ADDRESS": "MAC address",
                 "PLAYLIST_EXPORT_SUCCESS": "Playlist was exported successfully.",
                 "PLAYLIST_EXPORT_ERROR": "Error: Playlist export failed.",
                 "COPY_URL": "Copy URL to clipboard",
@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Pick how you want to connect. You can rename it later.",
+            "METHOD_GROUP_LABEL": "Connection method",
             "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "Paste a link to a remote .m3u or .m3u8",
             "METHOD_FILE_LABEL": "M3U file",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Playlist URL (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "Enter a valid http:// or https:// URL.",
             "ADD_PLAYLIST": "Add playlist",
             "CORS_NOTE": "Note: In order to avoid CORS issues at this point the application uses a public CORS Proxy service. If you want to upload a playlist with sensitive data, it's more secure to import it from a file.",
             "ERROR_FETCH_FAILED": "Failed to fetch the playlist. Please check the URL and try again.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
-            "LABEL": "Insert m3u(8) playlist as text",
-            "BUTTON_LABEL": "Import"
+            "LABEL": "Insert m3u(8) playlist as text"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Playlist title",
             "SERVER_URL": "Server URL",
             "USERNAME": "Username",
             "PASSWORD": "Password",
-            "ADD": "Add",
             "TEST_CREDENTIALS": "Test credentials",
-            "URL_VALIDATION_ERROR": "Should be a valid url with protocol (e.g. http://example.com or https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "Enter a valid http:// or https:// URL.",
+            "URL_HINT": "Server address, e.g. http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "Enter a username and password to test the connection.",
                 "TESTING": "Testing connection…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Title",
-            "MAC_ADDRESS": "Mac Address",
+            "MAC_ADDRESS": "MAC address",
             "MAC_ADDRESS_HINT": "Format 00:1A:79:XX:XX:XX. Hyphens, dots and lowercase are corrected for you.",
             "MAC_ADDRESS_OUI_HINT": "This address is outside Infomir's 00:1A:79 range. Most portals only accept that range and reject anything else without saying why.",
             "MAC_ADDRESS_ERROR": "Enter a 12-digit MAC address, for example 00:1A:79:12:34:56.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "Server URL",
             "URL_HINT": "Enter a host or an address ending in /c, portal.php, or server/load.php.",
             "URL_VALIDATION_ERROR": "Enter a valid http:// or https:// URL.",
-            "ADD": "Add",
-            "VALIDATING": "Validating portal...",
+            "VALIDATING": "Validating portal…",
+            "VALIDATED_EXPIRES": "Portal validated. Expires {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "The portal did not respond. It was added without validation.",
             "CREDENTIALS_HINT": "Only needed when the portal asks for a login and password",
             "AUTH_FAILED": "Failed to authenticate with the portal. Check the URL and MAC address.",
             "EDIT_UNREACHABLE": "The portal did not respond. No changes were saved. Check the URL and try again.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "The portal has a different device ID registered for this MAC address.",
             "PORTAL_MESSAGE": "The portal reported: {{message}}"
         },
+        "SHOW_PASSWORD": "Show password",
         "FILTER_BY_NAME": "Filter by name",
         "FILTER_AND_SORT": "Filter & Sort",
         "SORT_PLAYLISTS": "Sort playlists",
@@ -1586,11 +1588,8 @@
             "HERO_PLAY": "Play slideshow"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Dashboard",
-            "OPEN_DASHBOARD": "Open dashboard",
             "RAIL_SOURCES": "Sources",
-            "OPEN_SOURCES": "Open sources",
             "RAIL_GLOBAL_FAVORITES": "Favorites",
             "RAIL_GLOBAL_RECENT": "Recently viewed",
             "RAIL_GLOBAL_SEARCH": "Global search",
@@ -1936,6 +1935,8 @@
             "NO_RECOVERY": "There is no way to recover a forgotten PIN — only resetting the app data removes it.",
             "SAVE": "Save PIN",
             "UNLOCK": "Unlock",
+            "CONFIRM": "Confirm",
+            "TURN_OFF": "Turn off",
             "CONFIRM_TITLE": "Confirm parental PIN",
             "CONFIRM_DESCRIPTION": "Enter the current PIN to change this setting."
         },

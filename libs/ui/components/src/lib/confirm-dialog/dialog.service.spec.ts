@@ -33,6 +33,7 @@ describe('DialogService', () => {
         service.openConfirmDialog({
             title: 'Remove',
             message: 'Confirm removal?',
+            confirmLabel: 'Remove playlist',
             onConfirm: jest.fn(),
         });
 
@@ -57,6 +58,7 @@ describe('DialogService', () => {
         service.openConfirmDialog({
             title: 'Refresh Xtream Playlist',
             message: 'Confirm refresh?',
+            confirmLabel: 'Refresh playlist',
             width: '400px',
             onConfirm: jest.fn(),
         });
@@ -78,6 +80,7 @@ describe('DialogService', () => {
         service.openConfirmDialog({
             title: 'Remove',
             message: 'Confirm removal?',
+            confirmLabel: 'Remove playlist',
             onConfirm,
         });
 
@@ -89,6 +92,7 @@ describe('DialogService', () => {
         service.openConfirmDialog({
             title: 'Recovery',
             message: 'Path',
+            confirmLabel: 'Copy path',
             keepOpenOnConfirm: true,
             onConfirm,
         });

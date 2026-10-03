@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 :host {
     display: block;
     --rail-card-width: var(--cover-rail-width, 172px);
@@ -272,7 +273,7 @@
     i {
         display: block;
         height: 100%;
-        background: var(--app-selection-color, #78adff);
+        background: var(--app-progress-color);
         transition: width 0.4s ease;
     }
 }
@@ -307,7 +308,7 @@
     transition:
         opacity 0.15s ease,
         transform 0.15s ease;
-    --mdc-icon-button-state-layer-size: 30px;
+    @include mat.icon-button-overrides((state-layer-size: 30px));
 
     mat-icon {
         font-size: 18px;

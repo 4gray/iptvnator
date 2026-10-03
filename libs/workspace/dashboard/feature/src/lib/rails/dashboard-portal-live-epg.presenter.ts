@@ -126,4 +126,17 @@ export class DashboardPortalLiveEpgPresenter {
     isPending(key: string | null | undefined): boolean {
         return !!key && this.service.pending().has(key);
     }
+
+    /**
+     * True until the first answer for a portal card arrives, including the
+     * moment before its key reaches the queue; never where portals are not
+     * asked at all.
+     */
+    awaitsFirstAnswer(key: string | null | undefined): boolean {
+        return (
+            !!key &&
+            this.service.answersPortals &&
+            this.service.programs().get(key) === undefined
+        );
+    }
 }

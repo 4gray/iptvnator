@@ -77,6 +77,13 @@ export class DashboardPortalLiveEpgService implements OnDestroy {
     readonly programs = this.programsState.asReadonly();
     /** Keys queued or in flight — the cards that may show a placeholder. */
     readonly pending = this.pendingState.asReadonly();
+    /**
+     * False where portals are never asked (no local XMLTV bridge), so no
+     * card there ever gets an answer to wait for.
+     */
+    get answersPortals(): boolean {
+        return this.runtime.supportsEpgProgramLookup;
+    }
 
     /**
      * Replace the wanted set. Keys without a fresh answer are queued; keys no

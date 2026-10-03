@@ -86,7 +86,7 @@
                 "SERVER_URL": "Sunucu URL'si",
                 "USERNAME": "Kullanıcı Adı",
                 "PASSWORD": "Parola",
-                "MAC_ADDRESS": "MAC Adresi",
+                "MAC_ADDRESS": "MAC adresi",
                 "PLAYLIST_EXPORT_SUCCESS": "Oynatma listesi başarıyla dışa aktarıldı.",
                 "PLAYLIST_EXPORT_ERROR": "Hata: Oynatma listesi dışa aktarılamadı.",
                 "COPY_URL": "URL'yi panoya kopyala",
@@ -135,6 +135,7 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Nasıl bağlanmak istediğinizi seçin. Daha sonra yeniden adlandırabilirsiniz.",
+            "METHOD_GROUP_LABEL": "Bağlantı yöntemi",
             "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "Uzak bir .m3u veya .m3u8 bağlantısını yapıştırın",
             "METHOD_FILE_LABEL": "M3U dosyası",
@@ -158,6 +159,7 @@
         },
         "URL_UPLOAD": {
             "PLAYLIST_URL": "Oynatma listesi URL’si (m3u, m3u8)",
+            "URL_VALIDATION_ERROR": "http:// veya https:// ile başlayan geçerli bir URL girin.",
             "ADD_PLAYLIST": "Oynatma listesi ekle",
             "CORS_NOTE": "Not: CORS sorunlarını önlemek için bu aşamada uygulama, halka açık bir CORS Proxy hizmeti kullanır. Güvenlik nedeniyle hassas verileri içeren bir oynatma listesini yüklemek istiyorsanız, daha güvenli bir seçenek olarak dosyadan içe aktarmayı deneyin.",
             "ERROR_FETCH_FAILED": "Oynatma listesi alınamadı. Lütfen URL'yi kontrol edip tekrar deneyin.",
@@ -171,17 +173,16 @@
             "TRUST_TLS_HOST_WARNING": "Yalnızca bu oynatma listesi ana bilgisayarına güveniyorsanız devam edin. IPTVnator bu ana bilgisayar için geçersiz TLS sertifikalarına izin verir, ancak diğer ana bilgisayarlar için geçerli sertifika gerekmeye devam eder."
         },
         "TEXT_IMPORT": {
-            "LABEL": "m3u(8) oynatma listesini metin olarak girin",
-            "BUTTON_LABEL": "İçe Aktar"
+            "LABEL": "m3u(8) oynatma listesini metin olarak girin"
         },
         "XTREAM_PLAYLIST": {
             "TITLE": "Oynatma listesi başlığı",
             "SERVER_URL": "Sunucu URL'si",
             "USERNAME": "Kullanıcı Adı",
             "PASSWORD": "Parola",
-            "ADD": "Ekle",
             "TEST_CREDENTIALS": "Kimlik bilgilerini test et",
-            "URL_VALIDATION_ERROR": "Geçerli bir URL olmalıdır (örn. http://example.com veya https://example.com:4324)",
+            "URL_VALIDATION_ERROR": "http:// veya https:// ile başlayan geçerli bir URL girin.",
+            "URL_HINT": "Sunucu adresi, örn. http://host:port",
             "CONNECTION_TEST": {
                 "CREDENTIALS_REQUIRED": "Bağlantıyı test etmek için kullanıcı adı ve parola girin.",
                 "TESTING": "Bağlantı test ediliyor…",
@@ -199,8 +200,7 @@
             }
         },
         "STALKER_PORTAL": {
-            "TITLE": "Başlık",
-            "MAC_ADDRESS": "MAC Adresi",
+            "MAC_ADDRESS": "MAC adresi",
             "MAC_ADDRESS_HINT": "Biçim: 00:1A:79:XX:XX:XX. Tireler, noktalar ve küçük harfler sizin için düzeltilir.",
             "MAC_ADDRESS_OUI_HINT": "Bu adres, Infomir'in 00:1A:79 aralığının dışında kalıyor. Çoğu portal yalnızca bu aralığı kabul eder ve diğer adresleri nedenini belirtmeden reddeder.",
             "MAC_ADDRESS_ERROR": "12 haneli bir MAC adresi girin, örneğin 00:1A:79:12:34:56.",
@@ -218,8 +218,9 @@
             "SERVER_URL": "Sunucu URL'si",
             "URL_HINT": "/c, portal.php veya server/load.php ile biten bir ana makine ya da adres girin.",
             "URL_VALIDATION_ERROR": "http:// veya https:// ile başlayan geçerli bir URL girin.",
-            "ADD": "Ekle",
-            "VALIDATING": "Portal doğrulanıyor...",
+            "VALIDATING": "Portal doğrulanıyor…",
+            "VALIDATED_EXPIRES": "Portal doğrulandı. Bitiş tarihi: {{date}}.",
+            "ADDED_WITHOUT_VALIDATION": "Portal yanıt vermedi. Doğrulama yapılmadan eklendi.",
             "CREDENTIALS_HINT": "Yalnızca portal kullanıcı adı ve parola istediğinde gereklidir",
             "AUTH_FAILED": "Portalda kimlik doğrulaması başarısız oldu. URL'yi ve MAC adresini kontrol edin.",
             "EDIT_UNREACHABLE": "Portal yanıt vermedi. Hiçbir değişiklik kaydedilmedi. URL'yi kontrol edip tekrar deneyin.",
@@ -229,6 +230,7 @@
             "DEVICE_CONFLICT": "Portalda bu MAC adresi için farklı bir cihaz kimliği kayıtlı.",
             "PORTAL_MESSAGE": "Portal şunu bildirdi: {{message}}"
         },
+        "SHOW_PASSWORD": "Parolayı göster",
         "FILTER_BY_NAME": "İsime göre filtrele",
         "FILTER_AND_SORT": "Filtrele ve Sırala",
         "SORT_PLAYLISTS": "Oynatma listelerini sırala",
@@ -1586,11 +1588,8 @@
             "HERO_PLAY": "Slayt gösterisini oynat"
         },
         "SHELL": {
-            "BRAND_ALT": "IPTVnator",
             "RAIL_DASHBOARD": "Pano",
-            "OPEN_DASHBOARD": "Panoyu aç",
             "RAIL_SOURCES": "Kaynaklar",
-            "OPEN_SOURCES": "Kaynakları aç",
             "RAIL_GLOBAL_FAVORITES": "Favoriler",
             "RAIL_GLOBAL_RECENT": "Son izlenenler",
             "RAIL_GLOBAL_SEARCH": "Genel arama",
@@ -1936,6 +1935,8 @@
             "NO_RECOVERY": "Unutulan bir PIN'i kurtarmanın yolu yoktur — yalnızca uygulama verilerini sıfırlamak onu kaldırır.",
             "SAVE": "PIN'i kaydet",
             "UNLOCK": "Kilidi aç",
+            "CONFIRM": "Onayla",
+            "TURN_OFF": "Kapat",
             "CONFIRM_TITLE": "Ebeveyn PIN'ini onaylayın",
             "CONFIRM_DESCRIPTION": "Bu ayarı değiştirmek için mevcut PIN'i girin."
         },

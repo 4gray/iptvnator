@@ -108,6 +108,9 @@
             "@iptvnator/ui/components/parental-lock-pin-dialog": [
                 "libs/ui/components/src/lib/parental-lock-pin-dialog/parental-lock-pin-dialog.component.ts"
             ],
+            "@iptvnator/ui/components/password-visibility-toggle": [
+                "libs/ui/components/src/lib/password-visibility-toggle/password-visibility-toggle.directive.ts"
+            ],
             "@iptvnator/ui/components/window-controls": [
                 "libs/ui/components/src/lib/window-controls/window-controls.component.ts"
             ],

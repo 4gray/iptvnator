@@ -1,3 +1,4 @@
+@use '@angular/material' as mat;
 :host {
     display: block;
     color: var(--app-body-color, var(--mat-sys-on-surface));
@@ -229,8 +230,12 @@
     flex-shrink: 0;
     width: 32px;
     height: 32px;
-    --mdc-icon-button-state-layer-size: 32px;
-    --mdc-icon-button-icon-size: 18px;
+    @include mat.icon-button-overrides(
+        (
+            state-layer-size: 32px,
+            icon-size: 18px,
+        )
+    );
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
 }
 

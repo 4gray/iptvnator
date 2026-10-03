@@ -107,7 +107,20 @@
                     <mat-label>{{
                         'HOME.PLAYLISTS.INFO_DIALOG.PASSWORD' | translate
                     }}</mat-label>
-                    <input matInput formControlName="password" />
+                    <input
+                        matInput
+                        [type]="passwordToggle.inputType()"
+                        formControlName="password"
+                    />
+                    <button
+                        mat-icon-button
+                        matSuffix
+                        appPasswordVisibilityToggle
+                        #passwordToggle="appPasswordVisibilityToggle"
+                        [attr.aria-label]="'HOME.SHOW_PASSWORD' | translate"
+                    >
+                        <mat-icon>{{ passwordToggle.icon() }}</mat-icon>
+                    </button>
                 </mat-form-field>
             }
             @if (playlist.serverUrl && !playlist.portalUrl) {

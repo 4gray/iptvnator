@@ -247,10 +247,10 @@ for (const theme of ['light', 'dark']) {
                 await expect
                     .poll(() => shell.evaluate((el) => el.scrollTop))
                     .toBeGreaterThan(0);
-                await page.keyboard.press('Tab');
-                await expect(
-                    shell.locator('.shell__back-button')
-                ).toBeFocused();
+                // Back lives in the header, which never scrolls away.
+                const back = page.getByTestId('workspace-header-back');
+                await expect(back).toBeInViewport();
+                await back.focus();
                 await page.keyboard.press('Enter');
                 await expect(shell).toHaveCount(0);
             }

@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { join } from 'node:path';
 
+import { JOURNEY_CD_TICK_COUNTER_KEY } from './journey-renderer-probe';
+
 interface TargetConfiguration {
     configurations?: Record<string, Record<string, unknown>>;
     dependsOn?: unknown;
@@ -116,11 +118,57 @@ test('the web performance build keeps production renderer behavior with profilin
     assert.equal(performance['serviceWorker'], false);
     assert.deepEqual(performance['optimization'], production['optimization']);
     assert.equal(performance['outputHashing'], production['outputHashing']);
-    assert.deepEqual(
-        performance['fileReplacements'],
-        production['fileReplacements']
-    );
+    // The only difference is the environment: production values plus the
+    // change-detection tick counter the journeys read.
+    assert.deepEqual(performance['fileReplacements'], [
+        {
+            replace: 'apps/web/src/environments/environment.ts',
+            with: 'apps/web/src/environments/environment.performance.ts',
+        },
+    ]);
+    assert.deepEqual(production['fileReplacements'], [
+        {
+            replace: 'apps/web/src/environments/environment.ts',
+            with: 'apps/web/src/environments/environment.prod.ts',
+        },
+    ]);
     assert.equal(performance['sourceMap'], true);
+});
+
+test('only the web performance build installs the tick counter the journeys read', () => {
+    const environments = join(workspaceRoot, 'apps/web/src/environments');
+    const performanceEnvironment = readFileSync(
+        join(environments, 'environment.performance.ts'),
+        'utf8'
+    );
+    assert.match(
+        performanceEnvironment,
+        /export \{ AppConfig \} from '\.\/environment\.prod';/
+    );
+    assert.match(
+        performanceEnvironment,
+        /installChangeDetectionTickCounter\(\);/
+    );
+    assert.match(
+        readFileSync(
+            join(environments, 'change-detection-tick-counter.ts'),
+            'utf8'
+        ),
+        new RegExp(
+            `CHANGE_DETECTION_TICK_COUNTER_KEY = '${JOURNEY_CD_TICK_COUNTER_KEY}'`
+        )
+    );
+    // No other configuration may reference the performance environment.
+    for (const [name, configuration] of Object.entries(
+        webProject.targets['build'].configurations ?? {}
+    )) {
+        if (name === 'electron-performance') continue;
+        assert.doesNotMatch(
+            JSON.stringify(configuration['fileReplacements'] ?? []),
+            /environment\.performance/,
+            name
+        );
+    }
 });
 
 test('the resolved web build cache output is the renderer directory', () => {

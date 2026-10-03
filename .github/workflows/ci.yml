@@ -296,8 +296,8 @@ jobs:
         if: needs.performance-journeys-scope.outputs.run == 'true'
         runs-on: ubuntu-latest
         # The electron-performance build is the bulk of the time; each journey
-        # (launch, open-source) is six fresh Electron processes plus one
-        # seeding run.
+        # (launch, open-source, playback) is six fresh Electron processes plus
+        # one seeding run.
         timeout-minutes: 30
         # Warn-only for the first two weeks of plan item B3: a failure is
         # visible on the run but does not fail the workflow.
@@ -378,14 +378,27 @@ jobs:
             - name: Validate stylesheet Nx inputs
               run: pnpm run styles:inputs:validate
 
+            - name: Validate Angular Material token overrides
+              run: pnpm run styles:material-tokens:validate
+
+            # Nx rejects a non-parallel task with continuous dependencies, and
+            # the Playwright plugin infers serve dependencies only when CI is
+            # unset, so this checks both the local and the CI inference.
+            - name: Validate Playwright task graphs
+              run: pnpm run e2e:task-graphs:validate
+
             - name: Typecheck web and Electron entry points
               run: pnpm run typecheck:ci
 
             - name: Typecheck Jest spec programs
               run: pnpm run typecheck:spec:test && pnpm run typecheck:spec
 
-            - name: Check i18n drift
-              run: pnpm run i18n:check
+            # Fails on missing or extra keys and on values identical to
+            # English that tools/i18n/identical-en-baseline.json does not list.
+            # The baseline only changes through a reviewed
+            # `pnpm run i18n:baseline:update`; CI never rewrites it.
+            - name: Check i18n drift and untranslated values
+              run: pnpm run i18n:validate
 
             # Node specs for the benchmark and journey harness (about ten
             # seconds). They live in the E2E app, which the unit coverage scope

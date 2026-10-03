@@ -144,8 +144,6 @@
         gap: 32px;
         align-items: flex-start;
         padding: 140px 40px 60px;
-        // Reserved by the detail shell while its sticky Back control shows.
-        padding-inline-start: max(40px, var(--detail-back-lane, 0px));
         max-width: var(--content-max-width);
         margin: 0 auto;
         box-sizing: border-box;
@@ -513,7 +511,6 @@
 
         &__content {
             padding: 60px 20px 40px;
-            padding-inline-start: max(20px, var(--detail-back-lane, 0px));
             gap: 16px;
         }
     }
@@ -555,7 +552,6 @@
         flex-direction: column;
         align-items: stretch;
         padding-inline: 16px;
-        padding-inline-start: max(16px, var(--detail-back-lane, 0px));
     }
 
     .poster {

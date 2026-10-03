@@ -9,6 +9,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslateModule } from '@ngx-translate/core';
+import { SOURCE_TYPE_ICONS } from '@iptvnator/shared/interfaces';
 import { SettingsPlaylistDeleteSummary } from './settings.models';
 
 @Component({
@@ -26,6 +27,7 @@ import { SettingsPlaylistDeleteSummary } from './settings.models';
     styles: [':host { display: contents; }'],
 })
 export class SettingsResetSectionComponent {
+    readonly sourceIcons = SOURCE_TYPE_ICONS;
     readonly isRemovingAllPlaylists = input(false);
     readonly canRemoveAllPlaylists = input(false);
     readonly playlistDeleteSummary =

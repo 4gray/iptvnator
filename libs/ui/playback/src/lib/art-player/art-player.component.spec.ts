@@ -287,6 +287,8 @@ describe('ArtPlayerComponent', () => {
                 setting: true,
                 fullscreen: true,
                 fullscreenWeb: true,
+                // The skin's progress bar matches the shared dock's fill.
+                theme: '#4f8eff',
             })
         );
         // The app-level legacy shortcuts own the keyboard instead of

@@ -1,3 +1,7 @@
+import {
+    journeyActivityBeforeClick,
+    type JourneyClickSettle,
+} from './journey-click-settle';
 import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
 import {
     countJourneyMockRoutes,
@@ -14,6 +18,7 @@ import type { JourneyIterationRecord } from './journey-summary';
 export const OPEN_SOURCE_JOURNEY_ID = 'open-source';
 
 export const OPEN_SOURCE_JOURNEY_COUNTER = {
+    CD_TICKS: 'renderer.cdTicksToFirstPage',
     DOM_MUTATIONS: 'renderer.domMutationsToFirstPage',
     IPC_CALLS: 'renderer.ipcCallsToFirstPage',
     LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
@@ -33,18 +38,10 @@ export const OPEN_SOURCE_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
 > = Object.freeze({
     'main.sqlStatementsToFirstPage':
         'The main.sqlStatements running total is read from the test process through the journey gate, so it cannot be sampled at the click or at the first-page batch, and the worker count is ordered against worker responses rather than the renderer. A click-to-settled count is a follow-up.',
-    'renderer.cdTicksToFirstPage':
-        'The electron-performance build optimizes scripts (ngDevMode=false), so Angular does not publish window.ng and ɵsetProfiler is unavailable.',
 });
 
 /** How long the app was left alone before the click, and what it did. */
-export interface OpenSourceJourneySettle {
-    readonly preStartDomMutations: number;
-    readonly preStartHttpRequests: number;
-    readonly preStartIpcCalls: number;
-    readonly quietMs: number;
-    readonly waitedMs: number;
-}
+export type OpenSourceJourneySettle = JourneyClickSettle;
 
 export interface OpenSourceJourneyMeasurement {
     readonly http: {
@@ -109,24 +106,23 @@ export function toOpenSourceIterationRecord(
     // the click and be counted as J2. The probe and the capture keep
     // counting until the click itself, so they must still match the
     // snapshot; otherwise the iteration is rejected.
-    const lateActivity = [
-        renderer.preStart.domMutations !== settle.preStartDomMutations
-            ? 'dom'
-            : null,
-        ipc.callsBeforeStart !== settle.preStartIpcCalls ? 'ipc' : null,
-        http.afterSettleBeforeClick > 0 ? 'http' : null,
-    ].filter((kind) => kind !== null);
+    const lateActivity = journeyActivityBeforeClick(settle, {
+        httpAfterSettleBeforeClick: http.afterSettleBeforeClick,
+        ipcCallsBeforeStart: ipc.callsBeforeStart,
+        preStartDomMutations: renderer.preStart.domMutations,
+    });
     if (lateActivity.length > 0) {
         throw new Error(
             `open-source-journey-record-activity-before-click-${lateActivity.join('-')}`
         );
     }
+    const cdTicks = renderer.counters.changeDetectionTicks;
     if (
-        renderer.capabilities.changeDetectionTicks !==
-        'unavailable-ng-global-not-published'
+        renderer.capabilities.changeDetectionTicks !== 'counted' ||
+        cdTicks === null
     ) {
         throw new Error(
-            `open-source-journey-record-cd-hook-${renderer.capabilities.changeDetectionTicks}`
+            `open-source-journey-record-cd-ticks-${renderer.capabilities.changeDetectionTicks}`
         );
     }
     // The ledger's clock is the test process's, the terminal's the
@@ -141,6 +137,7 @@ export function toOpenSourceIterationRecord(
         .split('/')[1];
     return Object.freeze({
         counters: Object.freeze({
+            [OPEN_SOURCE_JOURNEY_COUNTER.CD_TICKS]: cdTicks,
             [OPEN_SOURCE_JOURNEY_COUNTER.DOM_MUTATIONS]:
                 renderer.counters.domMutations,
             [OPEN_SOURCE_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
