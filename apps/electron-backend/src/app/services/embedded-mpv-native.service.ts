@@ -394,14 +394,13 @@ export class EmbeddedMpvNativeService {
     }
 
     /**
-     * Drops a cached "mpv missing" result, so the next support check probes
-     * again (a found mpv stays cached). For a probe that ran before the
-     * login shell PATH arrived.
+     * Drops the cached `mpv --version` result, found or missing, so the next
+     * support check probes again. For a probe that ran before the login
+     * shell PATH arrived: that PATH may add mpv or leave out the directory
+     * the inherited one found it in.
      */
-    forgetMissingLinuxMpvExecutable(): void {
-        if (this.cachedLinuxMpvExecutableReason) {
-            this.cachedLinuxMpvExecutableReason = undefined;
-        }
+    forgetLinuxMpvExecutableProbe(): void {
+        this.cachedLinuxMpvExecutableReason = undefined;
     }
 
     getSupport(): EmbeddedMpvSupport {

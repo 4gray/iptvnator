@@ -9,7 +9,7 @@ const mockEmbeddedMpvService = {
     prepareAddon: jest.fn(),
     getSupport: jest.fn(),
     willProbeLinuxMpvExecutable: jest.fn(() => false),
-    forgetMissingLinuxMpvExecutable: jest.fn(),
+    forgetLinuxMpvExecutableProbe: jest.fn(),
     setPaused: jest.fn(),
 };
 const mockSessionOptions = {
@@ -108,12 +108,12 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
                 settle(true);
                 await expect(support).resolves.toEqual({ supported: true });
                 expect(
-                    mockEmbeddedMpvService.forgetMissingLinuxMpvExecutable
+                    mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe
                 ).not.toHaveBeenCalled();
             }
         );
 
-        it('re-probes a missing mpv once a lookup that ran out finally answers', async () => {
+        it('re-probes mpv once a lookup that ran out finally answers', async () => {
             mockEmbeddedMpvService.willProbeLinuxMpvExecutable.mockReturnValue(
                 true
             );
@@ -126,13 +126,13 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
                 getIpcMainHandler(EMBEDDED_MPV_SUPPORT)({})
             ).resolves.toEqual({ supported: false });
             expect(
-                mockEmbeddedMpvService.forgetMissingLinuxMpvExecutable
+                mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe
             ).not.toHaveBeenCalled();
 
             settleLookup();
             await new Promise<void>((resolve) => setImmediate(resolve));
             expect(
-                mockEmbeddedMpvService.forgetMissingLinuxMpvExecutable
+                mockEmbeddedMpvService.forgetLinuxMpvExecutableProbe
             ).toHaveBeenCalledTimes(1);
         });
 

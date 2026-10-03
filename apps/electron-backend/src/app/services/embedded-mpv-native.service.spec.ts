@@ -394,7 +394,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect(service.willProbeLinuxMpvExecutable()).toBe(false);
         });
 
-        it('probes a missing mpv again after it is forgotten, but keeps a found one', () => {
+        it('probes mpv again after a missing or a found result is forgotten', () => {
             Object.defineProperty(process, 'platform', { value: 'linux' });
             process.env.DISPLAY = ':0';
             delete process.env.WAYLAND_DISPLAY;
@@ -403,14 +403,15 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             mockRuntimeUsable();
 
             expect(service.getSupport().supported).toBe(false);
-            service.forgetMissingLinuxMpvExecutable();
+            service.forgetLinuxMpvExecutableProbe();
             expect(service.willProbeLinuxMpvExecutable()).toBe(true);
 
             mockSpawnSync.mockReturnValue({ status: 0 });
             service.getSupport();
             expect(mockSpawnSync).toHaveBeenCalledTimes(2);
-            service.forgetMissingLinuxMpvExecutable();
             expect(service.willProbeLinuxMpvExecutable()).toBe(false);
+            service.forgetLinuxMpvExecutableProbe();
+            expect(service.willProbeLinuxMpvExecutable()).toBe(true);
         });
 
         it('predicts no probe for the frame-copy engine or native Wayland', () => {

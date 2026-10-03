@@ -81,10 +81,10 @@ async function afterLoginShellPathIfProbing<T>(check: () => T): Promise<T> {
         return check();
     }
     // The lookup ran out of budget, so this probe sees the inherited PATH.
-    // Once the shell does answer, a "missing" result is probed again.
+    // Once the shell does answer, the result is probed again.
     const result = check();
     void whenLoginShellPathSettled().then(() =>
-        getService().forgetMissingLinuxMpvExecutable()
+        getService().forgetLinuxMpvExecutableProbe()
     );
     return result;
 }
