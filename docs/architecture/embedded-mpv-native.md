@@ -195,10 +195,14 @@ result stands, and probes again once the shell answers. Every other answer,
 including a missing `mpv` after the shell answered, is final. An inconclusive
 answer is not a verdict on the machine: never persist a decision made from it.
 The settings store resets a saved Embedded MPV selection only on a final
-unsupported answer; on an inconclusive one the selection stays, and the player
-asks again when playback starts. The command palette and the settings search
-keep a final answer for the session, but probe again on their next use after
-an inconclusive one.
+unsupported answer; on an inconclusive one the selection stays. Surfaces that
+stay mounted on one answer, the player (`EmbeddedMpvSessionController`) and the
+settings page, load support through `watchEmbeddedMpvSupport()`
+(`@iptvnator/shared/interfaces`), which asks again every
+`EMBEDDED_MPV_SUPPORT_RECHECK_MS` until the answer is final: a player mounted
+in that window starts playback by itself once `mpv` is found. The command
+palette and the settings search ask on demand; they keep a final answer for
+the session, but probe again on their next use after an inconclusive one.
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
@@ -982,7 +986,7 @@ Defensive practice for this component:
 
 Concrete bugs from the audit, recorded so they don't get reintroduced:
 
-- **Infinite session-create loop.** `EmbeddedMpvSessionController.startSession` once wrote `this.support.set(prepared)` after the `prepareEmbeddedMpv` round-trip. The component's session-creation effect tracks `this.support()`, so the write fired the effect → cleanup disposed the session → new session was created → prepare ran again → support was set again. Symptom: endless "Loading stream…" spinner. Fix: do not write `support` inside `startSession`; the constructor's `loadSupport()` already populates it including capabilities.
+- **Infinite session-create loop.** `EmbeddedMpvSessionController.startSession` once wrote `this.support.set(prepared)` after the `prepareEmbeddedMpv` round-trip. The component's session-creation effect tracks `this.support()`, so the write fired the effect → cleanup disposed the session → new session was created → prepare ran again → support was set again. Symptom: endless "Loading stream…" spinner. Fix: do not write `support` inside `startSession`; the constructor's `watchSupport()` already populates it including capabilities.
 - **Stream restart on volume change.** The session-creation effect once read `this.volume()` directly to pass to `startSession`'s `initialVolume`. Each volume tick re-ran the effect, disposing and recreating the session — for VOD/series this restarted playback from the beginning. Fix: read it via `untracked(() => this.volume())`. Subsequent volume changes flow through `controller.applyVolume()`, never through the effect graph.
 - **Spurious `timeUpdate` re-emits and `volume.set` calls.** The session-fan-out effect calls `scheduleControlsHide()`, which reads `isPlaying`, `menus.anyOpen`, `statusLabel`, and `controlsVisible`. Those reads became tracked deps, so opening any popover, pausing, or hovering re-ran the body. No loop in isolation, but a parent that wires `timeUpdate` back into `playback.startTime` would have hit the volume-restart bug class. Fix: wrap the side-effect block in `untracked()` so the effect listens only to session changes.
 - **2 Hz no-op stalled-tracker re-runs.** Position polling updates `session` around 2 Hz. Tracking the full session would re-run stalled logic for snapshots with unchanged status, so the controller tracks only `sessionStatus` and invokes `EmbeddedMpvStalledTracker.track` inside `untracked()`, avoiding full-session reruns.
