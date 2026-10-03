@@ -345,17 +345,15 @@ test('@web @m3u @tmdb recognized movies open the VOD detail view', async ({
     ).toEqual(['app-html-video-player']);
 
     // Metadata patches the mounted view asynchronously. The shell stamps the
-    // host templates into BOTH the hero and the watch-state About block, so
-    // every metadata string legitimately resolves twice.
+    // host templates into BOTH the hero and the watch-state About block, but
+    // the collapsed hero turns `visibility: hidden` 300ms after mount,
+    // sometimes before TMDB answers. Assert the copy a watching user sees.
+    const about = detail(page).locator('app-content-about');
     await expect(
-        detail(page).getByText('Paul Atreides arrives on Arrakis.').first()
+        about.getByText('Paul Atreides arrives on Arrakis.')
     ).toBeVisible();
-    await expect(
-        detail(page).getByText('Denis Villeneuve').first()
-    ).toBeVisible();
-    await expect(
-        detail(page).getByText('Science Fiction').first()
-    ).toBeVisible();
+    await expect(about.getByText('Denis Villeneuve')).toBeVisible();
+    await expect(about.getByText('Science Fiction')).toBeVisible();
 
     // A live channel keeps the classic layout.
     await sidebarEntry(page, 'Live One').click();
