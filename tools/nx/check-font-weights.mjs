@@ -94,35 +94,42 @@ import {
  * A stylesheet rule set in JetBrains Mono (its own `font-family` or `font`,
  * written out or through variables, or one a nested rule inherits; see
  * `familiesOf`) is capped at `MONO_WEIGHT_CAP`. A mixin's top-level
- * declarations land where this file includes it, in the order Sass writes
- * them out, a content block's too where the mixin places `@content` at its
- * top level, a rule this file `@extend`s whole applies to its extenders, and
- * a keyframe's declarations (of its last definition) apply where a rule's
- * last `animation` runs it, over the rule's own and under `!important` ones,
- * while it runs and, unless it holds a frame (`forwards`, `both`,
- * `infinite`), the rule's own after. An `:is()` or `:where()` reads as the
- * selectors it holds (`:where(.p) .c` is `.p .c`). A rule also sets the
- * family of the narrower selectors it reaches (`.x` for `.x:hover`, `.p .x`
- * for `.w .p .x:hover`), compound by compound across what its combinators
- * allow; of those, the element's own rule and `*`, the cascade winner counts
- * (`!important`, layer, specificity, source order; a `@layer` always
- * applies, and `revert-layer` falls back past its own). Without a family of
- * its own, a rule takes one from an ancestor its compiled selector names (an
- * `@at-root` rule's as Sass writes it out), else from the document root
- * (`:host`, `body`, `html`, `:root`) in its file; a family applies under
- * conditions (`@media`, `@supports`, `@if`) that the reader shares, or
- * always. Sass conditions are not evaluated: each `@if`/`@else` branch
- * counts as one that may run, in a rule, a mixin or a content block alike.
+ * declarations land where it is included, in the order Sass writes them
+ * out: in its own file, or in another module that includes it by a name
+ * Sass resolves to it (`ns.m`, through `@forward` prefixes and
+ * `show`/`hide`, or a bare `m` that `@use … as *` or `@import` brings in;
+ * see `scanWorkspace`). There its weights meet the including rule's family,
+ * reported once at the mixin's own line, and its family becomes that
+ * rule's. A content block lands too where a mixin of the same file places
+ * `@content` at its top level, a rule this file `@extend`s whole applies to
+ * its extenders, and a keyframe's declarations (of its last definition)
+ * apply where a rule's last `animation` runs it, over the rule's own and
+ * under `!important` ones, while it runs and, unless it holds a frame
+ * (`forwards`, `both`, `infinite`), the rule's own after. An `:is()` or
+ * `:where()` reads as the selectors it holds (`:where(.p) .c` is `.p .c`).
+ * A rule also sets the family of the narrower selectors it reaches (`.x`
+ * for `.x:hover`, `.p .x` for `.w .p .x:hover`), compound by compound
+ * across what its combinators allow; of those, the element's own rule and
+ * `*`, the cascade winner counts (`!important`, layer, specificity, source
+ * order; a `@layer` always applies, and `revert-layer` falls back past its
+ * own). Without a family of its own, a rule takes one from an ancestor its
+ * compiled selector names (an `@at-root` rule's as Sass writes it out),
+ * else from the document root (`:host`, `body`, `html`, `:root`) in its
+ * file; a family applies under conditions (`@media`, `@supports`, `@if`)
+ * that the reader shares, or always. Sass conditions are not evaluated: each
+ * `@if`/`@else` branch counts as one that may run, in a rule, a mixin or a
+ * content block alike.
  *
  * Not traced: global styles in another file, a weight inherited from another
- * rule, a mixin from another module, a mixin's nested rules and at-rules
- * (and a `@content` placed in one), a family set on an element from code,
- * and one that reaches only some of a rule's elements (a more specific
- * `.x.active`, or `@extend .m` into `.m.active`). Animations are read as a
- * whole: a keyframe's steps cascade as one rule rather than as states in
- * turn, a rule's last `animation` runs whatever an earlier `!important` one
- * sets, one layer holding a frame holds all of them, and a quoted name is
- * read word by word.
+ * rule, a mixin's nested rules and at-rules (and a `@content` placed in one,
+ * or in another module's mixin), a mixin name that two `@import`ed files
+ * define (the later wins), a family set on an element from code, and one
+ * that reaches only some of a rule's elements (a more specific `.x.active`,
+ * or `@extend .m` into `.m.active`). Animations are read as a whole: a
+ * keyframe's steps cascade as one rule rather than as states in turn, a
+ * rule's last `animation` runs whatever an earlier `!important` one sets,
+ * one layer holding a frame holds all of them, and a quoted name is read
+ * word by word.
  */
 export const WEIGHT_SCALE = Object.freeze([400, 500, 600, 700]);
 
@@ -887,16 +894,40 @@ function callSitesOf(text, blocks) {
 }
 
 /**
+ * An `@include` of a mixin: `ns.name` names another module's, as does a
+ * bare name that no mixin of the including file has.
+ */
+const INCLUDE = /@include\s+(?:([\w-]+)\.)?([\w-]+)(?![\w.-])/g;
+
+/**
  * One file's weight declarations: off-scale findings, the custom properties
  * and Sass variables its weights refer to, and every such variable it defines
  * (checked later, once the whole workspace has named what it refers to).
  * A keyframe that sets a font only while it runs is read both ways: its
  * frames over the rule that runs it, and that rule after it.
+ * Its module mixins' top-level families and weights (`mixins`) land where
+ * other modules include them, and theirs here: `included` gives, by the
+ * position of each such `@include` (`includes`), the mixins it reaches, and
+ * `elsewhere` names this file's mixins that other modules include (see
+ * `scanWorkspace`). A mixin read both ways carries the second (`after`), so
+ * a module that includes it reads it both ways too.
  */
-export function scanWeights(file, written) {
-    const running = scanPass(file, written, true);
-    if (!running.transient) return running;
-    const after = scanPass(file, written, false);
+export function scanWeights(file, written, modules = {}) {
+    const { included = new Map() } = modules;
+    const running = scanPass(file, written, true, modules);
+    const mixins = [...included.values()].flat();
+    if (!running.transient && !mixins.some((mixin) => mixin.after)) {
+        return running;
+    }
+    const after = scanPass(file, written, false, {
+        ...modules,
+        included: new Map(
+            [...included].map(([site, reached]) => [
+                site,
+                reached.map((mixin) => mixin.after ?? mixin),
+            ])
+        ),
+    });
     const keyOf = (item) => JSON.stringify(item);
     const union = (a, b) => [
         ...new Map([...a, ...b].map((item) => [keyOf(item), item])).values(),
@@ -905,10 +936,21 @@ export function scanWeights(file, written) {
         ...running,
         findings: union(running.findings, after.findings),
         deferred: union(running.deferred, after.deferred),
+        mixins: new Map(
+            [...running.mixins].map(([name, mixin]) => [
+                name,
+                { ...mixin, after: after.mixins.get(name) },
+            ])
+        ),
     };
 }
 
-function scanPass(file, written, transient) {
+function scanPass(
+    file,
+    written,
+    transient,
+    { included = new Map(), elsewhere = new Set() }
+) {
     // Read as the browser reads it (markup references and CSS escapes
     // decoded); lines are the file's own.
     const { text: source, origin } = decodeSource(file, written);
@@ -1067,12 +1109,50 @@ function scanPass(file, written, transient) {
             selectors: selectorsOf(place.scopes),
         });
     const monoAt = stylesheet
-        ? familiesOf(lexed, blocks, {
-              ...{ inString, placeOf, refsIn, rulesOf, transient },
-          })
+        ? familiesOf(
+              lexed,
+              blocks,
+              { inString, placeOf, refsIn, rulesOf, transient },
+              {
+                  included: new Map(
+                      [...included].map(([site, mixins]) => [
+                          site,
+                          mixins.flatMap((mixin) => mixin.families),
+                      ])
+                  ),
+                  elsewhere,
+              }
+          )
         : Object.assign(() => ({ mono: false, refs: [] }), {
-              landings: () => [],
+              ...{ landings: () => [], landingsAt: () => [] },
+              ...{ memberOf: () => null, exported: new Map() },
           });
+    // Where a family declaration sits, for its variables to resolve later
+    // there; one from another module's mixin carries its own.
+    const siteOf = (entry) =>
+        entry.at.file
+            ? entry.at
+            : {
+                  ...{ ...entry.at, file },
+                  guards: guardsAt(entry.at.index),
+                  rule: blockAt.get(entry.at.scope)?.prelude ?? null,
+                  selectors: selectorsOf(entry.at.scopes ?? []),
+              };
+    // A weight's terms and variables as a JetBrains Mono rule caps them,
+    // with where to report them.
+    const capped = (name, index, mode, value) => {
+        const analysis = analyse(mode, value, { cap: MONO_WEIGHT_CAP });
+        const place = placeOf(blocks, index);
+        return {
+            ...{ file, line: lineOf(index), name },
+            terms: analysis.terms.filter(capOnly),
+            references: analysis.references.map((reference) => ({
+                ...{ ...reference, file, index },
+                ...{ scopes: place.scopes, callable: place.callable },
+                inCallable: place.inCallable,
+            })),
+        };
+    };
     // Weights in rules whose family is named through variables: capped once
     // that family resolves to JetBrains Mono.
     const deferred = [];
@@ -1080,15 +1160,30 @@ function scanPass(file, written, transient) {
     // shorthand): a later one, unless only the earlier is `!important`,
     // replaces it, so only the one in effect meets the cap.
     const setters = new Map();
+    // The weight declarations landing in this file's module mixins (one of
+    // another module's too), for the modules that include them, and how
+    // this file's own read where a JetBrains Mono rule caps them.
+    const setInMixins = [];
+    const weightAt = new Map();
     // A weight declaration registers in each rule it lands in (a mixin's
-    // where it is included), at the place it lands.
-    const setAt = (index, important) => {
-        // A keyframe's weight, where a rule runs it, outranks the rule's own.
-        for (const { rules, key, animated } of monoAt.landings(index)) {
+    // where it is included), at the place it lands; `id` is its position,
+    // or for another module's, its file and position there. A keyframe's
+    // weight, where a rule runs it, outranks the rule's own (`animated`, on
+    // the way to a mixin another module includes, or here).
+    const setAt = (id, important, landings, weight = null, ran = false) => {
+        for (const { rules, key, scope, animated: here } of landings) {
+            const animated = ran || Boolean(here);
             for (const rule of rules) {
                 if (!setters.has(rule)) setters.set(rule, []);
                 const level = levelOf({ important, animated });
-                setters.get(rule).push({ key, index, level });
+                setters.get(rule).push({ key, index: id, level });
+            }
+            const mixin = monoAt.memberOf(scope);
+            if (mixin !== null) {
+                setInMixins.push({
+                    ...{ mixin, key, id },
+                    ...{ important, animated, weight },
+                });
             }
         }
     };
@@ -1109,15 +1204,30 @@ function scanPass(file, written, transient) {
         if (match[1].toLowerCase() === 'weight' && namespace === undefined) {
             continue;
         }
-        setAt(match.index, IMPORTANT.test(value));
+        setAt(match.index, IMPORTANT.test(value), monoAt.landings(match.index));
     }
     // An `all` reset replaces an earlier weight too.
     for (const match of stylesheet ? text.matchAll(ALL_RESET) : []) {
         if (inString(match.index) || inConditionPrelude(lexed, match.index)) {
             continue;
         }
-        if (startsDeclaration(text, match.index))
-            setAt(match.index, Boolean(match[2]));
+        if (startsDeclaration(text, match.index)) {
+            const landings = monoAt.landings(match.index);
+            setAt(match.index, Boolean(match[2]), landings);
+        }
+    }
+    // Another module's mixin sets its weights where this file includes it.
+    const landed = [...included].flatMap(([site, mixins]) =>
+        mixins.flatMap((mixin) =>
+            mixin.setters.map((setter) => ({
+                ...{ site, setter },
+                landings: monoAt.landingsAt(site, setter.key),
+            }))
+        )
+    );
+    for (const { setter, landings } of landed) {
+        const { id, important, weight, animated } = setter;
+        setAt(id, important, landings, weight, animated);
     }
 
     // A shorthand that fails to parse is dropped, so it sets nothing.
@@ -1126,8 +1236,8 @@ function scanPass(file, written, transient) {
     // replaces it and nothing earlier outranks it (`!important`): the
     // scopes of those landings, the only ones whose family it meets.
     const after = (a, b) => keyOrder(a.key, b.key) > 0;
-    const effectiveIn = (index) => {
-        const landings = monoAt.landings(index).filter(({ rules, key }) =>
+    const effectiveIn = (index, landings = monoAt.landings(index)) => {
+        const kept = landings.filter(({ rules, key }) =>
             rules.some((id) => {
                 const rule = setters.get(id) ?? [];
                 const own = rule.find(
@@ -1147,7 +1257,7 @@ function scanPass(file, written, transient) {
                 );
             })
         );
-        return new Set(landings.map(({ scope }) => scope));
+        return new Set(kept.map(({ scope }) => scope));
     };
 
     // CSS text in a string (an inline `style="…"`, a component style) meets
@@ -1247,26 +1357,45 @@ function scanPass(file, written, transient) {
             const cssOf = (text) => analyse(mode, text, { cap });
             record(name, match.index, merged((texts ?? [css]).map(cssOf)));
             if (!family.mono && family.refs.length > 0) {
-                const capped = analyse(mode, value, { cap: MONO_WEIGHT_CAP });
-                const place = placeOf(blocks, match.index);
                 deferred.push({
-                    ...{ file, line: lineOf(match.index), name },
+                    ...capped(name, match.index, mode, value),
                     family: family.text,
                     shorthand: family.shorthand,
-                    at: {
-                        ...{ ...family.at, file },
-                        guards: guardsAt(family.at.index),
-                        rule: blockAt.get(family.at.scope)?.prelude ?? null,
-                        selectors: selectorsOf(family.at.scopes ?? []),
-                    },
-                    terms: capped.terms.filter(capOnly),
-                    references: capped.references.map((reference) => ({
-                        ...{ ...reference, file, index: match.index },
-                        ...{ scopes: place.scopes, callable: place.callable },
-                        inCallable: place.inCallable,
-                    })),
+                    at: siteOf(family),
                 });
             }
+            if (stylesheet && weightName) {
+                weightAt.set(match.index, () =>
+                    capped(name, match.index, mode, value)
+                );
+            }
+        }
+    }
+    // Another module's weight landing here meets the family of the rule
+    // that includes it, and is reported where it is written.
+    for (const { site, setter, landings } of landed) {
+        const { id, weight } = setter;
+        if (!weight) continue;
+        const effective = effectiveIn(id, landings);
+        const family =
+            effective.size > 0
+                ? monoAt(site, (scope) => effective.has(scope))
+                : { mono: false, refs: [] };
+        // Reported once, however many rules it lands in.
+        const terms = weight.terms.map((term) => ({ ...term, landed: true }));
+        if (family.mono) {
+            const { file: from, line, name } = weight;
+            findings.push(
+                ...terms.map((term) => ({ file: from, line, name, ...term }))
+            );
+            references.push(...weight.references);
+        } else if (family.refs.length > 0) {
+            deferred.push({
+                ...{ ...weight, terms },
+                family: family.text,
+                shorthand: family.shorthand,
+                at: siteOf(family),
+            });
         }
     }
     // A weight set from code is checked here; any other custom property it
@@ -1517,12 +1646,59 @@ function scanPass(file, written, transient) {
             references: analyses.flatMap((analysis) => analysis.references),
         });
     }
+    // This file's module mixins as a module that includes one sees them:
+    // the families and weights they set at their top level, each at its
+    // place in the mixin (`key`), a family with where to resolve it.
+    const mixins = new Map();
+    for (const block of blocks.filter((b) => b.kind === 'callable')) {
+        const name = monoAt.memberOf(block.start);
+        if (name !== null && !mixins.has(name)) {
+            mixins.set(name, { families: [], setters: [] });
+        }
+    }
+    const portable = new Map();
+    const portableOf = (entry) => {
+        if (!portable.has(entry)) {
+            portable.set(entry, { ...entry, at: siteOf(entry) });
+        }
+        return portable.get(entry);
+    };
+    for (const [name, families] of monoAt.exported) {
+        mixins.get(name)?.families.push(
+            ...families.map(({ key, entry }) => ({
+                key,
+                entry: portableOf(entry),
+            }))
+        );
+    }
+    for (const { mixin, key, id, important, animated, weight } of setInMixins) {
+        const own = typeof id === 'number';
+        mixins.get(mixin)?.setters.push({
+            ...{ key, important, animated, id: own ? `${file}:${id}` : id },
+            weight: own ? (weightAt.get(id)?.() ?? null) : weight,
+        });
+    }
+    // Where it includes another module's mixin (see `INCLUDE`).
+    const ownMixins = new Set(
+        blocks
+            .filter((b) => b.kind === 'callable')
+            .filter((b) => /^@mixin\b/i.test(b.prelude))
+            .map((b) => b.name)
+    );
+    const includes = [];
+    for (const match of stylesheet ? text.matchAll(INCLUDE) : []) {
+        if (inString(match.index)) continue;
+        const namespace = match[1] ?? null;
+        const name = match[2].replace(/_/g, '-');
+        if (namespace === null && ownMixins.has(name)) continue;
+        includes.push({ index: match.index, callee: { name, namespace } });
+    }
     const loads = stylesheet ? extractStylesheetLoads(source) : [];
     const calls = callSitesOf(text, blocks);
     const invocations = stylesheet ? invocationsOf(lexed) : [];
     return {
         ...{ file, loads, declarations, findings, references, definitions },
-        ...{ calls, invocations, deferred },
+        ...{ calls, invocations, deferred, mixins, includes },
         transient: Boolean(monoAt.transient),
     };
 }
@@ -1539,7 +1715,8 @@ function scanPass(file, written, transient) {
 export function findIndirectWeights(scans) {
     const definitions = scans.flatMap((scan) => scan.definitions);
     const pending = scans.flatMap((scan) => scan.references);
-    const { qualified, unqualified, imports, loadsOf } = sassScopes(scans);
+    const { qualified, unqualified, imports, loadsOf, reaches } =
+        sassScopes(scans);
     const callsByFile = new Map(scans.map((scan) => [scan.file, scan.calls]));
     // Whether a declaration is what `name` reads, through one of the ways
     // `access` exposes its file (a `@forward` prefix, `show`/`hide`).
@@ -1563,26 +1740,9 @@ export function findIndirectWeights(scans) {
                         : exposedName(exposure, definition.key) === name)
             )
         );
-    // Whether an argument is passed to `callable`, defined in `file`:
-    // `ns.name(` must load `file` (or a module forwarding it) as `ns`, under
-    // the name it exposes `callable` by; a bare `name(` is defined in the
-    // caller itself or in what it brings in.
-    const passedTo = ({ callee, file: caller }, file, callable) => {
-        if (!callee || !callable) return false;
-        if (!callee.namespace && caller === file) {
-            return callee.name === callable;
-        }
-        const scope = callee.namespace
-            ? qualified(caller, callee.namespace)
-            : unqualified(caller);
-        const access = scope.get(file);
-        return (
-            Boolean(access?.declarations) &&
-            access.exposures.some(
-                (exposure) => exposedName(exposure, callable) === callee.name
-            )
-        );
-    };
+    // Whether an argument is passed to `callable`, defined in `file` (see
+    // `reaches` in `sassScopes`).
+    const passedTo = reaches;
     // A parameter default is the value only at calls that leave it out. A
     // callable with no call in sight may be called from where the scan
     // cannot see, so its defaults count.
@@ -2131,6 +2291,105 @@ export function findIndirectWeights(scans) {
     return findings;
 }
 
+/**
+ * Every file's scan (`sources` holds `{ file, source }`), with the mixins
+ * it includes from other modules landed where it includes them: an
+ * `@include ns.name`, or a bare name that `@use … as *` or `@import` brings
+ * in, resolved as Sass resolves the call (see `sassScopes`). A file that
+ * includes one, or whose mixin another includes, is scanned again with
+ * them, after the modules it includes (Sass rejects a loop of `@use`s; a
+ * file met again on one keeps its first scan).
+ */
+export function scanWorkspace(sources) {
+    const sourceOf = new Map(sources.map(({ file, source }) => [file, source]));
+    const first = new Map(
+        sources.map(({ file, source }) => [file, scanWeights(file, source)])
+    );
+    const { reaches } = sassScopes([...first.values()]);
+    const providers = [...first.values()].filter(
+        (scan) => scan.mixins?.size > 0
+    );
+    // Each file's includes of other modules' mixins, by `@include`, with
+    // the mixins each reaches; and each file's mixins others include.
+    const reached = new Map();
+    const elsewhere = new Map();
+    for (const scan of first.values()) {
+        for (const { index, callee } of scan.includes ?? []) {
+            const call = { callee, file: scan.file };
+            const found = providers.flatMap(({ file, mixins }) =>
+                [...mixins.keys()]
+                    .filter((name) => reaches(call, file, name))
+                    .map((name) => ({ file, name }))
+            );
+            // Only `@import`s can bring in two mixins of one name (anything
+            // else is a Sass error), and the later one wins; the scan does
+            // not order them, so it leaves such an include out.
+            if (found.length !== 1) continue;
+            if (!reached.has(scan.file)) reached.set(scan.file, new Map());
+            reached.get(scan.file).set(index, found);
+            for (const { file, name } of found) {
+                if (!elsewhere.has(file)) elsewhere.set(file, new Set());
+                elsewhere.get(file).add(name);
+            }
+        }
+    }
+    const done = new Map();
+    const scanning = new Set();
+    const scanOf = (file) => {
+        if (done.has(file)) return done.get(file);
+        const sites = reached.get(file) ?? new Map();
+        const involved = sites.size > 0 || elsewhere.has(file);
+        if (!involved || scanning.has(file)) return first.get(file);
+        scanning.add(file);
+        const included = new Map(
+            [...sites].map(([index, found]) => [
+                index,
+                found.map(({ file: from, name }) =>
+                    scanOf(from).mixins.get(name)
+                ),
+            ])
+        );
+        const scan = scanWeights(file, sourceOf.get(file), {
+            included,
+            elsewhere: elsewhere.get(file),
+        });
+        scanning.delete(file);
+        done.set(file, scan);
+        return scan;
+    };
+    return sources.map(({ file }) => scanOf(file));
+}
+
+/**
+ * Every finding in the workspace (see `scanWorkspace`), and how many weight
+ * declarations it checked. A mixin's weight landing in several JetBrains
+ * Mono rules, in other modules or its own, is reported once.
+ */
+export function findWorkspaceWeights(sources) {
+    const scans = scanWorkspace(sources);
+    const all = [
+        ...scans.flatMap((scan) => scan.findings),
+        ...findIndirectWeights(scans),
+    ];
+    const keyOf = ({ file, line, name, value, cap, computed }) =>
+        JSON.stringify([file, line, name, value, cap, computed]);
+    const seen = new Set(all.filter((f) => !f.landed).map(keyOf));
+    const findings = [];
+    for (const { landed, ...finding } of all) {
+        if (landed) {
+            const key = keyOf(finding);
+            if (seen.has(key)) continue;
+            seen.add(key);
+        }
+        findings.push(finding);
+    }
+    const declarations = scans.reduce(
+        (sum, scan) => sum + scan.declarations,
+        0
+    );
+    return { declarations, findings };
+}
+
 /** Every off-scale weight one file can reach on its own. */
 export function findOffScaleWeights(file, source) {
     const scan = scanWeights(file, source);
@@ -2183,23 +2442,16 @@ if (isMain) {
         .filter(Boolean)
         .filter(isScannedFile);
 
-    const scans = [];
+    const sources = [];
     for (const file of files) {
         const source = await readFile(path.resolve(rootDir, file), 'utf8');
-        scans.push(scanWeights(file, source));
+        sources.push({ file, source });
     }
-    const findings = [
-        ...scans.flatMap((scan) => scan.findings),
-        ...findIndirectWeights(scans),
-    ];
+    const { declarations, findings } = findWorkspaceWeights(sources);
     const diagnostics = [
         ...validateScanCoverage(files),
         ...findings.map(describeFinding),
     ];
-    const declarations = scans.reduce(
-        (sum, scan) => sum + scan.declarations,
-        0
-    );
 
     if (diagnostics.length > 0) {
         console.error('Font weight scale check failed:');

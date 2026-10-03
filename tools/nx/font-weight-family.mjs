@@ -915,13 +915,29 @@ export function keyOrder(a, b) {
  * `monoAt(index)`: the family in effect for a declaration there, from the
  * innermost rule that sets one and that the declaration's rule inherits
  * from. `@font-face` describes a face, so nothing in it is capped.
+ *
+ * Another module's mixin lands too: `included` gives, by the position of
+ * each `@include` of one, the families its top-level declarations set
+ * (`{ key, entry }`, `key` its place in that mixin), and `elsewhere` names
+ * this file's module mixins that another module includes, which style
+ * nothing where they are written (see `scanWorkspace`).
  */
 export function familiesOf(
     lexed,
     blocks,
-    { inString, placeOf, refsIn, rulesOf, transient = true }
+    { inString, placeOf, refsIn, rulesOf, transient = true },
+    { included = new Map(), elsewhere = new Set() } = {}
 ) {
     const family = new Map();
+    // A module mixin's name; a mixin declared in a rule is local to it.
+    const memberOf = (scope) => {
+        const block = blocks.find((b) => b.start === scope);
+        const mixin =
+            block?.kind === 'callable' && /^@mixin\b/i.test(block.prelude);
+        return mixin && placeOf(blocks, scope).scope === null
+            ? block.name
+            : null;
+    };
     // This file's `@include` sites, by mixin: a declaration in a mixin's
     // body lands in the rule that includes it, at the `@include`.
     const includes = new Map();
@@ -1168,6 +1184,11 @@ export function familiesOf(
             ),
         ];
     };
+    // Where a declaration at `key` in another module's mixin lands through
+    // the `@include` at `site`: as one written there, its key that place's
+    // followed by `key`.
+    const landingsAt = (site, key) =>
+        landingsOf(placeOf(blocks, site).scope, site, [], key);
     // Each declaration, where it applies, in source order.
     const applied = [];
     for (const match of lexed.text.matchAll(FONT_FAMILY)) {
@@ -1229,6 +1250,27 @@ export function familiesOf(
                 entry: landing.animated ? { ...entry, animated: true } : entry,
             });
         }
+    }
+    for (const [site, families] of included) {
+        for (const { key, entry } of families) {
+            for (const landing of landingsAt(site, key)) {
+                applied.push({
+                    ...landing,
+                    entry: landing.animated
+                        ? { ...entry, animated: true }
+                        : entry,
+                });
+            }
+        }
+    }
+    // What each module mixin sets at its top level, for the modules that
+    // include it: its own declarations and those landing in it.
+    const exported = new Map();
+    for (const { scope, key, entry } of applied) {
+        const name = memberOf(scope);
+        if (name === null) continue;
+        if (!exported.has(name)) exported.set(name, []);
+        exported.get(name).push({ key, entry });
     }
     // Keyed by rule, so a later block with one of its selectors wins.
     applied.sort((a, b) => keyOrder(a.key, b.key));
@@ -1520,7 +1562,8 @@ export function familiesOf(
     // family where it lands: each rule that includes or extends it (whose
     // own later family wins), of those `keep` accepts (where the weight is
     // in effect). A mixin's body, or a placeholder (`%x`), styles nothing
-    // where it is written.
+    // where it is written; one another module includes meets the family
+    // there instead.
     const familyAt = (index, keep, seen = new Set()) => {
         const place = placeOf(blocks, index);
         const scope = fontNamespaceRule(blocks, place) ?? place.scope;
@@ -1545,6 +1588,7 @@ export function familiesOf(
         const extended = extendersOf(scope).map((extender) => extender.index);
         const silent =
             includes.length > 0 ||
+            elsewhere.has(memberOf(scope)) ||
             (extended.length > 0 && /^%/.test(block?.prelude ?? ''));
         return [
             ...(silent || !keep(scope) ? [] : [lookup(index)]),
@@ -1576,5 +1620,9 @@ export function familiesOf(
         const scope = fontNamespaceRule(blocks, place) ?? place.scope;
         return scope === null ? [] : landingsOf(scope, index);
     };
+    monoAt.landingsAt = landingsAt;
+    monoAt.memberOf = memberOf;
+    // Each module mixin's top-level families, by name (`{ key, entry }`).
+    monoAt.exported = exported;
     return monoAt;
 }
