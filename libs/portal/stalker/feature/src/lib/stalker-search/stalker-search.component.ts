@@ -922,6 +922,7 @@ export class StalkerSearchComponent {
         selectedVodPosition: this.selectedVodPosition,
         discardPendingPositionLoad: () =>
             this.vodPlayback.discardPendingPositionLoad(),
+        beginPendingStart: () => this.vodPlayback.beginPendingStart(),
         snackBar: this.snackBar,
         translate: this.translateService,
         logError: () => undefined,

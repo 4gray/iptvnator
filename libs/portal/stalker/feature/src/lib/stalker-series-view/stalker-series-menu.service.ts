@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, Signal, signal } from '@angular/core';
-import { DownloadsService, SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type ExternalPlayerName,
@@ -28,7 +28,7 @@ interface StalkerSeriesMenuBindings {
  */
 @Injectable()
 export class StalkerSeriesMenuService {
-    private readonly downloadsService = inject(DownloadsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly bindings = signal<StalkerSeriesMenuBindings | null>(null);
 
@@ -62,7 +62,8 @@ export class StalkerSeriesMenuService {
             playbackActive: this.bindings()?.playbackActive() ?? false,
             sourcesCount: 0,
             externalPlayerHint:
-                quickStart?.action && this.downloadsService.isAvailable()
+                quickStart?.action &&
+                this.runtime.supportsManagedExternalPlayers
                     ? this.externalPlayer() === 'vlc'
                         ? 'VLC'
                         : 'MPV'

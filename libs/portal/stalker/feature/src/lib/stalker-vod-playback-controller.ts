@@ -43,6 +43,14 @@ export class StalkerVodPlaybackController {
 
     constructor(private readonly config: StalkerVodPlaybackControllerConfig) {}
 
+    /** An explicit launch resolving its stream; the closure settles it. */
+    beginPendingStart(): () => void {
+        const startId = this.pendingStart.begin(
+            this.config.playbackOwnerKey?.()
+        );
+        return () => this.pendingStart.settle(startId);
+    }
+
     async startVodPlayback(
         resolvePlayback: () => Promise<ResolvedPortalPlayback>
     ): Promise<void> {

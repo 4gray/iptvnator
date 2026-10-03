@@ -245,13 +245,6 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         }
     }
 
-    onVodResume(event: {
-        item: VodDetailsItem;
-        positionSeconds: number;
-    }): void {
-        this.onVodPlay(event.item, event.positionSeconds);
-    }
-
     onVodFavoriteToggled(event: {
         item: VodDetailsItem;
         isFavorite: boolean;
@@ -285,6 +278,10 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         selectedVodPosition: this.selectedVodPosition,
         discardPendingPositionLoad: () => ++this.positionLoadGeneration,
         beforeExternalLaunch: () => this.closeInlinePlayer(),
+        beginPendingStart: () => {
+            const startId = this.pendingStart.begin(this.playbackOwnerKey());
+            return () => this.pendingStart.settle(startId);
+        },
         afterProgressReset: (playlistId) =>
             void this.catalog.refreshPositions(playlistId),
         download: (item) =>

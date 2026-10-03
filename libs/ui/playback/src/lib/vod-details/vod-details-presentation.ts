@@ -159,6 +159,20 @@ export function buildPrimaryAction(
     };
 }
 
+/** "12:34" or "1:23:45" for a resume point; empty without one. */
+export function formatPlaybackClock(
+    seconds: number | null | undefined
+): string {
+    const total = Math.floor(seconds ?? 0);
+    if (total <= 0) {
+        return '';
+    }
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = `${minutes.toString().padStart(2, '0')}:${(total % 60).toString().padStart(2, '0')}`;
+    const hours = Math.floor(total / 3600);
+    return hours > 0 ? `${hours}:${rest}` : `${minutes}:${rest.slice(3)}`;
+}
+
 export function buildVodMenuSections(input: {
     externalPlayerAvailable: boolean;
     externalPlayerHint: 'MPV' | 'VLC';

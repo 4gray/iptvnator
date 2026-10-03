@@ -22,7 +22,7 @@
             [watchedToggleReady]="positionLoaded()"
             [playbackStartPending]="playbackStartPending()"
             (playClicked)="onVodPlay($event)"
-            (resumeClicked)="onVodResume($event)"
+            (resumeClicked)="onVodPlay($event.item, $event.positionSeconds)"
             (favoriteToggled)="onVodFavoriteToggled($event)"
             (watchedToggled)="onVodWatchedToggled($event)"
             (downloadRequested)="vodDetailActions.download($event)"

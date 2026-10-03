@@ -11,7 +11,7 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { DownloadsService, SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type ExternalPlayerName,
@@ -58,7 +58,7 @@ export class SerialDetailsMenuService {
     private readonly dataSource = inject(XTREAM_DATA_SOURCE, {
         optional: true,
     });
-    private readonly downloadsService = inject(DownloadsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
@@ -157,7 +157,7 @@ export class SerialDetailsMenuService {
             playbackActive: this.bindings()?.playbackActive() ?? false,
             sourcesCount: 0,
             externalPlayerHint:
-                quickStart && this.downloadsService.isAvailable()
+                quickStart && this.runtime.supportsManagedExternalPlayers
                     ? this.externalPlayer() === 'vlc'
                         ? 'VLC'
                         : 'MPV'

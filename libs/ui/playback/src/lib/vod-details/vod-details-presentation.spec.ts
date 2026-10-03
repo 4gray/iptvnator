@@ -1,7 +1,18 @@
 import {
     buildVodMenuSections,
+    formatPlaybackClock,
     VOD_DETAILS_MENU_ACTION,
 } from './vod-details-presentation';
+
+describe('formatPlaybackClock', () => {
+    it('formats a resume point as a clock', () => {
+        expect(formatPlaybackClock(754)).toBe('12:34');
+        expect(formatPlaybackClock(5025)).toBe('1:23:45');
+        expect(formatPlaybackClock(65)).toBe('1:05');
+        expect(formatPlaybackClock(0)).toBe('');
+        expect(formatPlaybackClock(null)).toBe('');
+    });
+});
 
 const BASE = {
     externalPlayerAvailable: true,

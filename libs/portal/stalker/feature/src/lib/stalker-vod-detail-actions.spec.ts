@@ -31,10 +31,13 @@ describe('createStalkerVodDetailActions openExternal', () => {
         const beforeExternalLaunch = jest.fn();
         const closeSession = jest.fn().mockResolvedValue(undefined);
         let running: ExternalPlayerSession | null = null;
+        const settlePendingStart = jest.fn();
+        const beginPendingStart = jest.fn().mockReturnValue(settlePendingStart);
         const actions = createStalkerVodDetailActions({
             resolvePlayback: resolvePlayback as never,
             portalPlayer: { openExternalPlayback },
             externalPlayback: { activeSession: () => running, closeSession },
+            beginPendingStart,
             playbackPositions: { clearPlaybackPositionOrThrow: jest.fn() },
             playlistId: () => 'portal-1',
             selectedVodId,
@@ -49,6 +52,8 @@ describe('createStalkerVodDetailActions openExternal', () => {
             openExternalPlayback,
             beforeExternalLaunch,
             closeSession,
+            beginPendingStart,
+            settlePendingStart,
             setRunning: (session: ExternalPlayerSession | null) =>
                 (running = session),
             resolveLink: () => resolveLink({ streamUrl: 'http://cdn/42.mp4' }),
@@ -97,6 +102,13 @@ describe('createStalkerVodDetailActions openExternal', () => {
         expect(t.openExternalPlayback).toHaveBeenCalledWith(
             { streamUrl: 'http://cdn/42.mp4' },
             'mpv'
+        );
+        // Pending from the click until the launch settled: a reset meanwhile
+        // would be undone by the start.
+        expect(t.beginPendingStart).toHaveBeenCalledTimes(1);
+        expect(t.settlePendingStart).toHaveBeenCalledTimes(1);
+        expect(t.beginPendingStart.mock.invocationCallOrder[0]).toBeLessThan(
+            t.openExternalPlayback.mock.invocationCallOrder[0]
         );
     });
 

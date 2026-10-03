@@ -21,6 +21,7 @@ import {
     buildVodMenuSections,
     labelOf,
     vodDurationSeconds,
+    formatPlaybackClock,
 } from './vod-details-presentation';
 
 export interface VodDetailsHeroStateDeps {
@@ -29,9 +30,9 @@ export interface VodDetailsHeroStateDeps {
     readonly playbackPosition: Signal<number | null>;
     readonly playbackDurationSeconds: Signal<number | null>;
     readonly hasPlaybackPosition: Signal<boolean>;
-    readonly formattedPosition: Signal<string>;
     readonly isWatched: Signal<boolean>;
-    readonly isElectron: Signal<boolean>;
+    /** Managed MPV/VLC launches: the bridge serves openInMpv/openInVlc. */
+    readonly supportsExternalPlayers: () => boolean;
     /** Play/Resume clicked, stream still resolving (Stalker `create_link`). */
     readonly playbackStartPending: Signal<boolean>;
     readonly isOfflinePrimary: Signal<boolean>;
@@ -98,7 +99,9 @@ export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
                     hasPlaybackPosition: deps.hasPlaybackPosition(),
                     positionSeconds: deps.playbackPosition(),
                     durationSeconds: durationSeconds(),
-                    formattedPosition: deps.formattedPosition(),
+                    formattedPosition: formatPlaybackClock(
+                        deps.playbackPosition()
+                    ),
                 },
                 translate
             )
@@ -111,7 +114,7 @@ export function createVodDetailsHeroState(deps: VodDetailsHeroStateDeps) {
             buildVodMenuSections({
                 // Provider-only mode hides local/download controls, not the
                 // provider's own stream in MPV/VLC.
-                externalPlayerAvailable: deps.isElectron(),
+                externalPlayerAvailable: deps.supportsExternalPlayers(),
                 externalPlayerHint: externalPlayer() === 'vlc' ? 'VLC' : 'MPV',
                 hasPlaybackPosition: deps.hasPlaybackPosition(),
                 hasStoredProgress:

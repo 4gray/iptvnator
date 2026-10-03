@@ -47,6 +47,7 @@ import {
     CrossPortalSimilarItem,
     CrossPortalSimilarService,
     DownloadsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
     TmdbEnrichmentService,
 } from '@iptvnator/services';
@@ -194,6 +195,8 @@ export class VodDetailsComponent {
     // ============ Services ============
 
     private readonly downloadsService = inject(DownloadsService);
+
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly router = inject(Router);
@@ -264,25 +267,9 @@ export class VodDetailsComponent {
      * Whether there's a playback position to resume from. A watched movie
      * shows Play, not "Resume 1:32:00" from its final seconds.
      */
-    readonly hasPlaybackPosition = computed(() => {
-        const pos = this.playbackPosition();
-        return pos !== null && pos > 0 && !this.isWatched();
-    });
-
-    /** Formatted playback position (e.g., "12:34" or "1:23:45") */
-    readonly formattedPosition = computed(() => {
-        const pos = this.playbackPosition();
-        if (!pos || pos <= 0) return '';
-
-        const hours = Math.floor(pos / 3600);
-        const minutes = Math.floor((pos % 3600) / 60);
-        const seconds = Math.floor(pos % 60);
-
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    });
+    readonly hasPlaybackPosition = computed(
+        () => (this.playbackPosition() ?? 0) > 0 && !this.isWatched()
+    );
 
     private readonly downloadState = createVodDownloadState(
         this.downloadsService,
@@ -322,9 +309,9 @@ export class VodDetailsComponent {
         playbackPosition: this.playbackPosition,
         playbackDurationSeconds: this.playbackDurationSeconds,
         hasPlaybackPosition: this.hasPlaybackPosition,
-        formattedPosition: this.formattedPosition,
         isWatched: this.isWatched,
-        isElectron: this.isElectron,
+        supportsExternalPlayers: () =>
+            this.runtime.supportsManagedExternalPlayers,
         playbackStartPending: this.playbackStartPending,
         isOfflinePrimary: this.isOfflinePrimary,
         externalLabel: this.externalPrimaryLabel,

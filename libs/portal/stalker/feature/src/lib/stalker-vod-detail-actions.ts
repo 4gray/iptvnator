@@ -51,6 +51,8 @@ interface StalkerVodDetailActionsDeps {
     /** Retires a stored-position read in flight, which would restore the row. */
     readonly discardPendingPositionLoad?: () => void;
     readonly beforeExternalLaunch?: () => void;
+    /** Marks the movie's start pending while the stream resolves; returns the settle. */
+    readonly beginPendingStart?: () => () => void;
     readonly afterProgressReset?: (playlistId: string) => void;
     readonly snackBar: Pick<MatSnackBar, 'open'>;
     readonly translate: Pick<TranslateService, 'instant'>;
@@ -102,6 +104,7 @@ export function createStalkerVodDetailActions(
             const stillSelected = () =>
                 deps.selectedVodId() === vodId &&
                 deps.playlistId() === playlistId;
+            const settlePendingStart = deps.beginPendingStart?.();
             try {
                 const playback = await deps.resolvePlayback(
                     event.item.cmd,
@@ -133,6 +136,8 @@ export function createStalkerVodDetailActions(
                 if (stillSelected()) {
                     notify('PORTALS.PLAYBACK_ERROR');
                 }
+            } finally {
+                settlePendingStart?.();
             }
         },
 

@@ -7,7 +7,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { DownloadsService, SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     VideoPlayer,
     type ExternalPlayerName,
@@ -48,7 +48,7 @@ export class VodDetailsMenuService {
     private readonly msUi = inject(VodDetailsMultiSourceUiService);
     private readonly multiSource = inject(VodMultiSourceHostService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
-    private readonly downloadsService = inject(DownloadsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
@@ -80,7 +80,7 @@ export class VodDetailsMenuService {
                 testId: 'vod-menu-sources',
             });
         }
-        if (item && this.downloadsService.isAvailable()) {
+        if (item && this.runtime.supportsManagedExternalPlayers) {
             sourceRows.push({
                 id: VOD_MENU_ACTION.ExternalPlayer,
                 labelKey: 'PORTALS.DETAIL.OPEN_IN_EXTERNAL_PLAYER',
