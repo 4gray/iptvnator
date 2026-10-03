@@ -68,7 +68,7 @@
     margin: 0;
     font-size: 1.3rem;
     line-height: 1.2;
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: -0.02em;
     color: var(--app-heading-color, var(--mat-sys-on-surface));
 }
@@ -184,7 +184,7 @@
 
 .account-stat__value {
     font-size: 1.3rem;
-    font-weight: 650;
+    font-weight: 600;
     letter-spacing: -0.03em;
     color: var(--app-heading-color, var(--mat-sys-on-surface));
     overflow-wrap: anywhere;
@@ -360,6 +360,8 @@
 
 .account-chip--mono {
     font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+    // JetBrains Mono is bundled up to 500; the chip's 600 would be faked.
+    font-weight: 500;
     text-transform: none;
 }
 
