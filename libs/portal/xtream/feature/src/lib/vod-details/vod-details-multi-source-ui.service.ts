@@ -13,6 +13,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
 import { VodDetailsPlaybackService } from './vod-details-playback.service';
+import type { VodResetTarget } from './vod-details-reset-target';
 import { VodMultiSourceHostService } from './vod-multi-source-host.service';
 import {
     createPrimaryActionPosition,
@@ -132,10 +133,7 @@ export class VodDetailsMultiSourceUiService {
      */
     readonly primaryPosition = this.primaryAction.position;
     /** The copy whose row "Reset progress" clears: the one the button acts on. */
-    readonly primaryTarget = computed<{
-        playlistId: string;
-        contentId: number;
-    } | null>(() => {
+    readonly primaryTarget = computed<VodResetTarget | null>(() => {
         const pinned = this.primaryAction.foreignPin();
         if (pinned) {
             return {

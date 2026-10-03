@@ -35,7 +35,11 @@ describe('VodDetailsMenuService', () => {
     const loadAllPositions = jest.fn().mockResolvedValue(undefined);
     const routePlaybackPosition = signal<PlaybackPositionData | null>(null);
     const vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
-    const resetPending = signal(false);
+    const pendingReset = signal<{
+        playlistId: string;
+        contentId: number;
+    } | null>(null);
+    const resetPending = computed(() => pendingReset() !== null);
     const openExternal = jest.fn().mockResolvedValue(undefined);
     let service: VodDetailsMenuService;
 
@@ -47,7 +51,7 @@ describe('VodDetailsMenuService', () => {
         primaryIsPinnedCopy.set(false);
         routePlaybackPosition.set(null);
         vodPlaybackPosition.set(null);
-        resetPending.set(false);
+        pendingReset.set(null);
         jest.clearAllMocks();
         TestBed.configureTestingModule({
             providers: [
@@ -66,6 +70,7 @@ describe('VodDetailsMenuService', () => {
                         vodPlaybackPosition,
                         playbackStartPending,
                         isExternalLaunchPending,
+                        pendingReset,
                         resetPending,
                         startBlocked: computed(
                             () => isExternalLaunchPending() || resetPending()
@@ -182,14 +187,17 @@ describe('VodDetailsMenuService', () => {
 
         const reset = service.run(VOD_MENU_ACTION.ResetProgress);
         // A start made now would resume from the row being cleared.
-        expect(resetPending()).toBe(true);
+        expect(pendingReset()).toEqual({
+            playlistId: 'playlist-1',
+            contentId: 7,
+        });
         expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBe(true);
         expect(row(VOD_MENU_ACTION.StartOver)?.disabled).toBe(true);
         expect(row(VOD_MENU_ACTION.ResetProgress)?.disabled).toBe(true);
 
         finishClear();
         await reset;
-        expect(resetPending()).toBe(false);
+        expect(pendingReset()).toBeNull();
         expect(row(VOD_MENU_ACTION.ExternalPlayer)?.disabled).toBe(false);
     });
 

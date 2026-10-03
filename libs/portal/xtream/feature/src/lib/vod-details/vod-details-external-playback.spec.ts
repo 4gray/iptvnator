@@ -191,9 +191,23 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
         expect(openResolvedPlayback).not.toHaveBeenCalled();
     });
 
-    it('refuses a start while a progress reset is still writing', async () => {
+    it('refuses a start of the copy whose progress reset is still writing', async () => {
         openResolvedPlayback.mockClear();
-        service.resetPending.set(true);
+        const resetTarget = signal<{
+            playlistId: string;
+            contentId: number;
+        } | null>({ playlistId: ROUTE_PLAYLIST, contentId: ROUTE_VOD_ID });
+        service.bind({
+            vodId: routeVodId,
+            vodInfo: signal(null),
+            activeSource,
+            supersedePendingSwitch: jest.fn(),
+            resetTarget,
+        });
+        service.pendingReset.set({
+            playlistId: ROUTE_PLAYLIST,
+            contentId: ROUTE_VOD_ID,
+        });
 
         // The row is being cleared: a start now would resume from it and
         // the clear would then report no progress for a resumed stream.
@@ -206,8 +220,18 @@ describe('VodDetailsPlaybackService — external playback handoff', () => {
         expect(openResolvedPlayback).not.toHaveBeenCalled();
         expect(service.startBlocked()).toBe(true);
 
-        service.resetPending.set(false);
+        // The reused page shows another movie before the write landed: its
+        // progress is not being cleared, so it starts.
+        resetTarget.set({ playlistId: ROUTE_PLAYLIST, contentId: 991 });
         expect(service.startBlocked()).toBe(false);
+        await expect(
+            service.startResolvedPlayback({
+                streamUrl: 'https://example.com/other.mkv',
+                title: 'Other Movie',
+            })
+        ).resolves.toBe(true);
+
+        service.pendingReset.set(null);
     });
 
     it('rejects a handoff when the external player launch fails', async () => {

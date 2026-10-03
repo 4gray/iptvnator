@@ -42,6 +42,10 @@ import {
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { settleOwnedExternalLaunch } from './vod-details-external-launch';
 import { resolveXtreamVodPlaybackPresentation } from './vod-details-playback-presentation';
+import {
+    sameVodResetTarget,
+    type VodResetTarget,
+} from './vod-details-reset-target';
 import { isResumablePosition } from './vod-primary-action-position';
 
 export interface VodDetailsPlaybackBindings {
@@ -59,6 +63,8 @@ export interface VodDetailsPlaybackBindings {
     supersedePendingSwitch: () => void;
     /** An MPV/VLC launch failed while nothing superseded it; the page tells the user. */
     reportExternalLaunchFailure?: (error: unknown) => void;
+    /** The copy the page's actions act on, for telling a pending reset's copy apart. */
+    resetTarget?: Signal<VodResetTarget | null>;
 }
 
 /**
@@ -170,15 +176,7 @@ export class VodDetailsPlaybackService {
         });
     }
 
-    private ownsContent(
-        info:
-            | {
-                  playlistId?: string;
-                  contentXtreamId?: number;
-                  contentType?: string;
-              }
-            | undefined
-    ): boolean {
+    private ownsContent(info: Parameters<typeof ownsContent>[0]): boolean {
         return ownsContent(info, {
             routePlaylistId: this.xtreamStore.currentPlaylist()?.id,
             routeContentId: this.bindings()?.vodId(),
@@ -259,21 +257,14 @@ export class VodDetailsPlaybackService {
     }
 
     onPrimaryAction(vodItem: XtreamVodDetails | null): void {
-        if (!vodItem) {
-            return;
-        }
-
+        if (!vodItem) return;
         if (this.isExternalStopAction()) {
             void this.stopExternalPlayback().catch(() => undefined);
-            return;
-        }
-
-        if (this.hasPlaybackPosition()) {
+        } else if (this.hasPlaybackPosition()) {
             void this.resumeVod(vodItem);
-            return;
+        } else {
+            void this.playVod(vodItem);
         }
-
-        void this.playVod(vodItem);
     }
 
     stopExternalPlayback(): Promise<void> {
@@ -407,8 +398,19 @@ export class VodDetailsPlaybackService {
     readonly playbackStartPending = computed(() =>
         this.pendingStart.isPendingFor(this.bindings()?.vodId())
     );
-    /** A progress reset still writing: a start meanwhile would resume from the row being cleared. */
-    readonly resetPending = signal(false);
+    /** The copy whose row a reset is still clearing, if any. */
+    readonly pendingReset = signal<VodResetTarget | null>(null);
+    /**
+     * A reset still writing for the copy the page acts on: a start meanwhile
+     * would resume from the row being cleared. Another movie shown on the
+     * reused page meanwhile is not held up by it.
+     */
+    readonly resetPending = computed(() =>
+        sameVodResetTarget(
+            this.pendingReset(),
+            this.bindings()?.resetTarget?.()
+        )
+    );
     /** No start may begin: a launch awaits the player or a reset is in flight. */
     readonly startBlocked = computed(
         () => this.isExternalLaunchPending() || this.resetPending()
