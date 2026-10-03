@@ -318,7 +318,13 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
             visible.left;
         const maxLeft = track.scrollWidth - track.clientWidth;
         let left = maxLeft;
-        if (hiddenLeft) {
+        // A card wider than the visible area (a narrow window, or zoom) can
+        // never fit: show its start rather than a later card's snap point,
+        // which would move it offscreen.
+        if (
+            hiddenLeft ||
+            rect.right - rect.left > visible.right - visible.left
+        ) {
             left = snapOffset(card);
         } else {
             const needed = track.scrollLeft + rect.right - visible.right;

@@ -559,6 +559,24 @@ describe('DashboardRailComponent', () => {
             });
         });
 
+        it('keeps a card wider than the visible area at its own start instead of skipping past it', async () => {
+            // The 1000px viewport cannot hold a 1200px card, so the next
+            // card's snap point (2420) would move the focused one offscreen.
+            const { scrollTo, focusLink } = await renderRail({
+                count: 3,
+                width: 1200,
+                stride: 1210,
+                scrollLeft: 1210,
+            });
+
+            focusLink(1);
+
+            expect(scrollTo).toHaveBeenCalledWith({
+                left: 1210,
+                behavior: 'auto',
+            });
+        });
+
         it('aligns a card cut off on the left with the start edge', async () => {
             const { scrollTo, focusLink } = await renderRail({
                 count: 6,
