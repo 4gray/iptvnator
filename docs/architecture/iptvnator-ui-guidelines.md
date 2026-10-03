@@ -531,10 +531,12 @@ A title's watch progress (its resume share, `progressPercent`) has exactly one
 colour per context, and never a literal of its own:
 
 - **App chrome** — dashboard rail cards and the hero, catalog grids and season
-  episodes (`app-progress-capsule`): `--app-progress-color`, declared per theme
-  in `apps/web/src/m3-theme.scss` as that theme's `--app-selection-color`. The
-  capsule's green from 90 % marks a finished title; it is a status, not
-  progress.
+  episodes (`app-progress-capsule`, and the season list rows' own fill):
+  `--app-progress-color`, declared per theme in `apps/web/src/m3-theme.scss`
+  as that theme's `--app-selection-color`, and declared again inside
+  `.dark-theme` because a derived custom property resolves where it is
+  declared. The capsule's green from 90 % marks a finished title; it is a
+  status, not progress.
 - **Over video** — the dock timeline, the Up next card, the Up Next rail and
   the fullscreen episode panel: the player's fixed `--pc-progress` (accent
   blue `#4f8eff`), never an app token, because the player palette is
@@ -550,8 +552,10 @@ colour per context, and never a literal of its own:
   live hero slides) keeps `--app-live-color`; EPG programme progress keeps the
   fill described below.
 
-Specs hold the rule in each owning project: `player-progress.palette.spec.ts`
-(ui-playback), `progress-capsule.component.spec.ts` (components) and
+Specs hold the rule in each owning project: `m3-theme.spec.ts` (web: the token
+in both theme contexts), `player-progress.palette.spec.ts` (ui-playback),
+`progress-capsule.component.spec.ts` and
+`season-container.progress-colour.spec.ts` (components) and
 `dashboard-progress-colour.spec.ts` (workspace-dashboard-feature).
 
 ### Track
