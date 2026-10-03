@@ -33,6 +33,8 @@ export function fontNamespaceRule(blocks, { scope, scopes }) {
 /** At-rules whose body styles the enclosing rule's own element. */
 const SAME_ELEMENT = /^@(?:media|supports|container|layer|include)\b/i;
 const NONE = Object.freeze({ mono: false, refs: [] });
+/** A family met in another module, which the scan of this one cannot read. */
+const OUTSIDE = Object.freeze({ mono: false, refs: [] });
 
 /**
  * A declaration's whole value, to its `;`: a family list is comma-separated.
@@ -929,14 +931,55 @@ export function familiesOf(
     { included = new Map(), elsewhere = new Set() } = {}
 ) {
     const family = new Map();
-    // A module mixin's name; a mixin declared in a rule is local to it.
+    // This file's mixins, in source order, with the scope each is declared
+    // in (`null` for the module; one declared in a rule is local to it).
+    const mixins = blocks.filter(
+        (b) => b.kind === 'callable' && /^@mixin\b/i.test(b.prelude)
+    );
+    const declaredIn = new Map(
+        mixins.map((b) => [b.start, placeOf(blocks, b.start).scope])
+    );
+    // The definitions of `name` an `@include` at `site` can run, as Sass
+    // resolves it: in the innermost scope around the site that declares one,
+    // the last declared before the site (a rule runs in source order); in a
+    // mixin's body, which runs where it is included, any of them.
+    const definitions = new Map();
+    const definitionsAt = (name, site) => {
+        const id = `${name} ${site}`;
+        if (definitions.has(id)) return definitions.get(id);
+        let found = [];
+        for (const scope of placeOf(blocks, site).scopes) {
+            const declared = mixins.filter(
+                (b) => b.name === name && declaredIn.get(b.start) === scope
+            );
+            const deferred = blocks.some(
+                (b) =>
+                    b.kind === 'callable' &&
+                    b.start < site &&
+                    site < b.end &&
+                    (scope === null || b.start > scope)
+            );
+            const ran = deferred
+                ? declared
+                : declared.filter((b) => b.start < site).slice(-1);
+            if (ran.length > 0) {
+                found = ran;
+                break;
+            }
+        }
+        definitions.set(id, found);
+        return found;
+    };
+    // A module mixin's name, for its last module-level definition: the one
+    // another module includes (one declared in a rule never is).
     const memberOf = (scope) => {
-        const block = blocks.find((b) => b.start === scope);
-        const mixin =
-            block?.kind === 'callable' && /^@mixin\b/i.test(block.prelude);
-        return mixin && placeOf(blocks, scope).scope === null
-            ? block.name
-            : null;
+        const block = mixins.find((b) => b.start === scope);
+        if (!block) return null;
+        const last = mixins
+            .filter((b) => b.name === block.name)
+            .filter((b) => declaredIn.get(b.start) === null)
+            .at(-1);
+        return last === block ? block.name : null;
     };
     // This file's `@include` sites, by mixin: a declaration in a mixin's
     // body lands in the rule that includes it, at the `@include`.
@@ -947,12 +990,14 @@ export function familiesOf(
         if (!includes.has(name)) includes.set(name, []);
         includes.get(name).push(match.index);
     }
+    // Only a mixin is included (a function's body sets nothing), where the
+    // name runs this definition of it.
     const sitesOf = (scope) => {
-        const block = blocks.find((b) => b.start === scope);
-        // Only a mixin is included (a function's body sets nothing).
-        return block?.kind === 'callable'
-            ? (includes.get(block.name) ?? [])
-            : [];
+        const block = mixins.find((b) => b.start === scope);
+        if (!block) return [];
+        return (includes.get(block.name) ?? []).filter((site) =>
+            definitionsAt(block.name, site).includes(block)
+        );
     };
     // A content block (`@include m { … }`) passed to a mixin of this file
     // that places `@content` at its top level is the including rule's
@@ -961,24 +1006,22 @@ export function familiesOf(
     // `@media`) is not traced, as the mixin's own nested blocks are not.
     const contentOf = (scope) => {
         const block = blocks.find((b) => b.start === scope);
-        const named = /^@include\s+([\w-]+)/i.exec(block?.prelude ?? '');
+        const named = /^@include\s+([\w-]+)(?![\w.-])/i.exec(
+            block?.prelude ?? ''
+        );
         if (!named) return null;
         const name = named[1].replace(/_/g, '-');
-        const places = blocks
-            .filter((b) => b.kind === 'callable' && b.name === name)
-            .filter((b) => /^@mixin\b/i.test(b.prelude))
-            .flatMap((mixin) =>
-                [...lexed.text.slice(mixin.start, mixin.end).matchAll(CONTENT)]
-                    .map((match) => mixin.start + match.index)
-                    .filter((index) => !inString(index))
-                    .filter(
-                        (index) => placeOf(blocks, index).scope === mixin.start
-                    )
-            );
         const site = Math.max(
             ...(includes.get(name) ?? []).filter((index) => index < scope)
         );
-        return places.length && Number.isFinite(site) ? { places, site } : null;
+        if (!Number.isFinite(site)) return null;
+        const places = definitionsAt(name, site).flatMap((mixin) =>
+            [...lexed.text.slice(mixin.start, mixin.end).matchAll(CONTENT)]
+                .map((match) => mixin.start + match.index)
+                .filter((index) => !inString(index))
+                .filter((index) => placeOf(blocks, index).scope === mixin.start)
+        );
+        return places.length ? { places, site } : null;
     };
     // Cascade layers in declared order within their parent layer: as
     // `@layer a, b;` names them, or as a `@layer name { … }` block first
@@ -1586,25 +1629,43 @@ export function familiesOf(
         const block = blocks.find((b) => b.start === scope);
         const includes = sitesOf(scope);
         const extended = extendersOf(scope).map((extender) => extender.index);
+        // Where another module includes it, it meets families unseen here.
+        const outside = elsewhere.has(memberOf(scope));
         const silent =
             includes.length > 0 ||
-            elsewhere.has(memberOf(scope)) ||
+            outside ||
             (extended.length > 0 && /^%/.test(block?.prelude ?? ''));
         return [
             ...(silent || !keep(scope) ? [] : [lookup(index)]),
+            ...(outside ? [OUTSIDE] : []),
             ...[...includes, ...extended].flatMap((site) =>
                 familyAt(site, keep, seen)
             ),
         ];
     };
     const monoAt = (index, keep = () => true) => {
-        const found = familyAt(index, keep).filter((entry) => entry !== NONE);
+        const found = familyAt(index, keep).filter(
+            (entry) => entry !== NONE && entry !== OUTSIDE
+        );
         return (
             found.find((entry) => entry.mono) ??
             found.find((entry) => entry.refs.length > 0) ??
             found[0] ??
             NONE
         );
+    };
+    // The families an `@include` at `site` meets, wherever it lands:
+    // whether one renders JetBrains Mono (`mono`, also when the mixin it
+    // sits in lands in another module, unseen here), and those named
+    // through variables (`families`), resolved later.
+    monoAt.callAt = (site) => {
+        const found = familyAt(site, () => true);
+        return {
+            mono: found.some((entry) => entry.mono || entry === OUTSIDE),
+            families: found.filter(
+                (entry) => !entry.mono && entry.refs.length > 0
+            ),
+        };
     };
     // Where a declaration at `index` lands (`{ at, scope, rules }`, see
     // `landingsOf`), for the weights in effect.
@@ -1622,6 +1683,7 @@ export function familiesOf(
     };
     monoAt.landingsAt = landingsAt;
     monoAt.memberOf = memberOf;
+    monoAt.definitionsAt = definitionsAt;
     // Each module mixin's top-level families, by name (`{ key, entry }`).
     monoAt.exported = exported;
     return monoAt;

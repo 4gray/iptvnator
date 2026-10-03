@@ -4296,6 +4296,167 @@ test("caps a named argument another module's mixin sets a weight from", () => {
     );
 });
 
+test('runs the definition of a mixin Sass resolves at each include', () => {
+    const mono = "'JetBrains Mono'";
+    const heavy = {
+        'libs/w9/_type.scss': '@mixin heavy { font-weight: 700; }',
+    };
+    const imported = ['libs/w9/_type.scss:1 font-weight: 700'];
+    for (const [files, expected] of [
+        // One declared in a rule is visible there, once declared; elsewhere
+        // the name runs the one brought in.
+        [
+            {
+                ...heavy,
+                'libs/w9/c.scss': `@use 'type' as *;\n.p { @mixin heavy { font-weight: 400; } @include heavy; }\n.x { font-family: ${mono}; @include heavy; }`,
+            },
+            imported,
+        ],
+        [
+            {
+                ...heavy,
+                'libs/w9/c.scss': `@use 'type' as *; .p { font-family: ${mono}; @mixin heavy { font-weight: 400; } @include heavy; }`,
+            },
+            [],
+        ],
+        [
+            {
+                ...heavy,
+                'libs/w9/c.scss': `@use 'type' as *; .p { font-family: ${mono}; @include heavy; @mixin heavy { font-weight: 400; } }`,
+            },
+            imported,
+        ],
+        // A rule runs the definition declared before it.
+        [
+            {
+                'libs/w9/c.scss': `@mixin m { font-weight: 700; } .x { font-family: ${mono}; @include m; } @mixin m { font-weight: 400; }`,
+            },
+            ['libs/w9/c.scss:1 font-weight: 700'],
+        ],
+        [
+            {
+                'libs/w9/c.scss': `@mixin m { font-weight: 700; } @mixin m { font-weight: 400; } .x { font-family: ${mono}; @include m; }`,
+            },
+            [],
+        ],
+        // A content block goes where that definition places `@content`.
+        [
+            {
+                'libs/w9/c.scss': `@mixin w { @content; font-weight: 500; } .x { font-family: ${mono}; @include w { font-weight: 700; } } @mixin w { font-weight: 500; @content; }`,
+            },
+            [],
+        ],
+        // Another module sees the last definition only.
+        [
+            {
+                'libs/w9/_t.scss': `@mixin m { font-family: ${mono}; }\n@mixin m { font-weight: 700; }`,
+                'libs/w9/c.scss': "@use 't'; .x { @include t.m; }",
+            },
+            [],
+        ],
+        [
+            {
+                'libs/w9/_t.scss':
+                    '@mixin m { font-weight: 700; }\n@mixin m { font-weight: 400; }',
+                'libs/w9/c.scss': `@use 't'; .x { font-family: ${mono}; @include t.m; }`,
+            },
+            [],
+        ],
+        [
+            {
+                'libs/w9/_t.scss':
+                    '@mixin m { font-weight: 400; }\n@mixin m { font-weight: 700; }',
+                'libs/w9/c.scss': `@use 't'; .x { font-family: ${mono}; @include t.m; }`,
+            },
+            ['libs/w9/_t.scss:2 font-weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(workspace(files), expected, JSON.stringify(files));
+    }
+});
+
+test('caps a parameter only with what calls in JetBrains Mono rules pass', () => {
+    const mono = "'JetBrains Mono'";
+    const w = (fallback) => ({
+        'libs/w10/_m.scss': `@mixin w($weight: ${fallback}) { font-weight: $weight; }`,
+    });
+    const hops = {
+        'libs/w10/_p.scss':
+            '@mixin inner($weight) { font-weight: $weight; }\n@mixin outer($w: 400) { @include inner($weight: $w); }',
+    };
+    for (const [files, expected] of [
+        // A call in a Roboto rule passes its own weight.
+        [
+            {
+                ...w(400),
+                'libs/w10/c.scss': `@use 'm';\n.a { font-family: ${mono}; @include m.w($weight: 400); }\n.b { font-family: Roboto; @include m.w($weight: 700); }`,
+            },
+            [],
+        ],
+        [
+            {
+                'libs/w10/c.scss': `@mixin w($weight: 400) { font-weight: $weight; }\n.a { font-family: ${mono}; @include w($weight: 400); }\n.b { font-family: Roboto; @include w($weight: 700); }`,
+            },
+            [],
+        ],
+        // Its default counts where a JetBrains Mono call leaves it out.
+        [
+            {
+                ...w(700),
+                'libs/w10/c.scss': `@use 'm';\n.a { font-family: ${mono}; @include m.w($weight: 400); }\n.b { font-family: Roboto; @include m.w; }`,
+            },
+            [],
+        ],
+        [
+            {
+                ...w(700),
+                'libs/w10/c.scss': `@use 'm';\n.a { font-family: ${mono}; @include m.w; }\n.b { font-family: Roboto; @include m.w($weight: 400); }`,
+            },
+            ['libs/w10/_m.scss:1 $weight: 700'],
+        ],
+        // Through a mixin that passes its own parameter on.
+        [
+            {
+                ...hops,
+                'libs/w10/c.scss': `@use 'p';\n.a { font-family: ${mono}; @include p.outer($w: 400); }\n.b { font-family: Roboto; @include p.outer($w: 700); }`,
+            },
+            [],
+        ],
+        [
+            {
+                ...hops,
+                'libs/w10/c.scss': `@use 'p';\n.a { font-family: ${mono}; @include p.outer($w: 700); }\n.b { font-family: Roboto; @include p.outer($w: 400); }`,
+            },
+            ['libs/w10/c.scss:2 $w: 700'],
+        ],
+        // A call's family named through a variable, resolved.
+        [
+            {
+                ...w(400),
+                'libs/w10/c.scss': `@use 'm';\n:root { --f: ${mono}; }\n.a { font-family: var(--f); @include m.w($weight: 700); }`,
+            },
+            ['libs/w10/c.scss:3 $weight: 700'],
+        ],
+        [
+            {
+                ...w(400),
+                'libs/w10/c.scss': `@use 'm';\n:root { --f: Roboto; }\n.a { font-family: var(--f); @include m.w($weight: 700); }\n.b { font-family: ${mono}; @include m.w($weight: 400); }`,
+            },
+            [],
+        ],
+        // Or once a keyframe that sets another family for a while ends.
+        [
+            {
+                ...w(400),
+                'libs/w10/c.scss': `@use 'm';\n:root { --f: ${mono}; }\n@keyframes swap { from { font-family: Roboto; } }\n.a { font-family: var(--f); animation: swap 1s; @include m.w($weight: 700); }`,
+            },
+            ['libs/w10/c.scss:4 $weight: 700'],
+        ],
+    ]) {
+        assert.deepEqual(workspace(files), expected, JSON.stringify(files));
+    }
+});
+
 test("inherits the document root's family", () => {
     const mono = "'JetBrains Mono'";
     const media = '@media (min-width: 1px)';
