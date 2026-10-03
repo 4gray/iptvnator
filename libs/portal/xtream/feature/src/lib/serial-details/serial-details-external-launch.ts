@@ -16,21 +16,26 @@ export interface SeriesExternalLaunchHost {
         PortalExternalPlayback,
         'activeSession' | 'closeSession'
     >;
-    currentPlaylistId(): string;
-    selectedItem(): { series_id?: string | number } | null;
+    /** `playlist:series` on screen, null once the page is gone. */
+    launchOwner(): string | null;
 }
 
 /**
  * The "…" menu's MPV/VLC launch of an episode. An episode of this series
  * still running externally is closed first: with instance reuse off a
- * second detached player would start beside it. When that close fails the
- * running player stays and nothing new launches.
+ * second detached player would start beside it. When that close fails, or
+ * the user moved on while it ran, the running player stays and nothing new
+ * launches.
  */
 export async function openEpisodeExternally(
     host: SeriesExternalLaunchHost,
     playback: ResolvedPortalPlayback,
     player: ExternalPlayerName
 ): Promise<ExternalPlayerSession | void> {
+    const owner = host.launchOwner();
+    if (!owner) {
+        return;
+    }
     const session = host.externalPlayback.activeSession();
     const info = session?.contentInfo;
     const ownSession =
@@ -38,8 +43,7 @@ export async function openEpisodeExternally(
         info &&
         session.status !== 'closed' &&
         info.contentType === 'episode' &&
-        info.playlistId === host.currentPlaylistId() &&
-        info.seriesXtreamId === Number(host.selectedItem()?.series_id ?? 0)
+        `${info.playlistId}:${info.seriesXtreamId}` === owner
             ? session
             : null;
     const replaced = await closeRunningExternalSession(
@@ -48,7 +52,7 @@ export async function openEpisodeExternally(
         (message, error) =>
             console.warn(`[SerialDetailsPlayback] ${message}`, error)
     );
-    if (!replaced) {
+    if (!replaced || host.launchOwner() !== owner) {
         return;
     }
     return host.portalPlayer.openExternalPlayback(playback, player);

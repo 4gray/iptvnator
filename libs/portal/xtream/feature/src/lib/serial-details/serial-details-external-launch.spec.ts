@@ -37,17 +37,18 @@ describe('openEpisodeExternally', () => {
     function host(active: ExternalPlayerSession | null) {
         const openExternalPlayback = jest.fn().mockResolvedValue(undefined);
         const closeSession = jest.fn().mockResolvedValue(undefined);
+        const launchOwner = jest.fn().mockReturnValue('xtream-1:103');
         return {
             openExternalPlayback,
             closeSession,
+            launchOwner,
             host: {
                 portalPlayer: { openExternalPlayback },
                 externalPlayback: {
                     activeSession: () => active,
                     closeSession,
                 },
-                currentPlaylistId: () => 'xtream-1',
-                selectedItem: () => ({ series_id: '103' }),
+                launchOwner,
             },
         };
     }
@@ -79,10 +80,23 @@ describe('openEpisodeExternally', () => {
         expect(t.openExternalPlayback).toHaveBeenCalledWith(PLAYBACK, 'mpv');
     });
 
+    it('drops the launch when the page moved on while the close ran', async () => {
+        const t = host(session());
+        t.closeSession.mockImplementation(async () => {
+            t.launchOwner.mockReturnValue('xtream-1:999');
+        });
+        await openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+
+        expect(t.closeSession).toHaveBeenCalledTimes(1);
+        expect(t.openExternalPlayback).not.toHaveBeenCalled();
+    });
+
     it('keeps the running player when closing it fails', async () => {
         const t = host(session());
         t.closeSession.mockRejectedValue(new Error('still busy'));
-        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const warn = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
         await expect(
             openEpisodeExternally(t.host, PLAYBACK, 'mpv')
         ).resolves.toBeUndefined();

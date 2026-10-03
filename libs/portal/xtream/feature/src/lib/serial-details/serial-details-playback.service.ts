@@ -72,11 +72,15 @@ export class SerialDetailsPlaybackService {
     private readonly recordRecentItem = injectXtreamRecentHistory();
     private readonly resumeTarget = inject(XTREAM_SERIES_RESUME_TARGET);
     private readonly seasonWatch = inject(SerialDetailsSeasonWatchService);
+    private readonly savePosition = (
+        playlistId: string,
+        position: PlaybackPositionData
+    ) => this.playbackPositions.savePlaybackPosition(playlistId, position);
 
     private readonly bindings = signal<SerialDetailsPlaybackBindings | null>(
         null
     );
-    readonly currentPlaylistId = computed(
+    private readonly currentPlaylistId = computed(
         () => this.xtreamStore.currentPlaylist()?.id ?? ''
     );
     private readonly playbackPositionState =
@@ -114,6 +118,8 @@ export class SerialDetailsPlaybackService {
     );
 
     constructor() {
+        // A launch still closing its predecessor must not outlive the page.
+        inject(DestroyRef).onDestroy(() => this.bindings.set(null));
         effect(() => {
             const session = this.externalPlayback.activeSession();
             const selectedItem = this.selectedItem();
@@ -262,18 +268,16 @@ export class SerialDetailsPlaybackService {
 
     playPreviousEpisode(): void {
         const previous = this.inlineEpisodeState()?.previous;
-        if (!previous) {
-            return;
+        if (previous) {
+            this.playEpisode(previous);
         }
-        this.playEpisode(previous);
     }
 
     playNextEpisode(): void {
         const next = this.inlineEpisodeState()?.next;
-        if (!next) {
-            return;
+        if (next) {
+            this.playEpisode(next);
         }
-        this.playEpisode(next);
     }
 
     handleInlinePlaybackEnded(): void {
@@ -322,11 +326,7 @@ export class SerialDetailsPlaybackService {
         void this.playbackPositionState.recordExternalLaunch(
             request.playback,
             launch,
-            (playlistId, position) =>
-                this.playbackPositions.savePlaybackPosition(
-                    playlistId,
-                    position
-                )
+            this.savePosition
         );
     }
 
@@ -409,8 +409,14 @@ export class SerialDetailsPlaybackService {
         );
     }
 
-    selectedItem(): XtreamSerieDetailsView | null {
+    private selectedItem(): XtreamSerieDetailsView | null {
         return this.bindings()?.selectedItem() ?? null;
+    }
+
+    /** `playlist:series` of the page, null once it is gone or shows another series. */
+    launchOwner(): string | null {
+        const seriesId = this.selectedItem()?.series_id;
+        return seriesId ? `${this.currentPlaylistId()}:${seriesId}` : null;
     }
 
     private startPlayback(
@@ -431,11 +437,7 @@ export class SerialDetailsPlaybackService {
             player
                 ? openEpisodeExternally(this, playback, player)
                 : this.portalPlayer.openResolvedPlayback(playback, true),
-            (playlistId, position) =>
-                this.playbackPositions.savePlaybackPosition(
-                    playlistId,
-                    position
-                )
+            this.savePosition
         );
     }
 
