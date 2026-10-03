@@ -1306,16 +1306,20 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             }
 
             this.closeInlinePlayer();
-            void (forcePlayer
-                ? this.openEpisodeExternally(
-                      resolvedPlayback,
-                      forcePlayer,
-                      request
-                  )
-                : this.portalPlayer.openResolvedPlayback(
-                      resolvedPlayback,
-                      true
-                  ));
+            if (forcePlayer) {
+                // Awaited so the start stays pending through the close of the
+                // previous player and the launch itself.
+                await this.openEpisodeExternally(
+                    resolvedPlayback,
+                    forcePlayer,
+                    request
+                );
+            } else {
+                void this.portalPlayer.openResolvedPlayback(
+                    resolvedPlayback,
+                    true
+                );
+            }
         } catch (error) {
             if (!this.isPlaybackRequestCurrent(request)) return;
             this.logger.error('Failed to start inline series playback', error);
