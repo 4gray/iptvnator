@@ -49,10 +49,24 @@ For a non-mutating CI/agent check, run:
 pnpm run i18n:check
 ```
 
-The check fails on missing or extra keys against `en.json`. It reports values
-that are still identical to English as warnings so untranslated fallback strings
-remain visible without blocking key-parity validation. For stricter translation
-audits, run:
+The check fails on missing or extra keys against `en.json`, and on values that
+are identical to English unless `identical-en-baseline.json` lists that exact
+English text for the locale and key. Do not copy English into a locale as a
+placeholder: translate it. The contract, including when an entry stops
+covering a key, is in the
+[validation map](../../docs/architecture/validation-map.md#i18n).
+
+Baseline entries that are no longer identical are reported, not fatal. After
+translating baselined values, or for a value that is legitimately the same in a
+language (a brand, a technical name, a loanword), rewrite the baseline and
+review every added entry in the diff:
+
+```bash
+pnpm run i18n:baseline:update
+```
+
+The checker's own tests run with `pnpm run i18n:test`; CI runs both through
+`pnpm run i18n:validate`. For a full audit that ignores the baseline, run:
 
 ```bash
 node tools/i18n/check-drift.mjs --fail-on-identical

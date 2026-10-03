@@ -242,14 +242,31 @@ pnpm run coverage:e2e:v8:web
 ## I18n
 
 ```bash
-pnpm run i18n:check
+pnpm run i18n:validate          # checker unit tests, then the check (CI)
+pnpm run i18n:check             # the check only
+pnpm run i18n:baseline:update   # deliberate: rewrite the English-identical baseline
 ```
 
 The i18n check is non-mutating. It compares every locale file in
 `apps/web/src/assets/i18n/` against `en.json` and fails on missing or extra keys.
-Identical English fallback values are reported as warnings by default; use
-`node tools/i18n/check-drift.mjs --fail-on-identical` for a stricter translation
-audit.
+It also fails on a locale value that is identical to English unless
+`tools/i18n/identical-en-baseline.json` records that exact English text for the
+same locale and key. The baseline holds values that are legitimately the same
+in a language (brand and technical names, language autonyms, loanwords such as
+"PIN") and the untranslated debt that existed when the guard was added, so new
+keys must ship translated. An entry stops covering its key once the English
+text changes, so copying reworded English into a locale fails as well.
+
+Baseline entries that are no longer English-identical (translated, removed, or
+reworded) are reported but do not fail. `pnpm run i18n:baseline:update`
+rewrites the baseline from the current locale files, dropping those entries
+and printing every added one. Run it only after translating, or for a value
+that is legitimately identical in that language; review the diff, and never
+run it in CI. A new locale starts with no baseline entries, so it has to
+record its legitimate identical values the same way.
+`node tools/i18n/check-drift.mjs --fail-on-identical` ignores the baseline for
+a full translation audit. CI runs `pnpm run i18n:validate` in the unit test
+job.
 
 ## Performance
 
