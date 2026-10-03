@@ -1,3 +1,7 @@
+import type {
+    PlaybackPositionData,
+    PlayerContentInfo,
+} from '@iptvnator/shared/interfaces';
 export interface RemainingTimeLabel {
     readonly key: string;
     readonly params: Record<string, number>;
@@ -9,6 +13,18 @@ interface ProgressPosition {
 }
 
 /** 0–100 watched share, or null when the duration is unknown. */
+/** The position row an inline player's time update writes for its content. */
+export function inlineProgressPosition(
+    contentInfo: PlayerContentInfo,
+    event: { currentTime: number; duration: number }
+): PlaybackPositionData {
+    return {
+        ...contentInfo,
+        positionSeconds: Math.floor(event.currentTime),
+        durationSeconds: Math.floor(event.duration),
+    };
+}
+
 export function playbackProgressPercent(
     position: ProgressPosition | null | undefined
 ): number | null {

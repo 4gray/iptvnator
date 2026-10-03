@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import type {
     PortalExternalPlayback,
     PortalPlayer,
@@ -24,6 +25,26 @@ export interface SeriesExternalLaunchHost {
 const launchesInFlight = new Set<string>();
 /** Per owner, the tail of its launch chain: a second episode waits its turn. */
 const launchChains = new Map<string, Promise<unknown>>();
+/** Owners with a launch in flight, reactive for the hosts' start guards. */
+const pendingOwners = signal<ReadonlyMap<string, number>>(new Map());
+
+function countPending(owner: string, delta: number): void {
+    pendingOwners.update((owners) => {
+        const next = new Map(owners);
+        const count = (next.get(owner) ?? 0) + delta;
+        if (count > 0) {
+            next.set(owner, count);
+        } else {
+            next.delete(owner);
+        }
+        return next;
+    });
+}
+
+/** Whether a forced launch of this owner (`playlist:series`) has not settled yet. */
+export function isEpisodeLaunchPending(owner: string | null): boolean {
+    return !!owner && (pendingOwners().get(owner) ?? 0) > 0;
+}
 
 /**
  * The "…" menu's MPV/VLC launch of an episode. An episode of this series
@@ -49,6 +70,7 @@ export async function openEpisodeExternally(
         return;
     }
     launchesInFlight.add(key);
+    countPending(owner, 1);
     const previous = launchChains.get(owner) ?? Promise.resolve();
     const run = previous.then(() =>
         launchEpisode(host, owner, playback, player)
@@ -59,6 +81,7 @@ export async function openEpisodeExternally(
         return await run;
     } finally {
         launchesInFlight.delete(key);
+        countPending(owner, -1);
         if (launchChains.get(owner) === tail) {
             launchChains.delete(owner);
         }

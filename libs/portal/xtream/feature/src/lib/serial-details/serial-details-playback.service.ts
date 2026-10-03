@@ -15,6 +15,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     getSeriesQuickStartAction,
+    inlineProgressPosition,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
@@ -39,7 +40,10 @@ import {
 } from '@iptvnator/ui/playback';
 import { injectXtreamRecentHistory } from '../xtream-recent-history';
 import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
-import { openEpisodeExternally } from './serial-details-external-launch';
+import {
+    isEpisodeLaunchPending,
+    openEpisodeExternally,
+} from './serial-details-external-launch';
 import { SerialDetailsPlaybackPositionState } from './serial-details-playback-position-state';
 import {
     SerialDetailsSeasonWatchService,
@@ -217,6 +221,11 @@ export class SerialDetailsPlaybackService {
         episode: XtreamSerieEpisode,
         player?: ExternalPlayerName
     ): void {
+        // A forced launch still settling owns the next start; a different
+        // episode launched the same way is queued behind it instead.
+        if (!player && this.forcedLaunchPending()) {
+            return;
+        }
         const playlist = this.xtreamStore.currentPlaylist();
         const selectedItem = this.selectedItem();
         if (!playlist || !selectedItem) {
@@ -299,21 +308,11 @@ export class SerialDetailsPlaybackService {
         duration: number;
     }): void {
         const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) return;
-
         const now = Date.now();
-        if (now - this.lastSaveTime <= 15000) return;
-
+        if (!playback?.contentInfo || now - this.lastSaveTime <= 15000) return;
         this.lastSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
+        const position = inlineProgressPosition(playback.contentInfo, event);
+        void this.savePosition(playback.contentInfo.playlistId, position);
         this.playbackPositionState.update(position);
     }
 
@@ -412,6 +411,11 @@ export class SerialDetailsPlaybackService {
     private selectedItem(): XtreamSerieDetailsView | null {
         return this.bindings()?.selectedItem() ?? null;
     }
+
+    /** A forced MPV/VLC launch of this series that has not settled yet. */
+    readonly forcedLaunchPending = computed(() =>
+        isEpisodeLaunchPending(this.launchOwner())
+    );
 
     /** `playlist:series` of the page, null once it is gone or shows another series. */
     launchOwner(): string | null {

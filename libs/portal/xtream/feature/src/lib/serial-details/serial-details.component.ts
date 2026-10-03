@@ -224,6 +224,7 @@ export class SerialDetailsComponent implements OnDestroy {
             playbackActive: computed(
                 () =>
                     this.inlinePlayback() !== null ||
+                    this.playback.forcedLaunchPending() ||
                     this.playback.openingEpisodeId() !== null ||
                     this.playback.activeEpisodeId() !== null
             ),

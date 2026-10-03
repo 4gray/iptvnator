@@ -3,7 +3,10 @@ import type {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { openEpisodeExternally } from './serial-details-external-launch';
+import {
+    isEpisodeLaunchPending,
+    openEpisodeExternally,
+} from './serial-details-external-launch';
 
 const PLAYBACK: ResolvedPortalPlayback = {
     streamUrl: 'http://xtream.example/series/1002.mp4',
@@ -142,6 +145,23 @@ describe('openEpisodeExternally', () => {
                 streamUrl: 'http://xtream.example/series/1003.mp4',
             })
         );
+    });
+
+    it('reports the owner as pending until the launch settles', async () => {
+        const t = host(null);
+        let settleLaunch: () => void = () => undefined;
+        t.openExternalPlayback.mockImplementation(
+            () => new Promise<void>((resolve) => (settleLaunch = resolve))
+        );
+        expect(isEpisodeLaunchPending('xtream-1:103')).toBe(false);
+        const launch = openEpisodeExternally(t.host, PLAYBACK, 'mpv');
+        expect(isEpisodeLaunchPending('xtream-1:103')).toBe(true);
+        expect(isEpisodeLaunchPending('xtream-1:104')).toBe(false);
+
+        await flush();
+        settleLaunch();
+        await launch;
+        expect(isEpisodeLaunchPending('xtream-1:103')).toBe(false);
     });
 
     it('keeps the running player when closing it fails', async () => {

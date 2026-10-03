@@ -5,10 +5,36 @@ import {
     playbackProgressPercent,
 } from './playback-progress';
 
+import { inlineProgressPosition } from './playback-progress';
+
+describe('inlineProgressPosition', () => {
+    it('writes floored seconds onto the content identity', () => {
+        expect(
+            inlineProgressPosition(
+                {
+                    playlistId: 'p1',
+                    contentXtreamId: 7,
+                    contentType: 'episode',
+                },
+                { currentTime: 61.9, duration: 1800.2 }
+            )
+        ).toEqual({
+            playlistId: 'p1',
+            contentXtreamId: 7,
+            contentType: 'episode',
+            positionSeconds: 61,
+            durationSeconds: 1800,
+        });
+    });
+});
+
 describe('playbackProgressPercent', () => {
     it('floors the watched share to an integer percent', () => {
         expect(
-            playbackProgressPercent({ positionSeconds: 924, durationSeconds: 1000 })
+            playbackProgressPercent({
+                positionSeconds: 924,
+                durationSeconds: 1000,
+            })
         ).toBe(92);
     });
 
@@ -27,7 +53,10 @@ describe('formatRemainingLabel', () => {
             params: { seconds: 30 },
         });
         expect(
-            formatRemainingLabel({ positionSeconds: 600, durationSeconds: 1920 })
+            formatRemainingLabel({
+                positionSeconds: 600,
+                durationSeconds: 1920,
+            })
         ).toEqual({
             key: 'WORKSPACE.DASHBOARD.REMAINING_MINUTES',
             params: { minutes: 22 },
