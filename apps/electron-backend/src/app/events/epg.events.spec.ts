@@ -333,6 +333,40 @@ describe('EpgEvents', () => {
         await expect(forcedPromise).resolves.toBeUndefined();
     });
 
+    it('shares one pending refresh between concurrent forced requests', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://example.com/guide.xml';
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+
+        const forcedA = workerService.fetchEpgFromUrl(url, {}, { force: true });
+        const forcedB = workerService.fetchEpgFromUrl(url, {}, { force: true });
+
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await expect(firstPromise).resolves.toBeUndefined();
+        await flushPromises();
+        expect(mockWorkerInstances).toHaveLength(2);
+
+        const refetchWorker = mockWorkerInstances[1];
+        refetchWorker.emit('message', { type: 'READY' });
+        await flushPromises();
+        refetchWorker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 3 },
+        });
+        await expect(Promise.all([forcedA, forcedB])).resolves.toEqual([
+            undefined,
+            undefined,
+        ]);
+        expect(mockWorkerInstances).toHaveLength(2);
+    });
+
     it('does not resolve clearEpgData until interrupted fetch workers have terminated', async () => {
         const workerService = new EpgWorkerService('[Test EPG]', 1000);
 

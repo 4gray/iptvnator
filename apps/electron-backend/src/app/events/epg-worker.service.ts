@@ -31,6 +31,7 @@ export class EpgWorkerService {
     private readonly fetchedUrls = new Set<string>();
     private readonly workers = new Map<string, Worker>();
     private readonly inFlightFetches = new Map<string, Promise<void>>();
+    private readonly forcedFetches = new Map<string, Promise<void>>();
     private readonly inFlightSourceClears = new Map<string, Promise<void>>();
 
     private readonly runtime: EpgWorkerRuntime;
@@ -111,22 +112,16 @@ export class EpgWorkerService {
         // Checked before the fetched-URL shortcut: a completed fetch is added
         // to `fetchedUrls` while its worker is still terminating, and callers
         // must keep awaiting that termination window.
-        const inFlight = this.inFlightFetches.get(url);
-        if (inFlight && force) {
-            // A forced refresh must not piggyback on a fetch that may already
-            // have reported completion (and is only terminating): it would
-            // never get a completion update of its own. Let it finish, then
-            // start a new fetch, so two workers never run for one URL.
-            await inFlight.catch(() => undefined);
-            this.fetchedUrls.delete(url);
-            return this.fetchEpgFromUrl(url, options, { force });
+        if (force) {
+            return this.forceFetch(url, options);
         }
+        const inFlight = this.inFlightFetches.get(url);
         if (inFlight) {
             epgLogger.log(this.loggerLabel, 'Reusing in-flight EPG fetch');
             return inFlight;
         }
 
-        if (!force && this.fetchedUrls.has(url)) {
+        if (this.fetchedUrls.has(url)) {
             epgLogger.log(
                 this.loggerLabel,
                 'Skipping already fetched EPG source'
@@ -141,6 +136,32 @@ export class EpgWorkerService {
         );
         this.inFlightFetches.set(url, fetchPromise);
         return fetchPromise;
+    }
+
+    /**
+     * A forced refresh must not piggyback on a fetch that may already have
+     * reported completion (and is only terminating): it would never get a
+     * completion update of its own. Let any in-flight fetch finish, then
+     * start a new one, so two workers never run for one URL. Concurrent
+     * forced requests share the same pending refresh.
+     */
+    private forceFetch(
+        url: string,
+        options: ElectronBridgeTrustOptions
+    ): Promise<void> {
+        const pending = this.forcedFetches.get(url);
+        if (pending) return pending;
+        const refresh = (async () => {
+            await this.inFlightFetches.get(url)?.catch(() => undefined);
+            this.fetchedUrls.delete(url);
+            await this.fetchEpgFromUrl(url, options);
+        })().finally(() => {
+            if (this.forcedFetches.get(url) === refresh) {
+                this.forcedFetches.delete(url);
+            }
+        });
+        this.forcedFetches.set(url, refresh);
+        return refresh;
     }
 
     /**
