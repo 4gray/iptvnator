@@ -260,7 +260,8 @@ text changes, so copying reworded English into a locale fails as well.
 Baseline entries that are no longer English-identical (translated, removed, or
 reworded) are reported but do not fail. `pnpm run i18n:baseline:update`
 rewrites the baseline from the current locale files, dropping those entries
-and printing every added one. Run it only after translating, or for a value
+and printing every added one; it writes nothing while any locale is unreadable
+or has missing or extra keys. Run it only after translating, or for a value
 that is legitimately identical in that language; review the diff, and never
 run it in CI. A new locale starts with no baseline entries, so it has to
 record its legitimate identical values the same way.

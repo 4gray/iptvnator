@@ -214,6 +214,36 @@ test('--update-baseline keeps the old baseline when a locale is unreadable', () 
     assert.deepEqual(readBaselineFile(), { de: { PIN: 'PIN' } });
 });
 
+test('--update-baseline keeps the old baseline while keys are missing or extra', () => {
+    writeLocale('en', EN);
+    writeLocale('de', { APP: { TITLE: 'IPTVnator', OLD: 'Alt' }, PIN: 'PIN' });
+    writeBaseline({ de: { 'APP.SAVE': 'Save', PIN: 'PIN' } });
+
+    const { code, output } = check('--update-baseline');
+
+    assert.equal(code, 1);
+    assert.match(output, /baseline not written/);
+    assert.deepEqual(readBaselineFile(), {
+        de: { 'APP.SAVE': 'Save', PIN: 'PIN' },
+    });
+});
+
+test('--fail-on-identical audits even when the baseline is damaged', () => {
+    writeLocale('en', EN);
+    writeLocale('de', {
+        APP: { TITLE: 'IPTVnator', SAVE: 'Speichern' },
+        PIN: 'PIN-Code',
+    });
+    writeFileSync(baselinePath, '{ broken');
+
+    const { code, output } = check('--fail-on-identical');
+
+    assert.equal(code, 1);
+    assert.match(output, /^FAIL de\.json: missing=0 extra=0 identical_en=1$/m);
+    assert.match(output, /de\.json APP\.TITLE: "IPTVnator"/);
+    assert.equal(check().code, 1);
+});
+
 test('rejects unknown and conflicting flags', () => {
     writeLocale('en', EN);
 

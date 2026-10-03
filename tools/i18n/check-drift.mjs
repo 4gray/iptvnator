@@ -269,7 +269,8 @@ export function run({
         enLeaves = collectLeaves(
             readJson(resolve(i18nDir, `${EN_LOCALE}.json`))
         );
-        baseline = readBaseline(baselinePath);
+        // A strict audit ignores the baseline, so a damaged file cannot block it.
+        baseline = strict ? new Map() : readBaseline(baselinePath);
     } catch (error) {
         if (!enLeaves || !update) {
             log(`FAIL ${formatError(error)}`);
@@ -283,7 +284,6 @@ export function run({
     const identicalByLocale = new Map();
     const rejected = [];
     let failed = false;
-    let unreadable = false;
     let staleTotal = 0;
 
     for (const locale of locales) {
@@ -292,7 +292,7 @@ export function run({
         try {
             result = checkLocale({ i18nDir, locale, enLeaves, baseline, mode });
         } catch (error) {
-            failed = unreadable = true;
+            failed = true;
             log(`FAIL ${file}: ${formatError(error)}`);
             continue;
         }
@@ -318,8 +318,11 @@ export function run({
     reportRejected(log, rejected, enLeaves, mode);
 
     if (update) {
-        if (unreadable) {
-            log('FAIL baseline not written: a locale file could not be read.');
+        // Only a complete, readable set of locales is a state worth recording.
+        if (failed) {
+            log(
+                'FAIL baseline not written: fix the unreadable, missing or extra keys above first.'
+            );
             return 1;
         }
         writeBaseline(log, baselinePath, baseline, identicalByLocale);
