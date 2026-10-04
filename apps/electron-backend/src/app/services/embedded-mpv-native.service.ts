@@ -19,10 +19,6 @@ import {
 } from './embedded-mpv-pending-seek';
 import {
     EmbeddedMpvAudioTrack,
-    playbackIsLive,
-    embeddedMpvSeekWindow,
-    clampPlaybackSeek,
-    supportsNativeFloatingPlayer,
     EmbeddedMpvBounds,
     EmbeddedMpvCapabilities,
     EmbeddedMpvRecordingStartOptions,
@@ -41,6 +37,12 @@ import {
     clampSubtitleDelay,
     normalizeSubtitleStyle,
 } from '@iptvnator/shared/interfaces';
+import {
+    playbackIsLive,
+    embeddedMpvSeekWindow,
+    clampPlaybackSeek,
+} from '@iptvnator/shared/interfaces/playback-seek-policy';
+import { supportsNativeFloatingPlayer } from '@iptvnator/shared/interfaces/playback-floating-policy';
 import { isExternalPlayerTraceEnabled, trace } from './debug-trace';
 import { toNativeViewBounds } from './embedded-mpv-bounds.util';
 import { embeddedMpvRecordingTracker } from './embedded-mpv-recording-tracker';

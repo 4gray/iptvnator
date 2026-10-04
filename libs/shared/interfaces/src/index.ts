@@ -110,5 +110,3 @@ export * from './lib/catchup-download.interface';
 export * from './lib/xtream-connection-test';
 
 export * from './lib/source-health';
-export * from './lib/playback-seek-policy';
-export * from './lib/playback-floating-policy';

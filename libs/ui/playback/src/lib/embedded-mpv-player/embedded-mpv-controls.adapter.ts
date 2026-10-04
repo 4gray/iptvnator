@@ -14,10 +14,12 @@ import {
     EmbeddedMpvSupport,
     RecordingStartMetadata,
     ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
+import {
     embeddedMpvSeekWindow,
     playbackIsLive,
     clampPlaybackSeek,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/playback-seek-policy';
 import { TranslateService } from '@ngx-translate/core';
 import { merge } from 'rxjs';
 import {

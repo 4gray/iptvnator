@@ -1,5 +1,5 @@
 import { Injectable, type Signal, computed, signal } from '@angular/core';
-import { clampPlaybackSeek } from '@iptvnator/shared/interfaces';
+import { clampPlaybackSeek } from '@iptvnator/shared/interfaces/playback-seek-policy';
 import {
     createEmptyControlsState,
     DEFAULT_ASPECT_PRESETS,

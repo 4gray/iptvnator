@@ -58,6 +58,12 @@ renderer state and execute commands; presentation components consume capability
 and state projections. Native HWND ownership and browser PiP lifecycle remain
 separate responsibilities rather than being forced into a common window API.
 
+Import the policies through
+`@iptvnator/shared/interfaces/playback-seek-policy` and
+`@iptvnator/shared/interfaces/playback-floating-policy`. These narrow public
+entries keep playback policy code with the lazy renderer consumers; the eagerly
+loaded shared-interfaces root barrel does not re-export them.
+
 Regression coverage combines the pure seek/floating policy matrix, browser
 adapter command guards, moving-buffer timeline tests, native dock integration,
 and floating-window command tests. Electron smoke checks should exercise a

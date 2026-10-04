@@ -8,7 +8,7 @@ import type {
     PlayerControlsState,
     PlayerTimelineSegment,
 } from './player-controls.model';
-import { secondsBehindSeekEnd } from '@iptvnator/shared/interfaces';
+import { secondsBehindSeekEnd } from '@iptvnator/shared/interfaces/playback-seek-policy';
 import { formatRemainingTime } from './controls-format.utils';
 
 /**

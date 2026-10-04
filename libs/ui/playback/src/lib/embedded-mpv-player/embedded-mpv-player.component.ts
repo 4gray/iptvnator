@@ -25,12 +25,14 @@ import {
     RecordingStartMetadata,
     RecordingStoppedEvent,
     ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
+import {
     embeddedMpvSeekWindow,
     playbackIsLive,
     clampPlaybackSeek,
-    supportsNativeFloatingPlayer,
     secondsBehindSeekEnd,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/playback-seek-policy';
+import { supportsNativeFloatingPlayer } from '@iptvnator/shared/interfaces/playback-floating-policy';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type {
     PlayerMediaTitle,

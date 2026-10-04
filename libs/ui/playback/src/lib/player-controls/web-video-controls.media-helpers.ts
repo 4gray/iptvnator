@@ -2,7 +2,7 @@ import type { PlayerStatus } from './player-controls.model';
 import {
     playbackSeekWindow,
     type PlaybackSeekWindow,
-} from '@iptvnator/shared/interfaces';
+} from '@iptvnator/shared/interfaces/playback-seek-policy';
 
 export function readVideoSeekWindow(
     video: HTMLVideoElement | null,

@@ -1,9 +1,7 @@
 import { BrowserWindow, ipcMain, screen } from 'electron';
 import path from 'path';
-import {
-    clampPlaybackSeek,
-    type EmbeddedMpvBounds,
-} from '@iptvnator/shared/interfaces';
+import type { EmbeddedMpvBounds } from '@iptvnator/shared/interfaces';
+import { clampPlaybackSeek } from '@iptvnator/shared/interfaces/playback-seek-policy';
 import type { FloatingPlaybackState } from './floating-playback-state';
 
 interface FloatingPlayerDependencies {
