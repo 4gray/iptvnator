@@ -143,15 +143,15 @@ files that still contain `ChangeDetectionStrategy.Eager`.
 
 ### libs/portal (9)
 
-- [ ] `libs/portal/shared/ui/src/lib/components/favorites-layout/favorites-layout.component.ts`
-- [ ] `libs/portal/shared/ui/src/lib/components/playlist-error-view/playlist-error-view.component.ts`
-- [ ] `libs/portal/shared/ui/src/lib/components/search-form/search-form.component.ts`
-- [ ] `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
-- [ ] `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
-- [ ] `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
-- [ ] `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
-- [ ] `libs/portal/xtream/feature/src/lib/global-search-results/global-search-results.component.ts`
-- [ ] `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/components/favorites-layout/favorites-layout.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/components/playlist-error-view/playlist-error-view.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/components/search-form/search-form.component.ts`
+- [x] `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
+- [x] `libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
+- [x] `libs/portal/stalker/feature/src/lib/stalker-favorites-button/stalker-favorites-button.component.ts`
+- [x] `libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
+- [x] `libs/portal/xtream/feature/src/lib/global-search-results/global-search-results.component.ts`
+- [x] `libs/portal/xtream/feature/src/lib/serial-details/serial-details.component.ts`
 
 Test-only files that set Eager are not listed; they do not ship. The guard
 skips every `*.spec.ts` / `*.test.ts` file with or without a suffix
@@ -172,9 +172,9 @@ the field a signal (or a `computed`), or writes it through one.
 | [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts` `checkPortalStatus` | plain `portalStatus` assigned after `await` in `ngOnInit` (PWA only: skipped when source health is supported) | playlist |
 | [x] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts` (EPG clear and EPG file pick handlers) | plain `playlist` reassigned after `await` | playlist |
 | [x] | `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts` (device-id derivation) | `form.patchValue` after `await`; no fix needed: while derivation is on `hasManualDeviceIds` is false whatever the IDs are, the controls write their own DOM values, and typing goes through value-accessor listeners that mark the view | playlist |
-| [ ] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
-| [ ] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
-| [ ] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
+| [x] | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts` (favorites load) | `favorites` Map filled in a `subscribe` without `markForCheck`; the component is OnPush already, so this is a latent bug today | portal |
+| [x] | `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts` (favorites load) | same pattern; the neighbouring `favoriteMarks.changes$` handler does call `markForCheck` | portal |
+| [x] | same file, programme dialog `afterClosed` | deletes from `epgPrograms`/`currentProgramsProgress` after `await` without marking | portal |
 | [ ] | `apps/web/src/app/settings/settings-backup.facade.ts` (backup import) | `change` listener on a detached file input → `hydrateFromStore()`; section templates read `form().value.theme`/`coverSize` | apps/web |
 | [ ] | `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` | plain `isLoading`/`error`/`status` written after `await` and from a 2 s `setInterval` | only if `apps/remote-control-web` goes zoneless |
 
@@ -184,17 +184,17 @@ They keep working under zoneless (`NgZone` becomes `NoopNgZone`, so `run`
 and `runOutsideAngular` just call through). Remove them in the flip PR, not
 before: with zone.js on they still matter.
 
-- [ ] `apps/web/src/app/settings/settings-unload-guard.service.ts`: two
+- [x] `apps/web/src/app/settings/settings-unload-guard.service.ts`: two
   `zone.run` calls around the window-close dialog (IPC
   `onWindowCloseRequested` and `beforeunload`).
-- [ ] `libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts`:
+- [x] `libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts`:
   `runOutsideAngular(() => setInterval(...))` for the position poll;
   `embedded-mpv-session-controller.position.spec.ts` asserts the call and
   changes with it.
-- [ ] `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.ts`:
+- [x] `libs/workspace/dashboard/data-access/src/lib/dashboard-data.service.ts`:
   18 `ngZone.run(() => signal.set(...))` calls, all redundant around signal
   writes.
-- [ ] `libs/workspace/dashboard/data-access/src/lib/dashboard-source-expiry.service.ts`:
+- [x] `libs/workspace/dashboard/data-access/src/lib/dashboard-source-expiry.service.ts`:
   one `ngZone.run` around a signal update.
 - `ChangeDetectorRef` in `stalker-live-stream-layout.component.ts`
   (4 × `markForCheck`, 1 × `detectChanges` before measuring a row) and
