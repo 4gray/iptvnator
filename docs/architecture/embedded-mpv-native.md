@@ -35,6 +35,11 @@ The build directory contains files such as `Makefile`, `binding.Makefile`, `conf
 
 ## How It Is Embedded
 
+Inline fullscreen playback reserves space for the native-view controls only
+while they are visible. When they hide, the viewport expands to the whole
+screen; the bounds observer resizes the native surface so MPV can center and
+fit the video. The controls dock includes its padding within its declared size.
+
 Windows native-view builds with `reparentSession` expose a floating-player
 button. `EmbeddedMpvFloatingPlayer` moves the existing child HWND into an
 always-on-top BrowserWindow, preserving the MPV session and provider connection.
