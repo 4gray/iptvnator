@@ -908,8 +908,10 @@ heavier faces would exceed the initial-bytes ratchet).
 - JetBrains Mono text stays at 500 or lighter, also where it is a fallback
   behind `ui-monospace` (only macOS resolves that). The check enforces this in
   any rule that sets the family, directly or through a variable, or inherits
-  it from an enclosing rule. It cannot see what a mono modifier class inherits
-  from its base rule; set `font-weight: 500` there.
+  it from an enclosing rule. A mixin's family and weights count where it is
+  included, from its own stylesheet module or another one. It cannot see what
+  a mono modifier class inherits from its base rule; set `font-weight: 500`
+  there.
 - Import whole `@fontsource/<family>/<weight>.css` files. The single-script
   files such as `cyrillic-600.css` have no `unicode-range`, so a Cyrillic-only
   face wins the weight match for Latin text in `Roboto, …` stacks and sends it
