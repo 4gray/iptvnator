@@ -56,6 +56,7 @@ export class EmbeddedMpvFloatingPlayer {
 
     async open(id: string): Promise<boolean> {
         if (this.sessionId === id && this.window) {
+            if (this.window.isMinimized()) this.window.restore();
             this.window.focus();
             return true;
         }

@@ -61,7 +61,9 @@ destroying the floating window. These user actions also restore a minimized main
 window, show it and focus it. Automatic session disposal, replacement and load
 failure close the floating hosts without activating the main window. The local
 sandboxed controls page has a minimal preload and accepts commands only from
-its own webContents. A transparent owned window overlays the native video,
+its own webContents. Opening PiP again restores an already-minimized floating
+window before focusing it, keeping the same session and overlay hosts.
+A transparent owned window overlays the native video,
 following its bounds and appearing on hover or control focus. The video window
 is frameless; the overlay supplies drag, minimize, return and close controls.
 Both windows are disposed together. Native video always uses the full content

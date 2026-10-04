@@ -16,10 +16,11 @@ jest.mock('electron', () => {
         showInactive = jest.fn();
         hide = jest.fn();
         minimize = jest.fn();
+        restore = jest.fn(() => this.emit('restore'));
         setPosition = jest.fn();
         setBounds = jest.fn();
         setIgnoreMouseEvents = jest.fn();
-        isMinimized = () => false;
+        isMinimized = jest.fn(() => false);
         destroyed = false;
         getNativeWindowHandle = () => Buffer.from('floating');
         getContentSize = () => [520, 360];
@@ -182,14 +183,29 @@ describe('Windows floating MPV host', () => {
         );
     });
 
-    it('focuses an existing window without creating a second player', async () => {
-        await player.open('one');
-        await player.open('one');
-        expect(BrowserWindow).toHaveBeenCalledTimes(2);
-        expect(
-            (BrowserWindow as unknown as jest.Mock).mock.results[0].value.focus
-        ).toHaveBeenCalled();
-    });
+    it.each([true, false])(
+        'restores and focuses an existing window without creating another player (minimized: %s)',
+        async (minimized) => {
+            await player.open('one');
+            const video = (BrowserWindow as unknown as jest.Mock).mock
+                .results[0].value;
+            const overlay = latestWindow();
+            video.isMinimized.mockReturnValue(minimized);
+            overlay.showInactive.mockClear();
+            const nativeParents = callbacks.reparent.mock.calls.length;
+            expect(await player.open('one')).toBe(true);
+            expect(BrowserWindow).toHaveBeenCalledTimes(2);
+            expect(callbacks.reparent).toHaveBeenCalledTimes(nativeParents);
+            expect(video.restore).toHaveBeenCalledTimes(minimized ? 1 : 0);
+            expect(video.focus).toHaveBeenCalledTimes(1);
+            if (minimized) {
+                expect(overlay.showInactive).toHaveBeenCalledTimes(1);
+                expect(video.restore.mock.invocationCallOrder[0]).toBeLessThan(
+                    video.focus.mock.invocationCallOrder[0]
+                );
+            }
+        }
+    );
 
     it('rejects commands from other renderers and clamps volume', async () => {
         await player.open('one');
@@ -292,18 +308,25 @@ describe('Windows floating MPV host', () => {
         expect(callbacks.seek).not.toHaveBeenCalled();
     });
 
-    it('returns video when closed and removes its command listener', async () => {
-        await player.open('one');
-        const event = { preventDefault: jest.fn() };
-        latestWindow().emit('close', event);
-        expect(event.preventDefault).toHaveBeenCalled();
-        expect(callbacks.reparent).toHaveBeenLastCalledWith(
-            'one',
-            Buffer.from('main')
-        );
-        expect(ipcMain.listenerCount('EMBEDDED_MPV_FLOATING_COMMAND')).toBe(0);
-        expect(mainWindow.focus).toHaveBeenCalledTimes(1);
-    });
+    it.each([0, 1])(
+        'returns video when host %s closes and removes its command listener',
+        async (hostIndex) => {
+            await player.open('one');
+            const event = { preventDefault: jest.fn() };
+            (BrowserWindow as unknown as jest.Mock).mock.results[
+                hostIndex
+            ].value.emit('close', event);
+            expect(event.preventDefault).toHaveBeenCalled();
+            expect(callbacks.reparent).toHaveBeenLastCalledWith(
+                'one',
+                Buffer.from('main')
+            );
+            expect(ipcMain.listenerCount('EMBEDDED_MPV_FLOATING_COMMAND')).toBe(
+                0
+            );
+            expect(mainWindow.focus).toHaveBeenCalledTimes(1);
+        }
+    );
 
     it.each([true, false])(
         'shows and focuses the main window on Return to app (minimized: %s)',
