@@ -1,0 +1,240 @@
+import { computeJourneyIpcSerialDepth } from './journey-ipc-serial-depth';
+import type { JourneyMainIpcCaptureState } from './journey-main-ipc-capture';
+import type { JourneyIterationRecord } from './journey-summary';
+import type { SearchJourneyProbeState } from './search-journey-probe';
+
+/**
+ * Maps one measured global search (renderer probe from the first keystroke
+ * until the results settled, main IPC capture between the start and end
+ * sentinels, main-process activity sampled before every keystroke) to the
+ * journey summary's iteration record for J4.
+ */
+export const SEARCH_JOURNEY_ID = 'search';
+
+export const SEARCH_JOURNEY_COUNTER = {
+    CD_TICKS: 'renderer.cdTicksToResults',
+    DOM_MUTATIONS: 'renderer.domMutationsToResults',
+    IPC_CALLS: 'renderer.ipcCallsPerSearch',
+    IPC_SERIAL_DEPTH: 'renderer.ipcSerialDepthToResults',
+    LAYOUT_SHIFT_SCORE: 'renderer.layoutShiftScore',
+    LONG_TASKS: 'renderer.longTasks',
+    SQL_STATEMENTS: 'renderer.sqlStatementsPerSearch',
+} as const;
+
+export const SEARCH_JOURNEY_WALL_CLOCK = {
+    FIRST_KEYSTROKE_TO_FIRST_RESULT: 'firstKeystrokeToFirstResultMs',
+    LAST_KEYSTROKE_TO_SETTLED: 'lastKeystrokeToSettledMs',
+} as const;
+
+export const SEARCH_JOURNEY_UNAVAILABLE_COUNTERS: Readonly<
+    Record<string, string>
+> = Object.freeze({});
+
+/** Bridge method of a global search query (`DatabaseService`). */
+export const SEARCH_JOURNEY_QUERY_METHOD = 'dbGlobalSearch';
+
+/**
+ * Main-process activity read in one synchronous pass: the journey capture's
+ * call counts and the running `main.sqlStatements` total.
+ */
+export interface SearchJourneyActivitySample {
+    readonly ipcCalls: number;
+    readonly queryCalls: number;
+    readonly sqlStatements: number;
+}
+
+/** How long the app was left alone before the first keystroke. */
+export interface SearchJourneySettle {
+    readonly preStartDomMutations: number;
+    readonly preStartIpcCalls: number;
+    readonly quietMs: number;
+    readonly sqlStatements: number;
+    readonly waitedMs: number;
+}
+
+export interface SearchJourneyMeasurement {
+    readonly externalArtworkCancelled: number;
+    readonly ipc: JourneyMainIpcCaptureState;
+    readonly keyDelayMs: number;
+    readonly pid: number;
+    readonly query: string;
+    readonly renderer: SearchJourneyProbeState;
+    /**
+     * Before each keystroke (index i before key i + 1), then once after the
+     * probe settled and once more `afterSettledWindowMs` later.
+     */
+    readonly samples: readonly SearchJourneyActivitySample[];
+    readonly afterSettled: SearchJourneyActivitySample;
+    readonly afterSettledWindowMs: number;
+    readonly settle: SearchJourneySettle;
+}
+
+function roundTenth(value: number): number {
+    return Math.round(value * 10) / 10;
+}
+
+function roundThousandth(value: number): number {
+    return Math.round(value * 1_000) / 1_000;
+}
+
+function difference(
+    samples: readonly SearchJourneyActivitySample[],
+    index: number,
+    key: keyof SearchJourneyActivitySample
+): number {
+    return samples[index + 1][key] - samples[index][key];
+}
+
+export function toSearchIterationRecord(
+    index: number,
+    warmup: boolean,
+    measurement: SearchJourneyMeasurement
+): JourneyIterationRecord {
+    const { ipc, renderer, samples, settle } = measurement;
+    const { keystrokes, start } = renderer;
+    const keys = measurement.query.length;
+    if (start === null || renderer.settle.status !== 'quiet') {
+        throw new Error('search-journey-record-incomplete-probe');
+    }
+    if (ipc.start === null) {
+        throw new Error('search-journey-record-ipc-without-start');
+    }
+    if (keystrokes.length !== keys || samples.length !== keys + 1) {
+        throw new Error('search-journey-record-keystroke-count');
+    }
+    if (keystrokes.map((key) => key.key).join('') !== measurement.query) {
+        throw new Error('search-journey-record-typed-text');
+    }
+    if (
+        renderer.settle.query !== measurement.query ||
+        renderer.settle.cardCount === 0 ||
+        renderer.firstResult === null
+    ) {
+        throw new Error('search-journey-record-no-results');
+    }
+    const settledEpochMs = renderer.settle.epochMs;
+    const lastKeyEpochMs = keystrokes[keys - 1].epochMs;
+    if (
+        settledEpochMs === null ||
+        settledEpochMs < lastKeyEpochMs ||
+        renderer.firstResult.epochMs < start.epochMs
+    ) {
+        throw new Error('search-journey-record-clock-order');
+    }
+    // Activity between the quiet snapshot and the first key could finish
+    // after it and be counted as the search's. The probe and the capture
+    // keep counting until the first keydown, so they must still match it.
+    const moved = [
+        renderer.preStart.domMutations !== settle.preStartDomMutations
+            ? 'dom'
+            : null,
+        ipc.callsBeforeStart !== settle.preStartIpcCalls ? 'ipc' : null,
+        samples[0].sqlStatements !== settle.sqlStatements ? 'sql' : null,
+    ].filter((kind): kind is string => kind !== null);
+    if (moved.length > 0) {
+        throw new Error(
+            `search-journey-record-activity-before-first-key-${moved.join('-')}`
+        );
+    }
+    const finalSample = samples[keys];
+    if (finalSample.ipcCalls !== ipc.callsBeforeSentinel) {
+        throw new Error('search-journey-record-ipc-sample-mismatch');
+    }
+    const settleTicks = renderer.settle.ticks;
+    const ticks = keystrokes.map((key) => key.ticks);
+    if (
+        renderer.capabilities.changeDetectionTicks !== 'counted' ||
+        settleTicks === null ||
+        ticks.some((value) => value === null)
+    ) {
+        throw new Error(
+            `search-journey-record-cd-ticks-${renderer.capabilities.changeDetectionTicks}`
+        );
+    }
+    const tickAt = (position: number): number =>
+        position < keys ? (ticks[position] as number) : settleTicks;
+    const serialDepth = computeJourneyIpcSerialDepth(ipc.timeline);
+    const perKeystroke = keystrokes.map((key, position) =>
+        Object.freeze({
+            atMs: roundTenth(key.epochMs - start.epochMs),
+            cdTicks: tickAt(position + 1) - tickAt(position),
+            domMutations: renderer.domMutationsByKeystroke[position] ?? 0,
+            ipcCalls: difference(samples, position, 'ipcCalls'),
+            key: key.key,
+            queryCalls: difference(samples, position, 'queryCalls'),
+            sqlStatements: difference(samples, position, 'sqlStatements'),
+        })
+    );
+    return Object.freeze({
+        counters: Object.freeze({
+            [SEARCH_JOURNEY_COUNTER.CD_TICKS]: settleTicks - tickAt(0),
+            [SEARCH_JOURNEY_COUNTER.DOM_MUTATIONS]:
+                renderer.counters.domMutations,
+            [SEARCH_JOURNEY_COUNTER.IPC_CALLS]: ipc.callsBeforeSentinel,
+            [SEARCH_JOURNEY_COUNTER.IPC_SERIAL_DEPTH]: serialDepth.depth,
+            // Typing is input, so shifts flagged hadRecentInput are
+            // included, as in J2 and J3.
+            [SEARCH_JOURNEY_COUNTER.LAYOUT_SHIFT_SCORE]: roundThousandth(
+                renderer.counters.layoutShiftScore +
+                    renderer.counters.recentInputLayoutShiftScore
+            ),
+            [SEARCH_JOURNEY_COUNTER.LONG_TASKS]: renderer.counters.longTasks,
+            [SEARCH_JOURNEY_COUNTER.SQL_STATEMENTS]:
+                finalSample.sqlStatements - samples[0].sqlStatements,
+        }),
+        evidence: Object.freeze({
+            capabilities: renderer.capabilities,
+            epochs: Object.freeze({
+                firstKeystroke: start.epochMs,
+                firstResult: renderer.firstResult.epochMs,
+                lastKeystroke: lastKeyEpochMs,
+                mainIpcSentinel: ipc.sentinel.receivedEpochMs,
+                mainIpcStart: ipc.start.receivedEpochMs,
+                settleConfirmed: renderer.settle.confirmedEpochMs,
+                settled: settledEpochMs,
+            }),
+            externalArtworkCancelled: measurement.externalArtworkCancelled,
+            firstResult: Object.freeze({
+                cardCount: renderer.firstResult.cardCount,
+                query: renderer.firstResult.query,
+            }),
+            ipcCallsAfterSettled: ipc.callsAfterSentinel,
+            ipcCallsByMethod: ipc.callsByMethod,
+            ipcSerialDepth: serialDepth,
+            ipcTimeline: ipc.timeline.map(
+                (event) =>
+                    `${event.phase === 'start' ? '+' : '-'}${event.method}`
+            ),
+            keyDelayMs: measurement.keyDelayMs,
+            layoutShift: Object.freeze({
+                recentInput: roundThousandth(
+                    renderer.counters.recentInputLayoutShiftScore
+                ),
+                withoutRecentInput: roundThousandth(
+                    renderer.counters.layoutShiftScore
+                ),
+            }),
+            longTaskDurationsMs: renderer.longTaskDurationsMs.map(roundTenth),
+            perKeystroke,
+            query: measurement.query,
+            results: Object.freeze({ cardCount: renderer.settle.cardCount }),
+            settle,
+            sqlStatementsAfterSettled: Object.freeze({
+                count:
+                    measurement.afterSettled.sqlStatements -
+                    finalSample.sqlStatements,
+                windowMs: measurement.afterSettledWindowMs,
+            }),
+        }),
+        index,
+        pid: measurement.pid,
+        wallClock: Object.freeze({
+            [SEARCH_JOURNEY_WALL_CLOCK.FIRST_KEYSTROKE_TO_FIRST_RESULT]:
+                roundTenth(renderer.firstResult.epochMs - start.epochMs),
+            [SEARCH_JOURNEY_WALL_CLOCK.LAST_KEYSTROKE_TO_SETTLED]: roundTenth(
+                settledEpochMs - lastKeyEpochMs
+            ),
+        }),
+        warmup,
+    });
+}
