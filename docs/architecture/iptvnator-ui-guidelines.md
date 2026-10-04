@@ -370,6 +370,15 @@ remain local when the meaning is explicit.
   layouts keep the full EPG-only panel.
 - Keep the EPG content mounted while collapsed so current-program state can
   continue updating.
+- The ribbon renders only the blocks, ticks and day dividers within half a
+  viewport of the visible range (`TimelineWindowController` in
+  `epg-timeline-window.controller.ts`); the track keeps the full schedule's
+  width, so positions, the scrollbar and scroll-to-now are unchanged. A
+  channel's full schedule is often a few hundred programmes, and rendering
+  them all competed with the stream's first frame (J3 in
+  [performance journeys](performance-journeys.md#j3-playback-start-playback-to-the-first-frame)).
+  Tests and features must not assume an off-screen programme is in the DOM:
+  scroll the ribbon to it first.
 
 ### Collapsible Live Sidebar
 

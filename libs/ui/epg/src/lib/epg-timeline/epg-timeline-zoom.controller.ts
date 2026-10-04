@@ -3,7 +3,20 @@ import {
     TIMELINE_WHEEL_ZOOM_RATE,
     TIMELINE_ZOOM_MAX,
     TIMELINE_ZOOM_MIN,
+    TimelineZoomLevel,
 } from './epg-timeline-render.util';
+
+/** Translation key naming a zoom level in the toolbar tooltip. */
+export function timelineZoomLabelKey(level: TimelineZoomLevel): string {
+    switch (level) {
+        case 'day':
+            return 'EPG.TIMELINE.ZOOM_DAY';
+        case 'hours':
+            return 'EPG.TIMELINE.ZOOM_HOURS';
+        default:
+            return 'EPG.TIMELINE.ZOOM_DETAIL';
+    }
+}
 
 export interface TimelineZoomContext {
     /** The horizontal scroller hosting the track (undefined until rendered). */

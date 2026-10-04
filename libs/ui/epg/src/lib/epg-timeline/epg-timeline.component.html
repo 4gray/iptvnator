@@ -209,9 +209,9 @@
                     (wheel)="onRibbonWheel($event)"
                 >
                     <app-epg-timeline-track
-                        [items]="renderItems()"
-                        [ticks]="ticks()"
-                        [dividers]="dividers()"
+                        [items]="ribbonWindow.items()"
+                        [ticks]="ribbonWindow.ticks()"
+                        [dividers]="ribbonWindow.dividers()"
                         [scale]="scale()"
                         [trackWidthPx]="trackWidthPx()"
                         [playheadLeftPx]="playheadLeftPx()"

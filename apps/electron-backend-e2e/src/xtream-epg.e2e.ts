@@ -107,9 +107,10 @@ test('@epg @xtream @electron removes uploaded guide data and restores provider E
         await expect
             .poll(() => timelineBlockTitles(app.mainWindow))
             .not.toContain('Temporary XMLTV Bulletin');
+        // The programme on now: the ribbon renders the blocks around it.
         await expect
             .poll(() => timelineBlockTitles(app.mainWindow))
-            .toContain(fixture.fullEpg[0].title);
+            .toContain(fixture.shortEpg[0].title);
     } finally {
         await closeElectronApp(app);
         await source.close();
@@ -281,14 +282,33 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
                 app.mainWindow.locator('app-epg-timeline')
             ).toBeVisible({ timeout: 20000 });
 
-            // The timeline renders the full multi-day window as blocks,
-            // sorted by start time (no per-day filtering — it scrolls).
+            // The timeline lays out the full multi-day window sorted by start
+            // time (no per-day filtering — it scrolls) and renders the blocks
+            // near the visible range: an ordered run around the current
+            // programme, and the last programme once scrolled to the end.
             const allTitles = [...fixture.fullEpg]
                 .sort((a, b) => a.startTimestamp - b.startTimestamp)
                 .map((listing) => listing.title);
             await expect
+                .poll(async () => {
+                    const titles = await timelineBlockTitles(app.mainWindow);
+                    return (
+                        titles.includes(currentProgram.title) &&
+                        isContiguousRun(titles, allTitles)
+                    );
+                })
+                .toBe(true);
+            await app.mainWindow
+                .locator('app-epg-timeline .epg-timeline__ribbon')
+                .evaluate((ribbon) => {
+                    ribbon.scrollLeft = ribbon.scrollWidth;
+                });
+            await expect
                 .poll(() => timelineBlockTitles(app.mainWindow))
-                .toEqual(allTitles);
+                .toContain(allTitles[allTitles.length - 1]);
+            await app.mainWindow
+                .locator('app-epg-timeline .epg-timeline__jump')
+                .click();
 
             // The current programme is highlighted as the "now" block.
             await expect(
@@ -864,6 +884,19 @@ async function timelineBlockTitles(
         .locator('app-epg-timeline .epg-timeline__block-title')
         .allInnerTexts()
         .then((titles) => titles.map((title) => title.trim()).filter(Boolean));
+}
+
+/** Whether `run` is a non-empty, in-order slice of `all`. */
+function isContiguousRun(run: string[], all: string[]): boolean {
+    if (run.length === 0) {
+        return false;
+    }
+    for (let start = 0; start + run.length <= all.length; start++) {
+        if (run.every((title, index) => all[start + index] === title)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 async function getProgressWidthPercent(
