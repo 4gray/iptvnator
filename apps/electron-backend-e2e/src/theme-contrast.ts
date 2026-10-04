@@ -198,3 +198,98 @@ export async function expectSkeletonContrast(
         ).toBeGreaterThanOrEqual(1.3);
     }
 }
+
+/** Contrast of an element's own text against whatever is painted behind it
+ * (images, gradient scrims, translucent chips), read back from the screen.
+ * The text is made transparent for the capture, so its `text-shadow` stays
+ * in the backdrop it is meant to support; its CSS colour (with alpha and
+ * ancestor opacity) is then composited over every pixel under its line
+ * boxes. Returns the worst ratio, so one dark patch of artwork under one
+ * letter fails it. */
+export async function measureBackdropTextContrast(
+    page: Page,
+    text: Locator
+): Promise<number> {
+    await expect(text).toBeVisible();
+    const probe = await text.evaluate((element) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = getComputedStyle(element).color;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+        let alpha = a / 255;
+        for (
+            let node: Element | null = element;
+            node;
+            node = node.parentElement
+        ) {
+            alpha *= Number(getComputedStyle(node).opacity);
+        }
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const box = range.getBoundingClientRect();
+        const style = (element as HTMLElement).style;
+        const previous = style.getPropertyValue('color');
+        style.setProperty('color', 'transparent', 'important');
+        (element as HTMLElement).dataset['contrastPrevious'] = previous;
+        return {
+            color: [r, g, b, alpha],
+            // Whole pixels inside the line boxes, clear of glyph edges that
+            // spill past them.
+            clip: {
+                x: Math.ceil(box.left),
+                y: Math.ceil(box.top),
+                width: Math.max(1, Math.floor(box.width) - 1),
+                height: Math.max(1, Math.floor(box.height) - 1),
+            },
+        };
+    });
+    try {
+        const { data, info } = await sharp(
+            await page.screenshot({ clip: probe.clip })
+        )
+            .removeAlpha()
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+        const [fr, fg, fb, fa] = probe.color;
+        const luminance = (r: number, g: number, b: number) =>
+            [r, g, b]
+                .map((value) => {
+                    const s = value / 255;
+                    return s <= 0.04045
+                        ? s / 12.92
+                        : ((s + 0.055) / 1.055) ** 2.4;
+                })
+                .reduce(
+                    (sum, value, index) =>
+                        sum + value * [0.2126, 0.7152, 0.0722][index],
+                    0
+                );
+        let worst = Infinity;
+        for (let i = 0; i < data.length; i += info.channels) {
+            const [br, bg, bb] = [data[i], data[i + 1], data[i + 2]];
+            const front = luminance(
+                fr * fa + br * (1 - fa),
+                fg * fa + bg * (1 - fa),
+                fb * fa + bb * (1 - fa)
+            );
+            const back = luminance(br, bg, bb);
+            worst = Math.min(
+                worst,
+                (Math.max(front, back) + 0.05) / (Math.min(front, back) + 0.05)
+            );
+        }
+        return worst;
+    } finally {
+        await text.evaluate((element) => {
+            const style = (element as HTMLElement).style;
+            const previous = (element as HTMLElement).dataset[
+                'contrastPrevious'
+            ];
+            style.removeProperty('color');
+            if (previous) style.setProperty('color', previous);
+            delete (element as HTMLElement).dataset['contrastPrevious'];
+        });
+    }
+}
