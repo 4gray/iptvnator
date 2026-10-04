@@ -15,7 +15,10 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { TranslatePipe } from '@ngx-translate/core';
-import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
+import {
+    WorkspaceBackPhoneSlot,
+    WorkspaceBackTarget,
+} from '@iptvnator/portal/shared/util';
 import { WorkspaceShellHeaderComponent } from './workspace-shell-header.component';
 
 @Component({
@@ -384,13 +387,20 @@ describe('WorkspaceShellHeaderComponent', () => {
                 '[data-test-id="workspace-header-back"]'
             );
 
+        const drawerToggle = (): HTMLButtonElement | null =>
+            fixture.nativeElement.querySelector(
+                '[data-test-id="context-drawer-toggle"]'
+            );
+
         function setBackTarget(
             label: string | null,
-            escapeShortcut: boolean
+            escapeShortcut: boolean,
+            phoneDrawerToggle?: WorkspaceBackPhoneSlot
         ): WorkspaceBackTarget {
             const target: WorkspaceBackTarget = {
                 label: signal(label),
                 escapeShortcut: signal(escapeShortcut),
+                phoneDrawerToggle,
                 run: jest.fn(),
             };
             fixture.componentRef.setInput('backTarget', target);
@@ -479,6 +489,48 @@ describe('WorkspaceShellHeaderComponent', () => {
                 )
             ).not.toBeNull();
         });
+
+        it('keeps the drawer toggle after Back for a page whose sections live in the drawer', () => {
+            fixture.componentRef.setInput('showContextDrawerToggle', true);
+            setBackTarget(null, false, 'beside');
+
+            expect(drawerToggle()).not.toBeNull();
+            expect(backButton()?.nextElementSibling).toBe(drawerToggle());
+            expect(backButton()?.classList).not.toContain(
+                'header-back--yields'
+            );
+        });
+
+        it('lets the history fallback yield to the drawer toggle at phone width', () => {
+            fixture.componentRef.setInput('showContextDrawerToggle', true);
+            setBackTarget(null, false, 'yield');
+
+            expect(drawerToggle()).not.toBeNull();
+            // Hidden by the ≤640px rule; above it the toggle itself is hidden.
+            expect(backButton()?.classList).toContain('header-back--yields');
+
+            // Routes without a drawer keep the fallback at every width.
+            fixture.componentRef.setInput('showContextDrawerToggle', false);
+            fixture.detectChanges();
+            expect(backButton()?.classList).not.toContain(
+                'header-back--yields'
+            );
+        });
+    });
+
+    it('hides a yielding Back only in the phone layout', () => {
+        const styleSource = readFileSync(
+            join(__dirname, 'workspace-shell-header.component.scss'),
+            'utf8'
+        );
+        const phoneStart = styleSource.indexOf('@media (max-width: 640px)');
+
+        expect(styleSource.indexOf('.header-back--yields')).toBeGreaterThan(
+            phoneStart
+        );
+        expect(styleSource.slice(phoneStart)).toMatch(
+            /\.header-back--yields\s*\{\s*display:\s*none;/
+        );
     });
 
     it('uses the paired Material primary tokens for the download badge', () => {

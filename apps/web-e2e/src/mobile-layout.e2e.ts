@@ -21,8 +21,9 @@ import {
  *      by default so the content keeps the full viewport width, opened from
  *      the header toggle (winning over the persisted desktop inline width),
  *      and closed again by picking a category or tapping the backdrop.
- *   4. The settings section list scrolls instead of painting over the
- *      Back footer — now inside the open drawer.
+ *   4. Settings keeps its drawer toggle beside the header Back (the drawer
+ *      holds the sections), and the section list scrolls inside the drawer.
+ *      On a portal list, the header's history Back yields to the toggle.
  *   5. On a 640x360 landscape phone the live route keeps the channel
  *      sidebar at least 72px tall and the player container inside the
  *      viewport.
@@ -107,17 +108,25 @@ test.describe('portrait phone 375x812', () => {
         await expectRailLinksInsideTopBar(page);
     });
 
-    test('@mobile settings drawer opens from the header toggle and keeps the section list clear of the Back footer', async ({
+    test('@mobile settings keeps the drawer toggle beside the header Back and the section list inside the drawer', async ({
         page,
     }) => {
         await page.goto('/workspace/settings');
+
+        // Back is the header's leading button. The drawer holds the section
+        // list, so its toggle stays beside Back instead of giving way.
+        const back = page.locator('[data-test-id="workspace-header-back"]');
+        const toggle = page.locator('[data-test-id="context-drawer-toggle"]');
+        await expect(back).toBeVisible();
+        await expect(toggle).toBeVisible();
+        expect((await boxOf(back)).x).toBeLessThan((await boxOf(toggle)).x);
 
         // The phone context panel is an off-canvas drawer: hidden until the
         // header toggle opens it, so the settings content owns the pane.
         const panel = page.locator('.context-panel--settings');
         await expect(panel).toBeHidden();
 
-        await page.locator('[data-test-id="context-drawer-toggle"]').click();
+        await toggle.click();
         await expect(panel).toBeVisible();
 
         // Narrower than the viewport so the backdrop stays tappable, and
@@ -126,15 +135,13 @@ test.describe('portrait phone 375x812', () => {
         expect(panelBox.width).toBeGreaterThanOrEqual(300);
         expect(panelBox.width).toBeLessThanOrEqual(PHONE.width - 20);
 
-        const footer = panel.locator('.settings-panel-footer');
-        await expect(footer.locator('.settings-back-button')).toBeVisible();
-
-        // Before #1326 the section list kept its full content height and
-        // painted over the footer whenever the panel was shorter than its
-        // sections; now the list scrolls and ends above the footer.
+        // No footer Back any more; the list scrolls and ends inside the
+        // panel instead of painting past it (#1326).
+        await expect(panel.locator('button:has-text("Back")')).toHaveCount(0);
         const listBox = await boxOf(panel.locator('.settings-sections-list'));
-        const footerBox = await boxOf(footer);
-        expect(listBox.y + listBox.height).toBeLessThanOrEqual(footerBox.y + 1);
+        expect(listBox.y + listBox.height).toBeLessThanOrEqual(
+            panelBox.y + panelBox.height + 1
+        );
 
         // Tapping the backdrop (right of the drawer) closes it.
         await page
@@ -163,7 +170,18 @@ test.describe('xtream portal routes on a phone', () => {
     test('@mobile @xtream vod route keeps the context panel in a drawer behind the header toggle', async ({
         page,
     }) => {
+        // The import navigated here from the dashboard, so the header offers
+        // the history Back on wide screens...
+        const back = page.locator('[data-test-id="workspace-header-back"]');
+        await expect(back).toBeVisible();
+
         await page.setViewportSize(PHONE);
+        // ...and on a phone it yields to the drawer toggle, the list's only
+        // way into its categories.
+        await expect(back).toBeHidden();
+        await expect(
+            page.locator('[data-test-id="context-drawer-toggle"]')
+        ).toBeVisible();
 
         // Hidden by default — the content owns the full pane. This is the
         // successor to the #1326 stacked layout, which left the content

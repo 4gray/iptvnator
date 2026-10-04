@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import { SearchLayoutComponent } from './search-layout.component';
 
 describe('SearchLayoutComponent', () => {
@@ -58,24 +59,35 @@ describe('SearchLayoutComponent', () => {
         });
     }
 
-    it('shows the back button only when showBackButton is set and emits backClick', () => {
-        fixture.detectChanges();
-        expect(
-            fixture.debugElement.query(By.css('.header-back'))
-        ).toBeNull();
-
-        fixture.componentRef.setInput('showBackButton', true);
-        fixture.detectChanges();
-
-        const backButton = fixture.debugElement.query(By.css('.header-back'));
-        expect(backButton).not.toBeNull();
-
+    it('offers the header Back only while backAvailable is set and the results show', () => {
+        const backNavigation = TestBed.inject(WorkspaceBackNavigationService);
         const emitted: unknown[] = [];
         fixture.componentInstance.backClick.subscribe((value) =>
             emitted.push(value)
         );
-        (backButton.nativeElement as HTMLButtonElement).click();
+        fixture.detectChanges();
+        expect(backNavigation.target()).toBeNull();
+
+        fixture.componentRef.setInput('backAvailable', true);
+        fixture.detectChanges();
+        // The page carries no arrow of its own.
+        expect(
+            fixture.debugElement.query(By.css('button[aria-label="BACK"]'))
+        ).toBeNull();
+        expect(backNavigation.goBack()).toBe(true);
         expect(emitted).toHaveLength(1);
+
+        // An inline detail replaces the results and registers its own Back.
+        fixture.componentRef.setInput('showDetails', true);
+        fixture.detectChanges();
+        expect(backNavigation.target()).toBeNull();
+
+        fixture.componentRef.setInput('showDetails', false);
+        fixture.detectChanges();
+        expect(backNavigation.target()).not.toBeNull();
+
+        fixture.destroy();
+        expect(backNavigation.target()).toBeNull();
     });
 
     it('emits nearEnd when the results container is scrolled near the bottom', () => {

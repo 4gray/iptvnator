@@ -32,24 +32,6 @@
     padding: 24px 32px 48px;
     position: relative;
 
-    &__back {
-        align-items: center;
-        background: var(--chip-bg);
-        border: none;
-        border-radius: 50%;
-        color: var(--text-primary);
-        cursor: pointer;
-        display: inline-flex;
-        height: 40px;
-        justify-content: center;
-        margin-bottom: 16px;
-        width: 40px;
-
-        &:hover {
-            background: var(--chip-border);
-        }
-    }
-
     &__loading {
         align-items: center;
         display: flex;

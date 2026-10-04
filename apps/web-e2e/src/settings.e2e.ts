@@ -7,7 +7,12 @@ async function openSettings(page: Page) {
     // The bare settings URL redirects to the default section page.
     await page.waitForURL(/\/workspace\/settings\/general$/);
     await expect(page.locator('.settings-container')).toBeVisible();
-    await expect(page.locator('.settings-back-button')).toBeVisible();
+    await expect(settingsBack(page)).toBeVisible();
+}
+
+/** Settings' Back is the workspace header's leading button. */
+function settingsBack(page: Page) {
+    return page.locator('[data-test-id="workspace-header-back"]');
 }
 
 /** Settings render one section page at a time — open it via the rail. */
@@ -36,7 +41,12 @@ test.describe('Settings', () => {
 
     test('@settings @web Check settings page', async ({ page }) => {
         await openSettings(page);
-        await page.locator('.settings-back-button').click();
+        // The context panel no longer carries a Back of its own.
+        await expect(
+            page.locator('app-workspace-settings-context-panel button')
+        ).toHaveCount(0);
+        await settingsBack(page).click();
+        await page.waitForURL(/\/workspace\/dashboard$/);
     });
 
     test('@settings @web Change video player', async ({ page }) => {
