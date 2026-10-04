@@ -48,6 +48,7 @@ import { PlaybackKeepAwakeService } from './services/playback-keep-awake.service
 import { PlaylistOpenRequestService } from './services/playlist-open-request.service';
 import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 import { AppStartupStatusComponent } from './app-startup-status.component';
+import { syncDocumentLanguage } from './services/document-language';
 
 const debugAppComponent = createDevLogger('AppComponent');
 
@@ -98,6 +99,8 @@ export class AppComponent implements OnInit {
     private readonly DEFAULT_LANG = Language.ENGLISH;
 
     constructor() {
+        syncDocumentLanguage();
+
         // Body-level class (like 'dark-theme') so layout adjustments also
         // reach content rendered outside app-root, e.g. cdk-overlay content.
         if (this.runtime.usesCustomWindowControls) {
