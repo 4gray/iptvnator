@@ -14,18 +14,18 @@
                 "value": 15,
                 "unit": "calls",
                 "slack": 0,
-                "updatedAt": "2026-10-01",
+                "updatedAt": "2026-10-04",
                 "evidencePr": 1788,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/36928706097",
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37229373500",
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             },
             "renderer.domMutationsToFirstCard": {
-                "value": 559,
+                "value": 558,
                 "unit": "mutations",
                 "slack": 0,
-                "updatedAt": "2026-10-01",
+                "updatedAt": "2026-10-04",
                 "evidencePr": 1788,
-                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/36928706097",
+                "evidenceRun": "https://github.com/4gray/iptvnator/actions/runs/37229373500",
                 "measuredWith": "pnpm run perf:journeys (ubuntu-latest, xvfb), identical in 3 runs"
             }
         }

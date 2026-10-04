@@ -530,6 +530,15 @@ dispatched runs of the fix (36928706097, 36928716010, 36928725392) and the
 run of the commit that added the baselines (36930457538) took the fast path
 in all 24 iterations, with 15 calls and 559 mutations each.
 
+#1788 merged into #1782's branch after #1782 had been squash-merged, so the
+fix first reached `master` in a re-land on 2026-10-04. Until then `master`
+runs stayed bimodal (18 or 15 calls, about 1,037 or 556 mutations, serial
+depth 9 or 6, 119 or 93 statements before `ready-to-show` within one run).
+Three dispatched runs of the re-land (37229373500, 37229380285,
+37229387706) took the fast path in all 15 iterations, with 15 calls, 558
+mutations and serial depth 6 each; later `master` commits had moved the
+mutation count from 559 to 558.
+
 | Runs                                                        | Slow iterations | `spawnToFirstCardMs.p50`  | load → card                   |
 | ----------------------------------------------------------- | --------------- | ------------------------- | ----------------------------- |
 | `master` and #1782, 2026-09-30 to 10-01 (8 runs, see above) | 29 of 40        | 1,478-1,613 ms (one 760)  | ~940 ms slow, 280-500 ms fast |
@@ -1032,12 +1041,12 @@ weeks (plan item B3): a regression marks the job failed without failing the
 workflow. Making it required is a maintainer decision.
 
 The job enforces two J1 runtime counters: `renderer.ipcCallsToFirstCard`
-(15 calls) and `renderer.domMutationsToFirstCard` (559 mutations). After the
+(15 calls) and `renderer.domMutationsToFirstCard` (558 mutations). After the
 `Run the performance journeys` step it runs
 `check-journey-ratchet.mjs --only launch/renderer.ipcCallsToFirstCard --only launch/renderer.domMutationsToFirstCard`
 on the summary that step wrote. Both entries have `slack` 0 and
-`evidenceRun` 36928706097, and were identical and `stable: true` in all
-three dispatched runs of the fix that removed the launch race (see
+`evidenceRun` 37229373500, and were identical and `stable: true` in all
+three dispatched runs of the re-landed fix that removed the launch race (see
 [When the window is shown](#when-the-window-is-shown)). The step is in the
 job, not in the composite action, so the weekly tightening still measures a
 run that would fail it. While the job is warn-only, a regression fails the
