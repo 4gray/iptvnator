@@ -97,14 +97,14 @@ files that still contain `ChangeDetectionStrategy.Eager`.
 - [x] `libs/ui/epg/src/lib/epg-progress-panel/epg-progress-panel.component.ts` (idle audit root; also `EpgTrustConfirmDialogComponent`)
 - [x] `libs/ui/epg/src/lib/epg-source-status/epg-source-status.component.ts`
 - [ ] `libs/ui/remote-control/src/lib/remote-control/remote-control.component.ts` (`apps/remote-control-web` only)
-- [ ] `libs/ui/playback/src/lib/art-player/art-player.component.ts`
-- [ ] `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
-- [ ] `libs/ui/playback/src/lib/external-player-info-dialog/external-player-info-dialog.component.ts`
-- [ ] `libs/ui/playback/src/lib/html-video-player/html-video-player.component.ts`
-- [ ] `libs/ui/playback/src/lib/video-player/sidebar/sidebar.component.ts`
-- [ ] `libs/ui/playback/src/lib/vjs-player/vjs-player.component.ts`
-- [ ] `libs/ui/playback/src/lib/vod-details/vod-details.component.ts`
-- [ ] `libs/ui/playback/src/lib/web-player-view/web-player-view.component.ts`
+- [x] `libs/ui/playback/src/lib/art-player/art-player.component.ts`
+- [x] `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
+- [x] `libs/ui/playback/src/lib/external-player-info-dialog/external-player-info-dialog.component.ts`
+- [x] `libs/ui/playback/src/lib/html-video-player/html-video-player.component.ts`
+- [x] `libs/ui/playback/src/lib/video-player/sidebar/sidebar.component.ts`
+- [x] `libs/ui/playback/src/lib/vjs-player/vjs-player.component.ts`
+- [x] `libs/ui/playback/src/lib/vod-details/vod-details.component.ts`
+- [x] `libs/ui/playback/src/lib/web-player-view/web-player-view.component.ts`
 
 `libs/ui/playback` (8) goes with the playback PR, not the `libs/ui` one.
 
@@ -131,8 +131,8 @@ files that still contain `ChangeDetectionStrategy.Eager`.
 - [ ] `libs/playlist/import/feature/src/lib/text-import/text-import.component.ts`
 - [ ] `libs/playlist/import/feature/src/lib/url-upload/url-upload.component.ts`
 - [ ] `libs/playlist/import/feature/src/lib/xtream-code-import/xtream-code-import.component.ts`
-- [ ] `libs/playlist/m3u/feature-player/src/lib/m3u-vod-detail/m3u-vod-detail.component.ts`
-- [ ] `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts`
+- [x] `libs/playlist/m3u/feature-player/src/lib/m3u-vod-detail/m3u-vod-detail.component.ts`
+- [x] `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts`
 - [ ] `libs/playlist/shared/ui/src/lib/recent-playlists/empty-state/empty-state.component.ts`
 - [ ] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts`
 - [ ] `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts`
@@ -165,8 +165,8 @@ the field a signal (or a `computed`), or writes it through one.
 
 | Done | Site | What depends on the zone | Owning PR |
 | --- | --- | --- | --- |
-| [ ] | `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts` `onChannelNumberInput`/`clearChannelNumberInput` | 2 s `window.setTimeout` hides the channel-number overlay through plain `showChannelNumberOverlay`/`channelNumberInput` | playback |
-| [ ] | same file, `applySettings` and the settings `effect()` | IndexedDB `storage.get(...).subscribe` and an effect assign plain `playerSettings`, which picks the player in the template | playback |
+| [x] | `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.ts` `onChannelNumberInput`/`clearChannelNumberInput` | 2 s `window.setTimeout` hides the channel-number overlay through plain `showChannelNumberOverlay`/`channelNumberInput` | playback |
+| [x] | same file, `applySettings` and the settings `effect()` | IndexedDB `storage.get(...).subscribe` and an effect assign plain `playerSettings`, which picks the player in the template | playback |
 | [ ] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-item/playlist-item.component.ts` `checkPortalStatus` | plain `portalStatus` assigned after `await` in `ngOnInit` (PWA only: skipped when source health is supported) | playlist |
 | [ ] | `libs/playlist/shared/ui/src/lib/recent-playlists/playlist-info/playlist-info.component.ts` (EPG clear and EPG file pick handlers) | plain `playlist` reassigned after `await` | playlist |
 | [ ] | `libs/playlist/import/feature/src/lib/stalker-portal-import/stalker-portal-import.component.ts` (device-id derivation) | `form.patchValue` after `await`; template getters read `control.value`, which is not signal-backed | playlist |
@@ -185,7 +185,7 @@ before: with zone.js on they still matter.
 - [ ] `apps/web/src/app/settings/settings-unload-guard.service.ts`: two
   `zone.run` calls around the window-close dialog (IPC
   `onWindowCloseRequested` and `beforeunload`).
-- [ ] `libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts`:
+- [x] `libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts`:
   `runOutsideAngular(() => setInterval(...))` for the position poll;
   `embedded-mpv-session-controller.position.spec.ts` asserts the call and
   changes with it.
