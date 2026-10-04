@@ -157,6 +157,27 @@ describe('EmbeddedMpvPlayerComponent dock panels', () => {
         expect(boundsProvider()(HOST_STUB)).toEqual(FULL_BOUNDS);
     });
 
+    it('keeps Windows video geometry unchanged when the controls overlay toggles', () => {
+        controller.support.update((support) => ({
+            ...support,
+            supported: true,
+            platform: 'win32',
+        }));
+        player.controlsVisible.set(true);
+        fixture.detectChanges();
+        const visible = boundsProvider()(HOST_STUB);
+        expect(visible).toEqual({ ...FULL_BOUNDS, controlsInsetBottom: 64 });
+        player.controlsVisible.set(false);
+        fixture.detectChanges();
+        expect(boundsProvider()(HOST_STUB)).toEqual({
+            ...FULL_BOUNDS,
+            controlsInsetBottom: 0,
+        });
+        player.menus.open('audio');
+        fixture.detectChanges();
+        expect(boundsProvider()(HOST_STUB)).toEqual(visible);
+    });
+
     it('morphs the dock row into a horizontal audio panel with menu roles', () => {
         query('[data-embedded-mpv-menu-button="audio"]').nativeElement.click();
         fixture.detectChanges();

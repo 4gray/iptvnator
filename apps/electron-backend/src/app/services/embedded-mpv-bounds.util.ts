@@ -44,6 +44,13 @@ export function toNativeViewBounds(
         y: top,
         width: Math.max(1, right - left),
         height: Math.max(1, bottom - top),
+        ...(bounds.controlsInsetBottom !== undefined
+            ? {
+                  controlsInsetBottom: Math.round(
+                      bounds.controlsInsetBottom * scale
+                  ),
+              }
+            : {}),
     };
 }
 

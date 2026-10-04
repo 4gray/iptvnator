@@ -9,6 +9,8 @@ export interface EmbeddedMpvBounds {
     y: number;
     width: number;
     height: number;
+    /** Windows native drawing cutout for an overlaid controls dock, in CSS pixels. */
+    controlsInsetBottom?: number;
 }
 
 export interface EmbeddedMpvCapabilities {

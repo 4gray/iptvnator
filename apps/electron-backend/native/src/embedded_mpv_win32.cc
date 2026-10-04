@@ -133,6 +133,19 @@ public:
             height,
             SWP_NOACTIVATE | SWP_SHOWWINDOW
         );
+
+        // Clip drawing behind the DOM dock without changing MPV's render size.
+        // SetWindowRgn owns the region after success; resetting restores video.
+        const int inset = std::isfinite(bounds.controlsInsetBottom)
+            ? static_cast<int>(std::lround(std::clamp(
+                bounds.controlsInsetBottom, 0.0, static_cast<double>(height))))
+            : 0;
+        HRGN region = inset > 0
+            ? CreateRectRgn(0, 0, width, height - inset)
+            : nullptr;
+        if (!SetWindowRgn(window_, region, TRUE) && region) {
+            DeleteObject(region);
+        }
     }
 
     std::string wid() const

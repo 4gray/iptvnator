@@ -168,6 +168,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly isFrameCopyEngine = computed(
         () => this.support()?.engine === 'frame-copy'
     );
+    readonly usesNativeOverlayDock = computed(
+        () => this.support()?.platform === 'win32' && !this.isFrameCopyEngine()
+    );
     readonly capabilities = computed(
         () =>
             this.support()?.capabilities ?? {
@@ -512,7 +515,26 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             // Control menus render as horizontal panels inside the
             // fixed-height dock strip below the video host, so open menus
             // never require shrinking the native MPV view.
-            return measureBounds(host);
+            const bounds = measureBounds(host);
+            if (this.usesNativeOverlayDock()) {
+                const root = this.playerRoot()?.nativeElement;
+                const dockHeight = root
+                    ? Number.parseFloat(
+                          getComputedStyle(root).getPropertyValue(
+                              '--embedded-mpv-controls-height'
+                          )
+                      )
+                    : 64;
+                return {
+                    ...bounds,
+                    controlsInsetBottom: this.controlsAreVisible()
+                        ? Number.isFinite(dockHeight)
+                            ? dockHeight
+                            : 64
+                        : 0,
+                };
+            }
+            return bounds;
         });
 
         this.shortcuts.attach({
@@ -559,6 +581,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         effect(() => {
             this.overlayVisibility.overlayActive();
+            this.controlsAreVisible();
             this.controller.triggerBoundsSync();
         });
 

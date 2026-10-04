@@ -443,6 +443,7 @@ Bounds readBounds(const Napi::Object& object)
         readOptionalNumber(object, "y", 0),
         readOptionalNumber(object, "width", 1),
         readOptionalNumber(object, "height", 1),
+        readOptionalNumber(object, "controlsInsetBottom", 0),
     };
 }
 

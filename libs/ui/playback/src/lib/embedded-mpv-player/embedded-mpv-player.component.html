@@ -1,6 +1,7 @@
 <div
     #playerRoot
     class="embedded-mpv-player"
+    [class.embedded-mpv-player--overlay-dock]="usesNativeOverlayDock()"
     [class.embedded-mpv-player--fullscreen]="isFullscreen()"
     [class.embedded-mpv-player--controls-enabled]="
         !isFrameCopyEngine() && showControls() && isSupported()
