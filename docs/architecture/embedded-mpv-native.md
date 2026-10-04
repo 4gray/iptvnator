@@ -42,7 +42,18 @@ Inline bounds updates are retained for restoration while floating-window bounds
 use that window's display scale. Closing or returning reparents the video before
 destroying the floating window; session disposal closes it as well. The local
 sandboxed controls page has a minimal preload and accepts commands only from
-its own webContents. Frame-copy and other platforms do not advertise this mode.
+its own webContents. A transparent owned window overlays the native video,
+following its bounds and appearing on hover or control focus. The video window
+is frameless; the overlay supplies drag, minimize, return and close controls.
+Both windows are disposed together. Native video always uses the full content
+area, including while controls are visible. Edge hit testing passes through the
+overlay for resizing. Frame-copy and other platforms do not advertise this mode.
+
+MPV reports `seekable` and actual `demuxer-cache-state.seekable-ranges` in its
+snapshot. Floating VOD seeking requires seekability plus a finite duration;
+live seeking uses only the cache range containing the playhead. Estimated
+buffer duration is never a seek capability. Main-process command handling
+clamps seeks to the current allowed range and rejects seeks without one.
 
 Embedded MPV has two rendering paths. The native-view engine renders into an
 app-owned platform video surface: macOS uses the libmpv render API in an

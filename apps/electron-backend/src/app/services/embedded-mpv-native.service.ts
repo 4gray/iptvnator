@@ -12,6 +12,7 @@ import { createRequire } from 'module';
 import path from 'path';
 import App from '../app';
 import { EmbeddedMpvFloatingPlayer } from './embedded-mpv-floating.service';
+import { floatingPlaybackState } from './floating-playback-state';
 import {
     EmbeddedMpvAudioTrack,
     EmbeddedMpvBounds,
@@ -63,6 +64,8 @@ import {
 } from './embedded-mpv-runtime-policy.util';
 
 export interface NativeEmbeddedMpvSessionSnapshot {
+    seekable?: boolean;
+    seekableRanges?: { start: number; end: number }[];
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;
@@ -736,6 +739,7 @@ export class EmbeddedMpvNativeService {
         togglePaused: (id) =>
             this.setPaused(id, this.refreshSession(id)?.status !== 'paused'),
         setVolume: (id, volume) => this.setVolume(id, volume),
+        seek: (id, seconds) => this.seek(id, seconds),
     });
 
     openFloatingPlayer(sessionId: string): Promise<boolean> {
@@ -1305,6 +1309,8 @@ export class EmbeddedMpvNativeService {
         this.reportRejectedOptions(session, snapshot);
 
         const payload: EmbeddedMpvSession = {
+            seekable: snapshot.seekable === true,
+            seekableRanges: snapshot.seekableRanges ?? [],
             id: session.id,
             title: session.title,
             streamUrl: snapshot.streamUrl || session.streamUrl,
@@ -1488,8 +1494,16 @@ export class EmbeddedMpvNativeService {
         App.mainWindow.webContents.send(EMBEDDED_MPV_SESSION_UPDATE, session);
         this.floatingPlayer.update(
             session.id,
-            session.status === 'paused',
-            session.volume
+            floatingPlaybackState(
+                session.status === 'paused',
+                session.volume,
+                this.sessions.get(session.id)?.reconnect.playback?.isLive !==
+                    false,
+                session.positionSeconds,
+                session.durationSeconds,
+                session.seekable === true,
+                session.seekableRanges
+            )
         );
     }
 

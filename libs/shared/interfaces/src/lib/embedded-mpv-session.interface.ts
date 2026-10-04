@@ -138,6 +138,8 @@ export interface EmbeddedMpvRecordingStartOptions {
 }
 
 export interface EmbeddedMpvSession {
+    seekable?: boolean;
+    seekableRanges?: { start: number; end: number }[];
     id: string;
     title: string;
     streamUrl: string;
