@@ -11,7 +11,6 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
-import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -27,10 +26,12 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService } from '@iptvnator/services';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
+import { WorkspaceBackNavigationService } from '@iptvnator/portal/shared/data-access';
 import {
     buildXtreamNavigationTarget,
     isWorkspaceLayoutRoute,
     queryParamSignal,
+    workspacePortalCommands,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { SearchFilters } from '@iptvnator/portal/xtream/data-access';
@@ -108,7 +109,7 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
-    private readonly location = inject(Location);
+    private readonly backNavigation = inject(WorkspaceBackNavigationService);
     private readonly logger = createLogger('XtreamSearchResults');
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
     readonly routeSearchTerm = queryParamSignal(
@@ -538,8 +539,11 @@ export class SearchResultsComponent implements AfterViewInit {
         this.dialogRef?.close();
     }
 
+    /** History Back; the portal's default section when it opened the session. */
     goBack(): void {
-        this.location.back();
+        this.backNavigation.back(() =>
+            workspacePortalCommands(this.activatedRoute, 'xtreams')
+        );
     }
 
     toggleGroupByPlaylist(value: boolean) {

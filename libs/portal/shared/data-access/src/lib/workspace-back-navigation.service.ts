@@ -7,6 +7,7 @@ import {
     InjectionToken,
     signal,
 } from '@angular/core';
+import { Router } from '@angular/router';
 import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 
 /** The parts of the browser's Navigation API the history fallback reads. */
@@ -29,6 +30,12 @@ export const WORKSPACE_HISTORY_NAVIGATION =
     );
 
 /**
+ * Where a page's Back leads when there is no in-app history: a URL or router
+ * commands. Null keeps browser history.
+ */
+export type WorkspaceBackParent = string | readonly string[] | null;
+
+/**
  * True when the previous history entry belongs to this document, i.e. the
  * router pushed it in this app session. Entries from before a reload or from
  * another page of the origin are excluded, so the fallback never leaves the
@@ -49,6 +56,8 @@ function hasInAppPreviousEntry(history: WorkspaceHistoryNavigation): boolean {
 @Injectable({ providedIn: 'root' })
 export class WorkspaceBackNavigationService {
     private readonly location = inject(Location);
+    private readonly router = inject(Router);
+    private readonly history = inject(WORKSPACE_HISTORY_NAVIGATION);
     private readonly targets = signal<readonly WorkspaceBackTarget[]>([]);
     private readonly canGoBackInApp = signal(false);
 
@@ -73,7 +82,7 @@ export class WorkspaceBackNavigationService {
     });
 
     constructor() {
-        const history = inject(WORKSPACE_HISTORY_NAVIGATION);
+        const history = this.history;
         if (!history) return;
         // Fires for router pushes and replacements and for traversals,
         // including a guard-cancelled Back that the router rewrites.
@@ -84,6 +93,24 @@ export class WorkspaceBackNavigationService {
         inject(DestroyRef).onDestroy(() =>
             history.removeEventListener('currententrychange', sync)
         );
+    }
+
+    /**
+     * Back for a page with a parent route. Browser history while the previous
+     * entry is an in-app one, and while that is unknown (no Navigation API).
+     * Otherwise the page opened the session (deep link, reload, restored
+     * view), where `Location.back()` would do nothing in Electron or leave
+     * the app in a browser: the parent replaces the current entry, so
+     * history Back cannot return to the page just left.
+     */
+    back(
+        resolveParent: () => WorkspaceBackParent | Promise<WorkspaceBackParent>
+    ): void {
+        if (!this.history || this.canGoBackInApp()) {
+            this.location.back();
+            return;
+        }
+        void this.openParent(resolveParent);
     }
 
     /**
@@ -108,5 +135,18 @@ export class WorkspaceBackNavigationService {
         if (!target) return false;
         target.run();
         return true;
+    }
+
+    private async openParent(
+        resolveParent: () => WorkspaceBackParent | Promise<WorkspaceBackParent>
+    ): Promise<void> {
+        const parent = await resolveParent();
+        if (parent === null) {
+            this.location.back();
+        } else if (typeof parent === 'string') {
+            await this.router.navigateByUrl(parent, { replaceUrl: true });
+        } else {
+            await this.router.navigate([...parent], { replaceUrl: true });
+        }
     }
 }

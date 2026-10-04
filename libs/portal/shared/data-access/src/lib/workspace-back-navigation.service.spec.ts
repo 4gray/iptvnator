@@ -1,6 +1,7 @@
 import { Location } from '@angular/common';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { WorkspaceBackTarget } from '@iptvnator/portal/shared/util';
 import {
     WORKSPACE_HISTORY_NAVIGATION,
@@ -42,15 +43,20 @@ class FakeHistory extends EventTarget {
 
 describe('WorkspaceBackNavigationService', () => {
     const back = jest.fn();
+    const navigate = jest.fn().mockResolvedValue(true);
+    const navigateByUrl = jest.fn().mockResolvedValue(true);
 
     function createService(
         history: FakeHistory | null = null
     ): WorkspaceBackNavigationService {
         back.mockReset();
+        navigate.mockClear();
+        navigateByUrl.mockClear();
         TestBed.resetTestingModule();
         TestBed.configureTestingModule({
             providers: [
                 { provide: Location, useValue: { back } },
+                { provide: Router, useValue: { navigate, navigateByUrl } },
                 {
                     provide: WORKSPACE_HISTORY_NAVIGATION,
                     useValue: history as unknown as WorkspaceHistoryNavigation,
@@ -200,6 +206,82 @@ describe('WorkspaceBackNavigationService', () => {
                 'currententrychange',
                 expect.any(Function)
             );
+        });
+    });
+
+    describe('back to a parent', () => {
+        it('goes back in history while the previous entry is in-app', () => {
+            const history = new FakeHistory();
+            const service = createService(history);
+            history.push();
+            const parent = jest.fn(() => '/workspace/dashboard');
+
+            service.back(parent);
+
+            expect(back).toHaveBeenCalledTimes(1);
+            expect(parent).not.toHaveBeenCalled();
+            expect(navigateByUrl).not.toHaveBeenCalled();
+        });
+
+        it('opens the parent in place of a page that opened the session', async () => {
+            const service = createService(new FakeHistory());
+
+            service.back(() => '/workspace/dashboard');
+            await Promise.resolve();
+
+            // Replacing keeps history Back from returning to the page.
+            expect(navigateByUrl).toHaveBeenCalledWith('/workspace/dashboard', {
+                replaceUrl: true,
+            });
+            expect(back).not.toHaveBeenCalled();
+        });
+
+        it('opens the parent after a reload, whose old entries do not count', async () => {
+            const service = createService(new FakeHistory([false, true]));
+
+            service.back(() => ['/workspace', 'xtreams', 'pl/1', 'vod']);
+            await Promise.resolve();
+
+            expect(navigate).toHaveBeenCalledWith(
+                ['/workspace', 'xtreams', 'pl/1', 'vod'],
+                { replaceUrl: true }
+            );
+            expect(back).not.toHaveBeenCalled();
+        });
+
+        it('waits for a parent that resolves asynchronously', async () => {
+            const service = createService(new FakeHistory());
+
+            service.back(() => Promise.resolve('/workspace/sources'));
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(navigateByUrl).toHaveBeenCalledWith('/workspace/sources', {
+                replaceUrl: true,
+            });
+        });
+
+        it('keeps browser history when the page knows no parent', async () => {
+            const service = createService(new FakeHistory());
+
+            service.back(() => null);
+            await Promise.resolve();
+
+            expect(back).toHaveBeenCalledTimes(1);
+            expect(navigate).not.toHaveBeenCalled();
+            expect(navigateByUrl).not.toHaveBeenCalled();
+        });
+
+        it('keeps browser history without the Navigation API', () => {
+            // The history is unknown there, so a reached page must not
+            // jump to its parent.
+            const service = createService(null);
+            const parent = jest.fn(() => '/workspace/dashboard');
+
+            service.back(parent);
+
+            expect(back).toHaveBeenCalledTimes(1);
+            expect(parent).not.toHaveBeenCalled();
         });
     });
 });

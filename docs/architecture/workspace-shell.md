@@ -146,9 +146,9 @@ label (else the translated "Back"), whether Escape on the page runs it, and
 | Page | Registered by | Back runs | ≤640 px |
 | --- | --- | --- | --- |
 | Portal, collection, offline and recording details | `PortalDetailShellComponent` while `backAvailable()` | the host's `backClicked` | replaces the drawer toggle |
-| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's `Location.back()` | (no drawer) |
-| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | `Location.back()` | (no drawer) |
-| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | `Location.back()` | beside the drawer toggle |
+| Xtream and Stalker Discover and actor pages | `DiscoverViewComponent`, `ActorViewComponent` | the route's history Back; parent: the catalog section Discover lists (`vod` for movies, `series` for TV), the portal's default section for actor | (no drawer) |
+| In-portal search, Xtream and Stalker | `SearchLayoutComponent` while `backAvailable()` and no inline detail replaces the results | history Back; parent: the portal's default section | (no drawer) |
+| Settings | `WorkspaceSettingsContextPanelComponent`, which exists exactly while the settings route shows | history Back; parent: the first workspace view (`WorkspaceStartupPreferencesService.resolveDashboardPath()`: the dashboard, or sources when it is hidden) | beside the drawer toggle |
 
 Detail-page semantics (Escape, browse and watch) are in
 [Portal Detail Navigation](./portal-detail-navigation.md#detail-scroll-and-focus).
@@ -166,6 +166,24 @@ fallback; registered pages are unaffected. The fallback reads "Back" and
 advertises no Escape, because no page handles one for it. Pages that set
 `backAvailable=false`, such as M3U details, therefore show it too when they
 were reached by navigation.
+
+**Parent fallback.** "Parent" in the table above: a registered page whose
+Back is history Back calls `WorkspaceBackNavigationService.back(resolveParent)`
+instead of `Location.back()`. It runs `Location.back()` while the previous
+entry is an in-app one, by the same Navigation API test as the history
+fallback, and also when that is unknown because the API is missing: there a
+page reached in the app must not jump to its parent. Otherwise the page opened
+the session (a deep link, a reload or a restored view), where
+`Location.back()` does nothing in Electron and leaves the app in a browser.
+The service then navigates to the page's parent with `replaceUrl`, so history
+Back cannot return to the page just left; with nothing in-app before it, the
+parent shows no history fallback. The resolver returns a URL or router commands, may be asynchronous, and
+returns null when the page knows no parent, which keeps `Location.back()`.
+Portal pages build their parent with `workspacePortalCommands()`
+(`@iptvnator/portal/shared/util`) from the route's `:id`; without a section,
+the portal route's `redirectTo` picks the default section within the same
+navigation, so the replacement still applies. Detail pages keep their own
+return logic (`backClicked`).
 
 When there is nowhere to go, the slot is empty rather than a disabled arrow.
 Sessions often start on a page that never navigates (an M3U playlist or live
